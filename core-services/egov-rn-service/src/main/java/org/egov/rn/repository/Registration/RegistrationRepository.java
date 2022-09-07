@@ -27,14 +27,14 @@ public class RegistrationRepository {
         return (List<RegistrationData>) jdbcTemplate.query("SELECT * FROM eg_rn_household", preparedStmtList.toArray(), rowMapper);
     }
 
-    public List<RegistrationData> getRegistrationsBy(String registrationId){
+    public List<RegistrationData> getRegistrationsBy(String registrationId) {
         String sql = "SELECT * FROM eg_rn_household WHERE ID = ?";
         RegistrationData registrationData = (RegistrationData) jdbcTemplate.queryForObject(
                 sql,
                 new Object[]{registrationId},
                 new BeanPropertyRowMapper(RegistrationData.class));
         return new ArrayList<RegistrationData>(Arrays.asList(registrationData));
-
+    }
 
     public List<RegistrationData> getRegistrationPast(Long lastModifiedTime) {
         String sql = "SELECT * FROM eg_rn_household WHERE  lastmodifiedtime > "+lastModifiedTime;
