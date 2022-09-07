@@ -63,42 +63,20 @@ paths:
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
       tags:
         - Registration
-  /registration/v1/_list/{registrationId}:
-    get:
-      summary: Get registration by Id.
-      description: Get registration by Id Ok response is returned.
-      parameters:
-        - name: registrationId
-          in: path
-          description: ID of registration to return
-          required: true
-          type: string
-      responses:
-        '200':
-          description: Feteched Registration Data.
-          schema:
-            $ref: '#/definitions/RegistrationData'
-        '400':
-          description: Bad request
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
-        '500':
-          description: Internal server error
-          schema:
-            $ref: >-
-              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
-      tags:
-        - Registration
   /registration/v1/_search:
-    get:
+    post:
       summary: Search Registrations.
       description: Search Registrations Ok response is returned.
       parameters:
         - name: lastModifiedTime
           in: query
           description: Last Modified Time for the Registration
-          required: true
+          required: false
+          type: string
+        - name: registrationId
+          in: query
+          description: Registration Id for the Registration
+          required: false
           type: string
       responses:
         '200':
