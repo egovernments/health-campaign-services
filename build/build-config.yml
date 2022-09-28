@@ -18,10 +18,10 @@
 # -
 config:
 # Core Services
-  - name: "builds/health-DIGIT-OSS/core-services/egov-rn-service"
+  - name: "builds/health-campaign-services/health-services/health-sync-service"
     build:
-      - work-dir: "core-services/egov-rn-service"
-        image-name: "egov-rn-service"
+      - work-dir: "health-services/health-sync-service"
+        image-name: "health-sync-service"
         dockerfile: "build/maven/Dockerfile"
-      - work-dir: "core-services/egov-rn-service/src/main/resources/db"
-        image-name: "egov-rn-service-db"
+      - work-dir: "health-services/health-sync-service/src/main/resources/db"
+        image-name: "health-sync-service-db"
