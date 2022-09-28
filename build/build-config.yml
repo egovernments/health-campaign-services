@@ -18,10 +18,10 @@
 # -
 config:
 # Core Services
-  - name: "builds/health-campaign-services/health-services/health-sync-service"
+  - name: "builds/health-campaign-services/digit-health-services/health-sync-service"
     build:
-      - work-dir: "health-services/health-sync-service"
+      - work-dir: "digit-health-services/health-sync-service"
         image-name: "health-sync-service"
         dockerfile: "build/maven/Dockerfile"
-      - work-dir: "health-services/health-sync-service/src/main/resources/db"
+      - work-dir: "digit-health-services/health-sync-service/src/main/resources/db"
         image-name: "health-sync-service-db"
