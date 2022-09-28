@@ -13,10 +13,10 @@ import javax.validation.Valid;
 
 @Controller
 @Slf4j
-@RequestMapping("/sync/v1/file")
+@RequestMapping("/sync/v1")
 public class SyncController {
 
-    @PostMapping("/_create")
+    @PostMapping("/up")
     public ResponseEntity<String> syncUp(@RequestBody @Valid SyncRequest syncRequest) {
         log.info("Logged Sync Request",syncRequest.getRequestInfo().toString());
         return ResponseEntity.ok("Sync request submitted");
