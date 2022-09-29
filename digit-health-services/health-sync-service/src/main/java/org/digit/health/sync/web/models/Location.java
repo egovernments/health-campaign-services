@@ -5,20 +5,19 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.request.RequestInfo;
-
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SyncUpRequest {
-    @JsonProperty("requestInfo")
-    private RequestInfo requestInfo;
+public class Location {
 
-    @JsonProperty("syncUpData")
-    private List<SyncUpData> syncUpData;
+    @JsonProperty("latitude")
+    private double latitude;
 
+    @JsonProperty("longitude")
+    private double longitude;
 
+    @JsonProperty("accuracy")
+    private double accuracy;
 }

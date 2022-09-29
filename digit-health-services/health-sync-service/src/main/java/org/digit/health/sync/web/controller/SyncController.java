@@ -17,7 +17,7 @@ public class SyncController {
 
     @PostMapping("/up")
     public ResponseEntity<String> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
-        log.info("Logged Sync Request", syncUpRequest.getRequestInfo().toString());
-        return ResponseEntity.ok("Sync request submitted");
+        log.info("Logged Sync up Request {}", syncUpRequest.toString());
+        return ResponseEntity.ok("Sync up request submitted");
     }
 }

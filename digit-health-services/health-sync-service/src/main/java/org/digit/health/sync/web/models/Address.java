@@ -5,20 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.request.RequestInfo;
-
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SyncUpRequest {
-    @JsonProperty("requestInfo")
-    private RequestInfo requestInfo;
+public class Address {
 
-    @JsonProperty("syncUpData")
-    private List<SyncUpData> syncUpData;
+    @JsonProperty("addressId")
+    private String addressId;
 
-
+    @JsonProperty("addressText")
+    private String addressText;
 }

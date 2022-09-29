@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.request.RequestInfo;
 
 import java.util.List;
 
@@ -13,12 +12,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SyncUpRequest {
-    @JsonProperty("requestInfo")
-    private RequestInfo requestInfo;
+public class SyncUpData {
+    @JsonProperty("type")
+    private String type;
 
-    @JsonProperty("syncUpData")
-    private List<SyncUpData> syncUpData;
-
-
+    @JsonProperty("items")
+    private List<Object> items;
 }
