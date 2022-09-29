@@ -13,9 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class SyncUpData {
-    @JsonProperty("type")
-    private String type;
 
     @JsonProperty("items")
-    private List<Object> items;
+    private List<CampaignData> items;
 }

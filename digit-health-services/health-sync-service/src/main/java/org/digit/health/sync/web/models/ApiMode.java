@@ -1,5 +1,5 @@
 package org.digit.health.sync.web.models;
 
-public enum Mode {
+public enum ApiMode {
     CREATE, UPDATE, DELETE
 }

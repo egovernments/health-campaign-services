@@ -1,10 +1,11 @@
-package org.digit.health.sync.web.models;
+package org.digit.health.sync.web.models.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.digit.health.sync.web.models.SyncUpData;
 import org.egov.common.contract.request.RequestInfo;
 
 import java.util.List;

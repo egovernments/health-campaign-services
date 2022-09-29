@@ -1,7 +1,9 @@
 package org.digit.health.sync.web.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.digit.health.sync.web.models.SyncUpRequest;
+import org.digit.health.sync.utils.ModelMapper;
+import org.digit.health.sync.web.models.request.SyncUpRequest;
+import org.digit.health.sync.web.models.response.SyncUpResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,8 +18,12 @@ import javax.validation.Valid;
 public class SyncController {
 
     @PostMapping("/up")
-    public ResponseEntity<String> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
-        log.info("Logged Sync up Request {}", syncUpRequest.toString());
-        return ResponseEntity.ok("Sync up request submitted");
+    public ResponseEntity<SyncUpResponse> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
+        log.info("Sync up request {}", syncUpRequest.toString());
+        return ResponseEntity.accepted().body(SyncUpResponse.builder()
+                .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(syncUpRequest
+                        .getRequestInfo(), true))
+                .syncId("dummy-id")
+                .build());
     }
 }
