@@ -16,11 +16,20 @@ public class HouseholdRegistration {
     @JsonProperty("householdId")
     private String householdId;
 
+    @JsonProperty("clientReferenceId")
     private String clientReferenceId;
 
+    @JsonProperty("campaignId")
     private String campaignId;
 
+    @JsonProperty("tenantId")
     private String tenantId;
+
+    @JsonProperty("mode")
+    private Mode mode;
+
+    @JsonProperty("administrativeUnit")
+    private String administrativeUnit;
 
     @JsonProperty("numberOfIndividuals")
     private int numberOfIndividuals;
@@ -37,7 +46,9 @@ public class HouseholdRegistration {
     @JsonProperty("individuals")
     private List<Individual> individuals;
 
-    private Mode mode;
-
+    @JsonProperty("additionalFields")
     private String additionalFields;
+
+    @JsonProperty("auditDetails")
+    private AuditDetails auditDetails;
 }
