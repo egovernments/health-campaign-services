@@ -1,0 +1,47 @@
+serviceMaps:
+  serviceName: Health Sync Service
+  mappings:
+    - version: 1.0
+      name: health-sync-service
+      description: Persists sync log into the database
+      fromTopic: health-sync-log
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO sync_log(id,referenceId,referenceIdType,tenantId,fileStoreId,checksum,status,comment,totalCount,successCount,errorCount,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.syncId
+            - jsonPath: $.referenceId.id
+            - jsonPath: $.referenceId.type
+            - jsonPath: $.tenantId
+            - jsonPath: $.fileDetails.fileStoreId
+            - jsonPath: $.fileDetails.checksum
+            - jsonPath: $.status
+            - jsonPath: $.comment
+            - jsonPath: $.totalCount
+            - jsonPath: $.successCount
+            - jsonPath: $.errorCount
+            - jsonPath: $.auditDetails.createdBy
+            - jsonPath: $.auditDetails.lastModifiedBy
+            - jsonPath: $.auditDetails.createdTime
+            - jsonPath: $.auditDetails.lastModifiedTime
+    - version: 1.0
+      name: health-sync-service
+      description: Persists sync error details log into the database
+      fromTopic: health-sync-error-details-log
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO sync_error_details_log(id,syncLogId,tenantId,recordId,recordIdType,errorCodes,errorMessages,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.syncErrorDetailsId
+            - jsonPath: $.syncId
+            - jsonPath: $.tenantId
+            - jsonPath: $.recordId
+            - jsonPath: $.recordIdType
+            - jsonPath: $.errorCodes
+            - jsonPath: $.errorMessages
+            - jsonPath: $.auditDetails.createdBy
+            - jsonPath: $.auditDetails.lastModifiedBy
+            - jsonPath: $.auditDetails.createdTime
+            - jsonPath: $.auditDetails.lastModifiedTime
