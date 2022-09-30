@@ -11,9 +11,10 @@ import java.io.InputStream;
 
 @Service
 public class CompressionService {
-    @Autowired
+
     private final Compressor compressor;
 
+    @Autowired
     public CompressionService(Compressor compressor){
         this.compressor = compressor;
     }
