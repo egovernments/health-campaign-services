@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class Producer {
-    private CustomKafkaTemplate<String, Object> kafkaTemplate;
+    private final CustomKafkaTemplate<String, Object> kafkaTemplate;
 
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate, ObjectMapper objectMapper) {
@@ -24,8 +24,8 @@ public class Producer {
     public void send(String topic, Object payload) {
         try {
             String json = objectMapper.writeValueAsString(payload);
-            log.debug(json);
-            kafkaTemplate.send(topic, objectMapper.writeValueAsString(payload));
+            log.info(json);
+            kafkaTemplate.send(topic, json);
         } catch (Exception ex) {
             throw new ProducerException("Topic: " + topic + " " +
                     ex.getMessage(), ex);
