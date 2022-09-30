@@ -19,11 +19,20 @@ public class Individual {
     @JsonProperty("name")
     private String name;
 
+    @JsonProperty("givenName")
+    private String givenName;
+
+    @JsonProperty("familyName")
+    private String familyName;
+
+    @JsonProperty("additionalName")
+    private String additionalName;
+
     @JsonProperty("dateOfBirth")
     private String dateOfBirth;
 
     @JsonProperty("gender")
-    private String gender;
+    private Gender gender;
 
     @JsonProperty("isHead")
     private boolean isHead;

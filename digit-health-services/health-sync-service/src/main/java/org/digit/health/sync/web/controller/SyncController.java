@@ -23,7 +23,7 @@ public class SyncController {
         return ResponseEntity.accepted().body(SyncUpResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(syncUpRequest
                         .getRequestInfo(), true))
-                .syncId("dummy-id")
+                .syncId("dummy-sync-id")
                 .build());
     }
 }
