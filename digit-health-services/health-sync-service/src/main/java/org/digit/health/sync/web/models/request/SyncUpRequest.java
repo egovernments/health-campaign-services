@@ -5,10 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.digit.health.sync.web.models.SyncUpData;
+import org.digit.health.sync.web.models.FileDetails;
+import org.digit.health.sync.web.models.ReferenceId;
 import org.egov.common.contract.request.RequestInfo;
-
-import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -18,8 +17,9 @@ public class SyncUpRequest {
     @JsonProperty("requestInfo")
     private RequestInfo requestInfo;
 
-    @JsonProperty("syncUpData")
-    private List<SyncUpData> syncUpData;
+    @JsonProperty("fileDetails")
+    private FileDetails fileDetails;
 
-
+    @JsonProperty("referenceId")
+    private ReferenceId referenceId;
 }

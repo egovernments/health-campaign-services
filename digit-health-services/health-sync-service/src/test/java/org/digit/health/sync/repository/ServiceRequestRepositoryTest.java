@@ -1,4 +1,4 @@
-package org.egov.rn.repository;
+package org.digit.health.sync.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.repository.ServiceRequestRepository;

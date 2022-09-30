@@ -1,4 +1,4 @@
-package org.egov.rn.kafka;
+package org.digit.health.sync.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.kafka.Producer;
