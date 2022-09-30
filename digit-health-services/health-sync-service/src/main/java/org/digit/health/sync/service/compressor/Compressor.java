@@ -1,4 +1,4 @@
-package org.digit.health.sync.service.compressionService.compressor;
+package org.digit.health.sync.service.compressor;
 
 import java.io.BufferedReader;
 import java.io.File;

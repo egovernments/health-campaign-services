@@ -1,15 +1,16 @@
-package org.digit.health.sync.service.compressionService;
+package org.digit.health.sync.service;
 
-import org.digit.health.sync.service.compressionService.compressor.Compressor;
+
+import org.digit.health.sync.service.compressor.Compressor;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class Compression {
+public class CompressionService {
     Compressor compressor;
 
-    public Compression(Compressor compressor){
+    public CompressionService(Compressor compressor){
         this.compressor = compressor;
     }
 

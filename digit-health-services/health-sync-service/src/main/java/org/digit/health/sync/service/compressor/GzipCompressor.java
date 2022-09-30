@@ -1,4 +1,4 @@
-package org.digit.health.sync.service.compressionService.compressor;
+package org.digit.health.sync.service.compressor;
 
 import java.io.*;
 import java.util.zip.GZIPInputStream;

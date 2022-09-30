@@ -1,8 +1,8 @@
 package org.egov.rn.service;
 
 
-import org.digit.health.sync.service.compressionService.Compression;
-import org.digit.health.sync.service.compressionService.compressor.GzipCompressor;
+import org.digit.health.sync.service.CompressionService;
+import org.digit.health.sync.service.compressor.GzipCompressor;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -17,10 +17,10 @@ public class CompressionServiceTest {
         ClassLoader classLoader = getClass().getClassLoader();
         File badGzipfile = new File(classLoader.getResource("compressionTestFiles/bad_file.json.gz").getFile());
         File textFile = new File(classLoader.getResource("compressionTestFiles/testfile.txt").getFile());
-        Compression compression = new Compression(new GzipCompressor());
+        CompressionService compressionService = new CompressionService(new GzipCompressor());
 
-        assertThrows(ZipException.class, () -> compression.decompress(new FileInputStream(badGzipfile)));
-        assertThrows(ZipException.class, () -> compression.decompress(new FileInputStream(textFile)));
+        assertThrows(ZipException.class, () -> compressionService.decompress(new FileInputStream(badGzipfile)));
+        assertThrows(ZipException.class, () -> compressionService.decompress(new FileInputStream(textFile)));
     }
 
     String convertBufferedReaderToString(BufferedReader br) throws IOException{
@@ -35,7 +35,7 @@ public class CompressionServiceTest {
         File gzipFile = new File(classLoader.getResource("compressionTestFiles/original.json.gz").getFile());
         File original = new File(classLoader.getResource("compressionTestFiles/original.json").getFile());
         File not_original = new File(classLoader.getResource("compressionTestFiles/not_original.json").getFile());
-        Compression compression = new Compression(new GzipCompressor());
+        CompressionService compression = new CompressionService(new GzipCompressor());
 
         BufferedReader decompressedFile = compression.decompress(new FileInputStream(gzipFile));
         BufferedReader originalFile = new BufferedReader(new InputStreamReader(new FileInputStream(original)));
