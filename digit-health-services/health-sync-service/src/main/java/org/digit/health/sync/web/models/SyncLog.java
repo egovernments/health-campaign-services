@@ -16,19 +16,13 @@ public class SyncLog {
 	private String syncId;
 
 	@JsonProperty("referenceId")
-	private String referenceId;
-
-	@JsonProperty("referenceIdType")
-	private String referenceIdType;
+	private ReferenceId referenceId;
 
 	@JsonProperty("tenantId")
 	private String tenantId;
 
-	@JsonProperty("fileStoreId")
-	private String fileStoreId;
-
-	@JsonProperty("checksum")
-	private String checksum;
+	@JsonProperty("fileDetails")
+	private FileDetails fileDetails;
 
 	@JsonProperty("status")
 	private SyncStatus status;
