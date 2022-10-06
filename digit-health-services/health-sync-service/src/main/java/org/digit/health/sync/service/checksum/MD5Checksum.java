@@ -13,7 +13,7 @@ import java.security.NoSuchAlgorithmException;
 public class MD5Checksum implements Checksum {
 
     @Override
-    public void validate(byte[] data, String checksum) {
+    public boolean validate(byte[] data, String checksum) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
             md.update(data);
@@ -22,8 +22,10 @@ public class MD5Checksum implements Checksum {
             if (!generatedChecksum.equalsIgnoreCase(checksum)) {
                 throw new CustomException("INVALID_CHECKSUM", "Checksum did not match");
             }
+            return true;
         } catch (NoSuchAlgorithmException exception) {
             log.error("NoSuchAlgorithmException", exception.getMessage());
         }
+        return false;
     }
 }

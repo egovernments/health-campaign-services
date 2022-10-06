@@ -59,8 +59,6 @@ public class FileSyncService implements SyncService {
             HashMap json = objectMapper.readValue(read(data), HashMap.class);
             log.info(json.entrySet().toString());
             persistSyncLog(syncLog);
-        } catch (NoSuchAlgorithmException ex) {
-            handleSyncError(syncLog, ex, "NO_ALGORITHM_FOUND");
         } catch (JsonProcessingException ex) {
             handleSyncError(syncLog, ex, "Invalid JSON");
         } catch (HttpServerErrorException | IOException ex) {

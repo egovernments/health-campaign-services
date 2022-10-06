@@ -1,0 +1,40 @@
+{
+  "createdAt": 0,
+  "modifiedAt": 0,
+  "createdBy": "",
+  "modifiedBy": "",
+  "numberOfRecords": "",
+  "individual": [
+    {
+      "id": "",
+      "firstName": "",
+      "middleName": "",
+      "lastName": "",
+      "dateOfBirth": "",
+      "gender": "",
+      "latitude": 0.0,
+      "longitude": 0.0,
+      "additionalDetails": "",
+      "createdAt": 0,
+      "modifiedAt": 0,
+      "createdBy": "",
+      "modifiedBy": "",
+      "sessionId": 0,
+      "sequenceId": 0
+    }
+  ],
+  "household": [
+    {
+      "id": "",
+      "numberOfMembers": 5,
+      "headOfHousehold": "",
+      "additionalDetails": "",
+      "createdAt": 0,
+      "modifiedAt": 0,
+      "createdBy": "",
+      "modifiedBy": "",
+      "sessionId": 0,
+      "sequenceId": 1
+    }
+  ]
+}
