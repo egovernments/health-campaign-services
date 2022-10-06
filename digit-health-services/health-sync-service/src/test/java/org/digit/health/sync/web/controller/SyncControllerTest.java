@@ -1,9 +1,9 @@
 package org.digit.health.sync.web.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.service.FileSyncService;
+import org.digit.health.sync.web.models.SyncId;
 import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
 import org.egov.tracer.model.CustomException;
@@ -11,14 +11,9 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.client.HttpServerErrorException;
 
-import java.io.IOException;
-
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,7 +39,7 @@ class SyncControllerTest {
                 .withFileDetails()
                 .build();
 
-        when(fileSyncService.sync(any(SyncUpDto.class))).thenReturn("id");
+        when(fileSyncService.syncUp(any(SyncUpDto.class))).thenReturn(SyncId.builder().syncId("id").build());
         mockMvc.perform(post("/sync/v1/up")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(syncUpRequest)))
@@ -61,7 +56,7 @@ class SyncControllerTest {
                 .withFileDetails()
                 .build();
 
-        when(fileSyncService.sync(any(SyncUpDto.class)))
+        when(fileSyncService.syncUp(any(SyncUpDto.class)))
                 .thenThrow(new CustomException("Invalid File","Invalid File"));
 
         mockMvc.perform(post("/sync/v1/up")

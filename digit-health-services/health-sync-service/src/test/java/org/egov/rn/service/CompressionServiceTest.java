@@ -1,6 +1,7 @@
 package org.egov.rn.service;
 
 
+import org.apache.commons.io.IOUtils;
 import org.digit.health.sync.service.CompressionService;
 import org.digit.health.sync.service.compressor.GzipCompressor;
 import org.junit.jupiter.api.Test;
@@ -19,14 +20,18 @@ public class CompressionServiceTest {
         File textFile = new File(classLoader.getResource("compressionTestFiles/testfile.txt").getFile());
         CompressionService compressionService = new CompressionService(new GzipCompressor());
 
-        assertThrows(ZipException.class, () -> compressionService.decompress(new FileInputStream(badGzipfile)));
-        assertThrows(ZipException.class, () -> compressionService.decompress(new FileInputStream(textFile)));
+        assertThrows(ZipException.class, () -> compressionService.decompress(IOUtils.toByteArray(new FileInputStream(badGzipfile))));
+        assertThrows(ZipException.class, () -> compressionService.decompress(IOUtils.toByteArray(new FileInputStream(textFile))));
     }
 
     String convertBufferedReaderToString(BufferedReader br) throws IOException{
         String response = new String();
         for (String line; (line = br.readLine()) != null; response += line);
         return response;
+    }
+
+    String convertByteArrayToString(byte[] br) throws IOException{
+        return org.apache.commons.io.IOUtils.toString(br);
     }
 
     @Test
@@ -37,11 +42,11 @@ public class CompressionServiceTest {
         File not_original = new File(classLoader.getResource("compressionTestFiles/not_original.json").getFile());
         CompressionService compression = new CompressionService(new GzipCompressor());
 
-        BufferedReader decompressedFile = compression.decompress(new FileInputStream(gzipFile));
-        BufferedReader originalFile = new BufferedReader(new InputStreamReader(new FileInputStream(original)));
-        BufferedReader not_originalFile = new BufferedReader(new InputStreamReader(new FileInputStream(not_original)));
+        byte[] decompressedFile = compression.decompress(IOUtils.toByteArray(new FileInputStream(gzipFile)));
+        byte[] originalFile =   IOUtils.toByteArray(new FileInputStream(original));
+        byte[] not_originalFile =  IOUtils.toByteArray(new FileInputStream(not_original));
 
-        assertEquals(convertBufferedReaderToString(decompressedFile), convertBufferedReaderToString(originalFile));
-        assertNotEquals(convertBufferedReaderToString(decompressedFile), convertBufferedReaderToString(not_originalFile));
+        assertEquals(convertByteArrayToString(decompressedFile), convertByteArrayToString(originalFile));
+        assertNotEquals(convertByteArrayToString(decompressedFile), convertByteArrayToString(not_originalFile));
     }
 }

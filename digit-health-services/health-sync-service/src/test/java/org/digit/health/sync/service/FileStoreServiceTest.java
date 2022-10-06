@@ -1,9 +1,5 @@
 package org.digit.health.sync.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.digit.health.sync.repository.ServiceRequestRepository;
-import org.digit.health.sync.service.checksum.MD5Checksum;
-import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,15 +8,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.http.*;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,7 +33,7 @@ class FileStoreServiceTest {
     }
 
     @Test
-    @DisplayName("Given File Store Id And Tenant Id Should Get Response")
+    @DisplayName("given file store id and tenant id should get response")
     public void givenFileStoreIdAndTenantIdShouldGetResponse() {
         String fileStoreId = "fileStoreId";
         String tenantId = "tenantId";
@@ -57,11 +49,10 @@ class FileStoreServiceTest {
     }
 
     @Test
-    @DisplayName("Should Throw Exception if File Store Service Call Fails")
+    @DisplayName("should throw exception if file store service call fails")
     public void shouldThrowExceptionIfFileStoreServiceCallFails() {
         String fileStoreId = "fileStoreId";
         String tenantId = "tenantId";
-        byte[] response = new byte[] {};
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_OCTET_STREAM));

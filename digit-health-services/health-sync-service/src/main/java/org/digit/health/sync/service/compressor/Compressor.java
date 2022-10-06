@@ -6,5 +6,5 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public interface Compressor {
-    BufferedReader decompress(InputStream stream) throws IOException;
+    byte[] decompress(byte[] data) throws IOException;
 }

@@ -4,16 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.kafka.Producer;
-import org.digit.health.sync.service.checksum.Checksum;
-import org.digit.health.sync.service.checksum.MD5Checksum;
+import org.digit.health.sync.service.checksum.ChecksumValidator;
+import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.Compressor;
 import org.digit.health.sync.service.compressor.GzipCompressor;
-import org.digit.health.sync.web.models.AuditDetails;
-import org.digit.health.sync.web.models.FileDetails;
-import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncErrorDetailsLog;
-import org.digit.health.sync.web.models.SyncLog;
-import org.digit.health.sync.web.models.SyncStatus;
+import org.digit.health.sync.web.models.*;
 import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -24,7 +19,6 @@ import org.springframework.web.client.HttpServerErrorException;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -36,28 +30,28 @@ public class FileSyncService implements SyncService {
     private final ObjectMapper objectMapper;
     private final FileStoreService fileStoreService;
     private final Compressor compressor;
-    private final Checksum checksum;
+    private final ChecksumValidator checksumValidator;
 
 
     @Autowired
-    public FileSyncService(Producer producer, FileStoreService fileStoreService, ObjectMapper objectMapper, GzipCompressor compressor, MD5Checksum checksumValidator) {
+    public FileSyncService(Producer producer, FileStoreService fileStoreService, ObjectMapper objectMapper, GzipCompressor compressor, Md5ChecksumValidator checksumValidator) {
         this.producer = producer;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
         this.compressor = compressor;
-        this.checksum = checksumValidator;
+        this.checksumValidator = checksumValidator;
     }
 
     @Override
-    public String sync(SyncUpDto syncUpDto) {
+    public SyncId syncUp(SyncUpDto syncUpDto) {
         String tenantId = syncUpDto.getRequestInfo().getUserInfo().getTenantId();
-        SyncLog syncLog = initiateSyncLog(syncUpDto);
+        SyncLog syncLog = createSyncLog(syncUpDto);
         FileDetails fileDetails = syncUpDto.getFileDetails();
         try {
             byte[] data = fileStoreService.getFile(fileDetails.getFileStoreId(), tenantId);
-            checksum.validate(data, fileDetails.getChecksum());
+            checksumValidator.validate(data, fileDetails.getChecksum());
             HashMap json = objectMapper.readValue(read(data), HashMap.class);
-            log.info(json.entrySet().toString());
+            log.info(json.toString());
             persistSyncLog(syncLog);
         } catch (JsonProcessingException ex) {
             handleSyncError(syncLog, ex, "Invalid JSON");
@@ -66,18 +60,17 @@ public class FileSyncService implements SyncService {
         } catch (Exception ex) {
             handleSyncError(syncLog, ex, "Unable to process");
         }
-        return syncLog.getSyncId();
+        return SyncId.builder().syncId(syncLog.getSyncId()).build();
 
     }
 
 
     private String read(byte[] data) throws IOException {
-        BufferedReader br = compressor.decompress(new ByteArrayInputStream(data));
-        String message = org.apache.commons.io.IOUtils.toString(br);
-        return message;
+        byte[] br = compressor.decompress(data);
+        return org.apache.commons.io.IOUtils.toString(br);
     }
 
-    private SyncLog initiateSyncLog(SyncUpDto syncUpDto) {
+    private SyncLog createSyncLog(SyncUpDto syncUpDto) {
         User userInfo = syncUpDto.getRequestInfo().getUserInfo();
         long createdTime = System.currentTimeMillis();
         FileDetails fileDetails = syncUpDto.getFileDetails();

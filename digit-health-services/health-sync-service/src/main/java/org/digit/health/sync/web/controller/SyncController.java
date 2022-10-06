@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.service.FileSyncService;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.utils.ModelMapper;
+import org.digit.health.sync.web.models.SyncId;
 import org.digit.health.sync.web.models.request.SyncUpMapper;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
 import org.digit.health.sync.web.models.response.SyncUpResponse;
@@ -21,23 +22,23 @@ import javax.validation.Valid;
 @RequestMapping("/sync/v1")
 public class SyncController {
 
-    private final SyncService syncLogService;
+    private final SyncService syncService;
 
     @Autowired
-    public SyncController(FileSyncService syncLogService) {
-        this.syncLogService = syncLogService;
+    public SyncController(FileSyncService syncService) {
+        this.syncService = syncService;
     }
 
 
     @PostMapping("/up")
     public ResponseEntity<SyncUpResponse> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
         log.info("Sync up request {}", syncUpRequest.toString());
-        String syncId = syncLogService.sync(SyncUpMapper.INSTANCE.toDTO(syncUpRequest));
+        SyncId syncId = syncService.syncUp(SyncUpMapper.INSTANCE.toDTO(syncUpRequest));
         log.info("Generated sync id {}", syncId);
         return ResponseEntity.accepted().body(SyncUpResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(syncUpRequest
                         .getRequestInfo(), true))
-                .syncId(syncId)
+                .syncId(syncId.getSyncId())
                 .build());
     }
 }

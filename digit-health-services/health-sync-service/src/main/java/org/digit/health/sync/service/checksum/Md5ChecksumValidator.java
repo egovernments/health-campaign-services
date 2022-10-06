@@ -10,7 +10,7 @@ import java.security.NoSuchAlgorithmException;
 
 @Slf4j
 @Component
-public class MD5Checksum implements Checksum {
+public class Md5ChecksumValidator implements ChecksumValidator {
 
     @Override
     public boolean validate(byte[] data, String checksum) {
