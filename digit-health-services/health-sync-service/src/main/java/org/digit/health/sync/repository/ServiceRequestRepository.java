@@ -3,7 +3,10 @@ package org.digit.health.sync.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,5 +33,10 @@ public class ServiceRequestRepository {
     public Object fetchResult(StringBuilder uri, Object request, Class clazz) {
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         return restTemplate.postForObject(uri.toString(), request, clazz);
+    }
+
+    public Object fetchResult(StringBuilder uri, Class clazz) {
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        return restTemplate.getForEntity(uri.toString(), clazz);
     }
 }
