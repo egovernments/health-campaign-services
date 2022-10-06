@@ -1,4 +1,6 @@
-package org.digit.health.sync.context;
+package org.digit.health.sync.context.enums;
+
+import org.digit.health.sync.context.step.SyncStep;
 
 public enum SyncErrorCode {
     STEP_ALREADY_HANDLED("This step is already handled");

@@ -1,23 +1,20 @@
 package org.digit.health.sync.context;
 
-import org.egov.tracer.model.CustomException;
+import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.step.SyncStep;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+import java.util.Observable;
 
 @Component
-public class LlinSyncContext implements SyncContext {
-    private SyncStep syncStep;
-
-    private final Map<Class<? extends SyncStep>, Boolean> handlingStateMap;
+public class LlinSyncContext extends SyncContext {
 
     @Autowired
     public LlinSyncContext(@Qualifier("registrationSyncStep") SyncStep initialSyncStep) {
-        this.syncStep = initialSyncStep;
-        handlingStateMap = new HashMap<>();
+        super(initialSyncStep);
     }
 
     @Override
@@ -47,16 +44,13 @@ public class LlinSyncContext implements SyncContext {
         return this.syncStep.hasNext();
     }
 
-    private void markHandled() {
-        handlingStateMap.put(this.syncStep.getClass(),
-                Boolean.TRUE);
+    @Override
+    public List<SyncMetric> getSyncMetrics() {
+        return this.syncMetrics;
     }
 
-    private void throwExceptionIfAlreadyHandled() {
-        Class<? extends SyncStep> clazz = this.syncStep.getClass();
-        if (Boolean.TRUE.equals(handlingStateMap.containsKey(clazz))) {
-            throw new CustomException(SyncErrorCode.STEP_ALREADY_HANDLED.name(),
-                    SyncErrorCode.STEP_ALREADY_HANDLED.message(clazz));
-        }
+    @Override
+    public void update(Observable o, Object syncMetric) {
+        this.syncMetrics.add((SyncMetric) syncMetric);
     }
 }

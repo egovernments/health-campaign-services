@@ -1,11 +1,12 @@
-package org.digit.health.sync.context;
+package org.digit.health.sync.context.step;
 
+import org.digit.health.sync.context.SyncContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 @Component
-public class DeliverySyncStep implements SyncStep {
+public class DeliverySyncStep extends SyncStep {
     private final ApplicationContext applicationContext;
 
     @Autowired
