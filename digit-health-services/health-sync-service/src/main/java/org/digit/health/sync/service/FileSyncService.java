@@ -3,6 +3,7 @@ package org.digit.health.sync.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.digit.health.sync.context.SyncErrorCode;
 import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.service.checksum.ChecksumValidator;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
@@ -16,8 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpServerErrorException;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.UUID;
@@ -54,11 +53,11 @@ public class FileSyncService implements SyncService {
             log.info(json.toString());
             persistSyncLog(syncLog);
         } catch (JsonProcessingException ex) {
-            handleSyncError(syncLog, ex, "Invalid JSON");
+            handleSyncError(syncLog, ex , SyncErrorCode.INVALID_JSON_FILE);
         } catch (HttpServerErrorException | IOException ex) {
-            handleSyncError(syncLog, ex, "Invalid File");
+            handleSyncError(syncLog, ex, SyncErrorCode.INVALID_FILE);
         } catch (Exception ex) {
-            handleSyncError(syncLog, ex, "Unable to process");
+            handleSyncError(syncLog, ex, SyncErrorCode.UNABLE_TO_PROCESS);
         }
         return SyncId.builder().syncId(syncLog.getSyncId()).build();
 
@@ -66,8 +65,7 @@ public class FileSyncService implements SyncService {
 
 
     private String read(byte[] data) throws IOException {
-        byte[] br = compressor.decompress(data);
-        return org.apache.commons.io.IOUtils.toString(br);
+        return org.apache.commons.io.IOUtils.toString(compressor.decompress(data));
     }
 
     private SyncLog createSyncLog(SyncUpDto syncUpDto) {
@@ -96,12 +94,12 @@ public class FileSyncService implements SyncService {
                 .build();
     }
 
-    private void handleSyncError(SyncLog syncLog, Exception ex, String errorCode) {
+    private void handleSyncError(SyncLog syncLog, Exception ex, SyncErrorCode errorCode) {
         log.error(ex.getMessage());
-        syncLog.setComment(ex.getMessage());
+        syncLog.setComment(errorCode.message(ex.getMessage()));
         syncLog.setStatus(SyncStatus.FAILED);
         persistSyncLog(syncLog);
-        throw new CustomException(errorCode, ex.getMessage());
+        throw new CustomException(errorCode.name(), errorCode.message(ex.getMessage()));
     }
 
     private void persistSyncLog(SyncLog syncLog) {
