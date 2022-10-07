@@ -16,4 +16,5 @@ public class SyncMetric {
     private String recordId;
     private RecordIdType recordIdType;
     private String errorCode;
+    private String errorMessage;
 }

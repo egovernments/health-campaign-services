@@ -1,8 +1,10 @@
 package org.digit.health.sync.context.step;
 
+import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.context.enums.StepSyncStatus;
 import org.digit.health.sync.context.SyncContext;
+import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.context.metric.SyncMetric;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
@@ -12,6 +14,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component("registrationSyncStep")
 public class RegistrationSyncStep extends SyncStep {
 
@@ -34,14 +37,37 @@ public class RegistrationSyncStep extends SyncStep {
         ServiceRequestRepository serviceRequestRepository = applicationContext
                 .getBean(ServiceRequestRepository.class);
         Properties properties = applicationContext.getBean(Properties.class);
-        serviceRequestRepository.fetchResult(new StringBuilder(properties.getRegistrationBaseUrl()
-                + properties.getRegistrationCreateEndpoint()),
-                registrationRequest, ResponseEntity.class);
+        try {
+            serviceRequestRepository.fetchResult(new StringBuilder(properties.getRegistrationBaseUrl()
+                            + properties.getRegistrationCreateEndpoint()),
+                    registrationRequest, ResponseEntity.class);
+        } catch (Exception exception) {
+            log.error("Exception while calling registration service", exception);
+            publishFailureMetric(registrationRequest.getClientReferenceId(),
+                    RecordIdType.REGISTRATION, exception.getMessage());
+        }
+        publishSuccessMetric(registrationRequest.getClientReferenceId(),
+                RecordIdType.REGISTRATION);
+    }
+
+    private void publishFailureMetric(String recordId, RecordIdType recordIdType, String errorMessage) {
+        this.setChanged();
+        this.notifyObservers(SyncMetric.builder()
+                .status(StepSyncStatus.FAILED)
+                .recordId(recordId)
+                .recordIdType(recordIdType)
+                .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
+                .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
+                .build());
+    }
+
+    private void publishSuccessMetric(String recordId,
+                                      RecordIdType recordIdType) {
         this.setChanged();
         this.notifyObservers(SyncMetric.builder()
                 .status(StepSyncStatus.COMPLETED)
-                .recordId(registrationRequest.getClientReferenceId())
-                .recordIdType(RecordIdType.REGISTRATION)
+                .recordId(recordId)
+                .recordIdType(recordIdType)
                 .build());
     }
 

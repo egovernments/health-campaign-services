@@ -2,7 +2,7 @@ package org.digit.health.sync.service.compressor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
-import org.digit.health.sync.context.SyncErrorCode;
+import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
