@@ -22,9 +22,12 @@
         <tracer.version>2.0.0-SNAPSHOT</tracer.version>
         <services-common.version>1.0.1-SNAPSHOT</services-common.version>
         <mdms-client.version>0.0.2-SNAPSHOT</mdms-client.version>
-        <org.projectlombok.lombok.processor.version>1.18.24</org.projectlombok.lombok.processor.version>
-        <org.mapstruct.mapstruct-processor.version>1.5.2.Final</org.mapstruct.mapstruct-processor.version>
-        <org.projectlombok.lombok-mapstruct-binding.version>0.2.0</org.projectlombok.lombok-mapstruct-binding.version>
+        <springfox-swagger2.version>2.7.0</springfox-swagger2.version>
+        <springfox-swagger-ui.version>2.7.0</springfox-swagger-ui.version>
+        <mapstruct.version>1.5.2.Final</mapstruct.version>
+        <maven-compiler-plugin.version>1.18.24</maven-compiler-plugin.version>
+        <lombok.version>1.18.24</lombok.version>
+        <lombok-mapstruct.version>0.2.0</lombok-mapstruct.version>
     </properties>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
@@ -82,17 +85,17 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>${org.projectlombok.lombok.processor.version}</version>
+                            <version>${lombok.version}</version>
                         </path>
                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
-                            <version>${org.mapstruct.mapstruct-processor.version}</version>
+                            <version>${mapstruct.version}</version>
                         </path>
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok-mapstruct-binding</artifactId>
-                            <version>${org.projectlombok.lombok-mapstruct-binding.version}</version>
+                            <version>${lombok-mapstruct.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
@@ -187,12 +190,12 @@
         <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger2</artifactId>
-            <version>2.7.0</version>
+            <version>${springfox-swagger2.version}</version>
         </dependency>
         <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger-ui</artifactId>
-            <version>2.7.0</version>
+            <version>${springfox-swagger-ui.version}</version>
         </dependency>
         <dependency>
             <groupId>jakarta.xml.bind</groupId>
@@ -201,7 +204,7 @@
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
-            <version>1.5.2.Final</version>
+            <version>${mapstruct.version}</version>
         </dependency>
 
     </dependencies>

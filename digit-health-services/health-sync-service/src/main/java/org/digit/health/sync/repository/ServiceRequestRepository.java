@@ -3,10 +3,7 @@ package org.digit.health.sync.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -15,8 +12,8 @@ import java.util.Map;
 @Service
 @Slf4j
 public class ServiceRequestRepository {
-    private ObjectMapper objectMapper;
-    private RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
 
     @Autowired
     public ServiceRequestRepository(ObjectMapper objectMapper, RestTemplate restTemplate) {
