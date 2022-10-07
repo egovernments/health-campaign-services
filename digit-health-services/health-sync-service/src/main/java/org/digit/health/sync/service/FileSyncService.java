@@ -96,10 +96,10 @@ public class FileSyncService implements SyncService {
 
     private void handleSyncError(SyncLog syncLog, Exception ex, SyncErrorCode errorCode) {
         log.error(ex.getMessage());
-        syncLog.setComment(errorCode.message(ex.getMessage()));
+        syncLog.setComment(errorCode.message());
         syncLog.setStatus(SyncStatus.FAILED);
         persistSyncLog(syncLog);
-        throw new CustomException(errorCode.name(), errorCode.message(ex.getMessage()));
+        throw new CustomException(errorCode.name(), errorCode.message());
     }
 
     private void persistSyncLog(SyncLog syncLog) {

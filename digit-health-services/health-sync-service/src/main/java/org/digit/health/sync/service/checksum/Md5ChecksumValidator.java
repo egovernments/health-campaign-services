@@ -1,6 +1,7 @@
 package org.digit.health.sync.service.checksum;
 
 import lombok.extern.slf4j.Slf4j;
+import org.digit.health.sync.context.SyncErrorCode;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
@@ -20,12 +21,15 @@ public class Md5ChecksumValidator implements ChecksumValidator {
             byte[] digest = md.digest();
             String generatedChecksum = DatatypeConverter.printHexBinary(digest);
             if (!generatedChecksum.equalsIgnoreCase(checksum)) {
-                throw new CustomException("INVALID_CHECKSUM", "Checksum did not match");
+                log.error("Checksum invalid");
+                throw new CustomException(SyncErrorCode.INVALID_CHECKSUM.name(),
+                        SyncErrorCode.INVALID_CHECKSUM.message());
             }
             return true;
         } catch (NoSuchAlgorithmException exception) {
-            log.error("NoSuchAlgorithmException", exception.getMessage());
+            log.error("Invalid checksum algorithm", exception);
+            throw new CustomException(SyncErrorCode.INVALID_CHECKSUM_ALGORITHM.name(),
+                    SyncErrorCode.INVALID_CHECKSUM_ALGORITHM.message());
         }
-        return false;
     }
 }
