@@ -12,8 +12,8 @@ import java.util.Map;
 @Service
 @Slf4j
 public class ServiceRequestRepository {
-    private ObjectMapper objectMapper;
-    private RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
 
     @Autowired
     public ServiceRequestRepository(ObjectMapper objectMapper, RestTemplate restTemplate) {
@@ -30,5 +30,10 @@ public class ServiceRequestRepository {
     public Object fetchResult(StringBuilder uri, Object request, Class clazz) {
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         return restTemplate.postForObject(uri.toString(), request, clazz);
+    }
+
+    public Object fetchResult(StringBuilder uri, Class clazz) {
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        return restTemplate.getForEntity(uri.toString(), clazz);
     }
 }

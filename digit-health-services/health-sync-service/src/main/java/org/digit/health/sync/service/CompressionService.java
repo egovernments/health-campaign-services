@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -19,7 +20,7 @@ public class CompressionService {
         this.compressor = compressor;
     }
 
-    public BufferedReader decompress(InputStream stream) throws IOException {
-        return compressor.decompress(stream);
+    public byte [] decompress(byte[] data) throws IOException {
+        return compressor.decompress(data);
     }
 }
