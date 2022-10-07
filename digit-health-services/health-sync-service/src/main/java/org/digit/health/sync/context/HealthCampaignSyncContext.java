@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Observable;
 
 @Component
-public class LlinSyncContext extends SyncContext {
+public class HealthCampaignSyncContext extends SyncContext {
 
     @Autowired
-    public LlinSyncContext(@Qualifier("registrationSyncStep") SyncStep initialSyncStep) {
+    public HealthCampaignSyncContext(@Qualifier("registrationSyncStep") SyncStep initialSyncStep) {
         super(initialSyncStep);
     }
 
@@ -29,6 +29,7 @@ public class LlinSyncContext extends SyncContext {
 
     @Override
     public void setSyncStep(SyncStep syncStep) {
+        super.setSyncStep(syncStep);
         this.syncStep = syncStep;
     }
 

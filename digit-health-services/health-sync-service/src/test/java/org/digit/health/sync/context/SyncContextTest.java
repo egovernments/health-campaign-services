@@ -93,7 +93,6 @@ class SyncContextTest {
     void testThatContextCanProvideMetricsWhenAvailable() {
         TestSyncStep syncStep = new TestSyncStep();
         SyncContext syncContext = new TestSyncContext(syncStep);
-        syncStep.addObserver(syncContext);
 
         syncContext.handle(SOME_PAYLOAD);
 

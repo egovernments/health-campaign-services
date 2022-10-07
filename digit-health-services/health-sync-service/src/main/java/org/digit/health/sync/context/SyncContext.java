@@ -26,13 +26,16 @@ public abstract class SyncContext implements Observer {
         this.syncStep = initialSyncStep;
         this.handlingStateMap = new HashMap<>();
         this.syncMetrics = new ArrayList<>();
+        this.syncStep.addObserver(this);
     }
 
     public abstract void nextSyncStep();
 
     public abstract SyncStep getSyncStep();
 
-    public abstract void setSyncStep(SyncStep syncStep);
+    public void setSyncStep(SyncStep syncStep) {
+        syncStep.addObserver(this);
+    }
 
     public abstract void handle(Object payload);
 

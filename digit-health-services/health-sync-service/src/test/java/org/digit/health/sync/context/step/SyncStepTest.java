@@ -6,16 +6,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationContext;
 
 import java.util.List;
 import java.util.Observable;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(MockitoExtension.class)
 class SyncStepTest {
@@ -25,18 +22,16 @@ class SyncStepTest {
 
     @Test
     @DisplayName("step should be able to publish sync metric and sync context should receive it")
-    void testThatStepCanPublishSyncMetricAndSyncContextShouldReceiveIt() {
+    void testThatStepCanPublishSyncMetricAndSyncContextShouldReceiveIt() throws InterruptedException {
         SyncStep testStep = new TestStep();
-        SyncContext syncContext = Mockito.spy(new TestSyncContext(testStep));
-        testStep.addObserver(syncContext);
+        SyncContext syncContext = new TestSyncContext(testStep);
 
         testStep.handle("some-payload");
 
-        verify(syncContext, times(1))
-                .update(any(SyncStep.class), any(SyncMetric.class));
+        assertEquals(1, syncContext.getSyncMetrics().size());
     }
 
-    class TestStep extends SyncStep {
+    static class TestStep extends SyncStep {
 
         @Override
         public void nextSyncStep(SyncContext syncContext) {
@@ -88,12 +83,12 @@ class SyncStepTest {
 
         @Override
         public List<SyncMetric> getSyncMetrics() {
-            return null;
+            return this.syncMetrics;
         }
 
         @Override
         public void update(Observable o, Object arg) {
-
+            this.syncMetrics.add((SyncMetric) arg);
         }
     }
 
