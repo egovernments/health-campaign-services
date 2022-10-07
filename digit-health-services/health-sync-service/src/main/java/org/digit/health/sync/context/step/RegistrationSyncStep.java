@@ -1,11 +1,8 @@
 package org.digit.health.sync.context.step;
 
 import lombok.extern.slf4j.Slf4j;
-import org.digit.health.sync.context.enums.RecordIdType;
-import org.digit.health.sync.context.enums.StepSyncStatus;
 import org.digit.health.sync.context.SyncContext;
-import org.digit.health.sync.context.enums.SyncErrorCode;
-import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
 import org.digit.health.sync.web.models.request.RegistrationRequest;
@@ -48,27 +45,6 @@ public class RegistrationSyncStep extends SyncStep {
         }
         publishSuccessMetric(registrationRequest.getClientReferenceId(),
                 RecordIdType.REGISTRATION);
-    }
-
-    private void publishFailureMetric(String recordId, RecordIdType recordIdType, String errorMessage) {
-        this.setChanged();
-        this.notifyObservers(SyncMetric.builder()
-                .status(StepSyncStatus.FAILED)
-                .recordId(recordId)
-                .recordIdType(recordIdType)
-                .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
-                .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
-                .build());
-    }
-
-    private void publishSuccessMetric(String recordId,
-                                      RecordIdType recordIdType) {
-        this.setChanged();
-        this.notifyObservers(SyncMetric.builder()
-                .status(StepSyncStatus.COMPLETED)
-                .recordId(recordId)
-                .recordIdType(recordIdType)
-                .build());
     }
 
     @Override

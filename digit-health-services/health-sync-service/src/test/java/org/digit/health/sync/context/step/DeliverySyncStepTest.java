@@ -4,10 +4,10 @@ import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.context.enums.StepSyncStatus;
 import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.context.metric.SyncMetric;
-import org.digit.health.sync.helper.RegistrationRequestTestBuilder;
+import org.digit.health.sync.helper.DeliveryRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
-import org.digit.health.sync.web.models.request.RegistrationRequest;
+import org.digit.health.sync.web.models.request.DeliveryRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,8 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class RegistrationSyncStepTest {
-
+class DeliverySyncStepTest {
     @Mock
     private ApplicationContext applicationContext;
 
@@ -43,85 +42,85 @@ class RegistrationSyncStepTest {
         when(applicationContext.getBean(ServiceRequestRepository.class))
                 .thenReturn(serviceRequestRepository);
         when(applicationContext.getBean(Properties.class)).thenReturn(properties);
-        when(properties.getRegistrationBaseUrl()).thenReturn("some-url");
-        when(properties.getRegistrationCreateEndpoint()).thenReturn("some-endpoint");
+        when(properties.getDeliveryBaseUrl()).thenReturn("some-url");
+        when(properties.getDeliveryCreateEndpoint()).thenReturn("some-endpoint");
     }
 
     @Test
-    @DisplayName("registration sync step should call registration service")
-    void testThatRegistrationSyncStepShouldCallRegistrationService() {
-        SyncStep registrationSyncStep = new RegistrationSyncStep(applicationContext);
+    @DisplayName("delivery sync step should call delivery service")
+    void testThatDeliverySyncStepShouldCallDeliveryService() {
+        SyncStep deliverySyncStep = new DeliverySyncStep(applicationContext);
 
-        registrationSyncStep.handle(RegistrationRequestTestBuilder
+        deliverySyncStep.handle(DeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build());
 
         verify(serviceRequestRepository, times(1))
                 .fetchResult(any(StringBuilder.class),
-                any(RegistrationRequest.class),
-                eq(ResponseEntity.class));
+                        any(DeliveryRequest.class),
+                        eq(ResponseEntity.class));
     }
 
     @Test
-    @DisplayName("registration sync step should publish success metric on successful execution")
-    void testThatRegistrationSyncStepShouldPublishSuccessMetricOnSuccessfulExecution() {
-        SyncStep registrationSyncStep = Mockito.spy(new RegistrationSyncStep(applicationContext));
-        RegistrationRequest registrationRequest = RegistrationRequestTestBuilder
+    @DisplayName("delivery sync step should publish success metric on successful execution")
+    void testThatDeliverySyncStepShouldPublishSuccessMetricOnSuccessfulExecution() {
+        SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
+        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
         SyncMetric syncMetric = SyncMetric.builder()
                 .status(StepSyncStatus.COMPLETED)
-                .recordId(registrationRequest.getClientReferenceId())
-                .recordIdType(RecordIdType.REGISTRATION)
+                .recordId(deliveryRequest.getClientReferenceId())
+                .recordIdType(RecordIdType.DELIVERY)
                 .build();
 
-        registrationSyncStep.handle(registrationRequest);
+        deliverySyncStep.handle(deliveryRequest);
 
-        verify(registrationSyncStep, times(1))
+        verify(deliverySyncStep, times(1))
                 .notifyObservers(syncMetric);
     }
 
     @Test
-    @DisplayName("registration sync step should not throw custom exception in case of any error")
-    void testThatRegistrationSyncStepThrowsCustomExceptionInCaseOfAnyError() {
-        SyncStep registrationSyncStep = new RegistrationSyncStep(applicationContext);
+    @DisplayName("delivery sync step should not throw custom exception in case of any error")
+    void testThatDeliverySyncStepThrowsCustomExceptionInCaseOfAnyError() {
+        SyncStep deliverySyncStep = new DeliverySyncStep(applicationContext);
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(RegistrationRequest.class),
+                any(DeliveryRequest.class),
                 eq(ResponseEntity.class))).thenThrow(CustomException.class);
-        RegistrationRequest registrationRequest = RegistrationRequestTestBuilder
+        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
 
-        assertDoesNotThrow(() -> registrationSyncStep
-                .handle(registrationRequest));
+        assertDoesNotThrow(() -> deliverySyncStep
+                .handle(deliveryRequest));
     }
 
     @Test
-    @DisplayName("registration sync step should publish failure metric in case of any error")
-    void testThatRegistrationSyncStepShouldPublishFailureMetricInCaseOfError() {
+    @DisplayName("delivery sync step should publish failure metric in case of any error")
+    void testThatDeliverySyncStepShouldPublishFailureMetricInCaseOfError() {
         String errorMessage = "some_message";
-        SyncStep registrationSyncStep = Mockito.spy(new RegistrationSyncStep(applicationContext));
-        RegistrationRequest registrationRequest = RegistrationRequestTestBuilder
+        SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
+        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
         SyncMetric syncMetric = SyncMetric.builder()
                 .status(StepSyncStatus.FAILED)
-                .recordId(registrationRequest.getClientReferenceId())
-                .recordIdType(RecordIdType.REGISTRATION)
+                .recordId(deliveryRequest.getClientReferenceId())
+                .recordIdType(RecordIdType.DELIVERY)
                 .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
                 .build();
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(RegistrationRequest.class),
+                any(DeliveryRequest.class),
                 eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
 
-        registrationSyncStep.handle(registrationRequest);
+        deliverySyncStep.handle(deliveryRequest);
 
-        verify(registrationSyncStep, times(1))
+        verify(deliverySyncStep, times(1))
                 .notifyObservers(syncMetric);
     }
 }

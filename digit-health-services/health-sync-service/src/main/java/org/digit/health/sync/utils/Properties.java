@@ -17,4 +17,10 @@ public class Properties {
 
     @Value("${health.registration.create.endpoint}")
     private String registrationCreateEndpoint;
+
+    @Value("${health.registration.base.url}")
+    private String deliveryBaseUrl;
+
+    @Value("${health.registration.create.endpoint}")
+    private String deliveryCreateEndpoint;
 }
