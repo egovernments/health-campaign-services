@@ -8,7 +8,9 @@ public enum SyncErrorCode {
     INVALID_CHECKSUM("Checksum did not match the checksum received"),
 
     INVALID_CHECKSUM_ALGORITHM("Checksum algorithm is invalid"),
-    UNABLE_TO_PROCESS("Unable to process");
+    UNABLE_TO_PROCESS("Unable to process"),
+    ERROR_IN_DECOMPRESSION("Error during decompression of file"),
+    ERROR_IN_MAPPING_JSON("Error in mapping json to java");
 
 
     String message;

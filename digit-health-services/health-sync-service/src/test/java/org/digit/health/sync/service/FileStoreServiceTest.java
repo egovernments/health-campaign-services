@@ -27,28 +27,32 @@ class FileStoreServiceTest {
     @BeforeEach
     void setUp() {
         fileStoreService = new FileStoreService(serviceRequestRepository);
-        ReflectionTestUtils.setField(fileStoreService, "fileStoreServiceHost", "http://localhost:8083");
+        ReflectionTestUtils.setField(fileStoreService, "fileStoreServiceHost",
+                "http://localhost:8083");
     }
 
     @Test
     @DisplayName("given file store id and tenant id should get response")
-    public void givenFileStoreIdAndTenantIdShouldGetResponse() {
+    void givenFileStoreIdAndTenantIdShouldGetResponse() {
         String fileStoreId = "fileStoreId";
         String tenantId = "tenantId";
         byte[] response = new byte[]{};
-        Mockito.when(serviceRequestRepository.fetchResult(any(), any())).thenReturn(new ResponseEntity(response, HttpStatus.OK));
+        Mockito.when(serviceRequestRepository.fetchResult(any(), any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatus.OK));
 
         assertEquals(fileStoreService.getFile(fileStoreId, tenantId), response);
     }
 
     @Test
     @DisplayName("should throw exception if file store service call fails")
-    public void shouldThrowExceptionIfFileStoreServiceCallFails() {
+    void shouldThrowExceptionIfFileStoreServiceCallFails() {
         String fileStoreId = "fileStoreId";
         String tenantId = "tenantId";
-        Mockito.when(serviceRequestRepository.fetchResult(any(), any())).thenThrow(new RestClientException("Error"));
+        Mockito.when(serviceRequestRepository.fetchResult(any(), any()))
+                .thenThrow(new RestClientException("Error"));
 
-        assertThrows(RestClientException.class, () -> fileStoreService.getFile(fileStoreId, tenantId));
+        assertThrows(RestClientException.class, () -> fileStoreService
+                .getFile(fileStoreId, tenantId));
     }
 
 }
