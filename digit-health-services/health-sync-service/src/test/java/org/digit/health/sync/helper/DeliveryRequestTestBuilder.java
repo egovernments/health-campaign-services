@@ -22,4 +22,9 @@ public class DeliveryRequestTestBuilder {
         builder.clientReferenceId("some-uuid");
         return this;
     }
+
+    public DeliveryRequestTestBuilder withRegistrationClientReferenceId() {
+        builder.registrationClientReferenceId("some-registration-uuid");
+        return this;
+    }
 }

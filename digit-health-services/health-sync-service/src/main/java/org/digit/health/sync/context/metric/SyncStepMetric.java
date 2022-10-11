@@ -11,7 +11,7 @@ import org.digit.health.sync.context.enums.StepSyncStatus;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class SyncMetric {
+public class SyncStepMetric {
     private StepSyncStatus status;
     private String recordId;
     private RecordIdType recordIdType;

@@ -1,7 +1,7 @@
 package org.digit.health.sync.context.step;
 
 import org.digit.health.sync.context.SyncContext;
-import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +41,7 @@ class SyncStepTest {
         @Override
         public void handle(Object payload) {
             this.setChanged();
-            this.notifyObservers(SyncMetric.builder().build());
+            this.notifyObservers(SyncStepMetric.builder().build());
         }
 
         @Override
@@ -82,13 +82,13 @@ class SyncStepTest {
         }
 
         @Override
-        public List<SyncMetric> getSyncMetrics() {
-            return this.syncMetrics;
+        public List<SyncStepMetric> getSyncMetrics() {
+            return this.syncStepMetrics;
         }
 
         @Override
         public void update(Observable o, Object arg) {
-            this.syncMetrics.add((SyncMetric) arg);
+            this.syncStepMetrics.add((SyncStepMetric) arg);
         }
     }
 

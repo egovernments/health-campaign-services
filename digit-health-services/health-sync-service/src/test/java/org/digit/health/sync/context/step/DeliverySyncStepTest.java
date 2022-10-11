@@ -3,7 +3,7 @@ package org.digit.health.sync.context.step;
 import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.context.enums.StepSyncStatus;
 import org.digit.health.sync.context.enums.SyncErrorCode;
-import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.helper.DeliveryRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
@@ -70,7 +70,7 @@ class DeliverySyncStepTest {
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
-        SyncMetric syncMetric = SyncMetric.builder()
+        SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.COMPLETED)
                 .recordId(deliveryRequest.getClientReferenceId())
                 .recordIdType(RecordIdType.DELIVERY)
@@ -79,7 +79,7 @@ class DeliverySyncStepTest {
         deliverySyncStep.handle(deliveryRequest);
 
         verify(deliverySyncStep, times(1))
-                .notifyObservers(syncMetric);
+                .notifyObservers(syncStepMetric);
     }
 
     @Test
@@ -107,7 +107,7 @@ class DeliverySyncStepTest {
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
-        SyncMetric syncMetric = SyncMetric.builder()
+        SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.FAILED)
                 .recordId(deliveryRequest.getClientReferenceId())
                 .recordIdType(RecordIdType.DELIVERY)
@@ -121,6 +121,6 @@ class DeliverySyncStepTest {
         deliverySyncStep.handle(deliveryRequest);
 
         verify(deliverySyncStep, times(1))
-                .notifyObservers(syncMetric);
+                .notifyObservers(syncStepMetric);
     }
 }

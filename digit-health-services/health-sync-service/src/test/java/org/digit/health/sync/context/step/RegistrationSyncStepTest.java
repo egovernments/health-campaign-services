@@ -3,11 +3,11 @@ package org.digit.health.sync.context.step;
 import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.context.enums.StepSyncStatus;
 import org.digit.health.sync.context.enums.SyncErrorCode;
-import org.digit.health.sync.context.metric.SyncMetric;
-import org.digit.health.sync.helper.RegistrationRequestTestBuilder;
+import org.digit.health.sync.context.metric.SyncStepMetric;
+import org.digit.health.sync.helper.HouseholdRegistrationRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
-import org.digit.health.sync.web.models.request.RegistrationRequest;
+import org.digit.health.sync.web.models.request.HouseholdRegistrationRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,14 +52,14 @@ class RegistrationSyncStepTest {
     void testThatRegistrationSyncStepShouldCallRegistrationService() {
         SyncStep registrationSyncStep = new RegistrationSyncStep(applicationContext);
 
-        registrationSyncStep.handle(RegistrationRequestTestBuilder
+        registrationSyncStep.handle(HouseholdRegistrationRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build());
 
         verify(serviceRequestRepository, times(1))
                 .fetchResult(any(StringBuilder.class),
-                any(RegistrationRequest.class),
+                any(HouseholdRegistrationRequest.class),
                 eq(ResponseEntity.class));
     }
 
@@ -67,20 +67,20 @@ class RegistrationSyncStepTest {
     @DisplayName("registration sync step should publish success metric on successful execution")
     void testThatRegistrationSyncStepShouldPublishSuccessMetricOnSuccessfulExecution() {
         SyncStep registrationSyncStep = Mockito.spy(new RegistrationSyncStep(applicationContext));
-        RegistrationRequest registrationRequest = RegistrationRequestTestBuilder
+        HouseholdRegistrationRequest householdRegistrationRequest = HouseholdRegistrationRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
-        SyncMetric syncMetric = SyncMetric.builder()
+        SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.COMPLETED)
-                .recordId(registrationRequest.getClientReferenceId())
+                .recordId(householdRegistrationRequest.getClientReferenceId())
                 .recordIdType(RecordIdType.REGISTRATION)
                 .build();
 
-        registrationSyncStep.handle(registrationRequest);
+        registrationSyncStep.handle(householdRegistrationRequest);
 
         verify(registrationSyncStep, times(1))
-                .notifyObservers(syncMetric);
+                .notifyObservers(syncStepMetric);
     }
 
     @Test
@@ -88,15 +88,15 @@ class RegistrationSyncStepTest {
     void testThatRegistrationSyncStepThrowsCustomExceptionInCaseOfAnyError() {
         SyncStep registrationSyncStep = new RegistrationSyncStep(applicationContext);
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(RegistrationRequest.class),
+                any(HouseholdRegistrationRequest.class),
                 eq(ResponseEntity.class))).thenThrow(CustomException.class);
-        RegistrationRequest registrationRequest = RegistrationRequestTestBuilder
+        HouseholdRegistrationRequest householdRegistrationRequest = HouseholdRegistrationRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
 
         assertDoesNotThrow(() -> registrationSyncStep
-                .handle(registrationRequest));
+                .handle(householdRegistrationRequest));
     }
 
     @Test
@@ -104,24 +104,24 @@ class RegistrationSyncStepTest {
     void testThatRegistrationSyncStepShouldPublishFailureMetricInCaseOfError() {
         String errorMessage = "some_message";
         SyncStep registrationSyncStep = Mockito.spy(new RegistrationSyncStep(applicationContext));
-        RegistrationRequest registrationRequest = RegistrationRequestTestBuilder
+        HouseholdRegistrationRequest householdRegistrationRequest = HouseholdRegistrationRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
-        SyncMetric syncMetric = SyncMetric.builder()
+        SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.FAILED)
-                .recordId(registrationRequest.getClientReferenceId())
+                .recordId(householdRegistrationRequest.getClientReferenceId())
                 .recordIdType(RecordIdType.REGISTRATION)
                 .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
                 .build();
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(RegistrationRequest.class),
+                any(HouseholdRegistrationRequest.class),
                 eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
 
-        registrationSyncStep.handle(registrationRequest);
+        registrationSyncStep.handle(householdRegistrationRequest);
 
         verify(registrationSyncStep, times(1))
-                .notifyObservers(syncMetric);
+                .notifyObservers(syncStepMetric);
     }
 }

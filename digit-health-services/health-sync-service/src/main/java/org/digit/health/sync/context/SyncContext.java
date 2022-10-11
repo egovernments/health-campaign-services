@@ -1,7 +1,7 @@
 package org.digit.health.sync.context;
 
 import org.digit.health.sync.context.enums.SyncErrorCode;
-import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
 import org.egov.tracer.model.CustomException;
 import org.springframework.context.annotation.Scope;
@@ -20,12 +20,12 @@ public abstract class SyncContext implements Observer {
 
     private final Map<Class<? extends SyncStep>, Boolean> handlingStateMap;
 
-    protected final List<SyncMetric> syncMetrics;
+    protected final List<SyncStepMetric> syncStepMetrics;
 
     protected SyncContext(SyncStep initialSyncStep) {
         this.syncStep = initialSyncStep;
         this.handlingStateMap = new HashMap<>();
-        this.syncMetrics = new ArrayList<>();
+        this.syncStepMetrics = new ArrayList<>();
         this.syncStep.addObserver(this);
     }
 
@@ -54,5 +54,5 @@ public abstract class SyncContext implements Observer {
 
     public abstract boolean hasNext();
 
-    public abstract List<SyncMetric> getSyncMetrics();
+    public abstract List<SyncStepMetric> getSyncMetrics();
 }

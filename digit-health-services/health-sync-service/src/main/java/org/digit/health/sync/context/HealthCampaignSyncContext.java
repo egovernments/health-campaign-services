@@ -1,6 +1,6 @@
 package org.digit.health.sync.context;
 
-import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -46,12 +46,12 @@ public class HealthCampaignSyncContext extends SyncContext {
     }
 
     @Override
-    public List<SyncMetric> getSyncMetrics() {
-        return this.syncMetrics;
+    public List<SyncStepMetric> getSyncMetrics() {
+        return this.syncStepMetrics;
     }
 
     @Override
     public void update(Observable o, Object syncMetric) {
-        this.syncMetrics.add((SyncMetric) syncMetric);
+        this.syncStepMetrics.add((SyncStepMetric) syncMetric);
     }
 }

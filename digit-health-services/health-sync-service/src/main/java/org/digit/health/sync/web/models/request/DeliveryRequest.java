@@ -11,4 +11,5 @@ import lombok.NoArgsConstructor;
 @Builder
 public class DeliveryRequest {
     private String clientReferenceId;
+    private String registrationClientReferenceId;
 }

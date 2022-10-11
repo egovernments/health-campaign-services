@@ -1,12 +1,12 @@
 package org.digit.health.sync.orchestrator;
 
 import org.digit.health.sync.context.HealthCampaignSyncContext;
-import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.DeliverySyncStep;
 import org.digit.health.sync.context.step.RegistrationSyncStep;
 import org.digit.health.sync.context.step.SyncStep;
 import org.digit.health.sync.helper.DeliveryRequestTestBuilder;
-import org.digit.health.sync.helper.RegistrationRequestTestBuilder;
+import org.digit.health.sync.helper.HouseholdRegistrationRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +41,7 @@ class HealthCampaignSyncOrchestratorTest {
         SyncOrchestrator syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
         stepToPayloadMap.put(RegistrationSyncStep.class,
-                RegistrationRequestTestBuilder.builder().withDummyClientReferenceId().build());
+                HouseholdRegistrationRequestTestBuilder.builder().withDummyClientReferenceId().build());
         stepToPayloadMap.put(DeliverySyncStep.class,
                 DeliveryRequestTestBuilder.builder().withDummyClientReferenceId().build());
         when(applicationContext.getBean(HealthCampaignSyncContext.class))
@@ -57,6 +57,6 @@ class HealthCampaignSyncOrchestratorTest {
 
         Object result = syncOrchestrator.orchestrate(stepToPayloadMap);
 
-        assertEquals(2, ((List<SyncMetric>) result).size());
+        assertEquals(2, ((List<SyncStepMetric>) result).size());
     }
 }

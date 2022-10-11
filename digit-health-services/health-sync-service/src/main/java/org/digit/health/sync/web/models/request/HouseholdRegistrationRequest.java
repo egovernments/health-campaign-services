@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class RegistrationRequest {
+public class HouseholdRegistrationRequest {
     private String clientReferenceId;
 }

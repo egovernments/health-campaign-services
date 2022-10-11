@@ -4,11 +4,11 @@ import org.digit.health.sync.context.step.DeliverySyncStep;
 import org.digit.health.sync.context.step.RegistrationSyncStep;
 import org.digit.health.sync.context.step.SyncStep;
 import org.digit.health.sync.helper.DeliveryRequestTestBuilder;
-import org.digit.health.sync.helper.RegistrationRequestTestBuilder;
+import org.digit.health.sync.helper.HouseholdRegistrationRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
 import org.digit.health.sync.web.models.request.DeliveryRequest;
-import org.digit.health.sync.web.models.request.RegistrationRequest;
+import org.digit.health.sync.web.models.request.HouseholdRegistrationRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,9 +68,9 @@ class HealthCampaignSyncContextTest {
                 .thenReturn(deliverySyncStep);
         setUpMocks();
 
-        RegistrationRequest registrationRequest = RegistrationRequestTestBuilder.builder()
+        HouseholdRegistrationRequest householdRegistrationRequest = HouseholdRegistrationRequestTestBuilder.builder()
                 .withDummyClientReferenceId().build();
-        syncContext.handle(registrationRequest);
+        syncContext.handle(householdRegistrationRequest);
         syncContext.nextSyncStep();
         DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
                 .builder().withDummyClientReferenceId().build();

@@ -5,7 +5,7 @@ import org.digit.health.sync.context.SyncContext;
 import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
-import org.digit.health.sync.web.models.request.RegistrationRequest;
+import org.digit.health.sync.web.models.request.HouseholdRegistrationRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
@@ -30,20 +30,20 @@ public class RegistrationSyncStep extends SyncStep {
 
     @Override
     public void handle(Object payload) {
-        RegistrationRequest registrationRequest = (RegistrationRequest) payload;
+        HouseholdRegistrationRequest householdRegistrationRequest = (HouseholdRegistrationRequest) payload;
         ServiceRequestRepository serviceRequestRepository = applicationContext
                 .getBean(ServiceRequestRepository.class);
         Properties properties = applicationContext.getBean(Properties.class);
         try {
             serviceRequestRepository.fetchResult(new StringBuilder(properties.getRegistrationBaseUrl()
                             + properties.getRegistrationCreateEndpoint()),
-                    registrationRequest, ResponseEntity.class);
+                    householdRegistrationRequest, ResponseEntity.class);
         } catch (Exception exception) {
             log.error("Exception while calling registration service", exception);
-            publishFailureMetric(registrationRequest.getClientReferenceId(),
+            publishFailureMetric(householdRegistrationRequest.getClientReferenceId(),
                     RecordIdType.REGISTRATION, exception.getMessage());
         }
-        publishSuccessMetric(registrationRequest.getClientReferenceId(),
+        publishSuccessMetric(householdRegistrationRequest.getClientReferenceId(),
                 RecordIdType.REGISTRATION);
     }
 

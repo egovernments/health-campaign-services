@@ -24,6 +24,7 @@ public class HealthCampaignSyncOrchestrator implements SyncOrchestrator {
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap =
                 (Map<Class<? extends SyncStep>, Object>) param;
         SyncContext syncContext = applicationContext.getBean(HealthCampaignSyncContext.class);
+        // TODO: Handle error scenario
         Class<? extends SyncStep> clazz = syncContext.getSyncStep().getClass();
         syncContext.handle(stepToPayloadMap.get(clazz));
         while (syncContext.hasNext()) {

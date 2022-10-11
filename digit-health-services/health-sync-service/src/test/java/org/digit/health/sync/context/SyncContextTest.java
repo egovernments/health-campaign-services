@@ -1,7 +1,7 @@
 package org.digit.health.sync.context;
 
 import org.digit.health.sync.context.enums.SyncErrorCode;
-import org.digit.health.sync.context.metric.SyncMetric;
+import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.DisplayName;
@@ -133,13 +133,13 @@ class SyncContextTest {
         }
 
         @Override
-        public List<SyncMetric> getSyncMetrics() {
-            return this.syncMetrics;
+        public List<SyncStepMetric> getSyncMetrics() {
+            return this.syncStepMetrics;
         }
 
         @Override
         public void update(Observable o, Object arg) {
-            this.syncMetrics.add((SyncMetric) arg);
+            this.syncStepMetrics.add((SyncStepMetric) arg);
         }
     }
 
@@ -168,7 +168,7 @@ class SyncContextTest {
         @Override
         public void handle(Object payload) {
             this.setChanged();
-            this.notifyObservers(SyncMetric.builder().build());
+            this.notifyObservers(SyncStepMetric.builder().build());
         }
 
         @Override
