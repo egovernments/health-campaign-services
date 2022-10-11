@@ -64,6 +64,7 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
                 new ArrayList<>(referenceToStepToPayloadMap.values());
         List<SyncStepMetric> syncStepMetricList = new ArrayList<>();
         orchestrate(stepToPayloadMapList, syncStepMetricList);
+        // TODO: Make entry in sync_error_details_log table in case of any errors
         return getSyncLogMetric(syncStepMetricList);
     }
 
