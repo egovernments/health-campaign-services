@@ -14,5 +14,5 @@ import org.egov.common.contract.response.ResponseInfo;
 public class DeliveryResponse {
 
     @JsonProperty("responseInfo")
-    private boolean status;
+    private ResponseInfo responseInfo;
 }
