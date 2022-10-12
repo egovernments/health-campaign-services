@@ -1,16 +1,14 @@
 package org.digit.health.sync.helper;
 
-import org.digit.health.sync.web.models.FileDetails;
 import org.digit.health.sync.web.models.ReferenceId;
 import org.digit.health.sync.web.models.SyncStatus;
-import org.digit.health.sync.web.models.request.SyncSearchRequest;
-import org.digit.health.sync.web.models.request.SyncUpRequest;
+import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 
 
 public class SyncSearchRequestTestBuilder {
-    private SyncSearchRequest.SyncSearchRequestBuilder builder;
+    private SyncLogSearchRequest.SyncLogSearchRequestBuilder builder;
 
 
     public static SyncSearchRequestTestBuilder builder() {
@@ -18,7 +16,7 @@ public class SyncSearchRequestTestBuilder {
     }
 
     public SyncSearchRequestTestBuilder() {
-        this.builder = SyncSearchRequest.builder();
+        this.builder = SyncLogSearchRequest.builder();
     }
 
     public SyncSearchRequestTestBuilder withSyncId() {
@@ -62,7 +60,7 @@ public class SyncSearchRequestTestBuilder {
     }
 
 
-    public SyncSearchRequest build() {
+    public SyncLogSearchRequest build() {
         return builder.build();
     }
 }

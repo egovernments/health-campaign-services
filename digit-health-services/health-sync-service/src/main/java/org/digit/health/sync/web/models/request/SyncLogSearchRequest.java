@@ -15,7 +15,7 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SyncSearchRequest {
+public class SyncLogSearchRequest {
 
     @JsonProperty("requestInfo")
     private RequestInfo requestInfo;

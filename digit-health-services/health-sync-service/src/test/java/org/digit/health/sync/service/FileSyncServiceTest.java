@@ -4,11 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.kafka.Producer;
-import org.digit.health.sync.repository.SyncRepository;
+import org.digit.health.sync.repository.DefaultSyncLogRepository;
+import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.GzipCompressor;
 import org.digit.health.sync.web.models.SyncLog;
-import org.digit.health.sync.web.models.dao.SyncData;
+import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.*;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,7 +55,8 @@ class FileSyncServiceTest {
     private Md5ChecksumValidator checksumValidator;
 
     @Mock
-    private SyncRepository syncRepository;
+    @Qualifier("defaultSyncLogRepository")
+    private SyncLogRepository syncLogRepository;
 
     @InjectMocks
     private FileSyncService fileSyncService;
@@ -65,7 +70,7 @@ class FileSyncServiceTest {
                 objectMapper,
                 compressor,
                 checksumValidator,
-                syncRepository
+                syncLogRepository
         );
     }
 
@@ -139,16 +144,22 @@ class FileSyncServiceTest {
     @Test
     @DisplayName("should successfully get results from sync repository")
     void shouldSuccessfullyGetResultsFromSyncRepository()  {
-        SyncSearchRequest syncSearchRequest = SyncSearchRequestTestBuilder.builder().build();
-        List<SyncData> searchedData = new ArrayList<>();
-        searchedData.add(SyncData.builder().build());
-        SyncSearchDto syncSearchDto = SyncSearchMapper.INSTANCE.toDTO(syncSearchRequest);
+        SyncLogSearchRequest syncLogSearchRequest = SyncSearchRequestTestBuilder.builder().build();
+        List<SyncLogData> searchedData = new ArrayList<>();
+        searchedData.add(SyncLogData.builder().build());
+        SyncLogSearchDto syncLogSearchDto = SyncLogSearchMapper.INSTANCE.toDTO(syncLogSearchRequest);
 
-        when(syncRepository.findByCriteria(any(SyncSearchDto.class))).thenReturn(searchedData);
+        when(syncLogRepository.findByCriteria(any(SyncLogSearchDto.class))).thenReturn(searchedData);
 
-        fileSyncService.findByCriteria(syncSearchDto);
+        List<SyncLogData> fetechedResult = fileSyncService.findByCriteria(syncLogSearchDto);
 
-        verify(syncRepository,times(1)).findByCriteria(syncSearchDto);
+        assertTrue(
+                searchedData.size() == fetechedResult.size() &&
+                        searchedData.containsAll(fetechedResult) &&
+                        fetechedResult.containsAll(searchedData)
+        );
+
+        verify(syncLogRepository,times(1)).findByCriteria(syncLogSearchDto);
     }
 
     private byte[] getFileData(String file) throws IOException {

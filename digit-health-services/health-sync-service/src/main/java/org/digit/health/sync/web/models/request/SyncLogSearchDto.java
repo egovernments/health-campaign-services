@@ -11,7 +11,7 @@ import org.egov.common.contract.request.RequestInfo;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SyncSearchDto {
+public class SyncLogSearchDto {
 
     private RequestInfo requestInfo;
     private String tenantId;

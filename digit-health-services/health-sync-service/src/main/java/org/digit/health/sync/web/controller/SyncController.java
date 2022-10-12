@@ -4,11 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.utils.ModelMapper;
 import org.digit.health.sync.web.models.SyncId;
-import org.digit.health.sync.web.models.request.SyncSearchMapper;
-import org.digit.health.sync.web.models.request.SyncSearchRequest;
+import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
+import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
 import org.digit.health.sync.web.models.request.SyncUpMapper;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
-import org.digit.health.sync.web.models.response.SyncSearchResponse;
+import org.digit.health.sync.web.models.response.SyncLogSearchResponse;
 import org.digit.health.sync.web.models.response.SyncUpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,7 +32,6 @@ public class SyncController {
         this.syncService = syncService;
     }
 
-
     @PostMapping("/up")
     public ResponseEntity<SyncUpResponse> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
         log.info("Sync up request {}", syncUpRequest.toString());
@@ -45,14 +44,13 @@ public class SyncController {
                 .build());
     }
 
-
-    @PostMapping("/_search")
-    public ResponseEntity<SyncSearchResponse> syncUp(@RequestBody @Valid SyncSearchRequest searchRequest) {
-        return ResponseEntity.ok().body(SyncSearchResponse.builder()
+    @PostMapping("/status")
+    public ResponseEntity<SyncLogSearchResponse> stats(@RequestBody @Valid SyncLogSearchRequest searchRequest) {
+        return ResponseEntity.ok().body(SyncLogSearchResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(searchRequest
                         .getRequestInfo(), true))
-                .syncDataResults(
-                        syncService.findByCriteria(SyncSearchMapper.INSTANCE.toDTO(searchRequest))
+                .syncLogDataResults(
+                        syncService.findByCriteria(SyncLogSearchMapper.INSTANCE.toDTO(searchRequest))
                 ).build());
     }
 

@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.digit.health.sync.context.SyncErrorCode;
-import org.digit.health.sync.repository.SyncRepository;
-import org.digit.health.sync.web.models.dao.SyncData;
+import org.digit.health.sync.repository.SyncLogRepository;
+import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.service.checksum.ChecksumValidator;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
@@ -19,11 +19,12 @@ import org.digit.health.sync.web.models.SyncId;
 import org.digit.health.sync.web.models.SyncLog;
 import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.SyncUpDataList;
-import org.digit.health.sync.web.models.request.SyncSearchDto;
+import org.digit.health.sync.web.models.request.SyncLogSearchDto;
 import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -40,16 +41,16 @@ public class FileSyncService implements SyncService {
     private final FileStoreService fileStoreService;
     private final Compressor compressor;
     private final ChecksumValidator checksumValidator;
-    private final SyncRepository syncRepository;
+    private final SyncLogRepository syncLogRepository;
 
     @Autowired
-    public FileSyncService(Producer producer, FileStoreService fileStoreService, ObjectMapper objectMapper, GzipCompressor compressor, Md5ChecksumValidator checksumValidator,SyncRepository syncRepository) {
+    public FileSyncService(Producer producer, FileStoreService fileStoreService, ObjectMapper objectMapper, GzipCompressor compressor, Md5ChecksumValidator checksumValidator, @Qualifier("defaultSyncLogRepository") SyncLogRepository syncLogRepository) {
         this.producer = producer;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
         this.compressor = compressor;
         this.checksumValidator = checksumValidator;
-        this.syncRepository = syncRepository;
+        this.syncLogRepository = syncLogRepository;
     }
 
     @Override
@@ -131,8 +132,8 @@ public class FileSyncService implements SyncService {
     }
 
     @Override
-    public List<SyncData> findByCriteria(SyncSearchDto syncSearchDto) {
-        return syncRepository.findByCriteria(syncSearchDto);
+    public List<SyncLogData> findByCriteria(SyncLogSearchDto syncLogSearchDto) {
+        return syncLogRepository.findByCriteria(syncLogSearchDto);
     }
 
 }

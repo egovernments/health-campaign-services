@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SyncData {
+public class SyncLogData {
 
     @JsonProperty("syncId")
     private String id;

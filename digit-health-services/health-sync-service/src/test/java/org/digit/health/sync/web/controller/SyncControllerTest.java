@@ -6,9 +6,9 @@ import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.web.models.SyncId;
 import org.digit.health.sync.web.models.SyncStatus;
-import org.digit.health.sync.web.models.dao.SyncData;
-import org.digit.health.sync.web.models.request.SyncSearchDto;
-import org.digit.health.sync.web.models.request.SyncSearchRequest;
+import org.digit.health.sync.web.models.dao.SyncLogData;
+import org.digit.health.sync.web.models.request.SyncLogSearchDto;
+import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
 import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
 import org.egov.tracer.model.CustomException;
@@ -80,9 +80,9 @@ class SyncControllerTest {
     @Test
     @DisplayName("should return Http status as 200 and sync result on sync search request")
     void shouldReturnHttpStatus200AndSyncResultOnSearchRequest() throws Exception {
-        SyncSearchRequest syncSearchRequest = SyncSearchRequestTestBuilder.builder().withSyncId().build();
-        List<SyncData> searchedData =  new ArrayList<>();
-        SyncData responseSync = SyncData.builder()
+        SyncLogSearchRequest syncLogSearchRequest = SyncSearchRequestTestBuilder.builder().withSyncId().build();
+        List<SyncLogData> searchedData =  new ArrayList<>();
+        SyncLogData responseSync = SyncLogData.builder()
                 .status(SyncStatus.CREATED.name())
                 .successCount(0)
                 .errorCount(0)
@@ -98,11 +98,11 @@ class SyncControllerTest {
                 .lastModifiedTime(1L)
                 .build();
         searchedData.add(responseSync);
-        when(syncService.findByCriteria(any(SyncSearchDto.class))).thenReturn(searchedData);
+        when(syncService.findByCriteria(any(SyncLogSearchDto.class))).thenReturn(searchedData);
 
-        mockMvc.perform(post("/sync/v1/_search")
+        mockMvc.perform(post("/sync/v1/status")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(syncSearchRequest)))
+                        .content(objectMapper.writeValueAsString(syncLogSearchRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.syncs.length()").value(1));;
     }
@@ -111,10 +111,10 @@ class SyncControllerTest {
     @Test
     @DisplayName("should return Http status as 400 and if tenantId is not present in search request")
     void should$eturnHttpStatus400IfTenantIdIsNotPresentInSearchRequest() throws Exception {
-        SyncSearchRequest syncSearchRequest = SyncSearchRequestTestBuilder.builder().build();
-        mockMvc.perform(post("/sync/v1/_search")
+        SyncLogSearchRequest syncLogSearchRequest = SyncSearchRequestTestBuilder.builder().build();
+        mockMvc.perform(post("/sync/v1/stats")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(syncSearchRequest)))
+                        .content(objectMapper.writeValueAsString(syncLogSearchRequest)))
                 .andExpect(status().is4xxClientError());
     }
 
