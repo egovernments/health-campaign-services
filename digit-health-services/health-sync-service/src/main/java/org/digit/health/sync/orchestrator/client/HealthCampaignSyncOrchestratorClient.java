@@ -40,7 +40,15 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
         Map<Object, Object> payloadMap = (Map<Object, Object>) payload;
         SyncUpDataList syncUpDataList = (SyncUpDataList) payloadMap.get("syncUpDataList");
         List<SyncUpData> syncUpData = syncUpDataList.getSyncUpData();
-        Map<String, Map<Class<? extends SyncStep>, Object>> referenceIdToStepToPayloadMap = new HashMap<>();
+        List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList = getStepToPayloadMapList(syncUpData);
+        List<SyncStepMetric> syncStepMetricList = orchestrate(stepToPayloadMapList);
+        // TODO: Make entry in sync_error_details_log table in case of any errors
+        return getSyncLogMetric(syncStepMetricList);
+    }
+
+    private List<Map<Class<? extends SyncStep>, Object>> getStepToPayloadMapList(List<SyncUpData> syncUpData) {
+        Map<String, Map<Class<? extends SyncStep>, Object>> referenceIdToStepToPayloadMap =
+                new HashMap<>();
         for (SyncUpData sData : syncUpData) {
             if (sData.getItems().get(0) instanceof HouseholdRegistration) {
                 for (CampaignData cd : sData.getItems()) {
@@ -61,11 +69,7 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
                 }
             }
         }
-        List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList =
-                new ArrayList<>(referenceIdToStepToPayloadMap.values());
-        List<SyncStepMetric> syncStepMetricList = orchestrate(stepToPayloadMapList);
-        // TODO: Make entry in sync_error_details_log table in case of any errors
-        return getSyncLogMetric(syncStepMetricList);
+        return new ArrayList<>(referenceIdToStepToPayloadMap.values());
     }
 
     private List<SyncStepMetric> orchestrate(List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList) {
