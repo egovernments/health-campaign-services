@@ -1,5 +1,5 @@
 target/
 egov-pg-service.iml
 *.iml
-health-sync-service.iml
+health-delivery-service.iml
 src/main/resources/config/
