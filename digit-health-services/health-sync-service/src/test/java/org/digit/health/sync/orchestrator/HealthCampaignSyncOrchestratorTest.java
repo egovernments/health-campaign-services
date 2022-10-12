@@ -30,6 +30,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,7 +49,8 @@ class HealthCampaignSyncOrchestratorTest {
     @Test
     @DisplayName("health campaign orchestrator should orchestrate sync and return sync metrics")
     void testThatGivenAPayloadOrchestratorCanOrchestrateSyncAndReturnMetrics() {
-        SyncOrchestrator syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
+        SyncOrchestrator<Map<Class<? extends SyncStep>, Object>, List<SyncStepMetric>>
+                syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
         stepToPayloadMap.put(RegistrationSyncStep.class,
                 HouseholdRegistrationRequestTestBuilder.builder().withDummyClientReferenceId().build());
@@ -64,15 +67,16 @@ class HealthCampaignSyncOrchestratorTest {
         when(properties.getDeliveryBaseUrl()).thenReturn("some-url");
         when(properties.getDeliveryCreateEndpoint()).thenReturn("some-endpoint");
 
-        Object result = syncOrchestrator.orchestrate(stepToPayloadMap);
+        List<SyncStepMetric> result = syncOrchestrator.orchestrate(stepToPayloadMap);
 
-        assertEquals(2, ((List<SyncStepMetric>) result).size());
+        assertEquals(2, result.size());
     }
 
     @Test
     @DisplayName("health campaign orchestrator should not handle next step in case of error before step handling")
     void testThatOrchestratorShouldNotHandleNextStepInCaseOfErrorBeforeStepHandling() {
-        SyncOrchestrator syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
+        SyncOrchestrator<Map<Class<? extends SyncStep>, Object>, List<SyncStepMetric>>
+                syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
         stepToPayloadMap.put(RegistrationSyncStep.class,
                 HouseholdRegistrationRequestTestBuilder.builder().withDummyClientReferenceId().build());
@@ -85,15 +89,16 @@ class HealthCampaignSyncOrchestratorTest {
         doThrow(CustomException.class).when(healthCampaignSyncContext)
                 .handle(stepToPayloadMap.get(RegistrationSyncStep.class));
 
-        Object result = syncOrchestrator.orchestrate(stepToPayloadMap);
+        List<SyncStepMetric> result = syncOrchestrator.orchestrate(stepToPayloadMap);
 
-        assertEquals(0, ((List<SyncStepMetric>) result).size());
+        assertEquals(0, result.size());
     }
 
     @Test
     @DisplayName("health campaign orchestrator should not handle next step in case of error in a step")
     void testThatOrchestratorShouldNotHandleNextStepInCaseOfErrorInAStep() {
-        SyncOrchestrator syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
+        SyncOrchestrator<Map<Class<? extends SyncStep>, Object>, List<SyncStepMetric>>
+                syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
         HouseholdRegistrationRequest householdRegistrationRequest =
                 HouseholdRegistrationRequestTestBuilder.builder()
@@ -114,15 +119,16 @@ class HealthCampaignSyncOrchestratorTest {
                 any(StringBuilder.class),
                 any(HouseholdRegistrationRequest.class), eq(ResponseEntity.class));
 
-        Object result = syncOrchestrator.orchestrate(stepToPayloadMap);
+        List<SyncStepMetric> result = syncOrchestrator.orchestrate(stepToPayloadMap);
 
-        assertEquals(1, ((List<SyncStepMetric>) result).size());
+        assertEquals(1, result.size());
     }
 
     @Test
     @DisplayName("health campaign orchestrator should return metrics of the steps executed")
     void testThatOrchestratorReturnMetricsOfTheStepsExecuted() {
-        SyncOrchestrator syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
+        SyncOrchestrator<Map<Class<? extends SyncStep>, Object>, List<SyncStepMetric>>
+                syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
         HouseholdRegistrationRequest householdRegistrationRequest =
                 HouseholdRegistrationRequestTestBuilder.builder()
@@ -148,8 +154,37 @@ class HealthCampaignSyncOrchestratorTest {
         lenient().doThrow(new CustomException()).when(serviceRequestRepository).fetchResult(
                 any(StringBuilder.class), any(DeliveryRequest.class), eq(ResponseEntity.class));
 
-        Object result = syncOrchestrator.orchestrate(stepToPayloadMap);
+        List<SyncStepMetric> result = syncOrchestrator.orchestrate(stepToPayloadMap);
 
-        assertEquals(2, ((List<SyncStepMetric>) result).size());
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    @DisplayName("health campaign orchestrator should allow to execute adhoc steps - retry scenario")
+    void testThatOrchestratorShouldAllowExecutionOfAdhocSteps() {
+        SyncOrchestrator<Map<Class<? extends SyncStep>, Object>, List<SyncStepMetric>>
+                syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
+        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
+        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder.builder()
+                .withDummyClientReferenceId().build();
+        stepToPayloadMap.put(DeliverySyncStep.class, deliveryRequest);
+        HealthCampaignSyncContext healthCampaignSyncContext = Mockito
+                .spy(new HealthCampaignSyncContext(new RegistrationSyncStep(applicationContext)));
+        when(applicationContext.getBean(HealthCampaignSyncContext.class))
+                .thenReturn(healthCampaignSyncContext);
+        when(applicationContext.getBean(Properties.class)).thenReturn(properties);
+        when(applicationContext.getBean(ServiceRequestRepository.class)).thenReturn(serviceRequestRepository);
+        when(applicationContext.getBean(DeliverySyncStep.class))
+                .thenReturn(new DeliverySyncStep(applicationContext));
+        when(properties.getDeliveryBaseUrl()).thenReturn("some-url");
+        when(properties.getDeliveryCreateEndpoint()).thenReturn("some-endpoint");
+        lenient().doReturn(ResponseEntity.ok()).when(serviceRequestRepository).fetchResult(
+                any(StringBuilder.class), any(DeliveryRequest.class), eq(ResponseEntity.class));
+
+        List<SyncStepMetric> result = syncOrchestrator.orchestrate(stepToPayloadMap);
+
+        verify(healthCampaignSyncContext, times(1)).handle(any());
+
+        assertEquals(1, result.size());
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 @Slf4j
@@ -29,11 +30,13 @@ public class HealthCampaignSyncOrchestrator
         SyncContext syncContext = applicationContext.getBean(HealthCampaignSyncContext.class);
         try {
             Class<? extends SyncStep> clazz = syncContext.getSyncStep().getClass();
-            syncContext.handle(stepToPayloadMap.get(clazz));
+            Optional.ofNullable(stepToPayloadMap.get(clazz))
+                    .ifPresent(syncContext::handle);
             while (syncContext.hasNext()) {
                 syncContext.nextSyncStep();
                 clazz = syncContext.getSyncStep().getClass();
-                syncContext.handle(stepToPayloadMap.get(clazz));
+                Optional.ofNullable(stepToPayloadMap.get(clazz))
+                        .ifPresent(syncContext::handle);
             }
         } catch (Exception exception) {
             log.error("Exception occurred during orchestration", exception);
