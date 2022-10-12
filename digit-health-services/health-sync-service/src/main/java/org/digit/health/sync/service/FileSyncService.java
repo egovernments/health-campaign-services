@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.digit.health.sync.context.SyncErrorCode;
+import org.digit.health.sync.repository.SyncRepository;
+import org.digit.health.sync.web.models.dao.SyncData;
 import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.service.checksum.ChecksumValidator;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
@@ -17,6 +19,7 @@ import org.digit.health.sync.web.models.SyncId;
 import org.digit.health.sync.web.models.SyncLog;
 import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.SyncUpDataList;
+import org.digit.health.sync.web.models.request.SyncSearchDto;
 import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -36,15 +40,16 @@ public class FileSyncService implements SyncService {
     private final FileStoreService fileStoreService;
     private final Compressor compressor;
     private final ChecksumValidator checksumValidator;
-
+    private final SyncRepository syncRepository;
 
     @Autowired
-    public FileSyncService(Producer producer, FileStoreService fileStoreService, ObjectMapper objectMapper, GzipCompressor compressor, Md5ChecksumValidator checksumValidator) {
+    public FileSyncService(Producer producer, FileStoreService fileStoreService, ObjectMapper objectMapper, GzipCompressor compressor, Md5ChecksumValidator checksumValidator,SyncRepository syncRepository) {
         this.producer = producer;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
         this.compressor = compressor;
         this.checksumValidator = checksumValidator;
+        this.syncRepository = syncRepository;
     }
 
     @Override
@@ -65,7 +70,6 @@ public class FileSyncService implements SyncService {
         return SyncId.builder().syncId(syncLog.getSyncId()).build();
 
     }
-
 
     private String convertToString(byte[] data) {
         try {
@@ -125,4 +129,10 @@ public class FileSyncService implements SyncService {
                 .build();
         producer.send("health-sync-error-details-log", syncErrorDetailsLog);
     }
+
+    @Override
+    public List<SyncData> findByCriteria(SyncSearchDto syncSearchDto) {
+        return syncRepository.findByCriteria(syncSearchDto);
+    }
+
 }

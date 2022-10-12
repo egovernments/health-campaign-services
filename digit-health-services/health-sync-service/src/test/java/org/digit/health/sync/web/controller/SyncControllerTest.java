@@ -1,9 +1,14 @@
 package org.digit.health.sync.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.web.models.SyncId;
+import org.digit.health.sync.web.models.SyncStatus;
+import org.digit.health.sync.web.models.dao.SyncData;
+import org.digit.health.sync.web.models.request.SyncSearchDto;
+import org.digit.health.sync.web.models.request.SyncSearchRequest;
 import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
 import org.egov.tracer.model.CustomException;
@@ -16,6 +21,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -69,4 +76,46 @@ class SyncControllerTest {
                 .andExpect(jsonPath("$.Errors[0].message")
                         .value("Invalid File"));
     }
+
+    @Test
+    @DisplayName("should return Http status as 200 and sync result on sync search request")
+    void shouldReturnHttpStatus200AndSyncResultOnSearchRequest() throws Exception {
+        SyncSearchRequest syncSearchRequest = SyncSearchRequestTestBuilder.builder().withSyncId().build();
+        List<SyncData> searchedData =  new ArrayList<>();
+        SyncData responseSync = SyncData.builder()
+                .status(SyncStatus.CREATED.name())
+                .successCount(0)
+                .errorCount(0)
+                .totalCount(0)
+                .comment("")
+                .fileStoreId("fileId")
+                .referenceId("1")
+                .tenantId("mq")
+                .referenceIdType("campaign")
+                .createdBy("uid")
+                .createdTime(1L)
+                .lastModifiedBy("uid")
+                .lastModifiedTime(1L)
+                .build();
+        searchedData.add(responseSync);
+        when(syncService.findByCriteria(any(SyncSearchDto.class))).thenReturn(searchedData);
+
+        mockMvc.perform(post("/sync/v1/_search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(syncSearchRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.syncs.length()").value(1));;
+    }
+
+
+    @Test
+    @DisplayName("should return Http status as 400 and if tenantId is not present in search request")
+    void should$eturnHttpStatus400IfTenantIdIsNotPresentInSearchRequest() throws Exception {
+        SyncSearchRequest syncSearchRequest = SyncSearchRequestTestBuilder.builder().build();
+        mockMvc.perform(post("/sync/v1/_search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(syncSearchRequest)))
+                .andExpect(status().is4xxClientError());
+    }
+
 }

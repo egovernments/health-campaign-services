@@ -1,14 +1,15 @@
 package org.digit.health.sync.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.kafka.Producer;
+import org.digit.health.sync.repository.SyncRepository;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.GzipCompressor;
 import org.digit.health.sync.web.models.SyncLog;
-import org.digit.health.sync.web.models.request.SyncUpDto;
-import org.digit.health.sync.web.models.request.SyncUpMapper;
-import org.digit.health.sync.web.models.request.SyncUpRequest;
+import org.digit.health.sync.web.models.dao.SyncData;
+import org.digit.health.sync.web.models.request.*;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -47,6 +50,8 @@ class FileSyncServiceTest {
     @Mock
     private Md5ChecksumValidator checksumValidator;
 
+    @Mock
+    private SyncRepository syncRepository;
 
     @InjectMocks
     private FileSyncService fileSyncService;
@@ -54,8 +59,14 @@ class FileSyncServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        fileSyncService = new FileSyncService(producer, fileStoreService,
-                objectMapper, compressor, checksumValidator);
+        fileSyncService = new FileSyncService(
+                producer,
+                fileStoreService,
+                objectMapper,
+                compressor,
+                checksumValidator,
+                syncRepository
+        );
     }
 
     @Test
@@ -123,6 +134,21 @@ class FileSyncServiceTest {
         when(compressor.decompress(any())).thenReturn(fileData);
 
         assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    @DisplayName("should successfully get results from sync repository")
+    void shouldSuccessfullyGetResultsFromSyncRepository()  {
+        SyncSearchRequest syncSearchRequest = SyncSearchRequestTestBuilder.builder().build();
+        List<SyncData> searchedData = new ArrayList<>();
+        searchedData.add(SyncData.builder().build());
+        SyncSearchDto syncSearchDto = SyncSearchMapper.INSTANCE.toDTO(syncSearchRequest);
+
+        when(syncRepository.findByCriteria(any(SyncSearchDto.class))).thenReturn(searchedData);
+
+        fileSyncService.findByCriteria(syncSearchDto);
+
+        verify(syncRepository,times(1)).findByCriteria(syncSearchDto);
     }
 
     private byte[] getFileData(String file) throws IOException {

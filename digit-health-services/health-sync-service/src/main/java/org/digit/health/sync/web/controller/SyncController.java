@@ -4,8 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.utils.ModelMapper;
 import org.digit.health.sync.web.models.SyncId;
+import org.digit.health.sync.web.models.request.SyncSearchMapper;
+import org.digit.health.sync.web.models.request.SyncSearchRequest;
 import org.digit.health.sync.web.models.request.SyncUpMapper;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
+import org.digit.health.sync.web.models.response.SyncSearchResponse;
 import org.digit.health.sync.web.models.response.SyncUpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -41,4 +44,16 @@ public class SyncController {
                 .syncId(syncId.getSyncId())
                 .build());
     }
+
+
+    @PostMapping("/_search")
+    public ResponseEntity<SyncSearchResponse> syncUp(@RequestBody @Valid SyncSearchRequest searchRequest) {
+        return ResponseEntity.ok().body(SyncSearchResponse.builder()
+                .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(searchRequest
+                        .getRequestInfo(), true))
+                .syncDataResults(
+                        syncService.findByCriteria(SyncSearchMapper.INSTANCE.toDTO(searchRequest))
+                ).build());
+    }
+
 }
