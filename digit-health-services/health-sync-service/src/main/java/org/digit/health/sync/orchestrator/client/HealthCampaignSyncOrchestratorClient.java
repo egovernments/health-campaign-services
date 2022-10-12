@@ -37,7 +37,8 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
 
     @Override
     public Object orchestrate(Object payload) {
-        SyncUpDataList syncUpDataList = (SyncUpDataList) payload;
+        Map<Object, Object> payloadMap = (Map<Object, Object>) payload;
+        SyncUpDataList syncUpDataList = (SyncUpDataList) payloadMap.get("syncUpDataList");
         List<SyncUpData> syncUpData = syncUpDataList.getSyncUpData();
         Map<String, Map<Class<? extends SyncStep>, Object>> referenceToStepToPayloadMap = new HashMap<>();
         for (SyncUpData sData : syncUpData) {
