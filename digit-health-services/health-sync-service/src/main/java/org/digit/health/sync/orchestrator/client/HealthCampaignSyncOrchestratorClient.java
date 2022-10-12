@@ -63,19 +63,19 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
         }
         List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList =
                 new ArrayList<>(referenceIdToStepToPayloadMap.values());
-        List<SyncStepMetric> syncStepMetricList = new ArrayList<>();
-        orchestrate(stepToPayloadMapList, syncStepMetricList);
+        List<SyncStepMetric> syncStepMetricList = orchestrate(stepToPayloadMapList);
         // TODO: Make entry in sync_error_details_log table in case of any errors
         return getSyncLogMetric(syncStepMetricList);
     }
 
-    private void orchestrate(List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList,
-                             List<SyncStepMetric> syncStepMetricList) {
+    private List<SyncStepMetric> orchestrate(List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList) {
+        List<SyncStepMetric> syncStepMetricList = new ArrayList<>();
         for (Map<Class<? extends SyncStep>, Object> stepToPayloadMap : stepToPayloadMapList) {
             List<SyncStepMetric> syncStepMetrics = (List<SyncStepMetric>)
                     syncOrchestrator.orchestrate(stepToPayloadMap);
             syncStepMetricList.addAll(syncStepMetrics);
         }
+        return syncStepMetricList;
     }
 
     private SyncLogMetric getSyncLogMetric(List<SyncStepMetric> syncStepMetrics) {
