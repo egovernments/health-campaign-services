@@ -40,7 +40,7 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
         Map<Object, Object> payloadMap = (Map<Object, Object>) payload;
         SyncUpDataList syncUpDataList = (SyncUpDataList) payloadMap.get("syncUpDataList");
         List<SyncUpData> syncUpData = syncUpDataList.getSyncUpData();
-        Map<String, Map<Class<? extends SyncStep>, Object>> referenceToStepToPayloadMap = new HashMap<>();
+        Map<String, Map<Class<? extends SyncStep>, Object>> referenceIdToStepToPayloadMap = new HashMap<>();
         for (SyncUpData sData : syncUpData) {
             if (sData.getItems().get(0) instanceof HouseholdRegistration) {
                 for (CampaignData cd : sData.getItems()) {
@@ -48,13 +48,13 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
                     HouseholdRegistration hr = (HouseholdRegistration) cd;
                     stepToPayloadMap.put(RegistrationSyncStep.class,
                             HouseholdRegistrationMapper.INSTANCE.toRequest(hr));
-                    referenceToStepToPayloadMap.put(hr.getClientReferenceId(), stepToPayloadMap);
+                    referenceIdToStepToPayloadMap.put(hr.getClientReferenceId(), stepToPayloadMap);
                 }
             }
             if (sData.getItems().get(0) instanceof Delivery) {
                 for (CampaignData cd : sData.getItems()) {
                     Delivery delivery = (Delivery) cd;
-                    Map<Class<? extends SyncStep>, Object> stepToPayloadMap = referenceToStepToPayloadMap
+                    Map<Class<? extends SyncStep>, Object> stepToPayloadMap = referenceIdToStepToPayloadMap
                             .get(delivery.getRegistrationClientReferenceId());
                     stepToPayloadMap.put(DeliverySyncStep.class,
                             DeliveryMapper.INSTANCE.toRequest(delivery));
@@ -62,7 +62,7 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
             }
         }
         List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList =
-                new ArrayList<>(referenceToStepToPayloadMap.values());
+                new ArrayList<>(referenceIdToStepToPayloadMap.values());
         List<SyncStepMetric> syncStepMetricList = new ArrayList<>();
         orchestrate(stepToPayloadMapList, syncStepMetricList);
         // TODO: Make entry in sync_error_details_log table in case of any errors

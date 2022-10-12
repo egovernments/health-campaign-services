@@ -19,7 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -83,24 +83,42 @@ class DeliverySyncStepTest {
     }
 
     @Test
-    @DisplayName("delivery sync step should not throw custom exception in case of any error")
+    @DisplayName("delivery sync step should publish metrics and throw custom exception in case of any error")
     void testThatDeliverySyncStepThrowsCustomExceptionInCaseOfAnyError() {
-        SyncStep deliverySyncStep = new DeliverySyncStep(applicationContext);
+        String errorMessage = "some_message";
+        SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
                 any(DeliveryRequest.class),
-                eq(ResponseEntity.class))).thenThrow(CustomException.class);
+                eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
         DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
+        SyncStepMetric syncStepMetric = SyncStepMetric.builder()
+                .status(StepSyncStatus.FAILED)
+                .recordId(deliveryRequest.getClientReferenceId())
+                .recordIdType(RecordIdType.DELIVERY)
+                .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
+                .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
+                .build();
+        CustomException customException = null;
 
-        assertDoesNotThrow(() -> deliverySyncStep
-                .handle(deliveryRequest));
+        try {
+            deliverySyncStep
+                    .handle(deliveryRequest);
+        } catch (CustomException ex) {
+            customException = ex;
+        }
+
+        assertNotNull(customException);
+
+        verify(deliverySyncStep, times(1))
+                .notifyObservers(syncStepMetric);
     }
 
     @Test
-    @DisplayName("delivery sync step should publish failure metric in case of any error")
-    void testThatDeliverySyncStepShouldPublishFailureMetricInCaseOfError() {
+    @DisplayName("delivery sync step should publish failure metric and throw exception in case of any error")
+    void testThatDeliverySyncStepShouldPublishFailureMetricAndThrowExceptionInCaseOfError() {
         String errorMessage = "some_message";
         SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
         DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
@@ -118,7 +136,14 @@ class DeliverySyncStepTest {
                 any(DeliveryRequest.class),
                 eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
 
-        deliverySyncStep.handle(deliveryRequest);
+        Exception ex = null;
+        try {
+            deliverySyncStep.handle(deliveryRequest);
+        } catch (Exception exception) {
+            ex = exception;
+        }
+
+        assertNotNull(ex);
 
         verify(deliverySyncStep, times(1))
                 .notifyObservers(syncStepMetric);

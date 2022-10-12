@@ -3,9 +3,11 @@ package org.digit.health.sync.context.step;
 import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.context.SyncContext;
 import org.digit.health.sync.context.enums.RecordIdType;
+import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
 import org.digit.health.sync.web.models.request.HouseholdRegistrationRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
@@ -42,6 +44,8 @@ public class RegistrationSyncStep extends SyncStep {
             log.error("Exception while calling registration service", exception);
             publishFailureMetric(householdRegistrationRequest.getClientReferenceId(),
                     RecordIdType.REGISTRATION, exception.getMessage());
+            throw new CustomException(SyncErrorCode.ERROR_IN_REST_CALL.name(),
+                    SyncErrorCode.ERROR_IN_REST_CALL.message(exception.getMessage()));
         }
         publishSuccessMetric(householdRegistrationRequest.getClientReferenceId(),
                 RecordIdType.REGISTRATION);

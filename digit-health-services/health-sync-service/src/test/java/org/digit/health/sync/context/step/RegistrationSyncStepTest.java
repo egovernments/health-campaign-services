@@ -19,7 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationContext;
 import org.springframework.http.ResponseEntity;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -84,24 +84,43 @@ class RegistrationSyncStepTest {
     }
 
     @Test
-    @DisplayName("registration sync step should not throw custom exception in case of any error")
+    @DisplayName("registration sync step should publish metrics and throw custom exception in case of any error")
     void testThatRegistrationSyncStepThrowsCustomExceptionInCaseOfAnyError() {
-        SyncStep registrationSyncStep = new RegistrationSyncStep(applicationContext);
+        String errorMessage = "some_message";
+        SyncStep registrationSyncStep = Mockito.spy(new RegistrationSyncStep(applicationContext));
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
                 any(HouseholdRegistrationRequest.class),
-                eq(ResponseEntity.class))).thenThrow(CustomException.class);
+                eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
         HouseholdRegistrationRequest householdRegistrationRequest = HouseholdRegistrationRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
+        SyncStepMetric syncStepMetric = SyncStepMetric.builder()
+                .status(StepSyncStatus.FAILED)
+                .recordId(householdRegistrationRequest.getClientReferenceId())
+                .recordIdType(RecordIdType.REGISTRATION)
+                .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
+                .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
+                .build();
 
-        assertDoesNotThrow(() -> registrationSyncStep
-                .handle(householdRegistrationRequest));
+        CustomException customException = null;
+
+        try {
+            registrationSyncStep
+                    .handle(householdRegistrationRequest);
+        } catch (CustomException ex) {
+            customException = ex;
+        }
+
+        assertNotNull(customException);
+
+        verify(registrationSyncStep, times(1))
+                .notifyObservers(syncStepMetric);
     }
 
     @Test
-    @DisplayName("registration sync step should publish failure metric in case of any error")
-    void testThatRegistrationSyncStepShouldPublishFailureMetricInCaseOfError() {
+    @DisplayName("registration sync step should publish failure metric and throw exception in case of any error")
+    void testThatRegistrationSyncStepShouldPublishFailureMetricAndThrowExceptionInCaseOfError() {
         String errorMessage = "some_message";
         SyncStep registrationSyncStep = Mockito.spy(new RegistrationSyncStep(applicationContext));
         HouseholdRegistrationRequest householdRegistrationRequest = HouseholdRegistrationRequestTestBuilder
@@ -118,8 +137,14 @@ class RegistrationSyncStepTest {
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
                 any(HouseholdRegistrationRequest.class),
                 eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
+        Exception ex = null;
+        try {
+            registrationSyncStep.handle(householdRegistrationRequest);
+        } catch (Exception exception) {
+            ex = exception;
+        }
 
-        registrationSyncStep.handle(householdRegistrationRequest);
+        assertNotNull(ex);
 
         verify(registrationSyncStep, times(1))
                 .notifyObservers(syncStepMetric);
