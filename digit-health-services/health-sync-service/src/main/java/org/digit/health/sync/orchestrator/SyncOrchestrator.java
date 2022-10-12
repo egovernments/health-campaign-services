@@ -1,6 +1,6 @@
 package org.digit.health.sync.orchestrator;
 
-public interface SyncOrchestrator {
+public interface SyncOrchestrator<I, O> {
 
-    Object orchestrate(Object param);
+    O orchestrate(I param);
 }

@@ -26,21 +26,24 @@ import java.util.Map;
 
 @Component
 @Slf4j
-public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorClient {
-    private final SyncOrchestrator syncOrchestrator;
+public class HealthCampaignSyncOrchestratorClient
+        implements SyncOrchestratorClient<Map<String, Object>, SyncLogMetric> {
+    private final SyncOrchestrator<Map<Class<? extends SyncStep>, Object>,
+            List<SyncStepMetric>> syncOrchestrator;
 
     @Autowired
-    public HealthCampaignSyncOrchestratorClient(SyncOrchestrator syncOrchestrator) {
+    public HealthCampaignSyncOrchestratorClient(SyncOrchestrator<Map<Class<? extends SyncStep>, Object>,
+            List<SyncStepMetric>> syncOrchestrator) {
         this.syncOrchestrator = syncOrchestrator;
     }
 
 
     @Override
-    public Object orchestrate(Object payload) {
-        Map<Object, Object> payloadMap = (Map<Object, Object>) payload;
+    public SyncLogMetric orchestrate(Map<String, Object> payloadMap) {
         SyncUpDataList syncUpDataList = (SyncUpDataList) payloadMap.get("syncUpDataList");
         List<SyncUpData> syncUpData = syncUpDataList.getSyncUpData();
-        List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList = getStepToPayloadMapList(syncUpData);
+        List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList =
+                getStepToPayloadMapList(syncUpData);
         List<SyncStepMetric> syncStepMetricList = orchestrate(stepToPayloadMapList);
         // TODO: Make entry in sync_error_details_log table in case of any errors
         return getSyncLogMetric(syncStepMetricList);
@@ -75,8 +78,7 @@ public class HealthCampaignSyncOrchestratorClient implements SyncOrchestratorCli
     private List<SyncStepMetric> orchestrate(List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList) {
         List<SyncStepMetric> syncStepMetricList = new ArrayList<>();
         for (Map<Class<? extends SyncStep>, Object> stepToPayloadMap : stepToPayloadMapList) {
-            List<SyncStepMetric> syncStepMetrics = (List<SyncStepMetric>)
-                    syncOrchestrator.orchestrate(stepToPayloadMap);
+            List<SyncStepMetric> syncStepMetrics = syncOrchestrator.orchestrate(stepToPayloadMap);
             syncStepMetricList.addAll(syncStepMetrics);
         }
         return syncStepMetricList;

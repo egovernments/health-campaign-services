@@ -1,5 +1,5 @@
 package org.digit.health.sync.orchestrator.client;
 
-public interface SyncOrchestratorClient {
-    Object orchestrate(Object payload);
+public interface SyncOrchestratorClient<I, O> {
+    O orchestrate(I payload);
 }

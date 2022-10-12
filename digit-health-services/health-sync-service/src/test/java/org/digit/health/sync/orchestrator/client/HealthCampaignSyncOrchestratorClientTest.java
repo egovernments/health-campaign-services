@@ -43,7 +43,7 @@ class HealthCampaignSyncOrchestratorClientTest {
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withOneHouseholdRegistrationAndDelivery()
                 .build();
-        Map<Object, Object> payloadMap = new HashMap<>();
+        Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
         when(syncOrchestrator.orchestrate(stepToPayloadMap)).thenReturn(Collections.emptyList());
@@ -61,7 +61,7 @@ class HealthCampaignSyncOrchestratorClientTest {
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withOneHouseholdRegistrationAndDelivery()
                 .build();
-        Map<Object, Object> payloadMap = new HashMap<>();
+        Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
         List<SyncStepMetric> syncStepMetrics = new ArrayList<>();
@@ -91,7 +91,7 @@ class HealthCampaignSyncOrchestratorClientTest {
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withTwoHouseholdRegistrationAndDelivery()
                 .build();
-        Map<Object, Object> payloadMap = new HashMap<>();
+        Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
         Map<Class<? extends SyncStep>, Object> secondStepToPayloadMap = getSecondStepToPayloadMap();
