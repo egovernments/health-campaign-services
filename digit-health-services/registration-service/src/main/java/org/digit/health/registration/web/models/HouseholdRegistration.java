@@ -12,7 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdRegistration extends CampaignData {
+public class HouseholdRegistration {
     @JsonProperty("householdId")
     private String householdId;
 

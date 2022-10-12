@@ -32,7 +32,7 @@ public class RegistrationController {
     public ResponseEntity<RegistrationResponse> syncUp(@RequestBody @Valid RegistrationRequest registrationRequest) {
         log.info("Registration request {}", registrationRequest.toString());
         RegistrationId registrationId = registrationService.register(RegistrationMapper.INSTANCE.toDTO(registrationRequest));
-        return ResponseEntity.accepted().body(RegistrationResponse.builder()
+        return ResponseEntity.ok().body(RegistrationResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(registrationRequest
                         .getRequestInfo(), true))
                 .registrationId(registrationId.getRegistrationId())
