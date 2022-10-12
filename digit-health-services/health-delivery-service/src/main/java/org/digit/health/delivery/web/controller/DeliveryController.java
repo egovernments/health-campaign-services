@@ -21,6 +21,6 @@ public class DeliveryController {
     @PostMapping("/_create")
     public ResponseEntity<DeliveryResponse> create(@RequestBody @Valid DeliveryRequest deliveryRequest) {
         log.info("create delivery request {}", deliveryRequest.toString());
-        return ResponseEntity.accepted().body(DeliveryResponse.builder().responseInfo(ResponseInfo.builder().status("delivery created").build()).build());
+        return ResponseEntity.ok().body(DeliveryResponse.builder().responseInfo(ResponseInfo.builder().status("delivery created").build()).build());
     }
 }

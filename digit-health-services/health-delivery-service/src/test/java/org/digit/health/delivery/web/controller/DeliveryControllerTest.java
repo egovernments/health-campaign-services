@@ -22,7 +22,7 @@ class DeliveryControllerTest {
     private ObjectMapper objectMapper;
 
     @Test
-    @DisplayName("should return Http status as 202 when the delivery request is valid")
+    @DisplayName("should return Http status as 200 when the delivery request is valid")
     void shouldReturnHttpStatus202WhenRequestIsValid() throws Exception {
         DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder.builder().withDeliveryRequest().build();
         String content = objectMapper.writeValueAsString(deliveryRequest);
@@ -31,6 +31,6 @@ class DeliveryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept(MediaType.APPLICATION_JSON)
                         .content(content))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isOk());
     }
 }

@@ -14,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Delivery extends CampaignData{
+public class Delivery{
 
     @JsonProperty("deliveryId")
     private String deliveryId;

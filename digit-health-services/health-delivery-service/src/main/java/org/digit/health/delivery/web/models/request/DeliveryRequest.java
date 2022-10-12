@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.digit.health.delivery.web.models.CampaignData;
 import org.digit.health.delivery.web.models.Delivery;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
