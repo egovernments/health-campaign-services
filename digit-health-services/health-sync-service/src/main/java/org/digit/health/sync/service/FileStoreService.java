@@ -29,7 +29,10 @@ public class FileStoreService {
                 .queryParam("tenantId", tenantId)
                 .queryParam("fileStoreId", fileStoreId)
                 .build();
-        ResponseEntity<byte[]> file = (ResponseEntity<byte[]>) serviceRequestRepository.fetchResult(new StringBuilder(builder.toUriString()), byte[].class);
+        ResponseEntity<byte[]> file = (ResponseEntity<byte[]>) serviceRequestRepository.fetchResult(
+                                                                    new StringBuilder(builder.toUriString()),
+                                                                    byte[].class
+                                                            );
         return file.getBody();
     }
 

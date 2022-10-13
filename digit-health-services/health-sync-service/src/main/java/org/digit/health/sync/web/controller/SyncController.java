@@ -4,8 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.utils.ModelMapper;
 import org.digit.health.sync.web.models.SyncId;
+import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
+import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
 import org.digit.health.sync.web.models.request.SyncUpMapper;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
+import org.digit.health.sync.web.models.response.SyncLogSearchResponse;
 import org.digit.health.sync.web.models.response.SyncUpResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,7 +32,6 @@ public class SyncController {
         this.syncService = syncService;
     }
 
-
     @PostMapping("/up")
     public ResponseEntity<SyncUpResponse> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
         log.info("Sync up request {}", syncUpRequest.toString());
@@ -41,4 +43,15 @@ public class SyncController {
                 .syncId(syncId.getSyncId())
                 .build());
     }
+
+    @PostMapping("/status")
+    public ResponseEntity<SyncLogSearchResponse> stats(@RequestBody @Valid SyncLogSearchRequest searchRequest) {
+        return ResponseEntity.ok().body(SyncLogSearchResponse.builder()
+                .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(searchRequest
+                        .getRequestInfo(), true))
+                .syncLogDataResults(
+                        syncService.findByCriteria(SyncLogSearchMapper.INSTANCE.toDTO(searchRequest))
+                ).build());
+    }
+
 }
