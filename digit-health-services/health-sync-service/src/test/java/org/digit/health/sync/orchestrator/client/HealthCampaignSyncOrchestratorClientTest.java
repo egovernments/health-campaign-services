@@ -9,7 +9,9 @@ import org.digit.health.sync.helper.SyncUpDataListTestBuilder;
 import org.digit.health.sync.orchestrator.SyncOrchestrator;
 import org.digit.health.sync.orchestrator.client.enums.SyncLogStatus;
 import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
+import org.digit.health.sync.repository.SyncErrorDetailsLogRepository;
 import org.digit.health.sync.web.models.SyncUpDataList;
+import org.digit.health.sync.web.models.dao.SyncErrorDetailsLogData;
 import org.digit.health.sync.web.models.request.DeliveryMapper;
 import org.digit.health.sync.web.models.request.HouseholdRegistrationMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,11 +39,14 @@ class HealthCampaignSyncOrchestratorClientTest {
     private SyncOrchestrator<Map<Class<? extends SyncStep>, Object>,
             List<SyncStepMetric>> syncOrchestrator;
 
+    @Mock
+    private SyncErrorDetailsLogRepository syncErrorDetailsLogRepository;
+
     @Test
     @DisplayName("health camp sync orchestrator client should call health camp sync orchestrator to orchestrate")
     void testThatHealthCampSyncOrchestratorClientCallsHealthCampSyncOrchestratorToOrchestrate() {
         HealthCampaignSyncOrchestratorClient syncOrchestratorClient =
-                new HealthCampaignSyncOrchestratorClient(syncOrchestrator);
+                new HealthCampaignSyncOrchestratorClient(syncOrchestrator, syncErrorDetailsLogRepository);
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withOneHouseholdRegistrationAndDelivery()
                 .build();
@@ -58,7 +64,7 @@ class HealthCampaignSyncOrchestratorClientTest {
     @DisplayName("health camp sync orchestrator client should orchestrate and return aggregate metrics")
     void testThatHealthCampSyncOrchestratorClientOrchestratesAndReturnsAggregateMetrics() {
         HealthCampaignSyncOrchestratorClient syncOrchestratorClient =
-                new HealthCampaignSyncOrchestratorClient(syncOrchestrator);
+                new HealthCampaignSyncOrchestratorClient(syncOrchestrator, syncErrorDetailsLogRepository);
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withOneHouseholdRegistrationAndDelivery()
                 .build();
@@ -82,13 +88,47 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .orchestrate(payloadMap);
 
         assertEquals(syncLogMetricExpected, syncLogMetric);
+        verify(syncErrorDetailsLogRepository, times(0))
+                .save(any(SyncErrorDetailsLogData.class));
+    }
+
+    @Test
+    @DisplayName("should orchestrate and persist error details metrics")
+    void testThatHealthCampSyncOrchestratorClientOrchestrateAndPersistErrorDetailsMetrics() {
+        HealthCampaignSyncOrchestratorClient syncOrchestratorClient =
+                new HealthCampaignSyncOrchestratorClient(syncOrchestrator, syncErrorDetailsLogRepository);
+        SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
+                .withOneHouseholdRegistrationAndDelivery()
+                .build();
+        Map<String, Object> payloadMap = new HashMap<>();
+        payloadMap.put("syncUpDataList", syncUpDataList);
+        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
+        List<SyncStepMetric> syncStepMetrics = new ArrayList<>();
+        syncStepMetrics.add(SyncStepMetricTestBuilder.builder()
+                .withCompletedRegistrationStep().build());
+        syncStepMetrics.add(SyncStepMetricTestBuilder.builder()
+                .withFailedDeliveryStep().build());
+        SyncLogMetric syncLogMetricExpected = SyncLogMetric.builder()
+                .syncLogStatus(SyncLogStatus.PARTIALLY_COMPLETE)
+                .errorCount(1)
+                .successCount(1)
+                .totalCount(2)
+                .build();
+        when(syncOrchestrator.orchestrate(stepToPayloadMap)).thenReturn(syncStepMetrics);
+
+        SyncLogMetric syncLogMetric = syncOrchestratorClient
+                .orchestrate(payloadMap);
+
+        assertEquals(syncLogMetricExpected, syncLogMetric);
+        verify(syncErrorDetailsLogRepository, times(1))
+                .save(any(SyncErrorDetailsLogData.class));
     }
 
     @Test
     @DisplayName("health camp sync orchestrator client should orchestrate a single unrelated item")
     void testThatHealthCampSyncOrchestratorClientOrchestratesSingleUnrelatedItem() {
         HealthCampaignSyncOrchestratorClient syncOrchestratorClient =
-                new HealthCampaignSyncOrchestratorClient(syncOrchestrator);
+                new HealthCampaignSyncOrchestratorClient(syncOrchestrator, syncErrorDetailsLogRepository);
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withOneHouseholdRegistration()
                 .build();
@@ -116,7 +156,7 @@ class HealthCampaignSyncOrchestratorClientTest {
     @DisplayName("health camp sync orchestrator client should orchestrate a different single unrelated item")
     void testThatHealthCampSyncOrchestratorClientOrchestratesSingleUnrelatedItemUseCase2() {
         HealthCampaignSyncOrchestratorClient syncOrchestratorClient =
-                new HealthCampaignSyncOrchestratorClient(syncOrchestrator);
+                new HealthCampaignSyncOrchestratorClient(syncOrchestrator, syncErrorDetailsLogRepository);
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withOneDelivery()
                 .build();
@@ -145,7 +185,7 @@ class HealthCampaignSyncOrchestratorClientTest {
     @DisplayName("health camp sync orchestrator client should orchestrate for multiple payloads and return aggregate metrics")
     void testThatHealthCampSyncOrchestratorClientOrchestratesForMultiplePayloadsAndReturnsAggregateMetrics() {
         HealthCampaignSyncOrchestratorClient syncOrchestratorClient =
-                new HealthCampaignSyncOrchestratorClient(syncOrchestrator);
+                new HealthCampaignSyncOrchestratorClient(syncOrchestrator, syncErrorDetailsLogRepository);
         SyncUpDataList syncUpDataList = SyncUpDataListTestBuilder.builder()
                 .withTwoHouseholdRegistrationAndDelivery()
                 .build();
@@ -176,6 +216,8 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .orchestrate(payloadMap);
 
         assertEquals(syncLogMetricExpected, syncLogMetric);
+        verify(syncErrorDetailsLogRepository, times(1))
+                .save(any(SyncErrorDetailsLogData.class));
     }
 
     private static Map<Class<? extends SyncStep>, Object> getStepToPayloadMap() {

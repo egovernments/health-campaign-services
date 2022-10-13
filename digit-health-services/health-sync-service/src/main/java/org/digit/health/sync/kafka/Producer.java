@@ -23,9 +23,7 @@ public class Producer {
 
     public void send(String topic, Object payload) {
         try {
-            String json = objectMapper.writeValueAsString(payload);
-            log.info(json);
-            kafkaTemplate.send(topic, json);
+            kafkaTemplate.send(topic, objectMapper.writeValueAsString(payload));
         } catch (Exception ex) {
             throw new ProducerException("Topic: " + topic + " " +
                     ex.getMessage(), ex);
