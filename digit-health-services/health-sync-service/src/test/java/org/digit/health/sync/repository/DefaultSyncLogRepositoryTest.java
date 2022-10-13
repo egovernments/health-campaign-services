@@ -28,11 +28,11 @@ import static org.mockito.Mockito.*;
 class DefaultSyncLogRepositoryTest {
 
     @Mock
-    NamedParameterJdbcTemplate jdbcTemplate;
+    private NamedParameterJdbcTemplate jdbcTemplate;
 
     @Mock
     @Qualifier("defaultSyncLogQueryBuilder")
-    SyncLogQueryBuilder syncLogQueryBuilder;
+    private SyncLogQueryBuilder syncLogQueryBuilder;
 
     @InjectMocks
     private DefaultSyncLogRepository defaultSyncLogRepository;
