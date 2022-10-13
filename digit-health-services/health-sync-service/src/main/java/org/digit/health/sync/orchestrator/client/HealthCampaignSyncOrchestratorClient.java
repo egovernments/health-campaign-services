@@ -7,13 +7,19 @@ import org.digit.health.sync.context.step.SyncStep;
 import org.digit.health.sync.orchestrator.SyncOrchestrator;
 import org.digit.health.sync.orchestrator.client.enums.SyncLogStatus;
 import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
+import org.digit.health.sync.repository.SyncErrorDetailsLogRepository;
+import org.digit.health.sync.web.models.AuditDetails;
 import org.digit.health.sync.web.models.SyncUpDataList;
+import org.digit.health.sync.web.models.dao.SyncErrorDetailsLogData;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -21,11 +27,14 @@ public class HealthCampaignSyncOrchestratorClient
         implements SyncOrchestratorClient<Map<String, Object>, SyncLogMetric> {
     private final SyncOrchestrator<Map<Class<? extends SyncStep>, Object>,
             List<SyncStepMetric>> syncOrchestrator;
+    private final SyncErrorDetailsLogRepository syncErrorDetailsLogRepository;
 
     @Autowired
     public HealthCampaignSyncOrchestratorClient(SyncOrchestrator<Map<Class<? extends SyncStep>, Object>,
-            List<SyncStepMetric>> syncOrchestrator) {
+            List<SyncStepMetric>> syncOrchestrator, @Qualifier("defaultSyncErrorDetailsLogRepository")
+    SyncErrorDetailsLogRepository syncErrorDetailsLogRepository) {
         this.syncOrchestrator = syncOrchestrator;
+        this.syncErrorDetailsLogRepository = syncErrorDetailsLogRepository;
     }
 
 
@@ -39,8 +48,29 @@ public class HealthCampaignSyncOrchestratorClient
             List<SyncStepMetric> syncStepMetrics = syncOrchestrator.orchestrate(stepToPayloadMap);
             syncStepMetricList.addAll(syncStepMetrics);
         }
-        // TODO: Make entry in sync_error_details_log table in case of any errors
-        return getSyncLogMetric(syncStepMetricList);
+        SyncLogMetric syncLogMetric = getSyncLogMetric(syncStepMetricList);
+        if (!syncLogMetric.getSyncLogStatus().equals(SyncLogStatus.COMPLETE)) {
+            persistErrorDetails(payloadMap, syncStepMetricList);
+        }
+        return syncLogMetric;
+    }
+
+    private void persistErrorDetails(Map<String, Object> payloadMap, List<SyncStepMetric> syncStepMetricList) {
+        syncStepMetricList.stream().filter(syncStepMetric ->
+                syncStepMetric.getStatus().equals(StepSyncStatus.FAILED))
+                .map(syncStepMetric -> SyncErrorDetailsLogData.builder()
+                        .syncId((String) payloadMap.get("syncId"))
+                        .recordIdType(syncStepMetric.getRecordIdType().name())
+                        .recordId(syncStepMetric.getRecordId())
+                        .syncErrorDetailsId(UUID.randomUUID().toString())
+                        .tenantId((String) payloadMap.get("tenantId"))
+                        .errorCodes(syncStepMetric.getErrorCode())
+                        .errorMessages(syncStepMetric.getErrorMessage())
+                        .auditDetails((AuditDetails) payloadMap.get("auditDetails"))
+                        .build())
+                .collect(Collectors.toList())
+                .parallelStream()
+                .forEach(syncErrorDetailsLogRepository::save);
     }
 
     private SyncLogMetric getSyncLogMetric(List<SyncStepMetric> syncStepMetrics) {
