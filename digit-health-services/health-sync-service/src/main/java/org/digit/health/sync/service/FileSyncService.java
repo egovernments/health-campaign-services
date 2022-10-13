@@ -3,7 +3,7 @@ package org.digit.health.sync.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
-import org.digit.health.sync.context.SyncErrorCode;
+import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.kafka.Producer;

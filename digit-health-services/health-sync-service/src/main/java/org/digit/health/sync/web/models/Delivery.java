@@ -26,6 +26,9 @@ public class Delivery extends CampaignData {
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
 
+    @JsonProperty("registrationClientReferenceId")
+    private String registrationClientReferenceId;
+
     @JsonProperty("tenantId")
     private String tenantId;
 
