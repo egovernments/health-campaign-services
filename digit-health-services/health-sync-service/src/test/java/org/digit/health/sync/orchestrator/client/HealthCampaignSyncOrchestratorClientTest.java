@@ -33,7 +33,8 @@ import static org.mockito.Mockito.when;
 class HealthCampaignSyncOrchestratorClientTest {
 
     @Mock
-    private SyncOrchestrator syncOrchestrator;
+    private SyncOrchestrator<Map<Class<? extends SyncStep>, Object>,
+            List<SyncStepMetric>> syncOrchestrator;
 
     @Test
     @DisplayName("health camp sync orchestrator client should call health camp sync orchestrator to orchestrate")
