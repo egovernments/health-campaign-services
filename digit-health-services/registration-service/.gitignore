@@ -1,0 +1,5 @@
+target/
+egov-pg-service.iml
+*.iml
+health-registration-service.iml
+src/main/resources/config/
