@@ -37,7 +37,11 @@ public class DefaultSyncLogRepository implements SyncLogRepository{
             in.put("referenceIdType", syncLogSearchDto.getReference().getType());
         }
         in.put("fileStoreId", syncLogSearchDto.getFileStoreId());
-        return namedParameterJdbcTemplate.query(syncLogQueryBuilder.getSQlBasedOn(syncLogSearchDto),in, new BeanPropertyRowMapper<>(SyncLogData.class));
+        return namedParameterJdbcTemplate.query(
+                syncLogQueryBuilder.getSQlBasedOn(syncLogSearchDto),
+                in,
+                new BeanPropertyRowMapper<>(SyncLogData.class)
+        );
     }
 
 }

@@ -50,8 +50,15 @@ class DefaultSyncLogRepositoryTest {
         searchedData.add(SyncLogData.builder().build());
         SyncLogSearchDto syncLogSearchDto = SyncLogSearchMapper.INSTANCE.toDTO(syncLogSearchRequest);
 
-        when(syncLogQueryBuilder.getSQlBasedOn(any(SyncLogSearchDto.class))).thenReturn("");
-        when(jdbcTemplate.query(any(String.class),any(HashMap.class),any(BeanPropertyRowMapper.class))).thenReturn(searchedData);
+        when(syncLogQueryBuilder.getSQlBasedOn(
+                any(SyncLogSearchDto.class))
+        ).thenReturn("");
+
+        when(jdbcTemplate.query(
+                any(String.class),
+                any(HashMap.class),
+                any(BeanPropertyRowMapper.class))
+        ).thenReturn(searchedData);
 
         List<SyncLogData> results = defaultSyncLogRepository.findByCriteria(syncLogSearchDto);
 

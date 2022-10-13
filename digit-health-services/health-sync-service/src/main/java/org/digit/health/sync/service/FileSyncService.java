@@ -44,7 +44,14 @@ public class FileSyncService implements SyncService {
     private final SyncLogRepository syncLogRepository;
 
     @Autowired
-    public FileSyncService(Producer producer, FileStoreService fileStoreService, ObjectMapper objectMapper, GzipCompressor compressor, Md5ChecksumValidator checksumValidator, @Qualifier("defaultSyncLogRepository") SyncLogRepository syncLogRepository) {
+    public FileSyncService(
+            Producer producer,
+            FileStoreService fileStoreService,
+            ObjectMapper objectMapper,
+            GzipCompressor compressor,
+            Md5ChecksumValidator checksumValidator,
+            @Qualifier("defaultSyncLogRepository") SyncLogRepository syncLogRepository
+    ) {
         this.producer = producer;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;

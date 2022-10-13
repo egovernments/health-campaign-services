@@ -20,7 +20,9 @@ class DefaultSyncLogQueryBuilderTest {
     @DisplayName("should generate query with sync id and tenant id if request have sync id")
     @Test
     void shouldGenerateQueryWithSyncId() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withSyncId().build());
+        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
+                SyncSearchRequestTestBuilder.builder().withSyncId().build()
+        );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND id=:id ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
@@ -30,7 +32,9 @@ class DefaultSyncLogQueryBuilderTest {
     @DisplayName("should generate query with reference id and type and tenant id if request have reference")
     @Test
     void shouldGenerateQueryForReferenceId() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withReferenceId().build());
+        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
+                SyncSearchRequestTestBuilder.builder().withReferenceId().build()
+        );
         assertEquals("" +
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
@@ -40,7 +44,9 @@ class DefaultSyncLogQueryBuilderTest {
     @DisplayName("should generate query with file store id and tenant id if request have filestoreid")
     @Test
     void shouldGenerateQueryForFileStoreId() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withFileStoreId().build());
+        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
+                SyncSearchRequestTestBuilder.builder().withFileStoreId().build()
+        );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND fileStoreId=:fileStoreId ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
@@ -60,7 +66,9 @@ class DefaultSyncLogQueryBuilderTest {
     @DisplayName("should generate query with status and reference and tenant id if request have status and reference")
     @Test
     void shouldGenerateQueryForStatusAndReference() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withStatus().withReferenceId().build());
+        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
+                SyncSearchRequestTestBuilder.builder().withStatus().withReferenceId().build()
+        );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND status=:status  AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
