@@ -22,7 +22,7 @@ class DefaultSyncLogQueryBuilderTest {
     void shouldGenerateQueryWithSyncId() {
         SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withSyncId().build());
         assertEquals(
-                "SELECT * FROM sync_log  WHERE tenantId='mq' AND id='sync-id'",
+                "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND id=:id ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
         );
     }
@@ -32,7 +32,7 @@ class DefaultSyncLogQueryBuilderTest {
     void shouldGenerateQueryForReferenceId() {
         SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withReferenceId().build());
         assertEquals("" +
-                "SELECT * FROM sync_log  WHERE tenantId='mq' AND referenceId='ref-id' AND referenceIdType='campaign'",
+                "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
         );
     }
@@ -42,7 +42,7 @@ class DefaultSyncLogQueryBuilderTest {
     void shouldGenerateQueryForFileStoreId() {
         SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withFileStoreId().build());
         assertEquals(
-                "SELECT * FROM sync_log  WHERE tenantId='mq' AND fileStoreId='file-store-id'",
+                "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND fileStoreId=:fileStoreId ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
         );
     }
@@ -52,7 +52,7 @@ class DefaultSyncLogQueryBuilderTest {
     void shouldGenerateQueryForStatus() {
         SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withStatus().build());
         assertEquals(
-                "SELECT * FROM sync_log  WHERE tenantId='mq' AND status='FAILED'",
+                "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND status=:status ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
         );
     }
@@ -62,7 +62,7 @@ class DefaultSyncLogQueryBuilderTest {
     void shouldGenerateQueryForStatusAndReference() {
         SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withStatus().withReferenceId().build());
         assertEquals(
-                "SELECT * FROM sync_log  WHERE tenantId='mq' AND status='FAILED' AND referenceId='ref-id' AND referenceIdType='campaign'",
+                "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND status=:status  AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
                 defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
         );
     }

@@ -12,17 +12,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.junit.Assert.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -30,7 +28,7 @@ import static org.mockito.Mockito.*;
 class DefaultSyncLogRepositoryTest {
 
     @Mock
-    JdbcTemplate jdbcTemplate;
+    NamedParameterJdbcTemplate jdbcTemplate;
 
     @Mock
     @Qualifier("defaultSyncLogQueryBuilder")
@@ -53,7 +51,7 @@ class DefaultSyncLogRepositoryTest {
         SyncLogSearchDto syncLogSearchDto = SyncLogSearchMapper.INSTANCE.toDTO(syncLogSearchRequest);
 
         when(syncLogQueryBuilder.getSQlBasedOn(any(SyncLogSearchDto.class))).thenReturn("");
-        when(jdbcTemplate.query(any(String.class),any(BeanPropertyRowMapper.class))).thenReturn(searchedData);
+        when(jdbcTemplate.query(any(String.class),any(HashMap.class),any(BeanPropertyRowMapper.class))).thenReturn(searchedData);
 
         List<SyncLogData> results = defaultSyncLogRepository.findByCriteria(syncLogSearchDto);
 

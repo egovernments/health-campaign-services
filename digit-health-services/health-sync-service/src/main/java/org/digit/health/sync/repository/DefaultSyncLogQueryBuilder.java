@@ -11,22 +11,22 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
     @Override
     public String getSQlBasedOn(SyncLogSearchDto syncLogSearchDto) {
         StringBuilder sql = new StringBuilder("SELECT * FROM sync_log ");
-        sql.append((String.format(" WHERE tenantId='%s'", syncLogSearchDto.getTenantId())));
+        sql.append(" WHERE tenantId = :tenantId");
 
         if (syncLogSearchDto.getSyncId() != null) {
-            sql.append(String.format(" AND id='%s'", syncLogSearchDto.getSyncId()));
+            sql.append(" AND id=:id ");
         }
 
         if (syncLogSearchDto.getStatus() != null) {
-            sql.append(String.format(" AND status='%s'", syncLogSearchDto.getStatus()));
+            sql.append(" AND status=:status ");
         }
 
         if (syncLogSearchDto.getReference() != null) {
-            sql.append(String.format(" AND referenceId='%s' AND referenceIdType='%s'", syncLogSearchDto.getReference().getId(), syncLogSearchDto.getReference().getType()));
+            sql.append(" AND referenceId=:referenceId AND referenceIdType=:referenceIdType ");
         }
 
         if (syncLogSearchDto.getFileStoreId() != null) {
-            sql.append(String.format(" AND fileStoreId='%s'", syncLogSearchDto.getFileStoreId()));
+            sql.append(" AND fileStoreId=:fileStoreId ");
         }
 
         return sql.toString();
