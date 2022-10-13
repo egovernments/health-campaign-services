@@ -14,12 +14,14 @@ import java.util.Map;
 @Repository("defaultSyncLogRepository")
 public class DefaultSyncLogRepository implements SyncLogRepository{
 
-    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     private final SyncLogQueryBuilder syncLogQueryBuilder;
 
     @Autowired
-    public DefaultSyncLogRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate, @Qualifier("defaultSyncLogQueryBuilder") SyncLogQueryBuilder defaultSyncLogQueryBuilder) {
+    public DefaultSyncLogRepository(
+            NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+            @Qualifier("defaultSyncLogQueryBuilder") SyncLogQueryBuilder defaultSyncLogQueryBuilder) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.syncLogQueryBuilder = defaultSyncLogQueryBuilder;
     }
