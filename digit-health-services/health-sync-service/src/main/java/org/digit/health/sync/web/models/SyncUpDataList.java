@@ -43,8 +43,15 @@ public class SyncUpDataList {
                     Delivery delivery = (Delivery) cd;
                     Map<Class<? extends SyncStep>, Object> stepToPayloadMap = referenceIdToStepToPayloadMap
                             .get(delivery.getRegistrationClientReferenceId());
-                    stepToPayloadMap.put(DeliverySyncStep.class,
-                            DeliveryMapper.INSTANCE.toRequest(delivery));
+                    if (stepToPayloadMap == null) {
+                        Map<Class<? extends SyncStep>, Object> newStepToPayloadMap = new HashMap<>();
+                        newStepToPayloadMap.put(DeliverySyncStep.class,
+                                DeliveryMapper.INSTANCE.toRequest(delivery));
+                        referenceIdToStepToPayloadMap.put(delivery.getClientReferenceId(), newStepToPayloadMap);
+                    } else {
+                        stepToPayloadMap.put(DeliverySyncStep.class,
+                                DeliveryMapper.INSTANCE.toRequest(delivery));
+                    }
                 }
             }
         }

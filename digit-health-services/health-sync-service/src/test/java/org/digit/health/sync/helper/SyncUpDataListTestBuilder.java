@@ -43,6 +43,30 @@ public class SyncUpDataListTestBuilder {
         return this;
     }
 
+    public SyncUpDataListTestBuilder withOneDelivery() {
+        List<CampaignData> deliveryList = new ArrayList<>();
+        deliveryList.add(getDelivery());
+        SyncUpData deliverySyncUpData = SyncUpData.builder()
+                .items(deliveryList)
+                .build();
+        List<SyncUpData> syncUpData = new ArrayList<>();
+        syncUpData.add(deliverySyncUpData);
+        builder.syncUpData(syncUpData);
+        return this;
+    }
+
+    public SyncUpDataListTestBuilder withOneHouseholdRegistration() {
+        List<CampaignData> householdRegistrationList = new ArrayList<>();
+        householdRegistrationList.add(getHouseholdRegistration());
+        SyncUpData householdSyncUpData = SyncUpData.builder()
+                .items(householdRegistrationList)
+                .build();
+        List<SyncUpData> syncUpData = new ArrayList<>();
+        syncUpData.add(householdSyncUpData);
+        builder.syncUpData(syncUpData);
+        return this;
+    }
+
     public SyncUpDataListTestBuilder withTwoHouseholdRegistrationAndDelivery() {
         List<CampaignData> householdRegistrationList = new ArrayList<>();
         householdRegistrationList.add(getHouseholdRegistration());
