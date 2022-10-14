@@ -20,6 +20,7 @@ import org.digit.health.sync.web.models.SyncLog;
 import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.SyncUpDataList;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
+import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
 import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -140,7 +141,12 @@ public class FileSyncService implements SyncService {
 
     @Override
     public List<SyncLogData> findByCriteria(SyncLogSearchDto syncLogSearchDto) {
-        return syncLogRepository.findByCriteria(syncLogSearchDto);
+        return syncLogRepository.find(
+                SyncLogSearchMapper.INSTANCE
+                        .toData(
+                                syncLogSearchDto
+                        )
+        );
     }
 
 }
