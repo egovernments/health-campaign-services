@@ -35,8 +35,7 @@ config:
       - work-dir: "digit-health-services/health-registration-service"
         image-name: "health-registration-service"
         dockerfile: "build/maven/Dockerfile"
-  - name: "builds/health-campaign-services/digit-health-services/libraries/services-common"
+  - name: "builds/health-campaign-services/digit-health-services/libraries/health-services-common"
     build:
-      - work-dir: "digit-health-services/libraries/services-common"
+      - work-dir: "digit-health-services/libraries/health-services-common"
         image-name: "health-services-common"
-        dockerfile: "build/maven/Dockerfile"
