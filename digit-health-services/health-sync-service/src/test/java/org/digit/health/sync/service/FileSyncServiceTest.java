@@ -7,7 +7,6 @@ import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.GzipCompressor;
-import org.digit.health.sync.web.models.SyncLog;
 import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.*;
 import org.egov.tracer.model.CustomException;
@@ -30,9 +29,7 @@ import java.util.Objects;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class FileSyncServiceTest {
@@ -80,18 +77,18 @@ class FileSyncServiceTest {
                 .withFileDetails()
                 .build();
         SyncUpDto syncUpDto = SyncUpMapper.INSTANCE.toDTO(syncUpRequest);
-        when(fileStoreService.getFile(any(String.class),any(String.class))).thenReturn(fileData);
-        when(checksumValidator.validate(any(),any())).thenReturn(true);
+        when(fileStoreService.getFile(any(String.class), any(String.class))).thenReturn(fileData);
+        when(checksumValidator.validate(any(), any())).thenReturn(true);
         when(compressor.decompress(any())).thenReturn(fileData);
 
         fileSyncService.syncUp(syncUpDto);
 
-        verify(fileStoreService,times(1)).getFile(syncUpDto.getFileDetails()
-                .getFileStoreId(),syncUpDto.getRequestInfo().getUserInfo().getTenantId());
-        verify(checksumValidator,times(1)).validate(fileData,syncUpDto
+        verify(fileStoreService, times(1)).getFile(syncUpDto.getFileDetails()
+                .getFileStoreId(), syncUpDto.getRequestInfo().getUserInfo().getTenantId());
+        verify(checksumValidator, times(1)).validate(fileData, syncUpDto
                 .getFileDetails().getChecksum());
-        verify(compressor,times(1)).decompress(any());
-        verify(producer,times(1)).send(any(String.class),any(SyncLog.class));
+        verify(compressor, times(1)).decompress(any());
+        verify(syncLogRepository, times(1)).save(any(SyncLogData.class));
     }
 
     @Test
@@ -102,8 +99,8 @@ class FileSyncServiceTest {
                 .withFileDetails()
                 .build();
         SyncUpDto syncUpDto = SyncUpMapper.INSTANCE.toDTO(syncUpRequest);
-        when(fileStoreService.getFile(any(String.class),any(String.class))).thenReturn(fileData);
-        when(checksumValidator.validate(any(),any())).thenThrow(new CustomException("INVALID_CHECKSUM",
+        when(fileStoreService.getFile(any(String.class), any(String.class))).thenReturn(fileData);
+        when(checksumValidator.validate(any(), any())).thenThrow(new CustomException("INVALID_CHECKSUM",
                 "Checksum did not match"));
 
         assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
@@ -117,8 +114,8 @@ class FileSyncServiceTest {
                 .withFileDetails()
                 .build();
         SyncUpDto syncUpDto = SyncUpMapper.INSTANCE.toDTO(syncUpRequest);
-        when(fileStoreService.getFile(any(String.class),any(String.class))).thenReturn(fileData);
-        when(checksumValidator.validate(any(),any())).thenReturn(true);
+        when(fileStoreService.getFile(any(String.class), any(String.class))).thenReturn(fileData);
+        when(checksumValidator.validate(any(), any())).thenReturn(true);
 
         assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
 
@@ -132,8 +129,8 @@ class FileSyncServiceTest {
                 .withFileDetails()
                 .build();
         SyncUpDto syncUpDto = SyncUpMapper.INSTANCE.toDTO(syncUpRequest);
-        when(fileStoreService.getFile(any(String.class),any(String.class))).thenReturn(fileData);
-        when(checksumValidator.validate(any(),any())).thenReturn(true);
+        when(fileStoreService.getFile(any(String.class), any(String.class))).thenReturn(fileData);
+        when(checksumValidator.validate(any(), any())).thenReturn(true);
         when(compressor.decompress(any())).thenReturn(fileData);
 
         assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
@@ -142,7 +139,7 @@ class FileSyncServiceTest {
 
     @Test
     @DisplayName("should successfully get results from sync repository")
-    void shouldSuccessfullyGetResultsFromSyncRepository()  {
+    void shouldSuccessfullyGetResultsFromSyncRepository() {
         SyncLogSearchRequest syncLogSearchRequest = SyncSearchRequestTestBuilder.builder().build();
         List<SyncLogData> searchedData = new ArrayList<>();
         searchedData.add(SyncLogData.builder().build());
@@ -151,7 +148,7 @@ class FileSyncServiceTest {
 
         when(syncLogRepository.find(any(SyncLogData.class))).thenReturn(searchedData);
 
-        List<SyncLogData> fetechedResult = fileSyncService.findByCriteria(syncLogSearchDto);
+        List<SyncLogData> fetechedResult = fileSyncService.find(syncLogSearchDto);
 
         assertTrue(
                 searchedData.size() == fetechedResult.size() &&
@@ -159,7 +156,7 @@ class FileSyncServiceTest {
                         fetechedResult.containsAll(searchedData)
         );
 
-        verify(syncLogRepository,times(1)).find(syncLogData);
+        verify(syncLogRepository, times(1)).find(syncLogData);
     }
 
     private byte[] getFileData(String file) throws IOException {

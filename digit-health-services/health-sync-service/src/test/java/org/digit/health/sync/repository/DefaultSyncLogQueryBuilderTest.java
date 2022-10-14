@@ -11,7 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(MockitoExtension.class)
 class DefaultSyncLogQueryBuilderTest {
@@ -36,7 +36,7 @@ class DefaultSyncLogQueryBuilderTest {
     @Test
     void shouldGenerateQueryForReferenceId() {
         SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
-                SyncLogSearchDto.builder().reference(ReferenceId.builder()
+                SyncLogSearchDto.builder().referenceId(ReferenceId.builder()
                                 .type("campaign")
                                 .id("id")
                                 .build())
@@ -82,7 +82,7 @@ class DefaultSyncLogQueryBuilderTest {
         SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
                 SyncLogSearchDto.builder()
                         .status(SyncStatus.CREATED.name())
-                        .reference(ReferenceId.builder()
+                        .referenceId(ReferenceId.builder()
                                 .type("campaign")
                                 .id("id")
                                 .build())
@@ -98,9 +98,9 @@ class DefaultSyncLogQueryBuilderTest {
     @DisplayName("should generate update query for updating status for a sync Id")
     @Test
     void shouldGenerateUpdateQueryForUpdatingStatusForASyncIc() {
-        SyncLogData syncLogData = SyncLogData.builder().id("syncId")
-                .status(SyncStatus.CREATED.name()).
-                build();
+        SyncLogData syncLogData = SyncLogData.builder().syncId("syncId")
+                .status(SyncStatus.CREATED)
+                .build();
         assertEquals(
                 "UPDATE sync_log SET  status = :status WHERE tenantId = :tenantId AND id=:id",
                 defaultSyncLogQueryBuilder.createUpdateQuery(syncLogData)

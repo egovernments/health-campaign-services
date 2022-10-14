@@ -4,21 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.digit.health.sync.context.enums.SyncErrorCode;
-import org.digit.health.sync.repository.SyncLogRepository;
-import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.kafka.Producer;
+import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.ChecksumValidator;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.Compressor;
 import org.digit.health.sync.service.compressor.GzipCompressor;
-import org.digit.health.sync.web.models.AuditDetails;
-import org.digit.health.sync.web.models.FileDetails;
-import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncErrorDetailsLog;
-import org.digit.health.sync.web.models.SyncId;
-import org.digit.health.sync.web.models.SyncLog;
-import org.digit.health.sync.web.models.SyncStatus;
-import org.digit.health.sync.web.models.SyncUpDataList;
+import org.digit.health.sync.web.models.*;
+import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
 import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
 import org.digit.health.sync.web.models.request.SyncUpDto;
@@ -64,7 +57,7 @@ public class FileSyncService implements SyncService {
     @Override
     public SyncId syncUp(SyncUpDto syncUpDto) {
         String tenantId = syncUpDto.getRequestInfo().getUserInfo().getTenantId();
-        SyncLog syncLog = createSyncLog(syncUpDto);
+        SyncLogData syncLogData = createSyncLog(syncUpDto);
         FileDetails fileDetails = syncUpDto.getFileDetails();
         byte[] data = fileStoreService.getFile(fileDetails.getFileStoreId(), tenantId);
         checksumValidator.validate(data, fileDetails.getChecksum());
@@ -75,8 +68,8 @@ public class FileSyncService implements SyncService {
             throw new CustomException(SyncErrorCode.ERROR_IN_MAPPING_JSON.name(),
                     SyncErrorCode.ERROR_IN_MAPPING_JSON.message());
         }
-        persistSyncLog(syncLog);
-        return SyncId.builder().syncId(syncLog.getSyncId()).build();
+        persistSyncLog(syncLogData);
+        return SyncId.builder().syncId(syncLogData.getSyncId()).build();
 
     }
 
@@ -90,12 +83,12 @@ public class FileSyncService implements SyncService {
         }
     }
 
-    private SyncLog createSyncLog(SyncUpDto syncUpDto) {
+    private SyncLogData createSyncLog(SyncUpDto syncUpDto) {
         User userInfo = syncUpDto.getRequestInfo().getUserInfo();
         long createdTime = System.currentTimeMillis();
         FileDetails fileDetails = syncUpDto.getFileDetails();
 
-        return SyncLog.builder()
+        return SyncLogData.builder()
                 .syncId(UUID.randomUUID().toString())
                 .status(SyncStatus.CREATED)
                 .referenceId(ReferenceId.builder()
@@ -116,8 +109,8 @@ public class FileSyncService implements SyncService {
                 .build();
     }
 
-    private void persistSyncLog(SyncLog syncLog) {
-        producer.send("health-sync-log", syncLog);
+    private void persistSyncLog(SyncLogData syncLogData) {
+        syncLogRepository.save(syncLogData);
     }
 
     public void persistSyncErrorDetailsLog() {
@@ -140,7 +133,7 @@ public class FileSyncService implements SyncService {
     }
 
     @Override
-    public List<SyncLogData> findByCriteria(SyncLogSearchDto syncLogSearchDto) {
+    public List<SyncLogData> find(SyncLogSearchDto syncLogSearchDto) {
         return syncLogRepository.find(
                 SyncLogSearchMapper.INSTANCE
                         .toData(
