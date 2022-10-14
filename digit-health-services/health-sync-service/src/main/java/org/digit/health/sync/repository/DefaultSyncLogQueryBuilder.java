@@ -21,7 +21,7 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
             sql.append(" AND status=:status ");
         }
 
-        if (syncLogData.getReferenceId() != null && syncLogData.getReferenceIdType() != null ) {
+        if (syncLogData.getReferenceId() != null && syncLogData.getReferenceIdType() != null) {
             sql.append(" AND referenceId=:referenceId AND referenceIdType=:referenceIdType ");
         }
 
@@ -35,7 +35,7 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
     @Override
     public String createUpdateQuery(SyncLogData syncLogData) {
         StringBuilder sql = new StringBuilder("UPDATE sync_log SET ");
-        if(syncLogData.getStatus()!=null){
+        if(syncLogData.getStatus() != null){
             sql.append(" status = :status");
         }
 
