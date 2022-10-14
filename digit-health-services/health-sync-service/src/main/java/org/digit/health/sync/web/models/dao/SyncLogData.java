@@ -5,6 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.digit.health.sync.web.models.AuditDetails;
+import org.digit.health.sync.web.models.FileDetails;
+import org.digit.health.sync.web.models.ReferenceId;
+import org.digit.health.sync.web.models.SyncStatus;
 
 
 @Data
@@ -14,25 +18,19 @@ import lombok.NoArgsConstructor;
 public class SyncLogData {
 
     @JsonProperty("syncId")
-    private String id;
+    private String syncId;
 
     @JsonProperty("referenceId")
-    private String referenceId;
-
-    @JsonProperty("referenceIdType")
-    private String referenceIdType;
+    private ReferenceId referenceId;
 
     @JsonProperty("tenantId")
     private String tenantId;
 
-    @JsonProperty("fileStoreId")
-    private String fileStoreId;
-
-    @JsonProperty("checksum")
-    private String checksum;
+    @JsonProperty("fileDetails")
+    private FileDetails fileDetails;
 
     @JsonProperty("status")
-    private String status;
+    private SyncStatus status;
 
     @JsonProperty("comment")
     private String comment;
@@ -46,16 +44,7 @@ public class SyncLogData {
     @JsonProperty("errorCount")
     private int errorCount;
 
-    @JsonProperty("createdBy")
-    private String createdBy;
-
-    @JsonProperty("lastModifiedBy")
-    private String lastModifiedBy;
-
-    @JsonProperty("createdTime")
-    private Long createdTime;
-
-    @JsonProperty("lastModifiedTime")
-    private Long lastModifiedTime;
+    @JsonProperty("auditDetails")
+    private AuditDetails auditDetails;
 
 }

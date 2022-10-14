@@ -45,12 +45,12 @@ public class SyncController {
     }
 
     @PostMapping("/status")
-    public ResponseEntity<SyncLogSearchResponse> stats(@RequestBody @Valid SyncLogSearchRequest searchRequest) {
+    public ResponseEntity<SyncLogSearchResponse> status(@RequestBody @Valid SyncLogSearchRequest searchRequest) {
         return ResponseEntity.ok().body(SyncLogSearchResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(searchRequest
                         .getRequestInfo(), true))
                 .syncLogDataResults(
-                        syncService.findByCriteria(SyncLogSearchMapper.INSTANCE.toDTO(searchRequest))
+                        syncService.find(SyncLogSearchMapper.INSTANCE.toDTO(searchRequest))
                 ).build());
     }
 

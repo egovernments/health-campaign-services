@@ -4,10 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.repository.enums.RepositoryErrorCode;
 import org.digit.health.sync.web.models.dao.SyncLogData;
+import org.digit.health.sync.web.models.dao.SyncLogDataMapper;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -54,17 +54,23 @@ public class DefaultSyncLogRepository implements SyncLogRepository {
     public List<SyncLogData> find(SyncLogData syncLogData) {
         final Map<String, Object> in = new HashMap<>();
         in.put("tenantId", syncLogData.getTenantId());
-        in.put("id", syncLogData.getId());
+        in.put("id", syncLogData.getSyncId());
         in.put("status", syncLogData.getStatus());
-        if (syncLogData.getReferenceId() != null) {
-            in.put("referenceId", syncLogData.getReferenceId());
-            in.put("referenceIdType", syncLogData.getReferenceIdType());
+        if (syncLogData.getReferenceId() != null &&
+                syncLogData.getReferenceId().getId() != null &&
+                syncLogData.getReferenceId().getType() != null) {
+            in.put("referenceId", syncLogData.getReferenceId().getId());
+            in.put("referenceIdType", syncLogData.getReferenceId().getType());
         }
-        in.put("fileStoreId", syncLogData.getFileStoreId());
+        if (syncLogData.getFileDetails() != null &&
+                syncLogData.getFileDetails().getFileStoreId() != null) {
+            in.put("fileStoreId", syncLogData.getFileDetails().getFileStoreId());
+
+        }
         return namedParameterJdbcTemplate.query(
                 syncLogQueryBuilder.createSelectQuery(syncLogData),
                 in,
-                new BeanPropertyRowMapper<>(SyncLogData.class)
+                new SyncLogDataMapper()
         );
     }
 
@@ -72,7 +78,7 @@ public class DefaultSyncLogRepository implements SyncLogRepository {
     public int update(SyncLogData syncLogData) {
         final Map<String, Object> in = new HashMap<>();
         in.put("tenantId", syncLogData.getTenantId());
-        in.put("id", syncLogData.getId());
+        in.put("id", syncLogData.getSyncId());
         in.put("status", syncLogData.getStatus());
         return namedParameterJdbcTemplate.update(
                 syncLogQueryBuilder.createUpdateQuery(syncLogData),

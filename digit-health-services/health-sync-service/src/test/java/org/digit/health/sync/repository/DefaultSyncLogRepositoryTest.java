@@ -2,8 +2,10 @@ package org.digit.health.sync.repository;
 
 import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.repository.enums.RepositoryErrorCode;
+import org.digit.health.sync.web.models.ReferenceId;
 import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.dao.SyncLogData;
+import org.digit.health.sync.web.models.dao.SyncLogDataMapper;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.util.ArrayList;
@@ -58,26 +59,29 @@ class DefaultSyncLogRepositoryTest {
 
         SyncLogData syncLogData = SyncLogData.builder().
                 tenantId("tenant-id")
-                .referenceIdType("campaign")
-                .referenceId("ref-id")
+                .referenceId(
+                        ReferenceId
+                                .builder()
+                                .id("ref-id")
+                                .type("campaign")
+                                .build())
                 .build();
 
         Map<String, Object> in = new HashMap<>();
         in.put("tenantId", syncLogData.getTenantId());
-        in.put("id", syncLogData.getId());
+        in.put("id", syncLogData.getSyncId());
+        in.put("referenceId", syncLogData.getReferenceId().getId());
+        in.put("referenceIdType", syncLogData.getReferenceId().getType());
         in.put("status", syncLogData.getStatus());
-        in.put("referenceId", syncLogData.getReferenceId());
-        in.put("referenceIdType", syncLogData.getReferenceIdType());
-        in.put("fileStoreId", syncLogData.getFileStoreId());
 
-        when(syncLogQueryBuilder.createSelectQuery(
+        lenient().when(syncLogQueryBuilder.createSelectQuery(
                 eq(syncLogData))
         ).thenReturn(SELECT_QUERY);
 
-        when(jdbcTemplate.query(
+        lenient().when(jdbcTemplate.query(
                         eq(SELECT_QUERY),
                         eq(in),
-                        any(BeanPropertyRowMapper.class)
+                        any(SyncLogDataMapper.class)
                 )
         ).thenReturn(searchedData);
 
@@ -89,7 +93,7 @@ class DefaultSyncLogRepositoryTest {
                 .query(
                         eq(SELECT_QUERY),
                         eq(in),
-                        any(BeanPropertyRowMapper.class)
+                        any(SyncLogDataMapper.class)
                 );
 
     }
@@ -99,15 +103,15 @@ class DefaultSyncLogRepositoryTest {
     @DisplayName("should successfully update using sync repository")
     void shouldSuccessfullyUpdateUsingSyncRepository() {
         String GENERATED_UPDATE_QUERY = "UPDATE sync_log SET  status = :status WHERE tenantId = :tenantId AND id=:id";
-        SyncLogData updatedData = SyncLogData.builder().status(SyncStatus.CREATED.name())
-                .id("sync-id")
+        SyncLogData updatedData = SyncLogData.builder().status(SyncStatus.CREATED)
+                .syncId("sync-id")
                 .tenantId("tenant-id")
                 .build();
 
         Map<String, Object> in = new HashMap<>();
         in.put("tenantId", "tenant-id");
         in.put("id", "sync-id");
-        in.put("status", SyncStatus.CREATED.name());
+        in.put("status", SyncStatus.CREATED);
 
         when(syncLogQueryBuilder.createUpdateQuery(
                 any(SyncLogData.class))
