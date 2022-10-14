@@ -1,7 +1,10 @@
 package org.digit.health.sync.repository;
 
+import org.digit.health.sync.kafka.Producer;
+import org.digit.health.sync.repository.enums.RepositoryErrorCode;
 import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.dao.SyncLogData;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,9 +16,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -32,15 +38,18 @@ class DefaultSyncLogRepositoryTest {
     @InjectMocks
     private DefaultSyncLogRepository defaultSyncLogRepository;
 
+    @Mock
+    private Producer producer;
+
     @BeforeEach
     void setUp() {
-        defaultSyncLogRepository = new DefaultSyncLogRepository(jdbcTemplate, syncLogQueryBuilder);
+        defaultSyncLogRepository = new DefaultSyncLogRepository(jdbcTemplate, syncLogQueryBuilder, producer);
     }
 
 
     @Test
     @DisplayName("should successfully get results from sync repository")
-    void shouldSuccessfullyGetResultsFromSyncRepository()  {
+    void shouldSuccessfullyGetResultsFromSyncRepository() {
         String SELECT_QUERY = "SELECT * FROM sync_log  WHERE tenantId = :tenantId " +
                 "AND referenceId=:referenceId AND referenceIdType=:referenceIdType ";
 
@@ -66,17 +75,17 @@ class DefaultSyncLogRepositoryTest {
         ).thenReturn(SELECT_QUERY);
 
         when(jdbcTemplate.query(
-                eq(SELECT_QUERY),
-                eq(in),
-                any(BeanPropertyRowMapper.class)
+                        eq(SELECT_QUERY),
+                        eq(in),
+                        any(BeanPropertyRowMapper.class)
                 )
         ).thenReturn(searchedData);
 
         defaultSyncLogRepository.find(syncLogData);
 
-        verify(syncLogQueryBuilder,times(1))
+        verify(syncLogQueryBuilder, times(1))
                 .createSelectQuery(syncLogData);
-        verify(jdbcTemplate,times(1))
+        verify(jdbcTemplate, times(1))
                 .query(
                         eq(SELECT_QUERY),
                         eq(in),
@@ -86,12 +95,11 @@ class DefaultSyncLogRepositoryTest {
     }
 
 
-
     @Test
     @DisplayName("should successfully update using sync repository")
-    void shouldSuccessfullyUpdateUsingSyncRepository()  {
+    void shouldSuccessfullyUpdateUsingSyncRepository() {
         String GENERATED_UPDATE_QUERY = "UPDATE sync_log SET  status = :status WHERE tenantId = :tenantId AND id=:id";
-        SyncLogData updatedData =  SyncLogData.builder().status(SyncStatus.CREATED.name())
+        SyncLogData updatedData = SyncLogData.builder().status(SyncStatus.CREATED.name())
                 .id("sync-id")
                 .tenantId("tenant-id")
                 .build();
@@ -107,13 +115,56 @@ class DefaultSyncLogRepositoryTest {
 
         when(jdbcTemplate.update(
                         eq(GENERATED_UPDATE_QUERY), any(HashMap.class)
-            )
+                )
         ).thenReturn(1);
 
         defaultSyncLogRepository.update(updatedData);
 
-        verify(jdbcTemplate,times(1)).update(eq(GENERATED_UPDATE_QUERY), eq(in));
-        verify(syncLogQueryBuilder,times(1)).createUpdateQuery(updatedData);
+        verify(jdbcTemplate, times(1)).update(eq(GENERATED_UPDATE_QUERY), eq(in));
+        verify(syncLogQueryBuilder, times(1)).createUpdateQuery(updatedData);
+    }
+
+
+    @Test
+    @DisplayName("should save sync log and return the same successfully")
+    void shouldSaveSyncErrorDetailsLogDataAndReturnSameSuccessfully() {
+        SyncLogData expectedData = SyncLogData.builder().build();
+
+        SyncLogData actualData = defaultSyncLogRepository.save(expectedData);
+
+        assertEquals(expectedData, actualData);
+        verify(producer, times(1))
+                .send(DefaultSyncLogRepository.SAVE_KAFKA_TOPIC, expectedData);
+    }
+
+    @Test
+    @DisplayName("should return null in case the payload is null")
+    void shouldReturnNullInCaseThePayloadIsNull() {
+        SyncLogData actualData = defaultSyncLogRepository.save(null);
+
+        assertNull(actualData);
+        verify(producer, times(0))
+                .send(DefaultSyncLogRepository.SAVE_KAFKA_TOPIC, null);
+    }
+
+    @Test
+    @DisplayName("should throw custom exception with proper error code in case of any error")
+    void shouldThrowCustomExceptionWithErrorCodeInCaseOfAnyError() {
+        SyncLogData expectedData = SyncLogData.builder().build();
+        doThrow(new RuntimeException("some_message")).when(producer)
+                .send(DefaultSyncLogRepository.SAVE_KAFKA_TOPIC, expectedData);
+        CustomException ex = null;
+
+        try {
+            defaultSyncLogRepository.save(expectedData);
+        } catch (CustomException exception) {
+            ex = exception;
+        }
+
+        assertNotNull(ex);
+        assertEquals(RepositoryErrorCode.SAVE_ERROR.name(), ex.getCode());
+        assertEquals(RepositoryErrorCode.SAVE_ERROR.message("some_message"),
+                ex.getMessage());
     }
 
 }
