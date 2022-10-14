@@ -26,18 +26,18 @@ public class DefaultSyncLogRepository implements SyncLogRepository{
     }
 
     @Override
-    public List<SyncLogData> findByCriteria(SyncLogData syncLogData) {
+    public List<SyncLogData> find(SyncLogData syncLogData) {
         final Map<String, Object> in = new HashMap<>();
         in.put("tenantId", syncLogData.getTenantId());
         in.put("id", syncLogData.getId());
         in.put("status", syncLogData.getStatus());
-        if( syncLogData.getReferenceId() != null){
+        if(syncLogData.getReferenceId() != null) {
             in.put("referenceId", syncLogData.getReferenceId());
             in.put("referenceIdType", syncLogData.getReferenceIdType());
         }
         in.put("fileStoreId", syncLogData.getFileStoreId());
         return namedParameterJdbcTemplate.query(
-                syncLogQueryBuilder.getSQlBasedOn(syncLogData),
+                syncLogQueryBuilder.createSelectQuery(syncLogData),
                 in,
                 new BeanPropertyRowMapper<>(SyncLogData.class)
         );
@@ -50,7 +50,7 @@ public class DefaultSyncLogRepository implements SyncLogRepository{
         in.put("id", syncLogData.getId());
         in.put("status", syncLogData.getStatus());
         return namedParameterJdbcTemplate.update(
-                syncLogQueryBuilder.getUpdateSQlBasedOn(syncLogData),
+                syncLogQueryBuilder.createUpdateQuery(syncLogData),
                 in
         );
     }

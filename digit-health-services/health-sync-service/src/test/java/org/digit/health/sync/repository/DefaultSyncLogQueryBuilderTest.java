@@ -27,7 +27,7 @@ class DefaultSyncLogQueryBuilderTest {
         );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND id=:id ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
+                defaultSyncLogQueryBuilder.createSelectQuery(syncLogData)
         );
     }
 
@@ -44,7 +44,7 @@ class DefaultSyncLogQueryBuilderTest {
         );
         assertEquals("" +
                         "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
+                defaultSyncLogQueryBuilder.createSelectQuery(syncLogData)
         );
     }
 
@@ -57,7 +57,7 @@ class DefaultSyncLogQueryBuilderTest {
         );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND fileStoreId=:fileStoreId ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
+                defaultSyncLogQueryBuilder.createSelectQuery(syncLogData)
         );
     }
 
@@ -71,7 +71,7 @@ class DefaultSyncLogQueryBuilderTest {
         );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND status=:status ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
+                defaultSyncLogQueryBuilder.createSelectQuery(syncLogData)
         );
     }
 
@@ -90,7 +90,7 @@ class DefaultSyncLogQueryBuilderTest {
         );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND status=:status  AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
+                defaultSyncLogQueryBuilder.createSelectQuery(syncLogData)
         );
     }
 
@@ -103,7 +103,7 @@ class DefaultSyncLogQueryBuilderTest {
                 build();
         assertEquals(
                 "UPDATE sync_log SET  status = :status WHERE tenantId = :tenantId AND id=:id",
-                defaultSyncLogQueryBuilder.getUpdateSQlBasedOn(syncLogData)
+                defaultSyncLogQueryBuilder.createUpdateQuery(syncLogData)
         );
     }
 

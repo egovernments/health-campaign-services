@@ -141,7 +141,7 @@ public class FileSyncService implements SyncService {
 
     @Override
     public List<SyncLogData> findByCriteria(SyncLogSearchDto syncLogSearchDto) {
-        return syncLogRepository.findByCriteria(
+        return syncLogRepository.find(
                 SyncLogSearchMapper.INSTANCE
                         .toData(
                                 syncLogSearchDto

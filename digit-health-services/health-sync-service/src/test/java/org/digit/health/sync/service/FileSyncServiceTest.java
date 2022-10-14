@@ -149,7 +149,7 @@ class FileSyncServiceTest {
         SyncLogSearchDto syncLogSearchDto = SyncLogSearchMapper.INSTANCE.toDTO(syncLogSearchRequest);
         SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(syncLogSearchDto);
 
-        when(syncLogRepository.findByCriteria(any(SyncLogData.class))).thenReturn(searchedData);
+        when(syncLogRepository.find(any(SyncLogData.class))).thenReturn(searchedData);
 
         List<SyncLogData> fetechedResult = fileSyncService.findByCriteria(syncLogSearchDto);
 
@@ -159,7 +159,7 @@ class FileSyncServiceTest {
                         fetechedResult.containsAll(searchedData)
         );
 
-        verify(syncLogRepository,times(1)).findByCriteria(syncLogData);
+        verify(syncLogRepository,times(1)).find(syncLogData);
     }
 
     private byte[] getFileData(String file) throws IOException {

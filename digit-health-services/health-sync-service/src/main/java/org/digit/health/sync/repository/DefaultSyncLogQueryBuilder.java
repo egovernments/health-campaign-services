@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
 
     @Override
-    public String getSQlBasedOn(SyncLogData syncLogData) {
+    public String createSelectQuery(SyncLogData syncLogData) {
         StringBuilder sql = new StringBuilder("SELECT * FROM sync_log ");
         sql.append(" WHERE tenantId = :tenantId");
 
@@ -33,7 +33,7 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
     }
 
     @Override
-    public String getUpdateSQlBasedOn(SyncLogData syncLogData) {
+    public String createUpdateQuery(SyncLogData syncLogData) {
         StringBuilder sql = new StringBuilder("UPDATE sync_log SET ");
         if(syncLogData.getStatus()!=null){
             sql.append(" status = :status");
