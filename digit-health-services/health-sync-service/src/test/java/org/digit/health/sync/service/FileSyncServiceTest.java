@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.kafka.Producer;
-import org.digit.health.sync.repository.DefaultSyncLogRepository;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.GzipCompressor;
@@ -20,7 +19,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.io.File;
 import java.io.IOException;
@@ -141,6 +139,7 @@ class FileSyncServiceTest {
         assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
     }
 
+
     @Test
     @DisplayName("should successfully get results from sync repository")
     void shouldSuccessfullyGetResultsFromSyncRepository()  {
@@ -148,8 +147,9 @@ class FileSyncServiceTest {
         List<SyncLogData> searchedData = new ArrayList<>();
         searchedData.add(SyncLogData.builder().build());
         SyncLogSearchDto syncLogSearchDto = SyncLogSearchMapper.INSTANCE.toDTO(syncLogSearchRequest);
+        SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(syncLogSearchDto);
 
-        when(syncLogRepository.findByCriteria(any(SyncLogSearchDto.class))).thenReturn(searchedData);
+        when(syncLogRepository.findByCriteria(any(SyncLogData.class))).thenReturn(searchedData);
 
         List<SyncLogData> fetechedResult = fileSyncService.findByCriteria(syncLogSearchDto);
 
@@ -159,7 +159,7 @@ class FileSyncServiceTest {
                         fetechedResult.containsAll(searchedData)
         );
 
-        verify(syncLogRepository,times(1)).findByCriteria(syncLogSearchDto);
+        verify(syncLogRepository,times(1)).findByCriteria(syncLogData);
     }
 
     private byte[] getFileData(String file) throws IOException {

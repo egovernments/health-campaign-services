@@ -1,7 +1,6 @@
 package org.digit.health.sync.repository;
 
 import org.digit.health.sync.web.models.dao.SyncLogData;
-import org.digit.health.sync.web.models.request.SyncLogSearchDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
@@ -27,20 +26,32 @@ public class DefaultSyncLogRepository implements SyncLogRepository{
     }
 
     @Override
-    public List<SyncLogData> findByCriteria(SyncLogSearchDto syncLogSearchDto) {
+    public List<SyncLogData> findByCriteria(SyncLogData syncLogData) {
         final Map<String, Object> in = new HashMap<>();
-        in.put("tenantId", syncLogSearchDto.getTenantId());
-        in.put("id", syncLogSearchDto.getSyncId());
-        in.put("status", syncLogSearchDto.getStatus());
-        if( syncLogSearchDto.getReference() != null){
-            in.put("referenceId", syncLogSearchDto.getReference().getId());
-            in.put("referenceIdType", syncLogSearchDto.getReference().getType());
+        in.put("tenantId", syncLogData.getTenantId());
+        in.put("id", syncLogData.getId());
+        in.put("status", syncLogData.getStatus());
+        if( syncLogData.getReferenceId() != null){
+            in.put("referenceId", syncLogData.getReferenceId());
+            in.put("referenceIdType", syncLogData.getReferenceIdType());
         }
-        in.put("fileStoreId", syncLogSearchDto.getFileStoreId());
+        in.put("fileStoreId", syncLogData.getFileStoreId());
         return namedParameterJdbcTemplate.query(
-                syncLogQueryBuilder.getSQlBasedOn(syncLogSearchDto),
+                syncLogQueryBuilder.getSQlBasedOn(syncLogData),
                 in,
                 new BeanPropertyRowMapper<>(SyncLogData.class)
+        );
+    }
+
+    @Override
+    public int update(SyncLogData syncLogData) {
+        final Map<String, Object> in = new HashMap<>();
+        in.put("tenantId", syncLogData.getTenantId());
+        in.put("id", syncLogData.getId());
+        in.put("status", syncLogData.getStatus());
+        return namedParameterJdbcTemplate.update(
+                syncLogQueryBuilder.getUpdateSQlBasedOn(syncLogData),
+                in
         );
     }
 

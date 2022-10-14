@@ -1,6 +1,8 @@
 package org.digit.health.sync.repository;
 
-import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
+import org.digit.health.sync.web.models.ReferenceId;
+import org.digit.health.sync.web.models.SyncStatus;
+import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
 import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -20,58 +22,90 @@ class DefaultSyncLogQueryBuilderTest {
     @DisplayName("should generate query with sync id and tenant id if request have sync id")
     @Test
     void shouldGenerateQueryWithSyncId() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
-                SyncSearchRequestTestBuilder.builder().withSyncId().build()
+        SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
+                SyncLogSearchDto.builder().syncId("sync-id").build()
         );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND id=:id ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
+                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
         );
     }
+
 
     @DisplayName("should generate query with reference id and type and tenant id if request have reference")
     @Test
     void shouldGenerateQueryForReferenceId() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
-                SyncSearchRequestTestBuilder.builder().withReferenceId().build()
+        SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
+                SyncLogSearchDto.builder().reference(ReferenceId.builder()
+                                .type("campaign")
+                                .id("id")
+                                .build())
+                        .build()
         );
         assertEquals("" +
-                "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
+                        "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
+                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
         );
     }
 
     @DisplayName("should generate query with file store id and tenant id if request have filestoreid")
     @Test
     void shouldGenerateQueryForFileStoreId() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
-                SyncSearchRequestTestBuilder.builder().withFileStoreId().build()
+        SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
+                SyncLogSearchDto.builder().fileStoreId("file-store-id")
+                        .build()
         );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND fileStoreId=:fileStoreId ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
+                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
         );
     }
+
 
     @DisplayName("should generate query with status and tenant id if request have status")
     @Test
     void shouldGenerateQueryForStatus() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(SyncSearchRequestTestBuilder.builder().withStatus().build());
+        SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
+                SyncLogSearchDto.builder().status(SyncStatus.CREATED.name())
+                        .build()
+        );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND status=:status ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
+                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
         );
     }
+
 
     @DisplayName("should generate query with status and reference and tenant id if request have status and reference")
     @Test
     void shouldGenerateQueryForStatusAndReference() {
-        SyncLogSearchDto searchDto = SyncLogSearchMapper.INSTANCE.toDTO(
-                SyncSearchRequestTestBuilder.builder().withStatus().withReferenceId().build()
+        SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
+                SyncLogSearchDto.builder()
+                        .status(SyncStatus.CREATED.name())
+                        .reference(ReferenceId.builder()
+                                .type("campaign")
+                                .id("id")
+                                .build())
+                        .build()
         );
         assertEquals(
                 "SELECT * FROM sync_log  WHERE tenantId = :tenantId AND status=:status  AND referenceId=:referenceId AND referenceIdType=:referenceIdType ",
-                defaultSyncLogQueryBuilder.getSQlBasedOn(searchDto)
+                defaultSyncLogQueryBuilder.getSQlBasedOn(syncLogData)
         );
     }
+
+
+    @DisplayName("should generate update query for updating status for a sync Id")
+    @Test
+    void shouldGenerateUpdateQueryForUpdatingStatusForASyncIc() {
+        SyncLogData syncLogData = SyncLogData.builder().id("syncId")
+                .status(SyncStatus.CREATED.name()).
+                build();
+        assertEquals(
+                "UPDATE sync_log SET  status = :status WHERE tenantId = :tenantId AND id=:id",
+                defaultSyncLogQueryBuilder.getUpdateSQlBasedOn(syncLogData)
+        );
+    }
+
+
 }
