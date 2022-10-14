@@ -1,7 +1,9 @@
 package org.digit.health.sync.repository;
 
-import org.digit.health.sync.web.models.request.SyncLogSearchDto;
+import org.digit.health.sync.web.models.dao.SyncLogData;
 
 public interface SyncLogQueryBuilder {
-    String getSQlBasedOn(SyncLogSearchDto syncLogSearchDto);
+    String createSelectQuery(SyncLogData syncLogData);
+    String createUpdateQuery(SyncLogData syncLogData);
+
 }
