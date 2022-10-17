@@ -35,22 +35,24 @@ public class SyncUpDataList {
                     HouseholdRegistration hr = (HouseholdRegistration) cd;
                     stepToPayloadMap.put(RegistrationSyncStep.class,
                             HouseholdRegistrationMapper.INSTANCE.toRequest(hr));
-                    referenceIdToStepToPayloadMap.put(hr.getClientReferenceId(), stepToPayloadMap);
+                    referenceIdToStepToPayloadMap.put(hr.getHousehold().getClientReferenceId(),
+                            stepToPayloadMap);
                 }
             }
-            if (sData.getItems().get(0) instanceof Delivery) {
+            if (sData.getItems().get(0) instanceof ResourceDelivery) {
                 for (CampaignData cd : sData.getItems()) {
-                    Delivery delivery = (Delivery) cd;
+                    ResourceDelivery resourceDelivery = (ResourceDelivery) cd;
                     Map<Class<? extends SyncStep>, Object> stepToPayloadMap = referenceIdToStepToPayloadMap
-                            .get(delivery.getRegistrationClientReferenceId());
+                            .get(resourceDelivery.getDelivery().getRegistrationClientReferenceId());
                     if (stepToPayloadMap == null) {
                         Map<Class<? extends SyncStep>, Object> newStepToPayloadMap = new HashMap<>();
                         newStepToPayloadMap.put(DeliverySyncStep.class,
-                                DeliveryMapper.INSTANCE.toRequest(delivery));
-                        referenceIdToStepToPayloadMap.put(delivery.getClientReferenceId(), newStepToPayloadMap);
+                                DeliveryMapper.INSTANCE.toRequest(resourceDelivery));
+                        referenceIdToStepToPayloadMap.put(resourceDelivery
+                                .getDelivery().getClientReferenceId(), newStepToPayloadMap);
                     } else {
                         stepToPayloadMap.put(DeliverySyncStep.class,
-                                DeliveryMapper.INSTANCE.toRequest(delivery));
+                                DeliveryMapper.INSTANCE.toRequest(resourceDelivery));
                     }
                 }
             }

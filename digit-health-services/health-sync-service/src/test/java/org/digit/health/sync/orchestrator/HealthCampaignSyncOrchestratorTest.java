@@ -5,11 +5,11 @@ import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.DeliverySyncStep;
 import org.digit.health.sync.context.step.RegistrationSyncStep;
 import org.digit.health.sync.context.step.SyncStep;
-import org.digit.health.sync.helper.DeliveryRequestTestBuilder;
+import org.digit.health.sync.helper.ResourceDeliveryRequestTestBuilder;
 import org.digit.health.sync.helper.HouseholdRegistrationRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
-import org.digit.health.sync.web.models.request.DeliveryRequest;
+import org.digit.health.sync.web.models.request.ResourceDeliveryRequest;
 import org.digit.health.sync.web.models.request.HouseholdRegistrationRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.DisplayName;
@@ -55,7 +55,7 @@ class HealthCampaignSyncOrchestratorTest {
         stepToPayloadMap.put(RegistrationSyncStep.class,
                 HouseholdRegistrationRequestTestBuilder.builder().withDummyClientReferenceId().build());
         stepToPayloadMap.put(DeliverySyncStep.class,
-                DeliveryRequestTestBuilder.builder().withDummyClientReferenceId().build());
+                ResourceDeliveryRequestTestBuilder.builder().withDummyClientReferenceId().build());
         when(applicationContext.getBean(HealthCampaignSyncContext.class))
                 .thenReturn(new HealthCampaignSyncContext(new RegistrationSyncStep(applicationContext)));
         when(applicationContext.getBean(Properties.class)).thenReturn(properties);
@@ -81,7 +81,7 @@ class HealthCampaignSyncOrchestratorTest {
         stepToPayloadMap.put(RegistrationSyncStep.class,
                 HouseholdRegistrationRequestTestBuilder.builder().withDummyClientReferenceId().build());
         stepToPayloadMap.put(DeliverySyncStep.class,
-                DeliveryRequestTestBuilder.builder().withDummyClientReferenceId().build());
+                ResourceDeliveryRequestTestBuilder.builder().withDummyClientReferenceId().build());
         HealthCampaignSyncContext healthCampaignSyncContext = Mockito.mock(HealthCampaignSyncContext.class);
         when(applicationContext.getBean(HealthCampaignSyncContext.class))
                 .thenReturn(healthCampaignSyncContext);
@@ -103,12 +103,12 @@ class HealthCampaignSyncOrchestratorTest {
         HouseholdRegistrationRequest householdRegistrationRequest =
                 HouseholdRegistrationRequestTestBuilder.builder()
                         .withDummyClientReferenceId().build();
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder.builder()
+        ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder.builder()
                 .withDummyClientReferenceId().build();
         stepToPayloadMap.put(RegistrationSyncStep.class,
                 householdRegistrationRequest);
         stepToPayloadMap.put(DeliverySyncStep.class,
-                deliveryRequest);
+                resourceDeliveryRequest);
         when(applicationContext.getBean(HealthCampaignSyncContext.class))
                 .thenReturn(new HealthCampaignSyncContext(new RegistrationSyncStep(applicationContext)));
         when(applicationContext.getBean(Properties.class)).thenReturn(properties);
@@ -133,11 +133,11 @@ class HealthCampaignSyncOrchestratorTest {
         HouseholdRegistrationRequest householdRegistrationRequest =
                 HouseholdRegistrationRequestTestBuilder.builder()
                         .withDummyClientReferenceId().build();
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder.builder()
+        ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder.builder()
                 .withDummyClientReferenceId().build();
         stepToPayloadMap.put(RegistrationSyncStep.class,
                 householdRegistrationRequest);
-        stepToPayloadMap.put(DeliverySyncStep.class, deliveryRequest);
+        stepToPayloadMap.put(DeliverySyncStep.class, resourceDeliveryRequest);
         when(applicationContext.getBean(HealthCampaignSyncContext.class))
                 .thenReturn(new HealthCampaignSyncContext(new RegistrationSyncStep(applicationContext)));
         when(applicationContext.getBean(Properties.class)).thenReturn(properties);
@@ -152,7 +152,7 @@ class HealthCampaignSyncOrchestratorTest {
                 any(StringBuilder.class),
                 any(HouseholdRegistrationRequest.class), eq(ResponseEntity.class));
         lenient().doThrow(new CustomException()).when(serviceRequestRepository).fetchResult(
-                any(StringBuilder.class), any(DeliveryRequest.class), eq(ResponseEntity.class));
+                any(StringBuilder.class), any(ResourceDeliveryRequest.class), eq(ResponseEntity.class));
 
         List<SyncStepMetric> result = syncOrchestrator.orchestrate(stepToPayloadMap);
 
@@ -165,9 +165,9 @@ class HealthCampaignSyncOrchestratorTest {
         SyncOrchestrator<Map<Class<? extends SyncStep>, Object>, List<SyncStepMetric>>
                 syncOrchestrator = new HealthCampaignSyncOrchestrator(applicationContext);
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder.builder()
+        ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder.builder()
                 .withDummyClientReferenceId().build();
-        stepToPayloadMap.put(DeliverySyncStep.class, deliveryRequest);
+        stepToPayloadMap.put(DeliverySyncStep.class, resourceDeliveryRequest);
         HealthCampaignSyncContext healthCampaignSyncContext = Mockito
                 .spy(new HealthCampaignSyncContext(new RegistrationSyncStep(applicationContext)));
         when(applicationContext.getBean(HealthCampaignSyncContext.class))
@@ -179,7 +179,7 @@ class HealthCampaignSyncOrchestratorTest {
         when(properties.getDeliveryBaseUrl()).thenReturn("some-url");
         when(properties.getDeliveryCreateEndpoint()).thenReturn("some-endpoint");
         lenient().doReturn(ResponseEntity.ok()).when(serviceRequestRepository).fetchResult(
-                any(StringBuilder.class), any(DeliveryRequest.class), eq(ResponseEntity.class));
+                any(StringBuilder.class), any(ResourceDeliveryRequest.class), eq(ResponseEntity.class));
 
         List<SyncStepMetric> result = syncOrchestrator.orchestrate(stepToPayloadMap);
 

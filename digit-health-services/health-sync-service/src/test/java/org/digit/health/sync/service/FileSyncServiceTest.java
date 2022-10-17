@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.kafka.Producer;
+import org.digit.health.sync.orchestrator.client.SyncOrchestratorClient;
+import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.GzipCompressor;
@@ -25,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -56,6 +59,9 @@ class FileSyncServiceTest {
     @Qualifier("defaultSyncLogRepository")
     private SyncLogRepository syncLogRepository;
 
+    @Mock
+    private SyncOrchestratorClient<Map<String, Object>, SyncLogMetric> syncOrchestratorClient;
+
     @InjectMocks
     private FileSyncService fileSyncService;
 
@@ -68,7 +74,8 @@ class FileSyncServiceTest {
                 objectMapper,
                 compressor,
                 checksumValidator,
-                syncLogRepository
+                syncLogRepository,
+                syncOrchestratorClient
         );
     }
 

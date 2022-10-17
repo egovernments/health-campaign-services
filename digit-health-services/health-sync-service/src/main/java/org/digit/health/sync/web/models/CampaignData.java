@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({ @JsonSubTypes.Type(value = HouseholdRegistration.class,
         name = "householdRegistration"),
-        @JsonSubTypes.Type(value = Delivery.class, name = "delivery")})
+        @JsonSubTypes.Type(value = ResourceDelivery.class, name = "delivery")})
 public class CampaignData {
     private String type;
 }

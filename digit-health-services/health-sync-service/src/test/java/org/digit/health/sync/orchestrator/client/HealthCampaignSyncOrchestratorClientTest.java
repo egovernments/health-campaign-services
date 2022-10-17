@@ -14,6 +14,8 @@ import org.digit.health.sync.web.models.SyncUpDataList;
 import org.digit.health.sync.web.models.dao.SyncErrorDetailsLogData;
 import org.digit.health.sync.web.models.request.DeliveryMapper;
 import org.digit.health.sync.web.models.request.HouseholdRegistrationMapper;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -102,6 +104,11 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .build();
         Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
+        payloadMap.put("requestInfo", RequestInfo.builder()
+                        .userInfo(User.builder()
+                                .uuid("some-uuid")
+                                .build())
+                .build());
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
         List<SyncStepMetric> syncStepMetrics = new ArrayList<>();
         syncStepMetrics.add(SyncStepMetricTestBuilder.builder()
@@ -191,6 +198,11 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .build();
         Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
+        payloadMap.put("requestInfo", RequestInfo.builder()
+                .userInfo(User.builder()
+                        .uuid("some-uuid")
+                        .build())
+                .build());
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
         Map<Class<? extends SyncStep>, Object> secondStepToPayloadMap = getTwoItemStepToPayloadMap();
         List<SyncStepMetric> firstSyncStepMetrics = new ArrayList<>();

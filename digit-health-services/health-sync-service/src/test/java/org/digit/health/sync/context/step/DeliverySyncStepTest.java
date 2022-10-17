@@ -4,10 +4,10 @@ import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.context.enums.StepSyncStatus;
 import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.context.metric.SyncStepMetric;
-import org.digit.health.sync.helper.DeliveryRequestTestBuilder;
+import org.digit.health.sync.helper.ResourceDeliveryRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
-import org.digit.health.sync.web.models.request.DeliveryRequest;
+import org.digit.health.sync.web.models.request.ResourceDeliveryRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,14 +51,14 @@ class DeliverySyncStepTest {
     void testThatDeliverySyncStepShouldCallDeliveryService() {
         SyncStep deliverySyncStep = new DeliverySyncStep(applicationContext);
 
-        deliverySyncStep.handle(DeliveryRequestTestBuilder
+        deliverySyncStep.handle(ResourceDeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build());
 
         verify(serviceRequestRepository, times(1))
                 .fetchResult(any(StringBuilder.class),
-                        any(DeliveryRequest.class),
+                        any(ResourceDeliveryRequest.class),
                         eq(ResponseEntity.class));
     }
 
@@ -66,17 +66,17 @@ class DeliverySyncStepTest {
     @DisplayName("delivery sync step should publish success metric on successful execution")
     void testThatDeliverySyncStepShouldPublishSuccessMetricOnSuccessfulExecution() {
         SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
+        ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
         SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.COMPLETED)
-                .recordId(deliveryRequest.getClientReferenceId())
+                .recordId(resourceDeliveryRequest.getDelivery().getClientReferenceId())
                 .recordIdType(RecordIdType.DELIVERY)
                 .build();
 
-        deliverySyncStep.handle(deliveryRequest);
+        deliverySyncStep.handle(resourceDeliveryRequest);
 
         verify(deliverySyncStep, times(1))
                 .notifyObservers(syncStepMetric);
@@ -88,15 +88,15 @@ class DeliverySyncStepTest {
         String errorMessage = "some_message";
         SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(DeliveryRequest.class),
+                any(ResourceDeliveryRequest.class),
                 eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
+        ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
         SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.FAILED)
-                .recordId(deliveryRequest.getClientReferenceId())
+                .recordId(resourceDeliveryRequest.getDelivery().getClientReferenceId())
                 .recordIdType(RecordIdType.DELIVERY)
                 .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
@@ -105,7 +105,7 @@ class DeliverySyncStepTest {
 
         try {
             deliverySyncStep
-                    .handle(deliveryRequest);
+                    .handle(resourceDeliveryRequest);
         } catch (CustomException ex) {
             customException = ex;
         }
@@ -121,24 +121,24 @@ class DeliverySyncStepTest {
     void testThatDeliverySyncStepShouldPublishFailureMetricAndThrowExceptionInCaseOfError() {
         String errorMessage = "some_message";
         SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
+        ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
                 .build();
         SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.FAILED)
-                .recordId(deliveryRequest.getClientReferenceId())
+                .recordId(resourceDeliveryRequest.getDelivery().getClientReferenceId())
                 .recordIdType(RecordIdType.DELIVERY)
                 .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
                 .build();
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(DeliveryRequest.class),
+                any(ResourceDeliveryRequest.class),
                 eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
 
         Exception ex = null;
         try {
-            deliverySyncStep.handle(deliveryRequest);
+            deliverySyncStep.handle(resourceDeliveryRequest);
         } catch (Exception exception) {
             ex = exception;
         }

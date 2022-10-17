@@ -1,57 +1,64 @@
 {
-  "syncUpData": [{
-    "items": [{
-      "householdId": "test_568a87c4c4f1",
-      "clientReferenceId": "test_c3c1e80de478",
-      "campaignId": "test_431421d3c6cd",
-      "tenantId": "test_3f1cc747d82f",
-      "apiMode": "DELETE",
-      "administrativeUnit": "test_83c7322510fa",
-      "numberOfIndividuals": 15,
-      "dateOfRegistration": 30,
-      "address": {
-        "addressId": "test_b411383c5f7a",
-        "addressText": "test_05e43da906e9"
-      },
-      "location": {
-        "latitude": 1.40,
-        "longitude": 79.04,
-        "accuracy": 91.19
-      },
-      "individuals": [
+  "syncUpData": [
+    {
+      "items": [
         {
-          "individualId": "test_330a6fbbf346",
-          "name": "test_2a64ba9c7a1a",
-          "givenName": "test_eb77353cce2a",
-          "familyName": "test_f568e6c8ebef",
-          "additionalName": "test_72ef956ed062",
-          "dateOfBirth": "test_f2f84608b862",
-          "gender": "OTHER",
-          "isHead": false,
-          "identifiers": [
-            {
-              "type": "test_18c4e8c95cc9",
-              "identifierId": "test_a9a6a570c7d6"
+          "requestInfo": {},
+          "household": {
+            "householdId": "test_568a87c4c4f1",
+            "clientReferenceId": "test_c3c1e80de478",
+            "campaignId": "test_431421d3c6cd",
+            "tenantId": "test_3f1cc747d82f",
+            "apiMode": "DELETE",
+            "administrativeUnit": "test_83c7322510fa",
+            "numberOfIndividuals": 15,
+            "dateOfRegistration": 30,
+            "address": {
+              "addressId": "test_b411383c5f7a",
+              "addressText": "test_05e43da906e9"
+            },
+            "location": {
+              "latitude": 1.40,
+              "longitude": 79.04,
+              "accuracy": 91.19
+            },
+            "individuals": [
+              {
+                "individualId": "test_330a6fbbf346",
+                "name": "test_2a64ba9c7a1a",
+                "givenName": "test_eb77353cce2a",
+                "familyName": "test_f568e6c8ebef",
+                "additionalName": "test_72ef956ed062",
+                "dateOfBirth": "test_f2f84608b862",
+                "gender": "OTHER",
+                "isHead": false,
+                "identifiers": [
+                  {
+                    "type": "test_18c4e8c95cc9",
+                    "identifierId": "test_a9a6a570c7d6"
+                  }
+                ],
+                "addressId": "test_834ac80a7b3b",
+                "additionalFields": "test_2e8104f135e4",
+                "auditDetails": {
+                  "createdBy": "test_3040be287e86",
+                  "lastModifiedBy": "test_6319e12ca60d",
+                  "createdTime": 89,
+                  "lastModifiedTime": 76
+                }
+              }
+            ],
+            "additionalFields": "test_3c4cab2156be",
+            "auditDetails": {
+              "createdBy": "test_52c111384ef5",
+              "lastModifiedBy": "test_9a9defa18c44",
+              "createdTime": 66,
+              "lastModifiedTime": 41
             }
-          ],
-          "addressId": "test_834ac80a7b3b",
-          "additionalFields": "test_2e8104f135e4",
-          "auditDetails": {
-            "createdBy": "test_3040be287e86",
-            "lastModifiedBy": "test_6319e12ca60d",
-            "createdTime": 89,
-            "lastModifiedTime": 76
-          }
+          },
+          "type": "householdRegistration"
         }
-      ],
-      "additionalFields": "test_3c4cab2156be",
-      "auditDetails": {
-        "createdBy": "test_52c111384ef5",
-        "lastModifiedBy": "test_9a9defa18c44",
-        "createdTime": 66,
-        "lastModifiedTime": 41
-      },
-      "type": "householdRegistration"
-    }]
-  }]
+      ]
+    }
+  ]
 }

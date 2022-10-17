@@ -3,11 +3,11 @@ package org.digit.health.sync.context;
 import org.digit.health.sync.context.step.DeliverySyncStep;
 import org.digit.health.sync.context.step.RegistrationSyncStep;
 import org.digit.health.sync.context.step.SyncStep;
-import org.digit.health.sync.helper.DeliveryRequestTestBuilder;
+import org.digit.health.sync.helper.ResourceDeliveryRequestTestBuilder;
 import org.digit.health.sync.helper.HouseholdRegistrationRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
-import org.digit.health.sync.web.models.request.DeliveryRequest;
+import org.digit.health.sync.web.models.request.ResourceDeliveryRequest;
 import org.digit.health.sync.web.models.request.HouseholdRegistrationRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,9 +72,9 @@ class HealthCampaignSyncContextTest {
                 .withDummyClientReferenceId().build();
         syncContext.handle(householdRegistrationRequest);
         syncContext.nextSyncStep();
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder
+        ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder
                 .builder().withDummyClientReferenceId().build();
-        syncContext.handle(deliveryRequest);
+        syncContext.handle(resourceDeliveryRequest);
 
         assertEquals(2, syncContext.getSyncMetrics().size());
     }

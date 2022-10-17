@@ -42,12 +42,14 @@ public class RegistrationSyncStep extends SyncStep {
                     householdRegistrationRequest, ResponseEntity.class);
         } catch (Exception exception) {
             log.error("Exception while calling registration service", exception);
-            publishFailureMetric(householdRegistrationRequest.getClientReferenceId(),
+            publishFailureMetric(householdRegistrationRequest
+                            .getHousehold().getClientReferenceId(),
                     RecordIdType.REGISTRATION, exception.getMessage());
             throw new CustomException(SyncErrorCode.ERROR_IN_REST_CALL.name(),
                     SyncErrorCode.ERROR_IN_REST_CALL.message(exception.getMessage()));
         }
-        publishSuccessMetric(householdRegistrationRequest.getClientReferenceId(),
+        publishSuccessMetric(householdRegistrationRequest
+                        .getHousehold().getClientReferenceId(),
                 RecordIdType.REGISTRATION);
     }
 

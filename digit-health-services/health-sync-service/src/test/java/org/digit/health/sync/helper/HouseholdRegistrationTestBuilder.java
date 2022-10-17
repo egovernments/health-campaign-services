@@ -1,5 +1,6 @@
 package org.digit.health.sync.helper;
 
+import org.digit.health.sync.web.models.Household;
 import org.digit.health.sync.web.models.HouseholdRegistration;
 
 public class HouseholdRegistrationTestBuilder {
@@ -18,12 +19,16 @@ public class HouseholdRegistrationTestBuilder {
     }
 
     public HouseholdRegistrationTestBuilder withDummyClientReferenceId() {
-        builder.clientReferenceId("some-registration-uuid");
+        builder.household(Household.builder()
+                        .clientReferenceId("some-registration-uuid")
+                .build()).build();
         return this;
     }
 
     public HouseholdRegistrationTestBuilder withDummyClientReferenceId(String id) {
-        builder.clientReferenceId(id);
+        builder.household(Household.builder()
+                .clientReferenceId(id)
+                .build()).build();
         return this;
     }
 }

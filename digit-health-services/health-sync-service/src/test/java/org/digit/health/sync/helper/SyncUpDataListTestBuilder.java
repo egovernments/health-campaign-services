@@ -1,7 +1,7 @@
 package org.digit.health.sync.helper;
 
 import org.digit.health.sync.web.models.CampaignData;
-import org.digit.health.sync.web.models.Delivery;
+import org.digit.health.sync.web.models.ResourceDelivery;
 import org.digit.health.sync.web.models.HouseholdRegistration;
 import org.digit.health.sync.web.models.SyncUpData;
 import org.digit.health.sync.web.models.SyncUpDataList;
@@ -97,14 +97,14 @@ public class SyncUpDataListTestBuilder {
                 .withDummyClientReferenceId(id).build();
     }
 
-    public static Delivery getDelivery() {
-        return DeliveryTestBuilder.builder()
+    public static ResourceDelivery getDelivery() {
+        return ResourceDeliveryTestBuilder.builder()
                 .withDummyClientReferenceId()
                 .withRegistrationClientReferenceId().build();
     }
 
-    public static Delivery getDelivery(String id) {
-        return DeliveryTestBuilder.builder()
+    public static ResourceDelivery getDelivery(String id) {
+        return ResourceDeliveryTestBuilder.builder()
                 .withDummyClientReferenceId()
                 .withRegistrationClientReferenceId(id).build();
     }

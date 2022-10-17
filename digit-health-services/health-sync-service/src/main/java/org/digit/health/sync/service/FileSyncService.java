@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.digit.health.sync.context.enums.SyncErrorCode;
+import org.digit.health.sync.orchestrator.client.SyncOrchestratorClient;
+import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.kafka.Producer;
@@ -30,7 +32,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -43,6 +47,7 @@ public class FileSyncService implements SyncService {
     private final Compressor compressor;
     private final ChecksumValidator checksumValidator;
     private final SyncLogRepository syncLogRepository;
+    private final SyncOrchestratorClient<Map<String, Object>, SyncLogMetric> orchestratorClient;
 
     @Autowired
     public FileSyncService(
@@ -51,14 +56,17 @@ public class FileSyncService implements SyncService {
             ObjectMapper objectMapper,
             GzipCompressor compressor,
             Md5ChecksumValidator checksumValidator,
-            @Qualifier("defaultSyncLogRepository") SyncLogRepository syncLogRepository
-    ) {
+            @Qualifier("defaultSyncLogRepository") SyncLogRepository syncLogRepository,
+            @Qualifier("healthCampaignSyncOrchestratorClient")
+            SyncOrchestratorClient<Map<String, Object>, SyncLogMetric> orchestratorClient
+            ) {
         this.producer = producer;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
         this.compressor = compressor;
         this.checksumValidator = checksumValidator;
         this.syncLogRepository = syncLogRepository;
+        this.orchestratorClient = orchestratorClient;
     }
 
     @Override
@@ -70,8 +78,17 @@ public class FileSyncService implements SyncService {
         checksumValidator.validate(data, fileDetails.getChecksum());
         try {
             String str = convertToString(compressor.decompress(data));
-            SyncUpDataList syncUpData = objectMapper.readValue(str, SyncUpDataList.class);
+            SyncUpDataList syncUpDataList = objectMapper.readValue(str, SyncUpDataList.class);
+            String syncId = UUID.randomUUID().toString();
+            Map<String, Object> payloadMap = new HashMap<>();
+            payloadMap.put("syncUpDataList", syncUpDataList);
+            payloadMap.put("syncId", syncId);
+            payloadMap.put("tenantId", tenantId);
+            payloadMap.put("requestInfo", syncUpDto.getRequestInfo());
+            SyncLogMetric syncLogMetric = orchestratorClient.orchestrate(payloadMap);
+            // update syncLog table here
         } catch (Exception exception) {
+            log.error("Exception occurred: ", exception);
             throw new CustomException(SyncErrorCode.ERROR_IN_MAPPING_JSON.name(),
                     SyncErrorCode.ERROR_IN_MAPPING_JSON.message());
         }

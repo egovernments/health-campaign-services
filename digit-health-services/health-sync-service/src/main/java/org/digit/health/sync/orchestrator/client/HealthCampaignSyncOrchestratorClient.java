@@ -11,6 +11,7 @@ import org.digit.health.sync.repository.SyncErrorDetailsLogRepository;
 import org.digit.health.sync.web.models.AuditDetails;
 import org.digit.health.sync.web.models.SyncUpDataList;
 import org.digit.health.sync.web.models.dao.SyncErrorDetailsLogData;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -66,11 +67,22 @@ public class HealthCampaignSyncOrchestratorClient
                         .tenantId((String) payloadMap.get("tenantId"))
                         .errorCodes(syncStepMetric.getErrorCode())
                         .errorMessages(syncStepMetric.getErrorMessage())
-                        .auditDetails((AuditDetails) payloadMap.get("auditDetails"))
+                        .auditDetails(getAuditDetails(payloadMap))
                         .build())
                 .collect(Collectors.toList())
                 .parallelStream()
                 .forEach(syncErrorDetailsLogRepository::save);
+    }
+
+    private static AuditDetails getAuditDetails(Map<String, Object> payloadMap) {
+
+         RequestInfo requestInfo = (RequestInfo) payloadMap.get("requestInfo");
+         return AuditDetails.builder()
+                 .createdBy(requestInfo.getUserInfo().getUuid())
+                 .createdTime(System.currentTimeMillis())
+                 .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+                 .createdTime(System.currentTimeMillis())
+                 .build();
     }
 
     private SyncLogMetric getSyncLogMetric(List<SyncStepMetric> syncStepMetrics) {

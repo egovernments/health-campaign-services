@@ -6,7 +6,7 @@ import org.digit.health.sync.context.enums.RecordIdType;
 import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
-import org.digit.health.sync.web.models.request.DeliveryRequest;
+import org.digit.health.sync.web.models.request.ResourceDeliveryRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -30,22 +30,22 @@ public class DeliverySyncStep extends SyncStep {
 
     @Override
     public void handle(Object payload) {
-        DeliveryRequest deliveryRequest = (DeliveryRequest) payload;
+        ResourceDeliveryRequest resourceDeliveryRequest = (ResourceDeliveryRequest) payload;
         ServiceRequestRepository serviceRequestRepository = applicationContext
                 .getBean(ServiceRequestRepository.class);
         Properties properties = applicationContext.getBean(Properties.class);
         try {
             serviceRequestRepository.fetchResult(new StringBuilder(properties.getDeliveryBaseUrl()
                             + properties.getDeliveryCreateEndpoint()),
-                    deliveryRequest, ResponseEntity.class);
+                    resourceDeliveryRequest, ResponseEntity.class);
         } catch (Exception exception) {
             log.error("Exception while calling registration service", exception);
-            publishFailureMetric(deliveryRequest.getClientReferenceId(),
+            publishFailureMetric(resourceDeliveryRequest.getDelivery().getClientReferenceId(),
                     RecordIdType.DELIVERY, exception.getMessage());
             throw new CustomException(SyncErrorCode.ERROR_IN_REST_CALL.name(),
                     SyncErrorCode.ERROR_IN_REST_CALL.message(exception.getMessage()));
         }
-        publishSuccessMetric(deliveryRequest.getClientReferenceId(),
+        publishSuccessMetric(resourceDeliveryRequest.getDelivery().getClientReferenceId(),
                 RecordIdType.DELIVERY);
     }
 

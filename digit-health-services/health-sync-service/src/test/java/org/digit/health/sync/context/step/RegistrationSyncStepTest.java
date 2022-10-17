@@ -73,7 +73,7 @@ class RegistrationSyncStepTest {
                 .build();
         SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.COMPLETED)
-                .recordId(householdRegistrationRequest.getClientReferenceId())
+                .recordId(householdRegistrationRequest.getHousehold().getClientReferenceId())
                 .recordIdType(RecordIdType.REGISTRATION)
                 .build();
 
@@ -97,7 +97,7 @@ class RegistrationSyncStepTest {
                 .build();
         SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.FAILED)
-                .recordId(householdRegistrationRequest.getClientReferenceId())
+                .recordId(householdRegistrationRequest.getHousehold().getClientReferenceId())
                 .recordIdType(RecordIdType.REGISTRATION)
                 .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
@@ -129,7 +129,7 @@ class RegistrationSyncStepTest {
                 .build();
         SyncStepMetric syncStepMetric = SyncStepMetric.builder()
                 .status(StepSyncStatus.FAILED)
-                .recordId(householdRegistrationRequest.getClientReferenceId())
+                .recordId(householdRegistrationRequest.getHousehold().getClientReferenceId())
                 .recordIdType(RecordIdType.REGISTRATION)
                 .errorCode(SyncErrorCode.ERROR_IN_REST_CALL.name())
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
