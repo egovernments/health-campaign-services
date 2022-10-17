@@ -1,9 +1,9 @@
 package org.digit.health.sync.repository;
 
 import org.digit.health.sync.kafka.Producer;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.repository.enums.RepositoryErrorCode;
 import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.dao.SyncLogDataMapper;
 import org.egov.tracer.model.CustomException;
@@ -22,9 +22,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DefaultSyncLogRepositoryTest {
@@ -103,7 +110,7 @@ class DefaultSyncLogRepositoryTest {
     @DisplayName("should successfully update using sync repository")
     void shouldSuccessfullyUpdateUsingSyncRepository() {
         String GENERATED_UPDATE_QUERY = "UPDATE sync_log SET  status=:status WHERE tenantId=:tenantId AND id=:id ";
-        SyncLogData updatedData = SyncLogData.builder().status(SyncStatus.CREATED)
+        SyncLogData updatedData = SyncLogData.builder().status(SyncLogStatus.CREATED)
                 .syncId("sync-id")
                 .tenantId("tenant-id")
                 .build();

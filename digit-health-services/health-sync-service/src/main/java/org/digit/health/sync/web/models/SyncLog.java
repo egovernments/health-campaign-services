@@ -25,7 +25,7 @@ public class SyncLog {
 	private FileDetails fileDetails;
 
 	@JsonProperty("status")
-	private SyncStatus status;
+	private SyncLogStatus status;
 
 	@JsonProperty("comment")
 	private String comment;

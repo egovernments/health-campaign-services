@@ -1,7 +1,7 @@
 package org.digit.health.sync.repository;
 
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
 import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
@@ -66,7 +66,7 @@ class DefaultSyncLogQueryBuilderTest {
     @Test
     void shouldGenerateQueryForStatus() {
         SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
-                SyncLogSearchDto.builder().status(SyncStatus.CREATED.name())
+                SyncLogSearchDto.builder().status(SyncLogStatus.CREATED.name())
                         .build()
         );
         assertEquals(
@@ -81,7 +81,7 @@ class DefaultSyncLogQueryBuilderTest {
     void shouldGenerateQueryForStatusAndReference() {
         SyncLogData syncLogData = SyncLogSearchMapper.INSTANCE.toData(
                 SyncLogSearchDto.builder()
-                        .status(SyncStatus.CREATED.name())
+                        .status(SyncLogStatus.CREATED.name())
                         .referenceId(ReferenceId.builder()
                                 .type("campaign")
                                 .id("id")
@@ -99,10 +99,27 @@ class DefaultSyncLogQueryBuilderTest {
     @Test
     void shouldGenerateUpdateQueryForUpdatingStatusForASyncIc() {
         SyncLogData syncLogData = SyncLogData.builder().syncId("syncId")
-                .status(SyncStatus.CREATED)
+                .status(SyncLogStatus.CREATED)
                 .build();
         assertEquals(
-                "UPDATE sync_log SET  status=:status WHERE tenantId=:tenantId AND id=:id ",
+                "UPDATE sync_log SET status=:status WHERE id=:id",
+                defaultSyncLogQueryBuilder.createUpdateQuery(syncLogData)
+        );
+    }
+
+    @DisplayName("should generate update query for updating status, error, " +
+            "success and total count for a sync Id")
+    @Test
+    void shouldGenerateUpdateQueryForUpdatingStatusErrorSuccessAndTotalCountForASyncId() {
+        SyncLogData syncLogData = SyncLogData.builder().syncId("syncId")
+                .status(SyncLogStatus.COMPLETE)
+                .errorCount(0L)
+                .successCount(2L)
+                .totalCount(2L)
+                .build();
+        assertEquals(
+                "UPDATE sync_log SET status=:status, errorCount=:errorCount, " +
+                        "successCount=:successCount, totalCount=:totalCount WHERE id=:id",
                 defaultSyncLogQueryBuilder.createUpdateQuery(syncLogData)
         );
     }

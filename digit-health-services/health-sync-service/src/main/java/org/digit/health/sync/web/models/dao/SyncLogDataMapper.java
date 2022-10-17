@@ -1,9 +1,9 @@
 package org.digit.health.sync.web.models.dao;
 
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.web.models.AuditDetails;
 import org.digit.health.sync.web.models.FileDetails;
 import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncStatus;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
@@ -13,7 +13,7 @@ public class SyncLogDataMapper implements RowMapper<SyncLogData> {
 
     @Override
     public SyncLogData mapRow(ResultSet resultSet, int i) throws SQLException {
-        SyncLogData student = SyncLogData.builder()
+        return SyncLogData.builder()
                 .referenceId(
                         ReferenceId.builder()
                                 .id(resultSet.getString("referenceId"))
@@ -29,12 +29,12 @@ public class SyncLogDataMapper implements RowMapper<SyncLogData> {
                                 .build()
                 )
                 .tenantId(resultSet.getString("tenantId"))
-                .status(SyncStatus.valueOf(resultSet.getString("status")))
+                .status(SyncLogStatus.valueOf(resultSet.getString("status")))
                 .comment(resultSet.getString("comment"))
                 .syncId(resultSet.getString("id"))
-                .successCount(resultSet.getInt("successCount"))
-                .errorCount(resultSet.getInt("errorCount"))
-                .totalCount(resultSet.getInt("totalCount"))
+                .successCount(resultSet.getLong("successCount"))
+                .errorCount(resultSet.getLong("errorCount"))
+                .totalCount(resultSet.getLong("totalCount"))
                 .fileDetails(
                         FileDetails.builder()
                                 .fileStoreId(resultSet.getString("fileStoreId"))
@@ -42,6 +42,5 @@ public class SyncLogDataMapper implements RowMapper<SyncLogData> {
                                 .build()
                 )
                 .build();
-        return student;
     }
 }

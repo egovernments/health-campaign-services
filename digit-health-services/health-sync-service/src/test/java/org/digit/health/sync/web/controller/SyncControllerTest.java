@@ -3,6 +3,7 @@ package org.digit.health.sync.web.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.web.models.*;
 import org.digit.health.sync.web.models.dao.SyncLogData;
@@ -83,10 +84,10 @@ class SyncControllerTest {
         SyncLogSearchRequest syncLogSearchRequest = SyncSearchRequestTestBuilder.builder().withSyncId().build();
         List<SyncLogData> searchedData = new ArrayList<>();
         SyncLogData responseSync = SyncLogData.builder()
-                .status(SyncStatus.CREATED)
-                .successCount(0)
-                .errorCount(0)
-                .totalCount(0)
+                .status(SyncLogStatus.CREATED)
+                .successCount(0L)
+                .errorCount(0L)
+                .totalCount(0L)
                 .comment("")
                 .fileDetails(
                         FileDetails.builder()

@@ -5,7 +5,7 @@ import org.digit.health.sync.context.enums.StepSyncStatus;
 import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
 import org.digit.health.sync.orchestrator.SyncOrchestrator;
-import org.digit.health.sync.orchestrator.client.enums.SyncLogStatus;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
 import org.digit.health.sync.repository.SyncErrorDetailsLogRepository;
 import org.digit.health.sync.web.models.AuditDetails;

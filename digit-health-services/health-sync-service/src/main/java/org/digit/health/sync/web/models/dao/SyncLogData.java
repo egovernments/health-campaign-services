@@ -5,10 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.web.models.AuditDetails;
 import org.digit.health.sync.web.models.FileDetails;
 import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncStatus;
 
 
 @Data
@@ -30,19 +30,19 @@ public class SyncLogData {
     private FileDetails fileDetails;
 
     @JsonProperty("status")
-    private SyncStatus status;
+    private SyncLogStatus status;
 
     @JsonProperty("comment")
     private String comment;
 
     @JsonProperty("totalCount")
-    private int totalCount;
+    private Long totalCount;
 
     @JsonProperty("successCount")
-    private int successCount;
+    private Long successCount;
 
     @JsonProperty("errorCount")
-    private int errorCount;
+    private Long errorCount;
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails;

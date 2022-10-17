@@ -59,4 +59,8 @@ public class SyncUpDataList {
         }
         return new ArrayList<>(referenceIdToStepToPayloadMap.values());
     }
+
+    public long getTotalCount() {
+         return syncUpData.stream().mapToLong(item -> item.getItems().size()).sum();
+    }
 }

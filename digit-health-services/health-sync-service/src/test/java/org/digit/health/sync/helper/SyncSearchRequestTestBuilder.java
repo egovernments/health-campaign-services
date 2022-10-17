@@ -1,7 +1,7 @@
 package org.digit.health.sync.helper;
 
 import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncStatus;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -47,7 +47,7 @@ public class SyncSearchRequestTestBuilder {
     public SyncSearchRequestTestBuilder withStatus() {
         builder.requestInfo(requestInfo())
                 .tenantId("mq")
-                .status(SyncStatus.FAILED.name());
+                .status(SyncLogStatus.FAILED.name());
 
         return this;
     }

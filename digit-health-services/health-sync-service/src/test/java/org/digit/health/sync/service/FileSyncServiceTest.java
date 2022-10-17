@@ -5,12 +5,18 @@ import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
 import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.orchestrator.client.SyncOrchestratorClient;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.GzipCompressor;
 import org.digit.health.sync.web.models.dao.SyncLogData;
-import org.digit.health.sync.web.models.request.*;
+import org.digit.health.sync.web.models.request.SyncLogSearchDto;
+import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
+import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
+import org.digit.health.sync.web.models.request.SyncUpDto;
+import org.digit.health.sync.web.models.request.SyncUpMapper;
+import org.digit.health.sync.web.models.request.SyncUpRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,9 +36,11 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class FileSyncServiceTest {
@@ -87,6 +95,12 @@ class FileSyncServiceTest {
         when(fileStoreService.getFile(any(String.class), any(String.class))).thenReturn(fileData);
         when(checksumValidator.validate(any(), any())).thenReturn(true);
         when(compressor.decompress(any())).thenReturn(fileData);
+        when(syncOrchestratorClient.orchestrate(any(Map.class))).thenReturn(SyncLogMetric
+                .builder()
+                        .syncLogStatus(SyncLogStatus.COMPLETE)
+                        .errorCount(0L)
+                        .successCount(2L)
+                .build());
 
         fileSyncService.syncUp(syncUpDto);
 
@@ -96,6 +110,7 @@ class FileSyncServiceTest {
                 .getFileDetails().getChecksum());
         verify(compressor, times(1)).decompress(any());
         verify(syncLogRepository, times(1)).save(any(SyncLogData.class));
+        verify(syncLogRepository, times(1)).update(any(SyncLogData.class));
     }
 
     @Test
@@ -157,11 +172,9 @@ class FileSyncServiceTest {
 
         List<SyncLogData> fetechedResult = fileSyncService.find(syncLogSearchDto);
 
-        assertTrue(
-                searchedData.size() == fetechedResult.size() &&
-                        searchedData.containsAll(fetechedResult) &&
-                        fetechedResult.containsAll(searchedData)
-        );
+        assertTrue(searchedData.size() == fetechedResult.size() &&
+                searchedData.containsAll(fetechedResult) &&
+                fetechedResult.containsAll(searchedData));
 
         verify(syncLogRepository, times(1)).find(syncLogData);
     }

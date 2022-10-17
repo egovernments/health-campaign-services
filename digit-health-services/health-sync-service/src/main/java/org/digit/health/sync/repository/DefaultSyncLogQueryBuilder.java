@@ -36,12 +36,25 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
 
     @Override
     public String createUpdateQuery(SyncLogData syncLogData) {
-        StringBuilder sql = new StringBuilder("UPDATE sync_log SET ");
+        StringBuilder sql = new StringBuilder("UPDATE sync_log SET");
         if (syncLogData.getStatus() != null) {
             sql.append(" status=:status");
         }
 
-        sql.append(" WHERE tenantId=:tenantId AND id=:id ");
+        if (syncLogData.getErrorCount() != null) {
+            sql.append(", errorCount=:errorCount");
+        }
+
+        if (syncLogData.getSuccessCount() != null) {
+            sql.append(", successCount=:successCount");
+        }
+
+        if (syncLogData.getTotalCount() != null) {
+            sql.append(", totalCount=:totalCount");
+        }
+
+        sql.append(" WHERE id=:id");
+
         return sql.toString();
     }
 

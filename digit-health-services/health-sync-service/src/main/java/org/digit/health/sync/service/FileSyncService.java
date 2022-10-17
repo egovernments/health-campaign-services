@@ -4,11 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.digit.health.sync.context.enums.SyncErrorCode;
+import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.orchestrator.client.SyncOrchestratorClient;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
 import org.digit.health.sync.repository.SyncLogRepository;
-import org.digit.health.sync.web.models.dao.SyncLogData;
-import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.service.checksum.ChecksumValidator;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.Compressor;
@@ -18,8 +18,8 @@ import org.digit.health.sync.web.models.FileDetails;
 import org.digit.health.sync.web.models.ReferenceId;
 import org.digit.health.sync.web.models.SyncErrorDetailsLog;
 import org.digit.health.sync.web.models.SyncId;
-import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.SyncUpDataList;
+import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
 import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
 import org.digit.health.sync.web.models.request.SyncUpDto;
@@ -78,22 +78,29 @@ public class FileSyncService implements SyncService {
         try {
             String str = convertToString(compressor.decompress(data));
             SyncUpDataList syncUpDataList = objectMapper.readValue(str, SyncUpDataList.class);
-            String syncId = UUID.randomUUID().toString();
+            syncLogData.setTotalCount(syncUpDataList.getTotalCount());
+            persistSyncLog(syncLogData);
             Map<String, Object> payloadMap = new HashMap<>();
             payloadMap.put("syncUpDataList", syncUpDataList);
-            payloadMap.put("syncId", syncId);
+            payloadMap.put("syncId", syncLogData.getSyncId());
             payloadMap.put("tenantId", tenantId);
             payloadMap.put("requestInfo", syncUpDto.getRequestInfo());
             SyncLogMetric syncLogMetric = orchestratorClient.orchestrate(payloadMap);
-            // update syncLog table here
+            updateSyncLogData(syncLogData, syncLogMetric);
+            syncLogRepository.update(syncLogData);
         } catch (Exception exception) {
             log.error("Exception occurred: ", exception);
             throw new CustomException(SyncErrorCode.ERROR_IN_MAPPING_JSON.name(),
                     SyncErrorCode.ERROR_IN_MAPPING_JSON.message());
         }
-        persistSyncLog(syncLogData);
         return SyncId.builder().syncId(syncLogData.getSyncId()).build();
 
+    }
+
+    private void updateSyncLogData(SyncLogData syncLogData, SyncLogMetric syncLogMetric) {
+        syncLogData.setErrorCount(syncLogMetric.getErrorCount());
+        syncLogData.setSuccessCount(syncLogMetric.getSuccessCount());
+        syncLogData.setStatus(syncLogMetric.getSyncLogStatus());
     }
 
     private String convertToString(byte[] data) {
@@ -113,12 +120,15 @@ public class FileSyncService implements SyncService {
 
         return SyncLogData.builder()
                 .syncId(UUID.randomUUID().toString())
-                .status(SyncStatus.CREATED)
+                .status(SyncLogStatus.CREATED)
                 .referenceId(ReferenceId.builder()
                         .id(syncUpDto.getReferenceId().getId())
                         .type(syncUpDto.getReferenceId().getType())
                         .build())
                 .tenantId(userInfo.getTenantId())
+                .errorCount(0L)
+                .successCount(0L)
+                .totalCount(0L)
                 .auditDetails(AuditDetails.builder()
                         .createdBy(userInfo.getUuid())
                         .createdTime(createdTime)

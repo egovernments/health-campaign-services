@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.digit.health.sync.orchestrator.client.enums.SyncLogStatus;
+import org.digit.health.sync.web.models.SyncLogStatus;
 
 @Data
 @AllArgsConstructor
