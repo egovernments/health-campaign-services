@@ -102,16 +102,11 @@ class DefaultSyncLogRepositoryTest {
     @Test
     @DisplayName("should successfully update using sync repository")
     void shouldSuccessfullyUpdateUsingSyncRepository() {
-        String GENERATED_UPDATE_QUERY = "UPDATE sync_log SET  status = :status WHERE tenantId = :tenantId AND id=:id";
+        String GENERATED_UPDATE_QUERY = "UPDATE sync_log SET  status=:status WHERE tenantId=:tenantId AND id=:id ";
         SyncLogData updatedData = SyncLogData.builder().status(SyncStatus.CREATED)
                 .syncId("sync-id")
                 .tenantId("tenant-id")
                 .build();
-
-        Map<String, Object> in = new HashMap<>();
-        in.put("tenantId", "tenant-id");
-        in.put("id", "sync-id");
-        in.put("status", SyncStatus.CREATED);
 
         when(syncLogQueryBuilder.createUpdateQuery(
                 any(SyncLogData.class))
@@ -124,7 +119,8 @@ class DefaultSyncLogRepositoryTest {
 
         defaultSyncLogRepository.update(updatedData);
 
-        verify(jdbcTemplate, times(1)).update(eq(GENERATED_UPDATE_QUERY), eq(in));
+        verify(jdbcTemplate, times(1)).update(eq(GENERATED_UPDATE_QUERY),
+                any(HashMap.class));
         verify(syncLogQueryBuilder, times(1)).createUpdateQuery(updatedData);
     }
 

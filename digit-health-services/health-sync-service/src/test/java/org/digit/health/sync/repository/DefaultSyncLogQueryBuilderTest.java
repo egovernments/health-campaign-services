@@ -102,7 +102,7 @@ class DefaultSyncLogQueryBuilderTest {
                 .status(SyncStatus.CREATED)
                 .build();
         assertEquals(
-                "UPDATE sync_log SET  status = :status WHERE tenantId = :tenantId AND id=:id",
+                "UPDATE sync_log SET  status=:status WHERE tenantId=:tenantId AND id=:id ",
                 defaultSyncLogQueryBuilder.createUpdateQuery(syncLogData)
         );
     }
