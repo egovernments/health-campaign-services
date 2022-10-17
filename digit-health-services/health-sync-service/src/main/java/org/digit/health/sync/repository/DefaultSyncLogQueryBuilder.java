@@ -38,10 +38,10 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
     public String createUpdateQuery(SyncLogData syncLogData) {
         StringBuilder sql = new StringBuilder("UPDATE sync_log SET ");
         if (syncLogData.getStatus() != null) {
-            sql.append(" status = :status");
+            sql.append(" status=:status");
         }
 
-        sql.append(" WHERE tenantId = :tenantId AND id=:id");
+        sql.append(" WHERE tenantId=:tenantId AND id=:id ");
         return sql.toString();
     }
 
