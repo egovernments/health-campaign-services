@@ -13,9 +13,7 @@ public interface SyncLogSearchMapper {
 
     SyncLogSearchDto toDTO(SyncLogSearchRequest syncLogSearchRequest);
 
-    @Mapping(target="id", source="syncId")
-    @Mapping(target="referenceId", source="reference.id")
-    @Mapping(target="referenceIdType", source="reference.type")
+    @Mapping(target = "fileDetails.fileStoreId", source = "fileStoreId")
     SyncLogData toData(SyncLogSearchDto syncLogSearchDto);
 
 }

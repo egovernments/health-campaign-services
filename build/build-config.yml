@@ -25,3 +25,17 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "digit-health-services/health-sync-service/src/main/resources/db"
         image-name: "health-sync-service-db"
+  - name: "builds/health-campaign-services/digit-health-services/health-delivery-service"
+    build:
+      - work-dir: "digit-health-services/health-delivery-service"
+        image-name: "health-delivery-service"
+        dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/digit-health-services/health-registration-service"
+    build:
+      - work-dir: "digit-health-services/health-registration-service"
+        image-name: "health-registration-service"
+        dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/digit-health-services/libraries/health-services-common"
+    build:
+      - work-dir: "digit-health-services/libraries/health-services-common"
+        image-name: "health-services-common"

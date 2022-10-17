@@ -17,7 +17,7 @@ public class SyncLogSearchDto {
     private String tenantId;
     private String syncId;
     private String status;
-    private ReferenceId reference;
+    private ReferenceId referenceId;
     private String fileStoreId;
 
 }

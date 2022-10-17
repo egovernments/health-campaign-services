@@ -6,5 +6,8 @@ import java.util.List;
 
 public interface SyncLogRepository {
     List<SyncLogData> find(SyncLogData syncLogSearchDto);
+
     int update(SyncLogData syncLogData);
+
+    SyncLogData save(SyncLogData syncLogData);
 }

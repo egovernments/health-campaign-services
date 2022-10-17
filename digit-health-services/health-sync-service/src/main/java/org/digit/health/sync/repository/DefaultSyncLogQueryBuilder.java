@@ -13,7 +13,7 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
         StringBuilder sql = new StringBuilder("SELECT * FROM sync_log ");
         sql.append(" WHERE tenantId = :tenantId");
 
-        if (syncLogData.getId() != null) {
+        if (syncLogData.getSyncId() != null) {
             sql.append(" AND id=:id ");
         }
 
@@ -21,11 +21,13 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
             sql.append(" AND status=:status ");
         }
 
-        if (syncLogData.getReferenceId() != null && syncLogData.getReferenceIdType() != null) {
+        if (syncLogData.getReferenceId() != null &&
+                syncLogData.getReferenceId().getId() != null &&
+                syncLogData.getReferenceId().getType() != null) {
             sql.append(" AND referenceId=:referenceId AND referenceIdType=:referenceIdType ");
         }
 
-        if (syncLogData.getFileStoreId() != null) {
+        if (syncLogData.getFileDetails().getFileStoreId() != null) {
             sql.append(" AND fileStoreId=:fileStoreId ");
         }
 
@@ -35,11 +37,11 @@ public class DefaultSyncLogQueryBuilder implements SyncLogQueryBuilder {
     @Override
     public String createUpdateQuery(SyncLogData syncLogData) {
         StringBuilder sql = new StringBuilder("UPDATE sync_log SET ");
-        if(syncLogData.getStatus() != null){
-            sql.append(" status = :status");
+        if (syncLogData.getStatus() != null) {
+            sql.append(" status=:status");
         }
 
-        sql.append(" WHERE tenantId = :tenantId AND id=:id");
+        sql.append(" WHERE tenantId=:tenantId AND id=:id ");
         return sql.toString();
     }
 

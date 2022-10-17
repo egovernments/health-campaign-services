@@ -18,7 +18,6 @@ import org.digit.health.sync.web.models.FileDetails;
 import org.digit.health.sync.web.models.ReferenceId;
 import org.digit.health.sync.web.models.SyncErrorDetailsLog;
 import org.digit.health.sync.web.models.SyncId;
-import org.digit.health.sync.web.models.SyncLog;
 import org.digit.health.sync.web.models.SyncStatus;
 import org.digit.health.sync.web.models.SyncUpDataList;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
@@ -72,7 +71,7 @@ public class FileSyncService implements SyncService {
     @Override
     public SyncId syncUp(SyncUpDto syncUpDto) {
         String tenantId = syncUpDto.getRequestInfo().getUserInfo().getTenantId();
-        SyncLog syncLog = createSyncLog(syncUpDto);
+        SyncLogData syncLogData = createSyncLog(syncUpDto);
         FileDetails fileDetails = syncUpDto.getFileDetails();
         byte[] data = fileStoreService.getFile(fileDetails.getFileStoreId(), tenantId);
         checksumValidator.validate(data, fileDetails.getChecksum());
@@ -92,8 +91,8 @@ public class FileSyncService implements SyncService {
             throw new CustomException(SyncErrorCode.ERROR_IN_MAPPING_JSON.name(),
                     SyncErrorCode.ERROR_IN_MAPPING_JSON.message());
         }
-        persistSyncLog(syncLog);
-        return SyncId.builder().syncId(syncLog.getSyncId()).build();
+        persistSyncLog(syncLogData);
+        return SyncId.builder().syncId(syncLogData.getSyncId()).build();
 
     }
 
@@ -107,12 +106,12 @@ public class FileSyncService implements SyncService {
         }
     }
 
-    private SyncLog createSyncLog(SyncUpDto syncUpDto) {
+    private SyncLogData createSyncLog(SyncUpDto syncUpDto) {
         User userInfo = syncUpDto.getRequestInfo().getUserInfo();
         long createdTime = System.currentTimeMillis();
         FileDetails fileDetails = syncUpDto.getFileDetails();
 
-        return SyncLog.builder()
+        return SyncLogData.builder()
                 .syncId(UUID.randomUUID().toString())
                 .status(SyncStatus.CREATED)
                 .referenceId(ReferenceId.builder()
@@ -133,8 +132,8 @@ public class FileSyncService implements SyncService {
                 .build();
     }
 
-    private void persistSyncLog(SyncLog syncLog) {
-        producer.send("health-sync-log", syncLog);
+    private void persistSyncLog(SyncLogData syncLogData) {
+        syncLogRepository.save(syncLogData);
     }
 
     public void persistSyncErrorDetailsLog() {
@@ -157,7 +156,7 @@ public class FileSyncService implements SyncService {
     }
 
     @Override
-    public List<SyncLogData> findByCriteria(SyncLogSearchDto syncLogSearchDto) {
+    public List<SyncLogData> find(SyncLogSearchDto syncLogSearchDto) {
         return syncLogRepository.find(
                 SyncLogSearchMapper.INSTANCE
                         .toData(
