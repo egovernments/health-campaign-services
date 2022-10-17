@@ -4,20 +4,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.digit.health.sync.context.enums.SyncErrorCode;
-import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.orchestrator.client.SyncOrchestratorClient;
-import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.ChecksumValidator;
-import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.Compressor;
-import org.digit.health.sync.service.compressor.GzipCompressor;
 import org.digit.health.sync.web.models.AuditDetails;
 import org.digit.health.sync.web.models.FileDetails;
 import org.digit.health.sync.web.models.ReferenceId;
-import org.digit.health.sync.web.models.SyncErrorDetailsLog;
-import org.digit.health.sync.web.models.SyncId;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.web.models.SyncUpDataList;
 import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
@@ -27,6 +22,7 @@ import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -34,13 +30,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @Service("fileSyncService")
 public class FileSyncService implements SyncService {
-
-    private final Producer producer;
     private final ObjectMapper objectMapper;
     private final FileStoreService fileStoreService;
     private final Compressor compressor;
@@ -50,16 +43,14 @@ public class FileSyncService implements SyncService {
 
     @Autowired
     public FileSyncService(
-            Producer producer,
             FileStoreService fileStoreService,
             ObjectMapper objectMapper,
-            GzipCompressor compressor,
-            Md5ChecksumValidator checksumValidator,
+            Compressor compressor,
+            ChecksumValidator checksumValidator,
             @Qualifier("defaultSyncLogRepository") SyncLogRepository syncLogRepository,
             @Qualifier("healthCampaignSyncOrchestratorClient")
             SyncOrchestratorClient<Map<String, Object>, SyncLogMetric> orchestratorClient
             ) {
-        this.producer = producer;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
         this.compressor = compressor;
@@ -69,7 +60,8 @@ public class FileSyncService implements SyncService {
     }
 
     @Override
-    public SyncId syncUp(SyncUpDto syncUpDto) {
+    @Async
+    public void asyncSyncUp(SyncUpDto syncUpDto) {
         String tenantId = syncUpDto.getRequestInfo().getUserInfo().getTenantId();
         SyncLogData syncLogData = createSyncLog(syncUpDto);
         FileDetails fileDetails = syncUpDto.getFileDetails();
@@ -93,8 +85,6 @@ public class FileSyncService implements SyncService {
             throw new CustomException(SyncErrorCode.ERROR_IN_MAPPING_JSON.name(),
                     SyncErrorCode.ERROR_IN_MAPPING_JSON.message());
         }
-        return SyncId.builder().syncId(syncLogData.getSyncId()).build();
-
     }
 
     private void updateSyncLogData(SyncLogData syncLogData, SyncLogMetric syncLogMetric) {
@@ -119,7 +109,7 @@ public class FileSyncService implements SyncService {
         FileDetails fileDetails = syncUpDto.getFileDetails();
 
         return SyncLogData.builder()
-                .syncId(UUID.randomUUID().toString())
+                .syncId(syncUpDto.getSyncId())
                 .status(SyncLogStatus.CREATED)
                 .referenceId(ReferenceId.builder()
                         .id(syncUpDto.getReferenceId().getId())
@@ -144,25 +134,6 @@ public class FileSyncService implements SyncService {
 
     private void persistSyncLog(SyncLogData syncLogData) {
         syncLogRepository.save(syncLogData);
-    }
-
-    public void persistSyncErrorDetailsLog() {
-        SyncErrorDetailsLog syncErrorDetailsLog = SyncErrorDetailsLog.builder()
-                .syncErrorDetailsId("detail-id")
-                .syncId("sync-id")
-                .tenantId("tenant-id")
-                .recordId("record-id")
-                .recordIdType("record-id-type")
-                .errorCodes("some-codes")
-                .errorMessages("some-messages")
-                .auditDetails(AuditDetails.builder()
-                        .createdBy("some-user")
-                        .createdTime(1234567L)
-                        .lastModifiedTime(12345678L)
-                        .lastModifiedBy("some-user")
-                        .build())
-                .build();
-        producer.send("health-sync-error-details-log", syncErrorDetailsLog);
     }
 
     @Override

@@ -3,9 +3,9 @@ package org.digit.health.sync.web.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.utils.ModelMapper;
-import org.digit.health.sync.web.models.SyncId;
 import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
 import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
+import org.digit.health.sync.web.models.request.SyncUpDto;
 import org.digit.health.sync.web.models.request.SyncUpMapper;
 import org.digit.health.sync.web.models.request.SyncUpRequest;
 import org.digit.health.sync.web.models.response.SyncLogSearchResponse;
@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.validation.Valid;
+import java.util.UUID;
 
 @Controller
 @Slf4j
@@ -35,12 +36,15 @@ public class SyncController {
     @PostMapping("/up")
     public ResponseEntity<SyncUpResponse> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
         log.info("Sync up request {}", syncUpRequest.toString());
-        SyncId syncId = syncService.syncUp(SyncUpMapper.INSTANCE.toDTO(syncUpRequest));
+        SyncUpDto syncUpDto = SyncUpMapper.INSTANCE.toDTO(syncUpRequest);
+        String syncId = UUID.randomUUID().toString();
+        syncUpDto.setSyncId(syncId);
+        syncService.asyncSyncUp(syncUpDto);
         log.info("Generated sync id {}", syncId);
         return ResponseEntity.accepted().body(SyncUpResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(syncUpRequest
                         .getRequestInfo(), true))
-                .syncId(syncId.getSyncId())
+                .syncId(syncId)
                 .build());
     }
 

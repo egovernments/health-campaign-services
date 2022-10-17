@@ -16,4 +16,5 @@ public class SyncUpDto {
     private RequestInfo requestInfo;
     private FileDetails fileDetails;
     private ReferenceId referenceId;
+    private String syncId;
 }

@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -50,14 +52,14 @@ class SyncControllerTest {
         SyncUpRequest syncUpRequest = SyncUpRequestTestBuilder.builder()
                 .withFileDetails()
                 .build();
-        when(syncService.syncUp(any(SyncUpDto.class))).thenReturn(SyncId.builder().syncId("id").build());
+        doNothing().when(syncService).asyncSyncUp(any(SyncUpDto.class));
 
         mockMvc.perform(post("/sync/v1/up")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(syncUpRequest)))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.syncId")
-                        .value("id"));
+                        .isNotEmpty());
     }
 
     @Disabled
@@ -67,8 +69,8 @@ class SyncControllerTest {
         SyncUpRequest syncUpRequest = SyncUpRequestTestBuilder.builder()
                 .withFileDetails()
                 .build();
-        when(syncService.syncUp(any(SyncUpDto.class)))
-                .thenThrow(new CustomException("Invalid File", "Invalid File"));
+        doThrow(new CustomException("Invalid File", "Invalid File")).when(syncService)
+                .asyncSyncUp(any(SyncUpDto.class));
 
         mockMvc.perform(post("/sync/v1/up")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -125,9 +127,9 @@ class SyncControllerTest {
 
     @Test
     @DisplayName("should return Http status as 400 and if tenantId is not present in search request")
-    void should$eturnHttpStatus400IfTenantIdIsNotPresentInSearchRequest() throws Exception {
+    void shouldReturnHttpStatus400IfTenantIdIsNotPresentInSearchRequest() throws Exception {
         SyncLogSearchRequest syncLogSearchRequest = SyncSearchRequestTestBuilder.builder().build();
-        mockMvc.perform(post("/sync/v1/stats")
+        mockMvc.perform(post("/sync/v1/status")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(syncLogSearchRequest)))
                 .andExpect(status().is4xxClientError());

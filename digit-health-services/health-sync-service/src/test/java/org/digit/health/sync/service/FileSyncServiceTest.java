@@ -3,13 +3,12 @@ package org.digit.health.sync.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.digit.health.sync.helper.SyncSearchRequestTestBuilder;
 import org.digit.health.sync.helper.SyncUpRequestTestBuilder;
-import org.digit.health.sync.kafka.Producer;
 import org.digit.health.sync.orchestrator.client.SyncOrchestratorClient;
-import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.orchestrator.client.metric.SyncLogMetric;
 import org.digit.health.sync.repository.SyncLogRepository;
 import org.digit.health.sync.service.checksum.Md5ChecksumValidator;
 import org.digit.health.sync.service.compressor.GzipCompressor;
+import org.digit.health.sync.web.models.SyncLogStatus;
 import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.SyncLogSearchDto;
 import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
@@ -46,9 +45,6 @@ import static org.mockito.Mockito.when;
 class FileSyncServiceTest {
 
     @Mock
-    private Producer producer;
-
-    @Mock
     private FileStoreService fileStoreService;
 
     @Mock
@@ -74,7 +70,6 @@ class FileSyncServiceTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         fileSyncService = new FileSyncService(
-                producer,
                 fileStoreService,
                 objectMapper,
                 compressor,
@@ -102,7 +97,7 @@ class FileSyncServiceTest {
                         .successCount(2L)
                 .build());
 
-        fileSyncService.syncUp(syncUpDto);
+        fileSyncService.asyncSyncUp(syncUpDto);
 
         verify(fileStoreService, times(1)).getFile(syncUpDto.getFileDetails()
                 .getFileStoreId(), syncUpDto.getRequestInfo().getUserInfo().getTenantId());
@@ -125,7 +120,7 @@ class FileSyncServiceTest {
         when(checksumValidator.validate(any(), any())).thenThrow(new CustomException("INVALID_CHECKSUM",
                 "Checksum did not match"));
 
-        assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
+        assertThatThrownBy(() -> fileSyncService.asyncSyncUp(syncUpDto)).isInstanceOf(CustomException.class);
     }
 
     @Test
@@ -139,7 +134,7 @@ class FileSyncServiceTest {
         when(fileStoreService.getFile(any(String.class), any(String.class))).thenReturn(fileData);
         when(checksumValidator.validate(any(), any())).thenReturn(true);
 
-        assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
+        assertThatThrownBy(() -> fileSyncService.asyncSyncUp(syncUpDto)).isInstanceOf(CustomException.class);
 
     }
 
@@ -155,7 +150,7 @@ class FileSyncServiceTest {
         when(checksumValidator.validate(any(), any())).thenReturn(true);
         when(compressor.decompress(any())).thenReturn(fileData);
 
-        assertThatThrownBy(() -> fileSyncService.syncUp(syncUpDto)).isInstanceOf(CustomException.class);
+        assertThatThrownBy(() -> fileSyncService.asyncSyncUp(syncUpDto)).isInstanceOf(CustomException.class);
     }
 
 
