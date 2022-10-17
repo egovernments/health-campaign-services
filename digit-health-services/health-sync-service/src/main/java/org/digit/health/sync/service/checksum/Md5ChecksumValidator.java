@@ -21,10 +21,11 @@ public class Md5ChecksumValidator implements ChecksumValidator {
             byte[] digest = md.digest();
             String generatedChecksum = DatatypeConverter.printHexBinary(digest);
             if (!generatedChecksum.equalsIgnoreCase(checksum)) {
-                log.error("Checksum invalid");
+                log.error("Invalid checksum");
                 throw new CustomException(SyncErrorCode.INVALID_CHECKSUM.name(),
                         SyncErrorCode.INVALID_CHECKSUM.message());
             }
+            log.info("Checksum valid");
             return true;
         } catch (NoSuchAlgorithmException exception) {
             log.error("Invalid checksum algorithm", exception);

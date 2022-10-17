@@ -1,5 +1,6 @@
 package org.digit.health.sync.context;
 
+import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Observable;
 
 @Component
+@Slf4j
 public class HealthCampaignSyncContext extends SyncContext {
 
     @Autowired
@@ -36,6 +38,7 @@ public class HealthCampaignSyncContext extends SyncContext {
     @Override
     public void handle(Object payload) {
         throwExceptionIfAlreadyHandled();
+        log.info("Handling {}", this.syncStep.getClass().getName());
         this.syncStep.handle(payload);
         markHandled();
     }

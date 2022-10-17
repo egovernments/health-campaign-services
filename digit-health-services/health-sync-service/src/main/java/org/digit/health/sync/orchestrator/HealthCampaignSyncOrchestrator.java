@@ -39,7 +39,7 @@ public class HealthCampaignSyncOrchestrator
                         .ifPresent(syncContext::handle);
             }
         } catch (Exception exception) {
-            log.error("Exception occurred during orchestration", exception);
+            log.error("Exception occurred", exception);
         }
         return syncContext.getSyncMetrics();
     }

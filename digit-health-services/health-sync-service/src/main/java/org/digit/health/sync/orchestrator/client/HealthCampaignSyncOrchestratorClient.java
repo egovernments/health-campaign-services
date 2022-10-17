@@ -51,6 +51,7 @@ public class HealthCampaignSyncOrchestratorClient
         }
         SyncLogMetric syncLogMetric = getSyncLogMetric(syncStepMetricList);
         if (!syncLogMetric.getSyncLogStatus().equals(SyncLogStatus.COMPLETE)) {
+            log.info("Persisting error details for sync with id {}", payloadMap.get("syncId"));
             persistErrorDetails(payloadMap, syncStepMetricList);
         }
         return syncLogMetric;

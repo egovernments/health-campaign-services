@@ -1,5 +1,6 @@
 package org.digit.health.sync.context;
 
+import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
@@ -15,6 +16,7 @@ import java.util.Observer;
 
 @Component
 @Scope("prototype")
+@Slf4j
 public abstract class SyncContext implements Observer {
     protected SyncStep syncStep;
 
@@ -47,6 +49,7 @@ public abstract class SyncContext implements Observer {
     protected void throwExceptionIfAlreadyHandled() {
         Class<? extends SyncStep> clazz = this.syncStep.getClass();
         if (Boolean.TRUE.equals(handlingStateMap.containsKey(clazz))) {
+            log.error("Sync step {} already handled", clazz.getName());
             throw new CustomException(SyncErrorCode.STEP_ALREADY_HANDLED.name(),
                     SyncErrorCode.STEP_ALREADY_HANDLED.message(clazz));
         }

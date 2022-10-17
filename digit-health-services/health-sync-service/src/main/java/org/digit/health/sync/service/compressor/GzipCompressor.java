@@ -19,6 +19,7 @@ public class GzipCompressor implements Compressor{
     public byte[] decompress(byte[] data) {
         try {
             GZIPInputStream gzipInputStream = new GZIPInputStream(new ByteArrayInputStream(data));
+            log.info("Decompressing file");
             return IOUtils.toByteArray(new BufferedInputStream(gzipInputStream));
         } catch (IOException exception) {
             log.error("Could not decompress file", exception);

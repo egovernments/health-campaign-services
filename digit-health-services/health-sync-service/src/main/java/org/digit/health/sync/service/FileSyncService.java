@@ -70,18 +70,23 @@ public class FileSyncService implements SyncService {
         try {
             String str = convertToString(compressor.decompress(data));
             SyncUpDataList syncUpDataList = objectMapper.readValue(str, SyncUpDataList.class);
+            log.info("Data de-serialized successfully");
             syncLogData.setTotalCount(syncUpDataList.getTotalCount());
+            log.info("Persisting sync log with id {} status {}", syncLogData.getSyncId(),
+                    syncLogData.getStatus());
             persistSyncLog(syncLogData);
             Map<String, Object> payloadMap = new HashMap<>();
             payloadMap.put("syncUpDataList", syncUpDataList);
             payloadMap.put("syncId", syncLogData.getSyncId());
             payloadMap.put("tenantId", tenantId);
             payloadMap.put("requestInfo", syncUpDto.getRequestInfo());
+            log.info("Starting orchestration");
             SyncLogMetric syncLogMetric = orchestratorClient.orchestrate(payloadMap);
             updateSyncLogData(syncLogData, syncLogMetric);
+            log.info("Sync with id {} {}", syncLogData.getSyncId(), syncLogData.getStatus());
             syncLogRepository.update(syncLogData);
         } catch (Exception exception) {
-            log.error("Exception occurred: ", exception);
+            log.error("Exception occurred", exception);
             throw new CustomException(SyncErrorCode.ERROR_IN_MAPPING_JSON.name(),
                     SyncErrorCode.ERROR_IN_MAPPING_JSON.message());
         }

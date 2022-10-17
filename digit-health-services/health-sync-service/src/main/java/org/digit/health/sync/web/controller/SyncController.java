@@ -3,6 +3,7 @@ package org.digit.health.sync.web.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.digit.health.sync.service.SyncService;
 import org.digit.health.sync.utils.ModelMapper;
+import org.digit.health.sync.web.models.dao.SyncLogData;
 import org.digit.health.sync.web.models.request.SyncLogSearchMapper;
 import org.digit.health.sync.web.models.request.SyncLogSearchRequest;
 import org.digit.health.sync.web.models.request.SyncUpDto;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 
 @Controller
@@ -35,12 +37,12 @@ public class SyncController {
 
     @PostMapping("/up")
     public ResponseEntity<SyncUpResponse> syncUp(@RequestBody @Valid SyncUpRequest syncUpRequest) {
-        log.info("Sync up request {}", syncUpRequest.toString());
+        log.info("Sync up request {}", syncUpRequest);
         SyncUpDto syncUpDto = SyncUpMapper.INSTANCE.toDTO(syncUpRequest);
         String syncId = UUID.randomUUID().toString();
         syncUpDto.setSyncId(syncId);
         syncService.asyncSyncUp(syncUpDto);
-        log.info("Generated sync id {}", syncId);
+        log.info("Request accepted and generated sync id {}", syncId);
         return ResponseEntity.accepted().body(SyncUpResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(syncUpRequest
                         .getRequestInfo(), true))
@@ -50,12 +52,15 @@ public class SyncController {
 
     @PostMapping("/status")
     public ResponseEntity<SyncLogSearchResponse> status(@RequestBody @Valid SyncLogSearchRequest searchRequest) {
+        log.info("Sync search request {}", searchRequest);
+        List<SyncLogData> syncLogDataList = syncService
+                .find(SyncLogSearchMapper.INSTANCE.toDTO(searchRequest));
+        log.info("Found {} result(s)", syncLogDataList != null ? syncLogDataList.size() : 0);
         return ResponseEntity.ok().body(SyncLogSearchResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(searchRequest
                         .getRequestInfo(), true))
                 .syncLogDataResults(
-                        syncService.find(SyncLogSearchMapper.INSTANCE.toDTO(searchRequest))
-                ).build());
+                        syncLogDataList).build());
     }
 
 }

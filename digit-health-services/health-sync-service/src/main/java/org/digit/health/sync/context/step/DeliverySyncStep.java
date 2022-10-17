@@ -39,7 +39,7 @@ public class DeliverySyncStep extends SyncStep {
                             + properties.getDeliveryCreateEndpoint()),
                     resourceDeliveryRequest, ResponseEntity.class);
         } catch (Exception exception) {
-            log.error("Exception while calling registration service", exception);
+            log.error("Exception occurred", exception);
             publishFailureMetric(resourceDeliveryRequest.getDelivery().getClientReferenceId(),
                     RecordIdType.DELIVERY, exception.getMessage());
             throw new CustomException(SyncErrorCode.ERROR_IN_REST_CALL.name(),

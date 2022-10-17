@@ -41,7 +41,7 @@ public class RegistrationSyncStep extends SyncStep {
                             + properties.getRegistrationCreateEndpoint()),
                     householdRegistrationRequest, ResponseEntity.class);
         } catch (Exception exception) {
-            log.error("Exception while calling registration service", exception);
+            log.error("Exception occurred", exception);
             publishFailureMetric(householdRegistrationRequest
                             .getHousehold().getClientReferenceId(),
                     RecordIdType.REGISTRATION, exception.getMessage());

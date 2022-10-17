@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.Optional;
+
 @Service
 @Slf4j
 public class FileStoreService {
@@ -16,8 +18,7 @@ public class FileStoreService {
     @Value("${egov.filestore.host}")
     private String fileStoreServiceHost;
 
-    @Autowired
-    private ServiceRequestRepository serviceRequestRepository;
+    private final ServiceRequestRepository serviceRequestRepository;
 
     @Autowired
     public FileStoreService(ServiceRequestRepository serviceRequestRepository) {
@@ -25,6 +26,7 @@ public class FileStoreService {
     }
 
     public byte[] getFile(String fileStoreId, String tenantId) {
+        log.info("Fetching file with id {} and tenantId {}", fileStoreId, tenantId);
         UriComponents builder = UriComponentsBuilder.fromHttpUrl(fileStoreServiceHost + "/filestore/v1/files/id")
                 .queryParam("tenantId", tenantId)
                 .queryParam("fileStoreId", fileStoreId)
@@ -33,6 +35,8 @@ public class FileStoreService {
                                                                     new StringBuilder(builder.toUriString()),
                                                                     byte[].class
                                                             );
+        Optional.ofNullable(file).ifPresent(f -> log.info("Fetched file with id {} and tenantId {}",
+                fileStoreId, tenantId));
         return file.getBody();
     }
 
