@@ -32,7 +32,7 @@ class DefaultQueryBuilderTest {
     void shouldBuildAQueryBasedOnDataObjectAndItsPrimitiveProperties2() {
         DummyData data = DummyData.builder()
                 .dummyString("some-string")
-                .dummyString2("some-string-2")
+                .dummyInt(1)
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
                 "dummyString:=dummyString AND dummyInt:=dummyInt";
@@ -51,6 +51,35 @@ class DefaultQueryBuilderTest {
     static class DummyData {
         private String dummyString;
         private Integer dummyInt;
-        private String dummyString2;
+        private Boolean dummyBoolean;
+        private Float dummyFloat;
+        private Double dummyDouble;
+
+        private int dummyPrimitiveInt;
+        private boolean dummyPrimitiveBoolean;
+        private float dummyPrimitiveFloat;
+        private double dummyPrimitiveDouble;
+
+        private DummyAddress dummyAddress;
+        private DummyAmount dummyAmount;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @Table(name = "dummyAddress")
+    static class DummyAddress {
+        private String addressString;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @Table(name = "dummyAmount")
+    static class DummyAmount {
+        private String currency;
+        private double amount;
     }
 }
