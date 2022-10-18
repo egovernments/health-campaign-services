@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DefaultQueryBuilderTest {
 
     @Test
-    @DisplayName("should build a query based on data object and its primitive properties")
-    void shouldBuildAQueryBasedOnDataObjectAndItsPrimitiveProperties() {
+    @DisplayName("should build a select query based on data object and its primitive properties")
+    void shouldBuildSelectQueryBasedOnDataObjectAndItsPrimitiveProperties() {
         DummyData data = DummyData.builder()
                 .dummyString("some-string")
                 .dummyInt(1)
@@ -28,14 +28,64 @@ class DefaultQueryBuilderTest {
     }
 
     @Test
-    @DisplayName("should build a query based on data object and its primitive properties")
-    void shouldBuildAQueryBasedOnDataObjectAndItsPrimitiveProperties2() {
+    @DisplayName("should not use primitive data types while building selecting query")
+    void shouldNotUsePrimitiveDataTypesWhileBuildingSelectingQuery() {
         DummyData data = DummyData.builder()
                 .dummyString("some-string")
                 .dummyInt(1)
+                .dummyPrimitiveBoolean(false)
+                .dummyPrimitiveDouble(12.23)
+                .dummyPrimitiveInt(12)
+                .dummyPrimitiveFloat(232.2f)
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
                 "dummyString:=dummyString AND dummyInt:=dummyInt";
+        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+
+        String actualQuery = queryBuilder.buildSelectQuery(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should not use where clause when properties are set to null while building select query")
+    void shouldNotUseWhereClauseWhenPropertiesAreSetToNullSelectQuery() {
+        DummyData data = DummyData.builder()
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData";
+        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+
+        String actualQuery = queryBuilder.buildSelectQuery(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should use properties from nested object to build a select query")
+    void shouldUsePropertiesFromNestedObjectToBuildSelectQuery() {
+        DummyData data = DummyData.builder()
+                .dummyString("TEST123")
+                .dummyAddress(DummyAddress.builder().addressString("123").build())
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString:=dummyString AND addressString:=addressString";
+        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+
+        String actualQuery = queryBuilder.buildSelectQuery(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should use properties from nested object's nested object to build a select query")
+    void shouldUsePropertiesFrom2LevelNestedObjectToBuildSelectQuery() {
+        DummyData data = DummyData.builder()
+                .dummyString("TEST123")
+                .dummyAddress(DummyAddress
+                        .builder()
+                        .addressString("123")
+                        .dummyAmount(DummyAmount.builder().amount(123.0).currency("INR").build()).build())
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString:=dummyString AND addressString:=addressString AND currency:=currency AND amount:=amount";
         QueryBuilder queryBuilder = new DefaultQueryBuilder();
 
         String actualQuery = queryBuilder.buildSelectQuery(data);
@@ -49,6 +99,8 @@ class DefaultQueryBuilderTest {
     @Builder
     @Table(name = "dummyData")
     static class DummyData {
+        @ID
+        private Integer dummyID;
         private String dummyString;
         private Integer dummyInt;
         private Boolean dummyBoolean;
@@ -61,6 +113,14 @@ class DefaultQueryBuilderTest {
         private double dummyPrimitiveDouble;
 
         private DummyAddress dummyAddress;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    static class DummyAddress {
+        private String addressString;
         private DummyAmount dummyAmount;
     }
 
@@ -68,18 +128,8 @@ class DefaultQueryBuilderTest {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
-    @Table(name = "dummyAddress")
-    static class DummyAddress {
-        private String addressString;
-    }
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Builder
-    @Table(name = "dummyAmount")
     static class DummyAmount {
         private String currency;
-        private double amount;
+        private Double amount;
     }
 }

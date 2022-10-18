@@ -41,8 +41,7 @@ public class DefaultQueryBuilder implements QueryBuilder {
                     }else{
                         whereClauses.addAll(getAllFeilds(field.get(object)));
                     }
-                }//workimg
-
+                }
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
@@ -50,7 +49,7 @@ public class DefaultQueryBuilder implements QueryBuilder {
         return whereClauses;
     }
 
-    private StringBuilder buildQuery(String tableName, List<String> queryParameters){
+    private StringBuilder generateSelectQuery(String tableName, List<String> queryParameters){
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(String.format("SELECT * FROM %s", tableName));
         if(queryParameters.size() > 0){
@@ -62,16 +61,28 @@ public class DefaultQueryBuilder implements QueryBuilder {
         return stringBuilder;
     }
 
+    private StringBuilder generateUpdateQuery(String tableName, List<String> queryParameters){
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(String.format("UPDATE %s", tableName));
+        stringBuilder.append(" SET");
+        stringBuilder.append(String.format(queryParameters.get(0)));
+        IntStream.range(1, queryParameters.size()).forEach(i ->
+                    stringBuilder.append(String.format(" ,%s", queryParameters.get(i))));
+        stringBuilder.append(String.format(" WHERE %s:=%s"));
+        return stringBuilder;
+    }
+
     @Override
     public String buildSelectQuery(Object object) {
         StringBuilder queryStringBuilder = null;
         try {
             String tableName = getTableName(object.getClass());
             List<String> whereClauses = getAllFeilds(object);
-            queryStringBuilder = buildQuery(tableName, whereClauses);
+            queryStringBuilder = generateSelectQuery(tableName, whereClauses);
         } catch (Exception exception) {
 
         }
         return queryStringBuilder.toString();
     }
+
 }
