@@ -87,8 +87,8 @@ public class FileSyncService implements SyncService {
             syncLogRepository.update(syncLogData);
         } catch (Exception exception) {
             log.error("Exception occurred", exception);
-            throw new CustomException(SyncErrorCode.ERROR_IN_MAPPING_JSON.name(),
-                    SyncErrorCode.ERROR_IN_MAPPING_JSON.message());
+            throw new CustomException(SyncErrorCode.ERROR_IN_SYNC.name(),
+                    SyncErrorCode.ERROR_IN_SYNC.message(exception.getMessage()));
         }
     }
 

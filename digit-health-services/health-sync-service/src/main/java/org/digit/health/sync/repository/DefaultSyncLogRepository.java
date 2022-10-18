@@ -77,9 +77,11 @@ public class DefaultSyncLogRepository implements SyncLogRepository {
     @Override
     public int update(SyncLogData syncLogData) {
         final Map<String, Object> in = new HashMap<>();
-        in.put("tenantId", syncLogData.getTenantId());
         in.put("id", syncLogData.getSyncId());
         in.put("status", syncLogData.getStatus().name());
+        in.put("errorCount", syncLogData.getErrorCount());
+        in.put("successCount", syncLogData.getSuccessCount());
+        in.put("totalCount", syncLogData.getTotalCount());
         return namedParameterJdbcTemplate.update(
                 syncLogQueryBuilder.createUpdateQuery(syncLogData),
                 in

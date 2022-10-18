@@ -9,8 +9,8 @@ public enum SyncErrorCode {
     INVALID_CHECKSUM("Checksum did not match the checksum received"),
     INVALID_CHECKSUM_ALGORITHM("Checksum algorithm is invalid"),
     ERROR_IN_DECOMPRESSION("Error during decompression of file"),
-    ERROR_IN_MAPPING_JSON("Error in mapping json to java"),
-    ERROR_IN_REST_CALL("Error while calling another service");
+    ERROR_IN_REST_CALL("Error while calling another service"),
+    ERROR_IN_SYNC("Error in sync");
 
 
     String message;

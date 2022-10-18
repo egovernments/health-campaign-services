@@ -8,8 +8,8 @@
             "householdId": "test_568a87c4c4f1",
             "clientReferenceId": "test_c3c1e80de478",
             "campaignId": "test_431421d3c6cd",
-            "tenantId": "test_3f1cc747d82f",
-            "apiMode": "DELETE",
+            "tenantId": "mz.health.malaria.llin",
+            "apiMode": "CREATE",
             "administrativeUnit": "test_83c7322510fa",
             "numberOfIndividuals": 15,
             "dateOfRegistration": 30,
@@ -30,8 +30,8 @@
                 "familyName": "test_f568e6c8ebef",
                 "additionalName": "test_72ef956ed062",
                 "dateOfBirth": "test_f2f84608b862",
-                "gender": "OTHER",
-                "isHead": false,
+                "gender": "MALE",
+                "isHead": true,
                 "identifiers": [
                   {
                     "type": "test_18c4e8c95cc9",
@@ -57,6 +57,41 @@
             }
           },
           "type": "householdRegistration"
+        }
+      ]
+    },
+    {
+      "items": [
+        {
+          "requestInfo": {},
+          "delivery": {
+            "deliveryId": "test_ccb2b86a0830",
+            "campaignId": "test_d51952394bf4",
+            "registrationId": "test_6e9f73820009",
+            "clientReferenceId": "test_fae3e4ff8208",
+            "registrationClientReferenceId": "test_c3c1e80de478",
+            "tenantId": "mz.health.malaria.llin",
+            "status": "DELIVERED",
+            "resources": [
+              {
+                "resourceId": "test_36743dd96e5c",
+                "quantityToBeDelivered": 14,
+                "quantityDelivered": 16,
+                "reasonIfUndelivered": "test_b65609284838",
+                "isDelivered": false
+              }
+            ],
+            "deliveryDate": "test_0e29b90f5af4",
+            "deliveredBy": "test_4fc26e910a48",
+            "auditDetails": {
+              "createdBy": "test_df7115b4d741",
+              "lastModifiedBy": "test_9d47d23bface",
+              "createdTime": 40,
+              "lastModifiedTime": 8
+            },
+            "additionalDetails": "test_7abe2291aa02"
+          },
+          "type": "delivery"
         }
       ]
     }
