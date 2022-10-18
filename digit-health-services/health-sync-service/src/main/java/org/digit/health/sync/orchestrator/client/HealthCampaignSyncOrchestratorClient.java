@@ -82,7 +82,7 @@ public class HealthCampaignSyncOrchestratorClient
                  .createdBy(requestInfo.getUserInfo().getUuid())
                  .createdTime(System.currentTimeMillis())
                  .lastModifiedBy(requestInfo.getUserInfo().getUuid())
-                 .createdTime(System.currentTimeMillis())
+                 .lastModifiedTime(System.currentTimeMillis())
                  .build();
     }
 
