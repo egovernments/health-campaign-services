@@ -18,6 +18,9 @@ public class FileStoreService {
     @Value("${egov.filestore.host}")
     private String fileStoreServiceHost;
 
+    @Value("${egov.filestore.get.endpoint}")
+    private String fileStoreGetEndpoint;
+
     private final ServiceRequestRepository serviceRequestRepository;
 
     @Autowired
@@ -27,7 +30,7 @@ public class FileStoreService {
 
     public byte[] getFile(String fileStoreId, String tenantId) {
         log.info("Fetching file with id {} and tenantId {}", fileStoreId, tenantId);
-        UriComponents builder = UriComponentsBuilder.fromHttpUrl(fileStoreServiceHost + "/filestore/v1/files/id")
+        UriComponents builder = UriComponentsBuilder.fromHttpUrl(fileStoreServiceHost + fileStoreGetEndpoint)
                 .queryParam("tenantId", tenantId)
                 .queryParam("fileStoreId", fileStoreId)
                 .build();
