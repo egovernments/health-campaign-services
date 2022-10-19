@@ -7,10 +7,10 @@ import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
 import org.digit.health.sync.web.models.request.ResourceDeliveryRequest;
+import org.digit.health.sync.web.models.response.DeliveryResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -37,7 +37,7 @@ public class DeliverySyncStep extends SyncStep {
         try {
             serviceRequestRepository.fetchResult(new StringBuilder(properties.getDeliveryBaseUrl()
                             + properties.getDeliveryCreateEndpoint()),
-                    resourceDeliveryRequest, ResponseEntity.class);
+                    resourceDeliveryRequest, DeliveryResponse.class);
         } catch (Exception exception) {
             log.error("Exception occurred", exception);
             publishFailureMetric(resourceDeliveryRequest.getDelivery().getClientReferenceId(),

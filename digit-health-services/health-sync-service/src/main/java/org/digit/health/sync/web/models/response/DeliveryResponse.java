@@ -1,4 +1,4 @@
-package org.digit.health.delivery.web.models.response;
+package org.digit.health.sync.web.models.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;

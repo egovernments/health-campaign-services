@@ -1,15 +1,14 @@
 package org.digit.health.delivery.web.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.digit.health.delivery.service.DeliveryService;
-import org.digit.health.delivery.web.models.request.DeliveryRequest;
+import org.digit.health.delivery.utils.ModelMapper;
+import org.digit.health.delivery.web.models.request.ResourceDeliveryRequest;
 import org.digit.health.delivery.web.models.response.DeliveryResponse;
-import org.egov.common.contract.response.ResponseInfo;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.validation.Valid;
 
@@ -19,8 +18,13 @@ import javax.validation.Valid;
 public class DeliveryController {
 
     @PostMapping("/_create")
-    public ResponseEntity<DeliveryResponse> create(@RequestBody @Valid DeliveryRequest deliveryRequest) {
-        log.info("create delivery request {}", deliveryRequest.toString());
-        return ResponseEntity.ok().body(DeliveryResponse.builder().responseInfo(ResponseInfo.builder().status("delivery created").build()).build());
+    public ResponseEntity<DeliveryResponse> create(@RequestBody @Valid ResourceDeliveryRequest
+                                                               deliveryRequest) {
+        log.info("Delivery request {}", deliveryRequest);
+        return ResponseEntity.ok().body(DeliveryResponse.builder()
+                .responseInfo(ModelMapper
+                        .createResponseInfoFromRequestInfo(deliveryRequest
+                                .getRequestInfo(), true))
+                .deliveryId(deliveryRequest.getDelivery().getDeliveryId()).build());
     }
 }

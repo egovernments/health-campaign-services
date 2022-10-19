@@ -7,14 +7,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.digit.health.delivery.web.models.Delivery;
 import org.egov.common.contract.request.RequestInfo;
-import org.springframework.validation.annotation.Validated;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
-@Validated
-public class DeliveryRequest {
+public class ResourceDeliveryRequest {
+
     @JsonProperty("requestInfo")
     private RequestInfo requestInfo;
 

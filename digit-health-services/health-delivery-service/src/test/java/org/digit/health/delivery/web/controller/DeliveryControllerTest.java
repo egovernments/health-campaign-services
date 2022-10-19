@@ -1,8 +1,9 @@
 package org.digit.health.delivery.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.digit.health.delivery.helper.DeliveryRequestTestBuilder;
-import org.digit.health.delivery.web.models.request.DeliveryRequest;
+import org.digit.health.delivery.web.models.Delivery;
+import org.digit.health.delivery.web.models.request.ResourceDeliveryRequest;
+import org.egov.common.contract.request.RequestInfo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,8 +25,13 @@ class DeliveryControllerTest {
     @Test
     @DisplayName("should return Http status as 200 when the delivery request is valid")
     void shouldReturnHttpStatus202WhenRequestIsValid() throws Exception {
-        DeliveryRequest deliveryRequest = DeliveryRequestTestBuilder.builder().withDeliveryRequest().build();
-        String content = objectMapper.writeValueAsString(deliveryRequest);
+        ResourceDeliveryRequest request = ResourceDeliveryRequest.builder()
+                .delivery(Delivery.builder()
+                        .deliveryId("some-delivery-id")
+                        .build())
+                .requestInfo(RequestInfo.builder().build())
+                .build();
+        String content = objectMapper.writeValueAsString(request);
 
         mockMvc.perform(post("/delivery/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)

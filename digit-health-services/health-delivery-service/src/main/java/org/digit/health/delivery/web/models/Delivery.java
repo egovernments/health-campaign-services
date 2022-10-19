@@ -1,8 +1,6 @@
 package org.digit.health.delivery.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonRawValue;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,8 +12,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Delivery{
-
+public class Delivery {
     @JsonProperty("deliveryId")
     private String deliveryId;
 
@@ -27,6 +24,9 @@ public class Delivery{
 
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
+
+    @JsonProperty("registrationClientReferenceId")
+    private String registrationClientReferenceId;
 
     @JsonProperty("tenantId")
     private String tenantId;
@@ -47,5 +47,5 @@ public class Delivery{
     private AuditDetails auditDetails;
 
     @JsonProperty("additionalDetails")
-    private JsonNode additionalDetails;
+    private String additionalDetails;
 }
