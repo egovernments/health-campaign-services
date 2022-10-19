@@ -3,7 +3,6 @@
     {
       "items": [
         {
-          "requestInfo": {},
           "household": {
             "householdId": "test_568a87c4c4f1",
             "clientReferenceId": "test_c3c1e80de478",
@@ -63,7 +62,6 @@
     {
       "items": [
         {
-          "requestInfo": {},
           "delivery": {
             "deliveryId": "test_ccb2b86a0830",
             "campaignId": "test_d51952394bf4",

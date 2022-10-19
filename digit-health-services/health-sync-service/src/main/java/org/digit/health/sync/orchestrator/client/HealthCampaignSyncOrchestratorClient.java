@@ -43,7 +43,7 @@ public class HealthCampaignSyncOrchestratorClient
     public SyncLogMetric orchestrate(Map<String, Object> payloadMap) {
         SyncUpDataList syncUpDataList = (SyncUpDataList) payloadMap.get("syncUpDataList");
         List<Map<Class<? extends SyncStep>, Object>> stepToPayloadMapList =
-                syncUpDataList.getStepToPayloadMapList();
+                syncUpDataList.getStepToPayloadMapList((RequestInfo) payloadMap.get("requestInfo"));
         List<SyncStepMetric> syncStepMetricList = new ArrayList<>();
         for (Map<Class<? extends SyncStep>, Object> stepToPayloadMap : stepToPayloadMapList) {
             List<SyncStepMetric> syncStepMetrics = syncOrchestrator.orchestrate(stepToPayloadMap);

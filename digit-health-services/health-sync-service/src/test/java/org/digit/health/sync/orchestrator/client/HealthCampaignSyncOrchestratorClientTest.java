@@ -14,8 +14,11 @@ import org.digit.health.sync.web.models.SyncUpDataList;
 import org.digit.health.sync.web.models.dao.SyncErrorDetailsLogData;
 import org.digit.health.sync.web.models.request.DeliveryMapper;
 import org.digit.health.sync.web.models.request.HouseholdRegistrationMapper;
+import org.digit.health.sync.web.models.request.HouseholdRegistrationRequest;
+import org.digit.health.sync.web.models.request.ResourceDeliveryRequest;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +47,16 @@ class HealthCampaignSyncOrchestratorClientTest {
     @Mock
     private SyncErrorDetailsLogRepository syncErrorDetailsLogRepository;
 
+    private RequestInfo requestInfo;
+
+    @BeforeEach
+    void setUp() {
+        requestInfo = RequestInfo.builder()
+                .userInfo(User.builder()
+                        .uuid("some-uuid")
+                        .build()).build();
+    }
+
     @Test
     @DisplayName("health camp sync orchestrator client should call health camp sync orchestrator to orchestrate")
     void testThatHealthCampSyncOrchestratorClientCallsHealthCampSyncOrchestratorToOrchestrate() {
@@ -54,7 +67,8 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .build();
         Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
-        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
+        payloadMap.put("requestInfo", requestInfo);
+        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap(requestInfo);
         when(syncOrchestrator.orchestrate(stepToPayloadMap)).thenReturn(Collections.emptyList());
 
         syncOrchestratorClient.orchestrate(payloadMap);
@@ -72,7 +86,8 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .build();
         Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
-        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
+        payloadMap.put("requestInfo", requestInfo);
+        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap(requestInfo);
         List<SyncStepMetric> syncStepMetrics = new ArrayList<>();
         syncStepMetrics.add(SyncStepMetricTestBuilder.builder()
                 .withCompletedRegistrationStep().build());
@@ -104,12 +119,8 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .build();
         Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
-        payloadMap.put("requestInfo", RequestInfo.builder()
-                        .userInfo(User.builder()
-                                .uuid("some-uuid")
-                                .build())
-                .build());
-        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
+        payloadMap.put("requestInfo", requestInfo);
+        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap(requestInfo);
         List<SyncStepMetric> syncStepMetrics = new ArrayList<>();
         syncStepMetrics.add(SyncStepMetricTestBuilder.builder()
                 .withCompletedRegistrationStep().build());
@@ -198,13 +209,9 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .build();
         Map<String, Object> payloadMap = new HashMap<>();
         payloadMap.put("syncUpDataList", syncUpDataList);
-        payloadMap.put("requestInfo", RequestInfo.builder()
-                .userInfo(User.builder()
-                        .uuid("some-uuid")
-                        .build())
-                .build());
-        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap();
-        Map<Class<? extends SyncStep>, Object> secondStepToPayloadMap = getTwoItemStepToPayloadMap();
+        payloadMap.put("requestInfo", requestInfo);
+        Map<Class<? extends SyncStep>, Object> stepToPayloadMap = getStepToPayloadMap(requestInfo);
+        Map<Class<? extends SyncStep>, Object> secondStepToPayloadMap = getTwoItemStepToPayloadMap(requestInfo);
         List<SyncStepMetric> firstSyncStepMetrics = new ArrayList<>();
         firstSyncStepMetrics.add(SyncStepMetricTestBuilder.builder()
                 .withCompletedRegistrationStep().build());
@@ -232,13 +239,17 @@ class HealthCampaignSyncOrchestratorClientTest {
                 .save(any(SyncErrorDetailsLogData.class));
     }
 
-    private static Map<Class<? extends SyncStep>, Object> getStepToPayloadMap() {
+    private static Map<Class<? extends SyncStep>, Object> getStepToPayloadMap(RequestInfo requestInfo) {
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
-        stepToPayloadMap.put(RegistrationSyncStep.class,
-                HouseholdRegistrationMapper.INSTANCE.toRequest(SyncUpDataListTestBuilder
-                        .getHouseholdRegistration()));
-        stepToPayloadMap.put(DeliverySyncStep.class,
-                DeliveryMapper.INSTANCE.toRequest(SyncUpDataListTestBuilder.getDelivery()));
+        HouseholdRegistrationRequest hRequest = HouseholdRegistrationMapper.INSTANCE
+                .toRequest(SyncUpDataListTestBuilder
+                .getHouseholdRegistration());
+        hRequest.setRequestInfo(requestInfo);
+        stepToPayloadMap.put(RegistrationSyncStep.class, hRequest);
+        ResourceDeliveryRequest rdRequest = DeliveryMapper.INSTANCE
+                .toRequest(SyncUpDataListTestBuilder.getDelivery());
+        rdRequest.setRequestInfo(requestInfo);
+        stepToPayloadMap.put(DeliverySyncStep.class, rdRequest);
         return stepToPayloadMap;
     }
 
@@ -257,14 +268,18 @@ class HealthCampaignSyncOrchestratorClientTest {
         return stepToPayloadMap;
     }
 
-    private static Map<Class<? extends SyncStep>, Object> getTwoItemStepToPayloadMap() {
+    private static Map<Class<? extends SyncStep>, Object> getTwoItemStepToPayloadMap(RequestInfo requestInfo) {
         Map<Class<? extends SyncStep>, Object> stepToPayloadMap = new HashMap<>();
+        HouseholdRegistrationRequest hRequest = HouseholdRegistrationMapper.INSTANCE
+                .toRequest(SyncUpDataListTestBuilder
+                        .getHouseholdRegistration("some-different-id"));
+        hRequest.setRequestInfo(requestInfo);
         stepToPayloadMap.put(RegistrationSyncStep.class,
-                HouseholdRegistrationMapper.INSTANCE.toRequest(SyncUpDataListTestBuilder
-                        .getHouseholdRegistration("some-different-id")));
-        stepToPayloadMap.put(DeliverySyncStep.class,
-                DeliveryMapper.INSTANCE.toRequest(SyncUpDataListTestBuilder
-                        .getDelivery("some-different-id")));
+                hRequest);
+        ResourceDeliveryRequest rdRequest = DeliveryMapper.INSTANCE
+                .toRequest(SyncUpDataListTestBuilder.getDelivery("some-different-id"));
+        rdRequest.setRequestInfo(requestInfo);
+        stepToPayloadMap.put(DeliverySyncStep.class, rdRequest);
         return stepToPayloadMap;
     }
 }
