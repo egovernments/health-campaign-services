@@ -28,6 +28,7 @@ class DeliveryControllerTest {
         ResourceDeliveryRequest request = ResourceDeliveryRequest.builder()
                 .delivery(Delivery.builder()
                         .deliveryId("some-delivery-id")
+                        .clientReferenceId("some-id")
                         .build())
                 .requestInfo(RequestInfo.builder().build())
                 .build();
