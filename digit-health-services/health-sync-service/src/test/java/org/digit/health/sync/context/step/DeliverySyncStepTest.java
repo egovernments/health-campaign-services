@@ -8,6 +8,7 @@ import org.digit.health.sync.helper.ResourceDeliveryRequestTestBuilder;
 import org.digit.health.sync.repository.ServiceRequestRepository;
 import org.digit.health.sync.utils.Properties;
 import org.digit.health.sync.web.models.request.ResourceDeliveryRequest;
+import org.digit.health.sync.web.models.response.DeliveryResponse;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,7 +18,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationContext;
-import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,7 +59,7 @@ class DeliverySyncStepTest {
         verify(serviceRequestRepository, times(1))
                 .fetchResult(any(StringBuilder.class),
                         any(ResourceDeliveryRequest.class),
-                        eq(ResponseEntity.class));
+                        eq(DeliveryResponse.class));
     }
 
     @Test
@@ -89,7 +89,7 @@ class DeliverySyncStepTest {
         SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
                 any(ResourceDeliveryRequest.class),
-                eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
+                eq(DeliveryResponse.class))).thenThrow(new CustomException("some_code", errorMessage));
         ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder
                 .builder()
                 .withDummyClientReferenceId()
@@ -134,7 +134,7 @@ class DeliverySyncStepTest {
                 .build();
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
                 any(ResourceDeliveryRequest.class),
-                eq(ResponseEntity.class))).thenThrow(new CustomException("some_code", errorMessage));
+                eq(DeliveryResponse.class))).thenThrow(new CustomException("some_code", errorMessage));
 
         Exception ex = null;
         try {
