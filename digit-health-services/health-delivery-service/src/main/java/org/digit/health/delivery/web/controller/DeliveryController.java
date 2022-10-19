@@ -22,7 +22,7 @@ public class DeliveryController {
     public ResponseEntity<DeliveryResponse> create(@RequestBody @Valid ResourceDeliveryRequest
                                                                deliveryRequest) {
         log.info("Delivery request {}", deliveryRequest);
-        if (deliveryRequest.getDelivery().getClientReferenceId().equals("error")) {
+        if (deliveryRequest.getDelivery().getDeliveryId().equals("error")) {
             throw new CustomException("ERROR_IN_DELIVERY", "Dummy error");
         }
         return ResponseEntity.ok().body(DeliveryResponse.builder()
