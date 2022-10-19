@@ -5,7 +5,6 @@ import org.digit.health.sync.context.enums.SyncErrorCode;
 import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
 import org.egov.tracer.model.CustomException;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -15,7 +14,6 @@ import java.util.Map;
 import java.util.Observer;
 
 @Component
-@Scope("prototype")
 @Slf4j
 public abstract class SyncContext implements Observer {
     protected SyncStep syncStep;

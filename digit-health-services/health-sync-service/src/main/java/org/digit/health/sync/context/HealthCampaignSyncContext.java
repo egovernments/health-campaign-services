@@ -5,6 +5,7 @@ import org.digit.health.sync.context.metric.SyncStepMetric;
 import org.digit.health.sync.context.step.SyncStep;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.Observable;
 
 @Component
 @Slf4j
+@Scope("prototype")
 public class HealthCampaignSyncContext extends SyncContext {
 
     @Autowired
