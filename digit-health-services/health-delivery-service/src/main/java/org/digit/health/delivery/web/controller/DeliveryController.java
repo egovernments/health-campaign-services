@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.digit.health.delivery.utils.ModelMapper;
 import org.digit.health.delivery.web.models.request.ResourceDeliveryRequest;
 import org.digit.health.delivery.web.models.response.DeliveryResponse;
+import org.egov.tracer.model.CustomException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,9 @@ public class DeliveryController {
     public ResponseEntity<DeliveryResponse> create(@RequestBody @Valid ResourceDeliveryRequest
                                                                deliveryRequest) {
         log.info("Delivery request {}", deliveryRequest);
+        if (deliveryRequest.getDelivery().getClientReferenceId().equals("error")) {
+            throw new CustomException("ERROR_IN_DELIVERY", "Dummy error");
+        }
         return ResponseEntity.ok().body(DeliveryResponse.builder()
                 .responseInfo(ModelMapper
                         .createResponseInfoFromRequestInfo(deliveryRequest

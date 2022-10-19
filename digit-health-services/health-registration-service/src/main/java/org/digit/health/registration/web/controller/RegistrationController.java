@@ -5,6 +5,7 @@ import org.digit.health.registration.service.RegistrationService;
 import org.digit.health.registration.utils.ModelMapper;
 import org.digit.health.registration.web.models.HouseholdRegistrationRequest;
 import org.digit.health.registration.web.models.response.RegistrationResponse;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -31,6 +32,9 @@ public class RegistrationController {
                                                              HouseholdRegistrationRequest
                                                                      registrationRequest) {
         log.info("Registration request {}", registrationRequest);
+        if (registrationRequest.getHousehold().getClientReferenceId().equals("error")) {
+            throw new CustomException("ERROR_IN_REGISTRATION", "Dummy error");
+        }
         return ResponseEntity.ok().body(RegistrationResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(registrationRequest
                         .getRequestInfo(), true))
