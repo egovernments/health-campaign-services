@@ -19,6 +19,8 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationContext;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -58,7 +60,7 @@ class DeliverySyncStepTest {
 
         verify(serviceRequestRepository, times(1))
                 .fetchResult(any(StringBuilder.class),
-                        any(ResourceDeliveryRequest.class),
+                        any(List.class),
                         eq(DeliveryResponse.class));
     }
 
@@ -88,7 +90,7 @@ class DeliverySyncStepTest {
         String errorMessage = "some_message";
         SyncStep deliverySyncStep = Mockito.spy(new DeliverySyncStep(applicationContext));
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(ResourceDeliveryRequest.class),
+                any(List.class),
                 eq(DeliveryResponse.class))).thenThrow(new CustomException("some_code", errorMessage));
         ResourceDeliveryRequest resourceDeliveryRequest = ResourceDeliveryRequestTestBuilder
                 .builder()
@@ -133,7 +135,7 @@ class DeliverySyncStepTest {
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
                 .build();
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(ResourceDeliveryRequest.class),
+                any(List.class),
                 eq(DeliveryResponse.class))).thenThrow(new CustomException("some_code", errorMessage));
 
         Exception ex = null;

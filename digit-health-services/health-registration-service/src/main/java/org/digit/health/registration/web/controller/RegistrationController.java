@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @Controller
 @Slf4j
@@ -29,9 +30,10 @@ public class RegistrationController {
 
     @PostMapping("/_create")
     public ResponseEntity<RegistrationResponse> register(@RequestBody @Valid
-                                                             HouseholdRegistrationRequest
-                                                                     registrationRequest) {
-        log.info("Registration request {}", registrationRequest);
+                                                             List<HouseholdRegistrationRequest>
+                                                                     registrationRequests) {
+        log.info("Registration request {}", registrationRequests);
+        HouseholdRegistrationRequest registrationRequest = registrationRequests.get(0);
         if (registrationRequest.getHousehold().getClientReferenceId().equals("error")) {
             throw new CustomException("ERROR_IN_REGISTRATION", "Dummy error");
         }

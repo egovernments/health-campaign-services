@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 @Component("registrationSyncStep")
 public class RegistrationSyncStep extends SyncStep {
@@ -32,14 +35,16 @@ public class RegistrationSyncStep extends SyncStep {
 
     @Override
     public void handle(Object payload) {
+        List<HouseholdRegistrationRequest> list = new ArrayList<>();
         HouseholdRegistrationRequest householdRegistrationRequest = (HouseholdRegistrationRequest) payload;
+        list.add(householdRegistrationRequest);
         ServiceRequestRepository serviceRequestRepository = applicationContext
                 .getBean(ServiceRequestRepository.class);
         Properties properties = applicationContext.getBean(Properties.class);
         try {
             serviceRequestRepository.fetchResult(new StringBuilder(properties.getRegistrationBaseUrl()
                             + properties.getRegistrationCreateEndpoint()),
-                    householdRegistrationRequest, RegistrationResponse.class);
+                    list, RegistrationResponse.class);
         } catch (Exception exception) {
             log.error("Exception occurred", exception);
             publishFailureMetric(householdRegistrationRequest

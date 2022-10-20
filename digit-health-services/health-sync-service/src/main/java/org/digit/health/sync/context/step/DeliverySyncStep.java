@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 @Component
 public class DeliverySyncStep extends SyncStep {
@@ -30,14 +33,16 @@ public class DeliverySyncStep extends SyncStep {
 
     @Override
     public void handle(Object payload) {
+        List<ResourceDeliveryRequest> list = new ArrayList<>();
         ResourceDeliveryRequest resourceDeliveryRequest = (ResourceDeliveryRequest) payload;
+        list.add(resourceDeliveryRequest);
         ServiceRequestRepository serviceRequestRepository = applicationContext
                 .getBean(ServiceRequestRepository.class);
         Properties properties = applicationContext.getBean(Properties.class);
         try {
             serviceRequestRepository.fetchResult(new StringBuilder(properties.getDeliveryBaseUrl()
                             + properties.getDeliveryCreateEndpoint()),
-                    resourceDeliveryRequest, DeliveryResponse.class);
+                    list, DeliveryResponse.class);
         } catch (Exception exception) {
             log.error("Exception occurred", exception);
             publishFailureMetric(resourceDeliveryRequest.getDelivery().getClientReferenceId(),

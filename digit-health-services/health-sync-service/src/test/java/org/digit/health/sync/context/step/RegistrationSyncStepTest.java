@@ -19,6 +19,8 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationContext;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -59,7 +61,7 @@ class RegistrationSyncStepTest {
 
         verify(serviceRequestRepository, times(1))
                 .fetchResult(any(StringBuilder.class),
-                any(HouseholdRegistrationRequest.class),
+                any(List.class),
                 eq(RegistrationResponse.class));
     }
 
@@ -89,7 +91,7 @@ class RegistrationSyncStepTest {
         String errorMessage = "some_message";
         SyncStep registrationSyncStep = Mockito.spy(new RegistrationSyncStep(applicationContext));
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(HouseholdRegistrationRequest.class),
+                any(List.class),
                 eq(RegistrationResponse.class))).thenThrow(new CustomException("some_code", errorMessage));
         HouseholdRegistrationRequest householdRegistrationRequest = HouseholdRegistrationRequestTestBuilder
                 .builder()
@@ -135,7 +137,7 @@ class RegistrationSyncStepTest {
                 .errorMessage(SyncErrorCode.ERROR_IN_REST_CALL.message(errorMessage))
                 .build();
         when(serviceRequestRepository.fetchResult(any(StringBuilder.class),
-                any(HouseholdRegistrationRequest.class),
+                any(List.class),
                 eq(RegistrationResponse.class)))
                 .thenThrow(new CustomException("some_code", errorMessage));
         Exception ex = null;

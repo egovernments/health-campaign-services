@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @Controller
 @Slf4j
@@ -19,9 +20,10 @@ import javax.validation.Valid;
 public class DeliveryController {
 
     @PostMapping("/_create")
-    public ResponseEntity<DeliveryResponse> create(@RequestBody @Valid ResourceDeliveryRequest
-                                                               deliveryRequest) {
-        log.info("Delivery request {}", deliveryRequest);
+    public ResponseEntity<DeliveryResponse> create(@RequestBody @Valid List<ResourceDeliveryRequest>
+                                                               deliveryRequests) {
+        log.info("Delivery request {}", deliveryRequests);
+        ResourceDeliveryRequest deliveryRequest = deliveryRequests.get(0);
         if (deliveryRequest.getDelivery().getDeliveryId().equals("error")) {
             throw new CustomException("ERROR_IN_DELIVERY", "Dummy error");
         }
