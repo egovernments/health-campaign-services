@@ -108,7 +108,7 @@ class DefaultQueryBuilderTest {
 
         String actualQuery = queryBuilder.buildUpdateQuery(data);
 
-        assertEquals(expectedQuery, );
+        assertEquals(expectedQuery, actualQuery);
     }
 
 
