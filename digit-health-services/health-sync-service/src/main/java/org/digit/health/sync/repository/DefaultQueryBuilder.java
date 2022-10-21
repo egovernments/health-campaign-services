@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -17,58 +18,21 @@ import java.util.stream.IntStream;
 @Slf4j
 public class DefaultQueryBuilder implements QueryBuilder {
 
-    private String getTableName(Class reflectClass){
-        Table table = (Table) reflectClass.getAnnotation(Table.class);
-        return table.name();
-    }
+    QueryBuilderUtils queryUtils = new QueryBuilderUtils();
+    QueryFieldConditionChecker fieldConditionChecker;
 
-    private boolean isWrapper(Field field){
-        Type type = field.getType();
-        return (type == Double.class || type == Float.class || type == Long.class ||
-                type == Integer.class || type == Short.class || type == Character.class ||
-                type == Byte.class || type == Boolean.class || type == String.class);
-    }
-
-    private List<String> getAllFeilds(Object object){
-        List<String> whereClauses = new ArrayList<>();
-        Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
-            field.setAccessible(true);
-            try {
-                if(!field.getType().isPrimitive() && Optional.ofNullable(field.get(object)).isPresent()){
-                    if(isWrapper(field)){
-                        String fieldName = field.getName();
-                        whereClauses.add(String.format(" %s:=%s", fieldName, fieldName));
-                    }else{
-                        whereClauses.addAll(getAllFeilds(field.get(object)));
-                    }
-                }
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        return whereClauses;
-    }
-
-    private StringBuilder generateSelectQuery(String tableName, List<String> queryParameters){
+    private StringBuilder generateQuery(String queryTemplate, List<String> whereClauseFields){
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(String.format("SELECT * FROM %s", tableName));
-        if(queryParameters.size() > 0){
-            stringBuilder.append(" WHERE");
-            stringBuilder.append(String.format(queryParameters.get(0)));
-            IntStream.range(1, queryParameters.size()).forEach(i ->
-                    stringBuilder.append(String.format(" AND%s", queryParameters.get(i))));
-        }
+        stringBuilder.append(queryTemplate);
+        stringBuilder.append(queryUtils.generateClause("WHERE", "AND", whereClauseFields));
         return stringBuilder;
     }
 
-    private StringBuilder generateUpdateQuery(String tableName, List<String> queryParameters){
+    private StringBuilder generateQuery(String queryTemplate, List<String> setClauseFields, List<String> whereClauseFields){
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(String.format("UPDATE %s", tableName));
-        stringBuilder.append(" SET");
-        stringBuilder.append(String.format(queryParameters.get(0)));
-        IntStream.range(1, queryParameters.size()).forEach(i ->
-                    stringBuilder.append(String.format(" ,%s", queryParameters.get(i))));
-        stringBuilder.append(String.format(" WHERE %s:=%s"));
+        stringBuilder.append(queryTemplate);
+        stringBuilder.append(queryUtils.generateClause("SET", ",", setClauseFields));
+        stringBuilder.append(queryUtils.generateClause("WHERE", "AND", whereClauseFields));
         return stringBuilder;
     }
 
@@ -76,11 +40,25 @@ public class DefaultQueryBuilder implements QueryBuilder {
     public String buildSelectQuery(Object object) {
         StringBuilder queryStringBuilder = null;
         try {
-            String tableName = getTableName(object.getClass());
-            List<String> whereClauses = getAllFeilds(object);
-            queryStringBuilder = generateSelectQuery(tableName, whereClauses);
+            String tableName = queryUtils.getTableName(object.getClass());
+            List<String> whereClauses = queryUtils.getFieldsWithCondition(object, fieldConditionChecker.checkIfFieldIsNotNull);
+            queryStringBuilder = generateQuery(DefaultQueryTemplate.select(tableName), whereClauses);
         } catch (Exception exception) {
+            System.out.println(exception.getMessage());
+        }
+        return queryStringBuilder.toString();
+    }
 
+    @Override
+    public String buildUpdateQuery(Object object) {
+        StringBuilder queryStringBuilder = null;
+        try {
+            String tableName = queryUtils.getTableName(object.getClass());
+            List<String> fieldsToUpdate = queryUtils.getFieldsWithCondition(object,  fieldConditionChecker.checkIfFieldIsNotNull);
+            List<String> fieldsToUpdateWith = queryUtils.getFieldsWithCondition(object,  fieldConditionChecker.checkIfUpdateByAnnotationIsPresent);
+            queryStringBuilder = generateQuery(DefaultQueryTemplate.update(tableName), fieldsToUpdate, fieldsToUpdateWith);
+        } catch (Exception exception) {
+            System.out.println(exception.getMessage());
         }
         return queryStringBuilder.toString();
     }

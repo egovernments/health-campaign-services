@@ -93,13 +93,32 @@ class DefaultQueryBuilderTest {
         assertEquals(expectedQuery, actualQuery);
     }
 
+    @Test
+    @DisplayName("Should use @updateBy to set the where clause")
+    void shouldUseUpdateByAnnotationToSetTheWhereClause(){
+        DummyData data = DummyData.builder()
+                .dummyString("some-string")
+                .dummyInt(1)
+                .dummyAddress(DummyAddress
+                        .builder()
+                        .addressString("123").build())
+                .build();
+        String expectedQuery = "UPDATE dummyData SET dummyString:=dummyString , dummyInt:=dummyInt , addressString:=addressString WHERE dummyID:=dummyID";
+        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+
+        String actualQuery = queryBuilder.buildUpdateQuery(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
     @Table(name = "dummyData")
     static class DummyData {
-        @ID
+        @UpdateBy
         private Integer dummyID;
         private String dummyString;
         private Integer dummyInt;
@@ -120,6 +139,7 @@ class DefaultQueryBuilderTest {
     @NoArgsConstructor
     @Builder
     static class DummyAddress {
+        @UpdateBy
         private String addressString;
         private DummyAmount dummyAmount;
     }
