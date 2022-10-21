@@ -79,7 +79,7 @@ public class DefaultSyncLogRepository implements SyncLogRepository {
         final Map<String, Object> in = new HashMap<>();
         in.put("tenantId", syncLogData.getTenantId());
         in.put("id", syncLogData.getSyncId());
-        in.put("status", syncLogData.getStatus());
+        in.put("status", syncLogData.getStatus().name());
         return namedParameterJdbcTemplate.update(
                 syncLogQueryBuilder.createUpdateQuery(syncLogData),
                 in
