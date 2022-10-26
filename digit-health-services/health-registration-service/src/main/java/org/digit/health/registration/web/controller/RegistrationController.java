@@ -4,8 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.digit.health.registration.service.RegistrationService;
 import org.digit.health.registration.utils.ModelMapper;
 import org.digit.health.registration.web.models.RegistrationId;
-import org.digit.health.registration.web.models.request.RegistrationRequest;
+import org.digit.health.registration.web.models.request.BulkRegistrationRequest;
 import org.digit.health.registration.web.models.request.RegistrationMapper;
+import org.digit.health.registration.web.models.request.RegistrationRequest;
 import org.digit.health.registration.web.models.response.RegistrationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -29,13 +30,23 @@ public class RegistrationController {
     }
 
     @PostMapping("/_create")
-    public ResponseEntity<RegistrationResponse> syncUp(@RequestBody @Valid RegistrationRequest registrationRequest) {
+    public ResponseEntity<RegistrationResponse> create(@RequestBody @Valid RegistrationRequest registrationRequest) {
         log.info("Registration request {}", registrationRequest.toString());
         RegistrationId registrationId = registrationService.register(RegistrationMapper.INSTANCE.toDTO(registrationRequest));
         return ResponseEntity.ok().body(RegistrationResponse.builder()
                 .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(registrationRequest
                         .getRequestInfo(), true))
                 .registrationId(registrationId.getRegistrationId())
+                .build());
+    }
+
+    @PostMapping("/_create/bulk")
+    public ResponseEntity<RegistrationResponse> bulkCreate(@RequestBody @Valid BulkRegistrationRequest bulkRegistrationRequest) {
+        log.info("Bulk Registration request {}", bulkRegistrationRequest.toString());
+        return ResponseEntity.ok().body(RegistrationResponse.builder()
+                .responseInfo(ModelMapper.createResponseInfoFromRequestInfo(bulkRegistrationRequest
+                        .getRequestInfo(), true))
+                .registrationId("registration-id")
                 .build());
     }
 }
