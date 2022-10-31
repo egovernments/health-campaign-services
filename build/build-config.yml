@@ -17,7 +17,7 @@
 # -
 # -
 config:
-# Core Services
+  # Core Services
   - name: "builds/health-campaign-services/digit-health-services/health-sync-service"
     build:
       - work-dir: "digit-health-services/health-sync-service"
@@ -39,3 +39,8 @@ config:
     build:
       - work-dir: "digit-health-services/libraries/health-services-common"
         image-name: "health-services-common"
+  - name: "builds/health-campaign-services/core-services/zuul"
+    build:
+      - work-dir: "core-services/zuul"
+        image-name: "zuul"
+        dockerfile: "build/maven/Dockerfile"
