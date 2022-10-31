@@ -1,21 +1,31 @@
-package org.digit.health.sync.repository;
+package org.digit.health.common.data.query.builder;
+
+import org.digit.health.common.data.query.annotations.Table;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.IntStream;
 
-public class QueryBuilderUtils {
+public interface GenericQueryBuilder {
+    String build(Object object);
 
-     public String getTableName(Class reflectClass){
+    static String getTableName(Class reflectClass){
         Table table = (Table) reflectClass.getAnnotation(Table.class);
         return table.name();
     }
 
-    public String generateClause(String clauseName, String seperator, List<String> queryParameters){
+    static String selectQueryTemplate(String tableName){
+        return String.format("SELECT * FROM %s", tableName);
+    }
+
+    static String updateQueryTemplate(String tableName){
+        return String.format("UPDATE %s", tableName);
+    }
+
+    static String generateClause(String clauseName, String seperator, List<String> queryParameters){
         StringBuilder clauseBuilder = new StringBuilder();
         if(queryParameters.size() == 0){
             return "";
@@ -27,14 +37,29 @@ public class QueryBuilderUtils {
         return clauseBuilder.toString();
     }
 
-    public boolean isWrapper(Field field){
+    static boolean isWrapper(Field field){
         Type type = field.getType();
         return (type == Double.class || type == Float.class || type == Long.class ||
                 type == Integer.class || type == Short.class || type == Character.class ||
                 type == Byte.class || type == Boolean.class || type == String.class);
     }
 
-    public List<String> getFieldsWithCondition(Object object, QueryFieldConditionChecker checkCondition){
+    static StringBuilder generateQuery(String queryTemplate, List<String> setClauseFields, List<String> whereClauseFields){
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(queryTemplate);
+        stringBuilder.append(generateClause("SET", ",", setClauseFields));
+        stringBuilder.append(generateClause("WHERE", "AND", whereClauseFields));
+        return stringBuilder;
+    }
+
+    static StringBuilder generateQuery(String queryTemplate, List<String> whereClauseFields){
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(queryTemplate);
+        stringBuilder.append(generateClause("WHERE", "AND", whereClauseFields));
+        return stringBuilder;
+    }
+
+    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition){
         List<String> whereClauses = new ArrayList<>();
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
             field.setAccessible(true);

@@ -1,15 +1,19 @@
-package org.digit.health.sync.repository;
+package org.digit.health.commom.data.query;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.digit.health.common.data.query.annotations.Table;
+import org.digit.health.common.data.query.annotations.UpdateBy;
+import org.digit.health.common.data.query.builder.SelectQueryBuilder;
+import org.digit.health.common.data.query.builder.UpdateQueryBuilder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class DefaultQueryBuilderTest {
+public class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("should build a select query based on data object and its primitive properties")
@@ -20,9 +24,9 @@ class DefaultQueryBuilderTest {
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
                 "dummyString:=dummyString AND dummyInt:=dummyInt";
-        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.buildSelectQuery(data);
+        String actualQuery = queryBuilder.build(data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -40,9 +44,9 @@ class DefaultQueryBuilderTest {
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
                 "dummyString:=dummyString AND dummyInt:=dummyInt";
-        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.buildSelectQuery(data);
+        String actualQuery = queryBuilder.build(data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -53,9 +57,9 @@ class DefaultQueryBuilderTest {
         DummyData data = DummyData.builder()
                 .build();
         String expectedQuery = "SELECT * FROM dummyData";
-        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.buildSelectQuery(data);
+        String actualQuery = queryBuilder.build(data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -68,9 +72,9 @@ class DefaultQueryBuilderTest {
                 .dummyAddress(DummyAddress.builder().addressString("123").build())
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE dummyString:=dummyString AND addressString:=addressString";
-        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.buildSelectQuery(data);
+        String actualQuery = queryBuilder.build(data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -86,9 +90,9 @@ class DefaultQueryBuilderTest {
                         .dummyAmount(DummyAmount.builder().amount(123.0).currency("INR").build()).build())
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE dummyString:=dummyString AND addressString:=addressString AND currency:=currency AND amount:=amount";
-        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
-        String actualQuery = queryBuilder.buildSelectQuery(data);
+        String actualQuery = queryBuilder.build(data);
 
         assertEquals(expectedQuery, actualQuery);
     }
@@ -104,9 +108,9 @@ class DefaultQueryBuilderTest {
                         .addressString("123").build())
                 .build();
         String expectedQuery = "UPDATE dummyData SET dummyString:=dummyString , dummyInt:=dummyInt , addressString:=addressString WHERE dummyID:=dummyID";
-        QueryBuilder queryBuilder = new DefaultQueryBuilder();
+        UpdateQueryBuilder queryBuilder = new UpdateQueryBuilder();
 
-        String actualQuery = queryBuilder.buildUpdateQuery(data);
+        String actualQuery = queryBuilder.build(data);
 
         assertEquals(expectedQuery, actualQuery);
     }
