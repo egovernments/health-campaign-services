@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 public interface GenericQueryBuilder {
-    String build(Object object);
+    String build(Object object) throws QueryBuilderException;
 
     static String getTableName(Class reflectClass){
         Table table = (Table) reflectClass.getAnnotation(Table.class);

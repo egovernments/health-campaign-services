@@ -4,7 +4,7 @@ import java.util.List;
 
 public class UpdateQueryBuilder implements GenericQueryBuilder{
     @Override
-    public String build(Object object) {
+    public String build(Object object) throws QueryBuilderException{
         StringBuilder queryStringBuilder = null;
         try {
             String tableName = GenericQueryBuilder.getTableName(object.getClass());
@@ -12,7 +12,7 @@ public class UpdateQueryBuilder implements GenericQueryBuilder{
             List<String> fieldsToUpdateWith = GenericQueryBuilder.getFieldsWithCondition(object,  QueryFieldChecker.isAnnotatedWithUpdateBy);
             queryStringBuilder = GenericQueryBuilder.generateQuery(GenericQueryBuilder.updateQueryTemplate(tableName), fieldsToUpdate, fieldsToUpdateWith);
         } catch (Exception exception) {
-            System.out.println(exception.getMessage());
+            throw new QueryBuilderException(exception.getMessage());
         }
         return queryStringBuilder.toString();
     }

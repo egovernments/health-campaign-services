@@ -17,7 +17,7 @@ public class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("should build a select query based on data object and its primitive properties")
-    void shouldBuildSelectQueryBasedOnDataObjectAndItsPrimitiveProperties() {
+    void shouldBuildSelectQueryBasedOnDataObjectAndItsPrimitiveProperties() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .dummyString("some-string")
                 .dummyInt(1)
@@ -33,7 +33,7 @@ public class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("should not use primitive data types while building selecting query")
-    void shouldNotUsePrimitiveDataTypesWhileBuildingSelectingQuery() {
+    void shouldNotUsePrimitiveDataTypesWhileBuildingSelectingQuery() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .dummyString("some-string")
                 .dummyInt(1)
@@ -53,7 +53,7 @@ public class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("should not use where clause when properties are set to null while building select query")
-    void shouldNotUseWhereClauseWhenPropertiesAreSetToNullSelectQuery() {
+    void shouldNotUseWhereClauseWhenPropertiesAreSetToNullSelectQuery() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .build();
         String expectedQuery = "SELECT * FROM dummyData";
@@ -66,7 +66,7 @@ public class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("should use properties from nested object to build a select query")
-    void shouldUsePropertiesFromNestedObjectToBuildSelectQuery() {
+    void shouldUsePropertiesFromNestedObjectToBuildSelectQuery() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .dummyString("TEST123")
                 .dummyAddress(DummyAddress.builder().addressString("123").build())
@@ -81,7 +81,7 @@ public class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("should use properties from nested object's nested object to build a select query")
-    void shouldUsePropertiesFrom2LevelNestedObjectToBuildSelectQuery() {
+    void shouldUsePropertiesFrom2LevelNestedObjectToBuildSelectQuery() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .dummyString("TEST123")
                 .dummyAddress(DummyAddress
@@ -99,7 +99,7 @@ public class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("Should use @updateBy to set the where clause")
-    void shouldUseUpdateByAnnotationToSetTheWhereClause(){
+    void shouldUseUpdateByAnnotationToSetTheWhereClause() throws QueryBuilderException{
         DummyData data = DummyData.builder()
                 .dummyString("some-string")
                 .dummyInt(1)
@@ -115,6 +115,28 @@ public class GenericQueryBuilderTest {
         assertEquals(expectedQuery, actualQuery);
     }
 
+    @Test
+    @DisplayName("Should thorw QueryBuilderException for invalid object")
+    void shouldThrowExceptionForInvalidObject(){
+        DummyDataForException data = DummyDataForException.builder()
+                .dummyString("some-string")
+                .dummyID(1)
+                .build();
+        String expectedQuery = "UPDATE dummyData SET dummyString:=dummyString , dummyInt:=dummyInt , addressString:=addressString WHERE dummyID:=dummyID";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        assertThrows(QueryBuilderException.class, ()-> queryBuilder.build(data));
+    }
+
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    static class DummyDataForException {
+        private Integer dummyID;
+        private String dummyString;
+    }
 
     @Data
     @AllArgsConstructor
