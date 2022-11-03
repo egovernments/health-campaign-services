@@ -1,11 +1,11 @@
 package org.egov.filters;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.common.io.ByteStreams;
 import com.google.common.net.HttpHeaders;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
@@ -16,6 +16,8 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -45,7 +47,7 @@ public class GzipBodyDecompressFilter implements Filter {
      */
     @Override
     public final void doFilter(final ServletRequest servletRequest, final ServletResponse servletResponse, final FilterChain chain)
-        throws IOException, ServletException {
+            throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
         log.info("Content Encoding {} ", request.getHeader(HttpHeaders.CONTENT_ENCODING));
@@ -103,11 +105,82 @@ public class GzipBodyDecompressFilter implements Filter {
         GzippedInputStreamWrapper(final HttpServletRequest request) throws IOException {
             super(request);
             try {
-                final InputStream in = new GZIPInputStream(request.getInputStream());
-                bytes = ByteStreams.toByteArray(in);
-            } catch (EOFException e) {
+                String jsonBody = getBody(request);
+                HashMap hashMap = new ObjectMapper().readValue(jsonBody, HashMap.class);
+                log.info("Body {}", hashMap.get("data"));
+                byte[] decodedBytes = Base64.getDecoder().decode(hashMap.get("data").toString());
+                log.info("Decomressed {}", unzip(decodedBytes));
+                bytes = unzip(decodedBytes).getBytes();
+            } catch (EOFException en) {
                 bytes = new byte[0];
+            } catch (Exception exception) {
+                exception.printStackTrace();
             }
+        }
+
+        public static boolean isZipped(final byte[] compressed) {
+            return (compressed[0] == (byte) (GZIPInputStream.GZIP_MAGIC))
+                    && (compressed[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8));
+        }
+
+        public static String unzip(final byte[] compressed) {
+            if ((compressed == null) || (compressed.length == 0)) {
+                throw new IllegalArgumentException("Cannot unzip null or empty bytes");
+            }
+            if (!isZipped(compressed)) {
+                throw new RuntimeException("Not Valid zip");
+            }
+
+            try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(compressed)) {
+                try (GZIPInputStream gzipInputStream = new GZIPInputStream(byteArrayInputStream)) {
+                    try (InputStreamReader inputStreamReader = new InputStreamReader(gzipInputStream, StandardCharsets.UTF_8)) {
+                        try (BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
+                            StringBuilder output = new StringBuilder();
+                            String line;
+                            while ((line = bufferedReader.readLine()) != null) {
+                                output.append(line);
+                            }
+                            return output.toString();
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to unzip content", e);
+            }
+        }
+
+        public static String getBody(HttpServletRequest request) throws IOException {
+
+            String body = null;
+            StringBuilder stringBuilder = new StringBuilder();
+            BufferedReader bufferedReader = null;
+
+            try {
+                InputStream inputStream = request.getInputStream();
+                if (inputStream != null) {
+                    bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                    char[] charBuffer = new char[128];
+                    int bytesRead = -1;
+                    while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
+                        stringBuilder.append(charBuffer, 0, bytesRead);
+                    }
+                } else {
+                    stringBuilder.append("");
+                }
+            } catch (IOException ex) {
+                throw ex;
+            } finally {
+                if (bufferedReader != null) {
+                    try {
+                        bufferedReader.close();
+                    } catch (IOException ex) {
+                        throw ex;
+                    }
+                }
+            }
+
+            body = stringBuilder.toString();
+            return body;
         }
 
 
