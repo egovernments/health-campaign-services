@@ -1,10 +1,12 @@
 package org.digit.health.common.data.query.builder;
 
+import org.digit.health.common.data.query.exception.QueryBuilderException;
+
 import java.util.List;
 
 public class UpdateQueryBuilder implements GenericQueryBuilder{
     @Override
-    public String build(Object object) throws QueryBuilderException{
+    public String build(Object object) throws QueryBuilderException {
         StringBuilder queryStringBuilder = null;
         try {
             String tableName = GenericQueryBuilder.getTableName(object.getClass());

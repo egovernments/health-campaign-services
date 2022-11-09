@@ -1,4 +1,4 @@
-package org.digit.health.commom.data.query;
+package org.digit.health.common.data.query;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,10 +8,12 @@ import org.digit.health.common.data.query.annotations.Table;
 import org.digit.health.common.data.query.annotations.UpdateBy;
 import org.digit.health.common.data.query.builder.SelectQueryBuilder;
 import org.digit.health.common.data.query.builder.UpdateQueryBuilder;
+import org.digit.health.common.data.query.exception.QueryBuilderException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class GenericQueryBuilderTest {
 

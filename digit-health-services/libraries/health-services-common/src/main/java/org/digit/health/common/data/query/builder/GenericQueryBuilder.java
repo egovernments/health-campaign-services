@@ -1,6 +1,8 @@
 package org.digit.health.common.data.query.builder;
 
 import org.digit.health.common.data.query.annotations.Table;
+import org.digit.health.common.data.query.exception.QueryBuilderException;
+import org.digit.health.common.utils.DataUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -37,13 +39,6 @@ public interface GenericQueryBuilder {
         return clauseBuilder.toString();
     }
 
-    static boolean isWrapper(Field field){
-        Type type = field.getType();
-        return (type == Double.class || type == Float.class || type == Long.class ||
-                type == Integer.class || type == Short.class || type == Character.class ||
-                type == Byte.class || type == Boolean.class || type == String.class);
-    }
-
     static StringBuilder generateQuery(String queryTemplate, List<String> setClauseFields, List<String> whereClauseFields){
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(queryTemplate);
@@ -65,7 +60,7 @@ public interface GenericQueryBuilder {
             field.setAccessible(true);
             try {
                 if(!field.getType().isPrimitive() && checkCondition.check(field, object)){
-                    if(isWrapper(field)){
+                    if(DataUtils.isWrapper(field)){
                         String fieldName = field.getName();
                         whereClauses.add(String.format("%s:=%s", fieldName, fieldName));
                     }else{
