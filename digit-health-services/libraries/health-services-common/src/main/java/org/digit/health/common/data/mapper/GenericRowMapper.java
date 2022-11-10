@@ -13,24 +13,32 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * GenericRowMapper is an implementation of RowMapper<T>. It is used for mapping ResultSet from sql query to List<T>
- * GenericRowMapper throws SQLException if there is an error related to ResultSet or db or query.
- * GenericRowMapper throws RuntimeException whenever there is an error while converting resultset to object.
- *
- * Requirements to use GenericRowMapper
- * Column name and member variable name must be similar. for example columnName "price" will be mapped to member variable named "price"
- * Column type and member variable type must be compatible. for example columnType "int" should be mapped to numeric data type, if you try to map it string etc. IllegalArgumentException will be thrown.
- * DefaultConstructor needs to be present for the object. DefaultConstructor is a constructor with no arguments.
- *
- * Table Employee(id int, name varchar(50), salary int)
- * class Emp{ //class name be anything.
- *     private int id; //this will be mapped with id from Employee table.
- *     private int someId; //this will not be mapped to anything, because its name does not correspond with any table column name.
- *     private String name; //this will be mapped with name from Employee table. Notice String and varchar are compatible data types. If you change String to int, GenericRowMapper will throw RunTimeException.
- *     int salary;
- * }
- *
- * Usage:
+ * GenericRowMapper is an implementation of RowMapper<T>. It is used for mapping ResultSet from sql query to List<T><p>
+ * GenericRowMapper throws SQLException if there is an error related to ResultSet, db or query.<p>
+ * GenericRowMapper throws RuntimeException whenever there is an error while converting resultset to object.<p>
+ *<p>
+ *<p>
+ * Requirements to use GenericRowMapper<p>
+ * * Column name and member variable name must be similar. for example columnName "price" will be mapped to member variable named "price"<p>
+ * * Column type and member variable type must be compatible. for example columnType "int" should be mapped to numeric data type, if you try map "int" to string, etc. IllegalArgumentException will be thrown.<p>
+ * * DefaultConstructor needs to be present for the object. DefaultConstructor is a constructor with no arguments.<p>
+ *<p>
+ *<p>
+ * <b>Example: </b><p>
+ * Table Employee(id int, name varchar(50), salary int)<p>
+ * class Emp{<p>
+ *     private int id; <p>
+ *     private int someId;<p>
+ *     private String name;<p>
+ *     int salary;<p>
+ * }<p>
+ * <p>
+ * <p>
+ *<b>Notice: </b> someId will not be mapped because it does not match with any column name from employee table;
+ *<p>
+ *<p>
+ *<p>
+ * <b>Usage:</b><p>
  *  List<Emp> emps = jdbcQueryTemplate.query("select * from Employee", new GenericRowMapper(Emp.class))
  */
 public class GenericRowMapper <T> implements RowMapper<T> {
