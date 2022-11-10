@@ -7,5 +7,5 @@ CREATE TABLE IF NOT EXISTS employee (
     );
 
 INSERT INTO employee VALUES(1, 'JON', '100', 1500, null);
-INSERT INTO employee VALUES(1, 'DOE', '100', 1000, 'INR');
-INSERT INTO employee VALUES(1, 'KO', '100', 1000, 'DOLLAR');
+INSERT INTO employee VALUES(2, 'DOE', '100', 1000, 'INR');
+INSERT INTO employee VALUES(3, 'KO', '100', 1000, 'DOLLAR');

@@ -7,6 +7,7 @@ import org.digit.health.common.utils.ObjectUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 public interface GenericQueryBuilder {
@@ -52,7 +53,7 @@ public interface GenericQueryBuilder {
         return stringBuilder;
     }
 
-    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition){
+    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap){
         List<String> whereClauses = new ArrayList<>();
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
             field.setAccessible(true);
@@ -60,11 +61,12 @@ public interface GenericQueryBuilder {
                 if(!field.getType().isPrimitive() && checkCondition.check(field, object)){
                     if(ObjectUtils.isWrapper(field)){
                         String fieldName = field.getName();
+                        paramsMap.put(fieldName, field.get(object));
                         whereClauses.add(String.format("%s=:%s", fieldName, fieldName));
                     }else{
                         Object objectAtField = field.get(object);
                         if(objectAtField != null){
-                            whereClauses.addAll(getFieldsWithCondition(objectAtField, checkCondition));
+                            whereClauses.addAll(getFieldsWithCondition(objectAtField, checkCondition, paramsMap));
                         }
                     }
                 }

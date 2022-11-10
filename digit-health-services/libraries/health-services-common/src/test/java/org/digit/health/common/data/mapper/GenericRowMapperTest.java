@@ -1,6 +1,12 @@
 package org.digit.health.common.data.mapper;
 
 import lombok.*;
+import org.digit.health.common.data.query.annotations.Table;
+import org.digit.health.common.data.query.annotations.UpdateBy;
+import org.digit.health.common.data.query.builder.GenericQueryBuilder;
+import org.digit.health.common.data.query.builder.SelectQueryBuilder;
+import org.digit.health.common.data.query.builder.UpdateQueryBuilder;
+import org.digit.health.common.data.query.exception.QueryBuilderException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,7 +38,7 @@ public class GenericRowMapperTest {
     void shouldMapQueryResulToSimpleObject() throws SQLException {
 
         List<Employee> employeeList = namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(Employee.class));
-        assertEquals(employeeList.get(0).getId(), 1);
+        assertEquals(employeeList.get(0).getId().intValue(), 1);
         assertEquals(employeeList.get(0).getName(), "JON");
     }
 
@@ -52,6 +58,7 @@ public class GenericRowMapperTest {
         Map<String, Object> queryMap = new HashMap();
         queryMap.put("currency", "INR");
         List<NestedEmployee> employeeList = namedParameterJdbcTemplate.query(query, queryMap, new GenericRowMapper(NestedEmployee.class));
+        assertEquals(employeeList.get(0).getId(), 2);
         assertEquals(employeeList.get(0).getAmount().getPrice(), 1000);
         assertEquals(employeeList.get(0).getAmount().getCurrency().getCurrency(), "INR");
     }
@@ -67,12 +74,27 @@ public class GenericRowMapperTest {
     void shouldThrowExceptionWhenNoDefaultConstructorIsFound(){
         assertThrows(RuntimeException.class, () -> namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(NoDefaultConstructor.class)));
     }
+
+    @Test
+    @DisplayName("should map query to simple object")
+    void shouldMapSelectQueryResulToSimpleObjectWithQueryBuilder() throws SQLException, QueryBuilderException {
+         Employee e = new Employee();
+         e.setId(1);
+
+         SelectQueryBuilder selectQueryBuilderqueryBuilder = new SelectQueryBuilder();
+         List<Employee> employeeList = namedParameterJdbcTemplate.query(selectQueryBuilderqueryBuilder.build(e), selectQueryBuilderqueryBuilder.getMap(), new GenericRowMapper(Employee.class));
+
+         assertEquals(employeeList.get(0).getId().intValue(), 1);
+         assertEquals(employeeList.get(0).getName(), "JON");
+    }
 }
 
 
 @Getter
+@Setter
+@Table(name = "employee")
 class Employee{
-    private int id;
+    private Integer id;
     private String name;
 }
 
