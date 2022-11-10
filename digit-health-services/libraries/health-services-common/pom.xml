@@ -8,7 +8,7 @@
     <artifactId>health-services-common</artifactId>
     <packaging>jar</packaging>
     <name>health-services-common</name>
-    <version>1.0.0</version>
+    <version>1.0.2</version>
     <description>Shared classes among services</description>
 
     <parent>

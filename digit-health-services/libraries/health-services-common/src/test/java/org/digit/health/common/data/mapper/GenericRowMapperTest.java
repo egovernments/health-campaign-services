@@ -1,92 +1,106 @@
 package org.digit.health.common.data.mapper;
 
 import lombok.*;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 
-import java.io.File;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
 public class GenericRowMapperTest {
 
 
-     EmbeddedDatabase db = new EmbeddedDatabaseBuilder().setName("testdb;DATABASE_TO_UPPER=false")
-            .setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build();
-
-
-    NamedParameterJdbcTemplate namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(db);
-
+     EmbeddedDatabase db;
+     NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+     @BeforeEach
+     public void setUp(){
+         db = new EmbeddedDatabaseBuilder().setName("testdb;DATABASE_TO_UPPER=false")
+                 .setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build();
+         namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(db);
+     }
     @Test
     @DisplayName("should map query to simple object")
     void shouldMapQueryResulToSimpleObject() throws SQLException {
+
         List<Employee> employeeList = namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(Employee.class));
-        assertEquals(employeeList.size(), 3);
-        assertEquals(employeeList.get(0).id, 1);
-        assertEquals(employeeList.get(0).name, "JON");
+        assertEquals(employeeList.get(0).getId(), 1);
+        assertEquals(employeeList.get(0).getName(), "JON");
     }
 
     @Test
     @DisplayName("should map query to nested object")
     void shouldMapQueryResulToNestedObject(){
         List<NestedEmployee> employeeList = namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(NestedEmployee.class));
-        assertEquals(employeeList.size(), 3);
-        assertEquals(employeeList.get(0).amount.currency.currency, null);
-        assertEquals(employeeList.get(0).amount.price, 1500);
-        assertEquals(employeeList.get(1).amount.currency.currency, "INR");
+        assertEquals(employeeList.get(0).getAmount().getCurrency().getCurrency(), null);
+        assertEquals(employeeList.get(0).getAmount().getPrice(), 1500, 0);
+        assertEquals(employeeList.get(1).getAmount().getCurrency().getCurrency(), "INR");
+    }
+
+    @Test
+    @DisplayName("should map query to nested object with prepared sql query")
+    void shouldMapPreparedQueryResulToNestedObject(){
+         String query = "SELECT * from employee where currency=:currency";
+        Map<String, Object> queryMap = new HashMap();
+        queryMap.put("currency", "INR");
+        List<NestedEmployee> employeeList = namedParameterJdbcTemplate.query(query, queryMap, new GenericRowMapper(NestedEmployee.class));
+        assertEquals(employeeList.get(0).getAmount().getPrice(), 1000);
+        assertEquals(employeeList.get(0).getAmount().getCurrency().getCurrency(), "INR");
+    }
+
+    @Test
+    @DisplayName("should throw an exception if datatypes between query result and object are incompatible")
+    void shouldThrowExceptionWhenDataTypeDoNotMatch(){
+        assertThrows(RuntimeException.class, () -> namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(DataTypeMisMatch.class)));
+    }
+
+    @Test
+    @DisplayName("should throw an exception if no default constructor is found")
+    void shouldThrowExceptionWhenNoDefaultConstructorIsFound(){
+        assertThrows(RuntimeException.class, () -> namedParameterJdbcTemplate.query("SELECT * from employee", new GenericRowMapper(NoDefaultConstructor.class)));
     }
 }
 
-@AllArgsConstructor
-@NoArgsConstructor
+
 @Getter
-@Setter
-@Builder
 class Employee{
-    int id;
-    String name;
+    private int id;
+    private String name;
 }
 
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
-@Setter
-@Builder
 class NestedEmployee{
-    int id;
-    String name;
-    Amount amount;
+    private int id;
+    private String name;
+    private Amount amount;
 }
-
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
-@Setter
-@Builder
 class Amount{
-    int price;
-    Currency currency;
+    private int price;
+    private Currency currency;
+}
+@Getter
+class Currency{
+    private String currency;
+}
+@Getter
+class DataTypeMisMatch{
+    private String price;
 }
 
-@AllArgsConstructor
-@NoArgsConstructor
 @Getter
-@Setter
-@Builder
-class Currency{
-    String currency;
+class NoDefaultConstructor{
+    private int price;
+    public NoDefaultConstructor(int price){
+        this.price = price;
+    }
 }
 

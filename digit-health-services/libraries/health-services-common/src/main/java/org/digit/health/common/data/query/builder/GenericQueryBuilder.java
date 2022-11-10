@@ -2,10 +2,8 @@ package org.digit.health.common.data.query.builder;
 
 import org.digit.health.common.data.query.annotations.Table;
 import org.digit.health.common.data.query.exception.QueryBuilderException;
-import org.digit.health.common.utils.DataUtils;
+import org.digit.health.common.utils.ObjectUtils;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,9 +58,9 @@ public interface GenericQueryBuilder {
             field.setAccessible(true);
             try {
                 if(!field.getType().isPrimitive() && checkCondition.check(field, object)){
-                    if(DataUtils.isWrapper(field)){
+                    if(ObjectUtils.isWrapper(field)){
                         String fieldName = field.getName();
-                        whereClauses.add(String.format("%s:=%s", fieldName, fieldName));
+                        whereClauses.add(String.format("%s=:%s", fieldName, fieldName));
                     }else{
                         Object objectAtField = field.get(object);
                         if(objectAtField != null){

@@ -25,7 +25,7 @@ public class GenericQueryBuilderTest {
                 .dummyInt(1)
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
-                "dummyString:=dummyString AND dummyInt:=dummyInt";
+                "dummyString=:dummyString AND dummyInt=:dummyInt";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -45,7 +45,7 @@ public class GenericQueryBuilderTest {
                 .dummyPrimitiveFloat(232.2f)
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
-                "dummyString:=dummyString AND dummyInt:=dummyInt";
+                "dummyString=:dummyString AND dummyInt=:dummyInt";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -73,7 +73,7 @@ public class GenericQueryBuilderTest {
                 .dummyString("TEST123")
                 .dummyAddress(DummyAddress.builder().addressString("123").build())
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString:=dummyString AND addressString:=addressString";
+        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString=:dummyString AND addressString=:addressString";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -91,7 +91,7 @@ public class GenericQueryBuilderTest {
                         .addressString("123")
                         .dummyAmount(DummyAmount.builder().amount(123.0).currency("INR").build()).build())
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString:=dummyString AND addressString:=addressString AND currency:=currency AND amount:=amount";
+        String expectedQuery = "SELECT * FROM dummyData WHERE dummyString=:dummyString AND addressString=:addressString AND currency=:currency AND amount=:amount";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -109,7 +109,7 @@ public class GenericQueryBuilderTest {
                         .builder()
                         .addressString("123").build())
                 .build();
-        String expectedQuery = "UPDATE dummyData SET dummyString:=dummyString , dummyInt:=dummyInt , addressString:=addressString WHERE dummyID:=dummyID";
+        String expectedQuery = "UPDATE dummyData SET dummyString=:dummyString , dummyInt=:dummyInt , addressString=:addressString WHERE dummyID=:dummyID";
         UpdateQueryBuilder queryBuilder = new UpdateQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -124,11 +124,13 @@ public class GenericQueryBuilderTest {
                 .dummyString("some-string")
                 .dummyID(1)
                 .build();
-        String expectedQuery = "UPDATE dummyData SET dummyString:=dummyString , dummyInt:=dummyInt , addressString:=addressString WHERE dummyID:=dummyID";
+        String expectedQuery = "UPDATE dummyData SET dummyString=:dummyString , dummyInt=:dummyInt , addressString=:addressString WHERE dummyID=:dummyID";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         assertThrows(QueryBuilderException.class, ()-> queryBuilder.build(data));
     }
+
+
 
 
     @Data
