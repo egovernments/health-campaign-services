@@ -57,14 +57,14 @@ public class GenericRowMapper <T> implements RowMapper<T> {
     }
 
     private Map<String, Object> getMap(ResultSet rs) throws SQLException, ClassNotFoundException {
-        ResultSetMetaData resultSetMetaData = rs.getMetaData();
-        int columnCount = resultSetMetaData.getColumnCount();
+        ResultSetMetaData metaData = rs.getMetaData();
+        int columnCount = metaData.getColumnCount();
 
         Map<String, Object>  row = new HashMap(columnCount);
 
         for (int index = 1; index <= columnCount; index++) {
-            String column = JdbcUtils.lookupColumnName(resultSetMetaData, index);
-            Object value = JdbcUtils.getResultSetValue(rs, index, Class.forName(resultSetMetaData.getColumnClassName(index)));
+            String column = JdbcUtils.lookupColumnName(metaData, index);
+            Object value = JdbcUtils.getResultSetValue(rs, index, Class.forName(metaData.getColumnClassName(index)));
             row.put(column, value);
         }
         return row;
