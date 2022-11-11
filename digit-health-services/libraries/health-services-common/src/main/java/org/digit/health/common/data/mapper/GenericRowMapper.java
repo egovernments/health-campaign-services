@@ -19,9 +19,9 @@ import java.util.Map;
  *<p>
  *<p>
  * Requirements to use GenericRowMapper<p>
- * * Column name and member variable name must be similar. for example columnName "price" will be mapped to member variable named "price"<p>
- * * Column type and member variable type must be compatible. for example columnType "int" should be mapped to numeric data type, if you try map "int" to string, etc. IllegalArgumentException will be thrown.<p>
- * * DefaultConstructor needs to be present for the object. DefaultConstructor is a constructor with no arguments.<p>
+ * * Column name and member variable name must be similar. For example, columnName "price" will be mapped to member variable named "price"<p>
+ * * Column type and member variable type must be compatible. For example, columnType "int" should be mapped to numeric data type, if you try map "int" to string, etc. IllegalArgumentException will be thrown.<p>
+ * * Default Constructor needs to be present for the object. Default Constructor is a constructor with no arguments.<p>
  *<p>
  *<p>
  * <b>Example: </b><p>
