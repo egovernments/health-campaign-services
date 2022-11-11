@@ -1,12 +1,13 @@
 package org.digit.health.common.data.query.builder;
 
 import org.digit.health.common.data.query.annotations.Table;
+import org.digit.health.common.data.query.exception.QueryBuilderException;
+import org.digit.health.common.utils.ObjectUtils;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 public interface GenericQueryBuilder {
@@ -37,13 +38,6 @@ public interface GenericQueryBuilder {
         return clauseBuilder.toString();
     }
 
-    static boolean isWrapper(Field field){
-        Type type = field.getType();
-        return (type == Double.class || type == Float.class || type == Long.class ||
-                type == Integer.class || type == Short.class || type == Character.class ||
-                type == Byte.class || type == Boolean.class || type == String.class);
-    }
-
     static StringBuilder generateQuery(String queryTemplate, List<String> setClauseFields, List<String> whereClauseFields){
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(queryTemplate);
@@ -59,19 +53,20 @@ public interface GenericQueryBuilder {
         return stringBuilder;
     }
 
-    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition){
+    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap){
         List<String> whereClauses = new ArrayList<>();
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
             field.setAccessible(true);
             try {
                 if(!field.getType().isPrimitive() && checkCondition.check(field, object)){
-                    if(isWrapper(field)){
+                    if(ObjectUtils.isWrapper(field)){
                         String fieldName = field.getName();
-                        whereClauses.add(String.format("%s:=%s", fieldName, fieldName));
+                        paramsMap.put(fieldName, field.get(object));
+                        whereClauses.add(String.format("%s=:%s", fieldName, fieldName));
                     }else{
                         Object objectAtField = field.get(object);
                         if(objectAtField != null){
-                            whereClauses.addAll(getFieldsWithCondition(objectAtField, checkCondition));
+                            whereClauses.addAll(getFieldsWithCondition(objectAtField, checkCondition, paramsMap));
                         }
                     }
                 }
