@@ -1,11 +1,15 @@
 package org.digit.health.common.data.query.builder;
 
 import org.digit.health.common.data.query.exception.QueryBuilderException;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Component
+@Scope(value = "prototype")
 public class UpdateQueryBuilder implements GenericQueryBuilder{
 
     Map<String, Object> paramsMap = new HashMap<>();

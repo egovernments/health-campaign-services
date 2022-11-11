@@ -4,6 +4,7 @@ import org.digit.health.common.utils.ObjectUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.JdbcUtils;
+import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;
 import java.sql.ResultSet;
@@ -41,6 +42,9 @@ import java.util.Map;
  * <b>Usage:</b><p>
  *  List<Emp> emps = jdbcQueryTemplate.query("select * from Employee", new GenericRowMapper(Emp.class))
  */
+
+
+@Component
 public class GenericRowMapper <T> implements RowMapper<T> {
     private Class<T> mappedClass;
 
