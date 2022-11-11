@@ -82,7 +82,7 @@ public class GenericRowMapperTest {
          e.setId(1);
 
          SelectQueryBuilder selectQueryBuilderqueryBuilder = new SelectQueryBuilder();
-         List<Employee> employeeList = namedParameterJdbcTemplate.query(selectQueryBuilderqueryBuilder.build(e), selectQueryBuilderqueryBuilder.getMap(), new GenericRowMapper(Employee.class));
+         List<Employee> employeeList = namedParameterJdbcTemplate.query(selectQueryBuilderqueryBuilder.build(e), selectQueryBuilderqueryBuilder.getParamsMap(), new GenericRowMapper(Employee.class));
 
          assertEquals(employeeList.get(0).getId().intValue(), 1);
          assertEquals(employeeList.get(0).getName(), "JON");

@@ -10,7 +10,7 @@ public class UpdateQueryBuilder implements GenericQueryBuilder{
 
     Map<String, Object> paramsMap = new HashMap<>();
 
-    public Map<String, Object> getMap(){
+    public Map<String, Object> getParamsMap(){
         return paramsMap;
     }
     @Override
