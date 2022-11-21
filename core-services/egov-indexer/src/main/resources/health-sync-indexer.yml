@@ -1,0 +1,42 @@
+ServiceMaps:
+  serviceName: Sync Service
+  version: 1.0.0
+  mappings:
+    - topic: health-sync-log
+      configKey: INDEX
+      indexes:
+        - name: health-sync-log-v1
+          type: general
+          id: $.syncId, $.tenantId
+          isBulk: false
+          jsonPath: $
+          timeStampField: $.auditDetails.createdTime
+          customJsonMapping:
+            indexMapping: { "Data": { "syncId": "syncId" } }
+            fieldMapping:
+              - inJsonPath: $.syncId
+                outJsonPath: $.Data.syncId
+              - inJsonPath: $.tenantId
+                outJsonPath: $.Data.tenantId
+              - inJsonPath: $.referenceId.id
+                outJsonPath: $.Data.referenceId
+              - inJsonPath: $.referenceId.type
+                outJsonPath: $.Data.referenceType
+              - inJsonPath: $.fileDetails.fileStoreId
+                outJsonPath: $.Data.fileStoreId
+              - inJsonPath: $.fileDetails.checksum
+                outJsonPath: $.Data.checksum
+              - inJsonPath: $.status
+                outJsonPath: $.Data.status
+              - inJsonPath: $.comment
+                outJsonPath: $.Data.comment
+              - inJsonPath: $.totalCount
+                outJsonPath: $.Data.totalCount
+              - inJsonPath: $.successCount
+                outJsonPath: $.Data.successCount
+              - inJsonPath: $.errorCount
+                outJsonPath: $.Data.errorCount
+              - inJsonPath: $.auditDetails.createdTime
+                outJsonPath: $.Data.syncedAt
+              - inJsonPath: $.@timestamp
+                outJsonPath: $.Data.@timestamp
