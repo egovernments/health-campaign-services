@@ -1,14 +1,8 @@
 package org.egov.filters.post;
 
-import com.netflix.util.Pair;
 import com.netflix.zuul.context.RequestContext;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.jupiter.api.Disabled;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
-
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -23,7 +17,7 @@ public class ResponseEnhancementFilterTest {
         RequestContext.getCurrentContext().clear();
     }
 
-    @Disabled
+    /*
     @Test
     public void test_should_set_response_header() {
         RequestContext.getCurrentContext().set("CORRELATION_ID", "someCorrelationId");
@@ -55,7 +49,7 @@ public class ResponseEnhancementFilterTest {
         }
         assert correlationHeaderPresent && cacheControlHeadersPresent;
     }
-
+  */
     @Test
     public void test_should_always_execute_filter() {
         assertTrue(filter.shouldFilter());
