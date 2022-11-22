@@ -5,14 +5,17 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.context.RequestContext;
-import org.egov.Utils.*;
+import org.egov.Utils.ExceptionUtils;
+import org.egov.Utils.UserUtils;
+import org.egov.Utils.Utils;
 import org.egov.contract.User;
 import org.egov.model.RequestBodyInspector;
 import org.egov.wrapper.CustomRequestWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.util.*;
+import org.springframework.util.ObjectUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -22,10 +25,10 @@ import java.util.HashSet;
 import static org.egov.constants.RequestContextConstants.*;
 
 /**
- *  2nd pre filter to get executed.
- *  Identifies if the URI is part of open or mixed endpoint list.
- *  If its not present in the open list then the auth token is retrieved from the request body.
- *  For a restricted endpoint if auth token is not present then an error response is returned.
+ * 2nd pre filter to get executed.
+ * Identifies if the URI is part of open or mixed endpoint list.
+ * If its not present in the open list then the auth token is retrieved from the request body.
+ * For a restricted endpoint if auth token is not present then an error response is returned.
  */
 public class AuthPreCheckFilter extends ZuulFilter {
     private static final String AUTH_TOKEN_RETRIEVE_FAILURE_MESSAGE = "Retrieving of auth token failed";
@@ -42,12 +45,16 @@ public class AuthPreCheckFilter extends ZuulFilter {
     private static final String NO_REQUEST_INFO_FIELD_MESSAGE = "No request-info field in request body for: {}";
     private static final String AUTH_TOKEN_REQUEST_BODY_FIELD_NAME = "authToken";
     private static final String FAILED_TO_SERIALIZE_REQUEST_BODY_MESSAGE = "Failed to serialize requestBody";
-    private HashSet<String> openEndpointsWhitelist;
-    private HashSet<String> mixedModeEndpointsWhitelist;
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ObjectMapper objectMapper;
+    private HashSet<String> openEndpointsWhitelist;
+    private HashSet<String> mixedModeEndpointsWhitelist;
     private UserUtils userUtils;
 
+    @Value("${zuul.response.gzip.filter.enabled}")
+    private String zuulGzip;
+    @Value("${zuul.gzip.contenttypes}")
+    private String zuulGzipContentType;
 
     public AuthPreCheckFilter(HashSet<String> openEndpointsWhitelist,
                               HashSet<String> mixedModeEndpointsWhitelist,
@@ -75,6 +82,8 @@ public class AuthPreCheckFilter extends ZuulFilter {
 
     @Override
     public Object run() {
+        logger.info("zuulGzip {}", zuulGzip);
+        logger.info("zuulGzipContentType {}", zuulGzipContentType);
         String authToken;
         if (openEndpointsWhitelist.contains(getRequestURI())) {
             setShouldDoAuth(false);
@@ -151,7 +160,8 @@ public class AuthPreCheckFilter extends ZuulFilter {
 
     private HashMap<String, Object> getRequestBody(CustomRequestWrapper requestWrapper) throws IOException {
         return objectMapper.readValue(requestWrapper.getPayload(),
-            new TypeReference<HashMap<String, Object>>() { });
+            new TypeReference<HashMap<String, Object>>() {
+            });
     }
 
     private void sanitizeAndSetRequest(RequestBodyInspector requestBodyInspector, CustomRequestWrapper requestWrapper) {
@@ -172,7 +182,7 @@ public class AuthPreCheckFilter extends ZuulFilter {
         ctx.setRequest(requestWrapper);
     }
 
-    private String  getAuthTokenFromRequestHeader() {
+    private String getAuthTokenFromRequestHeader() {
         RequestContext ctx = RequestContext.getCurrentContext();
         return ctx.getRequest().getHeader(AUTH_TOKEN_HEADER_NAME);
     }
@@ -195,10 +205,10 @@ public class AuthPreCheckFilter extends ZuulFilter {
         return getRequest().getMethod();
     }
 
-    private void setAnonymousUser(){
+    private void setAnonymousUser() {
         User systemUser = userUtils.fetchSystemUser();
         RequestContext ctx = RequestContext.getCurrentContext();
-        ctx.set(USER_INFO_KEY, systemUser);;
+        ctx.set(USER_INFO_KEY, systemUser);
     }
 
 }
