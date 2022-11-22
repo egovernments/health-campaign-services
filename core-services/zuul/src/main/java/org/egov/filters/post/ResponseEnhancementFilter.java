@@ -23,7 +23,7 @@ import static org.egov.constants.RequestContextConstants.CORRELATION_ID_KEY;
 @Component
 public class ResponseEnhancementFilter extends ZuulFilter {
 
-    private static final String CORRELATION_HEADER_NAME = "y-correlation-id";
+    private static final String CORRELATION_HEADER_NAME = "x-correlation-id";
     private static final String RECEIVED_RESPONSE_MESSAGE = "Received response code: {} from upstream URI {}";
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -60,7 +60,6 @@ public class ResponseEnhancementFilter extends ZuulFilter {
         String resBody = readResponseBody(ctx);
         try {
             log.info("resBody {}", resBody);
-            // compress(resBody);
         } catch (Exception err) {
             log.error(err.toString());
         }
@@ -80,7 +79,8 @@ public class ResponseEnhancementFilter extends ZuulFilter {
         String responseBody = null;
         try (final InputStream responseDataStream = ctx.getResponseDataStream()) {
             responseBody = CharStreams.toString(new InputStreamReader(responseDataStream, "UTF-8"));
-            //ctx.setResponseBody(responseBody);
+            responseBody = compress(responseBody);
+            ctx.setResponseBody(responseBody);
         } catch (IOException e) {
             log.error("Error reading body", e);
         } catch (Exception e) {
