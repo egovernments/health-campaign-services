@@ -60,7 +60,7 @@ public class ResponseEnhancementFilter extends ZuulFilter {
         ctx.addZuulResponseHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
         String resBody = readResponseBody(ctx);
         try {
-            compress(resBody);
+            // compress(resBody);
         } catch (Exception err) {
             log.error(err.toString());
         }
