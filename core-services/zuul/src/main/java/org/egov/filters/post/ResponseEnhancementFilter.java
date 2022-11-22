@@ -79,7 +79,7 @@ public class ResponseEnhancementFilter extends ZuulFilter {
         String responseBody = null;
         try (final InputStream responseDataStream = ctx.getResponseDataStream()) {
             responseBody = CharStreams.toString(new InputStreamReader(responseDataStream, "UTF-8"));
-            responseBody = compress(responseBody);
+            //  responseBody = compress(responseBody);
             ctx.setResponseBody(responseBody);
         } catch (IOException e) {
             log.error("Error reading body", e);
