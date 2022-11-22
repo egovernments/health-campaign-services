@@ -56,14 +56,16 @@ public class ResponseEnhancementFilter extends ZuulFilter {
     @Override
     public Object run() {
         RequestContext ctx = RequestContext.getCurrentContext();
-        ctx.addZuulResponseHeader(CORRELATION_HEADER_NAME, getCorrelationId());
-        ctx.addZuulResponseHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
+
         String resBody = readResponseBody(ctx);
         try {
+            log.info("resBody {}", resBody);
             // compress(resBody);
         } catch (Exception err) {
             log.error(err.toString());
         }
+        ctx.addZuulResponseHeader(CORRELATION_HEADER_NAME, getCorrelationId());
+        ctx.addZuulResponseHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
         return null;
     }
 
