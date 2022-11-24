@@ -282,7 +282,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
                 "ServiceRequestRepository.java"));
 
         // Add utilities
-        supportingFiles.add(new SupportingFile("userUtil.mustache",
+        /*supportingFiles.add(new SupportingFile("userUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "UserUtil.java"));
 
@@ -296,7 +296,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
 
         supportingFiles.add(new SupportingFile("idgenUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "IdgenUtil.java"));
+                "IdgenUtil.java"));*/
 
         supportingFiles.add(new SupportingFile("responseInfoFactory.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
