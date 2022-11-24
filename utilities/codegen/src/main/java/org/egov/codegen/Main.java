@@ -17,7 +17,7 @@ public class Main {
         String url;
         String basePackage;
         String artifactId ;
-        String groupId = "org.egov";
+        String groupId = "org.digit.health";
         boolean useLombok = false;
         boolean useTracer = false;
 
@@ -25,7 +25,7 @@ public class Main {
         options.addOption("u", "url", true, "URL of the Swagger YAML");
         options.addOption("b", "basePackage", true,"Base Package");
         options.addOption("a", "artifactId",true,"Artifact ID / context path of the artifact");
-        options.addOption("g", "groupId",true,"Group ID of the artifact, default org.egov");
+        options.addOption("g", "groupId",true,"Group ID of the artifact, default org.digit.health");
         options.addOption("l", "Use Lombok");
         options.addOption("t", "Use Tracer");
 
