@@ -16,81 +16,87 @@ public class Main {
 
         String url;
         String basePackage;
-        String artifactId ;
+        String artifactId;
         String groupId = "org.digit.health";
         boolean useLombok = false;
         boolean useTracer = false;
+        boolean useRedis = false;
+        boolean enableFlyway = false;
 
         Options options = new Options();
         options.addOption("u", "url", true, "URL of the Swagger YAML");
-        options.addOption("b", "basePackage", true,"Base Package");
-        options.addOption("a", "artifactId",true,"Artifact ID / context path of the artifact");
-        options.addOption("g", "groupId",true,"Group ID of the artifact, default org.digit.health");
+        options.addOption("b", "basePackage", true, "Base Package");
+        options.addOption("a", "artifactId", true, "Artifact ID / context path of the artifact");
+        options.addOption("g", "groupId", true, "Group ID of the artifact, default org.digit.health");
         options.addOption("l", "Use Lombok");
         options.addOption("t", "Use Tracer");
+        options.addOption("redis", "Enable Redis Cache");
+        options.addOption("flyway", "Enable Flyway Migration");
 
         CommandLineParser parser = new DefaultParser();
         try {
-            CommandLine cmd = parser.parse( options, args);
+            CommandLine cmd = parser.parse(options, args);
 
-            if(cmd.hasOption("u")) {
+            if (cmd.hasOption("u")) {
                 url = cmd.getOptionValue('u');
-                if(url == null){
+                if (url == null) {
                     usage(options);
                     return;
                 }
 
-            }
-            else {
+            } else {
                 usage(options);
                 return;
             }
 
-            if(cmd.hasOption("b")) {
+            if (cmd.hasOption("b")) {
                 basePackage = cmd.getOptionValue('b');
-                if(basePackage == null){
+                if (basePackage == null) {
                     usage(options);
                     return;
                 }
-            }
-            else {
+            } else {
                 usage(options);
                 return;
             }
 
-            if(cmd.hasOption("a")) {
+            if (cmd.hasOption("a")) {
                 artifactId = cmd.getOptionValue('a');
-                if(artifactId == null){
+                if (artifactId == null) {
                     usage(options);
                     return;
                 }
-            }
-            else {
+            } else {
                 usage(options);
                 return;
             }
 
-            if(cmd.hasOption("g"))
+            if (cmd.hasOption("g"))
                 groupId = cmd.getOptionValue('g');
 
-            if(cmd.hasOption("l"))
+            if (cmd.hasOption("l"))
                 useLombok = true;
 
-            if(cmd.hasOption("t"))
+            if (cmd.hasOption("t"))
                 useTracer = true;
 
+            if (cmd.hasOption("redis"))
+                useRedis = true;
 
-            File outputDir = new File("."+ File
+            if (cmd.hasOption("flyway"))
+                enableFlyway = true;
+
+            File outputDir = new File("." + File
                     .separator + "output");
 
-            if(!outputDir.exists()) {
+            if (!outputDir.exists()) {
                 if (!outputDir.mkdirs()) {
                     System.out.println("Unable to create directory. " + outputDir.getAbsolutePath());
                     return;
                 }
             }
 
-            Config config = new Config(url,groupId, artifactId, basePackage, useLombok, useTracer);
+            Config config = new Config(url, groupId, artifactId, basePackage, useLombok, useTracer, useRedis, enableFlyway);
             generateCode(config, outputDir.getAbsolutePath());
 
 
@@ -100,7 +106,7 @@ public class Main {
 
     }
 
-    private static void generateCode(Config config, String outputDir){
+    private static void generateCode(Config config, String outputDir) {
         final Swagger swagger = new SwaggerParser().read(config.getUrl());
         CodegenConfig codegenConfig = new SpringBootCodegen(config, outputDir);
 
@@ -112,7 +118,7 @@ public class Main {
         gen.generate();
     }
 
-    private static void usage(Options options){
+    private static void usage(Options options) {
         HelpFormatter formatter = new HelpFormatter();
         formatter.printHelp("Codegen", options);
     }

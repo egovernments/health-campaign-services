@@ -38,7 +38,8 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     public static final String SPRING_CLOUD_LIBRARY = "spring-cloud";
     public static final String IMPLICIT_HEADERS = "implicitHeaders";
     public static final String SWAGGER_DOCKET_CONFIG = "swaggerDocketConfig";
-
+    private static Logger LOGGER = LoggerFactory.getLogger(AbstractJavaCodegen.class);
+    private final Config config;
     protected String title = "eGov App";
     protected String basePackage;
     protected String configPackage;
@@ -57,10 +58,6 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     protected boolean implicitHeaders = false;
     protected boolean swaggerDocketConfig = false;
     protected boolean useOptional = false;
-
-    private final Config config;
-
-    private static Logger LOGGER = LoggerFactory.getLogger(AbstractJavaCodegen.class);
 
     public SpringBootCodegen(Config config, String outputFolder) {
         super();
@@ -96,12 +93,14 @@ public class SpringBootCodegen extends AbstractJavaCodegen
 //        cliOptions.add(library);
     }
 
-    private void processConfigs(){
+    private void processConfigs() {
         groupId = config.getGroupId();
         artifactId = config.getArtifactId();
         basePackage = config.getBasePackage();
         additionalProperties.put("useLombok", config.isUseLombok());
         additionalProperties.put("useTracer", config.isUseTracer());
+        additionalProperties.put("useRedis", config.isUseRedis());
+        additionalProperties.put("enableFlyway", config.isEnableFlyway());
 
         configPackage = basePackage + ".config";
         apiPackage = basePackage + ".web.controllers";
@@ -281,6 +280,15 @@ public class SpringBootCodegen extends AbstractJavaCodegen
                 (sourceFolder + File.separator + repositoryPackage).replace(".", java.io.File.separator),
                 "ServiceRequestRepository.java"));
 
+        if (config.isEnableFlyway()) {
+            // ADD db migration
+            supportingFiles.add(new SupportingFile("v1.sql.mustache",
+                    ("src.main.resources.db.migration.main").replace(".", java.io.File.separator), "v1.sql"));
+
+            supportingFiles.add(new SupportingFile("db.migrate.sh.mustache",
+                    ("src.main.resources.db").replace(".", java.io.File.separator), "migrate.sh"));
+        }
+
         // Add utilities
         /*supportingFiles.add(new SupportingFile("userUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
@@ -310,7 +318,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
                 (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
                 "Producer.java"));
 
-        if(config.isUseTracer()) {
+        if (config.isUseTracer()) {
             supportingFiles.add(new SupportingFile("testConfiguration.mustache",
                     (testFolder + File.separator + basePackage).replace(".", java.io.File.separator),
                     "TestConfiguration.java"));
@@ -378,7 +386,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
 
     @Override
     public void addOperationToGroup(String tag, String resourcePath, Operation operation, CodegenOperation co, Map<String, List<CodegenOperation>> operations) {
-        if((library.equals(DEFAULT_LIBRARY) || library.equals(SPRING_MVC_LIBRARY)) && !useTags) {
+        if ((library.equals(DEFAULT_LIBRARY) || library.equals(SPRING_MVC_LIBRARY)) && !useTags) {
             String basePath = resourcePath;
             if (basePath.startsWith("/")) {
                 basePath = basePath.substring(1);
@@ -412,7 +420,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
             swagger.setBasePath("");
         }
 
-        if(!additionalProperties.containsKey(TITLE)) {
+        if (!additionalProperties.containsKey(TITLE)) {
             // From the title, compute a reasonable name for the package and the API
             String title = swagger.getInfo().getTitle();
 
@@ -505,7 +513,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
                     }
                 });
 
-                if(implicitHeaders){
+                if (implicitHeaders) {
                     removeHeadersFromAllParams(operation.allParams);
                 }
             }
@@ -514,14 +522,8 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         return objs;
     }
 
-    private interface DataTypeAssigner {
-        void setReturnType(String returnType);
-        void setReturnContainer(String returnContainer);
-    }
-
     /**
-     *
-     * @param returnType The return type that needs to be converted
+     * @param returnType       The return type that needs to be converted
      * @param dataTypeAssigner An object that will assign the data to the respective fields in the model.
      */
     private void doDataTypeAssignment(String returnType, SpringBootCodegen.DataTypeAssigner dataTypeAssigner) {
@@ -552,26 +554,27 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     /**
      * This method removes header parameters from the list of parameters and also
      * corrects last allParams hasMore state.
+     *
      * @param allParams list of all parameters
      */
     private void removeHeadersFromAllParams(List<CodegenParameter> allParams) {
-        if(allParams.isEmpty()){
+        if (allParams.isEmpty()) {
             return;
         }
         final ArrayList<CodegenParameter> copy = new ArrayList<>(allParams);
         allParams.clear();
 
-        for(CodegenParameter p : copy){
-            if(!p.isHeaderParam){
+        for (CodegenParameter p : copy) {
+            if (!p.isHeaderParam) {
                 allParams.add(p);
             }
         }
-        allParams.get(allParams.size()-1).hasMore =false;
+        allParams.get(allParams.size() - 1).hasMore = false;
     }
 
     @Override
     public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
-        if(library.equals(SPRING_CLOUD_LIBRARY)) {
+        if (library.equals(SPRING_CLOUD_LIBRARY)) {
             List<CodegenSecurity> authMethods = (List<CodegenSecurity>) objs.get("authMethods");
             if (authMethods != null) {
                 for (CodegenSecurity authMethod : authMethods) {
@@ -629,27 +632,41 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         this.repositoryPackage = repositoryPackage;
     }
 
-    public void setUtilPackage(String utilPackage) {this.utilPackage = utilPackage;}
+    public void setUtilPackage(String utilPackage) {
+        this.utilPackage = utilPackage;
+    }
 
-    public void setkafkaPackage(String kafkaPackage) {this.kafkaPackage = kafkaPackage;}
+    public void setkafkaPackage(String kafkaPackage) {
+        this.kafkaPackage = kafkaPackage;
+    }
 
     public void setBasePackage(String configPackage) {
         this.basePackage = configPackage;
     }
 
-    public void setInterfaceOnly(boolean interfaceOnly) { this.interfaceOnly = interfaceOnly; }
+    public void setInterfaceOnly(boolean interfaceOnly) {
+        this.interfaceOnly = interfaceOnly;
+    }
 
-    public void setDelegatePattern(boolean delegatePattern) { this.delegatePattern = delegatePattern; }
+    public void setDelegatePattern(boolean delegatePattern) {
+        this.delegatePattern = delegatePattern;
+    }
 
     public void setSingleContentTypes(boolean singleContentTypes) {
         this.singleContentTypes = singleContentTypes;
     }
 
-    public void setJava8(boolean java8) { this.java8 = java8; }
+    public void setJava8(boolean java8) {
+        this.java8 = java8;
+    }
 
-    public void setAsync(boolean async) { this.async = async; }
+    public void setAsync(boolean async) {
+        this.async = async;
+    }
 
-    public void setResponseWrapper(String responseWrapper) { this.responseWrapper = responseWrapper; }
+    public void setResponseWrapper(String responseWrapper) {
+        this.responseWrapper = responseWrapper;
+    }
 
     public void setUseTags(boolean useTags) {
         this.useTags = useTags;
@@ -691,7 +708,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         objs = super.postProcessModelsEnum(objs);
 
         //Add imports for Jackson
-        List<Map<String, String>> imports = (List<Map<String, String>>)objs.get("imports");
+        List<Map<String, String>> imports = (List<Map<String, String>>) objs.get("imports");
         List<Object> models = (List<Object>) objs.get("models");
         for (Object _mo : models) {
             Map<String, Object> mo = (Map<String, Object>) _mo;
@@ -715,6 +732,12 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     @Override
     public void setUseOptional(boolean useOptional) {
         this.useOptional = useOptional;
+    }
+
+    private interface DataTypeAssigner {
+        void setReturnType(String returnType);
+
+        void setReturnContainer(String returnContainer);
     }
 }
 
