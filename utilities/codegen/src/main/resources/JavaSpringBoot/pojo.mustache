@@ -36,7 +36,6 @@ public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#seriali
         @SerializedName("{{baseName}}")
     {{/gson}}
     {{#isContainer}}
-        {{#useBeanValidation}}@Valid{{/useBeanValidation}}
         {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}
         private {{{datatypeWithEnum}}} {{name}}{{#required}} = {{{defaultValue}}}{{/required}}{{^required}} = null{{/required}};
     {{/isContainer}}
