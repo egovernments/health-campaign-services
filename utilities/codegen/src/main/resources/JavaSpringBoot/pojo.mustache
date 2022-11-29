@@ -1,15 +1,14 @@
 /**
- * {{#description}}{{.}}{{/description}}{{^description}}{{classname}}{{/description}}
- */{{#description}}
-@ApiModel(description = "{{{description}}}"){{/description}}
+* {{#description}}{{.}}{{/description}}{{^description}}{{classname}}{{/description}}
+*/{{#description}}
+    @ApiModel(description = "{{{description}}}"){{/description}}
 {{#useBeanValidation}}@Validated{{/useBeanValidation}}
 {{>generatedAnnotation}}{{#discriminator}}{{>typeInfoAnnotation}}{{/discriminator}}{{>xmlAnnotation}}
 {{#useLombok}}
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
 {{/useLombok}}
 public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#serializableModel}}implements Serializable{{/serializableModel}} {
 {{#serializableModel}}
@@ -38,9 +37,11 @@ public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#seriali
     {{/gson}}
     {{#isContainer}}
         {{#useBeanValidation}}@Valid{{/useBeanValidation}}
+        {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}
         private {{{datatypeWithEnum}}} {{name}}{{#required}} = {{{defaultValue}}}{{/required}}{{^required}} = null{{/required}};
     {{/isContainer}}
     {{^isContainer}}
+        {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}
         private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
     {{/isContainer}}
 
@@ -71,75 +72,75 @@ public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#seriali
         }
     {{/isMapContainer}}
     {{^useLombok}}
-    /**
-    {{#description}}
-        * {{{description}}}
-    {{/description}}
-    {{^description}}
-        * Get {{name}}
-    {{/description}}
-    {{#minimum}}
-        * minimum: {{minimum}}
-    {{/minimum}}
-    {{#maximum}}
-        * maximum: {{maximum}}
-    {{/maximum}}
-    * @return {{name}}
-    **/
-    {{#vendorExtensions.extraAnnotation}}
-        {{{vendorExtensions.extraAnnotation}}}
-    {{/vendorExtensions.extraAnnotation}}
-    @ApiModelProperty({{#example}}example = "{{{example}}}", {{/example}}{{#required}}required = {{required}}, {{/required}}{{#isReadOnly}}readOnly = {{{isReadOnly}}}, {{/isReadOnly}}value = "{{{description}}}")
-    {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}  public {{{datatypeWithEnum}}} {{#isBoolean}}is{{/isBoolean}}{{getter}}() {
-    return {{name}};
-    }
+        /**
+        {{#description}}
+            * {{{description}}}
+        {{/description}}
+        {{^description}}
+            * Get {{name}}
+        {{/description}}
+        {{#minimum}}
+            * minimum: {{minimum}}
+        {{/minimum}}
+        {{#maximum}}
+            * maximum: {{maximum}}
+        {{/maximum}}
+        * @return {{name}}
+        **/
+        {{#vendorExtensions.extraAnnotation}}
+            {{{vendorExtensions.extraAnnotation}}}
+        {{/vendorExtensions.extraAnnotation}}
+        @ApiModelProperty({{#example}}example = "{{{example}}}", {{/example}}{{#required}}required = {{required}}, {{/required}}{{#isReadOnly}}readOnly = {{{isReadOnly}}}, {{/isReadOnly}}value = "{{{description}}}")
+        {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}  public {{{datatypeWithEnum}}} {{#isBoolean}}is{{/isBoolean}}{{getter}}() {
+        return {{name}};
+        }
 
-    public void {{setter}}({{{datatypeWithEnum}}} {{name}}) {
-    this.{{name}} = {{name}};
-    }
+        public void {{setter}}({{{datatypeWithEnum}}} {{name}}) {
+        this.{{name}} = {{name}};
+        }
     {{/useLombok}}
 {{/vars}}
 
 {{^useLombok}}
-@Override
-public boolean equals(java.lang.Object o) {
-if (this == o) {
-return true;
-}
-if (o == null || getClass() != o.getClass()) {
-return false;
-}{{#hasVars}}
-    {{classname}} {{classVarName}} = ({{classname}}) o;
-    return {{#vars}}Objects.equals(this.{{name}}, {{classVarName}}.{{name}}){{#hasMore}} &&
-    {{/hasMore}}{{/vars}}{{#parent}} &&
-    super.equals(o){{/parent}};{{/hasVars}}{{^hasVars}}
-    return true;{{/hasVars}}
-}
+    @Override
+    public boolean equals(java.lang.Object o) {
+    if (this == o) {
+    return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+    return false;
+    }{{#hasVars}}
+        {{classname}} {{classVarName}} = ({{classname}}) o;
+        return {{#vars}}Objects.equals(this.{{name}}, {{classVarName}}.{{name}}){{#hasMore}} &&
+        {{/hasMore}}{{/vars}}{{#parent}} &&
+        super.equals(o){{/parent}};{{/hasVars}}{{^hasVars}}
+        return true;{{/hasVars}}
+    }
 
-@Override
-public int hashCode() {
-return Objects.hash({{#vars}}{{name}}{{#hasMore}}, {{/hasMore}}{{/vars}}{{#parent}}{{#hasVars}}, {{/hasVars}}super.hashCode(){{/parent}});
-}
+    @Override
+    public int hashCode() {
+    return Objects.hash({{#vars}}{{name}}{{#hasMore}}, {{/hasMore}}{{/vars}}{{#parent}}{{#hasVars}}, {{/hasVars}}super.hashCode(){{/parent}});
+    }
 
-@Override
-public String toString() {
-StringBuilder sb = new StringBuilder();
-sb.append("class {{classname}} {\n");
-{{#parent}}sb.append("    ").append(toIndentedString(super.toString())).append("\n");{{/parent}}
-{{#vars}}sb.append("    {{name}}: ").append(toIndentedString({{name}})).append("\n");
-{{/vars}}sb.append("}");
-return sb.toString();
-}
+    @Override
+    public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("class {{classname}} {\n");
+    {{#parent}}sb.append("    ").append(toIndentedString(super.toString())).append("\n");{{/parent}}
+    {{#vars}}sb.append("    {{name}}: ").append(toIndentedString({{name}})).append("\n");
+    {{/vars}}sb.append("}");
+    return sb.toString();
+    }
 
-/**
-* Convert the given object to string with each line indented by 4 spaces
-* (except the first line).
-*/
-private String toIndentedString(java.lang.Object o) {
-if (o == null) {
-return "null";
-}
-return o.toString().replace("\n", "\n    ");
-}
+    /**
+    * Convert the given object to string with each line indented by 4 spaces
+    * (except the first line).
+    */
+    private String toIndentedString(java.lang.Object o) {
+    if (o == null) {
+    return "null";
+    }
+    return o.toString().replace("\n", "\n    ");
+    }
 {{/useLombok}}
 }
