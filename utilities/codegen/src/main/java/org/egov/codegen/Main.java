@@ -30,8 +30,8 @@ public class Main {
         options.addOption("g", "groupId", true, "Group ID of the artifact, default org.digit.health");
         options.addOption("l", "Use Lombok");
         options.addOption("t", "Use Tracer");
-        options.addOption("redis", "Enable Redis Cache");
-        options.addOption("flyway", "Enable Flyway Migration");
+        options.addOption("rc", "Enable Redis Cache");
+        options.addOption("fw", "Enable Flyway Migration");
 
         CommandLineParser parser = new DefaultParser();
         try {
@@ -80,10 +80,10 @@ public class Main {
             if (cmd.hasOption("t"))
                 useTracer = true;
 
-            if (cmd.hasOption("redis"))
+            if (cmd.hasOption("rc"))
                 useRedis = true;
 
-            if (cmd.hasOption("flyway"))
+            if (cmd.hasOption("fw"))
                 enableFlyway = true;
 
             File outputDir = new File("." + File
