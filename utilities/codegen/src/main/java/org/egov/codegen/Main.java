@@ -15,9 +15,9 @@ public class Main {
     public static void main(String[] args) {
 
         String url;
-        String basePackage;
+        String basePackage = "org.egov";
         String artifactId;
-        String groupId = "org.digit.health";
+        String groupId = "org.egov";
         boolean useLombok = false;
         boolean useTracer = false;
         boolean useRedis = false;
@@ -27,7 +27,7 @@ public class Main {
         options.addOption("u", "url", true, "URL of the Swagger YAML");
         options.addOption("b", "basePackage", true, "Base Package");
         options.addOption("a", "artifactId", true, "Artifact ID / context path of the artifact");
-        options.addOption("g", "groupId", true, "Group ID of the artifact, default org.digit.health");
+        options.addOption("g", "groupId", true, "Group ID of the artifact, default org.egov");
         options.addOption("l", "Use Lombok");
         options.addOption("t", "Use Tracer");
         options.addOption("rc", "Enable Redis Cache");
@@ -43,7 +43,6 @@ public class Main {
                     usage(options);
                     return;
                 }
-
             } else {
                 usage(options);
                 return;
@@ -55,9 +54,6 @@ public class Main {
                     usage(options);
                     return;
                 }
-            } else {
-                usage(options);
-                return;
             }
 
             if (cmd.hasOption("a")) {
