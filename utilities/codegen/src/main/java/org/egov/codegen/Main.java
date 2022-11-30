@@ -87,7 +87,7 @@ public class Main {
                 enableFlyway = true;
 
             File outputDir = new File("." + File
-                    .separator + "output");
+                    .separator + artifactId);
 
             if (!outputDir.exists()) {
                 if (!outputDir.mkdirs()) {
