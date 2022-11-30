@@ -290,13 +290,13 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         }
 
         // Add utilities
-        /*supportingFiles.add(new SupportingFile("userUtil.mustache",
+        supportingFiles.add(new SupportingFile("userUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "UserUtil.java"));
 
-        supportingFiles.add(new SupportingFile("urlShortenerUtil.mustache",
+        /*supportingFiles.add(new SupportingFile("urlShortenerUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "UrlShortenerUtil.java"));
+                "UrlShortenerUtil.java"));*/
 
         supportingFiles.add(new SupportingFile("mdmsUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
@@ -304,7 +304,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
 
         supportingFiles.add(new SupportingFile("idgenUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "IdgenUtil.java"));*/
+                "IdgenUtil.java"));
 
         supportingFiles.add(new SupportingFile("responseInfoFactory.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),

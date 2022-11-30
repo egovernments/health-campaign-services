@@ -1,7 +1,7 @@
 package {{utilPackage}};
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.repository.ServiceRequestRepository;
+import {{basePackage}}.repository.ServiceRequestRepository;
 import digit.models.coremodels.IdGenerationRequest;
 import digit.models.coremodels.IdGenerationResponse;
 import digit.models.coremodels.IdRequest;
@@ -40,7 +40,7 @@ public class IdgenUtil {
 
         IdGenerationRequest request = IdGenerationRequest.builder().idRequests(reqList).requestInfo(requestInfo).build();
         StringBuilder uri = new StringBuilder(idGenHost).append(idGenPath);
-        IdGenerationResponse response = mapper.convertValue(restRepo.fetchResult(uri, request), IdGenerationResponse.class);
+        IdGenerationResponse response = restRepo.fetchResult(uri, request, IdGenerationResponse.class);
 
         List<IdResponse> idResponses = response.getIdResponses();
 
