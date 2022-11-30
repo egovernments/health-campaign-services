@@ -2,7 +2,15 @@ package org.egov.codegen;
 
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
-import io.swagger.codegen.*;
+import io.swagger.codegen.CodegenConstants;
+import io.swagger.codegen.CodegenModel;
+import io.swagger.codegen.CodegenOperation;
+import io.swagger.codegen.CodegenParameter;
+import io.swagger.codegen.CodegenProperty;
+import io.swagger.codegen.CodegenResponse;
+import io.swagger.codegen.CodegenSecurity;
+import io.swagger.codegen.CodegenType;
+import io.swagger.codegen.SupportingFile;
 import io.swagger.codegen.languages.AbstractJavaCodegen;
 import io.swagger.codegen.languages.features.BeanValidationFeatures;
 import io.swagger.codegen.languages.features.OptionalFeatures;
@@ -15,7 +23,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 
 public class SpringBootCodegen extends AbstractJavaCodegen
@@ -58,6 +70,8 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     protected boolean implicitHeaders = false;
     protected boolean swaggerDocketConfig = false;
     protected boolean useOptional = false;
+    protected boolean serverLibrary = false;
+
 
     protected String mainClassName = "Main";
 
@@ -66,9 +80,17 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         this.config = config;
         processConfigs();
         this.outputFolder = outputFolder;
-        embeddedTemplateDir = templateDir = "JavaSpringBoot";
 
-        supportedLibraries.put(DEFAULT_LIBRARY, "Spring-boot Server application using the SpringFox integration.");
+        if(config.isServerLibrary()){
+            embeddedTemplateDir = templateDir = "ServerLibrary";
+            // TODO - need to change the DEFAULT_LIBRARY variable
+            supportedLibraries.put(DEFAULT_LIBRARY, "Server Library");
+            setInterfaceOnly(true);
+            additionalProperties.put(INTERFACE_ONLY,true);
+        }else{
+            embeddedTemplateDir = templateDir = "JavaSpringBoot";
+            supportedLibraries.put(DEFAULT_LIBRARY, "Spring-boot Server application using the SpringFox integration.");
+        }
         setLibrary(DEFAULT_LIBRARY);
 
 

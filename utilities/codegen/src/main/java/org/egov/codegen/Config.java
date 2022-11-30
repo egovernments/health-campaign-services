@@ -10,8 +10,9 @@ public class Config {
     private boolean useTracer;
     private boolean useRedis;
     private boolean enableFlyway;
+    private boolean serverLibrary;
 
-    public Config(String url, String groupId, String artifactId, String basePackage, boolean useLombok, boolean useTracer, boolean useRedis, boolean enableFlyway) {
+    public Config(String url, String groupId, String artifactId, String basePackage, boolean useLombok, boolean useTracer, boolean useRedis, boolean enableFlyway, boolean serverLibrary) {
         this.url = url;
         this.groupId = groupId;
         this.artifactId = artifactId;
@@ -20,6 +21,7 @@ public class Config {
         this.useTracer = useTracer;
         this.useRedis = useRedis;
         this.enableFlyway = enableFlyway;
+        this.serverLibrary = serverLibrary;
     }
 
     public String getUrl() {
@@ -86,6 +88,14 @@ public class Config {
         this.enableFlyway = enableFlyway;
     }
 
+    public boolean isServerLibrary() {
+        return serverLibrary;
+    }
+
+    public void setServerLibrary(boolean serverLibrary) {
+        this.serverLibrary = serverLibrary;
+    }
+
     @Override
     public String toString() {
         return "org.egov.codegen.Config{" +
@@ -97,6 +107,9 @@ public class Config {
                 ", useTracer=" + useTracer +
                 ", useRedis=" + useRedis +
                 ", enableFlyway=" + enableFlyway +
+                ", serverLibrary=" + serverLibrary +
                 '}';
     }
+
+
 }

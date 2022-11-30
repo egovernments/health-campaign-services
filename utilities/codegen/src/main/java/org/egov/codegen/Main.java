@@ -6,7 +6,12 @@ import io.swagger.codegen.CodegenConfig;
 import io.swagger.codegen.DefaultGenerator;
 import io.swagger.models.Swagger;
 import io.swagger.parser.SwaggerParser;
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import java.io.File;
 
@@ -22,6 +27,7 @@ public class Main {
         boolean useTracer = false;
         boolean useRedis = false;
         boolean enableFlyway = false;
+        boolean serverLibrary = false;
 
         Options options = new Options();
         options.addOption("u", "url", true, "URL of the Swagger YAML");
@@ -32,6 +38,7 @@ public class Main {
         options.addOption("t", "Use Tracer");
         options.addOption("rc", "Enable Redis Cache");
         options.addOption("fw", "Enable Flyway Migration");
+        options.addOption("sl", "Enable Server Library");
 
         CommandLineParser parser = new DefaultParser();
         try {
@@ -82,6 +89,9 @@ public class Main {
             if (cmd.hasOption("fw"))
                 enableFlyway = true;
 
+            if (cmd.hasOption("sl"))
+                serverLibrary = true;
+
             File outputDir = new File("." + File
                     .separator + artifactId);
 
@@ -92,7 +102,7 @@ public class Main {
                 }
             }
 
-            Config config = new Config(url, groupId, artifactId, basePackage, useLombok, useTracer, useRedis, enableFlyway);
+            Config config = new Config(url, groupId, artifactId, basePackage, useLombok, useTracer, useRedis, enableFlyway, serverLibrary);
             generateCode(config, outputDir.getAbsolutePath());
 
 
