@@ -59,6 +59,8 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     protected boolean swaggerDocketConfig = false;
     protected boolean useOptional = false;
 
+    protected String mainClassName = "Main";
+
     public SpringBootCodegen(Config config, String outputFolder) {
         super();
         this.config = config;
@@ -101,6 +103,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         additionalProperties.put("useTracer", config.isUseTracer());
         additionalProperties.put("useRedis", config.isUseRedis());
         additionalProperties.put("enableFlyway", config.isEnableFlyway());
+        additionalProperties.put("mainClassName", Utils.getMainClassName(artifactId));
 
         configPackage = basePackage + ".config";
         apiPackage = basePackage + ".web.controllers";
@@ -110,6 +113,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         utilPackage = basePackage + ".util";
         kafkaPackage = basePackage + ".kafka";
         dateLibrary = "";
+        mainClassName = Utils.getMainClassName(artifactId);
 
         additionalProperties.put(CONFIG_PACKAGE, configPackage);
         additionalProperties.put(BASE_PACKAGE, basePackage);
@@ -266,9 +270,8 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         supportingFiles.add(new SupportingFile("pom.mustache", "", "pom.xml"));
         supportingFiles.add(new SupportingFile("README.mustache", "", "README.md"));
 
-
         supportingFiles.add(new SupportingFile("main.mustache",
-                (sourceFolder + File.separator + basePackage).replace(".", java.io.File.separator), "Main" +
+                (sourceFolder + File.separator + basePackage).replace(".", java.io.File.separator), this.mainClassName +
                 ".java"));
         supportingFiles.add(new SupportingFile("mainConfiguration.mustache",
                 (sourceFolder + File.separator + configPackage).replace(".", java.io.File.separator),
@@ -290,17 +293,17 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         }
 
         // Add utilities
-        supportingFiles.add(new SupportingFile("userUtil.mustache",
+        /*supportingFiles.add(new SupportingFile("userUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "UserUtil.java"));
+                "UserUtil.java"));*/
 
         /*supportingFiles.add(new SupportingFile("urlShortenerUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "UrlShortenerUtil.java"));*/
 
-        supportingFiles.add(new SupportingFile("mdmsUtil.mustache",
+        /*supportingFiles.add(new SupportingFile("mdmsUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "MdmsUtil.java"));
+                "MdmsUtil.java"));*/
 
         supportingFiles.add(new SupportingFile("idgenUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
