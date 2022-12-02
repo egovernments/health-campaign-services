@@ -44,7 +44,6 @@ import java.util.Map;
  */
 
 
-@Component
 public class GenericRowMapper <T> implements RowMapper<T> {
     private Class<T> mappedClass;
 

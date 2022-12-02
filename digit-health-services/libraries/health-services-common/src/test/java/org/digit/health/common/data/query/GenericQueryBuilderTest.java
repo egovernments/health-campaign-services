@@ -130,9 +130,6 @@ public class GenericQueryBuilderTest {
         assertThrows(QueryBuilderException.class, ()-> queryBuilder.build(data));
     }
 
-
-
-
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
