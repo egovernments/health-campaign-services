@@ -11,6 +11,6 @@ CREATE TABLE PRODUCT
     createdTime       bigint,
     lastModifiedTime  bigint,
     rowVersion        bigint,
-    isDeleted         boolean
-        CONSTRAINT uk_product_id PRIMARY KEY (id)
+    isDeleted         boolean,
+    CONSTRAINT uk_product_id PRIMARY KEY (id)
 );
