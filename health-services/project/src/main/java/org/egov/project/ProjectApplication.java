@@ -6,12 +6,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
+
 @Import({ TracerConfiguration.class })
 @SpringBootApplication
 @EnableCaching
 @ComponentScan(basePackages = { "org.egov.project", "org.egov.project.web.controllers" , "org.egov.project.config"})
-public class Main {
+public class ProjectApplication {
     public static void main(String[] args) throws Exception {
-        SpringApplication.run(Main.class, args);
+        SpringApplication.run(ProjectApplication.class, args);
     }
 }
