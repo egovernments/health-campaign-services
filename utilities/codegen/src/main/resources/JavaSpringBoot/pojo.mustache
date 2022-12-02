@@ -5,10 +5,10 @@
 {{#useBeanValidation}}@Validated{{/useBeanValidation}}
 {{>generatedAnnotation}}{{#discriminator}}{{>typeInfoAnnotation}}{{/discriminator}}{{>xmlAnnotation}}
 {{#useLombok}}
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 {{/useLombok}}
 public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#serializableModel}}implements Serializable{{/serializableModel}} {
 {{#serializableModel}}
@@ -36,12 +36,14 @@ public class {{classname}} {{#parent}}extends {{{parent}}}{{/parent}} {{#seriali
         @SerializedName("{{baseName}}")
     {{/gson}}
     {{#isContainer}}
-        {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}
-        private {{{datatypeWithEnum}}} {{name}}{{#required}} = {{{defaultValue}}}{{/required}}{{^required}} = null{{/required}};
+    {{#useBeanValidation}}
+    {{>beanValidation}}{{/useBeanValidation}}
+    private {{{datatypeWithEnum}}} {{name}}{{#required}} = {{{defaultValue}}}{{/required}}{{^required}} = null{{/required}};
     {{/isContainer}}
     {{^isContainer}}
-        {{#useBeanValidation}}{{>beanValidation}}{{/useBeanValidation}}
-        private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
+    {{#useBeanValidation}}
+    {{>beanValidation}}{{/useBeanValidation}}
+    private {{{datatypeWithEnum}}} {{name}} = {{{defaultValue}}};
     {{/isContainer}}
 
 {{/vars}}

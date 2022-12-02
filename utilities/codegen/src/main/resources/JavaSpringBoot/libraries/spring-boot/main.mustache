@@ -1,28 +1,23 @@
 package {{basePackage}};
 
-
 import org.egov.tracer.config.TracerConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 {{#useRedis}}
-    import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.annotation.EnableCaching;
 {{/useRedis}}
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
-
 {{#useTracer}}
-    @Import({ TracerConfiguration.class })
+@Import({ TracerConfiguration.class })
 {{/useTracer}}
 @SpringBootApplication
 {{#useRedis}}
-    @EnableCaching
+@EnableCaching
 {{/useRedis}}
 @ComponentScan(basePackages = { "{{basePackage}}", "{{apiPackage}}" , "{{configPackage}}"})
 public class Main {
-
-
-public static void main(String[] args) throws Exception {
-SpringApplication.run(Main.class, args);
-}
-
+    public static void main(String[] args) throws Exception {
+        SpringApplication.run(Main.class, args);
+    }
 }

@@ -283,7 +283,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         if (config.isEnableFlyway()) {
             // ADD db migration
             supportingFiles.add(new SupportingFile("v1.sql.mustache",
-                    ("src.main.resources.db.migration.main").replace(".", java.io.File.separator), "v1.sql"));
+                    ("src.main.resources.db.migration.main").replace(".", java.io.File.separator), "V[YEAR][MONTH][DAY][HR][MIN][SEC]_modulecode_shortDescription_ddl.sql"));
 
             supportingFiles.add(new SupportingFile("db.migrate.sh.mustache",
                     ("src.main.resources.db").replace(".", java.io.File.separator), "migrate.sh"));
