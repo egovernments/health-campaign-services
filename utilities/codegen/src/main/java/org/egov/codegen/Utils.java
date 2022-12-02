@@ -1,5 +1,7 @@
 package org.egov.codegen;
 
+import java.util.Map;
+
 public class Utils {
     private Utils() {}
 
@@ -12,5 +14,11 @@ public class Utils {
         } catch (Exception e) {
             return "Main";
         }
+    }
+
+    public static void addImportMappingsForCommonObjects(Map<String, String> importMapping) {
+        importMapping.put("RequestInfo", "org.egov.common.contract.request.RequestInfo");
+        importMapping.put("ResponseInfo", "org.egov.common.contract.response.ResponseInfo");
+        importMapping.put("Role", "org.egov.common.contract.request.Role");
     }
 }

@@ -147,6 +147,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
 
     @Override
     public void processOpts() {
+        Utils.addImportMappingsForCommonObjects(importMapping);
 
         // Process java8 option before common java ones to change the default dateLibrary to java8.
         if (additionalProperties.containsKey(JAVA_8)) {
@@ -251,6 +252,7 @@ public class SpringBootCodegen extends AbstractJavaCodegen
 
         typeMapping.put("file", "Resource");
         importMapping.put("Resource", "org.springframework.core.io.Resource");
+
 
         if (useOptional) {
             writePropertyBack(USE_OPTIONAL, useOptional);
