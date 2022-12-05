@@ -1,12 +1,11 @@
 package org.egov.product.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.product.repository.ServiceRequestRepository;
 import digit.models.coremodels.IdGenerationRequest;
 import digit.models.coremodels.IdGenerationResponse;
 import digit.models.coremodels.IdRequest;
 import digit.models.coremodels.IdResponse;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.product.repository.ServiceRequestRepository;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,30 +19,25 @@ import java.util.stream.Collectors;
 @Component
 public class IdgenUtil {
 
-    @Value("${egov.idgen.host}")
     private final String idGenHost;
 
-    @Value("${egov.idgen.path}")
     private final String idGenPath;
-
-    private final ObjectMapper mapper;
 
     private final ServiceRequestRepository restRepo;
 
     @Autowired
-    public IdgenUtil(ObjectMapper mapper, ServiceRequestRepository restRepo,
+    public IdgenUtil(ServiceRequestRepository restRepo,
                      @Value("${egov.idgen.host}") String idGenHost,
                      @Value("${egov.idgen.path}") String idGenPath) {
-        this.mapper = mapper;
         this.restRepo = restRepo;
         this.idGenHost = idGenHost;
         this.idGenPath = idGenPath;
     }
 
-    public List<String> getIdList(RequestInfo requestInfo, String tenantId, String idName, String idformat, Integer count) {
+    public List<String> getIdList(RequestInfo requestInfo, String tenantId, String idName, String idFormat, Integer count) {
         List<IdRequest> reqList = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            reqList.add(IdRequest.builder().idName(idName).format(idformat).tenantId(tenantId).build());
+            reqList.add(IdRequest.builder().idName(idName).format(idFormat).tenantId(tenantId).build());
         }
 
         IdGenerationRequest request = IdGenerationRequest.builder().idRequests(reqList).requestInfo(requestInfo).build();

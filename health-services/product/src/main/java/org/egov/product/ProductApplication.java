@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Import;
 @SpringBootApplication
 @EnableCaching
 @ComponentScan(basePackages = { "org.egov.product", "org.egov.product.web.controllers" , "org.egov.product.config"})
-public class Main {
+public class ProductApplication {
     public static void main(String[] args) throws Exception {
-        SpringApplication.run(Main.class, args);
+        SpringApplication.run(ProductApplication.class, args);
     }
 }

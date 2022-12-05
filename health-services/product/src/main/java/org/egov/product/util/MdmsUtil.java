@@ -7,10 +7,10 @@ import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.product.repository.ServiceRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,7 @@ import java.util.Map;
 @Component
 public class MdmsUtil {
 
-    private final RestTemplate restTemplate;
+    private final ServiceRequestRepository restRepo;
 
     private final String mdmsHost;
 
@@ -31,12 +31,12 @@ public class MdmsUtil {
     private final String moduleName;
 
     @Autowired
-    public MdmsUtil(RestTemplate restTemplate,
+    public MdmsUtil(ServiceRequestRepository restRepo,
                     @Value("${egov.mdms.host}") String mdmsHost,
                     @Value("${egov.mdms.search.endpoint}") String mdmsUrl,
                     @Value("${egov.mdms.master.name}") String masterName,
                     @Value("${egov.mdms.module.name}") String moduleName) {
-        this.restTemplate = restTemplate;
+        this.restRepo = restRepo;
         this.mdmsHost = mdmsHost;
         this.mdmsUrl = mdmsUrl;
         this.masterName = masterName;
@@ -50,7 +50,7 @@ public class MdmsUtil {
         Object response;
         Integer rate = 0;
         try {
-            response = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
+            response = restRepo.fetchResult(uri, mdmsCriteriaReq, Map.class);
             rate = JsonPath.read(response, "$.MdmsRes.VTR.RegistrationCharges.[0].amount");
         }catch(Exception e) {
             log.error("Exception occurred while fetching category lists from mdms: ",e);
