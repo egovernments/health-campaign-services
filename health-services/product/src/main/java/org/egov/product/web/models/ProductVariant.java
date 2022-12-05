@@ -1,23 +1,19 @@
 package org.egov.product.web.models;
 
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
-import org.egov.product.web.models.AdditionalFields;
-import org.egov.product.web.models.AuditDetails;
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 /**
-* ProductVariant
-*/
+ * ProductVariant
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
@@ -25,64 +21,59 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductVariant   {
-        @JsonProperty("id")
-    
+public class ProductVariant {
+    @JsonProperty("id")
 
 
     private String id = null;
 
-        @JsonProperty("tenantId")
-    
-
-
+    @JsonProperty("tenantId")
+    @NotNull
     private String tenantId = null;
 
-        @JsonProperty("productId")
-      @NotNull
+    @JsonProperty("productId")
+    @NotNull
 
 
-    @Size(min=2,max=64) 
+    @Size(min = 2, max = 64)
 
     private String productId = null;
 
-        @JsonProperty("sku")
-    
+    @JsonProperty("sku")
 
-    @Size(min=0,max=1000) 
+
+    @Size(min = 0, max = 1000)
 
     private String sku = null;
 
-        @JsonProperty("variation")
-      @NotNull
+    @JsonProperty("variation")
+    @NotNull
 
 
-    @Size(min=0,max=1000) 
+    @Size(min = 0, max = 1000)
 
     private String variation = null;
 
-        @JsonProperty("additionalFields")
-    
-  @Valid
+    @JsonProperty("additionalFields")
+
+    @Valid
 
 
     private AdditionalFields additionalFields = null;
 
-        @JsonProperty("isDeleted")
-    
+    @JsonProperty("isDeleted")
 
 
     private Boolean isDeleted = null;
 
-        @JsonProperty("rowVersion")
-    
+    @JsonProperty("rowVersion")
 
 
     private Integer rowVersion = null;
 
-        @JsonProperty("auditDetails")
-    
-  @Valid
+    @JsonProperty("auditDetails")
+
+    @Valid
 
 
     private AuditDetails auditDetails = null;
