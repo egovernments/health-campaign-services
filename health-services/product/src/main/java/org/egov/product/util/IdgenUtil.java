@@ -21,19 +21,23 @@ import java.util.stream.Collectors;
 public class IdgenUtil {
 
     @Value("${egov.idgen.host}")
-    private String idGenHost;
+    private final String idGenHost;
 
     @Value("${egov.idgen.path}")
-    private String idGenPath;
+    private final String idGenPath;
 
     private final ObjectMapper mapper;
 
     private final ServiceRequestRepository restRepo;
 
     @Autowired
-    public IdgenUtil(ObjectMapper mapper, ServiceRequestRepository restRepo) {
+    public IdgenUtil(ObjectMapper mapper, ServiceRequestRepository restRepo,
+                     @Value("${egov.idgen.host}") String idGenHost,
+                     @Value("${egov.idgen.path}") String idGenPath) {
         this.mapper = mapper;
         this.restRepo = restRepo;
+        this.idGenHost = idGenHost;
+        this.idGenPath = idGenPath;
     }
 
     public List<String> getIdList(RequestInfo requestInfo, String tenantId, String idName, String idformat, Integer count) {
