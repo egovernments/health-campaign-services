@@ -1,9 +1,9 @@
 package org.egov.product.helper;
 
+import digit.models.coremodels.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.product.web.models.AdditionalFields;
 import org.egov.product.web.models.ApiOperation;
-import org.egov.product.web.models.AuditDetails;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 
