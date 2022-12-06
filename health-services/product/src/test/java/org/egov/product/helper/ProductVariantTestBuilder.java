@@ -1,5 +1,6 @@
 package org.egov.product.helper;
 
+import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.product.web.models.ProductVariant;
 
 public class ProductVariantTestBuilder {

@@ -26,6 +26,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -104,7 +105,7 @@ public class ProductApiControllerTest {
         ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(productVariant);
-        when(productVariantService.create(request)).thenReturn(productVariants);
+        when(productVariantService.create(any(ProductVariantRequest.class))).thenReturn(productVariants);
 
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)

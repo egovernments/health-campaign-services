@@ -1,5 +1,6 @@
 package org.egov.product.helper;
 
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 
