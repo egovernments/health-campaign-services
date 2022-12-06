@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
-public class IdgenUtil {
+public class IdGenService {
 
     private final String idGenHost;
 
@@ -26,9 +26,9 @@ public class IdgenUtil {
     private final ServiceRequestRepository restRepo;
 
     @Autowired
-    public IdgenUtil(ServiceRequestRepository restRepo,
-                     @Value("${egov.idgen.host}") String idGenHost,
-                     @Value("${egov.idgen.path}") String idGenPath) {
+    public IdGenService(ServiceRequestRepository restRepo,
+                        @Value("${egov.idgen.host}") String idGenHost,
+                        @Value("${egov.idgen.path}") String idGenPath) {
         this.restRepo = restRepo;
         this.idGenHost = idGenHost;
         this.idGenPath = idGenPath;

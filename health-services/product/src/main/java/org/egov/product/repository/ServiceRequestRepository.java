@@ -14,21 +14,20 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class ServiceRequestRepository {
 
-    private final ObjectMapper mapper;
+    private final ObjectMapper objectMapper;
 
     private final RestTemplate restTemplate;
 
 
     @Autowired
-    public ServiceRequestRepository(ObjectMapper mapper, RestTemplate restTemplate) {
-        this.mapper = mapper;
+    public ServiceRequestRepository(ObjectMapper objectMapper, RestTemplate restTemplate) {
+        this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
     }
 
-
     public <T> T fetchResult(StringBuilder uri, Object request, Class
             <T> clazz) {
-        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         T response = null;
         try {
             response = restTemplate.postForObject(uri.toString(), request, clazz);

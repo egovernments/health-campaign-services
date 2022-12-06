@@ -3,6 +3,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.product.ProductApplication;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -41,21 +42,23 @@ public class ProductApiController {
         this.request = request;
     }
 
-    @RequestMapping(value = "/product/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProductResponse> productV1CreatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest product) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProductResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Product\" : [ {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  }, {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  } ]}", ProductResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProductResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
+//        String accept = request.getHeader("Accept");
+//        if (accept != null && accept.contains("application/json")) {
+//            try {
+//                return new ResponseEntity<ProductResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Product\" : [ {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  }, {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  } ]}", ProductResponse.class), HttpStatus.NOT_IMPLEMENTED);
+//            } catch (IOException e) {
+//                return new ResponseEntity<ProductResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
+//            }
+//        }
 
-        return new ResponseEntity<ProductResponse>(HttpStatus.NOT_IMPLEMENTED);
+        ProductResponse productResponse = ProductResponse.builder().build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(productResponse);
     }
 
-    @RequestMapping(value = "/product/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProductResponse> productV1SearchPost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductSearchRequest product, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -72,7 +75,7 @@ public class ProductApiController {
         return new ResponseEntity<ProductResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/product/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProductResponse> productV1UpdatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest product) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -86,7 +89,7 @@ public class ProductApiController {
         return new ResponseEntity<ProductResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/product/variant/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1CreatePost(@ApiParam(value = "Capture details of Product Variant.", required = true) @Valid @RequestBody ProductVariantRequest productVariant) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -100,7 +103,7 @@ public class ProductApiController {
         return new ResponseEntity<ProductVariantResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/product/variant/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/variant/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1SearchPost(@ApiParam(value = "Capture details of Product variant.", required = true) @Valid @RequestBody ProductVariantSearchRequest productVariant, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -117,7 +120,7 @@ public class ProductApiController {
         return new ResponseEntity<ProductVariantResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/product/variant/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/variant/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1UpdatePost(@ApiParam(value = "Capture details of Product Variant.", required = true) @Valid @RequestBody ProductVariantRequest productVariant) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {

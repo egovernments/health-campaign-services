@@ -40,10 +40,10 @@ public class Product   {
 
         @JsonProperty("type")
       @NotNull
+        @Size(min=2,max=200)
 
 
-
-    private String type = null;
+        private String type = null;
 
         @JsonProperty("name")
       @NotNull
