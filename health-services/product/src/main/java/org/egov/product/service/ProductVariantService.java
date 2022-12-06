@@ -1,5 +1,6 @@
 package org.egov.product.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.product.util.IdGenService;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
@@ -11,6 +12,7 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 @Service
+@Slf4j
 public class ProductVariantService {
 
     private final IdGenService idGenService;
@@ -28,8 +30,10 @@ public class ProductVariantService {
         if (anyProductVariant.isPresent()) {
             tenantId = anyProductVariant.get().getTenantId();
         }
+        log.info("Generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(), tenantId,
-                "productVariant", "", request.getProductVariant().size());
+                "product.variant.id", "", request.getProductVariant().size());
+        log.info("IDs generated");
         IntStream.range(0, request.getProductVariant().size())
                 .forEach(i -> request.getProductVariant().get(i).setId(idList.get(i)));
         return request.getProductVariant();

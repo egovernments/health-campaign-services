@@ -46,11 +46,12 @@ class ProductVariantServiceTest {
         idList.add("some-id");
         when(idGenService.getIdList(any(RequestInfo.class),
                 any(String.class),
-                any(String.class), eq(""), anyInt()))
+                eq("product.variant.id"), eq(""), anyInt()))
                 .thenReturn(idList);
 
         List<ProductVariant> productVariants = productVariantService.create(request);
 
         assertEquals("some-id", productVariants.get(0).getId());
     }
+
 }
