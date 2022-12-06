@@ -1,11 +1,11 @@
 package org.egov.common.service;
 
+import digit.models.coremodels.IdGenerationRequest;
+import digit.models.coremodels.IdGenerationResponse;
+import digit.models.coremodels.IdRequest;
+import digit.models.coremodels.IdResponse;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
-import org.egov.common.models.IdGenerationRequest;
-import org.egov.common.models.IdGenerationResponse;
-import org.egov.common.models.IdRequest;
-import org.egov.common.models.IdResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
