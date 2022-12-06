@@ -3,6 +3,10 @@ package org.egov.product.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.product.TestConfiguration;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
+import org.egov.product.helper.ProductVariantTestBuilder;
+import org.egov.product.service.ProductVariantService;
+import org.egov.product.web.models.ProductVariant;
+import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.Ignore;
@@ -10,14 +14,19 @@ import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,6 +43,9 @@ public class ProductApiControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private ProductVariantService productVariantService;
 
     @Test
     @Ignore
@@ -86,11 +98,17 @@ public class ProductApiControllerTest {
     @org.junit.jupiter.api.Test
     @DisplayName("should create product variant and return with 202 accepted")
     void shouldCreateProductVariantAndReturnWith202Accepted() throws Exception {
+        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariantAndApiOperationNull()
+                .build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        List<ProductVariant> productVariants = new ArrayList<>();
+        productVariants.add(productVariant);
+        when(productVariantService.create(request)).thenReturn(productVariants);
+
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariantAndApiOperationNull()
-                                .build())))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();

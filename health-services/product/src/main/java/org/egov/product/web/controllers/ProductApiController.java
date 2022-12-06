@@ -3,6 +3,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.product.service.ProductVariantService;
 import org.egov.product.util.ResponseInfoFactory;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
@@ -26,7 +27,6 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
@@ -38,10 +38,14 @@ public class ProductApiController {
 
     private final HttpServletRequest request;
 
+    private final ProductVariantService productVariantService;
+
     @Autowired
-    public ProductApiController(ObjectMapper objectMapper, HttpServletRequest request) {
+    public ProductApiController(ObjectMapper objectMapper, HttpServletRequest request,
+                                ProductVariantService productVariantService) {
         this.objectMapper = objectMapper;
         this.request = request;
+        this.productVariantService = productVariantService;
     }
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
@@ -92,11 +96,7 @@ public class ProductApiController {
     @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1CreatePost(@ApiParam(value = "Capture details of Product Variant.", required = true)
                                                                                  @Valid @RequestBody ProductVariantRequest request) {
-        List<ProductVariant> productVariants = new ArrayList<>();
-        for (ProductVariant productVariant : request.getProductVariant()) {
-            productVariant.setId("some-id");
-            productVariants.add(productVariant);
-        }
+        List<ProductVariant> productVariants = productVariantService.create(request);
         ProductVariantResponse response = ProductVariantResponse.builder()
                 .productVariant(productVariants)
                 .responseInfo(ResponseInfoFactory

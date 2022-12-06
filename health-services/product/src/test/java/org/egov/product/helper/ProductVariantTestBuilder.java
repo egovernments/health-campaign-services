@@ -27,6 +27,11 @@ public class ProductVariantTestBuilder {
         return this;
     }
 
+    public ProductVariantTestBuilder withId() {
+        withIdNull().builder.id("some-id");
+        return this;
+    }
+
     public ProductVariantTestBuilder withBadTenantId() {
         this.builder.tenantId(null);
         return this;
