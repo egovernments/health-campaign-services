@@ -10,6 +10,7 @@ import org.egov.tracer.config.TracerConfiguration;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -26,6 +27,7 @@ import java.util.TimeZone;
 
 @Import({TracerConfiguration.class})
 @Configuration
+@ComponentScan(basePackages = {"org.egov"})
 public class MainConfiguration {
 
     @Value("${app.timezone}")

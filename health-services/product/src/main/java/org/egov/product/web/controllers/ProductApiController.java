@@ -3,8 +3,8 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.product.service.ProductVariantService;
-import org.egov.product.util.ResponseInfoFactory;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -95,7 +95,7 @@ public class ProductApiController {
 
     @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1CreatePost(@ApiParam(value = "Capture details of Product Variant.", required = true)
-                                                                                 @Valid @RequestBody ProductVariantRequest request) {
+                                                                                 @Valid @RequestBody ProductVariantRequest request) throws Exception {
         List<ProductVariant> productVariants = productVariantService.create(request);
         ProductVariantResponse response = ProductVariantResponse.builder()
                 .productVariant(productVariants)

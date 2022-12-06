@@ -7,7 +7,7 @@ import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.product.repository.ServiceRequestRepository;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -20,7 +20,7 @@ import java.util.Map;
 @Component
 public class MdmsUtil {
 
-    private final ServiceRequestRepository restRepo;
+    private final ServiceRequestClient restRepo;
 
     private final String mdmsHost;
 
@@ -31,7 +31,7 @@ public class MdmsUtil {
     private final String moduleName;
 
     @Autowired
-    public MdmsUtil(ServiceRequestRepository restRepo,
+    public MdmsUtil(ServiceRequestClient restRepo,
                     @Value("${egov.mdms.host}") String mdmsHost,
                     @Value("${egov.mdms.search.endpoint}") String mdmsUrl,
                     @Value("${egov.mdms.master.name}") String masterName,

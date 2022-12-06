@@ -1,6 +1,6 @@
 package org.egov.product.helper;
 
-import org.egov.product.web.models.AuditDetails;
+import digit.models.coremodels.AuditDetails;
 
 public class AuditDetailsTestBuilder {
     private AuditDetails.AuditDetailsBuilder builder;

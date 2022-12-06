@@ -1,7 +1,7 @@
 package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.product.util.IdGenService;
+import org.egov.common.service.IdGenService;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,11 +19,10 @@ public class ProductVariantService {
 
     @Autowired
     public ProductVariantService(IdGenService idGenService) {
-
         this.idGenService = idGenService;
     }
 
-    public List<ProductVariant> create(ProductVariantRequest request) {
+    public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
         Optional<ProductVariant> anyProductVariant = request.getProductVariant()
                 .stream().findAny();
         String tenantId = null;

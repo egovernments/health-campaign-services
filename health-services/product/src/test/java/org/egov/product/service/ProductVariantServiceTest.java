@@ -1,8 +1,8 @@
 package org.egov.product.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.service.IdGenService;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
-import org.egov.product.util.IdGenService;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +38,7 @@ class ProductVariantServiceTest {
 
     @Test
     @DisplayName("should enrich the formatted id in product variants")
-    void shouldEnrichTheFormattedIdInProductVariants() {
+    void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
         ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
                 .withOneProductVariantAndApiOperationNull()
                 .build();
