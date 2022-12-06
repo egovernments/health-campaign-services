@@ -23,8 +23,12 @@ public class ProductVariantTestBuilder {
                 .tenantId("some-tenant-id")
                 .variation("some-variation")
                 .sku("some-sku-code")
-                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
-                .build();
+                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+        return this;
+    }
+
+    public ProductVariantTestBuilder withBadTenantId() {
+        this.builder.tenantId(null);
         return this;
     }
 }

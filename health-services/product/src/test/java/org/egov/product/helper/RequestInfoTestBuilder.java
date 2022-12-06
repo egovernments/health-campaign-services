@@ -27,7 +27,7 @@ public class RequestInfoTestBuilder {
                 .key("some-key")
                 .msgId("some-msg-id")
                 .ts(System.currentTimeMillis())
-                .ver("1").build();
+                .ver("1");
         return this;
     }
 }

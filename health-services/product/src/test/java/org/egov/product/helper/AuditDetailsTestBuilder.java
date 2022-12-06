@@ -21,8 +21,7 @@ public class AuditDetailsTestBuilder {
         this.builder.createdTime(System.currentTimeMillis())
                 .createdBy("some-uuid")
                 .lastModifiedTime(System.currentTimeMillis())
-                .lastModifiedBy("some-uuid")
-                .build();
+                .lastModifiedBy("some-uuid");
         return this;
     }
 }

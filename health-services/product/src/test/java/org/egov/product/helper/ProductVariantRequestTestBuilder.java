@@ -25,7 +25,15 @@ public class ProductVariantRequestTestBuilder {
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(ProductVariantTestBuilder.builder().withIdNull().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .productVariant(productVariants).build();
+                .productVariant(productVariants);
+        return this;
+    }
+
+    public ProductVariantRequestTestBuilder withBadTenantIdInOneProductVariant() {
+        List<ProductVariant> productVariants = new ArrayList<>();
+        productVariants.add(ProductVariantTestBuilder.builder().withIdNull().withBadTenantId().build());
+        builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .productVariant(productVariants);
         return this;
     }
 }

@@ -34,8 +34,7 @@ public class UserTestBuilder {
                 .name("some-name")
                 .type("EMPLOYEE")
                 .emailId("some-email-id")
-                .mobileNumber("9893212345")
-                .build();
+                .mobileNumber("9893212345");
         return this;
     }
 }
