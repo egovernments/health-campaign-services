@@ -1,14 +1,16 @@
 package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.product.TestConfiguration;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
 import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.Ignore;
+import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -24,7 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * API tests for ProductApiController
  */
 @WebMvcTest(ProductApiController.class)
-class ProductApiControllerTest {
+@Import({TestConfiguration.class})
+public class ProductApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -80,7 +83,7 @@ class ProductApiControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    @Test
+    @org.junit.jupiter.api.Test
     @DisplayName("should create product variant and return with 202 accepted")
     void shouldCreateProductVariantAndReturnWith202Accepted() throws Exception {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
@@ -100,7 +103,7 @@ class ProductApiControllerTest {
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
-    @Test
+    @org.junit.jupiter.api.Test
     @DisplayName("should send error response with error details with 400 bad request")
     void shouldSendErrorResWithErrorDetailsWith400BadRequest() throws Exception {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
@@ -110,7 +113,6 @@ class ProductApiControllerTest {
                                 .withBadTenantIdInOneProductVariant()
                                 .build())))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
         ErrorRes response = objectMapper.readValue(responseStr,
