@@ -9,41 +9,31 @@ import org.springframework.stereotype.Repository;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
-
 @Repository
 @Slf4j
 public class ServiceRequestClient {
 
-    private ObjectMapper mapper;
+    private final ObjectMapper objectMapper;
 
-    private RestTemplate restTemplate;
+    private final RestTemplate restTemplate;
 
 
     @Autowired
-    public ServiceRequestClient(ObjectMapper mapper, RestTemplate restTemplate) {
-        this.mapper = mapper;
+    public ServiceRequestClient(ObjectMapper objectMapper, RestTemplate restTemplate) {
+        this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
     }
 
 
-    public Object fetchResult(StringBuilder uri, Object request) {
-        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        Object response = null;
+    public <T> T fetchResult(StringBuilder uri, Object request, Class
+            <T> clazz) throws Exception {
+        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        T response;
         try {
-            response = restTemplate.postForObject(uri.toString(), request, Map.class);
-        }catch(HttpClientErrorException e) {
-            log.error("External Service threw an Exception: ",e);
-            throw new RuntimeException(e.getResponseBodyAsString());
-        }catch(Exception e) {
-            log.error("Exception while fetching from searcher: ",e);
+            response = restTemplate.postForObject(uri.toString(), request, clazz);
+        } catch (HttpClientErrorException e) {
+            throw new Exception(e);
         }
-
         return response;
-    }
-
-    public <T> T fetchResult(StringBuilder uri, Object request, Class<T> clazz) {
-        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        return restTemplate.postForObject(uri.toString(), request, clazz);
     }
 }

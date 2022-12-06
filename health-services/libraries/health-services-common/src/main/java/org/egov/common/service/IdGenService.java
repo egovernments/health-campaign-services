@@ -1,11 +1,11 @@
 package org.egov.common.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.IdGenerationRequest;
 import org.egov.common.models.IdGenerationResponse;
 import org.egov.common.models.IdRequest;
 import org.egov.common.models.IdResponse;
-import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -35,7 +35,8 @@ public class IdGenService {
         this.idGenPath = idGenPath;
     }
 
-    public List<String> getIdList(RequestInfo requestInfo, String tenantId, String idName, String idFormat, Integer count) {
+    public List<String> getIdList(RequestInfo requestInfo, String tenantId, String idName,
+                                  String idFormat, Integer count) throws Exception {
         List<IdRequest> reqList = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             reqList.add(IdRequest.builder().idName(idName).format(idFormat).tenantId(tenantId).build());
@@ -48,7 +49,7 @@ public class IdGenService {
         List<IdResponse> idResponses = response.getIdResponses();
 
         if (CollectionUtils.isEmpty(idResponses))
-            throw new RuntimeException("IDGEN ERROR - No ids returned from idgen Service");
+            throw new Exception("IDGEN ERROR - No ids returned from idgen Service");
 
         return idResponses.stream().map(IdResponse::getId).collect(Collectors.toList());
     }

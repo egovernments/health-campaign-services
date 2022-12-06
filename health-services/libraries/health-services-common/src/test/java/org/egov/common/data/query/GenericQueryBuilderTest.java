@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class GenericQueryBuilderTest {
+class GenericQueryBuilderTest {
 
     @Test
     @DisplayName("should build a select query based on data object and its primitive properties")

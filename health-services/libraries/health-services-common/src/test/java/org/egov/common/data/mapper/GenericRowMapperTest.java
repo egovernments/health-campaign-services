@@ -1,6 +1,7 @@
 package org.egov.common.data.mapper;
 
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.egov.common.data.query.annotations.Table;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
@@ -17,9 +18,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class GenericRowMapperTest {
+class GenericRowMapperTest {
 
 
      EmbeddedDatabase db;
