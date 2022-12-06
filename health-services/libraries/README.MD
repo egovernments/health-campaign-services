@@ -1,4 +1,10 @@
-# Upload maven artifacts to nexus repository.
+# health-services-common
+
+Should be used a dependency in HCM microservices. This module provides common services like, IdGenService, ServiceRequestClient and so on. This is majorly to avoid code duplication across services.
+
+Some services like IdGenService will be available in the dependent service only if certain properties are declared for that dependent. This is to avoid creating the beans unnecessarily.
+
+## Upload maven artifacts to nexus repository.
 
 1. Add distributionManagement tag in pom.xml
     - Repository refers to release artifacts.
