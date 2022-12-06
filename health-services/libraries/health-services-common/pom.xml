@@ -83,8 +83,8 @@
         </dependency>
         <dependency>
             <groupId>org.egov.services</groupId>
-            <artifactId>services-common</artifactId>
-            <version>0.9.0</version>
+            <artifactId>tracer</artifactId>
+            <version>2.0.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <build>

@@ -9,14 +9,14 @@ import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Component
+@Service
 @ConditionalOnProperty({ "egov.idgen.host", "egov.idgen.path" })
 public class IdGenService {
 
