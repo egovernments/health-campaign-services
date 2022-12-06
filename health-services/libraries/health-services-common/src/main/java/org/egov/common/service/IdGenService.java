@@ -8,7 +8,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@ConditionalOnProperty({ "egov.idgen.host", "egov.idgen.path" })
+@ConditionalOnExpression("!'${egov.idgen.integration.enabled}'.isEmpty() && ${egov.idgen.integration.enabled:false} && !'${egov.idgen.host}'.isEmpty() && !'${egov.idgen.path}'.isEmpty()")
 public class IdGenService {
 
     private final String idGenHost;
