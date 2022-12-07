@@ -1,6 +1,8 @@
 package org.egov.product.service;
 
+import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.product.web.models.ProductVariant;
@@ -37,10 +39,25 @@ public class ProductVariantService {
         List<String> idList = idGenService.getIdList(request.getRequestInfo(), tenantId,
                 "product.variant.id", "", request.getProductVariant().size());
         log.info("IDs generated");
+        AuditDetails auditDetails = createAuditDetailsForInsert(request.getRequestInfo());
         IntStream.range(0, request.getProductVariant().size())
-                .forEach(i -> request.getProductVariant().get(i).setId(idList.get(i)));
+                .forEach(i -> {
+                    final ProductVariant productVariant = request.getProductVariant().get(i);
+                    productVariant.setId(idList.get(i));
+                    productVariant.setAuditDetails(auditDetails);
+                });
         producer.push("save-product-variant-persister-topic", request);
         log.info("Pushed to kafka");
         return request.getProductVariant();
+    }
+
+    private AuditDetails createAuditDetailsForInsert(RequestInfo requestInfo) {
+        return AuditDetails.builder()
+                .createdBy(requestInfo.getUserInfo().getUuid())
+                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+                .createdTime(System.currentTimeMillis())
+                .lastModifiedTime(System.currentTimeMillis())
+                .build();
+
     }
 }

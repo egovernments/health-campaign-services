@@ -1,6 +1,5 @@
 package org.egov.product.helper;
 
-import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.product.web.models.ProductVariant;
 
 public class ProductVariantTestBuilder {
@@ -23,8 +22,7 @@ public class ProductVariantTestBuilder {
                 .id(null)
                 .tenantId("some-tenant-id")
                 .variation("some-variation")
-                .sku("some-sku-code")
-                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+                .sku("some-sku-code");
         return this;
     }
 

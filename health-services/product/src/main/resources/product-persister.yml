@@ -24,10 +24,10 @@ serviceMaps:
               type: JSON
               dbType: JSONB
 
-            - jsonPath: $.ProductVariant.*.AuditDetails.createdBy
+            - jsonPath: $.ProductVariant.*.auditDetails.createdBy
 
-            - jsonPath: $.ProductVariant.*.AuditDetails.lastModifiedBy
+            - jsonPath: $.ProductVariant.*.auditDetails.lastModifiedBy
 
-            - jsonPath: $.ProductVariant.*.AuditDetails.createdTime
+            - jsonPath: $.ProductVariant.*.auditDetails.createdTime
 
-            - jsonPath: $.ProductVariant.*.AuditDetails.lastModifiedTime
+            - jsonPath: $.ProductVariant.*.auditDetails.lastModifiedTime

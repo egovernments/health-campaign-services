@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -80,6 +81,27 @@ class ProductVariantServiceTest {
                 eq("product.variant.id"), eq(""), anyInt());
         verify(producer, times(1)).push(any(String.class),
                 any(ProductVariantRequest.class));
+    }
+
+    @Test
+    @DisplayName("should update audit details before pushing the product variants to kafka")
+    void shouldUpdateAuditDetailsBeforePushingTheProductVariantsToKafka() throws Exception {
+        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariantAndApiOperationNull()
+                .build();
+        List<String> idList = new ArrayList<>();
+        idList.add("some-id");
+        when(idGenService.getIdList(any(RequestInfo.class),
+                any(String.class),
+                eq("product.variant.id"), eq(""), anyInt()))
+                .thenReturn(idList);
+
+        List<ProductVariant> productVariants = productVariantService.create(request);
+
+        assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getCreatedBy());
+        assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getCreatedTime());
+        assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getLastModifiedBy());
+        assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getLastModifiedTime());
     }
 
 }
