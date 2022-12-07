@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -103,17 +104,18 @@ class ProductVariantServiceTest {
     @Test
     @DisplayName("should validate correct product id")
     void shouldValidateCorrectProductId() throws Exception {
-        when(productService.validateProductId(any(String.class))).thenReturn(true);
+        List<String> validProductIds = new ArrayList<>(Collections.singleton("some-id"));
+        when(productService.validateProductId(any(List.class))).thenReturn(validProductIds);
 
         List<ProductVariant> productVariants = productVariantService.create(request);
 
-        verify(productService, times(1)).validateProductId(any(String.class));
+        verify(productService, times(1)).validateProductId(any(List.class));
     }
 
     @Test
     @DisplayName("should throw exception for any invalid product id")
     void shouldThrowExceptionForAnyInvalidProductId() throws Exception {
-        when(productService.validateProductId(any(String.class))).thenReturn(false);
+        when(productService.validateProductId(any(List.class))).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> productVariantService.create(request));
     }

@@ -11,8 +11,10 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
@@ -33,11 +35,16 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
-        request.getProductVariant().stream()
-                .filter(productVariant -> !productService.validateProductId(productVariant.getProductId()))
-                .findFirst().ifPresent(productVariant -> {
-                    throw new CustomException("INVALID_PRODUCT_ID", productVariant.getProductId());
-                });
+        List<String> productIds = request.getProductVariant().stream()
+                .map(ProductVariant::getProductId)
+                .collect(Collectors.toList());
+        List<String> validProductIds = productService.validateProductId(productIds);
+        if (validProductIds.size() != productIds.size()) {
+            List<String> invalidProductIds = new ArrayList<>(productIds);
+            invalidProductIds.removeAll(validProductIds);
+            log.error("Invalid ProductIds");
+            throw new CustomException("INVALID_PRODUCT_ID", invalidProductIds.toString());
+        }
         Optional<ProductVariant> anyProductVariant = request.getProductVariant()
                 .stream().findAny();
         String tenantId = null;
