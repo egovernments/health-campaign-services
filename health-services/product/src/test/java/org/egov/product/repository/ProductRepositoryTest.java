@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.util.ArrayList;
@@ -16,7 +17,6 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,7 +39,7 @@ class ProductRepositoryTest {
         productIds.add("some-id");
         productIds.add("some-other-id");
         List<String> validProductIds = new ArrayList<>(productIds);
-        when(namedParameterJdbcTemplate.queryForObject(any(String.class), any(Map.class), eq(List.class)))
+        when(namedParameterJdbcTemplate.queryForObject(any(String.class), any(Map.class), any(RowMapper.class)))
                 .thenReturn(validProductIds);
 
         List<String> result = productRepository.validateProductId(productIds);
@@ -53,7 +53,7 @@ class ProductRepositoryTest {
         List<String> productIds = new ArrayList<>();
         productIds.add("some-id");
         productIds.add("some-other-id");
-        when(namedParameterJdbcTemplate.queryForObject(any(String.class), any(Map.class), eq(List.class)))
+        when(namedParameterJdbcTemplate.queryForObject(any(String.class), any(Map.class), any(RowMapper.class)))
                 .thenReturn(Collections.emptyList());
 
         List<String> result = productRepository.validateProductId(productIds);
