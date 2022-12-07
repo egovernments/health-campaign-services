@@ -3,7 +3,10 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.product.ProductApplication;
+import org.egov.product.service.ProductService;
+import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -11,6 +14,7 @@ import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -25,6 +29,7 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
+import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
@@ -36,14 +41,18 @@ public class ProductApiController {
 
     private final HttpServletRequest request;
 
+    private final ProductService productService;
+
     @Autowired
-    public ProductApiController(ObjectMapper objectMapper, HttpServletRequest request) {
+    public ProductApiController(ObjectMapper objectMapper, HttpServletRequest request, ProductService productService) {
         this.objectMapper = objectMapper;
         this.request = request;
+        this.productService = productService;
     }
 
+
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProductResponse> productV1CreatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest product) {
+    public ResponseEntity<ProductResponse> productV1CreatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest productRequest) throws Exception {
 //        String accept = request.getHeader("Accept");
 //        if (accept != null && accept.contains("application/json")) {
 //            try {
@@ -52,8 +61,19 @@ public class ProductApiController {
 //                return new ResponseEntity<ProductResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
 //            }
 //        }
+        /*
+            1. Get products from request.
+            2. Generate Ids using Idgen service.
+            3. Send data to persister.
+         */
 
-        ProductResponse productResponse = ProductResponse.builder().build();
+
+        List<Product> products = productService.create(productRequest);
+        ProductResponse productResponse = ProductResponse.builder()
+                .product(products)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(productRequest.getRequestInfo(), true))
+                .build();
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(productResponse);
     }

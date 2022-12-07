@@ -19,8 +19,6 @@ public class ProductRequestTestBuilder {
         return this.builder.build();
     }
 
-    public ProductRequestTestBuilder withRequestInfo(){
-        //this.withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build());
-    }
+
 
 }
