@@ -7,6 +7,7 @@ import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,13 +23,21 @@ public class ProductVariantService {
 
     private final Producer producer;
 
+    private final ProductService productService;
+
     @Autowired
-    public ProductVariantService(IdGenService idGenService, Producer producer) {
+    public ProductVariantService(IdGenService idGenService, Producer producer, ProductService productService) {
         this.idGenService = idGenService;
         this.producer = producer;
+        this.productService = productService;
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
+        request.getProductVariant().stream()
+                .filter(productVariant -> !productService.validateProductId(productVariant.getProductId()))
+                .findFirst().ifPresent(productVariant -> {
+                    throw new CustomException("INVALID_PRODUCT_ID", productVariant.getProductId());
+                });
         Optional<ProductVariant> anyProductVariant = request.getProductVariant()
                 .stream().findAny();
         String tenantId = null;
