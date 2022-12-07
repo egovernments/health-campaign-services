@@ -7,7 +7,7 @@ serviceMaps:
       isTransaction: true
       queryMaps:
 
-        - query: INSERT INTO product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.ProductVariant.*
           jsonMaps:
             - jsonPath: $.ProductVariant.*.id
