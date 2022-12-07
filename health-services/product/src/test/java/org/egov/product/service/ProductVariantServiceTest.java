@@ -61,9 +61,16 @@ class ProductVariantServiceTest {
                 .thenReturn(idList);
     }
 
+    private void mockValidateProductId() {
+        lenient().when(productService.validateProductId(any(List.class)))
+                .thenReturn(Collections.singletonList("some-id"));
+    }
+
     @Test
     @DisplayName("should enrich the formatted id in product variants")
     void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
+        mockValidateProductId();
+
         List<ProductVariant> productVariants = productVariantService.create(request);
 
         assertEquals("some-id", productVariants.get(0).getId());
@@ -72,6 +79,8 @@ class ProductVariantServiceTest {
     @Test
     @DisplayName("should send the enriched product variants to the kafka topic")
     void shouldSendTheEnrichedProductVariantsToTheKafkaTopic() throws Exception {
+        mockValidateProductId();
+
         productVariantService.create(request);
 
         verify(idGenService, times(1)).getIdList(any(RequestInfo.class),
@@ -84,6 +93,8 @@ class ProductVariantServiceTest {
     @Test
     @DisplayName("should update audit details before pushing the product variants to kafka")
     void shouldUpdateAuditDetailsBeforePushingTheProductVariantsToKafka() throws Exception {
+        mockValidateProductId();
+
         List<ProductVariant> productVariants = productVariantService.create(request);
 
         assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getCreatedBy());
@@ -95,6 +106,8 @@ class ProductVariantServiceTest {
     @Test
     @DisplayName("should set row version as 1 and deleted as false")
     void shouldSetRowVersionAs1AndDeletedAsFalse() throws Exception {
+        mockValidateProductId();
+
         List<ProductVariant> productVariants = productVariantService.create(request);
 
         assertEquals(1, productVariants.stream().findAny().get().getRowVersion());
