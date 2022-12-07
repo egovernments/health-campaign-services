@@ -31,3 +31,7 @@ serviceMaps:
             - jsonPath: $.ProductVariant.*.auditDetails.createdTime
 
             - jsonPath: $.ProductVariant.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.ProductVariant.*.rowVersion
+
+            - jsonPath: $.ProductVariant.*.isDeleted

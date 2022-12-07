@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -38,15 +39,11 @@ class ProductVariantServiceTest {
     @Mock
     private Producer producer;
 
+    private ProductVariantRequest request;
+
     @BeforeEach
-    void setUp() {
-
-    }
-
-    @Test
-    @DisplayName("should enrich the formatted id in product variants")
-    void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
-        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
+    void setUp() throws Exception {
+        request = ProductVariantRequestTestBuilder.builder()
                 .withOneProductVariantAndApiOperationNull()
                 .build();
         List<String> idList = new ArrayList<>();
@@ -55,7 +52,11 @@ class ProductVariantServiceTest {
                 any(String.class),
                 eq("product.variant.id"), eq(""), anyInt()))
                 .thenReturn(idList);
+    }
 
+    @Test
+    @DisplayName("should enrich the formatted id in product variants")
+    void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
         List<ProductVariant> productVariants = productVariantService.create(request);
 
         assertEquals("some-id", productVariants.get(0).getId());
@@ -64,17 +65,7 @@ class ProductVariantServiceTest {
     @Test
     @DisplayName("should send the enriched product variants to the kafka topic")
     void shouldSendTheEnrichedProductVariantsToTheKafkaTopic() throws Exception {
-        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariantAndApiOperationNull()
-                .build();
-        List<String> idList = new ArrayList<>();
-        idList.add("some-id");
-        when(idGenService.getIdList(any(RequestInfo.class),
-                any(String.class),
-                eq("product.variant.id"), eq(""), anyInt()))
-                .thenReturn(idList);
-
-        List<ProductVariant> productVariants = productVariantService.create(request);
+        productVariantService.create(request);
 
         verify(idGenService, times(1)).getIdList(any(RequestInfo.class),
                 any(String.class),
@@ -86,22 +77,21 @@ class ProductVariantServiceTest {
     @Test
     @DisplayName("should update audit details before pushing the product variants to kafka")
     void shouldUpdateAuditDetailsBeforePushingTheProductVariantsToKafka() throws Exception {
-        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariantAndApiOperationNull()
-                .build();
-        List<String> idList = new ArrayList<>();
-        idList.add("some-id");
-        when(idGenService.getIdList(any(RequestInfo.class),
-                any(String.class),
-                eq("product.variant.id"), eq(""), anyInt()))
-                .thenReturn(idList);
-
         List<ProductVariant> productVariants = productVariantService.create(request);
 
         assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getCreatedBy());
         assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getCreatedTime());
         assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getLastModifiedBy());
         assertNotNull(productVariants.stream().findAny().get().getAuditDetails().getLastModifiedTime());
+    }
+
+    @Test
+    @DisplayName("should set row version as 1 and deleted as false")
+    void shouldSetRowVersionAs1AndDeletedAsFalse() throws Exception {
+        List<ProductVariant> productVariants = productVariantService.create(request);
+
+        assertEquals(1, productVariants.stream().findAny().get().getRowVersion());
+        assertFalse(productVariants.stream().findAny().get().getIsDeleted());
     }
 
 }

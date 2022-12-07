@@ -14,5 +14,3 @@ CREATE TABLE PRODUCT_VARIANT
     isDeleted         boolean,
     CONSTRAINT uk_product_variant_id PRIMARY KEY (id)
 );
-
-select * from PRODUCT_VARIANT;

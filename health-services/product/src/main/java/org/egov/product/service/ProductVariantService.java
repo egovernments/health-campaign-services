@@ -45,7 +45,10 @@ public class ProductVariantService {
                     final ProductVariant productVariant = request.getProductVariant().get(i);
                     productVariant.setId(idList.get(i));
                     productVariant.setAuditDetails(auditDetails);
+                    productVariant.setRowVersion(1);
+                    productVariant.setIsDeleted(Boolean.FALSE);
                 });
+        log.info("Enrichment done");
         producer.push("save-product-variant-persister-topic", request);
         log.info("Pushed to kafka");
         return request.getProductVariant();
