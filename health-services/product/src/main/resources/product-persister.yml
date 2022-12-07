@@ -1,0 +1,33 @@
+serviceMaps:
+  serviceName: product
+  mappings:
+    - version: 1.0
+      description: Saves a product variant
+      fromTopic: save-product-variant-persister-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: INSERT INTO product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?);
+          basePath: $.ProductVariant.*
+          jsonMaps:
+            - jsonPath: $.ProductVariant.*.id
+
+            - jsonPath: $.ProductVariant.*.tenantId
+
+            - jsonPath: $.ProductVariant.*.productId
+
+            - jsonPath: $.ProductVariant.*.sku
+
+            - jsonPath: $.ProductVariant.*.variation
+
+            - jsonPath: $.ProductVariant.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.ProductVariant.*.AuditDetails.createdBy
+
+            - jsonPath: $.ProductVariant.*.AuditDetails.lastModifiedBy
+
+            - jsonPath: $.ProductVariant.*.AuditDetails.createdTime
+
+            - jsonPath: $.ProductVariant.*.AuditDetails.lastModifiedTime

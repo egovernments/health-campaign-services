@@ -1,6 +1,7 @@
 package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
@@ -17,9 +18,12 @@ public class ProductVariantService {
 
     private final IdGenService idGenService;
 
+    private final Producer producer;
+
     @Autowired
-    public ProductVariantService(IdGenService idGenService) {
+    public ProductVariantService(IdGenService idGenService, Producer producer) {
         this.idGenService = idGenService;
+        this.producer = producer;
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
@@ -35,6 +39,8 @@ public class ProductVariantService {
         log.info("IDs generated");
         IntStream.range(0, request.getProductVariant().size())
                 .forEach(i -> request.getProductVariant().get(i).setId(idList.get(i)));
+        producer.push("save-product-variant-persister-topic", request);
+        log.info("Pushed to kafka");
         return request.getProductVariant();
     }
 }
