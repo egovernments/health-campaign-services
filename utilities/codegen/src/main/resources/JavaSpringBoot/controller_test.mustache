@@ -2,8 +2,9 @@ package {{package}};
 
 {{#imports}}import {{import}};
 {{/imports}}
-import org.junit.Test;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,8 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
 * API tests for {{classname}}Controller
 */
-@Ignore
-@RunWith(SpringRunner.class)
+@Disabled
+//@RunWith(SpringRunner.class)
 @WebMvcTest({{classname}}Controller.class)
 {{#useTracer}}@Import(TestConfiguration.class){{/useTracer}}
 {{#operations}}
