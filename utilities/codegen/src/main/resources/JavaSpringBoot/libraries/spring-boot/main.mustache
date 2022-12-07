@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Import;
 {{#useRedis}}
 @EnableCaching
 {{/useRedis}}
-@ComponentScan(basePackages = { "{{basePackage}}", "{{apiPackage}}" , "{{configPackage}}"})
 public class {{mainClassName}} {
     public static void main(String[] args) throws Exception {
         SpringApplication.run({{mainClassName}}.class, args);

@@ -281,9 +281,9 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         supportingFiles.add(new SupportingFile("application.mustache",
                 ("src.main.resources").replace(".", java.io.File.separator), "application.properties"));
 
-        supportingFiles.add(new SupportingFile("serviceRequestRepository.mustache",
-                (sourceFolder + File.separator + repositoryPackage).replace(".", java.io.File.separator),
-                "ServiceRequestRepository.java"));
+//        supportingFiles.add(new SupportingFile("serviceRequestRepository.mustache",
+//                (sourceFolder + File.separator + repositoryPackage).replace(".", java.io.File.separator),
+//                "ServiceRequestRepository.java"));
 
         if (config.isEnableFlyway()) {
             // ADD db migration
@@ -307,21 +307,21 @@ public class SpringBootCodegen extends AbstractJavaCodegen
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "MdmsUtil.java"));
 
-        supportingFiles.add(new SupportingFile("idgenUtil.mustache",
-                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "IdgenUtil.java"));
+//        supportingFiles.add(new SupportingFile("idgenUtil.mustache",
+//                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
+//                "IdgenUtil.java"));
 
-        supportingFiles.add(new SupportingFile("responseInfoFactory.mustache",
-                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "ResponseInfoFactory.java"));
+//        supportingFiles.add(new SupportingFile("responseInfoFactory.mustache",
+//                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
+//                "ResponseInfoFactory.java"));
 
-        supportingFiles.add(new SupportingFile("consumer.mustache",
-                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
-                "Consumer.java"));
-
-        supportingFiles.add(new SupportingFile("producer.mustache",
-                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
-                "Producer.java"));
+//        supportingFiles.add(new SupportingFile("consumer.mustache",
+//                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
+//                "Consumer.java"));
+//
+//        supportingFiles.add(new SupportingFile("producer.mustache",
+//                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
+//                "Producer.java"));
 
         if (config.isUseTracer()) {
             supportingFiles.add(new SupportingFile("testConfiguration.mustache",
@@ -745,4 +745,4 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         void setReturnContainer(String returnContainer);
     }
 }
-
+//java -jar codegen-1.0-SNAPSHOT-jar-with-dependencies.jar -l -t -u file:///Users/shiva.burade/Documents/workspace/health-api-specs/death-registration-api.yaml -a product -b org.egov
