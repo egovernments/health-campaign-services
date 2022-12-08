@@ -27,7 +27,7 @@ public class ProductRepository {
 
 
     public List<String> validateProductId(List<String> productIds) {
-        String query = String.format("SELECT id FROM product WHERE id IN (:productIds) fetch first %s rows only", productIds.size());
+        String query = String.format("SELECT id FROM product WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", productIds.size());
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("productIds", productIds);
         return namedParameterJdbcTemplate.queryForObject(query, paramMap, (resultSet, rowNumber) -> {
