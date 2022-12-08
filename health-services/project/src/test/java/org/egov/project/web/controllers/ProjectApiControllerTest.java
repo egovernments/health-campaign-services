@@ -1,25 +1,19 @@
 package org.egov.project.web.controllers;
 
-import org.junit.Test;
-import org.junit.Ignore;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
+import org.egov.project.TestConfiguration;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.egov.project.TestConfiguration;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.Matchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
 * API tests for ProjectApiController
 */
-@Ignore
-@RunWith(SpringRunner.class)
 @WebMvcTest(ProjectApiController.class)
 @Import(TestConfiguration.class)
 public class ProjectApiControllerTest {
