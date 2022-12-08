@@ -51,7 +51,7 @@ class ProductVariantServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariantAndApiOperationNull()
+                .withOneProductVariant()
                 .build();
         List<String> idList = new ArrayList<>();
         idList.add("some-id");

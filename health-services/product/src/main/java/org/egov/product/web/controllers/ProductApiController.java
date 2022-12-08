@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.product.service.ProductVariantService;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -12,6 +13,7 @@ import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.product.web.models.ProductVariantSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -96,14 +98,18 @@ public class ProductApiController {
     @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1CreatePost(@ApiParam(value = "Capture details of Product Variant.", required = true)
                                                                                  @Valid @RequestBody ProductVariantRequest request) throws Exception {
-        List<ProductVariant> productVariants = productVariantService.create(request);
-        ProductVariantResponse response = ProductVariantResponse.builder()
-                .productVariant(productVariants)
-                .responseInfo(ResponseInfoFactory
-                        .createResponseInfo(request.getRequestInfo(), true))
-                .build();
+        if (request.getApiOperation() == null || request.getApiOperation().equals(ApiOperation.CREATE)) {
+            List<ProductVariant> productVariants = productVariantService.create(request);
+            ProductVariantResponse response = ProductVariantResponse.builder()
+                    .productVariant(productVariants)
+                    .responseInfo(ResponseInfoFactory
+                            .createResponseInfo(request.getRequestInfo(), true))
+                    .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        } else {
+            throw new CustomException("INCORRECT_API_OPERATION", "Only null or CREATE apiOperation supported for create endpoint");
+        }
     }
 
     @RequestMapping(value = "/variant/v1/_search", method = RequestMethod.POST)

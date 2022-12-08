@@ -1,6 +1,7 @@
 package org.egov.product.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 
@@ -22,11 +23,16 @@ public class ProductVariantRequestTestBuilder {
         return this.builder.build();
     }
 
-    public ProductVariantRequestTestBuilder withOneProductVariantAndApiOperationNull() {
+    public ProductVariantRequestTestBuilder withOneProductVariant() {
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(ProductVariantTestBuilder.builder().withIdNull().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .productVariant(productVariants);
+        return this;
+    }
+
+    public ProductVariantRequestTestBuilder withApiOperationNotNullAndNotCreate() {
+        builder.apiOperation(ApiOperation.UPDATE);
         return this;
     }
 

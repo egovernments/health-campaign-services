@@ -1,0 +1,13 @@
+ServiceMaps:
+  serviceName: product
+  version: 1.0.0
+  mappings:
+    - topic: save-product-variant-topic
+      configKey: INDEX
+      indexes:
+        - name: productVariantIndex-v1
+          type: productVariant
+          id: $.ProductVariant.*.id
+          isBulk: true
+          jsonPath: $.ProductVariant.*
+          timeStampField: $.ProductVariant.*.auditDetails.createdTime

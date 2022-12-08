@@ -3,7 +3,7 @@ serviceMaps:
   mappings:
     - version: 1.0
       description: Saves a product variant
-      fromTopic: save-product-variant-persister-topic
+      fromTopic: save-product-variant-topic
       isTransaction: true
       queryMaps:
 

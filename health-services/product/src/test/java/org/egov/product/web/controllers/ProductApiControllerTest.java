@@ -97,10 +97,10 @@ public class ProductApiControllerTest {
     }
 
     @org.junit.jupiter.api.Test
-    @DisplayName("should create product variant and return with 202 accepted")
-    void shouldCreateProductVariantAndReturnWith202Accepted() throws Exception {
+    @DisplayName("should create product variant and return with 202 accepted for create")
+    void shouldCreateProductVariantAndReturnWith202AcceptedForCreate() throws Exception {
         ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariantAndApiOperationNull()
+                .withOneProductVariant()
                 .build();
         ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
         List<ProductVariant> productVariants = new ArrayList<>();
@@ -123,12 +123,12 @@ public class ProductApiControllerTest {
     }
 
     @org.junit.jupiter.api.Test
-    @DisplayName("should send error response with error details with 400 bad request")
-    void shouldSendErrorResWithErrorDetailsWith400BadRequest() throws Exception {
+    @DisplayName("should send error response with error details with 400 bad request for create")
+    void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariantAndApiOperationNull()
+                                .withOneProductVariant()
                                 .withBadTenantIdInOneProductVariant()
                                 .build())))
                 .andExpect(status().isBadRequest())
@@ -139,6 +139,24 @@ public class ProductApiControllerTest {
 
         assertEquals(1, response.getErrors().size());
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+    }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("should send 400 bad request in case of incorrect api operation for create")
+    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForCreate() throws Exception {
+        final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
+                                .withOneProductVariant()
+                                .withApiOperationNotNullAndNotCreate()
+                                .build())))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(1, response.getErrors().size());
     }
 
     @Test
