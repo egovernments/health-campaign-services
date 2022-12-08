@@ -40,6 +40,11 @@ public class ProductRequestTestBuilder {
         this.builder.product(products);
         return this;
     }
+    public ProductRequestTestBuilder addGoodProductWithNullTenant(){
+        products.add(ProductTestBuilder.builder().goodProductWithNullTenant().build());
+        this.builder.product(products);
+        return this;
+    }
     public ProductRequestTestBuilder withApiOperationCreate(){
         this.builder.apiOperation(ApiOperation.CREATE);
         return this;

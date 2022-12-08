@@ -37,21 +37,22 @@ public class ProductService {
     }
 
     public List<Product> create(ProductRequest productRequest) throws Exception {
-        /*
-        1. Get all product IDs from the request
-        2. Check all the Ids in the DB and return Ids that are found in DB.
-        3. If any IDs are returned from DB, that means those products are already in DB.
-         */
+        log.info("PRODUCT_SERVICE: Validating products started");
         List<String> productIds = productRequest.getProduct().stream()
                 .map(Product::getId)
                 .collect(Collectors.toList());
         List<String> inValidProductIds = productRepository.validateProductId(productIds);
         if(inValidProductIds.size() > 0){
-            log.info(String.format("PRODUCT with Ids: %s already present in DB", inValidProductIds.toString()));
+            log.info("PRODUCT_SERVICE: Validating products failed");
+            log.info(String.format("PRODUCT_SERVICE: PRODUCT with Ids: %s already present in DB", inValidProductIds.toString()));
             throw new CustomException("PRODUCT_ID_ALREADY_EXISTS", inValidProductIds.toString());
         }
-        productEnrichment.enrichProduct(productRequest);
+        log.info("PRODUCT_SERVICE: Validating products complete");
+        log.info("PRODUCT_SERVICE: Enrichment products started");
+        productRequest = productEnrichment.enrichProduct(productRequest);
+        log.info("PRODUCT_SERVICE: Enrichment products complete");
         producer.push("health-product-topic", productRequest);
+        log.info("PRODUCT_SERVICE: Sent products to persister");
         return productRequest.getProduct();
     }
 }

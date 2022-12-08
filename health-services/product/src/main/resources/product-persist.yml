@@ -1,0 +1,25 @@
+serviceMaps:
+  serviceName: product
+  mappings:
+    - version: 1.0
+      description: Persists Product
+      fromTopic: health-product-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO product(id, tenantId, type, name, manufacturer, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.Product.*
+          jsonMaps:
+            - jsonPath: $.Product.*.id
+            - jsonPath: $.Product.*.tenantId
+            - jsonPath: $.Product.*.type
+            - jsonPath: $.Product.*.name
+            - jsonPath: $.Product.*.manufacturer
+            - jsonPath: $.Product.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.Product.*.auditDetails.createdBy
+            - jsonPath: $.Product.*.auditDetails.lastModifiedBy
+            - jsonPath: $.Product.*.auditDetails.createdTime
+            - jsonPath: $.Product.*.auditDetails.lastModifiedTime
+            - jsonPath: $.Product.*.rowVersion
+            - jsonPath: $.Product.*.isDeleted
