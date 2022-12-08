@@ -2,7 +2,15 @@ package org.egov.codegen;
 
 import com.samskivert.mustache.Mustache;
 import com.samskivert.mustache.Template;
-import io.swagger.codegen.*;
+import io.swagger.codegen.CodegenConstants;
+import io.swagger.codegen.CodegenModel;
+import io.swagger.codegen.CodegenOperation;
+import io.swagger.codegen.CodegenParameter;
+import io.swagger.codegen.CodegenProperty;
+import io.swagger.codegen.CodegenResponse;
+import io.swagger.codegen.CodegenSecurity;
+import io.swagger.codegen.CodegenType;
+import io.swagger.codegen.SupportingFile;
 import io.swagger.codegen.languages.AbstractJavaCodegen;
 import io.swagger.codegen.languages.features.BeanValidationFeatures;
 import io.swagger.codegen.languages.features.OptionalFeatures;
@@ -15,7 +23,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 
 public class SpringBootCodegen extends AbstractJavaCodegen
@@ -67,7 +79,6 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         processConfigs();
         this.outputFolder = outputFolder;
         embeddedTemplateDir = templateDir = "JavaSpringBoot";
-
         supportedLibraries.put(DEFAULT_LIBRARY, "Spring-boot Server application using the SpringFox integration.");
         setLibrary(DEFAULT_LIBRARY);
 
@@ -281,9 +292,9 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         supportingFiles.add(new SupportingFile("application.mustache",
                 ("src.main.resources").replace(".", java.io.File.separator), "application.properties"));
 
-        supportingFiles.add(new SupportingFile("serviceRequestRepository.mustache",
-                (sourceFolder + File.separator + repositoryPackage).replace(".", java.io.File.separator),
-                "ServiceRequestRepository.java"));
+//        supportingFiles.add(new SupportingFile("serviceRequestRepository.mustache",
+//                (sourceFolder + File.separator + repositoryPackage).replace(".", java.io.File.separator),
+//                "ServiceRequestRepository.java"));
 
         if (config.isEnableFlyway()) {
             // ADD db migration
@@ -303,25 +314,26 @@ public class SpringBootCodegen extends AbstractJavaCodegen
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "UrlShortenerUtil.java"));*/
 
+        /*
         supportingFiles.add(new SupportingFile("mdmsUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "MdmsUtil.java"));
+        */
+//        supportingFiles.add(new SupportingFile("idgenUtil.mustache",
+//                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
+//                "IdgenUtil.java"));
 
-        supportingFiles.add(new SupportingFile("idgenUtil.mustache",
-                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "IdgenUtil.java"));
+//        supportingFiles.add(new SupportingFile("responseInfoFactory.mustache",
+//                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
+//                "ResponseInfoFactory.java"));
 
-        supportingFiles.add(new SupportingFile("responseInfoFactory.mustache",
-                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
-                "ResponseInfoFactory.java"));
-
-        supportingFiles.add(new SupportingFile("consumer.mustache",
-                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
-                "Consumer.java"));
-
-        supportingFiles.add(new SupportingFile("producer.mustache",
-                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
-                "Producer.java"));
+//        supportingFiles.add(new SupportingFile("consumer.mustache",
+//                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
+//                "Consumer.java"));
+//
+//        supportingFiles.add(new SupportingFile("producer.mustache",
+//                (sourceFolder + File.separator + kafkaPackage).replace(".", java.io.File.separator),
+//                "Producer.java"));
 
         if (config.isUseTracer()) {
             supportingFiles.add(new SupportingFile("testConfiguration.mustache",
@@ -745,4 +757,3 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         void setReturnContainer(String returnContainer);
     }
 }
-

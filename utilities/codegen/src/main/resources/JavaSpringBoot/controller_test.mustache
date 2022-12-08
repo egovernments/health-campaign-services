@@ -2,8 +2,9 @@ package {{package}};
 
 {{#imports}}import {{import}};
 {{/imports}}
-import org.junit.Test;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,8 +30,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
 * API tests for {{classname}}Controller
 */
-@Ignore
-@RunWith(SpringRunner.class)
 @WebMvcTest({{classname}}Controller.class)
 {{#useTracer}}@Import(TestConfiguration.class){{/useTracer}}
 {{#operations}}
@@ -41,6 +40,7 @@ public class {{classname}}ControllerTest {
 
 {{#operation}}
     @Test
+    @Disabled
     public void {{operationId}}Success() throws Exception {
         mockMvc.perform(post("{{basePathWithoutHost}}{{path}}").contentType(MediaType
         .APPLICATION_JSON_UTF8))
@@ -48,6 +48,7 @@ public class {{classname}}ControllerTest {
     }
 
     @Test
+    @Disabled
     public void {{operationId}}Failure() throws Exception {
         mockMvc.perform(post("{{basePathWithoutHost}}{{path}}").contentType(MediaType
         .APPLICATION_JSON_UTF8))

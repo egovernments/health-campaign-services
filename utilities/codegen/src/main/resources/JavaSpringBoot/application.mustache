@@ -55,6 +55,7 @@ kafka.producer.config.buffer_memory_config=33554432
 # IDGEN CONFIG
 egov.idgen.host=https://dev.digit.org/
 egov.idgen.path=egov-idgen/id/_generate
+egov.idgen.integration.enabled=false
 
 # The value of the following field should be changed to service specific name
 kafka.topics.consumer={{artifactId}}-consumer-topic
@@ -69,5 +70,6 @@ egov.user.update.path=/_updatenovalidate
 # MDMS CONFIG
 egov.mdms.host=https://dev.digit.org
 egov.mdms.search.endpoint=/egov-mdms-service/v1/_search
-egov.mdms.master.name=RegistrationCharges
-egov.mdms.module.name=VTR
+egov.mdms.master.name=
+egov.mdms.module.name=
+egov.mdms.integration.enabled=false
