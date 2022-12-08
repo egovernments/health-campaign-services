@@ -71,7 +71,6 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     protected boolean swaggerDocketConfig = false;
     protected boolean useOptional = false;
 
-
     protected String mainClassName = "Main";
 
     public SpringBootCodegen(Config config, String outputFolder) {
@@ -758,4 +757,3 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         void setReturnContainer(String returnContainer);
     }
 }
-//java -jar codegen-1.0-SNAPSHOT-jar-with-dependencies.jar -l -t -u file:///Users/shiva.burade/Documents/workspace/health-api-specs/death-registration-api.yaml -a product -b org.egov

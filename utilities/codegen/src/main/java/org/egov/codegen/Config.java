@@ -10,7 +10,6 @@ public class Config {
     private boolean useTracer;
     private boolean useRedis;
     private boolean enableFlyway;
-    private boolean serverLibrary;
 
     public Config(String url, String groupId, String artifactId, String basePackage, boolean useLombok, boolean useTracer, boolean useRedis, boolean enableFlyway) {
         this.url = url;
