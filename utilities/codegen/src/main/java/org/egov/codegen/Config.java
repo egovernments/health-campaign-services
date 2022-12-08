@@ -99,5 +99,4 @@ public class Config {
                 ", enableFlyway=" + enableFlyway +
                 '}';
     }
-
 }
