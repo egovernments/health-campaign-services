@@ -325,10 +325,11 @@ public class SpringBootCodegen extends AbstractJavaCodegen
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "UrlShortenerUtil.java"));*/
 
+        /*
         supportingFiles.add(new SupportingFile("mdmsUtil.mustache",
                 (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
                 "MdmsUtil.java"));
-
+        */
 //        supportingFiles.add(new SupportingFile("idgenUtil.mustache",
 //                (sourceFolder + File.separator + utilPackage).replace(".", java.io.File.separator),
 //                "IdgenUtil.java"));

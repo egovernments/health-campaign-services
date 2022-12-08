@@ -30,8 +30,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
 * API tests for {{classname}}Controller
 */
-@Disabled
-//@RunWith(SpringRunner.class)
 @WebMvcTest({{classname}}Controller.class)
 {{#useTracer}}@Import(TestConfiguration.class){{/useTracer}}
 {{#operations}}
@@ -42,6 +40,7 @@ public class {{classname}}ControllerTest {
 
 {{#operation}}
     @Test
+    @Disabled
     public void {{operationId}}Success() throws Exception {
         mockMvc.perform(post("{{basePathWithoutHost}}{{path}}").contentType(MediaType
         .APPLICATION_JSON_UTF8))
@@ -49,6 +48,7 @@ public class {{classname}}ControllerTest {
     }
 
     @Test
+    @Disabled
     public void {{operationId}}Failure() throws Exception {
         mockMvc.perform(post("{{basePathWithoutHost}}{{path}}").contentType(MediaType
         .APPLICATION_JSON_UTF8))
