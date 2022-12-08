@@ -1,6 +1,7 @@
 package org.egov.product.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.producer.Producer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -16,9 +17,12 @@ public class ProductRepository {
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
+    private final Producer producer;
+
     @Autowired
-    public ProductRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public ProductRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate, Producer producer) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.producer = producer;
     }
 
 

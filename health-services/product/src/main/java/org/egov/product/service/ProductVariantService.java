@@ -3,8 +3,8 @@ package org.egov.product.service;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
+import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.tracer.model.CustomException;
@@ -23,15 +23,15 @@ public class ProductVariantService {
 
     private final IdGenService idGenService;
 
-    private final Producer producer;
-
     private final ProductService productService;
 
+    private final ProductVariantRepository productVariantRepository;
+
     @Autowired
-    public ProductVariantService(IdGenService idGenService, Producer producer, ProductService productService) {
+    public ProductVariantService(IdGenService idGenService, ProductService productService, ProductVariantRepository productVariantRepository) {
         this.idGenService = idGenService;
-        this.producer = producer;
         this.productService = productService;
+        this.productVariantRepository = productVariantRepository;
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
@@ -65,7 +65,7 @@ public class ProductVariantService {
                     productVariant.setIsDeleted(Boolean.FALSE);
                 });
         log.info("Enrichment done");
-        producer.push("save-product-variant-persister-topic", request);
+        productVariantRepository.save(request.getProductVariant());
         log.info("Pushed to kafka");
         return request.getProductVariant();
     }

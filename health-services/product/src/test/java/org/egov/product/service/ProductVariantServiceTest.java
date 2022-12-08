@@ -1,9 +1,9 @@
 package org.egov.product.service;
 
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
+import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.tracer.model.CustomException;
@@ -41,10 +41,10 @@ class ProductVariantServiceTest {
     private IdGenService idGenService;
 
     @Mock
-    private Producer producer;
+    private ProductService productService;
 
     @Mock
-    private ProductService productService;
+    private ProductVariantRepository productVariantRepository;
 
     private ProductVariantRequest request;
 
@@ -86,8 +86,7 @@ class ProductVariantServiceTest {
         verify(idGenService, times(1)).getIdList(any(RequestInfo.class),
                 any(String.class),
                 eq("product.variant.id"), eq(""), anyInt());
-        verify(producer, times(1)).push(any(String.class),
-                any(ProductVariantRequest.class));
+        verify(productVariantRepository, times(1)).save(any(List.class));
     }
 
     @Test

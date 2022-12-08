@@ -1,5 +1,6 @@
 package org.egov.product.repository;
 
+import org.egov.common.producer.Producer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class ProductRepositoryTest {
 
     @Mock
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    @Mock
+    private Producer producer;
 
     @BeforeEach
     void setUp() {

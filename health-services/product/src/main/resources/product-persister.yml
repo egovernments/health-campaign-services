@@ -8,30 +8,30 @@ serviceMaps:
       queryMaps:
 
         - query: INSERT INTO product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
-          basePath: $.ProductVariant.*
+          basePath: $.*
           jsonMaps:
-            - jsonPath: $.ProductVariant.*.id
+            - jsonPath: $.*.id
 
-            - jsonPath: $.ProductVariant.*.tenantId
+            - jsonPath: $.*.tenantId
 
-            - jsonPath: $.ProductVariant.*.productId
+            - jsonPath: $.*.productId
 
-            - jsonPath: $.ProductVariant.*.sku
+            - jsonPath: $.*.sku
 
-            - jsonPath: $.ProductVariant.*.variation
+            - jsonPath: $.*.variation
 
-            - jsonPath: $.ProductVariant.*.additionalDetails
+            - jsonPath: $.*.additionalDetails
               type: JSON
               dbType: JSONB
 
-            - jsonPath: $.ProductVariant.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdBy
 
-            - jsonPath: $.ProductVariant.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
 
-            - jsonPath: $.ProductVariant.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.createdTime
 
-            - jsonPath: $.ProductVariant.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ProductVariant.*.rowVersion
+            - jsonPath: $.*.rowVersion
 
-            - jsonPath: $.ProductVariant.*.isDeleted
+            - jsonPath: $.*.isDeleted

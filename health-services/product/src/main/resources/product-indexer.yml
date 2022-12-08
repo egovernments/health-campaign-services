@@ -7,7 +7,7 @@ ServiceMaps:
       indexes:
         - name: productVariantIndex-v1
           type: productVariant
-          id: $.ProductVariant.*.id
+          id: $.*.id
           isBulk: true
-          jsonPath: $.ProductVariant.*
-          timeStampField: $.ProductVariant.*.auditDetails.createdTime
+          jsonPath: $.*
+          timeStampField: $.*.auditDetails.createdTime
