@@ -1,6 +1,7 @@
 package org.egov.project.web.controllers;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.project.web.models.BeneficiaryRequest;
@@ -189,17 +190,8 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/project/staff/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaff) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectStaffResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectStaff\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  } ]}", ProjectStaffResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectStaffResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectStaffResponse>(HttpStatus.NOT_IMPLEMENTED);
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaff) throws JsonProcessingException {
+        return new ResponseEntity<ProjectStaffResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectStaff\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  } ]}", ProjectStaffResponse.class), HttpStatus.NOT_IMPLEMENTED);
     }
 
     @RequestMapping(value = "/project/staff/v1/_search", method = RequestMethod.POST)
