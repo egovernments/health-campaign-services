@@ -86,7 +86,7 @@ class ProductVariantServiceTest {
         verify(idGenService, times(1)).getIdList(any(RequestInfo.class),
                 any(String.class),
                 eq("product.variant.id"), eq(""), anyInt());
-        verify(productVariantRepository, times(1)).save(any(List.class));
+        verify(productVariantRepository, times(1)).save(any(List.class), any(String.class));
     }
 
     @Test

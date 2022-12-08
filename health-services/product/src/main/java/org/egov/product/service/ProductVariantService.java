@@ -65,7 +65,7 @@ public class ProductVariantService {
                     productVariant.setIsDeleted(Boolean.FALSE);
                 });
         log.info("Enrichment done");
-        productVariantRepository.save(request.getProductVariant());
+        productVariantRepository.save(request.getProductVariant(), "save-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
     }

@@ -42,6 +42,8 @@ class ProductVariantRepositoryTest {
 
     private List<ProductVariant> productVariants;
 
+    private static final String TOPIC = "save-product-variant-topic";
+
     @BeforeEach
     void setUp() {
         productVariants = Collections.singletonList(ProductVariantTestBuilder
@@ -52,7 +54,8 @@ class ProductVariantRepositoryTest {
     @Test
     @DisplayName("should save and return saved objects back")
     void shouldSaveAndReturnSavedObjectsBack() {
-        List<ProductVariant> result = productVariantRepository.save(productVariants);
+        List<ProductVariant> result = productVariantRepository
+                .save(productVariants, TOPIC);
 
         assertEquals(result, productVariants);
         verify(producer, times(1)).push(any(String.class), any(Object.class));
@@ -61,7 +64,7 @@ class ProductVariantRepositoryTest {
     @Test
     @DisplayName("should save and add objects in the cache")
     void shouldSaveAndAddObjectsInTheCache() {
-        productVariantRepository.save(productVariants);
+        productVariantRepository.save(productVariants, TOPIC);
 
         InOrder inOrder = inOrder(producer, hashOperations);
 

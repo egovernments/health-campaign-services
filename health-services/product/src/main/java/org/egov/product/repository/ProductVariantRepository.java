@@ -23,8 +23,8 @@ public class ProductVariantRepository {
         this.redisTemplate = redisTemplate;
     }
 
-    public List<ProductVariant> save(List<ProductVariant> productVariants) {
-        producer.push("save-product-variant-topic", productVariants);
+    public List<ProductVariant> save(List<ProductVariant> productVariants, String topic) {
+        producer.push(topic, productVariants);
         Map<String, ProductVariant> productVariantMap = productVariants.stream()
                 .collect(Collectors
                         .toMap(ProductVariant::getId,
