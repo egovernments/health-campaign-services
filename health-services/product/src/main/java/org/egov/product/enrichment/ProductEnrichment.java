@@ -2,6 +2,7 @@ package org.egov.product.enrichment;
 
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.service.IdGenService;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
@@ -31,17 +32,19 @@ public class ProductEnrichment {
     }
 
     private void enrichProductWithAuditDetails(ProductRequest productRequest){
-//        AuditDetails auditDetails = AuditDetails.builder()
-//                .createdBy(productRequest.getRequestInfo().getUserInfo())
-//                .createdTime(System.currentTimeMillis())
-//                .lastModifiedBy(deathRegistrationRequest.getRequestInfo().getUserInfo().getUuid())
-//                .lastModifiedTime(System.currentTimeMillis()).build();
+        AuditDetails auditDetails = AuditDetails.builder()
+                .createdBy(productRequest.getRequestInfo().getUserInfo().getUuid())
+                .createdTime(System.currentTimeMillis())
+                .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())
+                .lastModifiedTime(System.currentTimeMillis()).build();
+
+        IntStream.range(0, productRequest.getProduct().size())
+                .forEach(i -> productRequest.getProduct().get(i).setAuditDetails(auditDetails));
     }
 
     public ProductRequest enrichProduct(ProductRequest productRequest) throws Exception {
         enrichProductWithIds(productRequest);
-        return  productRequest;
+        enrichProductWithAuditDetails(productRequest);
+        return productRequest;
     }
-
-
 }

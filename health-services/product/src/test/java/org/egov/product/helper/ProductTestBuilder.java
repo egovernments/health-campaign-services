@@ -30,6 +30,7 @@ public class ProductTestBuilder {
     public ProductTestBuilder goodProduct() {
         this.builder.name("Product-1")
                 .manufacturer("MANU")
+                .tenantId("default")
                 .type("DRUG")
                 .id("P101")
                 .additionalFields(AdditionalFields.builder().build())

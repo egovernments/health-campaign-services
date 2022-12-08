@@ -3,9 +3,11 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.product.ProductApplication;
 import org.egov.product.service.ProductService;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
@@ -13,6 +15,7 @@ import org.egov.product.web.models.ProductSearchRequest;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.product.web.models.ProductVariantSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -34,7 +37,6 @@ import java.util.List;
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
 @Controller
-@RequestMapping("")
 public class ProductApiController {
 
     private final ObjectMapper objectMapper;
@@ -62,11 +64,15 @@ public class ProductApiController {
 //            }
 //        }
         /*
+         IF API_OPERATION is CREATE or NULL
             1. Get products from request.
             2. Generate Ids using Idgen service.
             3. Send data to persister.
          */
 
+        if(productRequest.getApiOperation() != ApiOperation.CREATE && productRequest.getApiOperation() != null){
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation().toString()));
+        }
 
         List<Product> products = productService.create(productRequest);
         ProductResponse productResponse = ProductResponse.builder()
