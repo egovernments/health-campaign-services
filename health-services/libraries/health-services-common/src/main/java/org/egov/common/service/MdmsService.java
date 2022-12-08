@@ -19,14 +19,14 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@ConditionalOnExpression("!'${egov.mdms.integration.enabled}'.isEmpty() && ${egov.mdms.integration.enabled:false} && !'${egov.mdms.host}'.isEmpty() && !'${egov.mdms.host}'.isEmpty()")
+@ConditionalOnExpression("!'${egov.mdms.integration.enabled}'.isEmpty() && ${egov.mdms.integration.enabled:false} && !'${egov.mdms.host}'.isEmpty() && !'${egov.mdms.master.name}'.isEmpty()  && !'${egov.mdms.search.endpoint}'.isEmpty()")
 public class MdmsService {
 
     private final ServiceRequestClient restRepo;
     private final String mdmsHost;
     private final String mdmsUrl;
-    private final String masterName;
-    private final String moduleName;
+    private String masterName;
+    private String moduleName;
 
     @Autowired
     public MdmsService(ServiceRequestClient restRepo,
