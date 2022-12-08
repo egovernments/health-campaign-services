@@ -70,7 +70,6 @@ public class SpringBootCodegen extends AbstractJavaCodegen
     protected boolean implicitHeaders = false;
     protected boolean swaggerDocketConfig = false;
     protected boolean useOptional = false;
-    protected boolean serverLibrary = false;
 
 
     protected String mainClassName = "Main";
@@ -80,17 +79,8 @@ public class SpringBootCodegen extends AbstractJavaCodegen
         this.config = config;
         processConfigs();
         this.outputFolder = outputFolder;
-
-        if(config.isServerLibrary()){
-            embeddedTemplateDir = templateDir = "ServerLibrary";
-            // TODO - need to change the DEFAULT_LIBRARY variable
-            supportedLibraries.put(DEFAULT_LIBRARY, "Server Library");
-            setInterfaceOnly(true);
-            additionalProperties.put(INTERFACE_ONLY,true);
-        }else{
-            embeddedTemplateDir = templateDir = "JavaSpringBoot";
-            supportedLibraries.put(DEFAULT_LIBRARY, "Spring-boot Server application using the SpringFox integration.");
-        }
+        embeddedTemplateDir = templateDir = "JavaSpringBoot";
+        supportedLibraries.put(DEFAULT_LIBRARY, "Spring-boot Server application using the SpringFox integration.");
         setLibrary(DEFAULT_LIBRARY);
 
 
