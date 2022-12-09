@@ -43,7 +43,7 @@ class ProjectRepositoryTest {
 
     @Test
     @DisplayName("should return false if project dont exists")
-    void shouldReturnFalseIfProjecDonttExists() {
+    void shouldReturnFalseIfProjectDontExists() {
         String projectId = "projectId";
         Map<String, String> params = Collections.singletonMap("projectId", projectId);
 

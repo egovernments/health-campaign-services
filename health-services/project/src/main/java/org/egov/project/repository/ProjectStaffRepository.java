@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ProjectStaffRepository {
 
-    public static final String SAVE_KAFKA_TOPIC = "project-staff";
+    public static final String SAVE_KAFKA_TOPIC = "save-project-staff-topic";
     private final Producer producer;
 
     @Autowired

@@ -1,9 +1,10 @@
 package org.egov.project.web.controllers;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.project.service.ProjectStaffService;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -16,6 +17,7 @@ import org.egov.project.web.models.ProjectResourceResponse;
 import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.egov.project.web.models.ProjectResponse;
 import org.egov.project.web.models.ProjectSearchRequest;
+import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffResponse;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
@@ -37,24 +39,27 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
+import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
-
 @Controller
-@RequestMapping("")
+@RequestMapping("/project")
 public class ProjectApiController {
 
     private final ObjectMapper objectMapper;
 
     private final HttpServletRequest request;
 
+    private final ProjectStaffService projectStaffService;
+
     @Autowired
-    public ProjectApiController(ObjectMapper objectMapper, HttpServletRequest request) {
+    public ProjectApiController(ObjectMapper objectMapper, HttpServletRequest request, ProjectStaffService projectStaffService) {
         this.objectMapper = objectMapper;
         this.request = request;
+        this.projectStaffService = projectStaffService;
     }
 
-    @RequestMapping(value = "/project/beneficiary/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/beneficiary/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1CreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiary) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -68,7 +73,7 @@ public class ProjectApiController {
         return new ResponseEntity<BeneficiaryResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/beneficiary/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/beneficiary/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiary, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -85,7 +90,7 @@ public class ProjectApiController {
         return new ResponseEntity<BeneficiaryResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/beneficiary/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/beneficiary/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1UpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiary, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -99,7 +104,7 @@ public class ProjectApiController {
         return new ResponseEntity<BeneficiaryResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/facility/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/facility/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectFacilityResponse> projectFacilityV1CreatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacility) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -113,7 +118,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/facility/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectFacilityResponse> projectFacilityV1SearchPost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacility, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -130,7 +135,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/facility/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/facility/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectFacilityResponse> projectFacilityV1UpdatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacility) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -144,7 +149,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/resource/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/resource/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectResourceResponse> projectResourceV1CreatePost(@ApiParam(value = "Capture linkage of Project and resources.", required = true) @Valid @RequestBody ProjectResourceRequest projectResource) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -158,7 +163,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/resource/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/resource/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectResourceResponse> projectResourceV1SearchPost(@ApiParam(value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody ProjectResourceSearchRequest projectResource, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -175,7 +180,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/resource/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/resource/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectResourceResponse> projectResourceV1UpdatePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceRequest projectResource) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -189,12 +194,21 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/staff/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaff) throws JsonProcessingException {
-        return new ResponseEntity<ProjectStaffResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectStaff\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  } ]}", ProjectStaffResponse.class), HttpStatus.NOT_IMPLEMENTED);
+    @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffRequest) {
+
+        List<ProjectStaff> projectStaffs = projectStaffService.create(projectStaffRequest);
+        ProjectStaffResponse response = ProjectStaffResponse.builder()
+                .projectStaff(projectStaffs)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectStaffRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        //return new ResponseEntity<ProjectStaffResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectStaff\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  } ]}", ProjectStaffResponse.class), HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/staff/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaff, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -211,7 +225,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectStaffResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/staff/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaff) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -225,7 +239,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectStaffResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/task/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest task) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -239,7 +253,7 @@ public class ProjectApiController {
         return new ResponseEntity<TaskResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/task/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> projectTaskV1SearchPost(@ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest task, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -256,7 +270,7 @@ public class ProjectApiController {
         return new ResponseEntity<TaskResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/task/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/task/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> projectTaskV1UpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest task) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -270,7 +284,7 @@ public class ProjectApiController {
         return new ResponseEntity<TaskResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectResponse> projectV1CreatePost(@ApiParam(value = "Details for the new Project.", required = true) @Valid @RequestBody ProjectRequest project) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
@@ -284,7 +298,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectResponse> projectV1SearchPost(@ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectSearchRequest project, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -301,7 +315,7 @@ public class ProjectApiController {
         return new ResponseEntity<ProjectResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/project/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectResponse> projectV1UpdatePost(@ApiParam(value = "Details for the new Project.", required = true) @Valid @RequestBody ProjectRequest project) {
         String accept = request.getHeader("Accept");
         if (accept != null && accept.contains("application/json")) {
