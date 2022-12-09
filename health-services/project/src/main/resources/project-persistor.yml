@@ -1,0 +1,39 @@
+serviceMaps:
+  serviceName: project
+  mappings:
+    - version: 1.0
+      description: Saves a project staff
+      fromTopic: save-project-staff-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: INSERT INTO project_staff (id, tenantId, projectId, staffId, startDate, endDate, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+
+            - jsonPath: $.*.tenantId
+
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.staffId
+
+            - jsonPath: $.*.startDate
+
+            - jsonPath: $.*.endDate
+              -
+            - jsonPath: $.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
