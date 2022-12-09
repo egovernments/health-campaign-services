@@ -6,7 +6,6 @@ serviceMaps:
       fromTopic: save-product-variant-topic
       isTransaction: true
       queryMaps:
-
         - query: INSERT INTO product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
@@ -29,6 +28,34 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy
 
             - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a product variant
+      fromTopic: update-product-variant-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+
+            - jsonPath: $.*.productId
+
+            - jsonPath: $.*.sku
+
+            - jsonPath: $.*.variation
+
+            - jsonPath: $.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
 
             - jsonPath: $.*.auditDetails.lastModifiedTime
 

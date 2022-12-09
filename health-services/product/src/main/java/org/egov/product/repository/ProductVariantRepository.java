@@ -32,4 +32,8 @@ public class ProductVariantRepository {
         redisTemplate.opsForHash().putAll("product-variant", productVariantMap);
         return productVariants;
     }
+
+    public List<ProductVariant> findById(List<String> ids) {
+        throw new UnsupportedOperationException();
+    }
 }

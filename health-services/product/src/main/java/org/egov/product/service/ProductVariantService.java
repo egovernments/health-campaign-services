@@ -35,16 +35,7 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
-        List<String> productIds = request.getProductVariant().stream()
-                .map(ProductVariant::getProductId)
-                .collect(Collectors.toList());
-        List<String> validProductIds = productService.validateProductId(productIds);
-        if (validProductIds.size() != productIds.size()) {
-            List<String> invalidProductIds = new ArrayList<>(productIds);
-            invalidProductIds.removeAll(validProductIds);
-            log.error("Invalid ProductIds");
-            throw new CustomException("INVALID_PRODUCT_ID", invalidProductIds.toString());
-        }
+        validateProductId(request);
         Optional<ProductVariant> anyProductVariant = request.getProductVariant()
                 .stream().findAny();
         String tenantId = null;
@@ -66,7 +57,7 @@ public class ProductVariantService {
                 });
         log.info("Enrichment done");
         productVariantRepository.save(request.getProductVariant(), "save-product-variant-topic");
-        log.info("Pushed to kafka");
+        log.info("Create: Pushed to kafka");
         return request.getProductVariant();
     }
 
@@ -78,5 +69,44 @@ public class ProductVariantService {
                 .lastModifiedTime(System.currentTimeMillis())
                 .build();
 
+    }
+
+    public List<ProductVariant> update(ProductVariantRequest request) {
+        validateProductId(request);
+
+        log.info("Checking existing product variants");
+        List<ProductVariant> existingProductVariants = productVariantRepository
+                .findById(request.getProductVariant().stream()
+                .map(ProductVariant::getId).collect(Collectors.toList()));
+
+        if (request.getProductVariant().size() != existingProductVariants.size()) {
+            List<ProductVariant> invalidProductVariants = new ArrayList<>(request.getProductVariant());
+            invalidProductVariants.removeAll(existingProductVariants);
+            log.error("Invalid product variants");
+            throw new CustomException("INVALID_PRODUCT_VARIANT", invalidProductVariants.toString());
+        }
+
+        log.info("Updating lastModifiedTime and lastModifiedBy");
+        request.getProductVariant().forEach(productVariant -> {
+            productVariant.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+            productVariant.getAuditDetails().setLastModifiedBy(request.getRequestInfo().getUserInfo().getUuid());
+            productVariant.setRowVersion(productVariant.getRowVersion() + 1);
+        });
+        productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
+        log.info("Update: Pushed to kafka");
+        return request.getProductVariant();
+    }
+
+    private void validateProductId(ProductVariantRequest request) {
+        List<String> productIds = request.getProductVariant().stream()
+                .map(ProductVariant::getProductId)
+                .collect(Collectors.toList());
+        List<String> validProductIds = productService.validateProductId(productIds);
+        if (validProductIds.size() != productIds.size()) {
+            List<String> invalidProductIds = new ArrayList<>(productIds);
+            invalidProductIds.removeAll(validProductIds);
+            log.error("Invalid productIds");
+            throw new CustomException("INVALID_PRODUCT_ID", invalidProductIds.toString());
+        }
     }
 }
