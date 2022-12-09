@@ -69,7 +69,7 @@ public class MainConfiguration {
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(@Qualifier("redisObjectMapper") ObjectMapper redisObjectMapper,
-                                                       RedisConnectionFactory redisConnectionFactory) {
+                                                    RedisConnectionFactory redisConnectionFactory) {
         Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(Object.class);
         serializer.setObjectMapper(redisObjectMapper);
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();

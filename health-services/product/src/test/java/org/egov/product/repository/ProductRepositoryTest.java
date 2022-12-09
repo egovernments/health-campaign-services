@@ -17,6 +17,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.egov.product.helper.ProductRequestTestBuilder;
+import org.egov.product.helper.ProductTestBuilder;
+import org.egov.product.web.models.ProductRequest;
+import org.mockito.ArgumentMatchers;
+import org.mockito.InOrder;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -37,6 +45,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ProductRepositoryTest {
+
     @InjectMocks
     private ProductRepository productRepository;
 
@@ -48,6 +57,7 @@ class ProductRepositoryTest {
 
     @Mock
     RedisTemplate<String, Object> redisTemplate;
+
     @Mock
     private HashOperations hashOperations;
 

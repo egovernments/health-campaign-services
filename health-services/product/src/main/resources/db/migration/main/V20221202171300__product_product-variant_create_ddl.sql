@@ -5,7 +5,7 @@ CREATE TABLE PRODUCT_VARIANT
     productId         character varying(64),
     sku               character varying(1000),
     variation         character varying(1000),
-    additionalDetails text,
+    additionalDetails jsonb,
     createdBy         character varying(64),
     lastModifiedBy    character varying(64),
     createdTime       bigint,

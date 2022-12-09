@@ -1,19 +1,16 @@
 package org.egov.product.web.models;
 
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import digit.models.coremodels.AuditDetails;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
-import org.egov.product.web.models.AdditionalFields;
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 /**
 * Product
@@ -43,7 +40,7 @@ public class Product   {
         @Size(min=2,max=200)
 
 
-        private String type = null;
+    private String type = null;
 
         @JsonProperty("name")
       @NotNull

@@ -9,9 +9,13 @@ import org.egov.product.ProductApplication;
 import org.egov.product.service.ProductService;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
+import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.product.service.ProductVariantService;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
 import org.egov.product.web.models.ProductSearchRequest;
+import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.product.web.models.ProductVariantSearchRequest;
@@ -43,12 +47,16 @@ public class ProductApiController {
 
     private final HttpServletRequest request;
 
+    private final ProductVariantService productVariantService;
+
     private final ProductService productService;
 
     @Autowired
-    public ProductApiController(ObjectMapper objectMapper, HttpServletRequest request, ProductService productService) {
+    public ProductApiController(ObjectMapper objectMapper, HttpServletRequest request,
+                                ProductVariantService productVariantService, ProductService productService) {
         this.objectMapper = objectMapper;
         this.request = request;
+        this.productVariantService = productVariantService;
         this.productService = productService;
     }
 
@@ -99,17 +107,20 @@ public class ProductApiController {
     }
 
     @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProductVariantResponse> productVariantV1CreatePost(@ApiParam(value = "Capture details of Product Variant.", required = true) @Valid @RequestBody ProductVariantRequest productVariant) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProductVariantResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProductVariant\" : [ {    \"productId\" : \"productId\",    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"sku\" : \"PAR-200\",    \"variation\" : \"Paracetamol 200mg white color\"  }, {    \"productId\" : \"productId\",    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"sku\" : \"PAR-200\",    \"variation\" : \"Paracetamol 200mg white color\"  } ]}", ProductVariantResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProductVariantResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
+    public ResponseEntity<ProductVariantResponse> productVariantV1CreatePost(@ApiParam(value = "Capture details of Product Variant.", required = true)
+                                                                                 @Valid @RequestBody ProductVariantRequest request) throws Exception {
+        if (request.getApiOperation() == null || request.getApiOperation().equals(ApiOperation.CREATE)) {
+            List<ProductVariant> productVariants = productVariantService.create(request);
+            ProductVariantResponse response = ProductVariantResponse.builder()
+                    .productVariant(productVariants)
+                    .responseInfo(ResponseInfoFactory
+                            .createResponseInfo(request.getRequestInfo(), true))
+                    .build();
 
-        return new ResponseEntity<ProductVariantResponse>(HttpStatus.NOT_IMPLEMENTED);
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        } else {
+            throw new CustomException("INCORRECT_API_OPERATION", "Only null or CREATE apiOperation supported for create endpoint");
+        }
     }
 
     @RequestMapping(value = "/variant/v1/_search", method = RequestMethod.POST)
@@ -130,17 +141,20 @@ public class ProductApiController {
     }
 
     @RequestMapping(value = "/variant/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProductVariantResponse> productVariantV1UpdatePost(@ApiParam(value = "Capture details of Product Variant.", required = true) @Valid @RequestBody ProductVariantRequest productVariant) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProductVariantResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProductVariant\" : [ {    \"productId\" : \"productId\",    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"sku\" : \"PAR-200\",    \"variation\" : \"Paracetamol 200mg white color\"  }, {    \"productId\" : \"productId\",    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"sku\" : \"PAR-200\",    \"variation\" : \"Paracetamol 200mg white color\"  } ]}", ProductVariantResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProductVariantResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
+    public ResponseEntity<ProductVariantResponse> productVariantV1UpdatePost(@ApiParam(value = "Capture details of Product Variant.", required = true) @Valid @RequestBody ProductVariantRequest request) {
+        if (request.getApiOperation().equals(ApiOperation.UPDATE)
+                || request.getApiOperation().equals(ApiOperation.DELETE)) {
+            List<ProductVariant> productVariants = productVariantService.update(request);
+            ProductVariantResponse response = ProductVariantResponse.builder()
+                    .productVariant(productVariants)
+                    .responseInfo(ResponseInfoFactory
+                            .createResponseInfo(request.getRequestInfo(), true))
+                    .build();
 
-        return new ResponseEntity<ProductVariantResponse>(HttpStatus.NOT_IMPLEMENTED);
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        } else {
+            throw new CustomException("INCORRECT_API_OPERATION", "UPDATE and DELETE apiOperation supported for update endpoint");
+        }
     }
 
 }
