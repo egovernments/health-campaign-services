@@ -33,7 +33,7 @@ public class Product   {
     private String id = null;
 
         @JsonProperty("tenantId")
-    
+    @NotNull
 
 
     private String tenantId = null;

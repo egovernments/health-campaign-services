@@ -1,17 +1,15 @@
 package org.egov.product.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.producer.Producer;
 import org.egov.product.web.models.Product;
+import org.egov.product.web.models.ProductRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -19,55 +17,35 @@ import java.util.stream.Collectors;
 @Repository
 @Slf4j
 public class ProductRepository {
-
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-    RedisTemplate<String, Object> redisTemplate;
-
+    private final Producer producer;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final String HASH_KEY = "PRODUCT";
     @Autowired
-    public ProductRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, Object> redisTemplate) {
+    public ProductRepository(Producer producer,  NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, Object> redisTemplate) {
+        this.producer = producer;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.redisTemplate = redisTemplate;
     }
 
-//    private List<String> checkInDb(List<Product> productList){
-//        Map<String, Object> paramMap = new HashMap<>();
-//        paramMap.put("productIds", productList.stream().map((Product p) -> p.getId()).collect(Collectors.toList()));
-//        String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) fetch first %s rows only", productList.size());
-//        return namedParameterJdbcTemplate.queryForList(query, paramMap, String.class);
-//    }
-
     public List<String> validateProductId(List<String> ids){
+        List<String> productIds = ids.stream().filter((String id) -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id)).collect(Collectors.toList());
+        if(!productIds.isEmpty())
+            return productIds;
+
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("productIds", ids);
-        String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) fetch first %s rows only", ids.size());
+        String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", ids.size());
         return namedParameterJdbcTemplate.queryForList(query, paramMap, String.class);
     }
-
-//    public List<String> validate(List<Product> productList){
-//        List<String> ids = productList.stream().map((Product p) -> p.getId()).collect(Collectors.toList());
-//        List<String> foundInCache = checkInCache(ids);
-//
-//        List<String> toFindInDB = ids.stream().filter(((String id) -> !foundInCache.contains(id))).collect(Collectors.toList());
-//        List<String> foundInDB = checkInDbIds(toFindInDB);
-//        foundInDB.addAll(foundInCache);
-//
-//        return foundInDB;
-//    }
-
-
-//    public List<String> checkInCache(List<String> ids){
-//        return (List<String>) ids.stream().filter((String id) -> redisTemplate.hasKey(id));
-//    }
-//
-//    public List<String> checkIfExist(List<Product> productList){
-//        List<String> ids = new ArrayList<>();
-//
-//    }
-//
-//    public void cache(List<Product> productList){
-//        for(Product product: productList){
-//           redisTemplate.opsForHash().put("PRODUCT", product.getId(), product);
-//        }
-//    }
+    public ProductRequest save(ProductRequest productRequest, String topic){
+        producer.push(topic, productRequest);
+        log.info("PRODUCT_SERVICE: products sent to persister");
+        Map<String, Product> productMap = productRequest.getProduct().stream()
+                .collect(Collectors.toMap(Product::getId,
+                                product -> product));
+        redisTemplate.opsForHash().putAll(HASH_KEY, productMap);
+        return productRequest;
+    }
 }
 

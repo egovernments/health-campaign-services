@@ -32,7 +32,17 @@ public class ProductTestBuilder {
                 .manufacturer("MANU")
                 .tenantId("default")
                 .type("DRUG")
-                .id("P101")
+                .id("id-1")
+                .additionalFields(AdditionalFields.builder().build())
+                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+        return this;
+    }
+
+    public ProductTestBuilder goodProductWithNullTenant() {
+        this.builder.name("Product-1")
+                .manufacturer("MANU")
+                .type("DRUG")
+                .id("some-id")
                 .additionalFields(AdditionalFields.builder().build())
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;
