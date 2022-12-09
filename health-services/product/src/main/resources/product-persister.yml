@@ -19,7 +19,7 @@ serviceMaps:
 
             - jsonPath: $.*.variation
 
-            - jsonPath: $.*.additionalDetails
+            - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
 
@@ -51,7 +51,7 @@ serviceMaps:
 
             - jsonPath: $.*.variation
 
-            - jsonPath: $.*.additionalDetails
+            - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
 

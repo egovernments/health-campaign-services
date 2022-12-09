@@ -34,6 +34,8 @@ public class ProductVariantRepository {
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
+    private static final String HASH_KEY = "product-variant";
+
     @Autowired
     public ProductVariantRepository(Producer producer, RedisTemplate<String, Object> redisTemplate,
                                     NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
@@ -51,7 +53,7 @@ public class ProductVariantRepository {
     public List<ProductVariant> findById(List<String> ids) {
         Collection<Object> collection = new ArrayList<>(ids);
         List<Object> productVariants = redisTemplate.opsForHash()
-                .multiGet("product-variant", collection);
+                .multiGet(HASH_KEY, collection);
         if (productVariants != null && !productVariants.isEmpty()) {
             log.info("Cache hit");
             return productVariants.stream().map(ProductVariant.class::cast)
@@ -85,7 +87,7 @@ public class ProductVariantRepository {
                 .collect(Collectors
                         .toMap(ProductVariant::getId,
                                 productVariant -> productVariant));
-        redisTemplate.opsForHash().putAll("product-variant", productVariantMap);
+        redisTemplate.opsForHash().putAll(HASH_KEY, productVariantMap);
     }
 
     private void mapRow(ResultSet resultSet, List<ProductVariant> pvList) throws SQLException, JsonProcessingException {

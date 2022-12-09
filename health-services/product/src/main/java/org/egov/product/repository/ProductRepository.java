@@ -35,10 +35,12 @@ public class ProductRepository {
     }
 
     public List<String> validateProductId(List<String> ids) {
-        List<String> productIds = ids.stream().filter((String id) -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id)).collect(Collectors.toList());
-        if (!productIds.isEmpty())
+        List<String> productIds = ids.stream().filter(id -> redisTemplate.opsForHash()
+                .entries(HASH_KEY).containsKey(id))
+                .collect(Collectors.toList());
+        if (!productIds.isEmpty()) {
             return productIds;
-
+        }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("productIds", ids);
         String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", ids.size());

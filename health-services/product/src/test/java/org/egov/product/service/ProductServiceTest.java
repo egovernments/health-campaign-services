@@ -1,10 +1,8 @@
 package org.egov.product.service;
 
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.product.enrichment.ProductEnrichment;
-import org.egov.product.enrichment.ProductEnrichmentTest;
 import org.egov.product.helper.ProductRequestTestBuilder;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
@@ -22,32 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.producer.Producer;
-import org.egov.common.service.IdGenService;
-import org.egov.product.enrichment.ProductEnrichment;
-import org.egov.product.enrichment.ProductEnrichmentTest;
-import org.egov.product.helper.ProductRequestTestBuilder;
-import org.egov.product.repository.ProductRepository;
-import org.egov.product.web.models.Product;
-import org.egov.product.web.models.ProductRequest;
-import org.egov.tracer.model.CustomException;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -104,6 +78,7 @@ class ProductServiceTest {
     @Test
     @DisplayName("should send the enriched product to the kafka topic")
     void shouldSendTheEnrichedProductToTheKafkaTopic() throws Exception {
+        // TODO: Follow AAA
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
         when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);

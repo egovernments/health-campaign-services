@@ -3,15 +3,11 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
-import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.utils.ResponseInfoFactory;
-import org.egov.product.ProductApplication;
 import org.egov.product.service.ProductService;
-import org.egov.product.web.models.ApiOperation;
-import org.egov.product.web.models.Product;
-import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.product.service.ProductVariantService;
 import org.egov.product.web.models.ApiOperation;
+import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -21,7 +17,6 @@ import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -119,6 +114,7 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
+            // TODO: Same as product create
             throw new CustomException("INCORRECT_API_OPERATION", "Only null or CREATE apiOperation supported for create endpoint");
         }
     }
@@ -153,6 +149,7 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
+            // TODO: Same format as product create
             throw new CustomException("INCORRECT_API_OPERATION", "UPDATE and DELETE apiOperation supported for update endpoint");
         }
     }

@@ -15,7 +15,6 @@ import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.tracer.model.ErrorRes;
-import org.junit.Ignore;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(ProductApiController.class)
 @Import({TestConfiguration.class})
-public class ProductApiControllerTest {
+class ProductApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,9 +56,9 @@ public class ProductApiControllerTest {
     @MockBean
     private ProductService productService;
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("Product Request should fail for incorrect API operation")
-    public void productRequestForCreateShouldFailForIncorrectApiOperation() throws Exception {
+    void productRequestForCreateShouldFailForIncorrectApiOperation() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationDelete().build();
 
         String expectedResponse = "{\"ResponseInfo\":null,\"Errors\":[{\"code\":\"INVALID_API_OPERATION\",\"message\":\"API Operation DELETE not valid for create request\",\"description\":null,\"params\":null}]}";
@@ -72,9 +71,9 @@ public class ProductApiControllerTest {
         assertEquals(expectedResponse, actualResponse);
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("Product request should pass with API Operation NULL")
-    public void productRequestForCreateShouldPassForNullApiOperation() throws Exception{
+    void productRequestForCreateShouldPassForNullApiOperation() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
 
         ArrayList<Product> products = new ArrayList<>();
@@ -82,6 +81,7 @@ public class ProductApiControllerTest {
 
         when(productService.create(any(ProductRequest.class))).thenReturn(products);
 
+        // TODO: Fix deprecated value
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON_UTF8).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isAccepted()).andReturn();
@@ -95,9 +95,9 @@ public class ProductApiControllerTest {
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("Product request should pass with API Operation CREATE")
-    public void productRequestForCreateShouldPassForCreateApiOperation() throws Exception{
+    void productRequestForCreateShouldPassForCreateApiOperation() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationCreate().build();
 
         ArrayList<Product> products = new ArrayList<>();
@@ -120,14 +120,14 @@ public class ProductApiControllerTest {
 
     @Test
     @DisplayName("Product request should fail if products are invalid")
-    public void productRequestForCreateShouldFailForBadProducts() throws Exception{
+    void productRequestForCreateShouldFailForBadProducts() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addBadProduct().withApiOperationCreate().build();
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON_UTF8).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isBadRequest()).andReturn();
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("should create product variant and return with 202 accepted")
     void shouldCreateProductVariantAndReturnWith202Accepted() throws Exception {
         ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
@@ -153,7 +153,7 @@ public class ProductApiControllerTest {
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
@@ -172,7 +172,7 @@ public class ProductApiControllerTest {
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("should send 400 bad request in case of incorrect api operation for create")
     void shouldSend400BadRequestInCaseOfIncorrectApiOperationForCreate() throws Exception {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
@@ -190,7 +190,7 @@ public class ProductApiControllerTest {
         assertEquals(1, response.getErrors().size());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("should update product variant and return with 202 accepted")
     void shouldUpdateProductVariantAndReturnWith202Accepted() throws Exception {
         ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
@@ -217,7 +217,7 @@ public class ProductApiControllerTest {
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_update")
@@ -236,7 +236,7 @@ public class ProductApiControllerTest {
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     @DisplayName("should send 400 bad request in case of incorrect api operation for update")
     void shouldSend400BadRequestInCaseOfIncorrectApiOperationForUpdate() throws Exception {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_update")
