@@ -45,6 +45,7 @@ class ProjectStaffServiceTest {
     @DisplayName("should successfully project staff service")
     void shouldSuccessfullyProjectStaffService()  {
         ProjectStaff projectStaff = ProjectStaff.builder().build();
+
         when(projectStaffRepository.save(any(ProjectStaff.class))).thenReturn(projectStaff);
 
         projectStaffService.create(projectStaff);
