@@ -8,6 +8,7 @@ import org.egov.product.web.models.AdditionalFields;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,19 +53,23 @@ public class ProductVariantRepository {
         String query = "SELECT * FROM product_variant WHERE id IN (:ids) and isDeleted = false";
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
-        return namedParameterJdbcTemplate.queryForObject(query, paramMap,
-                ((resultSet, i) -> {
-                    List<ProductVariant> pvList = new ArrayList<>();
-                    try {
-                        mapRow(resultSet, pvList);
-                        while (resultSet.next()) {
+        try {
+            return namedParameterJdbcTemplate.queryForObject(query, paramMap,
+                    ((resultSet, i) -> {
+                        List<ProductVariant> pvList = new ArrayList<>();
+                        try {
                             mapRow(resultSet, pvList);
+                            while (resultSet.next()) {
+                                mapRow(resultSet, pvList);
+                            }
+                        } catch (Exception e) {
+                            throw new CustomException("ERROR_IN_SELECT", e.getMessage());
                         }
-                    } catch (Exception e) {
-                        throw new CustomException("ERROR_IN_SELECT", e.getMessage());
-                    }
-                    return pvList;
-                }));
+                        return pvList;
+                    }));
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
     }
 
     private void mapRow(ResultSet resultSet, List<ProductVariant> pvList) throws SQLException, JsonProcessingException {
@@ -76,7 +82,7 @@ public class ProductVariantRepository {
                 .isDeleted(resultSet.getBoolean("isDeleted"))
                 .rowVersion(resultSet.getInt("rowVersion"))
                 .additionalFields(new ObjectMapper()
-                        .readValue(resultSet.getString("additionalFields"),
+                        .readValue(resultSet.getString("additionalDetails"),
                                 AdditionalFields.class))
                 .auditDetails(AuditDetails.builder()
                         .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
