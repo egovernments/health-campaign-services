@@ -3,6 +3,7 @@ package org.egov.product.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.producer.Producer;
 import org.egov.product.web.models.AdditionalFields;
 import org.egov.product.web.models.ProductVariant;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -23,6 +25,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Repository
+@Slf4j
 public class ProductVariantRepository {
 
     private final Producer producer;
@@ -41,15 +44,19 @@ public class ProductVariantRepository {
 
     public List<ProductVariant> save(List<ProductVariant> productVariants, String topic) {
         producer.push(topic, productVariants);
-        Map<String, ProductVariant> productVariantMap = productVariants.stream()
-                .collect(Collectors
-                        .toMap(ProductVariant::getId,
-                                productVariant -> productVariant));
-        redisTemplate.opsForHash().putAll("product-variant", productVariantMap);
+        putInCache(productVariants);
         return productVariants;
     }
 
     public List<ProductVariant> findById(List<String> ids) {
+        Collection<Object> collection = new ArrayList<>(ids);
+        List<Object> productVariants = redisTemplate.opsForHash()
+                .multiGet("product-variant", collection);
+        if (productVariants != null && !productVariants.isEmpty()) {
+            log.info("Cache hit");
+            return productVariants.stream().map(ProductVariant.class::cast)
+                    .collect(Collectors.toList());
+        }
         String query = "SELECT * FROM product_variant WHERE id IN (:ids) and isDeleted = false";
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
@@ -65,11 +72,20 @@ public class ProductVariantRepository {
                         } catch (Exception e) {
                             throw new CustomException("ERROR_IN_SELECT", e.getMessage());
                         }
+                        putInCache(pvList);
                         return pvList;
                     }));
         } catch (EmptyResultDataAccessException e) {
             return Collections.emptyList();
         }
+    }
+
+    private void putInCache(List<ProductVariant> productVariants) {
+        Map<String, ProductVariant> productVariantMap = productVariants.stream()
+                .collect(Collectors
+                        .toMap(ProductVariant::getId,
+                                productVariant -> productVariant));
+        redisTemplate.opsForHash().putAll("product-variant", productVariantMap);
     }
 
     private void mapRow(ResultSet resultSet, List<ProductVariant> pvList) throws SQLException, JsonProcessingException {
