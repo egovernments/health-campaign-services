@@ -39,6 +39,14 @@ public class ProductVariantRequestTestBuilder {
         return this;
     }
 
+    public ProductVariantRequestTestBuilder withApiOperationNotUpdate() {
+        List<ProductVariant> productVariants = new ArrayList<>();
+        productVariants.add(ProductVariantTestBuilder.builder().withIdNull().build());
+        builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .productVariant(productVariants).apiOperation(ApiOperation.CREATE);
+        return this;
+    }
+
     public ProductVariantRequestTestBuilder withOneProductVariantHavingId() {
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(ProductVariantTestBuilder.builder().withId().withAuditDetails().build());
