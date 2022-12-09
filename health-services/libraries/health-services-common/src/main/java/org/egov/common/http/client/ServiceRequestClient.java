@@ -4,6 +4,7 @@ package org.egov.common.http.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
@@ -33,7 +34,8 @@ public class ServiceRequestClient {
         try {
             response = restTemplate.postForObject(uri.toString(), request, clazz);
         } catch (HttpClientErrorException e) {
-            throw new Exception(e);
+            throw new CustomException("HTTP_CLIENT_ERROR",
+                    String.format("%s - %s", e.getMessage(), e.getResponseBodyAsString()));
         }
         return response;
     }

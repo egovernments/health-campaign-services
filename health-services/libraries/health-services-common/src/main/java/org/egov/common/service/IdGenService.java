@@ -6,6 +6,7 @@ import digit.models.coremodels.IdRequest;
 import digit.models.coremodels.IdResponse;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
@@ -49,7 +50,7 @@ public class IdGenService {
         List<IdResponse> idResponses = response.getIdResponses();
 
         if (CollectionUtils.isEmpty(idResponses))
-            throw new Exception("IDGEN ERROR - No ids returned from idgen Service");
+            throw new CustomException("IDGEN ERROR", "No ids returned from idgen Service");
 
         return idResponses.stream().map(IdResponse::getId).collect(Collectors.toList());
     }
