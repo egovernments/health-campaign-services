@@ -85,10 +85,8 @@ class ProductServiceTest {
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
         when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
-
         productService.create(request);
         verify(productEnrichment, times(1)).enrichProduct(any(ProductRequest.class));
-        verify(producer, times(1)).push(any(String.class),
-                any(ProductRequest.class));
+        verify(productRepository, times(1)).save(any(ProductRequest.class), any(String.class));
     }
 }

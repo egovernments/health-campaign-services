@@ -116,12 +116,8 @@ public class ProductApiControllerTest {
     @DisplayName("Product request should fail if products are invalid")
     public void productRequestForCreateShouldFailForBadProducts() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addBadProduct().withApiOperationCreate().build();
-        String expectedResponse = "{\"ResponseInfo\":null,\"Errors\":[{\"code\":\"NotNull.productRequest.product[0].tenantId\",\"message\":\"must not be null\",\"description\":null,\"params\":null},{\"code\":\"NotNull.productRequest.product[0].type\",\"message\":\"must not be null\",\"description\":null,\"params\":null}]}";
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON_UTF8).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isBadRequest()).andReturn();
-
-        String actualResponse = result.getResponse().getContentAsString();
-        assertEquals(expectedResponse, actualResponse);
     }
 }

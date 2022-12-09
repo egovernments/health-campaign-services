@@ -1,6 +1,7 @@
 package org.egov.product.enrichment;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.product.helper.ProductRequestTestBuilder;
 import org.egov.product.web.models.ProductRequest;
@@ -22,6 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)

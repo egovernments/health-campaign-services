@@ -23,15 +23,13 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 public class ProductService {
-    private final Producer producer;
 
     private ProductRepository productRepository;
 
     private ProductEnrichment productEnrichment;
 
     @Autowired
-    public ProductService(Producer producer, ProductRepository productRepository, ProductEnrichment productEnrichment) {
-        this.producer = producer;
+    public ProductService(ProductRepository productRepository, ProductEnrichment productEnrichment) {
         this.productRepository = productRepository;
         this.productEnrichment = productEnrichment;
     }
@@ -51,8 +49,7 @@ public class ProductService {
         log.info("PRODUCT_SERVICE: Enrichment products started");
         productRequest = productEnrichment.enrichProduct(productRequest);
         log.info("PRODUCT_SERVICE: Enrichment products complete");
-        producer.push("health-product-topic", productRequest);
-        log.info("PRODUCT_SERVICE: Sent products to persister");
+        productRepository.save(productRequest, "health-product-topic");
         return productRequest.getProduct();
     }
 }
