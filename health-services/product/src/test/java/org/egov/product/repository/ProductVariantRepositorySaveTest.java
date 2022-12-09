@@ -26,7 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ProductVariantRepositoryTest {
+class ProductVariantRepositorySaveTest {
 
     @InjectMocks
     private ProductVariantRepository productVariantRepository;
