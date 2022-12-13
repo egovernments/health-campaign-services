@@ -30,14 +30,14 @@ public class Product   {
     private String id = null;
 
         @JsonProperty("tenantId")
-    
+    @NotNull
 
 
     private String tenantId = null;
 
         @JsonProperty("type")
       @NotNull
-
+        @Size(min=2,max=100)
 
 
     private String type = null;

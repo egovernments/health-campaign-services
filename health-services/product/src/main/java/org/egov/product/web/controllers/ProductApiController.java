@@ -4,8 +4,10 @@ package org.egov.product.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.product.service.ProductService;
 import org.egov.product.service.ProductVariantService;
 import org.egov.product.web.models.ApiOperation;
+import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -42,26 +44,31 @@ public class ProductApiController {
 
     private final ProductVariantService productVariantService;
 
+    private final ProductService productService;
+
     @Autowired
     public ProductApiController(ObjectMapper objectMapper, HttpServletRequest request,
-                                ProductVariantService productVariantService) {
+                                ProductVariantService productVariantService, ProductService productService) {
         this.objectMapper = objectMapper;
         this.request = request;
         this.productVariantService = productVariantService;
+        this.productService = productService;
     }
 
+
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProductResponse> productV1CreatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest product) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProductResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Product\" : [ {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  }, {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  } ]}", ProductResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProductResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+    public ResponseEntity<ProductResponse> productV1CreatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest productRequest) throws Exception {
+        if(productRequest.getApiOperation() != ApiOperation.CREATE && productRequest.getApiOperation() != null){
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation().toString()));
         }
 
-        return new ResponseEntity<ProductResponse>(HttpStatus.NOT_IMPLEMENTED);
+        List<Product> products = productService.create(productRequest);
+        ProductResponse response = ProductResponse.builder()
+                .product(products)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(productRequest.getRequestInfo(), true))
+                .build();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
@@ -82,17 +89,19 @@ public class ProductApiController {
     }
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProductResponse> productV1UpdatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest product) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProductResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Product\" : [ {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  }, {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  } ]}", ProductResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProductResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+    public ResponseEntity<ProductResponse> productV1UpdatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest productRequest) throws Exception {
+        if (productRequest.getApiOperation().equals(ApiOperation.UPDATE) || productRequest.getApiOperation().equals(ApiOperation.DELETE)) {
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", productRequest.getApiOperation().toString()));
         }
 
-        return new ResponseEntity<ProductResponse>(HttpStatus.NOT_IMPLEMENTED);
+        List<Product> products = productService.update(productRequest);
+        ProductResponse response = ProductResponse.builder()
+                .product(products)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(productRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
@@ -108,7 +117,7 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            throw new CustomException("INCORRECT_API_OPERATION", "Only null or CREATE apiOperation supported for create endpoint");
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", request.getApiOperation().toString()));
         }
     }
 
@@ -142,7 +151,7 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            throw new CustomException("INCORRECT_API_OPERATION", "UPDATE and DELETE apiOperation supported for update endpoint");
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", request.getApiOperation().toString()));
         }
     }
 

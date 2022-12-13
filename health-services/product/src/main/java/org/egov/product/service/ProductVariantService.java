@@ -57,7 +57,7 @@ public class ProductVariantService {
                 });
         log.info("Enrichment done");
         productVariantRepository.save(request.getProductVariant(), "save-product-variant-topic");
-        log.info("Create: Pushed to kafka");
+        log.info("Pushed to kafka");
         return request.getProductVariant();
     }
 
@@ -93,7 +93,7 @@ public class ProductVariantService {
             productVariant.setRowVersion(productVariant.getRowVersion() + 1);
         });
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
-        log.info("Update: Pushed to kafka");
+        log.info("Pushed to kafka");
         return request.getProductVariant();
     }
 
