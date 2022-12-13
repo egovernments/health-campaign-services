@@ -3,7 +3,6 @@ package org.egov.product.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.producer.Producer;
 import org.egov.product.web.models.Product;
-import org.egov.product.web.models.ProductRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -47,14 +46,30 @@ public class ProductRepository {
         return namedParameterJdbcTemplate.queryForList(query, paramMap, String.class);
     }
 
-    public ProductRequest save(ProductRequest productRequest, String topic) {
-        producer.push(topic, productRequest);
+    public List<String> validateAllProductId(List<String> ids){
+        List<String> productIds = ids.stream().filter(id -> redisTemplate.opsForHash()
+                        .entries(HASH_KEY).containsKey(id))
+                .collect(Collectors.toList());
+        //Ids to find in DB
+        ids = ids.stream().filter(id -> !productIds.contains(id)).collect(Collectors.toList());
+
+        if(!ids.isEmpty()){
+            Map<String, Object> paramMap = new HashMap<>();
+            paramMap.put("productIds", ids);
+            String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", ids.size());
+            productIds.addAll(namedParameterJdbcTemplate.queryForList(query, paramMap, String.class));
+        }
+        return productIds;
+    }
+
+    public List<Product> save(List<Product> products, String topic) {
+        producer.push(topic, products);
         log.info("Pushed to kafka");
-        Map<String, Product> productMap = productRequest.getProduct().stream()
+        Map<String, Product> productMap = products.stream()
                 .collect(Collectors.toMap(Product::getId,
                                 product -> product));
         redisTemplate.opsForHash().putAll(HASH_KEY, productMap);
-        return productRequest;
+        return products;
     }
 }
 

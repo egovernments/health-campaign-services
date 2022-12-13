@@ -35,6 +35,12 @@ public class ProductRequestTestBuilder {
         this.builder.product(products);
         return this;
     }
+
+    public ProductRequestTestBuilder addGoodProductWithId(String id) {
+        products.add(ProductTestBuilder.builder().goodProduct().withId(id).build());
+        this.builder.product(products);
+        return this;
+    }
     public ProductRequestTestBuilder addBadProduct(){
         products.add(ProductTestBuilder.builder().badProduct().build());
         this.builder.product(products);
@@ -45,6 +51,13 @@ public class ProductRequestTestBuilder {
         this.builder.product(products);
         return this;
     }
+
+    public ProductRequestTestBuilder add(Product product){
+        this.products.add(product);
+        this.builder.product(products);
+        return this;
+    }
+
     public ProductRequestTestBuilder withApiOperationCreate(){
         this.builder.apiOperation(ApiOperation.CREATE);
         return this;

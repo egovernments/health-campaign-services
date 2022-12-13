@@ -62,12 +62,12 @@ public class ProductApiController {
             throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation().toString()));
         }
         List<Product> products = productService.create(productRequest);
-        ProductResponse productResponse = ProductResponse.builder()
+        ProductResponse response = ProductResponse.builder()
                 .product(products)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(productRequest.getRequestInfo(), true))
                 .build();
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(productResponse);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
@@ -88,17 +88,19 @@ public class ProductApiController {
     }
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProductResponse> productV1UpdatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest product) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProductResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Product\" : [ {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  }, {    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"name\" : \"Paracetamol\",    \"id\" : { },    \"type\" : \"DRUG\",    \"manufacturer\" : \"J&J\"  } ]}", ProductResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProductResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+    public ResponseEntity<ProductResponse> productV1UpdatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest productRequest) throws Exception {
+        if (productRequest.getApiOperation() != ApiOperation.UPDATE) {
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation().toString()));
         }
 
-        return new ResponseEntity<ProductResponse>(HttpStatus.NOT_IMPLEMENTED);
+        List<Product> products = productService.update(productRequest);
+        ProductResponse response = ProductResponse.builder()
+                .product(products)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(productRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
@@ -114,8 +116,8 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            // TODO: Same as product create
-            throw new CustomException("INCORRECT_API_OPERATION", "Only null or CREATE apiOperation supported for create endpoint");
+            // TODO: Same as product create - UPDATED
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", request.getApiOperation().toString()));
         }
     }
 
@@ -149,8 +151,8 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            // TODO: Same format as product create
-            throw new CustomException("INCORRECT_API_OPERATION", "UPDATE and DELETE apiOperation supported for update endpoint");
+            // TODO: Same format as product create - UPDATED
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", request.getApiOperation().toString()));
         }
     }
 

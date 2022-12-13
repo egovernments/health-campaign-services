@@ -32,9 +32,13 @@ public class ProductTestBuilder {
                 .manufacturer("MANU")
                 .tenantId("default")
                 .type("DRUG")
-                .id("id-1")
                 .additionalFields(AdditionalFields.builder().build())
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+        return this;
+    }
+
+    public ProductTestBuilder withId(String id) {
+        this.builder.id(id);
         return this;
     }
 

@@ -42,7 +42,32 @@ public class ProductService {
         }
         log.info("Enrichment products started");
         productRequest = productEnrichment.enrichProduct(productRequest);
-        productRepository.save(productRequest, "health-product-topic");
+        productRepository.save(productRequest.getProduct(), "save-product-topic");
+        return productRequest.getProduct();
+    }
+
+    public List<Product> update(ProductRequest productRequest) throws Exception{
+        /*
+            Get products from DB or Cache.
+            If there is mismatch, return error
+            otherwise update
+         */
+        List<String> productIds = productRequest.getProduct().stream()
+                .map(Product::getId).filter(p -> p!=null)
+                .collect(Collectors.toList());
+
+        if (productIds.isEmpty() || productIds.size() != productRequest.getProduct().size()) {
+           throw new CustomException("PRODUCT_EMPTY", "Product IDs can not be null or empty");
+        }
+
+        List<String> validProductsIs = productRepository.validateAllProductId(productIds);
+        if (validProductsIs.size() != productIds.size()) {
+            throw new CustomException("PRODUCT_DOES_NOT_EXISTS", "Products does not exists");
+        }
+
+        productRequest = productEnrichment.enrichUpdateProduct(productRequest);
+        productRepository.save(productRequest.getProduct(), "update-product-topic");
+
         return productRequest.getProduct();
     }
 }

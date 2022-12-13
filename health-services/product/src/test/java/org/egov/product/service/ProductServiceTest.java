@@ -84,7 +84,7 @@ class ProductServiceTest {
         when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
         productService.create(request);
         verify(productEnrichment, times(1)).enrichProduct(any(ProductRequest.class));
-        verify(productRepository, times(1)).save(any(ProductRequest.class), any(String.class));
+        verify(productRepository, times(1)).save(any(List.class), any(String.class));
     }
 
     @Test
