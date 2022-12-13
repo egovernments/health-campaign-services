@@ -37,7 +37,7 @@ public class Product   {
 
         @JsonProperty("type")
       @NotNull
-        @Size(min=2,max=200)
+        @Size(min=2,max=100)
 
 
     private String type = null;

@@ -80,17 +80,13 @@ class ProductApiControllerTest {
     @DisplayName("Product request should pass with API Operation NULL")
     void productRequestForCreateShouldPassForNullApiOperation() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
-
         ArrayList<Product> products = new ArrayList<>();
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID-101").build());
-
         when(productService.create(any(ProductRequest.class))).thenReturn(products);
 
-        // TODO: Fix deprecated value - UPDATED
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isAccepted()).andReturn();
-
         String responseStr = result.getResponse().getContentAsString();
         ProductResponse response = objectMapper.readValue(responseStr,
                 ProductResponse.class);
@@ -104,17 +100,13 @@ class ProductApiControllerTest {
     @DisplayName("Product request should pass with API Operation CREATE")
     void productRequestForCreateShouldPassForCreateApiOperation() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationCreate().build();
-
         ArrayList<Product> products = new ArrayList<>();
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID-101").build());
-
-
         when(productService.create(any(ProductRequest.class))).thenReturn(products);
 
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isAccepted()).andReturn();
-
         String responseStr = result.getResponse().getContentAsString();
         ProductResponse response = objectMapper.readValue(responseStr,
                 ProductResponse.class);

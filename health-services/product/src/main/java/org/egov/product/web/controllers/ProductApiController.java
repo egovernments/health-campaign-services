@@ -61,6 +61,7 @@ public class ProductApiController {
         if(productRequest.getApiOperation() != ApiOperation.CREATE && productRequest.getApiOperation() != null){
             throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation().toString()));
         }
+
         List<Product> products = productService.create(productRequest);
         ProductResponse response = ProductResponse.builder()
                 .product(products)
@@ -89,8 +90,8 @@ public class ProductApiController {
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProductResponse> productV1UpdatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest productRequest) throws Exception {
-        if (productRequest.getApiOperation() != ApiOperation.UPDATE) {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation().toString()));
+        if (productRequest.getApiOperation().equals(ApiOperation.UPDATE) || productRequest.getApiOperation().equals(ApiOperation.DELETE)) {
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", productRequest.getApiOperation().toString()));
         }
 
         List<Product> products = productService.update(productRequest);
@@ -116,7 +117,6 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            // TODO: Same as product create - UPDATED
             throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", request.getApiOperation().toString()));
         }
     }
@@ -151,8 +151,7 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            // TODO: Same format as product create - UPDATED
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", request.getApiOperation().toString()));
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", request.getApiOperation().toString()));
         }
     }
 

@@ -78,7 +78,6 @@ class ProductServiceTest {
     @Test
     @DisplayName("should send the enriched product to the kafka topic")
     void shouldSendTheEnrichedProductToTheKafkaTopic() throws Exception {
-        // TODO: Follow AAA - UPDATED
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
         when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);

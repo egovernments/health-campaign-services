@@ -22,9 +22,8 @@ public class ProductEnrichment {
     }
 
     public ProductRequest enrichProduct(ProductRequest productRequest) throws Exception {
-        // TODO: Do all these in a single loop - UPDATED
         List<String> idList =  getIdsForProducts(productRequest);
-        AuditDetails auditDetails = getAuditDetailsForNewProduct(productRequest);
+        AuditDetails auditDetails = getAuditDetailsForCreate(productRequest);
         IntStream.range(0, productRequest.getProduct().size()).forEach(
                 i -> {
                     Product product = productRequest.getProduct().get(i);
@@ -38,8 +37,7 @@ public class ProductEnrichment {
     }
 
     public ProductRequest enrichUpdateProduct(ProductRequest productRequest) throws Exception {
-        // TODO: Do all these in a single loop - UPDATED
-        AuditDetails auditDetails = getAuditDetails(productRequest);
+        AuditDetails auditDetails = getAuditDetailsForUpdate(productRequest);
         IntStream.range(0, productRequest.getProduct().size()).forEach(
                 i -> {
                     Product product = productRequest.getProduct().get(i);
@@ -57,7 +55,7 @@ public class ProductEnrichment {
                 "product.id", "", productRequest.getProduct().size());
     }
 
-    private AuditDetails getAuditDetailsForNewProduct(ProductRequest productRequest){
+    private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest){
         log.info("Generating Audit Details for new products");
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(productRequest.getRequestInfo().getUserInfo().getUuid())
@@ -67,7 +65,7 @@ public class ProductEnrichment {
         return auditDetails;
     }
 
-    private AuditDetails getAuditDetails(ProductRequest productRequest){
+    private AuditDetails getAuditDetailsForUpdate(ProductRequest productRequest){
         log.info("Generating Audit Details for products");
         AuditDetails auditDetails = AuditDetails.builder()
                 .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())

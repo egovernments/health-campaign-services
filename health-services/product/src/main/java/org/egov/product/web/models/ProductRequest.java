@@ -34,7 +34,6 @@ public class ProductRequest {
     @JsonProperty("Product")
     @NotNull
     @Size(min = 1)
-    // TODO: Put the size validation in ProductVariant as well
     @Valid
     private List<Product> product = new ArrayList<>();
 
