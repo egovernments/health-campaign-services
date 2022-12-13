@@ -61,6 +61,7 @@ class ProductServiceTest {
         when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
 
         List<Product> products = productService.create(request);
+
         assertEquals("some-id", products.get(0).getId());
     }
 
@@ -69,7 +70,6 @@ class ProductServiceTest {
     void shouldThrowErrorForAlreadyExistingProducts() throws Exception{
         ArrayList<String> ids = new ArrayList<>();
         ids.add("some-id1");
-
         when(productRepository.validateProductId(any(List.class))).thenReturn(ids);
 
         assertThrows(CustomException.class, () -> productService.create(request));
@@ -78,11 +78,13 @@ class ProductServiceTest {
     @Test
     @DisplayName("should send the enriched product to the kafka topic")
     void shouldSendTheEnrichedProductToTheKafkaTopic() throws Exception {
-        // TODO: Follow AAA
+        // TODO: Follow AAA - UPDATED
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
         when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
+
         productService.create(request);
+
         verify(productEnrichment, times(1)).enrichProduct(any(ProductRequest.class));
         verify(productRepository, times(1)).save(any(List.class), any(String.class));
     }
