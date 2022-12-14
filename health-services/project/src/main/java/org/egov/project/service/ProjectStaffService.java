@@ -74,6 +74,13 @@ public class ProjectStaffService {
         return projectStaffs;
     }
 
+
+    public List<ProjectStaff> update(ProjectStaffRequest projectStaffRequest) throws Exception {
+        List<ProjectStaff> projectStaffs = projectStaffRequest.getProjectStaff();
+        return projectStaffs;
+    }
+
+
     private String getTenantId(List<ProjectStaff> projectStaffs) {
         String tenantId = null;
 
