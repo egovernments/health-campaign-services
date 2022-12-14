@@ -16,13 +16,13 @@ serviceMaps:
 
             - jsonPath: $.*.projectId
 
-            - jsonPath: $.*.staffId
+            - jsonPath: $.*.userId
 
             - jsonPath: $.*.startDate
 
             - jsonPath: $.*.endDate
-              -
-            - jsonPath: $.*.additionalDetails
+
+            - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
 
