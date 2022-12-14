@@ -229,17 +229,19 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaff) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectStaffResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectStaff\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  } ]}", ProjectStaffResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectStaffResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
+        if (projectStaffUpdateRequest.getApiOperation().equals(ApiOperation.CREATE) || projectStaffUpdateRequest.getApiOperation().equals(ApiOperation.DELETE)) {
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", projectStaffUpdateRequest.getApiOperation().toString()));
         }
 
-        return new ResponseEntity<ProjectStaffResponse>(HttpStatus.NOT_IMPLEMENTED);
+        List<ProjectStaff> projectStaffs = projectStaffService.update(projectStaffUpdateRequest);
+        ProjectStaffResponse response = ProjectStaffResponse.builder()
+                .projectStaff(projectStaffs)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectStaffUpdateRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
