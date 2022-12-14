@@ -24,9 +24,10 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectStaff   {
+public class ProjectStaff {
+
     @JsonProperty("id")
-    @Size(min=2,max=64) 
+    @Size(min=2,max=64)
     private String id = null;
 
     @JsonProperty("tenantId")
@@ -54,19 +55,14 @@ public class ProjectStaff   {
     private String channel = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = false;
+    private Boolean isDeleted = null;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
-
 
 }
 
