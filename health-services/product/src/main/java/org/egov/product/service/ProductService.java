@@ -5,6 +5,7 @@ import org.egov.product.enrichment.ProductEnrichment;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
+import org.egov.product.web.models.ProductSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -62,5 +63,18 @@ public class ProductService {
         productRequest = productEnrichment.enrichUpdateProduct(productRequest);
         productRepository.save(productRequest.getProduct(), "update-product-topic");
         return productRequest.getProduct();
+    }
+
+    public List<Product> search(ProductSearchRequest productSearchRequest,
+                                Integer limit,
+                                Integer offset,
+                                String tenantId,
+                                Long lastChangedSince,
+                                Boolean includeDeleted) throws Exception{
+        List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        if (products.isEmpty()) {
+            throw new CustomException("NO_RESULT_FOUND", "No products found for the given search criteria.");
+        }
+        return products;
     }
 }

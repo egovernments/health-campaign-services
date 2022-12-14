@@ -1,6 +1,7 @@
 package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.TestConfiguration;
 import org.egov.product.enrichment.ProductEnrichment;
 import org.egov.product.helper.ProductRequestTestBuilder;
@@ -12,6 +13,8 @@ import org.egov.product.service.ProductVariantService;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
+import org.egov.product.web.models.ProductSearch;
+import org.egov.product.web.models.ProductSearchRequest;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantResponse;
@@ -29,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -339,6 +343,59 @@ class ProductApiControllerTest {
         assertEquals(response.getErrors().get(0).getCode(), "PRODUCT_EMPTY");
     }
 
+    @Test
+    @DisplayName("Should accept search request and return response as accepted")
+    void shouldAcceptSearchRequestAndReturnProducts() throws Exception {
 
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .product(ProductSearch.builder().id("ID101").type("DRUG").build())
+                .build();
+        when(productService.search(any(ProductSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenReturn(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("ID101").build()));
 
+        final MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(productSearchRequest)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProductResponse response = objectMapper.readValue(responseStr,
+                ProductResponse.class);
+
+        assertEquals(response.getProduct().size(), 1);
+    }
+
+    @Test
+    @DisplayName("Should accept search request and return response as accepted")
+    void shouldThrowExceptionIfNoResultFound() throws Exception {
+
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .product(ProductSearch.builder().id("ID101").type("DRUG").build())
+                .build();
+        when(productService.search(any(ProductSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No products found."));
+
+        final MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(productSearchRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(response.getErrors().size(), 1);
+    }
 }

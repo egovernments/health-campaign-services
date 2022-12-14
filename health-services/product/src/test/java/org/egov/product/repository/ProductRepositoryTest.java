@@ -1,8 +1,15 @@
 package org.egov.product.repository;
 
+import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.producer.Producer;
 import org.egov.product.helper.ProductRequestTestBuilder;
+import org.egov.product.helper.ProductTestBuilder;
+import org.egov.product.repository.rowmapper.ProductRowMapper;
+import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
+import org.egov.product.web.models.ProductSearch;
+import org.egov.product.web.models.ProductSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -130,5 +137,37 @@ class ProductRepositoryTest {
 //        List<String> validProductIds = productRepository.validateAllProductId(Arrays.asList("ID101", "ID102", "ID103", "ID104"));
 //
 //        assertEquals(4, validProductIds.size());
+    }
+
+    @Test
+    @DisplayName("get products from db for the search request")
+    void shouldReturnProductsFromDBForSearchRequest() throws QueryBuilderException {
+        List<Product> products = new ArrayList<>();
+        products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
+        products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
+        ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductRowMapper.class)))
+                .thenReturn(products);
+
+        List<Product> productsResponse = productRepository.find(productSearchRequest.getProduct(), 2, 0, "default", null, false);
+
+        assertEquals(2, productsResponse.size());
+    }
+
+    @Test
+    @DisplayName("get products from db which are deleted")
+    void shouldReturnProductsFromDBForSearchRequestWithDeletedIncluded() throws QueryBuilderException {
+        List<Product> products = new ArrayList<>();
+        products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
+        products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").withIsDeleted().build());
+        ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductRowMapper.class)))
+                .thenReturn(products);
+
+        List<Product> productsResponse = productRepository.find(productSearchRequest.getProduct(), 2, 0, "default", null, true);
+
+        assertEquals(2, productsResponse.size());
     }
 }

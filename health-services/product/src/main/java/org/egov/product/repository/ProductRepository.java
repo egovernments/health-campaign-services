@@ -1,8 +1,12 @@
 package org.egov.product.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
+import org.egov.product.repository.rowmapper.ProductRowMapper;
 import org.egov.product.web.models.Product;
+import org.egov.product.web.models.ProductSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -68,6 +72,32 @@ public class ProductRepository {
                 .collect(Collectors.toMap(Product::getId,
                                 product -> product));
         //redisTemplate.opsForHash().putAll(HASH_KEY, productMap);
+        return products;
+    }
+
+    public List<Product> find(ProductSearch productSearch,
+                              Integer limit,
+                              Integer offset,
+                              String tenantId,
+                              Long lastChangedSince,
+                              Boolean includeDeleted) throws QueryBuilderException {
+        SelectQueryBuilder selectQueryBuilder = new SelectQueryBuilder();
+        String query = selectQueryBuilder.build(productSearch);
+        query += " and tenantId=:tenantId ";
+        if (!includeDeleted) {
+            query += "and isDeleted=:isDeleted ";
+        }
+        if(lastChangedSince != null){
+            query += "and lastModifiedTime>=:lastModifiedTime ";
+        }
+        query += "LIMIT :limit OFFSET :offset";
+        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("isDeleted", includeDeleted);
+        paramsMap.put("lastModifiedTime", lastChangedSince);
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+        List<Product> products = namedParameterJdbcTemplate.query(query, paramsMap, new ProductRowMapper());
         return products;
     }
 }

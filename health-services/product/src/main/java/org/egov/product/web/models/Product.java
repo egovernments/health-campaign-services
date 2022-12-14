@@ -22,67 +22,41 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Product   {
-        @JsonProperty("id")
-    
+public class Product {
 
-
+    @JsonProperty("id")
     private String id = null;
 
-        @JsonProperty("tenantId")
+    @JsonProperty("tenantId")
     @NotNull
-
-
     private String tenantId = null;
 
-        @JsonProperty("type")
-      @NotNull
-        @Size(min=2,max=100)
-
-
+    @JsonProperty("type")
+    @NotNull
+    @Size(min = 2, max = 100)
     private String type = null;
 
-        @JsonProperty("name")
-      @NotNull
-
-
-    @Size(min=2,max=1000) 
-
+    @JsonProperty("name")
+    @NotNull
+    @Size(min = 2, max = 1000)
     private String name = null;
 
-        @JsonProperty("manufacturer")
-    
-
-    @Size(min=0,max=1000) 
-
+    @JsonProperty("manufacturer")
+    @Size(min = 0, max = 1000)
     private String manufacturer = null;
 
-        @JsonProperty("additionalFields")
-    
-  @Valid
-
-
+    @JsonProperty("additionalFields")
+    @Valid
     private AdditionalFields additionalFields = null;
 
-        @JsonProperty("isDeleted")
-    
-
-
+    @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
 
-        @JsonProperty("rowVersion")
-    
-
-
+    @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
-        @JsonProperty("auditDetails")
-    
-  @Valid
-
-
+    @JsonProperty("auditDetails")
+    @Valid
     private AuditDetails auditDetails = null;
-
-
 }
 
