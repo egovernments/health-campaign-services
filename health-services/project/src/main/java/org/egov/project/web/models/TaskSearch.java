@@ -1,17 +1,13 @@
 package org.egov.project.web.models;
 
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.constraints.Size;
 
 /**
 * TaskSearch
@@ -23,74 +19,41 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TaskSearch   {
-        @JsonProperty("id")
-    
+public class TaskSearch {
 
-
+    @JsonProperty("id")
     private String id = null;
 
-        @JsonProperty("tenantId")
-    
-
-
+    @JsonProperty("tenantId")
     private String tenantId = null;
 
-        @JsonProperty("projectId")
-    
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("projectId")
+    @Size(min=2,max=64)
     private String projectId = null;
 
-        @JsonProperty("projectBeneficiaryId")
-    
-
-
+    @JsonProperty("projectBeneficiaryId")
     private String projectBeneficiaryId = null;
 
-        @JsonProperty("plannedStartDate")
-    
-
-
+    @JsonProperty("plannedStartDate")
     private Long plannedStartDate = null;
 
-        @JsonProperty("plannedEndDate")
-    
-
-
+    @JsonProperty("plannedEndDate")
     private Long plannedEndDate = null;
 
-        @JsonProperty("actualStartDate")
-    
-
-
+    @JsonProperty("actualStartDate")
     private Long actualStartDate = null;
 
-        @JsonProperty("actualEndDate")
-    
-
-
+    @JsonProperty("actualEndDate")
     private Long actualEndDate = null;
 
-        @JsonProperty("createdBy")
-    
-
-
+    @JsonProperty("createdBy")
     private String createdBy = null;
 
-        @JsonProperty("status")
-    
-
-
+    @JsonProperty("status")
     private String status = null;
 
-        @JsonProperty("boundaryCode")
-    
-
-
+    @JsonProperty("boundaryCode")
     private String boundaryCode = null;
-
 
 }
 
