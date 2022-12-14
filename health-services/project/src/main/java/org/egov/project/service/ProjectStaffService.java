@@ -9,6 +9,7 @@ import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectStaffRepository;
+import org.egov.project.repository.UserRepository;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.tracer.model.CustomException;
@@ -30,41 +31,33 @@ public class ProjectStaffService {
     private final ProjectStaffRepository projectStaffRepository;
     private final ProjectRepository projectRepository;
     private final IdGenService idGenService;
-
+    private final UserRepository userRepository;
     @Autowired
     public ProjectStaffService(
             Producer producer,
             ObjectMapper objectMapper,
             IdGenService idGenService,
             ProjectStaffRepository projectStaffRepository,
-            ProjectRepository projectRepository
+            ProjectRepository projectRepository,
+            UserRepository userRepository
     ) {
         this.producer = producer;
         this.objectMapper = objectMapper;
         this.idGenService = idGenService;
         this.projectStaffRepository = projectStaffRepository;
         this.projectRepository = projectRepository;
+        this.userRepository = userRepository;
     }
 
     public List<ProjectStaff> create(ProjectStaffRequest projectStaffRequest) throws Exception {
 
         List<ProjectStaff> projectStaffs = projectStaffRequest.getProjectStaff();
+        String tenantId = getTenantId(projectStaffs);
 
         validateProjectId(projectStaffs);
+        validateUserIds(projectStaffs, tenantId);
 
-        String tenantId = getTenantId(projectStaffs);
         List<String> idList = generateProjectStaffIds(projectStaffRequest, projectStaffs, tenantId);
-
-        // TODO  - Check if project staff data is valid or not
-        validateProjectStaff(projectStaffs);
-
-        // TODO - Check if project staff exists in redis or db
-        checkIfExists(projectStaffs);
-
-        // TODO - Check if this user is present in the user service
-        checkIfUserIsValid(projectStaffs);
-
-
         AuditDetails auditDetails = createAuditDetailsForInsert(projectStaffRequest.getRequestInfo());
 
         IntStream.range(0, projectStaffs.size())
@@ -126,18 +119,24 @@ public class ProjectStaffService {
         if (validProjectIds.size() != projectIds.size()) {
             List<String> invalidProjectIds = new ArrayList<>(projectIds);
             invalidProjectIds.removeAll(validProjectIds);
-            log.error("Invalid projectId");
+            log.error("Invalid projectId",invalidProjectIds);
             throw new CustomException("INVALID_PROJECT_ID", invalidProjectIds.toString());
         }
     }
 
-    private void checkIfUserIsValid(List<ProjectStaff> projectStaff) {
+    private void validateUserIds(List<ProjectStaff> projectStaff,String tenantId) {
+        List<String> userIds = new ArrayList<>(projectStaff.stream().map(ProjectStaff::getUserId).collect(Collectors.toSet()));
+        List<String> validUserIds = userRepository.validatedUserIds(userIds, tenantId);
+        log.info("user ids {}",validUserIds);
+        log.info("user ids {}",userIds);
+
+        if (validUserIds.size() != userIds.size()) {
+            List<String> invalidUserIds = new ArrayList<>(userIds);
+            invalidUserIds.removeAll(validUserIds);
+            log.error("Invalid userIds", invalidUserIds);
+            throw new CustomException("INVALID_USER_ID", invalidUserIds.toString());
+        }
     }
 
-    private void checkIfExists(List<ProjectStaff> projectStaff) {
-    }
-
-    private void validateProjectStaff(List<ProjectStaff> projectStaff) {
-    }
 
 }

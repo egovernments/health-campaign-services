@@ -7,6 +7,7 @@ import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectStaffRepository;
+import org.egov.project.repository.UserRepository;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,9 @@ class ProjectStaffServiceTest {
     @Mock
     private ProjectStaffService projectStaffService;
 
+    @Mock
+    private UserRepository userRepository;
+
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
@@ -54,7 +58,8 @@ class ProjectStaffServiceTest {
                 objectMapper,
                 idGenService,
                 projectStaffRepository,
-                projectRepository
+                projectRepository,
+                userRepository
         );
     }
 
