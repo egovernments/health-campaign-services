@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.web.models.ApiOperation;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -24,6 +25,7 @@ import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskResponse;
 import org.egov.project.web.models.TaskSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +45,7 @@ import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
 @Controller
-@RequestMapping("/project")
+@RequestMapping("")
 public class ProjectApiController {
 
     private final ObjectMapper objectMapper;
@@ -195,17 +197,17 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffRequest) {
-
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffRequest) throws Exception {
+        if(projectStaffRequest.getApiOperation() != ApiOperation.CREATE && projectStaffRequest.getApiOperation() != null){
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", projectStaffRequest.getApiOperation().toString()));
+        }
         List<ProjectStaff> projectStaffs = projectStaffService.create(projectStaffRequest);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
                 .projectStaff(projectStaffs)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectStaffRequest.getRequestInfo(), true))
                 .build();
-
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
-        //return new ResponseEntity<ProjectStaffResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectStaff\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  } ]}", ProjectStaffResponse.class), HttpStatus.NOT_IMPLEMENTED);
     }
 
     @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
