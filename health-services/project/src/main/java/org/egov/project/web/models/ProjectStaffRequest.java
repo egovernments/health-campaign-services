@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,7 @@ public class ProjectStaffRequest   {
     @JsonProperty("ProjectStaff")
     @NotNull
     @Valid
+    @Size(min=1)
     private List<ProjectStaff> projectStaff = new ArrayList<>();
 
     @JsonProperty("apiOperation")
