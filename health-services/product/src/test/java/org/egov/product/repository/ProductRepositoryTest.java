@@ -1,5 +1,6 @@
 package org.egov.product.repository;
 
+import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.producer.Producer;
@@ -40,6 +41,9 @@ class ProductRepositoryTest {
 
     @Mock
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    @Mock
+    private SelectQueryBuilder selectQueryBuilder;
 
     @Mock
     Producer producer;
@@ -147,6 +151,7 @@ class ProductRepositoryTest {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product' and isdeleted=false");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductRowMapper.class)))
                 .thenReturn(products);
 
@@ -163,6 +168,7 @@ class ProductRepositoryTest {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").withIsDeleted().build());
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product'");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductRowMapper.class)))
                 .thenReturn(products);
 

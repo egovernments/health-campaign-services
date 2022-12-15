@@ -1,7 +1,13 @@
 package org.egov.product.repository;
 
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.helper.ProductVariantTestBuilder;
+import org.egov.product.repository.rowmapper.ProductVariantRowMapper;
 import org.egov.product.web.models.ProductVariant;
+import org.egov.product.web.models.ProductVariantSearch;
+import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -13,8 +19,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,6 +38,9 @@ class ProductVariantRepositoryFindTest {
 
     @Mock
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    @Mock
+    private SelectQueryBuilder selectQueryBuilder;
 
 //    @Mock
 //    private RedisTemplate<String, Object> redisTemplate;
@@ -73,5 +84,36 @@ class ProductVariantRepositoryFindTest {
 //        assertEquals(productVariantIds.size(), result.size());
 //        verify(namedParameterJdbcTemplate, times(0))
 //                .queryForObject(anyString(), anyMap(), any(RowMapper.class));
+    }
+
+    @Test
+    @DisplayName("get products from db for the search request")
+    void shouldReturnProductsFromDBForSearchRequest() throws QueryBuilderException {
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").build();
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product' and isdeleted=false");
+        when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductVariantRowMapper.class)))
+                .thenReturn(productVariants);
+
+        List<ProductVariant> productVariantResponse = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), 2, 0, "default", null, false);
+
+        assertEquals(1, productVariantResponse.size());
+    }
+
+    @Test
+    @DisplayName("get products from db which are deleted")
+    void shouldReturnProductsFromDBForSearchRequestWithDeletedIncluded() throws QueryBuilderException {
+        productVariants = new ArrayList<>();
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withAuditDetails().withDeleted().build());
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withAuditDetails().build());
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").build();
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product'");
+        when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductVariantRowMapper.class)))
+                .thenReturn(productVariants);
+
+        List<ProductVariant> productVariantResponse = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), 2, 0, "default", null, true);
+
+        assertEquals(2, productVariantResponse.size());
     }
 }

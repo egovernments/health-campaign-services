@@ -27,13 +27,16 @@ public class ProductRepository {
 
     //private final RedisTemplate<String, Object> redisTemplate;
 
+    private final SelectQueryBuilder selectQueryBuilder;
+
     private final String HASH_KEY = "product";
 
     @Autowired
-    public ProductRepository(Producer producer,  NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public ProductRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, SelectQueryBuilder selectQueryBuilder) {
         this.producer = producer;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         //this.redisTemplate = redisTemplate;
+        this.selectQueryBuilder = selectQueryBuilder;
     }
 
     public List<String> validateProductId(List<String> ids) {
@@ -81,7 +84,6 @@ public class ProductRepository {
                               String tenantId,
                               Long lastChangedSince,
                               Boolean includeDeleted) throws QueryBuilderException {
-        SelectQueryBuilder selectQueryBuilder = new SelectQueryBuilder();
         String query = selectQueryBuilder.build(productSearch);
         query += " and tenantId=:tenantId ";
         if (!includeDeleted) {

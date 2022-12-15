@@ -33,6 +33,11 @@ public class ProductVariantTestBuilder {
         return this;
     }
 
+    public ProductVariantTestBuilder withDeleted() {
+        withIdNull().builder.isDeleted(true);
+        return this;
+    }
+
     public ProductVariantTestBuilder withBadTenantId() {
         this.builder.tenantId(null);
         return this;

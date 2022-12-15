@@ -7,6 +7,7 @@ import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
+import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -108,5 +109,18 @@ public class ProductVariantService {
             log.error("Invalid productIds");
             throw new CustomException("INVALID_PRODUCT_ID", invalidProductIds.toString());
         }
+    }
+
+    public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
+                                Integer limit,
+                                Integer offset,
+                                String tenantId,
+                                Long lastChangedSince,
+                                Boolean includeDeleted) throws Exception{
+        List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        if (productVariants.isEmpty()) {
+            throw new CustomException("NO_RESULT_FOUND", "No products found for the given search criteria.");
+        }
+        return productVariants;
     }
 }

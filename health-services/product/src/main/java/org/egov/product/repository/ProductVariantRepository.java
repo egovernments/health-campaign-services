@@ -4,9 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
+import org.egov.product.repository.rowmapper.ProductVariantRowMapper;
 import org.egov.product.web.models.AdditionalFields;
 import org.egov.product.web.models.ProductVariant;
+import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -32,13 +36,16 @@ public class ProductVariantRepository {
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
+    private final SelectQueryBuilder selectQueryBuilder;
+
     private static final String HASH_KEY = "product-variant";
 
     @Autowired
-    public ProductVariantRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public ProductVariantRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, SelectQueryBuilder selectQueryBuilder) {
         this.producer = producer;
         //this.redisTemplate = redisTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.selectQueryBuilder = selectQueryBuilder;
     }
 
     public List<ProductVariant> save(List<ProductVariant> productVariants, String topic) {
@@ -85,6 +92,31 @@ public class ProductVariantRepository {
 //                        .toMap(ProductVariant::getId,
 //                                productVariant -> productVariant));
 //        redisTemplate.opsForHash().putAll(HASH_KEY, productVariantMap);
+    }
+
+    public List<ProductVariant> find(ProductVariantSearch productVariantSearch,
+                                     Integer limit,
+                                     Integer offset,
+                                     String tenantId,
+                                     Long lastChangedSince,
+                                     Boolean includeDeleted) throws QueryBuilderException {
+        String query = selectQueryBuilder.build(productVariantSearch);
+        query += " and tenantId=:tenantId ";
+        if (!includeDeleted) {
+            query += "and isDeleted=:isDeleted ";
+        }
+        if(lastChangedSince != null){
+            query += "and lastModifiedTime>=:lastModifiedTime ";
+        }
+        query += "LIMIT :limit OFFSET :offset";
+        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("isDeleted", includeDeleted);
+        paramsMap.put("lastModifiedTime", lastChangedSince);
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+        List<ProductVariant> productVariants = namedParameterJdbcTemplate.query(query, paramsMap, new ProductVariantRowMapper());
+        return productVariants;
     }
 
     private void mapRow(ResultSet resultSet, List<ProductVariant> pvList) throws SQLException, JsonProcessingException {
