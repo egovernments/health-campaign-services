@@ -49,7 +49,7 @@ public class ProjectStaffRequestTestBuilder {
         return this;
     }
 
-    public ProjectStaffRequestTestBuilder withOneProjectHavingId() {
+    public ProjectStaffRequestTestBuilder withOneProjectStaffHavingId() {
         List<ProjectStaff> projectStaffs = new ArrayList<>();
         projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())

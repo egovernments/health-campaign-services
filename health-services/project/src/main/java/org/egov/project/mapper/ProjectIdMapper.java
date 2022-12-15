@@ -11,11 +11,11 @@ public class ProjectIdMapper implements RowMapper<List<String>> {
 
     @Override
     public List<String> mapRow(ResultSet resultSet, int rowNum) throws SQLException {
-        List<String> validProductIds = new ArrayList<>();
-        validProductIds.add(resultSet.getString(1));
+        List<String> validProjectIds = new ArrayList<>();
+        validProjectIds.add(resultSet.getString(1));
         while (resultSet.next()) {
-            validProductIds.add(resultSet.getString(1));
+            validProjectIds.add(resultSet.getString(1));
         }
-        return validProductIds;
+        return validProjectIds;
     }
 }

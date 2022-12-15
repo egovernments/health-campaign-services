@@ -52,4 +52,6 @@ public class UserRepository {
             throw new CustomException("EXCEPTION_IN_SEARCH_USER",  e.getMessage());
         }
     }
+
+
 }

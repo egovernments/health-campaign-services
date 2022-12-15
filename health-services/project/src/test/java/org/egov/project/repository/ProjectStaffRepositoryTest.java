@@ -64,7 +64,7 @@ class ProjectStaffRepositoryTest {
 
     @Test
     @DisplayName("should find project staff by ids and return the results")
-    void shouldFindProductVariantsByIdsAndReturnTheResults() {
+    void shouldFindProjectStaffByIdsAndReturnTheResults() {
         when(hashOperations.multiGet(anyString(), anyList())).thenReturn(Collections.emptyList());
         when(namedParameterJdbcTemplate.queryForObject(anyString(), anyMap(), any(RowMapper.class)))
                 .thenReturn(projectStaffs);
@@ -75,7 +75,7 @@ class ProjectStaffRepositoryTest {
 
     @Test
     @DisplayName("should find project staff by ids in cache first and return the results")
-    void shouldFindProductVariantsByIdsInCacheFirstAndReturnTheResults() {
+    void shouldFindProjectStaffByIdsInCacheFirstAndReturnTheResults() {
         when(hashOperations.multiGet(anyString(), anyList())).thenReturn(projectStaffs);
 
         List<ProjectStaff> result = projectStaffRepository.findById(projectStaffIds);

@@ -79,9 +79,9 @@ public class ProjectStaffService {
 
     public List<ProjectStaff> update(ProjectStaffRequest projectStaffRequest) throws Exception {
 
-        log.info("Checking existing product variants");
+        log.info("Checking existing project staffs");
         List<ProjectStaff> projectStaffs = projectStaffRequest.getProjectStaff();
-        List<ProjectStaff> existingProductVariants = projectStaffRepository
+        List<ProjectStaff> existingProjectStaffs = projectStaffRepository
                 .findById(projectStaffs.stream()
                         .map(ProjectStaff::getId).collect(Collectors.toList()));
 
@@ -90,11 +90,11 @@ public class ProjectStaffService {
         validateProjectId(projectStaffs);
         validateUserIds(projectStaffs, tenantId);
 
-        if (projectStaffs.size() != existingProductVariants.size()) {
-            List<ProjectStaff> invalidProductVariants = new ArrayList<>(projectStaffs);
-            invalidProductVariants.removeAll(existingProductVariants);
-            log.error("Invalid product variants");
-            throw new CustomException("INVALID_PRODUCT_VARIANT", invalidProductVariants.toString());
+        if (projectStaffs.size() != existingProjectStaffs.size()) {
+            List<ProjectStaff> invalidProjectStaffs = new ArrayList<>(projectStaffs);
+            invalidProjectStaffs.removeAll(existingProjectStaffs);
+            log.error("Invalid project staff");
+            throw new CustomException("INVALID_PROJECT_STAFF", invalidProjectStaffs.toString());
         }
 
         AuditDetails auditDetails = createAuditDetailsForUpdate(projectStaffRequest.getRequestInfo());
@@ -110,7 +110,7 @@ public class ProjectStaffService {
     }
 
     private AuditDetails createAuditDetailsForUpdate(RequestInfo requestInfo){
-        log.info("Generating Audit Details for products");
+        log.info("Generating Audit Details for project staff");
         AuditDetails auditDetails = AuditDetails.builder()
                 .lastModifiedBy(requestInfo.getUserInfo().getUuid())
                 .lastModifiedTime(System.currentTimeMillis()).build();
@@ -150,10 +150,10 @@ public class ProjectStaffService {
 
     }
 
-    private void validateProjectId(List<ProjectStaff> projectStaff) {
+    public List<String> validateProjectId(List<ProjectStaff> projectStaff) {
 
         List<String> projectIds = new ArrayList<>(projectStaff.stream().map(ProjectStaff::getProjectId).collect(Collectors.toSet()));
-        List<String> validProjectIds = projectRepository.validateProjectId(projectIds);
+        List<String> validProjectIds = projectRepository.validateProjectIds(projectIds);
         log.info("project ids {}",validProjectIds);
         if (validProjectIds.size() != projectIds.size()) {
             List<String> invalidProjectIds = new ArrayList<>(projectIds);
@@ -161,6 +161,7 @@ public class ProjectStaffService {
             log.error("Invalid projectId",invalidProjectIds);
             throw new CustomException("INVALID_PROJECT_ID", invalidProjectIds.toString());
         }
+        return validProjectIds;
     }
 
     private void validateUserIds(List<ProjectStaff> projectStaff,String tenantId) {

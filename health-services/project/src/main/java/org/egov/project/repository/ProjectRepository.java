@@ -19,11 +19,11 @@ public class ProjectRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     @Autowired
-    public ProjectRepository( NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public ProjectRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
     }
 
-    public List<String> validateProjectId(List<String> projectIds) {
+    public List<String> validateProjectIds(List<String> projectIds) {
         String query = String.format("SELECT id FROM project WHERE id IN (:projectIds) AND isDeleted = false fetch first %s rows only", projectIds.size());
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("projectIds", projectIds);
