@@ -110,4 +110,70 @@ public class ProjectApiControllerTest {
         assertEquals(1, response.getErrors().size());
     }
 
+
+    @Test
+    @DisplayName("should update project staff and return with 202 accepted")
+    void shouldUpdateProjectStaffAndReturnWith202Accepted() throws Exception {
+        ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
+                .withOneProjectStaffHavingId()
+                .withApiOperationNotNullAndNotCreate()
+                .build();
+        ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
+        List<ProjectStaff> projectStaffList = new ArrayList<>();
+        projectStaffList.add(projectStaff);
+        when(projectStaffService.update(any(ProjectStaffRequest.class))).thenReturn(projectStaffList);
+
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProjectStaffResponse response = objectMapper.readValue(responseStr, ProjectStaffResponse.class);
+
+        assertEquals(1, response.getProjectStaff().size());
+        assertNotNull(response.getProjectStaff().get(0).getId());
+        assertEquals("successful", response.getResponseInfo().getStatus());
+    }
+
+
+    @Test
+    @DisplayName("should send error response with error details with 400 bad request for update")
+    void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
+                                .withOneProjectStaffHavingId()
+                                .withBadTenantIdInOneProjectStaff()
+                                .build())))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(1, response.getErrors().size());
+        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+    }
+
+
+    @Test
+    @DisplayName("should send 400 bad request in case of incorrect api operation for update")
+    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForUpdate() throws Exception {
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
+                                .withOneProjectStaffHavingId()
+                                .withApiOperationNotUpdate()
+                                .build())))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(1, response.getErrors().size());
+    }
+
 }

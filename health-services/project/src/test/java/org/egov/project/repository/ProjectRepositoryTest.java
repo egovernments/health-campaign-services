@@ -54,7 +54,7 @@ class ProjectRepositoryTest {
             )
         ).thenReturn(projectIds);
 
-        List<String> projectExists = projectRepository.validateProjectId(projectIds);
+        List<String> projectExists = projectRepository.validateProjectIds(projectIds);
         assertEquals(projectExists.size(), projectIds.size());
     }
 

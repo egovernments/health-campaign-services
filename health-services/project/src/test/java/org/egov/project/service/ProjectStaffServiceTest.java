@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.egov.project.service.ProjectStaffService.SAVE_KAFKA_TOPIC;
+import static org.egov.project.service.ProjectStaffService.UPDATE_KAFKA_TOPIC;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,6 +52,7 @@ class ProjectStaffServiceTest {
     @Mock
     private UserRepository userRepository;
 
+
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
@@ -64,6 +66,36 @@ class ProjectStaffServiceTest {
         );
     }
 
+    private void mockIdGeneration(List<String> ids) throws Exception {
+        when(idGenService.getIdList(any(), any(), any(), any(), any())).thenReturn(ids);
+    }
+
+
+    private void mockFindById(ProjectStaffRequest projectStaffRequest) {
+        when(projectStaffRepository.findById(any(List.class))).thenReturn(projectStaffRequest.getProjectStaff()
+                .stream()
+                .map(ProjectStaff::getProjectId)
+                .collect(Collectors.toList()));
+    }
+
+    private void mockValidateProjectIds(ProjectStaffRequest projectStaffRequest) {
+        when(projectRepository.validateProjectIds(any(List.class))).thenReturn(
+                projectStaffRequest.getProjectStaff()
+                        .stream()
+                        .map(ProjectStaff::getProjectId)
+                        .collect(Collectors.toList())
+        );
+    }
+
+    private void mockValidateUsers(List<ProjectStaff> projectStaffList) {
+        when(userRepository.validatedUserIds(any(List.class),any(String.class))).thenReturn(
+                projectStaffList
+                        .stream()
+                        .map(ProjectStaff::getUserId)
+                        .collect(Collectors.toList())
+        );
+    }
+
     private List<String> getIdGens() {
         List<String> ids = new ArrayList<String>();
         ids.add("1");
@@ -71,34 +103,59 @@ class ProjectStaffServiceTest {
         return ids;
     }
 
+
+    private List<ProjectStaff> getProjectStaffs() {
+        ProjectStaff projectStaff = ProjectStaff.builder()
+                .projectId("projectId")
+                .userId("userId")
+                .tenantId("tenantId")
+                .rowVersion(1)
+                .build();
+        List<ProjectStaff> projectStaffList = new ArrayList<ProjectStaff>();
+        projectStaffList.add(projectStaff);
+        return projectStaffList;
+    }
+
+    private ProjectStaffRequest getProjectStaffRequest(List<ProjectStaff> projectStaffList) {
+        return ProjectStaffRequest.builder()
+                .projectStaff(projectStaffList)
+                .requestInfo(RequestInfo.builder().userInfo(User.builder().build())
+                        .build()
+                ).build();
+    }
+
     @Test
     @DisplayName("should successfully project staff service")
     void shouldSuccessfullyProjectStaffService() throws Exception {
 
-        ProjectStaff projectStaff = ProjectStaff.builder().build();
-        List<ProjectStaff> projectStaffList = new ArrayList<ProjectStaff>();
-        projectStaffList.add(projectStaff);
-
+        List<ProjectStaff> projectStaffList = getProjectStaffs();
+        ProjectStaffRequest projectStaffRequest = getProjectStaffRequest(projectStaffList);
         List<String> ids = getIdGens();
 
-        ProjectStaffRequest projectStaffRequest = ProjectStaffRequest.builder()
-                .projectStaff(projectStaffList)
-                .requestInfo(RequestInfo.builder().userInfo(User.builder().build())
-                .build()
-        ).build();
-
-        when(idGenService.getIdList(any(), any(), any(), any(), any())).thenReturn(ids);
-        when(projectStaffRepository.save(any(List.class),any(String.class))).thenReturn(projectStaffList);
-        when(projectRepository.validateProjectId(any(List.class))).thenReturn(
-            projectStaffList
-                .stream()
-                .map(ProjectStaff::getProjectId)
-                .collect(Collectors.toList())
-        );
+        mockIdGeneration(ids);
+        mockValidateUsers(projectStaffList);
+        mockValidateProjectIds(projectStaffRequest);
 
         projectStaffService.create(projectStaffRequest);
 
         verify(projectStaffRepository, times(1)).save(projectStaffList,SAVE_KAFKA_TOPIC);
     }
+
+    @Test
+    @DisplayName("should send the updates to kafka")
+    void shouldSendTheUpdatesToKafka() throws Exception {
+        List<ProjectStaff> projectStaffList = getProjectStaffs();
+        ProjectStaffRequest projectStaffRequest = getProjectStaffRequest(projectStaffList);
+
+        mockValidateUsers(projectStaffList);
+        mockValidateProjectIds(projectStaffRequest);
+        mockFindById(projectStaffRequest);
+
+        List<ProjectStaff> projectStaffs = projectStaffService.update(projectStaffRequest);
+
+        verify(projectStaffRepository, times(1)).save(projectStaffs,UPDATE_KAFKA_TOPIC);
+
+    }
+
 
 }
