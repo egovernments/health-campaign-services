@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 @Repository
 public class ProjectStaffRepository {
 
-    public static final String SAVE_KAFKA_TOPIC = "save-project-staff-topic";
     private final Producer producer;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -40,16 +39,15 @@ public class ProjectStaffRepository {
         this.redisTemplate = redisTemplate;
     }
 
-    public List<ProjectStaff> save(List<ProjectStaff> projectStaffs) {
-        producer.push(SAVE_KAFKA_TOPIC, projectStaffs);
+    public List<ProjectStaff> save(List<ProjectStaff> projectStaffs, String topic) {
+        producer.push(topic, projectStaffs);
         putInCache(projectStaffs);
         return projectStaffs;
     }
 
     public List<ProjectStaff> findById(List<String> ids) {
         Collection<Object> collection = new ArrayList<>(ids);
-        List<Object> projectStaff = redisTemplate.opsForHash()
-                .multiGet("project-staff", collection);
+        List<Object> projectStaff = redisTemplate.opsForHash().multiGet("project-staff", collection);
         if (projectStaff != null && !projectStaff.isEmpty()) {
             log.info("Cache hit");
             return projectStaff.stream().map(ProjectStaff.class::cast).collect(Collectors.toList());

@@ -37,3 +37,34 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
 
             - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Profject Staff
+      fromTopic: update-project-staff-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: UPDATE project_staff SET projectId=?, staffId=?, startDate=?, endDate=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.userId
+
+            - jsonPath: $.*.startDate
+
+            - jsonPath: $.*.endDate
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+            - jsonPath: $.*.id

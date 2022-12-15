@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.egov.project.service.ProjectStaffService.SAVE_KAFKA_TOPIC;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -91,10 +92,10 @@ class ProjectStaffRepositoryTest {
         ProjectStaff projectStaff = ProjectStaff.builder().build();
         List<ProjectStaff> projectStaffList = new ArrayList<>();
         projectStaffList.add(projectStaff);
-        List<ProjectStaff> returnedProjectList = projectStaffRepository.save(projectStaffList);
+        List<ProjectStaff> returnedProjectList = projectStaffRepository.save(projectStaffList,SAVE_KAFKA_TOPIC);
 
         assertEquals(projectStaffList, returnedProjectList);
-        verify(producer, times(1)).push(ProjectStaffRepository.SAVE_KAFKA_TOPIC, projectStaffList);
+        verify(producer, times(1)).push(SAVE_KAFKA_TOPIC, projectStaffList);
     }
 
 

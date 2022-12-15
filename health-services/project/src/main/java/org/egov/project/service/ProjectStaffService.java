@@ -26,12 +26,15 @@ import java.util.stream.IntStream;
 @Slf4j
 public class ProjectStaffService {
 
+    public static final String SAVE_KAFKA_TOPIC = "save-project-staff-topic";
+    public static final String UPDATE_KAFKA_TOPIC = "update-project-staff-topic";
     private final Producer producer;
     private final ObjectMapper objectMapper;
     private final ProjectStaffRepository projectStaffRepository;
     private final ProjectRepository projectRepository;
     private final IdGenService idGenService;
     private final UserRepository userRepository;
+
     @Autowired
     public ProjectStaffService(
             Producer producer,
@@ -50,7 +53,6 @@ public class ProjectStaffService {
     }
 
     public List<ProjectStaff> create(ProjectStaffRequest projectStaffRequest) throws Exception {
-
         List<ProjectStaff> projectStaffs = projectStaffRequest.getProjectStaff();
         String tenantId = getTenantId(projectStaffs);
 
@@ -69,25 +71,59 @@ public class ProjectStaffService {
                     projectStaff.setIsDeleted(Boolean.FALSE);
                 });
         log.info("Enrichment done");
-        saveProjectStaff(projectStaffs);
+        projectStaffRepository.save(projectStaffs,SAVE_KAFKA_TOPIC);
 
         return projectStaffs;
     }
 
 
     public List<ProjectStaff> update(ProjectStaffRequest projectStaffRequest) throws Exception {
+
+        log.info("Checking existing product variants");
         List<ProjectStaff> projectStaffs = projectStaffRequest.getProjectStaff();
+        List<ProjectStaff> existingProductVariants = projectStaffRepository
+                .findById(projectStaffs.stream()
+                        .map(ProjectStaff::getId).collect(Collectors.toList()));
+
+        String tenantId = getTenantId(projectStaffs);
+
+        validateProjectId(projectStaffs);
+        validateUserIds(projectStaffs, tenantId);
+
+        if (projectStaffs.size() != existingProductVariants.size()) {
+            List<ProjectStaff> invalidProductVariants = new ArrayList<>(projectStaffs);
+            invalidProductVariants.removeAll(existingProductVariants);
+            log.error("Invalid product variants");
+            throw new CustomException("INVALID_PRODUCT_VARIANT", invalidProductVariants.toString());
+        }
+
+        AuditDetails auditDetails = createAuditDetailsForUpdate(projectStaffRequest.getRequestInfo());
+
+        projectStaffs.forEach(projectStaff -> {
+            projectStaff.setAuditDetails(auditDetails);
+            projectStaff.setRowVersion(projectStaff.getRowVersion() + 1);
+        });
+
+        projectStaffRepository.save(projectStaffs, UPDATE_KAFKA_TOPIC);
+        log.info("Pushed to kafka");
         return projectStaffs;
     }
 
+    private AuditDetails createAuditDetailsForUpdate(RequestInfo requestInfo){
+        log.info("Generating Audit Details for products");
+        AuditDetails auditDetails = AuditDetails.builder()
+                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+                .lastModifiedTime(System.currentTimeMillis()).build();
+        return auditDetails;
+    }
 
     private String getTenantId(List<ProjectStaff> projectStaffs) {
         String tenantId = null;
-
         Optional<ProjectStaff> anyProjectStaff = projectStaffs.stream().findAny();
         if (anyProjectStaff.isPresent()) {
             tenantId = anyProjectStaff.get().getTenantId();
         }
+        log.info("Using tenantId {}",tenantId);
         return tenantId;
     }
 
@@ -99,7 +135,7 @@ public class ProjectStaffService {
         "project.staff.id",
                 "",
                 projectStaffs.size());
-        log.info("IDs generated");
+        log.info("IDs generated {} ",idList);
         return idList;
     }
 
@@ -113,10 +149,6 @@ public class ProjectStaffService {
                 .build();
 
     }
-    private void saveProjectStaff(List<ProjectStaff> projectStaffs) {
-        projectStaffRepository.save(projectStaffs);
-    }
-
 
     private void validateProjectId(List<ProjectStaff> projectStaff) {
 

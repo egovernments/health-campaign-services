@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.egov.project.service.ProjectStaffService.SAVE_KAFKA_TOPIC;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -87,7 +88,7 @@ class ProjectStaffServiceTest {
         ).build();
 
         when(idGenService.getIdList(any(), any(), any(), any(), any())).thenReturn(ids);
-        when(projectStaffRepository.save(any(List.class))).thenReturn(projectStaffList);
+        when(projectStaffRepository.save(any(List.class),any(String.class))).thenReturn(projectStaffList);
         when(projectRepository.validateProjectId(any(List.class))).thenReturn(
             projectStaffList
                 .stream()
@@ -97,7 +98,7 @@ class ProjectStaffServiceTest {
 
         projectStaffService.create(projectStaffRequest);
 
-        verify(projectStaffRepository, times(1)).save(projectStaffList);
+        verify(projectStaffRepository, times(1)).save(projectStaffList,SAVE_KAFKA_TOPIC);
     }
 
 }

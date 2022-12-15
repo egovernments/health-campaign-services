@@ -11,3 +11,13 @@ ServiceMaps:
           isBulk: true
           jsonPath: $.*
           timeStampField: $.auditDetails.createdTime
+
+    - topic: update-project-staff-topic
+      configKey: INDEX
+      indexes:
+        - name: projec-staff-index-v1
+          type: projectStaff
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.createdTime

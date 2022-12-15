@@ -16,7 +16,7 @@ import javax.validation.constraints.Size;
 /**
 * This object defines the mapping of a system staff user to a project for a certain period.
 */
-    @ApiModel(description = "This object defines the mapping of a system staff user to a project for a certain period.")
+@ApiModel(description = "This object defines the mapping of a system staff user to a project for a certain period.")
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
 
@@ -59,6 +59,10 @@ public class ProjectStaff {
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
+
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
 
     @JsonProperty("auditDetails")
     @Valid
