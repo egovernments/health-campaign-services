@@ -230,7 +230,7 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
-        if (projectStaffUpdateRequest.getApiOperation().equals(ApiOperation.CREATE) || projectStaffUpdateRequest.getApiOperation().equals(ApiOperation.DELETE)) {
+        if (projectStaffUpdateRequest.getApiOperation().equals(ApiOperation.CREATE)) {
             throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", projectStaffUpdateRequest.getApiOperation().toString()));
         }
 
