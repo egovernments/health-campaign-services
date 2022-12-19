@@ -12,6 +12,7 @@ import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.repository.UserRepository;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -182,6 +183,29 @@ public class ProjectStaffService {
             throw new CustomException("INVALID_USER_ID", invalidUserIds.toString());
         }
     }
+
+    public List<ProjectStaff> search(ProjectStaffSearchRequest projectStaffSearchRequest,
+                                     Integer limit,
+                                     Integer offset,
+                                     String tenantId,
+                                     Long lastChangedSince,
+                                     Boolean includeDeleted) throws Exception{
+
+        List<ProjectStaff> projectStaffList = projectStaffRepository
+                                                .find(
+                                                        projectStaffSearchRequest.getProjectStaff(),
+                                                        limit,
+                                                        offset,
+                                                        tenantId,
+                                                        lastChangedSince,
+                                                        includeDeleted
+                                                );
+        if (projectStaffList.isEmpty()) {
+            throw new CustomException("NO_RESULT_FOUND", "No project staff found for the given search criteria.");
+        }
+        return projectStaffList;
+    }
+
 
 
 }

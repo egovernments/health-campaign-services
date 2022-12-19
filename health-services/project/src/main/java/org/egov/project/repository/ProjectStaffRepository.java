@@ -4,9 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
+import org.egov.project.mapper.ProjectStaffRowMapper;
 import org.egov.project.web.models.AdditionalFields;
 import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -31,12 +35,17 @@ public class ProjectStaffRepository {
     private final Producer producer;
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final SelectQueryBuilder selectQueryBuilder;
 
     @Autowired
-    public ProjectStaffRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate,Producer producer,  RedisTemplate<String, Object> redisTemplate) {
+    public ProjectStaffRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+                                  Producer producer,
+                                  RedisTemplate<String, Object> redisTemplate,
+                                  SelectQueryBuilder selectQueryBuilder) {
         this.producer = producer;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.redisTemplate = redisTemplate;
+        this.selectQueryBuilder = selectQueryBuilder;
     }
 
     public List<ProjectStaff> save(List<ProjectStaff> projectStaffs, String topic) {
@@ -105,6 +114,32 @@ public class ProjectStaffRepository {
                         .build())
                 .build();
         projectStaffs.add(projectStaff);
+    }
+
+    public List<ProjectStaff> find(ProjectStaffSearch projectStaffSearch,
+                                   Integer limit,
+                                   Integer offset,
+                                   String tenantId,
+                                   Long lastChangedSince,
+                                   Boolean includeDeleted) throws QueryBuilderException {
+        String query = selectQueryBuilder.build(projectStaffSearch);
+        query += " and tenantId=:tenantId ";
+
+        if (!includeDeleted) {
+            query += "and isDeleted=:isDeleted ";
+        }
+        if(lastChangedSince != null){
+            query += "and lastModifiedTime>=:lastModifiedTime ";
+        }
+        query += " ORDER BY id ASC LIMIT :limit OFFSET :offset ";
+        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("isDeleted", includeDeleted);
+        paramsMap.put("lastModifiedTime", lastChangedSince);
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+        List<ProjectStaff> projectStaffs = namedParameterJdbcTemplate.query(query, paramsMap, new ProjectStaffRowMapper());
+        return projectStaffs;
     }
 }
 

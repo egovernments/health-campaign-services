@@ -212,20 +212,29 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaff, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                                         @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectStaffResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectStaff\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"endDate\" : 6,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"channel\" : \"channel\",    \"id\" : \"id\",    \"userId\" : \"userId\",    \"projectId\" : \"projectId\",    \"startDate\" : 0  } ]}", ProjectStaffResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectStaffResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
+                                                                         @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
+                                                                         @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
+                                                                         @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
+                                                                         @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
+                                                                         @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
 
-        return new ResponseEntity<ProjectStaffResponse>(HttpStatus.NOT_IMPLEMENTED);
+        List<ProjectStaff> projectStaffList = projectStaffService.search(
+                projectStaffSearchRequest,
+                limit,
+                offset,
+                tenantId,
+                lastChangedSince,
+                includeDeleted
+        );
+
+        ProjectStaffResponse projectStaffResponse = ProjectStaffResponse.builder()
+                .projectStaff(projectStaffList)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(projectStaffResponse);
     }
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)

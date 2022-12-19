@@ -10,6 +10,8 @@ import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.repository.UserRepository;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.project.web.models.ProjectStaffSearch;
+import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,11 +21,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.egov.project.service.ProjectStaffService.SAVE_KAFKA_TOPIC;
 import static org.egov.project.service.ProjectStaffService.UPDATE_KAFKA_TOPIC;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -156,6 +161,80 @@ class ProjectStaffServiceTest {
         List<ProjectStaff> projectStaffs = projectStaffService.update(projectStaffRequest);
 
         verify(projectStaffRepository, times(1)).save(projectStaffs,UPDATE_KAFKA_TOPIC);
+
+    }
+
+
+    @Test
+    @DisplayName("Should return project staff if search criteria is matched")
+    void shouldReturnProjectStaffIfSearchCriteriaIsMatched() throws Exception {
+
+        // Arrange
+        ProjectStaffSearchRequest projectStaffSearchRequest = new ProjectStaffSearchRequest();
+        projectStaffSearchRequest.setProjectStaff(ProjectStaffSearch.builder().build());
+
+        int limit = 10;
+        int offset = 0;
+        String tenantId = "test-tenant";
+        long lastChangedSince = 1234567890;
+        boolean includeDeleted = false;
+
+        ProjectStaff projectStaff = new ProjectStaff();
+        List<ProjectStaff> expectedProjectStaffList = Collections.singletonList(projectStaff);
+
+        when(projectStaffRepository.find(
+                projectStaffSearchRequest.getProjectStaff(),
+                limit,
+                offset,
+                tenantId,
+                lastChangedSince,
+                includeDeleted
+        )).thenReturn(expectedProjectStaffList);
+
+        // Act
+        List<ProjectStaff> actualProjectStaffList = projectStaffService.search(
+                projectStaffSearchRequest,
+                limit,
+                offset,
+                tenantId,
+                lastChangedSince,
+                includeDeleted
+        );
+
+        // Assert
+        assertEquals(expectedProjectStaffList, actualProjectStaffList);
+    }
+
+    @Test
+    @DisplayName("Should raise exception if no search results are found")
+    public void shouldRaiseExceptionIfNoProjectStaffFound() throws Exception {
+        // Arrange
+        ProjectStaffSearchRequest projectStaffSearchRequest = new ProjectStaffSearchRequest();
+        projectStaffSearchRequest.setProjectStaff(ProjectStaffSearch.builder().build());
+        int limit = 10;
+        int offset = 0;
+        String tenantId = "test-tenant";
+        long lastChangedSince = 1234567890;
+        boolean includeDeleted = false;
+
+        when(projectStaffRepository.find(
+                projectStaffSearchRequest.getProjectStaff(),
+                limit,
+                offset,
+                tenantId,
+                lastChangedSince,
+                includeDeleted
+        )).thenReturn(Collections.emptyList());
+
+        // Act & Assert
+        assertThrows(Exception.class, () -> projectStaffService.search(
+                projectStaffSearchRequest,
+                limit,
+                offset,
+                tenantId,
+                lastChangedSince,
+                includeDeleted
+        ));
 
     }
 
