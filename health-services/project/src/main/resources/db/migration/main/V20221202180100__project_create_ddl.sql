@@ -7,6 +7,7 @@ CREATE TABLE project (
                          endDate BIGINT,
                          isTaskEnabled BOOLEAN,
                          parent varchar(255),
+                         projectHierarchy varchar(255),
                          additionalDetails json,
                          createdBy varchar(255),
                          createdTime BIGINT,

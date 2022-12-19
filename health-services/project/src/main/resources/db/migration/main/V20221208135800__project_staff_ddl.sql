@@ -1,9 +1,9 @@
 CREATE TABLE PROJECT_STAFF
 (
-    id                character varying(64),
-    tenantId          character varying(1000),
-    projectId 		  character varying(64),
-    staffId 		  character varying(255),
+    id                character varying(64) NOT NULL PRIMARY KEY,
+    tenantId          character varying(1000) NOT NULL,
+    projectId 		  character varying(64) NOT NULL,
+    staffId 		  character varying(255) NOT NULL,
     startDate         bigint,
     endDate           bigint,
     additionalDetails text,
@@ -12,6 +12,5 @@ CREATE TABLE PROJECT_STAFF
     createdTime       bigint,
     lastModifiedTime  bigint,
     rowVersion        bigint,
-    isDeleted         boolean,
-    CONSTRAINT uk_project_staff_id PRIMARY KEY (id)
-);
+    isDeleted         boolean
+ );

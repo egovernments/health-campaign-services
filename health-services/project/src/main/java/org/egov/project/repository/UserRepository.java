@@ -10,9 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Repository
 @Slf4j
@@ -31,7 +29,7 @@ public class UserRepository {
         this.restTemplate = restTemplate;
     }
 
-    public List<String> validatedUserIds(List<String> userIds, String tenantId) {
+    public List<User> searchByUserIds(List<String> userIds, String tenantId) {
         UserSearchRequest request = new UserSearchRequest();
         request.setUuid(userIds);
         request.setTenantId(tenantId);
@@ -42,10 +40,7 @@ public class UserRepository {
                     request,
                     UserServiceResponse.class);
 
-            return new ArrayList<>(response
-                            .getUsers().stream()
-                            .map(User::getUuid)
-                            .collect(Collectors.toList()));
+            return response.getUsers();
 
         } catch (Exception e) {
             log.error("Exception while searching users : " + e.getMessage());

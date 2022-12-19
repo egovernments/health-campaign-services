@@ -27,24 +27,29 @@ public class UserRepositoryTest {
     private UserRepository repository;
 
     @Test
-    public void testValidatedUserIds() {
+    public void testSearchUserIds() {
         List<String> userIds = Arrays.asList("user1", "user2");
         String tenantId = "default";
         UserServiceResponse response = getUserServiceResponse();
 
         when(restTemplate.postForObject(anyString(), any(), eq(UserServiceResponse.class))).thenReturn(response);
 
-        List<String> validatedUserIds = repository.validatedUserIds(userIds, tenantId);
+        List<User> validatedUserIds = repository.searchByUserIds(userIds, tenantId);
 
-        Assertions.assertEquals(Arrays.asList("user1", "user2"), validatedUserIds);
+        List<User> userList = getUserList();
+        Assertions.assertEquals(userList, validatedUserIds);
+    }
+
+    private List<User> getUserList() {
+        return Arrays.asList(
+                User.builder().uuid("user1").build(),
+                User.builder().uuid("user2").build()
+        );
     }
 
     private UserServiceResponse getUserServiceResponse() {
         UserServiceResponse response = new UserServiceResponse();
-        response.setUsers(Arrays.asList(
-                User.builder().uuid("user1").build(),
-                User.builder().uuid("user2").build()
-        ));
+        response.setUsers(getUserList());
         return response;
     }
 }

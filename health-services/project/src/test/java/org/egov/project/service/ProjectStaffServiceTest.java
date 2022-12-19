@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -87,13 +88,8 @@ class ProjectStaffServiceTest {
         );
     }
 
-    private void mockValidateUsers(List<ProjectStaff> projectStaffList) {
-        when(userRepository.validatedUserIds(any(List.class),any(String.class))).thenReturn(
-                projectStaffList
-                        .stream()
-                        .map(ProjectStaff::getUserId)
-                        .collect(Collectors.toList())
-        );
+    private void mockValidateUsers() {
+        when(userRepository.searchByUserIds(any(List.class),any(String.class))).thenReturn(getUserList());
     }
 
     private List<String> getIdGens() {
@@ -116,6 +112,12 @@ class ProjectStaffServiceTest {
         return projectStaffList;
     }
 
+    private List<User> getUserList() {
+        return Arrays.asList(
+                User.builder().uuid("user1").build()
+        );
+    }
+
     private ProjectStaffRequest getProjectStaffRequest(List<ProjectStaff> projectStaffList) {
         return ProjectStaffRequest.builder()
                 .projectStaff(projectStaffList)
@@ -133,7 +135,7 @@ class ProjectStaffServiceTest {
         List<String> ids = getIdGens();
 
         mockIdGeneration(ids);
-        mockValidateUsers(projectStaffList);
+        mockValidateUsers();
         mockValidateProjectIds(projectStaffRequest);
 
         projectStaffService.create(projectStaffRequest);
@@ -147,7 +149,7 @@ class ProjectStaffServiceTest {
         List<ProjectStaff> projectStaffList = getProjectStaffs();
         ProjectStaffRequest projectStaffRequest = getProjectStaffRequest(projectStaffList);
 
-        mockValidateUsers(projectStaffList);
+        mockValidateUsers();
         mockValidateProjectIds(projectStaffRequest);
         mockFindById(projectStaffRequest);
 

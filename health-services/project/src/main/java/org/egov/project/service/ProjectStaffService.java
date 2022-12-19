@@ -166,7 +166,12 @@ public class ProjectStaffService {
 
     private void validateUserIds(List<ProjectStaff> projectStaff,String tenantId) {
         List<String> userIds = new ArrayList<>(projectStaff.stream().map(ProjectStaff::getUserId).collect(Collectors.toSet()));
-        List<String> validUserIds = userRepository.validatedUserIds(userIds, tenantId);
+        List<String> validUserIds = userRepository
+                                        .searchByUserIds(userIds, tenantId)
+                                        .stream()
+                                        .map(User::getUuid)
+                                        .collect(Collectors.toList());
+
         log.info("user ids {}",validUserIds);
         log.info("user ids {}",userIds);
 
