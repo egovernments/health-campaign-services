@@ -13,6 +13,7 @@ import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -23,6 +24,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Repository
 @Slf4j
@@ -30,7 +32,7 @@ public class ProductVariantRepository {
 
     private final Producer producer;
 
-    //private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
@@ -39,9 +41,9 @@ public class ProductVariantRepository {
     private static final String HASH_KEY = "product-variant";
 
     @Autowired
-    public ProductVariantRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, SelectQueryBuilder selectQueryBuilder) {
+    public ProductVariantRepository(Producer producer, RedisTemplate<String, Object> redisTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, SelectQueryBuilder selectQueryBuilder) {
         this.producer = producer;
-        //this.redisTemplate = redisTemplate;
+        this.redisTemplate = redisTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.selectQueryBuilder = selectQueryBuilder;
     }
@@ -54,17 +56,19 @@ public class ProductVariantRepository {
 
     public List<ProductVariant> findById(List<String> ids) {
         Collection<Object> collection = new ArrayList<>(ids);
-//        List<Object> productVariants = redisTemplate.opsForHash()
-//                .multiGet(HASH_KEY, collection);
-//        if (productVariants != null && !productVariants.isEmpty()) {
-//            log.info("Cache hit");
-//            return productVariants.stream().map(ProductVariant.class::cast)
-//                    .collect(Collectors.toList());
-//        }
+        ArrayList<ProductVariant> variantsFound = new ArrayList<>();
+        List<Object> productVariants = redisTemplate.opsForHash()
+                .multiGet(HASH_KEY, collection);
+        if (productVariants != null && !productVariants.isEmpty()) {
+            log.info("Cache hit");
+            variantsFound = (ArrayList<ProductVariant>) productVariants.stream().map(ProductVariant.class::cast)
+                    .collect(Collectors.toList());
+            ids = ids.stream().filter(id -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id)).collect(Collectors.toList());
+        }
         String query = "SELECT * FROM product_variant WHERE id IN (:ids) and isDeleted = false";
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
-        return namedParameterJdbcTemplate.queryForObject(query, paramMap,
+        variantsFound.addAll(namedParameterJdbcTemplate.queryForObject(query, paramMap,
                     ((resultSet, i) -> {
                         List<ProductVariant> pvList = new ArrayList<>();
                         try {
@@ -75,17 +79,18 @@ public class ProductVariantRepository {
                         } catch (Exception e) {
                             throw new CustomException("ERROR_IN_SELECT", e.getMessage());
                         }
-                        //putInCache(pvList);
+                        putInCache(pvList);
                         return pvList;
-                    }));
+                    })));
+        return variantsFound;
     }
 
     private void putInCache(List<ProductVariant> productVariants) {
-//        Map<String, ProductVariant> productVariantMap = productVariants.stream()
-//                .collect(Collectors
-//                        .toMap(ProductVariant::getId,
-//                                productVariant -> productVariant));
-//        redisTemplate.opsForHash().putAll(HASH_KEY, productVariantMap);
+        Map<String, ProductVariant> productVariantMap = productVariants.stream()
+                .collect(Collectors
+                        .toMap(ProductVariant::getId,
+                                productVariant -> productVariant));
+        redisTemplate.opsForHash().putAll(HASH_KEY, productVariantMap);
     }
 
     public List<ProductVariant> find(ProductVariantSearch productVariantSearch,
@@ -99,10 +104,10 @@ public class ProductVariantRepository {
         if (!includeDeleted) {
             query += "and isDeleted=:isDeleted ";
         }
-        if(lastChangedSince != null){
+        if (lastChangedSince != null) {
             query += "and lastModifiedTime>=:lastModifiedTime ";
         }
-        query += "LIMIT :limit OFFSET :offset ORDER BY id";
+        query += "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);

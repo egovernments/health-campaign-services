@@ -39,7 +39,7 @@ public class ProductService {
                 .collect(Collectors.toList());
         log.info("Checking if already exists");
         List<String> inValidProductIds = productRepository.validateProductId(productIds);
-        if(!inValidProductIds.isEmpty()) {
+        if (!inValidProductIds.isEmpty()) {
             log.info("Products {} already present in DB", inValidProductIds);
             throw new CustomException("PRODUCT_ALREADY_EXISTS", inValidProductIds.toString());
         }

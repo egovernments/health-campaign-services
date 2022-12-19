@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -83,6 +84,7 @@ public class ProductVariantService {
         List<ProductVariant> existingProductVariants = productVariantRepository
                 .findById(request.getProductVariant().stream()
                 .map(ProductVariant::getId).collect(Collectors.toList()));
+        existingProductVariants.removeAll(Collections.singleton(null));
 
         if (request.getProductVariant().size() != existingProductVariants.size()) {
             List<ProductVariant> invalidProductVariants = new ArrayList<>(request.getProductVariant());
@@ -98,7 +100,7 @@ public class ProductVariantService {
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
         request.getProductVariant().forEach(productVariant -> {
-            if(request.getApiOperation().equals(ApiOperation.DELETE)){
+            if (request.getApiOperation().equals(ApiOperation.DELETE)) {
                 productVariant.setIsDeleted(true);
             }
             productVariant.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
