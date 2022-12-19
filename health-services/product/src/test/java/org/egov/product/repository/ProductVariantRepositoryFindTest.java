@@ -68,7 +68,7 @@ class ProductVariantRepositoryFindTest {
     @DisplayName("should find product variants by ids and return the results")
     void shouldFindProductVariantsByIdsAndReturnTheResults() {
         when(hashOperations.multiGet(anyString(), anyList())).thenReturn(Collections.emptyList());
-        when(namedParameterJdbcTemplate.queryForObject(anyString(), anyMap(), any(RowMapper.class)))
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(RowMapper.class)))
                 .thenReturn(productVariants);
 
         List<ProductVariant> result = productVariantRepository.findById(productVariantIds);

@@ -1,28 +1,19 @@
 package org.egov.product.repository;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
 import org.egov.product.repository.rowmapper.ProductVariantRowMapper;
-import org.egov.product.web.models.AdditionalFields;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantSearch;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +53,7 @@ public class ProductVariantRepository {
         ArrayList<ProductVariant> variantsFound = new ArrayList<>();
         List<Object> productVariants = redisTemplate.opsForHash()
                 .multiGet(HASH_KEY, collection);
-        if (!productVariants.isEmpty()) {
+        if (!productVariants.isEmpty() && !productVariants.contains(null)) {
             log.info("Cache hit");
             variantsFound = (ArrayList<ProductVariant>) productVariants.stream().map(ProductVariant.class::cast)
                     .collect(Collectors.toList());
@@ -75,24 +66,9 @@ public class ProductVariantRepository {
         String query = "SELECT * FROM product_variant WHERE id IN (:ids) and isDeleted = false";
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
-        try {
-            variantsFound.addAll(namedParameterJdbcTemplate.queryForObject(query, paramMap,
-                    ((resultSet, i) -> {
-                        List<ProductVariant> pvList = new ArrayList<>();
-                        try {
-                            mapRow(resultSet, pvList);
-                            while (resultSet.next()) {
-                                mapRow(resultSet, pvList);
-                            }
-                        } catch (Exception e) {
-                            throw new CustomException("ERROR_IN_SELECT", e.getMessage());
-                        }
-                        putInCache(pvList);
-                        return pvList;
-                    })));
-        } catch (EmptyResultDataAccessException e) {
-            return Collections.emptyList();
-        }
+
+        //Not storing in cache, because we save product variants via save function. so it's duplicate.
+        variantsFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, new ProductVariantRowMapper()));
         return variantsFound;
     }
 
@@ -126,27 +102,5 @@ public class ProductVariantRepository {
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
         return namedParameterJdbcTemplate.query(query, paramsMap, new ProductVariantRowMapper());
-    }
-
-    private void mapRow(ResultSet resultSet, List<ProductVariant> pvList) throws SQLException, JsonProcessingException {
-        ProductVariant pv = ProductVariant.builder()
-                .id(resultSet.getString("id"))
-                .productId(resultSet.getString("productId"))
-                .tenantId(resultSet.getString("tenantId"))
-                .sku(resultSet.getString("sku"))
-                .variation(resultSet.getString("variation"))
-                .isDeleted(resultSet.getBoolean("isDeleted"))
-                .rowVersion(resultSet.getInt("rowVersion"))
-                .additionalFields(new ObjectMapper()
-                        .readValue(resultSet.getString("additionalDetails"),
-                                AdditionalFields.class))
-                .auditDetails(AuditDetails.builder()
-                        .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                        .createdTime(resultSet.getLong("createdTime"))
-                        .createdBy(resultSet.getString("createdBy"))
-                        .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                        .build())
-                .build();
-        pvList.add(pv);
     }
 }

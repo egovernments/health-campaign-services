@@ -86,11 +86,10 @@ public class ProductVariantService {
         List<ProductVariant> existingProductVariants = productVariantRepository
                 .findById(new ArrayList<>(request.getProductVariant().stream()
                 .map(ProductVariant::getId).collect(Collectors.toSet())));
-        // existingProductVariants.removeAll(Collections.singleton(null));
 
         if (request.getProductVariant().size() != existingProductVariants.size()) {
             List<ProductVariant> invalidProductVariants = new ArrayList<>(request.getProductVariant());
-            invalidProductVariants.removeAll(existingProductVariants);
+            invalidProductVariants.removeAll(existingProductVariants); //needs change, product variants not being removed.
             log.error("Invalid product variants");
             throw new CustomException("INVALID_PRODUCT_VARIANT", invalidProductVariants.toString());
         }
