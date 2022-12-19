@@ -41,7 +41,8 @@ public class ProductVariantRepository {
     private static final String HASH_KEY = "product-variant";
 
     @Autowired
-    public ProductVariantRepository(Producer producer, RedisTemplate<String, Object> redisTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, SelectQueryBuilder selectQueryBuilder) {
+    public ProductVariantRepository(Producer producer, RedisTemplate<String, Object> redisTemplate,
+                                    NamedParameterJdbcTemplate namedParameterJdbcTemplate, SelectQueryBuilder selectQueryBuilder) {
         this.producer = producer;
         this.redisTemplate = redisTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
@@ -59,11 +60,15 @@ public class ProductVariantRepository {
         ArrayList<ProductVariant> variantsFound = new ArrayList<>();
         List<Object> productVariants = redisTemplate.opsForHash()
                 .multiGet(HASH_KEY, collection);
-        if (productVariants != null && !productVariants.isEmpty()) {
+        if (!productVariants.isEmpty()) {
             log.info("Cache hit");
             variantsFound = (ArrayList<ProductVariant>) productVariants.stream().map(ProductVariant.class::cast)
                     .collect(Collectors.toList());
-            ids = ids.stream().filter(id -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id)).collect(Collectors.toList());
+            // return only if all the variants are found in cache
+            ids.removeAll(variantsFound.stream().map(ProductVariant::getId).collect(Collectors.toList()));
+            if (ids.isEmpty()) {
+                return variantsFound;
+            }
         }
         String query = "SELECT * FROM product_variant WHERE id IN (:ids) and isDeleted = false";
         Map<String, Object> paramMap = new HashMap<>();
@@ -100,12 +105,12 @@ public class ProductVariantRepository {
                                      Long lastChangedSince,
                                      Boolean includeDeleted) throws QueryBuilderException {
         String query = selectQueryBuilder.build(productVariantSearch);
-        query += " and tenantId=:tenantId ";
+        query += " AND tenantId = :tenantId ";
         if (!includeDeleted) {
-            query += "and isDeleted=:isDeleted ";
+            query += " AND isDeleted = :isDeleted ";
         }
         if (lastChangedSince != null) {
-            query += "and lastModifiedTime>=:lastModifiedTime ";
+            query += " AND lastModifiedTime >= :lastModifiedTime ";
         }
         query += "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
@@ -114,8 +119,7 @@ public class ProductVariantRepository {
         paramsMap.put("lastModifiedTime", lastChangedSince);
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        List<ProductVariant> productVariants = namedParameterJdbcTemplate.query(query, paramsMap, new ProductVariantRowMapper());
-        return productVariants;
+        return namedParameterJdbcTemplate.query(query, paramsMap, new ProductVariantRowMapper());
     }
 
     private void mapRow(ResultSet resultSet, List<ProductVariant> pvList) throws SQLException, JsonProcessingException {

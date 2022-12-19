@@ -14,10 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -77,14 +78,15 @@ public class ProductVariantService {
 
     public List<ProductVariant> update(ProductVariantRequest request) {
         validateProductId(request);
-        Map<String, ProductVariant> productMap =
-                request.getProductVariant().stream().collect(Collectors.toMap(ProductVariant::getId, item -> item));
+        Map<String, ProductVariant> pvMap =
+                request.getProductVariant().stream()
+                        .collect(Collectors.toMap(ProductVariant::getId, item -> item));
 
         log.info("Checking existing product variants");
         List<ProductVariant> existingProductVariants = productVariantRepository
-                .findById(request.getProductVariant().stream()
-                .map(ProductVariant::getId).collect(Collectors.toList()));
-        existingProductVariants.removeAll(Collections.singleton(null));
+                .findById(new ArrayList<>(request.getProductVariant().stream()
+                .map(ProductVariant::getId).collect(Collectors.toSet())));
+        // existingProductVariants.removeAll(Collections.singleton(null));
 
         if (request.getProductVariant().size() != existingProductVariants.size()) {
             List<ProductVariant> invalidProductVariants = new ArrayList<>(request.getProductVariant());
@@ -92,11 +94,8 @@ public class ProductVariantService {
             log.error("Invalid product variants");
             throw new CustomException("INVALID_PRODUCT_VARIANT", invalidProductVariants.toString());
         }
-        for (ProductVariant validProductVariant : existingProductVariants) {
-            if (validProductVariant.getRowVersion() != productMap.get(validProductVariant.getId()).getRowVersion()) {
-                throw new CustomException("ROW_VERSION_MISMATCH", "Row version is not same");
-            }
-        }
+
+        checkRowVersion(pvMap, existingProductVariants);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
         request.getProductVariant().forEach(productVariant -> {
@@ -113,15 +112,26 @@ public class ProductVariantService {
     }
 
     private void validateProductId(ProductVariantRequest request) {
-        List<String> productIds = request.getProductVariant().stream()
+        Set<String> productIds = request.getProductVariant().stream()
                 .map(ProductVariant::getProductId)
-                .collect(Collectors.toList());
-        List<String> validProductIds = productService.validateProductId(productIds);
+                .collect(Collectors.toSet());
+        List<String> validProductIds = productService.validateProductId(new ArrayList<>(productIds));
         if (validProductIds.size() != productIds.size()) {
             List<String> invalidProductIds = new ArrayList<>(productIds);
             invalidProductIds.removeAll(validProductIds);
             log.error("Invalid productIds");
             throw new CustomException("INVALID_PRODUCT_ID", invalidProductIds.toString());
+        }
+    }
+
+    private void checkRowVersion(Map<String, ProductVariant> idToPvMap,
+                                        List<ProductVariant> existingProductVariants) {
+        Set<String> rowVersionMismatch = existingProductVariants.stream()
+                .filter(existingPv -> !Objects.equals(existingPv.getRowVersion(),
+                        idToPvMap.get(existingPv.getId()).getRowVersion()))
+                .map(ProductVariant::getId).collect(Collectors.toSet());
+        if (!rowVersionMismatch.isEmpty()) {
+            throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
         }
     }
 
@@ -131,7 +141,8 @@ public class ProductVariantService {
                                 String tenantId,
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception{
-        List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
+                limit, offset, tenantId, lastChangedSince, includeDeleted);
         if (productVariants.isEmpty()) {
             throw new CustomException("NO_RESULT", "No products found for the given search criteria");
         }
