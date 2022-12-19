@@ -55,6 +55,14 @@ public class ProductVariantRequestTestBuilder {
         return this;
     }
 
+    public ProductVariantRequestTestBuilder withOneProductVariantHavingIdAndRowVersion() {
+        List<ProductVariant> productVariants = new ArrayList<>();
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withRowVersion().withAuditDetails().build());
+        builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .productVariant(productVariants);
+        return this;
+    }
+
     public ProductVariantRequestTestBuilder withBadTenantIdInOneProductVariant() {
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(ProductVariantTestBuilder.builder().withIdNull().withBadTenantId().build());

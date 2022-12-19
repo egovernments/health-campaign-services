@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductVariantRepository;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantSearchRequest;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -74,6 +76,8 @@ public class ProductVariantService {
 
     public List<ProductVariant> update(ProductVariantRequest request) {
         validateProductId(request);
+        Map<String, ProductVariant> productMap =
+                request.getProductVariant().stream().collect(Collectors.toMap(ProductVariant::getId, item -> item));
 
         log.info("Checking existing product variants");
         List<ProductVariant> existingProductVariants = productVariantRepository
@@ -86,9 +90,17 @@ public class ProductVariantService {
             log.error("Invalid product variants");
             throw new CustomException("INVALID_PRODUCT_VARIANT", invalidProductVariants.toString());
         }
+        for (ProductVariant validProductVariant : existingProductVariants) {
+            if (validProductVariant.getRowVersion() != productMap.get(validProductVariant.getId()).getRowVersion()) {
+                throw new CustomException("ROW_VERSION_MISMATCH", "Row version is not same");
+            }
+        }
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
         request.getProductVariant().forEach(productVariant -> {
+            if(request.getApiOperation().equals(ApiOperation.DELETE)){
+                productVariant.setIsDeleted(true);
+            }
             productVariant.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
             productVariant.getAuditDetails().setLastModifiedBy(request.getRequestInfo().getUserInfo().getUuid());
             productVariant.setRowVersion(productVariant.getRowVersion() + 1);
@@ -119,7 +131,7 @@ public class ProductVariantService {
                                 Boolean includeDeleted) throws Exception{
         List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         if (productVariants.isEmpty()) {
-            throw new CustomException("NO_RESULT_FOUND", "No products found for the given search criteria.");
+            throw new CustomException("NO_RESULT", "No products found for the given search criteria");
         }
         return productVariants;
     }

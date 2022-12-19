@@ -33,6 +33,11 @@ public class ProductVariantTestBuilder {
         return this;
     }
 
+    public ProductVariantTestBuilder withRowVersion() {
+        this.builder.rowVersion(1);
+        return this;
+    }
+
     public ProductVariantTestBuilder withDeleted() {
         withIdNull().builder.isDeleted(true);
         return this;

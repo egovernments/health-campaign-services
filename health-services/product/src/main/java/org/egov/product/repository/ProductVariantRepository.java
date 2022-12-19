@@ -13,7 +13,6 @@ import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -21,7 +20,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,8 +64,7 @@ public class ProductVariantRepository {
         String query = "SELECT * FROM product_variant WHERE id IN (:ids) and isDeleted = false";
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
-        try {
-            return namedParameterJdbcTemplate.queryForObject(query, paramMap,
+        return namedParameterJdbcTemplate.queryForObject(query, paramMap,
                     ((resultSet, i) -> {
                         List<ProductVariant> pvList = new ArrayList<>();
                         try {
@@ -81,9 +78,6 @@ public class ProductVariantRepository {
                         //putInCache(pvList);
                         return pvList;
                     }));
-        } catch (EmptyResultDataAccessException e) {
-            return Collections.emptyList();
-        }
     }
 
     private void putInCache(List<ProductVariant> productVariants) {
@@ -108,7 +102,7 @@ public class ProductVariantRepository {
         if(lastChangedSince != null){
             query += "and lastModifiedTime>=:lastModifiedTime ";
         }
-        query += "LIMIT :limit OFFSET :offset";
+        query += "LIMIT :limit OFFSET :offset ORDER BY id";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);

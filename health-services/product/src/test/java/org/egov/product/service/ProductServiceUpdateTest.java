@@ -13,7 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,17 +34,21 @@ class ProductServiceUpdateTest {
 
     @Test
     @DisplayName("Should throw exception if product ids are null or empty")
-    void shouldThrowExceptionIfProductIdNullOrEmpty() throws Exception {
-        ProductRequest productRequest = ProductRequestTestBuilder.builder().addGoodProduct().withRequestInfo().build();
+    void shouldThrowExceptionIfProductIdNotFound() throws Exception {
+        Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
+        product.setRowVersion(123);
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product).withRequestInfo().build();
+        when(productRepository.findById(any(List.class))).thenReturn(Arrays.asList());
         assertThrows(Exception.class, () -> productService.update(productRequest));
     }
 
     @Test
-    @DisplayName("Should throw exception if product ids not found in cache or DB")
-    void shouldThrowExceptionIfProductIdNotFound() throws Exception {
-        Product product1 = ProductTestBuilder.builder().goodProduct().withId("ID101").build();
-        ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product1).withRequestInfo().build();
-        when(productRepository.validateAllProductId(any(List.class))).thenReturn(new ArrayList<String>());
+    @DisplayName("Should throw exception for row versions mismatch")
+    void shouldThrowExceptionIfRowVersionIsNotSimilar() throws Exception {
+        Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
+        product.setRowVersion(123);
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product).withRequestInfo().build();
+        when(productRepository.findById(any(List.class))).thenReturn(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("213").build()));
         assertThrows(Exception.class, () -> productService.update(productRequest));
     }
 }

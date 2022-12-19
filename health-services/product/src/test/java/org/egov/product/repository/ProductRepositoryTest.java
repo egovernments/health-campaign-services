@@ -19,9 +19,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +74,19 @@ class ProductRepositoryTest {
         List<String> result = productRepository.validateProductId(productIds);
 
         assertEquals(2, result.size());
+    }
+
+    @Test
+    @DisplayName("should validate by id and return valid product")
+    void shouldValidateByIdAndReturnValidProduct() {
+        List<Product> products = new ArrayList<>();
+        products.add(ProductTestBuilder.builder().goodProduct().withId("123").build());
+        when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(RowMapper.class)))
+                .thenReturn(products);
+
+        List<Product> result = productRepository.findById(Arrays.asList("123"));
+
+        assertEquals(1, result.size());
     }
 
     @Test

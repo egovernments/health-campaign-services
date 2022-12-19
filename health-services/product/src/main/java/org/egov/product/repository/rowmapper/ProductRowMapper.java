@@ -36,7 +36,7 @@ public class ProductRowMapper implements RowMapper<Product> {
                     .additionalFields(objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .build();
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new SQLException(e);
         }
     }
 }

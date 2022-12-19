@@ -52,20 +52,15 @@ public class ProductRepository {
         return namedParameterJdbcTemplate.queryForList(query, paramMap, String.class);
     }
 
-    public List<String> validateAllProductId(List<String> ids){
-//        List<String> productIds = ids.stream().filter(id -> redisTemplate.opsForHash()
-//                        .entries(HASH_KEY).containsKey(id))
-//                .collect(Collectors.toList());
-        //Ids to find in DB
-        //ids = ids.stream().filter(id -> !productIds.contains(id)).collect(Collectors.toList());
-        List<String> productIds = new ArrayList<>();
+    public List<Product> findById(List<String> ids) {
+        List<Product> productsFound = new ArrayList<>();
         if(!ids.isEmpty()){
             Map<String, Object> paramMap = new HashMap<>();
             paramMap.put("productIds", ids);
-            String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", ids.size());
-            productIds.addAll(namedParameterJdbcTemplate.queryForList(query, paramMap, String.class));
+            String query = String.format("SELECT * FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", ids.size());
+            productsFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, new ProductRowMapper()));
         }
-        return productIds;
+        return productsFound;
     }
 
     public List<Product> save(List<Product> products, String topic) {
@@ -92,7 +87,7 @@ public class ProductRepository {
         if(lastChangedSince != null){
             query += "and lastModifiedTime>=:lastModifiedTime ";
         }
-        query += "LIMIT :limit OFFSET :offset";
+        query += "LIMIT :limit OFFSET :offset ORDER BY id";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);

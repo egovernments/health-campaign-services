@@ -3,6 +3,7 @@ package org.egov.product.enrichment;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,9 @@ public class ProductEnrichment {
         IntStream.range(0, productRequest.getProduct().size()).forEach(
                 i -> {
                     Product product = productRequest.getProduct().get(i);
+                    if(productRequest.getApiOperation().equals(ApiOperation.DELETE)){
+                        product.setIsDeleted(true);
+                    }
                     product.setAuditDetails(auditDetails);
                 }
         );
@@ -55,7 +59,7 @@ public class ProductEnrichment {
                 "product.id", "", productRequest.getProduct().size());
     }
 
-    private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest){
+    private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest) {
         log.info("Generating Audit Details for new products");
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(productRequest.getRequestInfo().getUserInfo().getUuid())
@@ -65,7 +69,7 @@ public class ProductEnrichment {
         return auditDetails;
     }
 
-    private AuditDetails getAuditDetailsForUpdate(ProductRequest productRequest){
+    private AuditDetails getAuditDetailsForUpdate(ProductRequest productRequest) {
         log.info("Generating Audit Details for products");
         AuditDetails auditDetails = AuditDetails.builder()
                 .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())

@@ -10,7 +10,9 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,17 +49,22 @@ public class ProductService {
         return productRequest.getProduct();
     }
 
-    public List<Product> update(ProductRequest productRequest) throws Exception{
-        List<String> productIds = productRequest.getProduct().stream()
-                .map(Product::getId).filter(p -> p!=null)
-                .collect(Collectors.toList());
-        if (productIds.isEmpty() || productIds.size() != productRequest.getProduct().size()) {
-           throw new CustomException("PRODUCT_EMPTY", "Product IDs can not be null or empty");
-        }
+    public List<Product> update(ProductRequest productRequest) throws Exception {
+        Map<String, Product> productMap =
+                productRequest.getProduct().stream().collect(Collectors.toMap(Product::getId, item -> item));
+        List<String> productIds = new ArrayList<>(productMap.keySet());
 
-        List<String> validProductsIs = productRepository.validateAllProductId(productIds);
-        if (validProductsIs.size() != productIds.size()) {
-            throw new CustomException("PRODUCT_DOES_NOT_EXISTS", "Products does not exists");
+        log.info("Checking if already exists");
+        List<Product> validProducts = productRepository.findById(productIds);
+        if (validProducts.size() != productIds.size()) {
+            List<Product> invalidProducts = new ArrayList<>(productRequest.getProduct());
+            invalidProducts.removeAll(validProducts);
+            throw new CustomException("INVALID_PRODUCT", invalidProducts.toString());
+        }
+        for (Product validProduct : validProducts) {
+            if (validProduct.getRowVersion() != productMap.get(validProduct.getId()).getRowVersion()) {
+                throw new CustomException("ROW_VERSION_MISMATCH", "Row version is not same");
+            }
         }
 
         productRequest = productEnrichment.enrichUpdateProduct(productRequest);
@@ -73,7 +80,7 @@ public class ProductService {
                                 Boolean includeDeleted) throws Exception{
         List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         if (products.isEmpty()) {
-            throw new CustomException("NO_RESULT_FOUND", "No products found for the given search criteria.");
+            throw new CustomException("NO_RESULT", "No products found for the given search criteria");
         }
         return products;
     }
