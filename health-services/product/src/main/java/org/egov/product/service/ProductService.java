@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -106,15 +105,12 @@ public class ProductService {
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception {
         if (isSearchByIdOnly(productSearchRequest)) {
-            return productRepository.findById(Collections.singletonList(productSearchRequest
-                    .getProduct().getId()));
+            List<String> ids = new ArrayList<>();
+            ids.add(productSearchRequest.getProduct().getId());
+            return productRepository.findById(ids);
         }
-        List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit,
+        return productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
-        if (products.isEmpty()) {
-            throw new CustomException("NO_RESULT", "No records found for the given search criteria");
-        }
-        return products;
     }
 
     private void checkRowVersion(Map<String, Product> idToPMap,

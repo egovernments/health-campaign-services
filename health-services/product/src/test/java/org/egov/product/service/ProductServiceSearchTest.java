@@ -18,8 +18,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -46,17 +46,17 @@ class ProductServiceSearchTest {
     }
 
     @Test
-    @DisplayName("Should raise exception if no search results are found")
-    void shouldRaiseExceptionIfNoProductsFound() throws Exception {
+    @DisplayName("should not raise exception if no search results are found")
+    void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
-        assertThrows(Exception.class, () -> productService.search(productSearchRequest, 10, 0, "default", null, false));
+        assertDoesNotThrow(() -> productService.search(productSearchRequest, 10, 0, "default", null, false));
     }
 
     @Test
-    @DisplayName("Should return products if search criteria is matched")
+    @DisplayName("should return products if search criteria is matched")
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
@@ -69,7 +69,7 @@ class ProductServiceSearchTest {
     }
 
     @Test
-    @DisplayName("Should return product from cache if search criteria has id only")
+    @DisplayName("should return product from cache if search criteria has id only")
     void shouldReturnProductFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
         ProductSearch productSearch = ProductSearch.builder().id("ID101").build();

@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -43,8 +43,8 @@ class ProductVariantServiceSearchTest {
     }
 
     @Test
-    @DisplayName("Should raise exception if no search results are found")
-    void shouldRaiseExceptionIfNoProductsFound() throws Exception {
+    @DisplayName("should not raise exception if no search results are found")
+    void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
         when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").variation("some-variation").build();
@@ -52,11 +52,11 @@ class ProductVariantServiceSearchTest {
                 .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
 
-        assertThrows(Exception.class, () -> productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false));
+        assertDoesNotThrow(() -> productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false));
     }
 
     @Test
-    @DisplayName("Should return products if search criteria is matched")
+    @DisplayName("should return products if search criteria is matched")
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
         when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(productVariants);
@@ -72,7 +72,7 @@ class ProductVariantServiceSearchTest {
     }
 
     @Test
-    @DisplayName("Should return from cache if search criteria has id only")
+    @DisplayName("should return from cache if search criteria has id only")
     void shouldReturnFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
         productVariants.add(ProductVariantTestBuilder.builder().withId().withAuditDetails().build());
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").build();

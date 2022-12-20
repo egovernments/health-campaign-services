@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -162,15 +161,12 @@ public class ProductVariantService {
                                 Boolean includeDeleted) throws Exception {
 
         if (isSearchByIdOnly(productVariantSearchRequest)) {
-            return productVariantRepository.findById(Collections.singletonList(productVariantSearchRequest
-                    .getProductVariant().getId()));
+            List<String> ids = new ArrayList<>();
+            ids.add(productVariantSearchRequest.getProductVariant().getId());
+            return productVariantRepository.findById(ids);
         }
-        List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
+        return productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
-        if (productVariants.isEmpty()) {
-            throw new CustomException("NO_RESULT", "No records found for the given search criteria");
-        }
-        return productVariants;
     }
 
     private boolean isSearchByIdOnly(ProductVariantSearchRequest productVariantSearchRequest) {

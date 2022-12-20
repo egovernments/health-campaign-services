@@ -33,7 +33,7 @@ class ProductServiceUpdateTest {
     private Producer producer;
 
     @Test
-    @DisplayName("Should throw exception if product ids are null or empty")
+    @DisplayName("should throw exception if product ids are null or empty")
     void shouldThrowExceptionIfProductIdNotFound() throws Exception {
         Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
         product.setRowVersion(123);
@@ -43,7 +43,7 @@ class ProductServiceUpdateTest {
     }
 
     @Test
-    @DisplayName("Should throw exception for row versions mismatch")
+    @DisplayName("should throw exception for row versions mismatch")
     void shouldThrowExceptionIfRowVersionIsNotSimilar() throws Exception {
         Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
         product.setRowVersion(123);
