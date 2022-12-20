@@ -4,21 +4,26 @@ import org.egov.common.producer.Producer;
 import org.egov.product.helper.ProductVariantTestBuilder;
 import org.egov.product.web.models.ProductVariant;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ProductVariantRepositorySaveTest {
@@ -29,11 +34,11 @@ class ProductVariantRepositorySaveTest {
     @Mock
     private Producer producer;
 
-//    @Mock
-//    private RedisTemplate<String, Object> redisTemplate;
-//
-//    @Mock
-//    private HashOperations hashOperations;
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private HashOperations hashOperations;
 
     private List<ProductVariant> productVariants;
 
@@ -43,7 +48,7 @@ class ProductVariantRepositorySaveTest {
     void setUp() {
         productVariants = Collections.singletonList(ProductVariantTestBuilder
                 .builder().withId().build());
-        //when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
     }
 
     @Test
@@ -58,14 +63,13 @@ class ProductVariantRepositorySaveTest {
 
     @Test
     @DisplayName("should save and add objects in the cache")
-    @Disabled
     void shouldSaveAndAddObjectsInTheCache() {
-//        productVariantRepository.save(productVariants, TOPIC);
-//
-//        InOrder inOrder = inOrder(producer, hashOperations);
-//
-//        inOrder.verify(producer, times(1)).push(any(String.class), any(Object.class));
-//        inOrder.verify(hashOperations, times(1))
-//                .putAll(any(String.class), any(Map.class));
+        productVariantRepository.save(productVariants, TOPIC);
+
+        InOrder inOrder = inOrder(producer, hashOperations);
+
+        inOrder.verify(producer, times(1)).push(any(String.class), any(Object.class));
+        inOrder.verify(hashOperations, times(1))
+                .putAll(any(String.class), any(Map.class));
     }
 }

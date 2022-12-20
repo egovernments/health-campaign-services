@@ -9,41 +9,40 @@ serviceMaps:
         - query: INSERT INTO product(id, tenantId, type, name, manufacturer, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*
           jsonMaps:
-            - jsonPath: $.id
-            - jsonPath: $.tenantId
-            - jsonPath: $.type
-            - jsonPath: $.name
-            - jsonPath: $.manufacturer
-            - jsonPath: $.additionalFields
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.type
+            - jsonPath: $.*.name
+            - jsonPath: $.*.manufacturer
+            - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
-            - jsonPath: $.auditDetails.createdBy
-            - jsonPath: $.auditDetails.lastModifiedBy
-            - jsonPath: $.auditDetails.createdTime
-            - jsonPath: $.auditDetails.lastModifiedTime
-            - jsonPath: $.rowVersion
-            - jsonPath: $.isDeleted
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
 
     - version: 1.0
       description: Updates Product
       fromTopic: update-product-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE product SET tenantId = ?, type = ?, name = ?, additionalDetails = ?, manufacturer = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?
+        - query: UPDATE product SET tenantId = ?, type = ?, name = ?, manufacturer = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = rowVersion + 1, isDeleted = ? WHERE id = ?
           basePath: $.*
           jsonMaps:
-            - jsonPath: $.id
-            - jsonPath: $.tenantId
-            - jsonPath: $.type
-            - jsonPath: $.name
-            - jsonPath: $.manufacturer
-            - jsonPath: $.additionalFields
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.type
+            - jsonPath: $.*.name
+            - jsonPath: $.*.manufacturer
+            - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
-            - jsonPath: $.auditDetails.lastModifiedBy
-            - jsonPath: $.auditDetails.lastModifiedTime
-            - jsonPath: $.rowVersion
-            - jsonPath: $.isDeleted
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
 
     - version: 1.0
       description: Saves a product variant
@@ -73,7 +72,7 @@ serviceMaps:
       fromTopic: update-product-variant-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ?;
+        - query: UPDATE product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = rowVersion + 1, isDeleted = ? WHERE id = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
@@ -85,5 +84,5 @@ serviceMaps:
               dbType: JSONB
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
-            - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id

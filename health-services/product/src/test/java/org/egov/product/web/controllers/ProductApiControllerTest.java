@@ -1,25 +1,21 @@
 package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.TestConfiguration;
-import org.egov.product.enrichment.ProductEnrichment;
 import org.egov.product.helper.ProductRequestTestBuilder;
 import org.egov.product.helper.ProductTestBuilder;
-import org.egov.product.helper.ProductVariantRequestTestBuilder;
-import org.egov.product.helper.ProductVariantTestBuilder;
 import org.egov.product.service.ProductService;
 import org.egov.product.service.ProductVariantService;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
-import org.egov.product.web.models.ProductVariant;
-import org.egov.product.web.models.ProductVariantRequest;
-import org.egov.product.web.models.ProductVariantResponse;
+import org.egov.product.web.models.ProductSearch;
+import org.egov.product.web.models.ProductSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -29,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,9 +52,6 @@ class ProductApiControllerTest {
 
     @MockBean
     private ProductVariantService productVariantService;
-
-    @Mock
-    private ProductEnrichment productEnrichment;
 
     @MockBean
     private ProductService productService;
@@ -123,133 +117,6 @@ class ProductApiControllerTest {
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isBadRequest()).andReturn();
-    }
-
-    @Test
-    @DisplayName("should create product variant and return with 202 accepted")
-    void shouldCreateProductVariantAndReturnWith202Accepted() throws Exception {
-        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariant()
-                .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
-        List<ProductVariant> productVariants = new ArrayList<>();
-        productVariants.add(productVariant);
-        when(productVariantService.create(any(ProductVariantRequest.class))).thenReturn(productVariants);
-
-        final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isAccepted())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ProductVariantResponse response = objectMapper.readValue(responseStr,
-                ProductVariantResponse.class);
-
-        assertEquals(1, response.getProductVariant().size());
-        assertNotNull(response.getProductVariant().get(0).getId());
-        assertEquals("successful", response.getResponseInfo().getStatus());
-    }
-
-    @Test
-    @DisplayName("should send error response with error details with 400 bad request for create")
-    void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariant()
-                                .withBadTenantIdInOneProductVariant()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
-        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
-    }
-
-    @Test
-    @DisplayName("should send 400 bad request in case of incorrect api operation for create")
-    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariant()
-                                .withApiOperationNotNullAndNotCreate()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
-    }
-
-    @Test
-    @DisplayName("should update product variant and return with 202 accepted")
-    void shouldUpdateProductVariantAndReturnWith202Accepted() throws Exception {
-        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariantHavingId()
-                .withApiOperationNotNullAndNotCreate()
-                .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
-        List<ProductVariant> productVariants = new ArrayList<>();
-        productVariants.add(productVariant);
-        when(productVariantService.update(any(ProductVariantRequest.class))).thenReturn(productVariants);
-
-        final MvcResult result = mockMvc.perform(post("/variant/v1/_update")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isAccepted())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ProductVariantResponse response = objectMapper.readValue(responseStr,
-                ProductVariantResponse.class);
-
-        assertEquals(1, response.getProductVariant().size());
-        assertNotNull(response.getProductVariant().get(0).getId());
-        assertEquals("successful", response.getResponseInfo().getStatus());
-    }
-
-    @Test
-    @DisplayName("should send error response with error details with 400 bad request for update")
-    void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/variant/v1/_update")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariantHavingId()
-                                .withBadTenantIdInOneProductVariant()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
-        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
-    }
-
-    @Test
-    @DisplayName("should send 400 bad request in case of incorrect api operation for update")
-    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/variant/v1/_update")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariantHavingId()
-                                .withApiOperationNotUpdate()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
     }
 
     @Test
@@ -331,14 +198,68 @@ class ProductApiControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
-
         String responseStr = result.getResponse().getContentAsString();
         ErrorRes response = objectMapper.readValue(responseStr,
                 ErrorRes.class);
+
         assertEquals(response.getErrors().size(), 1);
         assertEquals(response.getErrors().get(0).getCode(), "PRODUCT_EMPTY");
     }
 
+    @Test
+    @DisplayName("Should accept search request and return response as accepted")
+    void shouldAcceptSearchRequestAndReturnProducts() throws Exception {
 
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .product(ProductSearch.builder().id("ID101").type("DRUG").build())
+                .build();
+        when(productService.search(any(ProductSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenReturn(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("ID101").build()));
+
+        final MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(productSearchRequest)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProductResponse response = objectMapper.readValue(responseStr,
+                ProductResponse.class);
+
+        assertEquals(response.getProduct().size(), 1);
+    }
+
+    @Test
+    @DisplayName("Should accept search request and return response as accepted")
+    void shouldThrowExceptionIfNoResultFound() throws Exception {
+
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .product(ProductSearch.builder().id("ID101").type("DRUG").build())
+                .build();
+        when(productService.search(any(ProductSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No products found."));
+
+        final MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(productSearchRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(response.getErrors().size(), 1);
+    }
 
 }

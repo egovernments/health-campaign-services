@@ -1,8 +1,8 @@
 package org.egov.product.service;
 
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
-import org.egov.product.enrichment.ProductEnrichment;
 import org.egov.product.helper.ProductRequestTestBuilder;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
@@ -20,8 +20,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,9 +43,6 @@ class ProductServiceTest {
     private ProductRepository productRepository;
 
     @Mock
-    private ProductEnrichment productEnrichment;
-
-    @Mock
     private Producer producer;
 
     private ProductRequest request;
@@ -51,6 +52,13 @@ class ProductServiceTest {
         request = ProductRequestTestBuilder.builder()
                 .addGoodProduct().withRequestInfo()
                 .build();
+
+        List<String> idList = new ArrayList<>();
+        idList.add("some-id");
+        lenient().when(idGenService.getIdList(any(RequestInfo.class),
+                        any(String.class),
+                        eq("product.id"), eq(""), anyInt()))
+                .thenReturn(idList);
     }
 
     @Test
@@ -58,7 +66,7 @@ class ProductServiceTest {
     void shouldEnrichTheFormattedIdInProduct() throws Exception {
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
-        when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
+        //when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
 
         List<Product> products = productService.create(request);
 
@@ -80,11 +88,11 @@ class ProductServiceTest {
     void shouldSendTheEnrichedProductToTheKafkaTopic() throws Exception {
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
-        when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
+        //when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
 
         productService.create(request);
 
-        verify(productEnrichment, times(1)).enrichProduct(any(ProductRequest.class));
+        //verify(productEnrichment, times(1)).enrichProduct(any(ProductRequest.class));
         verify(productRepository, times(1)).save(any(List.class), any(String.class));
     }
 
@@ -100,5 +108,42 @@ class ProductServiceTest {
         List<String> result = productService.validateProductId(productIds);
 
         assertEquals(2, result.size());
+    }
+
+    @Test
+    public void shouldGenerateRequestWithRowVersionAndIsDeleted() throws Exception {
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
+
+        List<Product> products = productService.create(productRequest);
+        assertEquals(products.get(0).getRowVersion(), 1);
+    }
+
+    @Test
+    public void shouldGenerateRequestWithAuditDetails() throws Exception {
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
+
+        List<Product> products = productService.create(productRequest);
+
+        assertNotNull(products.get(0).getAuditDetails().getCreatedBy());
+        assertNotNull(products.get(0).getAuditDetails().getCreatedTime());
+        assertNotNull(products.get(0).getAuditDetails().getLastModifiedBy());
+        assertNotNull(products.get(0).getAuditDetails().getLastModifiedTime());
+    }
+
+    @Test
+    public void shouldGenerateRequestWithId() throws Exception {
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
+        List<Product> products = productService.create(productRequest);
+        assertEquals("some-id", products.get(0).getId());
+    }
+
+    @Test
+    public void shouldThrowErrorWhenIdGenFails() throws Exception{
+        when(idGenService.getIdList(any(RequestInfo.class),
+                any(String.class),
+                eq("product.id"), eq(""), anyInt()))
+                .thenThrow(new CustomException("IDGEN_FAILURE", "IDgen service failure"));
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
+        assertThrows(Exception.class, () -> productService.create(productRequest));
     }
 }

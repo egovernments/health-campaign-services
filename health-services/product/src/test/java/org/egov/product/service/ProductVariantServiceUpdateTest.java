@@ -2,7 +2,9 @@ package org.egov.product.service;
 
 import org.egov.common.service.IdGenService;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
+import org.egov.product.helper.ProductVariantTestBuilder;
 import org.egov.product.repository.ProductVariantRepository;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.tracer.model.CustomException;
@@ -50,8 +52,9 @@ class ProductVariantServiceUpdateTest {
     @BeforeEach
     void setUp() throws Exception {
         request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariantHavingId()
+                .withOneProductVariantHavingIdAndRowVersion()
                 .build();
+        request.setApiOperation(ApiOperation.UPDATE);
         productVariantIds = request.getProductVariant().stream().map(ProductVariant::getId)
                 .collect(Collectors.toList());
     }
@@ -141,5 +144,16 @@ class ProductVariantServiceUpdateTest {
         List<ProductVariant> productVariants = productVariantService.update(request);
 
         assertEquals(request.getProductVariant(), productVariants);
+    }
+
+    @Test
+    @DisplayName("Should throw exception for row versions mismatch")
+    void shouldThrowExceptionIfRowVersionIsNotSimilar() throws Exception {
+        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        productVariant.setRowVersion(123);
+        ProductVariantRequest productVariantRequest = ProductVariantRequestTestBuilder.builder().withOneProductVariantHavingId().build();
+        mockValidateProuctId();
+        mockFindById();
+        assertThrows(Exception.class, () -> productVariantService.update(productVariantRequest));
     }
 }

@@ -42,6 +42,11 @@ public class ProductTestBuilder {
         return this;
     }
 
+    public ProductTestBuilder withIsDeleted() {
+        this.builder.isDeleted(true);
+        return this;
+    }
+
     public ProductTestBuilder goodProductWithNullTenant() {
         this.builder.name("Product-1")
                 .manufacturer("MANU")
