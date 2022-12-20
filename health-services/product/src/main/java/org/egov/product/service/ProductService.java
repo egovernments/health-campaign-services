@@ -102,7 +102,10 @@ public class ProductService {
                                 Integer offset,
                                 String tenantId,
                                 Long lastChangedSince,
-                                Boolean includeDeleted) throws Exception{
+                                Boolean includeDeleted) throws Exception {
+//        ProductSearch search = ProductSearch.builder().id("P-2022-12-20-000043").build();
+//        System.out.println(search.toString().hashCode());
+//        System.out.println(productSearchRequest.getProduct().toString().hashCode());
         List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
         if (products.isEmpty()) {
