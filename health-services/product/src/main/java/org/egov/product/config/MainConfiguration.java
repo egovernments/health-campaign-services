@@ -33,6 +33,9 @@ public class MainConfiguration {
     @Value("${app.timezone}")
     private String timeZone;
 
+    @Value("${spring.redis.host}")
+    private String redisHost;
+
     @PostConstruct
     public void initialize() {
         TimeZone.setDefault(TimeZone.getTimeZone(timeZone));
@@ -64,6 +67,7 @@ public class MainConfiguration {
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        redisStandaloneConfiguration.setHostName(redisHost);
         return new JedisConnectionFactory(redisStandaloneConfiguration);
     }
 
