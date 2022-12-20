@@ -8,12 +8,14 @@ import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
+import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -157,12 +159,26 @@ public class ProductVariantService {
                                 Integer offset,
                                 String tenantId,
                                 Long lastChangedSince,
-                                Boolean includeDeleted) throws Exception{
+                                Boolean includeDeleted) throws Exception {
+
+        if (isSearchByIdOnly(productVariantSearchRequest)) {
+            return productVariantRepository.findById(Collections.singletonList(productVariantSearchRequest
+                    .getProductVariant().getId()));
+        }
         List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
         if (productVariants.isEmpty()) {
             throw new CustomException("NO_RESULT", "No records found for the given search criteria");
         }
         return productVariants;
+    }
+
+    private boolean isSearchByIdOnly(ProductVariantSearchRequest productVariantSearchRequest) {
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .id(productVariantSearchRequest.getProductVariant()
+                .getId()).build();
+        String productSearchHash = productVariantSearch.toString();
+        String hashFromRequest = productVariantSearchRequest.getProductVariant().toString();
+        return productSearchHash.equals(hashFromRequest);
     }
 }

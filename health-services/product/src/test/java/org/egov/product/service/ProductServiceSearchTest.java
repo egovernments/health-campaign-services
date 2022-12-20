@@ -21,11 +21,13 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class ProductServiceSearchTest {
+class ProductServiceSearchTest {
 
     @InjectMocks
     private ProductService productService;
@@ -33,19 +35,22 @@ public class ProductServiceSearchTest {
     @Mock
     private ProductRepository productRepository;
 
-    ArrayList<Product> products = new ArrayList<>();
+    private ArrayList<Product> products;
 
     @BeforeEach
     void setUp() throws QueryBuilderException {
-       lenient().when(productRepository.find(any(ProductSearch.class), any(Integer.class), any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(products);
+        products = new ArrayList<>();
+        lenient().when(productRepository.find(any(ProductSearch.class), any(Integer.class),
+               any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
+               .thenReturn(products);
     }
 
     @Test
     @DisplayName("Should raise exception if no search results are found")
     void shouldRaiseExceptionIfNoProductsFound() throws Exception {
-        products.clear();
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
-        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         assertThrows(Exception.class, () -> productService.search(productSearchRequest, 10, 0, "default", null, false));
     }
@@ -54,12 +59,26 @@ public class ProductServiceSearchTest {
     @DisplayName("Should return products if search criteria is matched")
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
-        products.add(ProductTestBuilder.builder().goodProduct().withId("ID102").build());
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
-        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         List<Product> products = productService.search(productSearchRequest, 10, 0, "default", null, false);
 
-        assertEquals(2, products.size());
+        assertEquals(1, products.size());
+    }
+
+    @Test
+    @DisplayName("Should return product from cache if search criteria has id only")
+    void shouldReturnProductFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
+        products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
+        ProductSearch productSearch = ProductSearch.builder().id("ID101").build();
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(productRepository.findById(anyList())).thenReturn(products);
+
+        List<Product> products = productService.search(productSearchRequest, 10, 0, "default", null, false);
+
+        assertEquals(1, products.size());
     }
 }

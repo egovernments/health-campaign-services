@@ -7,12 +7,14 @@ import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
+import org.egov.product.web.models.ProductSearch;
 import org.egov.product.web.models.ProductSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -102,7 +104,11 @@ public class ProductService {
                                 Integer offset,
                                 String tenantId,
                                 Long lastChangedSince,
-                                Boolean includeDeleted) throws Exception{
+                                Boolean includeDeleted) throws Exception {
+        if (isSearchByIdOnly(productSearchRequest)) {
+            return productRepository.findById(Collections.singletonList(productSearchRequest
+                    .getProduct().getId()));
+        }
         List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
         if (products.isEmpty()) {
@@ -149,5 +155,13 @@ public class ProductService {
                 .createdTime(existingAuditDetails.getCreatedTime())
                 .lastModifiedBy(uuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
+    }
+
+    private boolean isSearchByIdOnly(ProductSearchRequest productSearchRequest) {
+        ProductSearch productSearch = ProductSearch.builder().id(productSearchRequest.getProduct()
+                .getId()).build();
+        String productSearchHash = productSearch.toString();
+        String hashFromRequest = productSearchRequest.getProduct().toString();
+        return productSearchHash.equals(hashFromRequest);
     }
 }
