@@ -45,7 +45,7 @@ public class ProductVariantService {
         List<String> idList = idGenService.getIdList(request.getRequestInfo(), getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
         log.info("IDs generated");
-        AuditDetails auditDetails = createAuditDetailsForInsert(request.getRequestInfo());
+        AuditDetails auditDetails = createAuditDetailsForCreate(request.getRequestInfo());
         IntStream.range(0, request.getProductVariant().size())
                 .forEach(i -> {
                     final ProductVariant productVariant = request.getProductVariant().get(i);
@@ -58,16 +58,6 @@ public class ProductVariantService {
         productVariantRepository.save(request.getProductVariant(), "save-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
-    }
-
-    private AuditDetails createAuditDetailsForInsert(RequestInfo requestInfo) {
-        return AuditDetails.builder()
-                .createdBy(requestInfo.getUserInfo().getUuid())
-                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
-                .createdTime(System.currentTimeMillis())
-                .lastModifiedTime(System.currentTimeMillis())
-                .build();
-
     }
 
     public List<ProductVariant> update(ProductVariantRequest request) {
@@ -92,27 +82,17 @@ public class ProductVariantService {
         checkRowVersion(pvMap, existingProductVariants);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
+        AuditDetails auditDetails = getAuditDetailsForUpdate(request);
         request.getProductVariant().forEach(productVariant -> {
             if (request.getApiOperation().equals(ApiOperation.DELETE)) {
                 productVariant.setIsDeleted(true);
             }
-            productVariant.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
-            productVariant.getAuditDetails().setLastModifiedBy(request.getRequestInfo().getUserInfo().getUuid());
+            productVariant.setAuditDetails(auditDetails);
             productVariant.setRowVersion(productVariant.getRowVersion() + 1);
         });
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
-    }
-
-    private String getTenantId(List<ProductVariant> projectStaffs) {
-        String tenantId = null;
-        Optional<ProductVariant> anyProjectStaff = projectStaffs.stream().findAny();
-        if (anyProjectStaff.isPresent()) {
-            tenantId = anyProjectStaff.get().getTenantId();
-        }
-        log.info("Using tenantId {}",tenantId);
-        return tenantId;
     }
 
     private void validateProductId(ProductVariantRequest request) {
@@ -126,6 +106,32 @@ public class ProductVariantService {
             log.error("Invalid productIds");
             throw new CustomException("INVALID_PRODUCT_ID", invalidProductIds.toString());
         }
+    }
+
+    private AuditDetails createAuditDetailsForCreate(RequestInfo requestInfo) {
+        return AuditDetails.builder()
+                .createdBy(requestInfo.getUserInfo().getUuid())
+                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+                .createdTime(System.currentTimeMillis())
+                .lastModifiedTime(System.currentTimeMillis())
+                .build();
+    }
+
+    private AuditDetails getAuditDetailsForUpdate(ProductVariantRequest request) {
+        AuditDetails auditDetails = AuditDetails.builder()
+                .lastModifiedBy(request.getRequestInfo().getUserInfo().getUuid())
+                .lastModifiedTime(System.currentTimeMillis()).build();
+        return auditDetails;
+    }
+
+    private String getTenantId(List<ProductVariant> projectStaffs) {
+        String tenantId = null;
+        Optional<ProductVariant> anyProjectStaff = projectStaffs.stream().findAny();
+        if (anyProjectStaff.isPresent()) {
+            tenantId = anyProjectStaff.get().getTenantId();
+        }
+        log.info("Using tenantId {}",tenantId);
+        return tenantId;
     }
 
     private void checkRowVersion(Map<String, ProductVariant> idToPvMap,
