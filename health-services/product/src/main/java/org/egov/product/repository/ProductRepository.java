@@ -70,7 +70,7 @@ public class ProductRepository {
             log.info("Cache hit");
             productsFound = (ArrayList<Product>) products.stream().map(Product.class::cast)
                     .collect(Collectors.toList());
-            // return only if all the variants are found in cache
+            // return only if all the products are found in cache
             ids.removeAll(productsFound.stream().map(Product::getId).collect(Collectors.toList()));
             if (ids.isEmpty()) {
                 return productsFound;

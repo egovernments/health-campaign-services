@@ -35,11 +35,12 @@ class ProductServiceSearchTest {
     @Mock
     private ProductRepository productRepository;
 
-    private final ArrayList<Product> products = new ArrayList<>();
+    private ArrayList<Product> products;
 
     @BeforeEach
     void setUp() throws QueryBuilderException {
-       lenient().when(productRepository.find(any(ProductSearch.class), any(Integer.class),
+        products = new ArrayList<>();
+        lenient().when(productRepository.find(any(ProductSearch.class), any(Integer.class),
                any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
                .thenReturn(products);
     }
@@ -47,7 +48,6 @@ class ProductServiceSearchTest {
     @Test
     @DisplayName("Should raise exception if no search results are found")
     void shouldRaiseExceptionIfNoProductsFound() throws Exception {
-        products.clear();
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
