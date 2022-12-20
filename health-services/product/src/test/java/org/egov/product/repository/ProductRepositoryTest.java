@@ -23,6 +23,7 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,6 +65,7 @@ class ProductRepositoryTest {
     @BeforeEach
     void setUp() {
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        ReflectionTestUtils.setField(productRepository, "timeToLive", "60");
     }
 
     @Test

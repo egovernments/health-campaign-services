@@ -8,6 +8,7 @@ import org.egov.product.repository.rowmapper.ProductVariantRowMapper;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantSearch;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -17,6 +18,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Repository
@@ -32,6 +34,9 @@ public class ProductVariantRepository {
     private final SelectQueryBuilder selectQueryBuilder;
 
     private static final String HASH_KEY = "product-variant";
+
+    @Value("${spring.cache.redis.time-to-live:60}")
+    private String timeToLive;
 
     @Autowired
     public ProductVariantRepository(Producer producer, RedisTemplate<String, Object> redisTemplate,
@@ -78,6 +83,7 @@ public class ProductVariantRepository {
                         .toMap(ProductVariant::getId,
                                 productVariant -> productVariant));
         redisTemplate.opsForHash().putAll(HASH_KEY, productVariantMap);
+        redisTemplate.expire(HASH_KEY, Long.parseLong(timeToLive), TimeUnit.SECONDS);
     }
 
     public List<ProductVariant> find(ProductVariantSearch productVariantSearch,

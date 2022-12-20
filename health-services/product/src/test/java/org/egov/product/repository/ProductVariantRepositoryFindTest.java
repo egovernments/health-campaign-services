@@ -19,6 +19,7 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +63,7 @@ class ProductVariantRepositoryFindTest {
         productVariantIds = productVariants.stream().map(ProductVariant::getId)
                 .collect(Collectors.toList());
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        ReflectionTestUtils.setField(productVariantRepository, "timeToLive", "60");
     }
 
     @Test

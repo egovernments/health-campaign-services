@@ -8,6 +8,7 @@ import org.egov.product.repository.rowmapper.ProductRowMapper;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductSearch;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Repository
@@ -31,6 +33,9 @@ public class ProductRepository {
     private final SelectQueryBuilder selectQueryBuilder;
 
     private final String HASH_KEY = "product";
+
+    @Value("${spring.cache.redis.time-to-live:60}")
+    private String timeToLive;
 
     @Autowired
     public ProductRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
@@ -90,6 +95,7 @@ public class ProductRepository {
                         .toMap(Product::getId,
                                 product -> product));
         redisTemplate.opsForHash().putAll(HASH_KEY, productMap);
+        redisTemplate.expire(HASH_KEY, Long.parseLong(timeToLive), TimeUnit.SECONDS);
     }
 
     public List<Product> find(ProductSearch productSearch,
