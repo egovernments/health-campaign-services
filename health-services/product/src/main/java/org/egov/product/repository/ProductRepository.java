@@ -33,7 +33,7 @@ public class ProductRepository {
 
     private final SelectQueryBuilder selectQueryBuilder;
 
-    private final String HASH_KEY = "product";
+    private static final String HASH_KEY = "product";
 
     @Value("${spring.cache.redis.time-to-live:60}")
     private String timeToLive;
@@ -109,14 +109,9 @@ public class ProductRepository {
                               String tenantId,
                               Long lastChangedSince,
                               Boolean includeDeleted) throws QueryBuilderException {
-        String hashcode = String.valueOf(productSearch.toString().hashCode());
-        if(redisTemplate.opsForHash().get(HASH_KEY, hashcode) != null){
-            log.info("cache hit - search");
-            return (List<Product>) redisTemplate.opsForHash().get(HASH_KEY, hashcode);
-        }
         String query = selectQueryBuilder.build(productSearch);
         query += " and tenantId=:tenantId ";
-        if (!includeDeleted) {
+        if (Boolean.FALSE.equals(includeDeleted)) {
             query += "and isDeleted=:isDeleted ";
         }
         if (lastChangedSince != null) {
@@ -129,13 +124,7 @@ public class ProductRepository {
         paramsMap.put("lastModifiedTime", lastChangedSince);
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        List<Product> products = namedParameterJdbcTemplate.query(query, paramsMap, new ProductRowMapper());
-        if(productSearch.getId() != null && productSearch.getName() == null
-                && productSearch.getManufacturer() == null && productSearch.getType() == null && !products.isEmpty()){
-            redisTemplate.opsForHash().put(HASH_KEY, hashcode, products);
-            redisTemplate.expire(HASH_KEY, Long.parseLong(timeToLive), TimeUnit.SECONDS);
-        }
-        return products;
+        return namedParameterJdbcTemplate.query(query, paramsMap, new ProductRowMapper());
     }
 }
 
