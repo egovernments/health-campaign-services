@@ -181,7 +181,7 @@ public class ProductVariantApiControllerTest {
     }
 
     @Test
-    @DisplayName("Should accept search request and return response as accepted")
+    @DisplayName("should accept search request and return response as accepted")
     void shouldAcceptSearchRequestAndReturnProductsVariants() throws Exception {
 
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(
@@ -197,7 +197,7 @@ public class ProductVariantApiControllerTest {
         final MvcResult result = mockMvc.perform(post("/variant/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(productVariantSearchRequest)))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
@@ -208,7 +208,7 @@ public class ProductVariantApiControllerTest {
     }
 
     @Test
-    @DisplayName("Should accept search request and return response as accepted")
+    @DisplayName("should accept search request and return response as accepted")
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(

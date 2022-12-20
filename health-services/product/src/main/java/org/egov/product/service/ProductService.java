@@ -7,6 +7,7 @@ import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
+import org.egov.product.web.models.ProductSearch;
 import org.egov.product.web.models.ProductSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,17 +83,16 @@ public class ProductService {
         }
         checkRowVersion(pMap, existingProducts);
 
-        AuditDetails auditDetails = getAuditDetailsForUpdate(productRequest);
-        IntStream.range(0, productRequest.getProduct().size()).forEach(
-                i -> {
-                    Product product = productRequest.getProduct().get(i);
-                    if(productRequest.getApiOperation().equals(ApiOperation.DELETE)){
-                        product.setIsDeleted(true);
-                    }
-                    product.setAuditDetails(auditDetails);
-                    product.setRowVersion(product.getRowVersion() + 1);
-                }
-        );
+        IntStream.range(0, existingProducts.size()).forEach(i -> {
+            Product p = pMap.get(existingProducts.get(i).getId());
+            if (productRequest.getApiOperation().equals(ApiOperation.DELETE)) {
+                p.setIsDeleted(true);
+            }
+            p.setRowVersion(p.getRowVersion() + 1);
+            AuditDetails existingAuditDetails = existingProducts.get(i).getAuditDetails();
+            p.setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
+                    productRequest.getRequestInfo().getUserInfo().getUuid()));
+        });
 
         productRepository.save(productRequest.getProduct(), "update-product-topic");
         return productRequest.getProduct();
@@ -103,13 +103,14 @@ public class ProductService {
                                 Integer offset,
                                 String tenantId,
                                 Long lastChangedSince,
-                                Boolean includeDeleted) throws Exception{
-        List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit,
-                offset, tenantId, lastChangedSince, includeDeleted);
-        if (products.isEmpty()) {
-            throw new CustomException("NO_RESULT", "No records found for the given search criteria");
+                                Boolean includeDeleted) throws Exception {
+        if (isSearchByIdOnly(productSearchRequest)) {
+            List<String> ids = new ArrayList<>();
+            ids.add(productSearchRequest.getProduct().getId());
+            return productRepository.findById(ids);
         }
-        return products;
+        return productRepository.find(productSearchRequest.getProduct(), limit,
+                offset, tenantId, lastChangedSince, includeDeleted);
     }
 
     private void checkRowVersion(Map<String, Product> idToPMap,
@@ -135,19 +136,28 @@ public class ProductService {
 
     private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest) {
         log.info("Generating Audit Details for new products");
-        AuditDetails auditDetails = AuditDetails.builder()
+        return AuditDetails.builder()
                 .createdBy(productRequest.getRequestInfo().getUserInfo().getUuid())
                 .createdTime(System.currentTimeMillis())
                 .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())
                 .lastModifiedTime(System.currentTimeMillis()).build();
-        return auditDetails;
     }
 
-    private AuditDetails getAuditDetailsForUpdate(ProductRequest productRequest) {
+    private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
         log.info("Generating Audit Details for products");
-        AuditDetails auditDetails = AuditDetails.builder()
-                .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())
+
+        return AuditDetails.builder()
+                .createdBy(existingAuditDetails.getCreatedBy())
+                .createdTime(existingAuditDetails.getCreatedTime())
+                .lastModifiedBy(uuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
-        return auditDetails;
+    }
+
+    private boolean isSearchByIdOnly(ProductSearchRequest productSearchRequest) {
+        ProductSearch productSearch = ProductSearch.builder().id(productSearchRequest.getProduct()
+                .getId()).build();
+        String productSearchHash = productSearch.toString();
+        String hashFromRequest = productSearchRequest.getProduct().toString();
+        return productSearchHash.equals(hashFromRequest);
     }
 }

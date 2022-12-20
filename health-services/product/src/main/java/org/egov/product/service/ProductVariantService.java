@@ -8,6 +8,7 @@ import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
+import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,14 +83,17 @@ public class ProductVariantService {
         checkRowVersion(pvMap, existingProductVariants);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
-        AuditDetails auditDetails = getAuditDetailsForUpdate(request);
-        request.getProductVariant().forEach(productVariant -> {
+        IntStream.range(0, existingProductVariants.size()).forEach(i -> {
+            ProductVariant p = pvMap.get(existingProductVariants.get(i).getId());
             if (request.getApiOperation().equals(ApiOperation.DELETE)) {
-                productVariant.setIsDeleted(true);
+                p.setIsDeleted(true);
             }
-            productVariant.setAuditDetails(auditDetails);
-            productVariant.setRowVersion(productVariant.getRowVersion() + 1);
+            p.setRowVersion(p.getRowVersion() + 1);
+            AuditDetails existingAuditDetails = existingProductVariants.get(i).getAuditDetails();
+            p.setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
+                    request.getRequestInfo().getUserInfo().getUuid()));
         });
+
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
@@ -117,11 +121,14 @@ public class ProductVariantService {
                 .build();
     }
 
-    private AuditDetails getAuditDetailsForUpdate(ProductVariantRequest request) {
-        AuditDetails auditDetails = AuditDetails.builder()
-                .lastModifiedBy(request.getRequestInfo().getUserInfo().getUuid())
+    private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
+        log.info("Generating Audit Details for products");
+
+        return AuditDetails.builder()
+                .createdBy(existingAuditDetails.getCreatedBy())
+                .createdTime(existingAuditDetails.getCreatedTime())
+                .lastModifiedBy(uuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
-        return auditDetails;
     }
 
     private String getTenantId(List<ProductVariant> projectStaffs) {
@@ -145,17 +152,29 @@ public class ProductVariantService {
         }
     }
 
+
     public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
                                 Integer limit,
                                 Integer offset,
                                 String tenantId,
                                 Long lastChangedSince,
-                                Boolean includeDeleted) throws Exception{
-        List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
-        if (productVariants.isEmpty()) {
-            throw new CustomException("NO_RESULT", "No records found for the given search criteria");
+                                Boolean includeDeleted) throws Exception {
+
+        if (isSearchByIdOnly(productVariantSearchRequest)) {
+            List<String> ids = new ArrayList<>();
+            ids.add(productVariantSearchRequest.getProductVariant().getId());
+            return productVariantRepository.findById(ids);
         }
-        return productVariants;
+        return productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
+                limit, offset, tenantId, lastChangedSince, includeDeleted);
+    }
+
+    private boolean isSearchByIdOnly(ProductVariantSearchRequest productVariantSearchRequest) {
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .id(productVariantSearchRequest.getProductVariant()
+                .getId()).build();
+        String productSearchHash = productVariantSearch.toString();
+        String hashFromRequest = productVariantSearchRequest.getProductVariant().toString();
+        return productSearchHash.equals(hashFromRequest);
     }
 }

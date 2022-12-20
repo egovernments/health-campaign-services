@@ -57,7 +57,7 @@ class ProductApiControllerTest {
     private ProductService productService;
 
     @Test
-    @DisplayName("Product Request should fail for incorrect API operation")
+    @DisplayName("product Request should fail for incorrect API operation")
     void productRequestForCreateShouldFailForIncorrectApiOperation() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationDelete().build();
         String expectedResponse = "{\"ResponseInfo\":null,\"Errors\":[{\"code\":\"INVALID_API_OPERATION\",\"message\":\"API Operation DELETE not valid for create request\",\"description\":null,\"params\":null}]}";
@@ -71,7 +71,7 @@ class ProductApiControllerTest {
     }
 
     @Test
-    @DisplayName("Product request should pass with API Operation NULL")
+    @DisplayName("product request should pass with API Operation NULL")
     void productRequestForCreateShouldPassForNullApiOperation() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
         ArrayList<Product> products = new ArrayList<>();
@@ -91,7 +91,7 @@ class ProductApiControllerTest {
     }
 
     @Test
-    @DisplayName("Product request should pass with API Operation CREATE")
+    @DisplayName("product request should pass with API Operation CREATE")
     void productRequestForCreateShouldPassForCreateApiOperation() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationCreate().build();
         ArrayList<Product> products = new ArrayList<>();
@@ -111,7 +111,7 @@ class ProductApiControllerTest {
     }
 
     @Test
-    @DisplayName("Product request should fail if products are invalid")
+    @DisplayName("product request should fail if products are invalid")
     void productRequestForCreateShouldFailForBadProducts() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addBadProduct().withApiOperationCreate().build();
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
@@ -180,7 +180,7 @@ class ProductApiControllerTest {
     }
 
     @Test
-    @DisplayName("Should throw exception if product ids are null or empty")
+    @DisplayName("should throw exception if product ids are null or empty")
     void shouldThrowExceptionIfProductIdsNullOrEmpty() throws Exception {
         ProductRequest request = ProductRequestTestBuilder.builder()
                 .withRequestInfo()
@@ -207,7 +207,7 @@ class ProductApiControllerTest {
     }
 
     @Test
-    @DisplayName("Should accept search request and return response as accepted")
+    @DisplayName("should accept search request and return response as accepted")
     void shouldAcceptSearchRequestAndReturnProducts() throws Exception {
 
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
@@ -224,7 +224,7 @@ class ProductApiControllerTest {
         final MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(productSearchRequest)))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
@@ -235,7 +235,7 @@ class ProductApiControllerTest {
     }
 
     @Test
-    @DisplayName("Should accept search request and return response as accepted")
+    @DisplayName("should accept search request and return response as accepted")
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()

@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -49,6 +50,7 @@ class ProductVariantRepositorySaveTest {
         productVariants = Collections.singletonList(ProductVariantTestBuilder
                 .builder().withId().build());
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        ReflectionTestUtils.setField(productVariantRepository, "timeToLive", "60");
     }
 
     @Test

@@ -84,7 +84,7 @@ public class ProductApiController {
                 .product(products)
                 .responseInfo(ResponseInfoFactory.createResponseInfo(productSearchRequest.getRequestInfo(), true))
                 .build();
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(productResponse);
+        return ResponseEntity.status(HttpStatus.OK).body(productResponse);
     }
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
@@ -134,7 +134,7 @@ public class ProductApiController {
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(productVariantSearchRequest.getRequestInfo(), true))
                 .build();
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(productVariantResponse);
+        return ResponseEntity.status(HttpStatus.OK).body(productVariantResponse);
     }
 
     @RequestMapping(value = "/variant/v1/_update", method = RequestMethod.POST)

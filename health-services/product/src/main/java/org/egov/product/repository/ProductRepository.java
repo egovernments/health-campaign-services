@@ -8,14 +8,17 @@ import org.egov.product.repository.rowmapper.ProductRowMapper;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductSearch;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Repository
@@ -30,7 +33,10 @@ public class ProductRepository {
 
     private final SelectQueryBuilder selectQueryBuilder;
 
-    private final String HASH_KEY = "product";
+    private static final String HASH_KEY = "product";
+
+    @Value("${spring.cache.redis.time-to-live:60}")
+    private String timeToLive;
 
     @Autowired
     public ProductRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
@@ -57,23 +63,27 @@ public class ProductRepository {
 
     public List<Product> findById(List<String> ids) {
         ArrayList<Product> productsFound = new ArrayList<>();
-
-        List<String> idsCache = ids.stream().filter(id -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id))
-                .collect(Collectors.toList());
-        for (String id : idsCache) {
+        Collection<Object> collection = new ArrayList<>(ids);
+        List<Object> products = redisTemplate.opsForHash()
+                .multiGet(HASH_KEY, collection);
+        if (!products.isEmpty() && !products.contains(null)) {
             log.info("Cache hit");
-            productsFound.add((Product) redisTemplate.opsForHash().get(HASH_KEY, id));
+            productsFound = (ArrayList<Product>) products.stream().map(Product.class::cast)
+                    .collect(Collectors.toList());
+            // return only if all the products are found in cache
+            ids.removeAll(productsFound.stream().map(Product::getId).collect(Collectors.toList()));
+            if (ids.isEmpty()) {
+                return productsFound;
+            }
         }
-        ids.removeAll(idsCache);
 
-        if (!ids.isEmpty()) {
-            Map<String, Object> paramMap = new HashMap<>();
-            paramMap.put("productIds", ids);
-            String query = String.format("SELECT * FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only",
-                    ids.size());
-            List<Product> productsFromDB = namedParameterJdbcTemplate.query(query, paramMap, new ProductRowMapper());
-            productsFound.addAll(productsFromDB);
-        }
+        String query = String.format("SELECT * FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only",
+                ids.size());
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("productIds", ids);
+
+        productsFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, new ProductRowMapper()));
+        putInCache(productsFound);
         return productsFound;
     }
 
@@ -90,6 +100,7 @@ public class ProductRepository {
                         .toMap(Product::getId,
                                 product -> product));
         redisTemplate.opsForHash().putAll(HASH_KEY, productMap);
+        redisTemplate.expire(HASH_KEY, Long.parseLong(timeToLive), TimeUnit.SECONDS);
     }
 
     public List<Product> find(ProductSearch productSearch,
@@ -100,7 +111,7 @@ public class ProductRepository {
                               Boolean includeDeleted) throws QueryBuilderException {
         String query = selectQueryBuilder.build(productSearch);
         query += " and tenantId=:tenantId ";
-        if (!includeDeleted) {
+        if (Boolean.FALSE.equals(includeDeleted)) {
             query += "and isDeleted=:isDeleted ";
         }
         if (lastChangedSince != null) {
@@ -113,8 +124,7 @@ public class ProductRepository {
         paramsMap.put("lastModifiedTime", lastChangedSince);
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        List<Product> products = namedParameterJdbcTemplate.query(query, paramsMap, new ProductRowMapper());
-        return products;
+        return namedParameterJdbcTemplate.query(query, paramsMap, new ProductRowMapper());
     }
 }
 
