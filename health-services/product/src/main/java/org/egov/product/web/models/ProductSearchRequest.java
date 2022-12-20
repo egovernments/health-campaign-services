@@ -22,22 +22,15 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 public class ProductSearchRequest {
+
     @JsonProperty("RequestInfo")
     @NotNull
-
     @Valid
-
-
     private RequestInfo requestInfo = null;
 
     @JsonProperty("Product")
     @NotNull
-
     @Valid
-
-
     private ProductSearch product = null;
-
-
 }
 
