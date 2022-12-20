@@ -4,7 +4,6 @@ import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductRepository;
-import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -82,17 +81,11 @@ public class ProductService {
         }
         checkRowVersion(pMap, existingProducts);
 
-        AuditDetails auditDetails = getAuditDetailsForUpdate(productRequest);
-        IntStream.range(0, productRequest.getProduct().size()).forEach(
-                i -> {
-                    Product product = productRequest.getProduct().get(i);
-                    if(productRequest.getApiOperation().equals(ApiOperation.DELETE)){
-                        product.setIsDeleted(true);
-                    }
-                    product.setAuditDetails(auditDetails);
-                    product.setRowVersion(product.getRowVersion() + 1);
-                }
-        );
+        IntStream.range(0, existingProducts.size()).forEach(i -> {
+            AuditDetails existingAuditDetails = existingProducts.get(i).getAuditDetails();
+            pMap.get(existingProducts.get(i).getId()).setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
+                    productRequest.getRequestInfo().getUserInfo().getUuid()));
+        });
 
         productRepository.save(productRequest.getProduct(), "update-product-topic");
         return productRequest.getProduct();
@@ -135,19 +128,20 @@ public class ProductService {
 
     private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest) {
         log.info("Generating Audit Details for new products");
-        AuditDetails auditDetails = AuditDetails.builder()
+        return AuditDetails.builder()
                 .createdBy(productRequest.getRequestInfo().getUserInfo().getUuid())
                 .createdTime(System.currentTimeMillis())
                 .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())
                 .lastModifiedTime(System.currentTimeMillis()).build();
-        return auditDetails;
     }
 
-    private AuditDetails getAuditDetailsForUpdate(ProductRequest productRequest) {
+    private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
         log.info("Generating Audit Details for products");
-        AuditDetails auditDetails = AuditDetails.builder()
-                .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())
+
+        return AuditDetails.builder()
+                .createdBy(existingAuditDetails.getCreatedBy())
+                .createdTime(existingAuditDetails.getCreatedTime())
+                .lastModifiedBy(uuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
-        return auditDetails;
     }
 }
