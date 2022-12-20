@@ -133,6 +133,7 @@ public class ProductRepository {
         if(productSearch.getId() != null && productSearch.getName() == null
                 && productSearch.getManufacturer() == null && productSearch.getType() == null && !products.isEmpty()){
             redisTemplate.opsForHash().put(HASH_KEY, hashcode, products);
+            redisTemplate.expire(HASH_KEY, Long.parseLong(timeToLive), TimeUnit.SECONDS);
         }
         return products;
     }
