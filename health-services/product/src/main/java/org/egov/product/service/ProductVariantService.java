@@ -154,7 +154,7 @@ public class ProductVariantService {
         List<ProductVariant> productVariants = productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
         if (productVariants.isEmpty()) {
-            throw new CustomException("NO_RESULT", "No products found for the given search criteria");
+            throw new CustomException("NO_RESULT", "No records found for the given search criteria");
         }
         return productVariants;
     }

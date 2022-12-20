@@ -78,7 +78,8 @@ public class ProductApiController {
                                                                @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
 
-        List<Product> products = productService.search(productSearchRequest, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        List<Product> products = productService.search(productSearchRequest, limit, offset, tenantId,
+                lastChangedSince, includeDeleted);
         ProductResponse productResponse = ProductResponse.builder()
                 .product(products)
                 .responseInfo(ResponseInfoFactory.createResponseInfo(productSearchRequest.getRequestInfo(), true))
@@ -126,7 +127,8 @@ public class ProductApiController {
                                                                              @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
                                                                              @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                              @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
-        List<ProductVariant> productVariants = productVariantService.search(productVariantSearchRequest, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        List<ProductVariant> productVariants = productVariantService.search(productVariantSearchRequest, limit, offset,
+                tenantId, lastChangedSince, includeDeleted);
         ProductVariantResponse productVariantResponse = ProductVariantResponse.builder()
                 .productVariant(productVariants)
                 .responseInfo(ResponseInfoFactory

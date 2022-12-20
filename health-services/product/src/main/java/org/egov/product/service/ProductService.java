@@ -107,7 +107,7 @@ public class ProductService {
         List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
         if (products.isEmpty()) {
-            throw new CustomException("NO_RESULT", "No products found for the given search criteria");
+            throw new CustomException("NO_RESULT", "No records found for the given search criteria");
         }
         return products;
     }

@@ -26,9 +26,6 @@ public class ProductVariantSearch   {
     @JsonProperty("id")
     private String id = null;
 
-    @JsonProperty("tenantId")
-    private String tenantId = null;
-
     @JsonProperty("productId")
     @Size(min = 2, max = 64)
     private String productId = null;
