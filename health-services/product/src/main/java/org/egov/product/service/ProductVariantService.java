@@ -82,14 +82,17 @@ public class ProductVariantService {
         checkRowVersion(pvMap, existingProductVariants);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
-        AuditDetails auditDetails = getAuditDetailsForUpdate(request);
-        request.getProductVariant().forEach(productVariant -> {
+        IntStream.range(0, existingProductVariants.size()).forEach(i -> {
+            ProductVariant p = pvMap.get(existingProductVariants.get(i).getId());
             if (request.getApiOperation().equals(ApiOperation.DELETE)) {
-                productVariant.setIsDeleted(true);
+                p.setIsDeleted(true);
             }
-            productVariant.setAuditDetails(auditDetails);
-            productVariant.setRowVersion(productVariant.getRowVersion() + 1);
+            p.setRowVersion(p.getRowVersion() + 1);
+            AuditDetails existingAuditDetails = existingProductVariants.get(i).getAuditDetails();
+            p.setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
+                    request.getRequestInfo().getUserInfo().getUuid()));
         });
+
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
@@ -117,11 +120,14 @@ public class ProductVariantService {
                 .build();
     }
 
-    private AuditDetails getAuditDetailsForUpdate(ProductVariantRequest request) {
-        AuditDetails auditDetails = AuditDetails.builder()
-                .lastModifiedBy(request.getRequestInfo().getUserInfo().getUuid())
+    private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
+        log.info("Generating Audit Details for products");
+
+        return AuditDetails.builder()
+                .createdBy(existingAuditDetails.getCreatedBy())
+                .createdTime(existingAuditDetails.getCreatedTime())
+                .lastModifiedBy(uuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
-        return auditDetails;
     }
 
     private String getTenantId(List<ProductVariant> projectStaffs) {
@@ -144,6 +150,7 @@ public class ProductVariantService {
             throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
         }
     }
+
 
     public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
                                 Integer limit,

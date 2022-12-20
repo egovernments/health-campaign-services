@@ -4,6 +4,7 @@ import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductRepository;
+import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -82,8 +83,13 @@ public class ProductService {
         checkRowVersion(pMap, existingProducts);
 
         IntStream.range(0, existingProducts.size()).forEach(i -> {
+            Product p = pMap.get(existingProducts.get(i).getId());
+            if (productRequest.getApiOperation().equals(ApiOperation.DELETE)) {
+                p.setIsDeleted(true);
+            }
+            p.setRowVersion(p.getRowVersion() + 1);
             AuditDetails existingAuditDetails = existingProducts.get(i).getAuditDetails();
-            pMap.get(existingProducts.get(i).getId()).setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
+            p.setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
                     productRequest.getRequestInfo().getUserInfo().getUuid()));
         });
 
