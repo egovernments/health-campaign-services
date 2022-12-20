@@ -75,11 +75,11 @@ public class ProductVariantService {
         Map<String, ProductVariant> pvMap =
                 request.getProductVariant().stream()
                         .collect(Collectors.toMap(ProductVariant::getId, item -> item));
+        List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
 
         log.info("Checking existing product variants");
         List<ProductVariant> existingProductVariants = productVariantRepository
-                .findById(new ArrayList<>(request.getProductVariant().stream()
-                .map(ProductVariant::getId).collect(Collectors.toSet())));
+                .findById(productVariantIds);
 
         if (request.getProductVariant().size() != existingProductVariants.size()) {
             List<ProductVariant> invalidProductVariants = new ArrayList<>(request.getProductVariant());

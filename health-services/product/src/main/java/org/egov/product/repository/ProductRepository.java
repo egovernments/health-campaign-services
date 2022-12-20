@@ -61,6 +61,7 @@ public class ProductRepository {
         List<String> idsCache = ids.stream().filter(id -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id))
                 .collect(Collectors.toList());
         for (String id : idsCache) {
+            log.info("Cache hit");
             productsFound.add((Product) redisTemplate.opsForHash().get(HASH_KEY, id));
         }
         ids.removeAll(idsCache);

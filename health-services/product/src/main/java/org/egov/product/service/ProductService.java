@@ -75,9 +75,10 @@ public class ProductService {
         log.info("Checking if already exists");
         List<Product> existingProducts = productRepository.findById(productIds);
         if (existingProducts.size() != productRequest.getProduct().size()) {
-            List<Product> invalidProducts = new ArrayList<>(productRequest.getProduct());
-            invalidProducts = invalidProducts.stream().filter(p -> !existingProducts.contains(p)).collect(Collectors.toList()); //not working.
-            throw new CustomException("INVALID_PRODUCT", invalidProducts.toString());
+            List<String> existingProductIds = existingProducts.stream().map(Product::getId).collect(Collectors.toList());
+            List<String> invalidProductIds = pMap.keySet().stream().filter(id -> !existingProductIds.contains(id))
+                    .collect(Collectors.toList());
+            throw new CustomException("INVALID_PRODUCT", invalidProductIds.toString());
         }
         checkRowVersion(pMap, existingProducts);
 
