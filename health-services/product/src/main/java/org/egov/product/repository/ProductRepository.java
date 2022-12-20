@@ -33,7 +33,8 @@ public class ProductRepository {
     private final String HASH_KEY = "product";
 
     @Autowired
-    public ProductRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder) {
+    public ProductRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+                             RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder) {
         this.producer = producer;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.redisTemplate = redisTemplate;
@@ -49,14 +50,16 @@ public class ProductRepository {
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("productIds", ids);
-        String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", ids.size());
+        String query = String.format("SELECT id FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only",
+                ids.size());
         return namedParameterJdbcTemplate.queryForList(query, paramMap, String.class);
     }
 
     public List<Product> findById(List<String> ids) {
         ArrayList<Product> productsFound = new ArrayList<>();
 
-        List<String> idsCache = ids.stream().filter(id -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id)).collect(Collectors.toList());
+        List<String> idsCache = ids.stream().filter(id -> redisTemplate.opsForHash().entries(HASH_KEY).containsKey(id))
+                .collect(Collectors.toList());
         for (String id : idsCache) {
             productsFound.add((Product) redisTemplate.opsForHash().get(HASH_KEY, id));
         }
@@ -65,8 +68,10 @@ public class ProductRepository {
         if (!ids.isEmpty()) {
             Map<String, Object> paramMap = new HashMap<>();
             paramMap.put("productIds", ids);
-            String query = String.format("SELECT * FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only", ids.size());
-            productsFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, new ProductRowMapper()));
+            String query = String.format("SELECT * FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only",
+                    ids.size());
+            List<Product> productsFromDB = namedParameterJdbcTemplate.query(query, paramMap, new ProductRowMapper());
+            productsFound.addAll(productsFromDB);
         }
         return productsFound;
     }
@@ -74,11 +79,16 @@ public class ProductRepository {
     public List<Product> save(List<Product> products, String topic) {
         producer.push(topic, products);
         log.info("Pushed to kafka");
+        putInCache(products);
+        return products;
+    }
+
+    private void putInCache(List<Product> products) {
         Map<String, Product> productMap = products.stream()
-                .collect(Collectors.toMap(Product::getId,
+                .collect(Collectors
+                        .toMap(Product::getId,
                                 product -> product));
         redisTemplate.opsForHash().putAll(HASH_KEY, productMap);
-        return products;
     }
 
     public List<Product> find(ProductSearch productSearch,

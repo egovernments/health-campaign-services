@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -50,7 +51,7 @@ public class ProductService {
         }
         log.info("Enrichment products started");
 
-        List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(), productRequest.getProduct().get(0).getTenantId(),
+        List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(), getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
         AuditDetails auditDetails = getAuditDetailsForCreate(productRequest);
         IntStream.range(0, productRequest.getProduct().size()).forEach(
@@ -102,7 +103,8 @@ public class ProductService {
                                 String tenantId,
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception{
-        List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        List<Product> products = productRepository.find(productSearchRequest.getProduct(), limit,
+                offset, tenantId, lastChangedSince, includeDeleted);
         if (products.isEmpty()) {
             throw new CustomException("NO_RESULT", "No products found for the given search criteria");
         }
@@ -118,6 +120,16 @@ public class ProductService {
         if (!rowVersionMismatch.isEmpty()) {
             throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
         }
+    }
+
+    private String getTenantId(List<Product> products) {
+        String tenantId = null;
+        Optional<Product> anyProduct = products.stream().findAny();
+        if (anyProduct.isPresent()) {
+            tenantId = anyProduct.get().getTenantId();
+        }
+        log.info("Using tenantId {}",tenantId);
+        return tenantId;
     }
 
     private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest) {

@@ -41,14 +41,8 @@ public class ProductVariantService {
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
         validateProductId(request);
-        Optional<ProductVariant> anyProductVariant = request.getProductVariant()
-                .stream().findAny();
-        String tenantId = null;
-        if (anyProductVariant.isPresent()) {
-            tenantId = anyProductVariant.get().getTenantId();
-        }
         log.info("Generating IDs using IdGenService");
-        List<String> idList = idGenService.getIdList(request.getRequestInfo(), tenantId,
+        List<String> idList = idGenService.getIdList(request.getRequestInfo(), getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
         log.info("IDs generated");
         AuditDetails auditDetails = createAuditDetailsForInsert(request.getRequestInfo());
@@ -108,6 +102,16 @@ public class ProductVariantService {
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
+    }
+
+    private String getTenantId(List<ProductVariant> projectStaffs) {
+        String tenantId = null;
+        Optional<ProductVariant> anyProjectStaff = projectStaffs.stream().findAny();
+        if (anyProjectStaff.isPresent()) {
+            tenantId = anyProjectStaff.get().getTenantId();
+        }
+        log.info("Using tenantId {}",tenantId);
+        return tenantId;
     }
 
     private void validateProductId(ProductVariantRequest request) {

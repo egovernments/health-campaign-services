@@ -67,8 +67,8 @@ public class ProductVariantRepository {
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
 
-        //Not storing in cache, because we save product variants via save function. so it's duplicate.
         variantsFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, new ProductVariantRowMapper()));
+        putInCache(variantsFound);
         return variantsFound;
     }
 

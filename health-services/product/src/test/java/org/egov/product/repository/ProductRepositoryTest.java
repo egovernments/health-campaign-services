@@ -126,7 +126,8 @@ class ProductRepositoryTest {
     @Test
     @DisplayName("should check if product is sent to kafka topic or not")
     void shouldSendProductToKafkaTopic() throws Exception{
-        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationCreate().build();
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct()
+                .withApiOperationCreate().build();
 
         productRepository.save(productRequest.getProduct(), "save-product-topic");
 
@@ -136,7 +137,8 @@ class ProductRepositoryTest {
     @Test
     @DisplayName("data should be cached after sending data to kafka topic")
     void shouldCacheDataAfterSendingToKafkaTopic() throws Exception{
-        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationCreate().build();
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct()
+                .withApiOperationCreate().build();
         productRepository.save(productRequest.getProduct(), "save-product-topic");
 
         InOrder inOrder = inOrder(producer, hashOperations);
@@ -169,12 +171,14 @@ class ProductRepositoryTest {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
-        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product' and isdeleted=false");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductRowMapper.class)))
                 .thenReturn(products);
 
-        List<Product> productsResponse = productRepository.find(productSearchRequest.getProduct(), 2, 0, "default", null, false);
+        List<Product> productsResponse = productRepository.find(productSearchRequest.getProduct(), 2,
+                0, "default", null, false);
 
         assertEquals(2, productsResponse.size());
     }
@@ -186,12 +190,14 @@ class ProductRepositoryTest {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").withIsDeleted().build());
         ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
-        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product'");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductRowMapper.class)))
                 .thenReturn(products);
 
-        List<Product> productsResponse = productRepository.find(productSearchRequest.getProduct(), 2, 0, "default", null, true);
+        List<Product> productsResponse = productRepository.find(productSearchRequest.getProduct(), 2,
+                0, "default", null, true);
 
         assertEquals(2, productsResponse.size());
     }

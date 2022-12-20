@@ -80,12 +80,14 @@ class ProductVariantRepositoryFindTest {
     @DisplayName("get products from db for the search request")
     void shouldReturnProductsFromDBForSearchRequest() throws QueryBuilderException {
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").build();
-        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(productVariantSearch)
+                .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product' and isdeleted=false");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductVariantRowMapper.class)))
                 .thenReturn(productVariants);
 
-        List<ProductVariant> productVariantResponse = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), 2, 0, "default", null, false);
+        List<ProductVariant> productVariantResponse = productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
+                2, 0, "default", null, false);
 
         assertEquals(1, productVariantResponse.size());
     }
@@ -97,12 +99,14 @@ class ProductVariantRepositoryFindTest {
         productVariants.add(ProductVariantTestBuilder.builder().withId().withAuditDetails().withDeleted().build());
         productVariants.add(ProductVariantTestBuilder.builder().withId().withAuditDetails().build());
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").build();
-        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
+                .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(selectQueryBuilder.build(any(Object.class))).thenReturn("Select * from product where id='ID101' and name=`product'");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(ProductVariantRowMapper.class)))
                 .thenReturn(productVariants);
 
-        List<ProductVariant> productVariantResponse = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), 2, 0, "default", null, true);
+        List<ProductVariant> productVariantResponse = productVariantRepository.find(productVariantSearchRequest.getProductVariant(), 2,
+                0, "default", null, true);
 
         assertEquals(2, productVariantResponse.size());
     }
