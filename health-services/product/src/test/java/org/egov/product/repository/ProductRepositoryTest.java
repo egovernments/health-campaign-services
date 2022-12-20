@@ -34,6 +34,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -153,13 +155,12 @@ class ProductRepositoryTest {
     @Test
     @DisplayName("data validate all product Ids from DB or cache")
     void shouldValidateAllProductIdsFromDbOrCache() throws Exception{
-        HashMap<String, Product> productMap = new HashMap<>();
-        productMap.put("ID101", ProductTestBuilder.builder().goodProduct().withId("ID101").build());
-        productMap.put("ID102", ProductTestBuilder.builder().goodProduct().withId("ID102").build());
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(RowMapper.class))).thenReturn(Arrays.asList(
-                ProductTestBuilder.builder().goodProduct().withId("ID103"),
-                ProductTestBuilder.builder().goodProduct().withId("ID104")));
-        when(hashOperations.entries(any(Object.class))).thenReturn(productMap);
+                ProductTestBuilder.builder().goodProduct().withId("ID103").build(),
+                ProductTestBuilder.builder().goodProduct().withId("ID104").build()));
+        when(hashOperations.multiGet(anyString(), anyList())).thenReturn(Arrays.asList(
+                ProductTestBuilder.builder().goodProduct().withId("ID101").build(),
+                ProductTestBuilder.builder().goodProduct().withId("ID102").build()));
 
         List<Product> validProductIds = productRepository.findById(new ArrayList(Arrays.asList("ID101", "ID102", "ID103", "ID104")));
 
