@@ -7,7 +7,6 @@ import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
-import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +24,7 @@ import java.util.stream.IntStream;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.product.util.CommonUtils.getSet;
+import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
 import static org.egov.product.util.CommonUtils.validateIds;
 
 @Service
@@ -134,21 +134,12 @@ public class ProductVariantService {
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception {
 
-        if (isSearchByIdOnly(productVariantSearchRequest)) {
+        if (isSearchByIdOnly(productVariantSearchRequest.getProductVariant())) {
             List<String> ids = new ArrayList<>();
             ids.add(productVariantSearchRequest.getProductVariant().getId());
             return productVariantRepository.findById(ids);
         }
         return productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
-    }
-
-    private boolean isSearchByIdOnly(ProductVariantSearchRequest productVariantSearchRequest) {
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
-                .id(productVariantSearchRequest.getProductVariant()
-                .getId()).build();
-        String productSearchHash = productVariantSearch.toString();
-        String hashFromRequest = productVariantSearchRequest.getProductVariant().toString();
-        return productSearchHash.equals(hashFromRequest);
     }
 }

@@ -7,7 +7,6 @@ import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
-import org.egov.product.web.models.ProductSearch;
 import org.egov.product.web.models.ProductSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +23,7 @@ import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
 
 @Service
 @Slf4j
@@ -97,7 +97,7 @@ public class ProductService {
                                 String tenantId,
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception {
-        if (isSearchByIdOnly(productSearchRequest)) {
+        if (isSearchByIdOnly(productSearchRequest.getProduct())) {
             List<String> ids = new ArrayList<>();
             ids.add(productSearchRequest.getProduct().getId());
             return productRepository.findById(ids);
@@ -125,13 +125,5 @@ public class ProductService {
         }
         log.info("Using tenantId {}",tenantId);
         return tenantId;
-    }
-
-    private boolean isSearchByIdOnly(ProductSearchRequest productSearchRequest) {
-        ProductSearch productSearch = ProductSearch.builder().id(productSearchRequest.getProduct()
-                .getId()).build();
-        String productSearchHash = productSearch.toString();
-        String hashFromRequest = productSearchRequest.getProduct().toString();
-        return productSearchHash.equals(hashFromRequest);
     }
 }

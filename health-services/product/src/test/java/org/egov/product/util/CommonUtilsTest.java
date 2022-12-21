@@ -1,8 +1,10 @@
 package org.egov.product.util;
 
 import digit.models.coremodels.AuditDetails;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.web.models.ApiOperation;
@@ -169,12 +171,32 @@ class CommonUtilsTest {
 
         assertEquals(auditDetails.getCreatedTime(), existingAuditDetails.getCreatedTime());
         assertEquals(auditDetails.getCreatedBy(), existingAuditDetails.getCreatedBy());
-        assertTrue(auditDetails.getLastModifiedTime() > auditDetails.getCreatedTime());
         assertNotEquals(auditDetails.getLastModifiedBy(), existingAuditDetails.getLastModifiedBy());
         assertTrue(auditDetails.getCreatedTime() != null
                 && auditDetails.getLastModifiedTime() != null
                 && auditDetails.getCreatedBy() != null
                 && auditDetails.getLastModifiedBy() != null);
+    }
+
+    @Test
+    @DisplayName("should return true if search is by id only")
+    void shouldReturnTrueIfSearchIsByIdOnly() {
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .build();
+
+        assertTrue(CommonUtils.isSearchByIdOnly(someObject));
+    }
+
+    @Test
+    @DisplayName("should return false if search is not by id only")
+    void shouldReturnFalseIfSearchIsNotByIdOnly() {
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .otherField("other-field")
+                .build();
+
+        assertFalse(CommonUtils.isSearchByIdOnly(someObject));
     }
 
     @Data
@@ -185,7 +207,10 @@ class CommonUtilsTest {
 
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class SomeObject {
         private String id;
+        private String otherField;
     }
 }

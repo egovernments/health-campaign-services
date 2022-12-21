@@ -88,4 +88,23 @@ public class CommonUtils {
                 .lastModifiedBy(uuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
     }
+
+    public static boolean isSearchByIdOnly(Object obj) {
+        Class objClass = obj.getClass();
+        Method setIdMethod = getMethod("setId", objClass);
+        Method getIdMethod = getMethod("getId", objClass);
+
+        Object finalObject = null;
+        try {
+            finalObject = objClass.newInstance();
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        Object id = ReflectionUtils.invokeMethod(getIdMethod, obj);
+        ReflectionUtils.invokeMethod(setIdMethod, finalObject, id);
+
+        String actual = obj.toString();
+        String expected = finalObject.toString();
+        return actual.equals(expected);
+    }
 }
