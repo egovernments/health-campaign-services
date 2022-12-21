@@ -29,7 +29,7 @@ serviceMaps:
       fromTopic: update-product-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE product SET tenantId = ?, type = ?, name = ?, manufacturer = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = rowVersion + 1, isDeleted = ? WHERE id = ?
+        - query: UPDATE product SET tenantId = ?, type = ?, name = ?, manufacturer = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
@@ -41,6 +41,7 @@ serviceMaps:
               dbType: JSONB
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id
 
@@ -72,7 +73,7 @@ serviceMaps:
       fromTopic: update-product-variant-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = rowVersion + 1, isDeleted = ? WHERE id = ?;
+        - query: UPDATE product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
@@ -84,5 +85,6 @@ serviceMaps:
               dbType: JSONB
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id
