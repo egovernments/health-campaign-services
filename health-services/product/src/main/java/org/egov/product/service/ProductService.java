@@ -4,7 +4,6 @@ import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductRepository;
-import org.egov.product.util.CommonUtils;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
@@ -23,6 +22,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 
 @Service
@@ -47,7 +47,7 @@ public class ProductService {
         log.info("Enrichment products started");
         List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(), getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
-        AuditDetails auditDetails = CommonUtils.getAuditDetailsForCreate(productRequest.getRequestInfo());
+        AuditDetails auditDetails = getAuditDetailsForCreate(productRequest.getRequestInfo());
         IntStream.range(0, productRequest.getProduct().size()).forEach(
                 i -> {
                     Product product = productRequest.getProduct().get(i);

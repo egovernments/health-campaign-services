@@ -4,7 +4,6 @@ import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductVariantRepository;
-import org.egov.product.util.CommonUtils;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
@@ -23,6 +22,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.product.util.CommonUtils.getSet;
 import static org.egov.product.util.CommonUtils.validateIds;
@@ -51,7 +51,7 @@ public class ProductVariantService {
         List<String> idList = idGenService.getIdList(request.getRequestInfo(), getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
         log.info("IDs generated");
-        AuditDetails auditDetails = CommonUtils.getAuditDetailsForCreate(request.getRequestInfo());
+        AuditDetails auditDetails = getAuditDetailsForCreate(request.getRequestInfo());
         IntStream.range(0, request.getProductVariant().size())
                 .forEach(i -> {
                     final ProductVariant productVariant = request.getProductVariant().get(i);
