@@ -224,6 +224,7 @@ public class ProjectStaffService {
             ids.add(projectStaffSearchRequest.getProjectStaff().getId());
             return projectStaffRepository.findById(ids);
         }
+
         return projectStaffRepository.find(projectStaffSearchRequest.getProjectStaff(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
