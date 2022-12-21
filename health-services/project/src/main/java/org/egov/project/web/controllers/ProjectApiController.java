@@ -226,7 +226,6 @@ public class ProjectApiController {
                 lastChangedSince,
                 includeDeleted
         );
-
         ProjectStaffResponse projectStaffResponse = ProjectStaffResponse.builder()
                 .projectStaff(projectStaffList)
                 .responseInfo(ResponseInfoFactory
