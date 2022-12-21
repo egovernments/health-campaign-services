@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,34 +25,25 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ProductVariantRequest {
+
     @JsonProperty("RequestInfo")
     @NotNull
-
     @Valid
-
-
     private RequestInfo requestInfo = null;
 
     @JsonProperty("ProductVariant")
     @NotNull
-
+    @Size(min = 1)
     @Valid
-
-
     private List<ProductVariant> productVariant = new ArrayList<>();
 
     @JsonProperty("apiOperation")
-
     @Valid
-
-
     private ApiOperation apiOperation = null;
-
 
     public ProductVariantRequest addProductVariantItem(ProductVariant productVariantItem) {
         this.productVariant.add(productVariantItem);
         return this;
     }
-
 }
 
