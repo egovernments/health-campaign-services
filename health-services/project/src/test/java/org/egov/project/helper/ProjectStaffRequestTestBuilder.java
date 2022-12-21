@@ -11,6 +11,8 @@ import java.util.List;
 public class ProjectStaffRequestTestBuilder {
     private ProjectStaffRequest.ProjectStaffRequestBuilder builder;
 
+    private ArrayList projectStaffs = new ArrayList();
+
     public ProjectStaffRequestTestBuilder() {
         this.builder = ProjectStaffRequest.builder();
     }
@@ -62,6 +64,22 @@ public class ProjectStaffRequestTestBuilder {
         projectStaffs.add(ProjectStaffTestBuilder.builder().withIdNull().withBadTenantId().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .projectStaff(projectStaffs);
+        return this;
+    }
+
+    public ProjectStaffRequestTestBuilder withRequestInfo(){
+        this.builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build());
+        return this;
+    }
+
+    public ProjectStaffRequestTestBuilder addGoodProjectStaff(){
+        projectStaffs.add(ProjectStaffTestBuilder.builder().goodProjectStaff().build());
+        this.builder.projectStaff(projectStaffs);
+        return this;
+    }
+
+    public ProjectStaffRequestTestBuilder withApiOperationCreate(){
+        this.builder.apiOperation(ApiOperation.CREATE);
         return this;
     }
 }

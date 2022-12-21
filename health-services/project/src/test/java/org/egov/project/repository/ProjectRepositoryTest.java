@@ -1,6 +1,5 @@
 package org.egov.project.repository;
 
-import org.egov.project.mapper.ProjectIdMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -31,7 +29,7 @@ class ProjectRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        projectRepository = new ProjectRepository(namedParameterJdbcTemplate);
+
     }
 
     @Test
@@ -42,7 +40,7 @@ class ProjectRepositoryTest {
         params.put("projectIds", projectIds);
 
         when(
-                namedParameterJdbcTemplate.queryForObject(
+                namedParameterJdbcTemplate.queryForList(
                 eq(
                         String.format(
                             "SELECT id FROM project WHERE id IN (:projectIds) AND isDeleted = false fetch first %s rows only",
@@ -50,7 +48,7 @@ class ProjectRepositoryTest {
                         )
                 ),
                 eq(params),
-                any(ProjectIdMapper.class)
+                eq(String.class)
             )
         ).thenReturn(projectIds);
 

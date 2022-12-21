@@ -1,7 +1,6 @@
 package org.egov.project.repository;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.project.mapper.ProjectIdMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -24,11 +23,13 @@ public class ProjectRepository {
     }
 
     public List<String> validateProjectIds(List<String> projectIds) {
-        String query = String.format("SELECT id FROM project WHERE id IN (:projectIds) AND isDeleted = false fetch first %s rows only", projectIds.size());
+        String query = String.format(
+                "SELECT id FROM project WHERE id IN (:projectIds) AND isDeleted = false fetch first %s rows only",
+                projectIds.size());
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("projectIds", projectIds);
         try {
-            return namedParameterJdbcTemplate.queryForObject(query, paramMap, new ProjectIdMapper());
+            return namedParameterJdbcTemplate.queryForList(query, paramMap, String.class);
         } catch (EmptyResultDataAccessException e) {
             return Collections.emptyList();
         }

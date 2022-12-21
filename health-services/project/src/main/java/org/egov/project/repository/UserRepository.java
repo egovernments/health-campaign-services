@@ -29,6 +29,7 @@ public class UserRepository {
         this.restTemplate = restTemplate;
     }
 
+    // TODO - Use User Util in codegen - auto wire
     public List<User> searchByUserIds(List<String> userIds, String tenantId) {
         UserSearchRequest request = new UserSearchRequest();
         request.setUuid(userIds);

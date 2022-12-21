@@ -1,24 +1,27 @@
 package org.egov.project.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
-import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.repository.UserRepository;
+import org.egov.project.web.models.ApiOperation;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.project.web.models.ProjectStaffSearch;
+import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -28,27 +31,25 @@ public class ProjectStaffService {
 
     public static final String SAVE_KAFKA_TOPIC = "save-project-staff-topic";
     public static final String UPDATE_KAFKA_TOPIC = "update-project-staff-topic";
-    private final Producer producer;
-    private final ObjectMapper objectMapper;
-    private final ProjectStaffRepository projectStaffRepository;
-    private final ProjectRepository projectRepository;
+
     private final IdGenService idGenService;
+
+    private final ProjectStaffRepository projectStaffRepository;
+
+    private final ProjectService projectService;
+
     private final UserRepository userRepository;
 
     @Autowired
     public ProjectStaffService(
-            Producer producer,
-            ObjectMapper objectMapper,
             IdGenService idGenService,
             ProjectStaffRepository projectStaffRepository,
-            ProjectRepository projectRepository,
+            ProjectService projectService,
             UserRepository userRepository
     ) {
-        this.producer = producer;
-        this.objectMapper = objectMapper;
         this.idGenService = idGenService;
         this.projectStaffRepository = projectStaffRepository;
-        this.projectRepository = projectRepository;
+        this.projectService = projectService;
         this.userRepository = userRepository;
     }
 
@@ -71,50 +72,70 @@ public class ProjectStaffService {
                     projectStaff.setIsDeleted(Boolean.FALSE);
                 });
         log.info("Enrichment done");
+
         projectStaffRepository.save(projectStaffs,SAVE_KAFKA_TOPIC);
+        log.info("Pushed to kafka");
 
         return projectStaffs;
     }
 
 
-    public List<ProjectStaff> update(ProjectStaffRequest projectStaffRequest) throws Exception {
+    public List<ProjectStaff> update(ProjectStaffRequest projectStaffRequest) {
 
-        log.info("Checking existing project staffs");
         List<ProjectStaff> projectStaffs = projectStaffRequest.getProjectStaff();
-        List<ProjectStaff> existingProjectStaffs = projectStaffRepository
-                .findById(projectStaffs.stream()
-                        .map(ProjectStaff::getId).collect(Collectors.toList()));
-
         String tenantId = getTenantId(projectStaffs);
 
+        log.info("Checking existing projects");
         validateProjectId(projectStaffs);
+        log.info("Checking existing project staffs");
         validateUserIds(projectStaffs, tenantId);
 
+        Map<String, ProjectStaff> projectStaffMap =
+                projectStaffs.stream()
+                        .collect(Collectors.toMap(ProjectStaff::getId, item -> item));
+
+        List<String> projectStaffIds = new ArrayList<>(projectStaffMap.keySet());
+
+        log.info("Checking existing product variants");
+        List<ProjectStaff> existingProjectStaffs = projectStaffRepository
+                .findById(projectStaffIds);
+
         if (projectStaffs.size() != existingProjectStaffs.size()) {
-            List<ProjectStaff> invalidProjectStaffs = new ArrayList<>(projectStaffs);
-            invalidProjectStaffs.removeAll(existingProjectStaffs);
+            List<String> existingProjectStaffIds = existingProjectStaffs.stream().map(ProjectStaff::getId).collect(Collectors.toList());
+            List<String> invalidProjectStaffIds = projectStaffMap.keySet().stream().filter(id -> !existingProjectStaffIds.contains(id))
+                    .collect(Collectors.toList());
             log.error("Invalid project staff");
-            throw new CustomException("INVALID_PROJECT_STAFF", invalidProjectStaffs.toString());
+            throw new CustomException("INVALID_PROJECT_STAFF", invalidProjectStaffIds.toString());
         }
 
-        AuditDetails auditDetails = createAuditDetailsForUpdate(projectStaffRequest.getRequestInfo());
+        checkRowVersion(projectStaffMap, existingProjectStaffs);
 
-        projectStaffs.forEach(projectStaff -> {
-            projectStaff.setAuditDetails(auditDetails);
-            projectStaff.setRowVersion(projectStaff.getRowVersion() + 1);
+        log.info("Updating lastModifiedTime and lastModifiedBy");
+        IntStream.range(0, existingProjectStaffs.size()).forEach(i -> {
+            ProjectStaff p = projectStaffMap.get(existingProjectStaffs.get(i).getId());
+            if (projectStaffRequest.getApiOperation().equals(ApiOperation.DELETE)) {
+                p.setIsDeleted(true);
+            }
+            p.setRowVersion(p.getRowVersion() + 1);
+            AuditDetails existingAuditDetails = existingProjectStaffs.get(i).getAuditDetails();
+            p.setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
+                    projectStaffRequest.getRequestInfo().getUserInfo().getUuid()));
         });
+
 
         projectStaffRepository.save(projectStaffs, UPDATE_KAFKA_TOPIC);
         log.info("Pushed to kafka");
         return projectStaffs;
     }
 
-    private AuditDetails createAuditDetailsForUpdate(RequestInfo requestInfo){
+    private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
         log.info("Generating Audit Details for project staff");
-        AuditDetails auditDetails = AuditDetails.builder()
-                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+
+        return AuditDetails.builder()
+                .createdBy(existingAuditDetails.getCreatedBy())
+                .createdTime(existingAuditDetails.getCreatedTime())
+                .lastModifiedBy(uuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
-        return auditDetails;
     }
 
     private String getTenantId(List<ProjectStaff> projectStaffs) {
@@ -153,7 +174,7 @@ public class ProjectStaffService {
     public List<String> validateProjectId(List<ProjectStaff> projectStaff) {
 
         List<String> projectIds = new ArrayList<>(projectStaff.stream().map(ProjectStaff::getProjectId).collect(Collectors.toSet()));
-        List<String> validProjectIds = projectRepository.validateProjectIds(projectIds);
+        List<String> validProjectIds = projectService.validateProjectIds(projectIds);
         log.info("project ids {}",validProjectIds);
         if (validProjectIds.size() != projectIds.size()) {
             List<String> invalidProjectIds = new ArrayList<>(projectIds);
@@ -172,15 +193,48 @@ public class ProjectStaffService {
                                         .map(User::getUuid)
                                         .collect(Collectors.toList());
 
-        log.info("user ids {}",validUserIds);
-        log.info("user ids {}",userIds);
-
         if (validUserIds.size() != userIds.size()) {
             List<String> invalidUserIds = new ArrayList<>(userIds);
             invalidUserIds.removeAll(validUserIds);
             log.error("Invalid userIds", invalidUserIds);
             throw new CustomException("INVALID_USER_ID", invalidUserIds.toString());
         }
+    }
+
+    private void checkRowVersion(Map<String, ProjectStaff> idToPvMap,
+                                 List<ProjectStaff> existingProjectStaffs) {
+        Set<String> rowVersionMismatch = existingProjectStaffs.stream()
+                .filter(existingPv -> !Objects.equals(existingPv.getRowVersion(),
+                        idToPvMap.get(existingPv.getId()).getRowVersion()))
+                .map(ProjectStaff::getId).collect(Collectors.toSet());
+        if (!rowVersionMismatch.isEmpty()) {
+            throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
+        }
+    }
+
+    public List<ProjectStaff> search(ProjectStaffSearchRequest projectStaffSearchRequest,
+                                     Integer limit,
+                                     Integer offset,
+                                     String tenantId,
+                                     Long lastChangedSince,
+                                     Boolean includeDeleted) throws Exception {
+
+        if (isSearchByIdOnly(projectStaffSearchRequest)) {
+            List<String> ids = new ArrayList<>();
+            ids.add(projectStaffSearchRequest.getProjectStaff().getId());
+            return projectStaffRepository.findById(ids);
+        }
+        return projectStaffRepository.find(projectStaffSearchRequest.getProjectStaff(),
+                limit, offset, tenantId, lastChangedSince, includeDeleted);
+    }
+
+    private boolean isSearchByIdOnly(ProjectStaffSearchRequest projectStaffSearchRequest) {
+        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
+                .id(projectStaffSearchRequest.getProjectStaff()
+                        .getId()).build();
+        String projectStaffSearchHash = projectStaffSearch.toString();
+        String hashFromRequest = projectStaffSearchRequest.getProjectStaff().toString();
+        return projectStaffSearchHash.equals(hashFromRequest);
     }
 
 

@@ -1,78 +1,104 @@
 package org.egov.project.repository;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
-import org.egov.project.web.models.AdditionalFields;
+import org.egov.project.repository.rowmapper.ProjectStaffRowMapper;
 import org.egov.project.web.models.ProjectStaff;
-import org.egov.tracer.model.CustomException;
+import org.egov.project.web.models.ProjectStaffSearch;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
 public class ProjectStaffRepository {
 
-    private final Producer producer;
+    private static final String HASH_KEY = "project-staff";
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final Producer producer;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final SelectQueryBuilder selectQueryBuilder;
+    @Value("${spring.cache.redis.time-to-live:60}")
+    private String timeToLive;
 
     @Autowired
-    public ProjectStaffRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate,Producer producer,  RedisTemplate<String, Object> redisTemplate) {
+    public ProjectStaffRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+                                  RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder) {
         this.producer = producer;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.redisTemplate = redisTemplate;
+        this.selectQueryBuilder = selectQueryBuilder;
+    }
+
+    public List<String> validateProjectStaffId(List<String> ids) {
+        List<String> projectStaffIds = ids.stream().filter(id -> redisTemplate.opsForHash()
+                        .entries(HASH_KEY).containsKey(id))
+                .collect(Collectors.toList());
+        if (!projectStaffIds.isEmpty()) {
+            return projectStaffIds;
+        }
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("projectStaffIds", ids);
+        String query = String.format(
+                "SELECT id FROM project_staff WHERE id IN (:projectStaffIds) AND isDeleted = false fetch first %s rows only",
+                ids.size()
+        );
+        return namedParameterJdbcTemplate.queryForList(query, paramMap, String.class);
+    }
+
+    public List<ProjectStaff> findById(List<String> ids) {
+        ArrayList<ProjectStaff> projectStaffsFound = new ArrayList<>();
+        Collection<Object> collection = new ArrayList<>(ids);
+        List<Object> projectStaffs = redisTemplate.opsForHash()
+                .multiGet(HASH_KEY, collection);
+        log.info("Mapping {}",projectStaffs.size());
+        if (!projectStaffs.isEmpty() && !projectStaffs.contains(null)) {
+            log.info("Cache hit");
+            projectStaffsFound = (ArrayList<ProjectStaff>) projectStaffs.stream()
+                    .map(ProjectStaff.class::cast)
+                    .collect(Collectors.toList());
+            // return only if all the projectStaffs are found in cache
+            ids.removeAll(projectStaffsFound.stream().map(ProjectStaff::getId).collect(Collectors.toList()));
+            if (ids.isEmpty()) {
+                return projectStaffsFound;
+            }
+        }
+
+        String query = String.format(
+                "SELECT * FROM project_staff WHERE id IN (:projectStaffIds) AND isDeleted = false fetch first %s rows only",
+                ids.size()
+        );
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("projectStaffIds", ids);
+
+        projectStaffsFound.addAll(
+                namedParameterJdbcTemplate.query(
+                        query,
+                        paramMap,
+                        new ProjectStaffRowMapper()
+                )
+        );
+        putInCache(projectStaffsFound);
+        return projectStaffsFound;
     }
 
     public List<ProjectStaff> save(List<ProjectStaff> projectStaffs, String topic) {
         producer.push(topic, projectStaffs);
+        log.info("Pushed to kafka");
         putInCache(projectStaffs);
         return projectStaffs;
-    }
-
-    public List<ProjectStaff> findById(List<String> ids) {
-        Collection<Object> collection = new ArrayList<>(ids);
-        List<Object> projectStaff = redisTemplate.opsForHash().multiGet("project-staff", collection);
-        if (projectStaff != null && !projectStaff.isEmpty()) {
-            log.info("Cache hit");
-            return projectStaff.stream().map(ProjectStaff.class::cast).collect(Collectors.toList());
-        }
-        String query = "SELECT * FROM project_staff WHERE id IN (:ids) and isDeleted = false";
-        Map<String, Object> paramMap = new HashMap<>();
-        paramMap.put("ids", ids);
-        try {
-            return namedParameterJdbcTemplate.queryForObject(query, paramMap,
-                    ((resultSet, i) -> {
-                        List<ProjectStaff> projectStaffs = new ArrayList<>();
-                        try {
-                            mapRow(resultSet, projectStaffs);
-                            while (resultSet.next()) {
-                                mapRow(resultSet, projectStaffs);
-                            }
-                        } catch (Exception e) {
-                            throw new CustomException("ERROR_IN_SELECT", e.getMessage());
-                        }
-                        putInCache(projectStaffs);
-                        return projectStaffs;
-                    }));
-        } catch (EmptyResultDataAccessException e) {
-            return Collections.emptyList();
-        }
     }
 
     private void putInCache(List<ProjectStaff> projectStaffs) {
@@ -80,31 +106,32 @@ public class ProjectStaffRepository {
                 .collect(Collectors
                         .toMap(ProjectStaff::getId,
                                 projectStaff -> projectStaff));
-        redisTemplate.opsForHash().putAll("project-staff", projectStaffMap);
+        redisTemplate.opsForHash().putAll(HASH_KEY, projectStaffMap);
+        redisTemplate.expire(HASH_KEY, Long.parseLong(timeToLive), TimeUnit.SECONDS);
     }
 
-    private void mapRow(ResultSet resultSet, List<ProjectStaff> projectStaffs) throws SQLException, JsonProcessingException {
-        ProjectStaff projectStaff = ProjectStaff.builder()
-                .id(resultSet.getString("id"))
-                .projectId(resultSet.getString("projectId"))
-                .tenantId(resultSet.getString("tenantId"))
-                .channel(resultSet.getString("channel"))
-                .userId(resultSet.getString("userId"))
-                .startDate(resultSet.getLong("startDate"))
-                .endDate(resultSet.getLong("endDate"))
-                .isDeleted(resultSet.getBoolean("isDeleted"))
-                .rowVersion(resultSet.getInt("rowVersion"))
-                .additionalFields(new ObjectMapper()
-                        .readValue(resultSet.getString("additionalDetails"),
-                                AdditionalFields.class))
-                .auditDetails(AuditDetails.builder()
-                        .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                        .createdTime(resultSet.getLong("createdTime"))
-                        .createdBy(resultSet.getString("createdBy"))
-                        .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                        .build())
-                .build();
-        projectStaffs.add(projectStaff);
+    public List<ProjectStaff> find(ProjectStaffSearch projectStaffSearch,
+                                   Integer limit,
+                                   Integer offset,
+                                   String tenantId,
+                                   Long lastChangedSince,
+                                   Boolean includeDeleted) throws QueryBuilderException {
+        String query = selectQueryBuilder.build(projectStaffSearch);
+        query += " and tenantId=:tenantId ";
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            query += "and isDeleted=:isDeleted ";
+        }
+        if (lastChangedSince != null) {
+            query += "and lastModifiedTime>=:lastModifiedTime ";
+        }
+        query += "ORDER BY id ASC LIMIT :limit OFFSET :offset";
+        Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("isDeleted", includeDeleted);
+        paramsMap.put("lastModifiedTime", lastChangedSince);
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+        return namedParameterJdbcTemplate.query(query, paramsMap, new ProjectStaffRowMapper());
     }
 }
 
