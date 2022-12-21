@@ -43,7 +43,7 @@ public class {{classname}}ControllerTest {
     @Disabled
     public void {{operationId}}Success() throws Exception {
         mockMvc.perform(post("{{basePathWithoutHost}}{{path}}").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
+        .APPLICATION_JSON))
         .andExpect(status().isOk());
     }
 
@@ -51,7 +51,7 @@ public class {{classname}}ControllerTest {
     @Disabled
     public void {{operationId}}Failure() throws Exception {
         mockMvc.perform(post("{{basePathWithoutHost}}{{path}}").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
+        .APPLICATION_JSON))
         .andExpect(status().isBadRequest());
     }
 
