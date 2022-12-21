@@ -15,12 +15,11 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
@@ -74,6 +73,7 @@ public class ProductService {
                     .collect(Collectors.toList());
             throw new CustomException("INVALID_PRODUCT", invalidProductIds.toString());
         }
+
         checkRowVersion(pMap, existingProducts);
 
         IntStream.range(0, existingProducts.size()).forEach(i -> {
@@ -104,17 +104,6 @@ public class ProductService {
         }
         return productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
-    }
-
-    private void checkRowVersion(Map<String, Product> idToPMap,
-                                 List<Product> existingProducts) {
-        Set<String> rowVersionMismatch = existingProducts.stream()
-                .filter(existingPv -> !Objects.equals(existingPv.getRowVersion(),
-                        idToPMap.get(existingPv.getId()).getRowVersion()))
-                .map(Product::getId).collect(Collectors.toSet());
-        if (!rowVersionMismatch.isEmpty()) {
-            throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
-        }
     }
 
     private String getTenantId(List<Product> products) {

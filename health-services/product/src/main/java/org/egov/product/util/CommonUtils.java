@@ -11,6 +11,8 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -106,5 +108,20 @@ public class CommonUtils {
         String actual = obj.toString();
         String expected = finalObject.toString();
         return actual.equals(expected);
+    }
+
+
+    public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList) {
+        Class objClass = objList.stream().findAny().get().getClass();
+        Method rowVersionMethod = getMethod("getRowVersion", objClass);
+        Method getIdMethod = getMethod("getId", objClass);
+        Set<Object> rowVersionMismatch = objList.stream()
+                .filter(obj -> !Objects.equals(ReflectionUtils.invokeMethod(rowVersionMethod, obj),
+                        ReflectionUtils.invokeMethod(rowVersionMethod,
+                                idToObjMap.get(ReflectionUtils.invokeMethod(getIdMethod, obj)))))
+                .map(obj -> ReflectionUtils.invokeMethod(getIdMethod, obj)).collect(Collectors.toSet());
+        if (!rowVersionMismatch.isEmpty()) {
+            throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
+        }
     }
 }

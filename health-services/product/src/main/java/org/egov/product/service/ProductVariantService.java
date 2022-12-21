@@ -15,12 +15,11 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.product.util.CommonUtils.getSet;
@@ -114,18 +113,6 @@ public class ProductVariantService {
         log.info("Using tenantId {}",tenantId);
         return tenantId;
     }
-
-    private void checkRowVersion(Map<String, ProductVariant> idToPvMap,
-                                        List<ProductVariant> existingProductVariants) {
-        Set<String> rowVersionMismatch = existingProductVariants.stream()
-                .filter(existingPv -> !Objects.equals(existingPv.getRowVersion(),
-                        idToPvMap.get(existingPv.getId()).getRowVersion()))
-                .map(ProductVariant::getId).collect(Collectors.toSet());
-        if (!rowVersionMismatch.isEmpty()) {
-            throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
-        }
-    }
-
 
     public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
                                 Integer limit,

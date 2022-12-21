@@ -14,8 +14,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
@@ -199,6 +201,44 @@ class CommonUtilsTest {
         assertFalse(CommonUtils.isSearchByIdOnly(someObject));
     }
 
+    @Test
+    @DisplayName("should check row version")
+    void shouldCheckRowVersion() {
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(1)
+                .build();
+        Map<String, SomeObject> idToObjMap = new HashMap<>();
+        idToObjMap.put(someObject.getId(), someObject);
+        SomeObject otherObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(1)
+                .build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(otherObject);
+
+        assertDoesNotThrow(() -> CommonUtils.checkRowVersion(idToObjMap, objList));
+    }
+
+    @Test
+    @DisplayName("should throw exception if row versions mismatch")
+    void shouldThrowExceptionIfRowVersionsMismatch() {
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(1)
+                .build();
+        Map<String, SomeObject> idToObjMap = new HashMap<>();
+        idToObjMap.put(someObject.getId(), someObject);
+        SomeObject otherObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(2)
+                .build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(otherObject);
+
+        assertThrows(CustomException.class, () -> CommonUtils.checkRowVersion(idToObjMap, objList));
+    }
+
     @Data
     @Builder
     public static class SomeRequest {
@@ -212,5 +252,6 @@ class CommonUtilsTest {
     public static class SomeObject {
         private String id;
         private String otherField;
+        private Integer rowVersion;
     }
 }
