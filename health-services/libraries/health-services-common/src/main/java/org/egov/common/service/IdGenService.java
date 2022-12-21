@@ -50,7 +50,7 @@ public class IdGenService {
         List<IdResponse> idResponses = response.getIdResponses();
 
         if (CollectionUtils.isEmpty(idResponses))
-            throw new CustomException("IDGEN ERROR", "No ids returned from idgen Service");
+            throw new CustomException("IDGEN_ERROR", "No ids returned from idgen Service");
 
         return idResponses.stream().map(IdResponse::getId).collect(Collectors.toList());
     }
