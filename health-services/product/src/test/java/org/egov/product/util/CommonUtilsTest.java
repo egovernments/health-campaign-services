@@ -9,8 +9,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.UnaryOperator;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -105,6 +109,31 @@ class CommonUtilsTest {
         otherIdList.add("other-id");
 
         assertEquals(0, CommonUtils.getDifference(idList, otherIdList).size());
+    }
+
+    @Test
+    @DisplayName("should validate the ids as per the given validator")
+    void shouldValidateTheIdsAsPerTheGivenValidator() {
+        Set<String> idSet = new HashSet<>();
+        idSet.add("some-id");
+        idSet.add("other-id");
+        UnaryOperator<List<String>> validator = UnaryOperator.identity();
+
+        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
+    }
+
+    @Test
+    @DisplayName("should throw exception in case an invalid id is found")
+    void shouldThrowExceptionInCaseAnInvalidIdIsFound() {
+        Set<String> idSet = new HashSet<>();
+        idSet.add("some-id");
+        idSet.add("other-id");
+        UnaryOperator<List<String>> validator = (idList) -> {
+            idList.remove(0);
+            return idList;
+        };
+
+        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
     }
 
     @Data
