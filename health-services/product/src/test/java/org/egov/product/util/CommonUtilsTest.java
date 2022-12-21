@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,9 +70,52 @@ class CommonUtilsTest {
         assertTrue(CommonUtils.isForCreate(someRequest));
     }
 
+    @Test
+    @DisplayName("should create a set of given attribute")
+    void shouldCreateASetOfGivenAttribute() {
+        SomeObject someObject = SomeObject.builder().id("some-id-1").build();
+        SomeObject otherSomeObject = SomeObject.builder().id("some-id-2").build();
+        List<SomeObject> objects = new ArrayList<>();
+        objects.add(someObject);
+        objects.add(otherSomeObject);
+
+        assertEquals(2, CommonUtils.getSet(objects, "getId").size());
+    }
+
+    @Test
+    @DisplayName("should get the difference of lists when one list is sublist of another")
+    void shouldGetTheDifferenceOfListsWhenOneListIsSublistOfAnother() {
+        List<String> idList = new ArrayList<>();
+        idList.add("some-id");
+        idList.add("bad-id");
+        List<String> otherIdList = new ArrayList<>();
+        otherIdList.add("some-id");
+
+        assertEquals(1, CommonUtils.getDifference(idList, otherIdList).size());
+    }
+
+    @Test
+    @DisplayName("should get the difference of lists when both the lists have same number of items")
+    void shouldGetTheDifferenceOfListsWhenBothTheListsHaveSameNumberOfItems() {
+        List<String> idList = new ArrayList<>();
+        idList.add("some-id");
+        idList.add("other-id");
+        List<String> otherIdList = new ArrayList<>();
+        otherIdList.add("some-id");
+        otherIdList.add("other-id");
+
+        assertEquals(0, CommonUtils.getDifference(idList, otherIdList).size());
+    }
+
     @Data
     @Builder
     public static class SomeRequest {
         private ApiOperation apiOperation;
+    }
+
+    @Data
+    @Builder
+    public static class SomeObject {
+        private String id;
     }
 }

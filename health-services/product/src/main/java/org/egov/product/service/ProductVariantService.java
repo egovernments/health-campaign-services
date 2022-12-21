@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductVariantRepository;
+import org.egov.product.util.CommonUtils;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
@@ -41,7 +42,8 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
-        validateProductId(request);
+        CommonUtils.validateIds(CommonUtils.getSet(request.getProductVariant(), "getProductId"),
+                productService::validateProductId);
         log.info("Generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(), getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
@@ -62,7 +64,8 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> update(ProductVariantRequest request) {
-        validateProductId(request);
+        CommonUtils.validateIds(CommonUtils.getSet(request.getProductVariant(), "getProductId"),
+                productService::validateProductId);
         Map<String, ProductVariant> pvMap =
                 request.getProductVariant().stream()
                         .collect(Collectors.toMap(ProductVariant::getId, item -> item));
@@ -97,19 +100,6 @@ public class ProductVariantService {
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
-    }
-
-    private void validateProductId(ProductVariantRequest request) {
-        Set<String> productIds = request.getProductVariant().stream()
-                .map(ProductVariant::getProductId)
-                .collect(Collectors.toSet());
-        List<String> validProductIds = productService.validateProductId(new ArrayList<>(productIds));
-        if (validProductIds.size() != productIds.size()) {
-            List<String> invalidProductIds = new ArrayList<>(productIds);
-            invalidProductIds.removeAll(validProductIds);
-            log.error("Invalid productIds");
-            throw new CustomException("INVALID_PRODUCT_ID", invalidProductIds.toString());
-        }
     }
 
     private AuditDetails createAuditDetailsForCreate(RequestInfo requestInfo) {

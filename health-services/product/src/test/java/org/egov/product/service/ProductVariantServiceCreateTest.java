@@ -63,7 +63,7 @@ class ProductVariantServiceCreateTest {
 
     private void mockValidateProductId() {
         lenient().when(productService.validateProductId(any(List.class)))
-                .thenReturn(Collections.singletonList("some-id"));
+                .thenReturn(Collections.singletonList("some-product-id"));
     }
 
     @Test
@@ -116,7 +116,7 @@ class ProductVariantServiceCreateTest {
     @Test
     @DisplayName("should validate correct product id")
     void shouldValidateCorrectProductId() throws Exception {
-        List<String> validProductIds = new ArrayList<>(Collections.singleton("some-id"));
+        List<String> validProductIds = new ArrayList<>(Collections.singleton("some-product-id"));
         when(productService.validateProductId(any(List.class))).thenReturn(validProductIds);
 
         List<ProductVariant> productVariants = productVariantService.create(request);
