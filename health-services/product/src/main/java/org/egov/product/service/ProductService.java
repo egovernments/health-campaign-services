@@ -41,17 +41,7 @@ public class ProductService {
     }
 
     public List<Product> create(ProductRequest productRequest) throws Exception {
-        List<String> productIds = productRequest.getProduct().stream()
-                .map(Product::getId)
-                .collect(Collectors.toList());
-        log.info("Checking if already exists");
-        List<String> inValidProductIds = productRepository.validateProductId(productIds);
-        if (!inValidProductIds.isEmpty()) {
-            log.info("Products {} already present in DB", inValidProductIds);
-            throw new CustomException("PRODUCT_ALREADY_EXISTS", inValidProductIds.toString());
-        }
         log.info("Enrichment products started");
-
         List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(), getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
         AuditDetails auditDetails = getAuditDetailsForCreate(productRequest);
@@ -136,11 +126,12 @@ public class ProductService {
 
     private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest) {
         log.info("Generating Audit Details for new products");
+        Long time = System.currentTimeMillis();
         return AuditDetails.builder()
                 .createdBy(productRequest.getRequestInfo().getUserInfo().getUuid())
-                .createdTime(System.currentTimeMillis())
+                .createdTime(time)
                 .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())
-                .lastModifiedTime(System.currentTimeMillis()).build();
+                .lastModifiedTime(time).build();
     }
 
     private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {

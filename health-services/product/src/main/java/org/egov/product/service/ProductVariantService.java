@@ -113,12 +113,12 @@ public class ProductVariantService {
     }
 
     private AuditDetails createAuditDetailsForCreate(RequestInfo requestInfo) {
+        Long time = System.currentTimeMillis();
         return AuditDetails.builder()
                 .createdBy(requestInfo.getUserInfo().getUuid())
+                .createdTime(time)
                 .lastModifiedBy(requestInfo.getUserInfo().getUuid())
-                .createdTime(System.currentTimeMillis())
-                .lastModifiedTime(System.currentTimeMillis())
-                .build();
+                .lastModifiedTime(time).build();
     }
 
     private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {

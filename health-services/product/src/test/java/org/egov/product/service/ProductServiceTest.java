@@ -74,16 +74,6 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("should throw error for already existing product")
-    void shouldThrowErrorForAlreadyExistingProducts() throws Exception{
-        ArrayList<String> ids = new ArrayList<>();
-        ids.add("some-id1");
-        when(productRepository.validateProductId(any(List.class))).thenReturn(ids);
-
-        assertThrows(CustomException.class, () -> productService.create(request));
-    }
-
-    @Test
     @DisplayName("should send the enriched product to the kafka topic")
     void shouldSendTheEnrichedProductToTheKafkaTopic() throws Exception {
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
@@ -111,7 +101,7 @@ class ProductServiceTest {
     }
 
     @Test
-    public void shouldGenerateRequestWithRowVersionAndIsDeleted() throws Exception {
+    void shouldGenerateRequestWithRowVersionAndIsDeleted() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
 
         List<Product> products = productService.create(productRequest);
@@ -119,7 +109,7 @@ class ProductServiceTest {
     }
 
     @Test
-    public void shouldGenerateRequestWithAuditDetails() throws Exception {
+    void shouldGenerateRequestWithAuditDetails() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
 
         List<Product> products = productService.create(productRequest);
@@ -131,14 +121,14 @@ class ProductServiceTest {
     }
 
     @Test
-    public void shouldGenerateRequestWithId() throws Exception {
+    void shouldGenerateRequestWithId() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
         List<Product> products = productService.create(productRequest);
         assertEquals("some-id", products.get(0).getId());
     }
 
     @Test
-    public void shouldThrowErrorWhenIdGenFails() throws Exception{
+    void shouldThrowErrorWhenIdGenFails() throws Exception{
         when(idGenService.getIdList(any(RequestInfo.class),
                 any(String.class),
                 eq("product.id"), eq(""), anyInt()))
