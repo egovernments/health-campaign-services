@@ -15,13 +15,13 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.product.util.CommonUtils.getTenantId;
 import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
 
 @Service
@@ -44,7 +44,8 @@ public class ProductService {
 
     public List<Product> create(ProductRequest productRequest) throws Exception {
         log.info("Enrichment products started");
-        List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(), getTenantId(productRequest.getProduct()),
+        List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(),
+                getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
         AuditDetails auditDetails = getAuditDetailsForCreate(productRequest.getRequestInfo());
         IntStream.range(0, productRequest.getProduct().size()).forEach(
@@ -104,15 +105,5 @@ public class ProductService {
         }
         return productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
-    }
-
-    private String getTenantId(List<Product> products) {
-        String tenantId = null;
-        Optional<Product> anyProduct = products.stream().findAny();
-        if (anyProduct.isPresent()) {
-            tenantId = anyProduct.get().getTenantId();
-        }
-        log.info("Using tenantId {}",tenantId);
-        return tenantId;
     }
 }

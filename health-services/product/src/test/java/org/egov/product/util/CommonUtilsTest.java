@@ -239,6 +239,18 @@ class CommonUtilsTest {
         assertThrows(CustomException.class, () -> CommonUtils.checkRowVersion(idToObjMap, objList));
     }
 
+    @Test
+    @DisplayName("should fetch tenantId")
+    void shouldFetchTenantId() {
+        List<SomeObject> objList = new ArrayList<>();
+        SomeObject someObject = SomeObject.builder()
+                .tenantId("some-tenant-id")
+                .build();
+        objList.add(someObject);
+
+        assertEquals("some-tenant-id", CommonUtils.getTenantId(objList));
+    }
+
     @Data
     @Builder
     public static class SomeRequest {
@@ -253,5 +265,6 @@ class CommonUtilsTest {
         private String id;
         private String otherField;
         private Integer rowVersion;
+        private String tenantId;
     }
 }

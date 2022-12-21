@@ -124,4 +124,12 @@ public class CommonUtils {
             throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
         }
     }
+
+    public static <T> String getTenantId(List<T> objList) {
+        Object obj = objList.stream().findAny().get();
+        Method getTenantIdMethod = getMethod("getTenantId", obj.getClass());
+        String tenantId = (String) ReflectionUtils.invokeMethod(getTenantIdMethod, obj);
+        log.info("Tenant ID {}", tenantId);
+        return tenantId;
+    }
 }

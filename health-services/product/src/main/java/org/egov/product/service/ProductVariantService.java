@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -23,6 +22,7 @@ import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.product.util.CommonUtils.getSet;
+import static org.egov.product.util.CommonUtils.getTenantId;
 import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
 import static org.egov.product.util.CommonUtils.validateIds;
 
@@ -47,7 +47,8 @@ public class ProductVariantService {
         validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
         log.info("Generating IDs using IdGenService");
-        List<String> idList = idGenService.getIdList(request.getRequestInfo(), getTenantId(request.getProductVariant()),
+        List<String> idList = idGenService.getIdList(request.getRequestInfo(),
+                getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
         log.info("IDs generated");
         AuditDetails auditDetails = getAuditDetailsForCreate(request.getRequestInfo());
@@ -102,16 +103,6 @@ public class ProductVariantService {
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
-    }
-
-    private String getTenantId(List<ProductVariant> projectStaffs) {
-        String tenantId = null;
-        Optional<ProductVariant> anyProjectStaff = projectStaffs.stream().findAny();
-        if (anyProjectStaff.isPresent()) {
-            tenantId = anyProjectStaff.get().getTenantId();
-        }
-        log.info("Using tenantId {}",tenantId);
-        return tenantId;
     }
 
     public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
