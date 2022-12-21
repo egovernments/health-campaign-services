@@ -2,7 +2,6 @@ package org.egov.product.service;
 
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.util.CommonUtils;
@@ -24,6 +23,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.product.util.CommonUtils.getSet;
+import static org.egov.product.util.CommonUtils.validateIds;
+
 @Service
 @Slf4j
 public class ProductVariantService {
@@ -42,13 +45,13 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
-        CommonUtils.validateIds(CommonUtils.getSet(request.getProductVariant(), "getProductId"),
+        validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
         log.info("Generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(), getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
         log.info("IDs generated");
-        AuditDetails auditDetails = createAuditDetailsForCreate(request.getRequestInfo());
+        AuditDetails auditDetails = CommonUtils.getAuditDetailsForCreate(request.getRequestInfo());
         IntStream.range(0, request.getProductVariant().size())
                 .forEach(i -> {
                     final ProductVariant productVariant = request.getProductVariant().get(i);
@@ -64,7 +67,7 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> update(ProductVariantRequest request) {
-        CommonUtils.validateIds(CommonUtils.getSet(request.getProductVariant(), "getProductId"),
+        validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
         Map<String, ProductVariant> pvMap =
                 request.getProductVariant().stream()
@@ -100,25 +103,6 @@ public class ProductVariantService {
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");
         return request.getProductVariant();
-    }
-
-    private AuditDetails createAuditDetailsForCreate(RequestInfo requestInfo) {
-        Long time = System.currentTimeMillis();
-        return AuditDetails.builder()
-                .createdBy(requestInfo.getUserInfo().getUuid())
-                .createdTime(time)
-                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
-                .lastModifiedTime(time).build();
-    }
-
-    private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
-        log.info("Generating Audit Details for products");
-
-        return AuditDetails.builder()
-                .createdBy(existingAuditDetails.getCreatedBy())
-                .createdTime(existingAuditDetails.getCreatedTime())
-                .lastModifiedBy(uuid)
-                .lastModifiedTime(System.currentTimeMillis()).build();
     }
 
     private String getTenantId(List<ProductVariant> projectStaffs) {

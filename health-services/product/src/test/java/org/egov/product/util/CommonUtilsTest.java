@@ -1,7 +1,10 @@
 package org.egov.product.util;
 
+import digit.models.coremodels.AuditDetails;
 import lombok.Builder;
 import lombok.Data;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +20,7 @@ import java.util.function.UnaryOperator;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -134,6 +138,43 @@ class CommonUtilsTest {
         };
 
         assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
+    }
+
+    @Test
+    @DisplayName("should get audit details for create")
+    void shouldGetAuditDetailsForCreate() {
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+
+        AuditDetails auditDetails = CommonUtils.getAuditDetailsForCreate(requestInfo);
+
+        assertEquals(auditDetails.getCreatedTime(), auditDetails.getLastModifiedTime());
+        assertEquals(auditDetails.getCreatedBy(), auditDetails.getLastModifiedBy());
+        assertTrue(auditDetails.getCreatedTime() != null
+                && auditDetails.getLastModifiedTime() != null
+                && auditDetails.getCreatedBy() != null
+                && auditDetails.getLastModifiedBy() != null);
+    }
+
+    @Test
+    @DisplayName("should get audit details for update")
+    void shouldGetAuditDetailsForUpdate() {
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        AuditDetails existingAuditDetails = CommonUtils.getAuditDetailsForCreate(requestInfo);
+
+        requestInfo.getUserInfo().setUuid("other-uuid");
+        AuditDetails auditDetails = CommonUtils.getAuditDetailsForUpdate(existingAuditDetails,
+                requestInfo.getUserInfo().getUuid());
+
+        assertEquals(auditDetails.getCreatedTime(), existingAuditDetails.getCreatedTime());
+        assertEquals(auditDetails.getCreatedBy(), existingAuditDetails.getCreatedBy());
+        assertTrue(auditDetails.getLastModifiedTime() > auditDetails.getCreatedTime());
+        assertNotEquals(auditDetails.getLastModifiedBy(), existingAuditDetails.getLastModifiedBy());
+        assertTrue(auditDetails.getCreatedTime() != null
+                && auditDetails.getLastModifiedTime() != null
+                && auditDetails.getCreatedBy() != null
+                && auditDetails.getLastModifiedBy() != null);
     }
 
     @Data

@@ -4,6 +4,7 @@ import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductRepository;
+import org.egov.product.util.CommonUtils;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
@@ -21,6 +22,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 
 @Service
 @Slf4j
@@ -44,7 +47,7 @@ public class ProductService {
         log.info("Enrichment products started");
         List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(), getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
-        AuditDetails auditDetails = getAuditDetailsForCreate(productRequest);
+        AuditDetails auditDetails = CommonUtils.getAuditDetailsForCreate(productRequest.getRequestInfo());
         IntStream.range(0, productRequest.getProduct().size()).forEach(
                 i -> {
                     Product product = productRequest.getProduct().get(i);
@@ -122,26 +125,6 @@ public class ProductService {
         }
         log.info("Using tenantId {}",tenantId);
         return tenantId;
-    }
-
-    private AuditDetails getAuditDetailsForCreate(ProductRequest productRequest) {
-        log.info("Generating Audit Details for new products");
-        Long time = System.currentTimeMillis();
-        return AuditDetails.builder()
-                .createdBy(productRequest.getRequestInfo().getUserInfo().getUuid())
-                .createdTime(time)
-                .lastModifiedBy(productRequest.getRequestInfo().getUserInfo().getUuid())
-                .lastModifiedTime(time).build();
-    }
-
-    private AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
-        log.info("Generating Audit Details for products");
-
-        return AuditDetails.builder()
-                .createdBy(existingAuditDetails.getCreatedBy())
-                .createdTime(existingAuditDetails.getCreatedTime())
-                .lastModifiedBy(uuid)
-                .lastModifiedTime(System.currentTimeMillis()).build();
     }
 
     private boolean isSearchByIdOnly(ProductSearchRequest productSearchRequest) {

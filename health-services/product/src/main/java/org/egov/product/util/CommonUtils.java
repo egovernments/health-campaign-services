@@ -1,6 +1,8 @@
 package org.egov.product.util;
 
+import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.tracer.model.CustomException;
 import org.springframework.util.ReflectionUtils;
@@ -66,5 +68,24 @@ public class CommonUtils {
             log.error("Invalid IDs");
             throw new CustomException("INVALID_ID", invalidProductIds.toString());
         }
+    }
+
+    public static AuditDetails getAuditDetailsForCreate(RequestInfo requestInfo) {
+        log.info("Creating audit details for create api");
+        Long time = System.currentTimeMillis();
+        return AuditDetails.builder()
+                .createdBy(requestInfo.getUserInfo().getUuid())
+                .createdTime(time)
+                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+                .lastModifiedTime(time).build();
+    }
+
+    public static AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
+        log.info("Creating audit details for update api");
+        return AuditDetails.builder()
+                .createdBy(existingAuditDetails.getCreatedBy())
+                .createdTime(existingAuditDetails.getCreatedTime())
+                .lastModifiedBy(uuid)
+                .lastModifiedTime(System.currentTimeMillis()).build();
     }
 }
