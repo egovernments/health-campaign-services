@@ -338,8 +338,6 @@ class CommonUtilsTest {
 
         CommonUtils.enrichForUpdate(idToObjInRequestMap, objInDbList, someRequest);
 
-        assertNotEquals(idToObjInRequestMap.get("some-id").getAuditDetails().getLastModifiedTime(),
-                objInDbList.get(0).getAuditDetails().getLastModifiedTime());
         assertEquals(idToObjInRequestMap.get("some-id").getRowVersion(),
                 objInDbList.get(0).getRowVersion() + 1);
         assertTrue(idToObjInRequestMap.get("some-id").getIsDeleted());

@@ -10,6 +10,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -22,6 +23,8 @@ import java.util.stream.IntStream;
 public class CommonUtils {
 
     public static final String GET_API_OPERATION = "getApiOperation";
+
+    private static final Map<Class<?>, Map<String, Method>> methodCache = new HashMap<>();
 
     private CommonUtils() {}
 
@@ -88,7 +91,7 @@ public class CommonUtils {
     }
 
     public static boolean isSearchByIdOnly(Object obj) {
-        Class objClass = obj.getClass();
+        Class<?> objClass = obj.getClass();
         Method setIdMethod = getMethod("setId", objClass);
         Method getIdMethod = getMethod("getId", objClass);
 
@@ -108,7 +111,7 @@ public class CommonUtils {
 
 
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList) {
-        Class objClass = getObjClass(objList);
+        Class<?> objClass = getObjClass(objList);
         Method rowVersionMethod = getMethod("getRowVersion", objClass);
         Method getIdMethod = getMethod("getId", objClass);
         Set<Object> rowVersionMismatch = objList.stream()
@@ -132,7 +135,7 @@ public class CommonUtils {
 
     public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo) {
         AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
-        Class objClass = getObjClass(objList);
+        Class<?> objClass = getObjClass(objList);
         Method setIdMethod = getMethod("setId", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
@@ -148,8 +151,8 @@ public class CommonUtils {
     }
 
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
-        Class objClass = getObjClass(existingObjList);
-        Class requestObjClass = request.getClass();
+        Class<?> objClass = getObjClass(existingObjList);
+        Class<?> requestObjClass = request.getClass();
         Method getIdMethod = getMethod("getId", objClass);
         Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
         Method getRowVersionMethod = getMethod("getRowVersion", objClass);
@@ -178,7 +181,7 @@ public class CommonUtils {
     }
 
     public static <T> Map<String, T> getIdToObjMap(List<T> objList) {
-        Class objClass = getObjClass(objList);
+        Class<?> objClass = getObjClass(objList);
         return objList.stream().collect(Collectors.toMap(obj -> (String) ReflectionUtils
                 .invokeMethod(getMethod("getId", objClass), obj), obj -> obj));
     }
@@ -204,7 +207,26 @@ public class CommonUtils {
         return objList.stream().findAny().get().getClass();
     }
 
-    private static Method getMethod(String methodName, Class clazz) {
+    private static Method getMethod(String methodName, Class<?> clazz) {
+        if (methodCache.containsKey(clazz)) {
+            Map<String, Method> methodMap = methodCache.get(clazz);
+            if (methodMap.containsKey(methodName)) {
+                return methodMap.get(methodName);
+            } else {
+                Method method = findMethod(methodName, clazz);
+                methodMap.put(methodName, method);
+                return method;
+            }
+        } else {
+            Method method = findMethod(methodName, clazz);
+            Map<String, Method> methodMap = new HashMap<>();
+            methodMap.put(methodName, method);
+            methodCache.put(clazz, methodMap);
+            return method;
+        }
+    }
+
+    private static Method findMethod(String methodName, Class<?> clazz) {
         return Arrays.stream(ReflectionUtils.getDeclaredMethods(clazz))
                 .filter(m -> m.getName().equals(methodName))
                 .findFirst().orElseThrow(() -> new CustomException("INVALID_OBJECT", "Invalid object"));
