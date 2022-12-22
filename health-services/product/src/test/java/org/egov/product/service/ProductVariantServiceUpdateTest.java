@@ -151,9 +151,11 @@ class ProductVariantServiceUpdateTest {
     void shouldThrowExceptionIfRowVersionIsNotSimilar() throws Exception {
         ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
         productVariant.setRowVersion(123);
-        ProductVariantRequest productVariantRequest = ProductVariantRequestTestBuilder.builder().withOneProductVariantHavingId().build();
+        ProductVariantRequest productVariantRequest = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariantHavingId().build();
         mockValidateProuctId();
-        mockFindById();
+        when(productVariantRepository.findById(productVariantIds))
+                .thenReturn(Collections.singletonList(productVariant));
         assertThrows(Exception.class, () -> productVariantService.update(productVariantRequest));
     }
 }

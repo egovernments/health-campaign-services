@@ -1,10 +1,8 @@
 package org.egov.product.service;
 
-import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductRepository;
-import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductSearchRequest;
@@ -14,11 +12,10 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.enrichForCreate;
-import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.product.util.CommonUtils.enrichForUpdate;
 import static org.egov.product.util.CommonUtils.getIdToObjMap;
 import static org.egov.product.util.CommonUtils.getTenantId;
 import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
@@ -54,25 +51,17 @@ public class ProductService {
 
     public List<Product> update(ProductRequest productRequest) throws Exception {
         Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
-        List<String> productIds = new ArrayList<>(pMap.keySet());
 
         log.info("Checking if already exists");
+        List<String> productIds = new ArrayList<>(pMap.keySet());
         List<Product> existingProducts = productRepository.findById(productIds);
 
         validateEntities(pMap, existingProducts);
 
         checkRowVersion(pMap, existingProducts);
 
-        IntStream.range(0, existingProducts.size()).forEach(i -> {
-            Product p = pMap.get(existingProducts.get(i).getId());
-            if (productRequest.getApiOperation().equals(ApiOperation.DELETE)) {
-                p.setIsDeleted(true);
-            }
-            p.setRowVersion(p.getRowVersion() + 1);
-            AuditDetails existingAuditDetails = existingProducts.get(i).getAuditDetails();
-            p.setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
-                    productRequest.getRequestInfo().getUserInfo().getUuid()));
-        });
+        log.info("Updating lastModifiedTime and lastModifiedBy");
+        enrichForUpdate(pMap, existingProducts, productRequest);
 
         productRepository.save(productRequest.getProduct(), "update-product-topic");
         return productRequest.getProduct();

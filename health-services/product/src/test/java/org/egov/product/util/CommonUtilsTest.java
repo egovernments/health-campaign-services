@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.product.web.models.ApiOperation;
 import org.egov.tracer.model.CustomException;
@@ -311,10 +312,44 @@ class CommonUtilsTest {
                 () -> CommonUtils.validateEntities(idToObjInRequestMap, objInDbList));
     }
 
+    @Test
+    @DisplayName("should enrich for update")
+    void shouldEnrichForUpdate() {
+        Map<String, SomeObject> idToObjInRequestMap = new HashMap<>();
+        List<SomeObject> objInDbList = new ArrayList<>();
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(2)
+                .build();
+        idToObjInRequestMap.put("some-id", someObject);
+        SomeObject otherObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(2)
+                .auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails()
+                        .build())
+                .build();
+        objInDbList.add(otherObject);
+        SomeRequest someRequest = SomeRequest.builder().apiOperation(ApiOperation.DELETE)
+                .requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo()
+                .build())
+                .build();
+
+        CommonUtils.enrichForUpdate(idToObjInRequestMap, objInDbList, someRequest);
+
+        assertNotEquals(idToObjInRequestMap.get("some-id").getAuditDetails().getLastModifiedTime(),
+                objInDbList.get(0).getAuditDetails().getLastModifiedTime());
+        assertEquals(idToObjInRequestMap.get("some-id").getRowVersion(),
+                objInDbList.get(0).getRowVersion() + 1);
+        assertTrue(idToObjInRequestMap.get("some-id").getIsDeleted());
+    }
+
     @Data
     @Builder
     public static class SomeRequest {
         private ApiOperation apiOperation;
+        private RequestInfo requestInfo;
     }
 
     @Data

@@ -1,10 +1,8 @@
 package org.egov.product.service;
 
-import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.product.repository.ProductVariantRepository;
-import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantSearchRequest;
@@ -14,11 +12,10 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.enrichForCreate;
-import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.product.util.CommonUtils.enrichForUpdate;
 import static org.egov.product.util.CommonUtils.getIdToObjMap;
 import static org.egov.product.util.CommonUtils.getSet;
 import static org.egov.product.util.CommonUtils.getTenantId;
@@ -62,9 +59,9 @@ public class ProductVariantService {
         validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
         Map<String, ProductVariant> pvMap = getIdToObjMap(request.getProductVariant());
-        List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
 
-        log.info("Checking existing product variants");
+        log.info("Checking if already exists");
+        List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
         List<ProductVariant> existingProductVariants = productVariantRepository
                 .findById(productVariantIds);
 
@@ -73,16 +70,7 @@ public class ProductVariantService {
         checkRowVersion(pvMap, existingProductVariants);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
-        IntStream.range(0, existingProductVariants.size()).forEach(i -> {
-            ProductVariant p = pvMap.get(existingProductVariants.get(i).getId());
-            if (request.getApiOperation().equals(ApiOperation.DELETE)) {
-                p.setIsDeleted(true);
-            }
-            p.setRowVersion(p.getRowVersion() + 1);
-            AuditDetails existingAuditDetails = existingProductVariants.get(i).getAuditDetails();
-            p.setAuditDetails(getAuditDetailsForUpdate(existingAuditDetails,
-                    request.getRequestInfo().getUserInfo().getUuid()));
-        });
+        enrichForUpdate(pvMap, existingProductVariants, request);
 
         productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
         log.info("Pushed to kafka");

@@ -147,6 +147,36 @@ public class CommonUtils {
                 });
     }
 
+    public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
+        Class objClass = getObjClass(existingObjList);
+        Class requestObjClass = request.getClass();
+        Method getIdMethod = getMethod("getId", objClass);
+        Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
+        Method getRowVersionMethod = getMethod("getRowVersion", objClass);
+        Method setRowVersionMethod = getMethod("setRowVersion", objClass);
+        Method getAuditDetailsMethod = getMethod("getAuditDetails", objClass);
+        Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
+        Method getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
+        Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
+        IntStream.range(0, existingObjList.size()).forEach(i -> {
+            Object obj = idToObjMap.get(ReflectionUtils.invokeMethod(getIdMethod,
+                    existingObjList.get(i)));
+            if (ApiOperation.DELETE.equals(ReflectionUtils
+                    .invokeMethod(getApiOperationMethod, request))) {
+                ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+            }
+            Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
+            ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
+            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
+                    .invokeMethod(getRequestInfoMethod, request);
+            AuditDetails existingAuditDetails = (AuditDetails) ReflectionUtils
+                    .invokeMethod(getAuditDetailsMethod, existingObjList.get(i));
+            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(existingAuditDetails,
+                    requestInfo.getUserInfo().getUuid());
+            ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
+        });
+    }
+
     public static <T> Map<String, T> getIdToObjMap(List<T> objList) {
         Class objClass = getObjClass(objList);
         return objList.stream().collect(Collectors.toMap(obj -> (String) ReflectionUtils
