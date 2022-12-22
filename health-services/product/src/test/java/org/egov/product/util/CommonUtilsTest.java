@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -251,6 +252,22 @@ class CommonUtilsTest {
         assertEquals("some-tenant-id", CommonUtils.getTenantId(objList));
     }
 
+    @Test
+    @DisplayName("should enrich with audit details and id")
+    void shouldEnrichWithAuditDetailsAndId() {
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        List<String> idList = new ArrayList<>();
+        idList.add("some-id");
+        SomeObject someObject = SomeObject.builder().otherField("other-field").build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        CommonUtils.enrichForCreate(objList, idList, requestInfo);
+
+        assertNotNull(objList.stream().findAny().get().getAuditDetails());
+    }
+
     @Data
     @Builder
     public static class SomeRequest {
@@ -266,5 +283,7 @@ class CommonUtilsTest {
         private String otherField;
         private Integer rowVersion;
         private String tenantId;
+        private Boolean isDeleted;
+        private AuditDetails auditDetails;
     }
 }

@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.checkRowVersion;
-import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
+import static org.egov.product.util.CommonUtils.enrichForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.product.util.CommonUtils.getSet;
 import static org.egov.product.util.CommonUtils.getTenantId;
@@ -51,15 +51,7 @@ public class ProductVariantService {
                 getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
         log.info("IDs generated");
-        AuditDetails auditDetails = getAuditDetailsForCreate(request.getRequestInfo());
-        IntStream.range(0, request.getProductVariant().size())
-                .forEach(i -> {
-                    final ProductVariant productVariant = request.getProductVariant().get(i);
-                    productVariant.setId(idList.get(i));
-                    productVariant.setAuditDetails(auditDetails);
-                    productVariant.setRowVersion(1);
-                    productVariant.setIsDeleted(Boolean.FALSE);
-                });
+        enrichForCreate(request.getProductVariant(), idList, request.getRequestInfo());
         log.info("Enrichment done");
         productVariantRepository.save(request.getProductVariant(), "save-product-variant-topic");
         log.info("Pushed to kafka");

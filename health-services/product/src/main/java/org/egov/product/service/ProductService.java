@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.checkRowVersion;
-import static org.egov.product.util.CommonUtils.getAuditDetailsForCreate;
+import static org.egov.product.util.CommonUtils.enrichForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.product.util.CommonUtils.getTenantId;
 import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
@@ -47,16 +47,7 @@ public class ProductService {
         List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(),
                 getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
-        AuditDetails auditDetails = getAuditDetailsForCreate(productRequest.getRequestInfo());
-        IntStream.range(0, productRequest.getProduct().size()).forEach(
-                i -> {
-                    Product product = productRequest.getProduct().get(i);
-                    product.setId(idList.get(i));
-                    product.setAuditDetails(auditDetails);
-                    product.setIsDeleted(false);
-                    product.setRowVersion(1);
-                }
-        );
+        enrichForCreate(productRequest.getProduct(), idList, productRequest.getRequestInfo());
         productRepository.save(productRequest.getProduct(), "save-product-topic");
         return productRequest.getProduct();
     }

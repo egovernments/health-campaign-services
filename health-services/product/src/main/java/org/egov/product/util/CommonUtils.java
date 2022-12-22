@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Slf4j
 public class CommonUtils {
@@ -132,5 +133,22 @@ public class CommonUtils {
         String tenantId = (String) ReflectionUtils.invokeMethod(getTenantIdMethod, obj);
         log.info("Tenant ID {}", tenantId);
         return tenantId;
+    }
+
+    public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo) {
+        AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
+        Class objClass = objList.stream().findAny().get().getClass();
+        Method setIdMethod = getMethod("setId", objClass);
+        Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
+        Method setRowVersionMethod = getMethod("setRowVersion", objClass);
+        Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
+        IntStream.range(0, objList.size())
+                .forEach(i -> {
+                    final Object obj = objList.get(i);
+                    ReflectionUtils.invokeMethod(setIdMethod, obj, idList.get(i));
+                    ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetails);
+                    ReflectionUtils.invokeMethod(setRowVersionMethod, obj, 1);
+                    ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, Boolean.FALSE);
+                });
     }
 }
