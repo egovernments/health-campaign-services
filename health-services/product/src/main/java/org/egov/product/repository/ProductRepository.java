@@ -62,6 +62,10 @@ public class ProductRepository {
     }
 
     public List<Product> findById(List<String> ids) {
+        return findById(ids, false);
+    }
+
+    public List<Product> findById(List<String> ids, boolean includeDeleted) {
         ArrayList<Product> productsFound = new ArrayList<>();
         Collection<Object> collection = new ArrayList<>(ids);
         List<Object> products = redisTemplate.opsForHash()
@@ -77,8 +81,10 @@ public class ProductRepository {
             }
         }
 
-        String query = String.format("SELECT * FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false fetch first %s rows only",
-                ids.size());
+        String query = "SELECT * FROM PRODUCT WHERE id IN (:productIds) AND isDeleted = false";
+        if (includeDeleted) {
+            query = "SELECT * FROM PRODUCT WHERE id IN (:productIds)";
+        }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("productIds", ids);
 

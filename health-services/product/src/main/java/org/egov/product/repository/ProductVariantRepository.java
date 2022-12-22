@@ -54,6 +54,10 @@ public class ProductVariantRepository {
     }
 
     public List<ProductVariant> findById(List<String> ids) {
+        return findById(ids, false);
+    }
+
+    public List<ProductVariant> findById(List<String> ids, boolean includeDeleted) {
         Collection<Object> collection = new ArrayList<>(ids);
         ArrayList<ProductVariant> variantsFound = new ArrayList<>();
         List<Object> productVariants = redisTemplate.opsForHash()
@@ -69,6 +73,9 @@ public class ProductVariantRepository {
             }
         }
         String query = "SELECT * FROM product_variant WHERE id IN (:ids) and isDeleted = false";
+        if (includeDeleted) {
+            query = "SELECT * FROM product_variant WHERE id IN (:ids)";
+        }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
 
