@@ -26,10 +26,15 @@ import java.util.stream.Collectors;
 public class ProjectStaffRepository {
 
     private static final String HASH_KEY = "project-staff";
+
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
     private final Producer producer;
+
     private final RedisTemplate<String, Object> redisTemplate;
+
     private final SelectQueryBuilder selectQueryBuilder;
+
     @Value("${spring.cache.redis.time-to-live:60}")
     private String timeToLive;
 
@@ -116,12 +121,12 @@ public class ProjectStaffRepository {
                                    Long lastChangedSince,
                                    Boolean includeDeleted) throws QueryBuilderException {
         String query = selectQueryBuilder.build(projectStaffSearch);
-        query += " and tenantId=:tenantId ";
+        query += " and tenantId = :tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {
-            query += "and isDeleted=:isDeleted ";
+            query += "and isDeleted = :isDeleted ";
         }
         if (lastChangedSince != null) {
-            query += "and lastModifiedTime>=:lastModifiedTime ";
+            query += "and lastModifiedTime >= :lastModifiedTime ";
         }
         query += "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();

@@ -215,7 +215,6 @@ class ProjectStaffRepositoryTest {
 
         List<ProjectStaff> result = projectStaffRepository.findById(projectStaffIds);
 
-        System.out.println("projectStaffList "+projectStaffList.size()+ " result"+result.size());
         assertEquals(projectStaffIds.size(), result.size());
     }
 

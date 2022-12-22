@@ -24,7 +24,10 @@ public class ProjectStaffRowMapper implements RowMapper<ProjectStaff> {
                     .userId(resultSet.getString("staffId"))
                     .startDate(resultSet.getLong("startDate"))
                     .endDate(resultSet.getLong("endDate"))
-                    .additionalFields(objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .additionalFields(
+                            resultSet.getString("additionalDetails") == null
+                                    ? null
+                                    : objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .auditDetails(AuditDetails.builder()
                             .createdBy(resultSet.getString("createdby"))
                             .createdTime(resultSet.getLong("createdtime"))

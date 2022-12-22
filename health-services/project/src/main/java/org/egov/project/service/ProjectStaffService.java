@@ -31,6 +31,7 @@ import java.util.stream.IntStream;
 public class ProjectStaffService {
 
     public static final String SAVE_KAFKA_TOPIC = "save-project-staff-topic";
+
     public static final String UPDATE_KAFKA_TOPIC = "update-project-staff-topic";
 
     private final IdGenService idGenService;
@@ -240,6 +241,5 @@ public class ProjectStaffService {
         String hashFromRequest = projectStaffSearchRequest.getProjectStaff().toString();
         return projectStaffSearchHash.equals(hashFromRequest);
     }
-
 
 }
