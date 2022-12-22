@@ -1,0 +1,2 @@
+UPDATE PRODUCT SET additionalDetails=NULL;
+ALTER TABLE PRODUCT ALTER COLUMN additionalDetails TYPE jsonb;
