@@ -8,22 +8,22 @@ import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.enrichForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.product.util.CommonUtils.getIdToObjMap;
 import static org.egov.product.util.CommonUtils.getSet;
 import static org.egov.product.util.CommonUtils.getTenantId;
 import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
+import static org.egov.product.util.CommonUtils.validateEntities;
 import static org.egov.product.util.CommonUtils.validateIds;
 
 @Service
@@ -61,22 +61,14 @@ public class ProductVariantService {
     public List<ProductVariant> update(ProductVariantRequest request) {
         validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
-        Map<String, ProductVariant> pvMap =
-                request.getProductVariant().stream()
-                        .collect(Collectors.toMap(ProductVariant::getId, item -> item));
+        Map<String, ProductVariant> pvMap = getIdToObjMap(request.getProductVariant());
         List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
 
         log.info("Checking existing product variants");
         List<ProductVariant> existingProductVariants = productVariantRepository
                 .findById(productVariantIds);
 
-        if (request.getProductVariant().size() != existingProductVariants.size()) {
-            List<String> existingProductVariantIds = existingProductVariants.stream().map(ProductVariant::getId).collect(Collectors.toList());
-            List<String> invalidProductVariantIds = pvMap.keySet().stream().filter(id -> !existingProductVariantIds.contains(id))
-                    .collect(Collectors.toList());
-            log.error("Invalid product variants");
-            throw new CustomException("INVALID_PRODUCT_VARIANT", invalidProductVariantIds.toString());
-        }
+        validateEntities(pvMap, existingProductVariants);
 
         checkRowVersion(pvMap, existingProductVariants);
 

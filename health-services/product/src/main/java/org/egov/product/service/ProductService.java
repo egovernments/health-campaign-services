@@ -8,21 +8,21 @@ import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.egov.product.util.CommonUtils.checkRowVersion;
 import static org.egov.product.util.CommonUtils.enrichForCreate;
 import static org.egov.product.util.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.product.util.CommonUtils.getIdToObjMap;
 import static org.egov.product.util.CommonUtils.getTenantId;
 import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
+import static org.egov.product.util.CommonUtils.validateEntities;
 
 @Service
 @Slf4j
@@ -53,18 +53,13 @@ public class ProductService {
     }
 
     public List<Product> update(ProductRequest productRequest) throws Exception {
-        Map<String, Product> pMap =
-                productRequest.getProduct().stream().collect(Collectors.toMap(Product::getId, item -> item));
+        Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
         List<String> productIds = new ArrayList<>(pMap.keySet());
 
         log.info("Checking if already exists");
         List<Product> existingProducts = productRepository.findById(productIds);
-        if (existingProducts.size() != productRequest.getProduct().size()) {
-            List<String> existingProductIds = existingProducts.stream().map(Product::getId).collect(Collectors.toList());
-            List<String> invalidProductIds = pMap.keySet().stream().filter(id -> !existingProductIds.contains(id))
-                    .collect(Collectors.toList());
-            throw new CustomException("INVALID_PRODUCT", invalidProductIds.toString());
-        }
+
+        validateEntities(pMap, existingProducts);
 
         checkRowVersion(pMap, existingProducts);
 

@@ -42,12 +42,6 @@ public class CommonUtils {
                 || null == ReflectionUtils.invokeMethod(method, obj);
     }
 
-    private static Method getMethod(String methodName, Class clazz) {
-        return Arrays.stream(ReflectionUtils.getDeclaredMethods(clazz))
-                .filter(m -> m.getName().equals(methodName))
-                .findFirst().orElseThrow(() -> new CustomException("INVALID_OBJECT", "Invalid object"));
-    }
-
     public static <T, R> Set<T> getSet(List<R> objects, String methodName) {
         return objects.stream().map(o -> (T) ReflectionUtils
                 .invokeMethod(getMethod(methodName, o.getClass()), o))
@@ -65,11 +59,11 @@ public class CommonUtils {
 
     public static <T> void validateIds(Set<T> idsToValidate, UnaryOperator<List<T>> validator) {
         List<T> idsToValidateList = new ArrayList<>(idsToValidate);
-        List<T> validProductIds = validator.apply(idsToValidateList);
-        List<T> invalidProductIds = CommonUtils.getDifference(idsToValidateList, validProductIds);
-        if (!invalidProductIds.isEmpty()) {
-            log.error("Invalid IDs");
-            throw new CustomException("INVALID_ID", invalidProductIds.toString());
+        List<T> validIds = validator.apply(idsToValidateList);
+        List<T> invalidIds = CommonUtils.getDifference(idsToValidateList, validIds);
+        if (!invalidIds.isEmpty()) {
+            log.error("Invalid IDs {}", invalidIds);
+            throw new CustomException("INVALID_ID", invalidIds.toString());
         }
     }
 
@@ -114,7 +108,7 @@ public class CommonUtils {
 
 
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList) {
-        Class objClass = objList.stream().findAny().get().getClass();
+        Class objClass = getObjClass(objList);
         Method rowVersionMethod = getMethod("getRowVersion", objClass);
         Method getIdMethod = getMethod("getId", objClass);
         Set<Object> rowVersionMismatch = objList.stream()
@@ -123,6 +117,7 @@ public class CommonUtils {
                                 idToObjMap.get(ReflectionUtils.invokeMethod(getIdMethod, obj)))))
                 .map(obj -> ReflectionUtils.invokeMethod(getIdMethod, obj)).collect(Collectors.toSet());
         if (!rowVersionMismatch.isEmpty()) {
+            log.error("Mismatch in row versions {}", rowVersionMismatch);
             throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
         }
     }
@@ -137,7 +132,7 @@ public class CommonUtils {
 
     public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo) {
         AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
-        Class objClass = objList.stream().findAny().get().getClass();
+        Class objClass = getObjClass(objList);
         Method setIdMethod = getMethod("setId", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
@@ -150,5 +145,38 @@ public class CommonUtils {
                     ReflectionUtils.invokeMethod(setRowVersionMethod, obj, 1);
                     ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, Boolean.FALSE);
                 });
+    }
+
+    public static <T> Map<String, T> getIdToObjMap(List<T> objList) {
+        Class objClass = getObjClass(objList);
+        return objList.stream().collect(Collectors.toMap(obj -> (String) ReflectionUtils
+                .invokeMethod(getMethod("getId", objClass), obj), obj -> obj));
+    }
+
+    public static <T> void validateEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList) {
+        if (idToObjInRequestMap.size() > objInDbList.size()) {
+            List<String> idsForObjInDb = getIdList(objInDbList);
+            List<String> idsForInvalidObj = idToObjInRequestMap.keySet().stream()
+                    .filter(id -> !idsForObjInDb.contains(id))
+                    .collect(Collectors.toList());
+            log.error("Invalid entities {}", idsForInvalidObj);
+            throw new CustomException("INVALID_ENTITY", idsForInvalidObj.toString());
+        }
+    }
+
+    public static <T> List<String> getIdList(List<T> objInDbList) {
+        return objInDbList.stream().map(obj -> (String) ReflectionUtils
+                        .invokeMethod(getMethod("getId", obj.getClass()), obj))
+                .collect(Collectors.toList());
+    }
+
+    private static <T> Class<?> getObjClass(List<T> objList) {
+        return objList.stream().findAny().get().getClass();
+    }
+
+    private static Method getMethod(String methodName, Class clazz) {
+        return Arrays.stream(ReflectionUtils.getDeclaredMethods(clazz))
+                .filter(m -> m.getName().equals(methodName))
+                .findFirst().orElseThrow(() -> new CustomException("INVALID_OBJECT", "Invalid object"));
     }
 }

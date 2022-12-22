@@ -268,6 +268,49 @@ class CommonUtilsTest {
         assertNotNull(objList.stream().findAny().get().getAuditDetails());
     }
 
+    @Test
+    @DisplayName("should create id to obj map")
+    void shouldCreateIdToObjMap() {
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(2)
+                .build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        assertEquals(someObject, CommonUtils.getIdToObjMap(objList).get("some-id"));
+    }
+
+    @Test
+    @DisplayName("should validate entity")
+    void shouldValidateEntity() {
+        Map<String, SomeObject> idToObjInRequestMap = new HashMap<>();
+        List<SomeObject> objInDbList = new ArrayList<>();
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(2)
+                .build();
+        idToObjInRequestMap.put("some-id", someObject);
+        objInDbList.add(someObject);
+
+        assertDoesNotThrow(() -> CommonUtils.validateEntities(idToObjInRequestMap, objInDbList));
+    }
+
+    @Test
+    @DisplayName("should throw exception if there are invalid entities")
+    void shouldThrowExceptionIfThereAreInvalidEntities() {
+        Map<String, SomeObject> idToObjInRequestMap = new HashMap<>();
+        List<SomeObject> objInDbList = new ArrayList<>();
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(2)
+                .build();
+        idToObjInRequestMap.put("some-id", someObject);
+
+        assertThrows(CustomException.class,
+                () -> CommonUtils.validateEntities(idToObjInRequestMap, objInDbList));
+    }
+
     @Data
     @Builder
     public static class SomeRequest {
