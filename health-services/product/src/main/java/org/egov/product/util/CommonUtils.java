@@ -82,12 +82,13 @@ public class CommonUtils {
                 .lastModifiedTime(time).build();
     }
 
-    public static AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String uuid) {
+    public static AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails,
+                                                        String modifiedByUuid) {
         log.info("Creating audit details for update api");
         return AuditDetails.builder()
                 .createdBy(existingAuditDetails.getCreatedBy())
                 .createdTime(existingAuditDetails.getCreatedTime())
-                .lastModifiedBy(uuid)
+                .lastModifiedBy(modifiedByUuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
     }
 
