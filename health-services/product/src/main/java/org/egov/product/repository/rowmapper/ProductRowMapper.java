@@ -33,7 +33,7 @@ public class ProductRowMapper implements RowMapper<Product> {
                             .lastModifiedBy(resultSet.getString("lastmodifiedby"))
                             .lastModifiedTime(resultSet.getLong("lastmodifiedtime"))
                             .build())
-                    .additionalFields(objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .build();
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
