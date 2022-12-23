@@ -31,7 +31,7 @@ public class ProductRepository extends GenericRepository<Product> {
 
     public List<String> validateProductId(List<String> ids) {
         List<String> productIds = ids.stream().filter(id -> redisTemplate.opsForHash()
-                .entries(hashKey).containsKey(id))
+                .entries(tableName).containsKey(id))
                 .collect(Collectors.toList());
         if (!productIds.isEmpty()) {
             return productIds;

@@ -22,6 +22,6 @@ public class ProductVariantRepository extends GenericRepository<ProductVariant> 
                              RedisTemplate<String, Object> redisTemplate,
                              SelectQueryBuilder selectQueryBuilder, ProductVariantRowMapper productVariantRowMapper) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
-                productVariantRowMapper, Optional.of("product-variant"));
+                productVariantRowMapper, Optional.of("product_variant"));
     }
 }
