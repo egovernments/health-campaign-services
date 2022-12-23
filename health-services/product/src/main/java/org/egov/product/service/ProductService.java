@@ -18,6 +18,7 @@ import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.identifyNullIds;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.validateEntities;
 
@@ -50,6 +51,7 @@ public class ProductService {
     }
 
     public List<Product> update(ProductRequest productRequest) throws Exception {
+        identifyNullIds(productRequest.getProduct());
         Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
 
         log.info("Checking if already exists");

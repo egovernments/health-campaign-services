@@ -19,6 +19,7 @@ import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.identifyNullIds;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.validateEntities;
 import static org.egov.common.utils.CommonUtils.validateIds;
@@ -56,6 +57,7 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> update(ProductVariantRequest request) {
+        identifyNullIds(request.getProductVariant());
         validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
         Map<String, ProductVariant> pvMap = getIdToObjMap(request.getProductVariant());
