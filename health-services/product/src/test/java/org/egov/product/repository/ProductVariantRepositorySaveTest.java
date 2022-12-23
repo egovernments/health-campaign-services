@@ -2,6 +2,7 @@ package org.egov.product.repository;
 
 import org.egov.common.producer.Producer;
 import org.egov.product.helper.ProductVariantTestBuilder;
+import org.egov.product.repository.rowmapper.ProductVariantRowMapper;
 import org.egov.product.web.models.ProductVariant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,9 @@ class ProductVariantRepositorySaveTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private ProductVariantRowMapper productVariantRowMapper;
 
     @Mock
     private HashOperations hashOperations;

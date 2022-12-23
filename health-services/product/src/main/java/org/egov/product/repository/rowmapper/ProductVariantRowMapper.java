@@ -6,10 +6,12 @@ import digit.models.coremodels.AuditDetails;
 import org.egov.product.web.models.AdditionalFields;
 import org.egov.product.web.models.ProductVariant;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+@Component
 public class ProductVariantRowMapper implements RowMapper<ProductVariant> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

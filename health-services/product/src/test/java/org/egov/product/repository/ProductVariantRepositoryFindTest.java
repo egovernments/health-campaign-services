@@ -50,6 +50,9 @@ class ProductVariantRepositoryFindTest {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Mock
+    private ProductVariantRowMapper productVariantRowMapper;
+
+    @Mock
     private HashOperations hashOperations;
 
     private List<String> productVariantIds;
