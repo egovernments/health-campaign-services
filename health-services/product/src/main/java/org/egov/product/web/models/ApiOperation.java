@@ -12,9 +12,7 @@ public enum ApiOperation {
 
   UPDATE("UPDATE"),
 
-  DELETE("DELETE"),
-
-  UNKNOWN("UNKNOWN");
+  DELETE("DELETE");
 
   private String value;
 
@@ -30,16 +28,12 @@ public enum ApiOperation {
 
   @JsonCreator
   public static ApiOperation fromValue(String text) {
-    if (text == null) {
-      return null;
-    }
-
     for (ApiOperation b : ApiOperation.values()) {
       if (String.valueOf(b.value).equals(text)) {
         return b;
       }
     }
-    return ApiOperation.UNKNOWN;
+    return null;
   }
 }
 

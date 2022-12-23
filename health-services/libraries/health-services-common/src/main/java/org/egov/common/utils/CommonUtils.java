@@ -52,7 +52,7 @@ public class CommonUtils {
         Method getApiOperationMethod = getMethod(GET_API_OPERATION, obj.getClass());
         Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, obj);
         if (apiOperation == null) {
-            return true;
+            return false;
         }
         Method nameMethod = CommonUtils.getMethod("name", Enum.class);
         String value = (String) ReflectionUtils.invokeMethod(nameMethod, apiOperation);

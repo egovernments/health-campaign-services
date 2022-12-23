@@ -80,7 +80,7 @@ class CommonUtilsTest {
     void shouldCheckIfTheRequestIsForCreateWhenApiOperationIsNull() {
         SomeRequest someRequest = SomeRequest.builder().apiOperation(null).build();
 
-        assertTrue(CommonUtils.isForCreate(someRequest));
+        assertFalse(CommonUtils.isForCreate(someRequest));
     }
 
     @Test
