@@ -24,6 +24,7 @@ import javax.validation.constraints.Size;
 public class ProductVariantSearch   {
 
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
     @JsonProperty("productId")
