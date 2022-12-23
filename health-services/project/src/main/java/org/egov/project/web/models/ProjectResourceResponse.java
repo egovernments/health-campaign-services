@@ -24,27 +24,20 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ProjectResourceResponse   {
-        @JsonProperty("ResponseInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("ResponseInfo")
+    @NotNull
+    @Valid
     private ResponseInfo responseInfo = null;
 
-        @JsonProperty("ProjectResource")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("ProjectResource")
+    @NotNull
+    @Valid
     private List<ProjectResource> projectResource = new ArrayList<>();
 
-
-        public ProjectResourceResponse addProjectResourceItem(ProjectResource projectResourceItem) {
+    public ProjectResourceResponse addProjectResourceItem(ProjectResource projectResourceItem) {
         this.projectResource.add(projectResourceItem);
         return this;
-        }
-
+    }
 }
 

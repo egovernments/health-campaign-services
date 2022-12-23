@@ -1,23 +1,17 @@
 package org.egov.project.web.models;
 
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
-import java.util.ArrayList;
-import java.util.List;
-import org.egov.project.web.models.AdditionalFields;
-import org.egov.project.web.models.Address;
-import org.egov.project.web.models.AuditDetails;
-import org.egov.project.web.models.TaskResource;
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
 * Task
@@ -29,123 +23,71 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task   {
-        @JsonProperty("id")
-    
+public class Task {
 
-
+    @JsonProperty("id")
     private String id = null;
 
-        @JsonProperty("tenantId")
-      @NotNull
-
-
-
+    @JsonProperty("tenantId")
+    @NotNull
     private String tenantId = null;
 
-        @JsonProperty("projectId")
-      @NotNull
-
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("projectId")
+    @NotNull
+    @Size(min=2,max=64)
     private String projectId = null;
 
-        @JsonProperty("projectBeneficiaryId")
-      @NotNull
-
-
-
+    @JsonProperty("projectBeneficiaryId")
+    @NotNull
     private String projectBeneficiaryId = null;
 
-        @JsonProperty("resources")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("resources")
+    @NotNull
+    @Valid
     private List<TaskResource> resources = new ArrayList<>();
 
-        @JsonProperty("plannedStartDate")
-    
-
-
+    @JsonProperty("plannedStartDate")
     private Long plannedStartDate = null;
 
-        @JsonProperty("plannedEndDate")
-    
-
-
+    @JsonProperty("plannedEndDate")
     private Long plannedEndDate = null;
 
-        @JsonProperty("actualStartDate")
-    
-
-
+    @JsonProperty("actualStartDate")
     private Long actualStartDate = null;
 
-        @JsonProperty("actualEndDate")
-    
-
-
+    @JsonProperty("actualEndDate")
     private Long actualEndDate = null;
 
-        @JsonProperty("createdBy")
-    
-
-
+    @JsonProperty("createdBy")
     private String createdBy = null;
 
-        @JsonProperty("createdDate")
-    
-
-
+    @JsonProperty("createdDate")
     private Long createdDate = null;
 
-        @JsonProperty("address")
-    
-  @Valid
-
-
+    @JsonProperty("address")
+    @Valid
     private Address address = null;
 
-        @JsonProperty("additionalFields")
-    
-  @Valid
-
-
+    @JsonProperty("additionalFields")
+    @Valid
     private AdditionalFields additionalFields = null;
 
-        @JsonProperty("isDeleted")
-    
-
-
+    @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
 
-        @JsonProperty("rowVersion")
-    
-
-
+    @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
-        @JsonProperty("auditDetails")
-    
-  @Valid
-
-
+    @JsonProperty("auditDetails")
+    @Valid
     private AuditDetails auditDetails = null;
 
-        @JsonProperty("status")
-    
-
-
+    @JsonProperty("status")
     private String status = null;
 
-
-        public Task addResourcesItem(TaskResource resourcesItem) {
+    public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);
         return this;
-        }
-
+    }
 }
 
