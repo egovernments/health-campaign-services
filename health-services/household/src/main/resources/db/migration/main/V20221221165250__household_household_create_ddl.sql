@@ -2,9 +2,9 @@ CREATE TABLE HOUSEHOLD
 (
     id                character varying(64),
     tenantId          character varying(1000),
+    clientReferenceId character varying(1000),
     numberOfMembers   integer,
     addressId         character varying(1000),
-    manufacturer      character varying(1000),
     additionalDetails text,
     createdBy         character varying(64),
     lastModifiedBy    character varying(64),

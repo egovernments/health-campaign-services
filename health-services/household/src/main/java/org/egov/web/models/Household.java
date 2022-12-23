@@ -22,65 +22,37 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Household   {
-        @JsonProperty("id")
-    
+public class Household {
 
-
+    @JsonProperty("id")
     private String id = null;
 
-        @JsonProperty("tenantId")
-    
-
-
+    @JsonProperty("tenantId")
     private String tenantId = null;
 
-        @JsonProperty("clientReferenceId")
-    
-
-
+    @JsonProperty("clientReferenceId")
     private String clientReferenceId = null;
 
-        @JsonProperty("memberCount")
-      @NotNull
-
-
-
+    @JsonProperty("memberCount")
+    @NotNull
     private Integer memberCount = null;
 
-        @JsonProperty("address")
-    
-  @Valid
-
-
+    @JsonProperty("address")
+    @Valid
     private Address address = null;
 
-        @JsonProperty("additionalFields")
-    
-  @Valid
-
-
+    @JsonProperty("additionalFields")
+    @Valid
     private AdditionalFields additionalFields = null;
 
-        @JsonProperty("isDeleted")
-    
-
-
+    @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
 
-        @JsonProperty("rowVersion")
-    
-
-
+    @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
-        @JsonProperty("auditDetails")
-    
-  @Valid
-
-
+    @JsonProperty("auditDetails")
+    @Valid
     private AuditDetails auditDetails = null;
-
-
 }
 
