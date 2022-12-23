@@ -203,11 +203,11 @@ public class CommonUtils {
                 .collect(Collectors.toList());
     }
 
-    private static <T> Class<?> getObjClass(List<T> objList) {
+    public static <T> Class<?> getObjClass(List<T> objList) {
         return objList.stream().findAny().get().getClass();
     }
 
-    private static Method getMethod(String methodName, Class<?> clazz) {
+    public static Method getMethod(String methodName, Class<?> clazz) {
         if (methodCache.containsKey(clazz)) {
             Map<String, Method> methodMap = methodCache.get(clazz);
             if (methodMap.containsKey(methodName)) {
