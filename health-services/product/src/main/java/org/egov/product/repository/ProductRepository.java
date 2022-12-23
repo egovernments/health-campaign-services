@@ -2,6 +2,7 @@ package org.egov.product.repository;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.producer.Producer;
 import org.egov.product.repository.rowmapper.ProductRowMapper;
 import org.egov.product.web.models.Product;

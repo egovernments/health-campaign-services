@@ -3,10 +3,10 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.product.service.ProductService;
 import org.egov.product.service.ProductVariantService;
-import org.egov.product.util.CommonUtils;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;

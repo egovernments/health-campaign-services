@@ -13,13 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.egov.product.util.CommonUtils.checkRowVersion;
-import static org.egov.product.util.CommonUtils.enrichForCreate;
-import static org.egov.product.util.CommonUtils.enrichForUpdate;
-import static org.egov.product.util.CommonUtils.getIdToObjMap;
-import static org.egov.product.util.CommonUtils.getTenantId;
-import static org.egov.product.util.CommonUtils.isSearchByIdOnly;
-import static org.egov.product.util.CommonUtils.validateEntities;
+import static org.egov.common.utils.CommonUtils.checkRowVersion;
+import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.validateEntities;
 
 @Service
 @Slf4j
