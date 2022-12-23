@@ -45,7 +45,7 @@ public class UserService {
             return response.getUser();
 
         } catch (Exception e) {
-            log.error("Exception while searching users : ", e.getMessage());
+            log.error("Exception while searching users : ", e);
             throw new CustomException("USER_SEARCH_ERROR",  e.getMessage());
         }
     }
