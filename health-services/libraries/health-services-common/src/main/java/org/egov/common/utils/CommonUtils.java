@@ -222,6 +222,15 @@ public class CommonUtils {
         return objList.stream().findAny().get().getClass();
     }
 
+    public static <T> void identifyNullIds(List<T> objList) {
+        Long nullCount = objList.stream().filter(obj -> null == ReflectionUtils.invokeMethod(
+                getMethod("getId", obj.getClass()), obj)).count();
+
+        if (nullCount > 0) {
+            throw new CustomException("NULL_ID", String.format("Ids cannot be null, found %d", nullCount));
+        }
+    }
+
     public static Method getMethod(String methodName, Class<?> clazz) {
         if (methodCache.containsKey(clazz)) {
             Map<String, Method> methodMap = methodCache.get(clazz);

@@ -36,7 +36,7 @@ public abstract class GenericRepository<T> {
 
     protected final RowMapper<T> rowMapper;
 
-    protected String hashKey;
+    protected String tableName;
 
     @Value("${spring.cache.redis.time-to-live:60}")
     private String timeToLive;
@@ -44,13 +44,13 @@ public abstract class GenericRepository<T> {
     protected GenericRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                 RedisTemplate<String, Object> redisTemplate,
                                 SelectQueryBuilder selectQueryBuilder, RowMapper<T> rowMapper,
-                                Optional<String> hashKey) {
+                                Optional<String> tableName) {
         this.producer = producer;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.redisTemplate = redisTemplate;
         this.selectQueryBuilder = selectQueryBuilder;
         this.rowMapper = rowMapper;
-        hashKey.ifPresent(h -> this.hashKey = hashKey.get());
+        tableName.ifPresent(tb -> this.tableName = tb);
     }
 
     public List<T> findById(List<String> ids) {
@@ -61,7 +61,7 @@ public abstract class GenericRepository<T> {
         ArrayList<T> objFound = new ArrayList<>();
         Collection<Object> collection = new ArrayList<>(ids);
         List<Object> objFromCache = redisTemplate.opsForHash()
-                .multiGet(hashKey, collection);
+                .multiGet(tableName, collection);
         if (!objFromCache.isEmpty() && !objFromCache.contains(null)) {
             log.info("Cache hit");
             objFound = (ArrayList<T>) objFromCache.stream().map(Object.class::cast)
@@ -76,9 +76,9 @@ public abstract class GenericRepository<T> {
             }
         }
 
-        String query = "SELECT * FROM PRODUCT WHERE id IN (:ids) AND isDeleted = false";
+        String query = String.format("SELECT * FROM %s WHERE id IN (:ids) AND isDeleted = false", tableName);
         if (includeDeleted) {
-            query = "SELECT * FROM PRODUCT WHERE id IN (:ids)";
+            query = String.format("SELECT * FROM %s WHERE id IN (:ids)", tableName);
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
@@ -101,8 +101,8 @@ public abstract class GenericRepository<T> {
                 .collect(Collectors
                         .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
                                 obj -> obj));
-        redisTemplate.opsForHash().putAll(hashKey, objMap);
-        redisTemplate.expire(hashKey, Long.parseLong(timeToLive), TimeUnit.SECONDS);
+        redisTemplate.opsForHash().putAll(tableName, objMap);
+        redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
     }
 
     public List<T> find(Object searchObject,

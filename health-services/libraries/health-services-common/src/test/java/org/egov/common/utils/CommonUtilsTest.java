@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -282,6 +283,19 @@ class CommonUtilsTest {
     }
 
     @Test
+    @DisplayName("should return null for null id")
+    void shouldReturnNullForNullId() {
+        SomeObject someObject = SomeObject.builder()
+                .id(null)
+                .rowVersion(2)
+                .build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        assertNull(CommonUtils.getIdToObjMap(objList).get("some-id"));
+    }
+
+    @Test
     @DisplayName("should validate entity")
     void shouldValidateEntity() {
         Map<String, SomeObject> idToObjInRequestMap = new HashMap<>();
@@ -340,6 +354,24 @@ class CommonUtilsTest {
         assertEquals(idToObjInRequestMap.get("some-id").getRowVersion(),
                 objInDbList.get(0).getRowVersion() + 1);
         assertTrue(idToObjInRequestMap.get("some-id").getIsDeleted());
+    }
+
+    @Test
+    @DisplayName("should throw exception if Ids are null")
+    void shouldThrowExceptionIfIdsAreNull() {
+        List<SomeObject> objList = new ArrayList<>();
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(2)
+                .build();
+        SomeObject someOtherObject = SomeObject.builder()
+                .id(null)
+                .rowVersion(2)
+                .build();
+        objList.add(someObject);
+        objList.add(someOtherObject);
+
+        assertThrows(CustomException.class, () -> CommonUtils.identifyNullIds(objList));
     }
 
     @Data
