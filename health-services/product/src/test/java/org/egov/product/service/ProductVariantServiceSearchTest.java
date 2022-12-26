@@ -22,6 +22,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -79,10 +80,10 @@ class ProductVariantServiceSearchTest {
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
                 .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(productVariantRepository.findById(anyList())).thenReturn(productVariants);
+        when(productVariantRepository.findById(anyList(), anyBoolean())).thenReturn(productVariants);
 
         List<ProductVariant> productVariants = productVariantService.search(productVariantSearchRequest,
-                10, 0, "default", null, false);
+                10, 0, null, null, false);
 
         assertEquals(1, productVariants.size());
     }

@@ -2,6 +2,7 @@ package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
+import org.egov.common.utils.CommonUtils;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
@@ -78,7 +80,10 @@ public class ProductService {
         if (isSearchByIdOnly(productSearchRequest.getProduct())) {
             List<String> ids = new ArrayList<>();
             ids.add(productSearchRequest.getProduct().getId());
-            return productRepository.findById(ids);
+            return productRepository.findById(ids, includeDeleted).stream()
+                    .filter(CommonUtils.lastChangedSince(lastChangedSince))
+                    .filter(CommonUtils.havingTenantId(tenantId))
+                    .collect(Collectors.toList());
         }
         return productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
