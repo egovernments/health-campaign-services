@@ -2,7 +2,6 @@ package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
-import org.egov.common.utils.CommonUtils;
 import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
@@ -21,8 +20,11 @@ import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.identifyNullIds;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.validateEntities;
 import static org.egov.common.utils.CommonUtils.validateIds;
 
@@ -92,8 +94,9 @@ public class ProductVariantService {
             List<String> ids = new ArrayList<>();
             ids.add(productVariantSearchRequest.getProductVariant().getId());
             return productVariantRepository.findById(ids, includeDeleted).stream()
-                    .filter(CommonUtils.lastChangedSince(lastChangedSince))
-                    .filter(CommonUtils.havingTenantId(tenantId))
+                    .filter(lastChangedSince(lastChangedSince))
+                    .filter(havingTenantId(tenantId))
+                    .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
         return productVariantRepository.find(productVariantSearchRequest.getProductVariant(),

@@ -57,7 +57,7 @@ public abstract class GenericRepository<T> {
         return findById(ids, false);
     }
 
-    public List<T> findById(List<String> ids, boolean includeDeleted) {
+    public List<T> findById(List<String> ids, Boolean includeDeleted) {
         ArrayList<T> objFound = new ArrayList<>();
         Collection<Object> collection = new ArrayList<>(ids);
         List<Object> objFromCache = redisTemplate.opsForHash()
@@ -77,7 +77,7 @@ public abstract class GenericRepository<T> {
         }
 
         String query = String.format("SELECT * FROM %s WHERE id IN (:ids) AND isDeleted = false", tableName);
-        if (includeDeleted) {
+        if (null != includeDeleted && includeDeleted) {
             query = String.format("SELECT * FROM %s WHERE id IN (:ids)", tableName);
         }
         Map<String, Object> paramMap = new HashMap<>();

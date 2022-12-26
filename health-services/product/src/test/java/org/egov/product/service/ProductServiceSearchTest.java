@@ -72,7 +72,9 @@ class ProductServiceSearchTest {
     @Test
     @DisplayName("should return product from cache if search criteria has id only")
     void shouldReturnProductFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
-        products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
+        Product product = ProductTestBuilder.builder().goodProduct().withId("ID101").build();
+        product.setIsDeleted(false);
+        products.add(product);
         ProductSearch productSearch = ProductSearch.builder().id("ID101").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
