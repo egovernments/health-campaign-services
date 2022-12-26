@@ -58,6 +58,7 @@ public class ProjectApiControllerTest {
     void shouldCreateProjectStaffAndReturnWith202Accepted() throws Exception {
         ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
                 .withOneProjectStaff()
+                .withApiOperationNotUpdate()
                 .build();
         ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
         List<ProjectStaff> projectStaffList = new ArrayList<>();
