@@ -22,22 +22,16 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 public class ProjectStaffSearchRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
     private RequestInfo requestInfo = null;
 
-        @JsonProperty("ProjectStaff")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("ProjectStaff")
+    @NotNull
+    @Valid
     private ProjectStaffSearch projectStaff = null;
-
 
 }
 

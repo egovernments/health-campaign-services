@@ -1,25 +1,44 @@
 package org.egov.project.web.controllers;
 
-import org.junit.Test;
-import org.junit.Ignore;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.project.TestConfiguration;
+import org.egov.project.helper.ProjectStaffRequestTestBuilder;
+import org.egov.project.helper.ProjectStaffTestBuilder;
+import org.egov.project.service.ProjectStaffService;
+import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.project.web.models.ProjectStaffResponse;
+import org.egov.project.web.models.ProjectStaffSearch;
+import org.egov.project.web.models.ProjectStaffSearchRequest;
+import org.egov.tracer.model.CustomException;
+import org.egov.tracer.model.ErrorRes;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.egov.project.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
-import static org.mockito.Matchers.any;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
 * API tests for ProjectApiController
 */
-@Ignore
-@RunWith(SpringRunner.class)
 @WebMvcTest(ProjectApiController.class)
 @Import(TestConfiguration.class)
 public class ProjectApiControllerTest {
@@ -27,256 +46,195 @@ public class ProjectApiControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private ProjectStaffService projectStaffService;
+
+
     @Test
-    public void projectBeneficiaryV1CreatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/beneficiary/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
+    @DisplayName("should create project staff and return with 202 accepted")
+    void shouldCreateProjectStaffAndReturnWith202Accepted() throws Exception {
+        ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
+                .withOneProjectStaff()
+                .build();
+        ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
+        List<ProjectStaff> projectStaffList = new ArrayList<>();
+        projectStaffList.add(projectStaff);
+        when(projectStaffService.create(any(ProjectStaffRequest.class))).thenReturn(projectStaffList);
+
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProjectStaffResponse response = objectMapper.readValue(responseStr, ProjectStaffResponse.class);
+
+        assertEquals(1, response.getProjectStaff().size());
+        assertNotNull(response.getProjectStaff().get(0).getId());
+        assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
     @Test
-    public void projectBeneficiaryV1CreatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/beneficiary/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
+    @DisplayName("should send error response with error details with 400 bad request for create")
+    void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
+                                .withOneProjectStaff()
+                                .withBadTenantIdInOneProjectStaff()
+                                .build())))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
+
+        assertEquals(1, response.getErrors().size());
+        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+    }
+
+
+    @Test
+    @DisplayName("should send 400 bad request in case of incorrect api operation for create")
+    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForCreate() throws Exception {
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
+                                .withOneProjectStaff()
+                                .withApiOperationNotNullAndNotCreate()
+                                .build())))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(1, response.getErrors().size());
+    }
+
+
+    @Test
+    @DisplayName("should update project staff and return with 202 accepted")
+    void shouldUpdateProjectStaffAndReturnWith202Accepted() throws Exception {
+        ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
+                .withOneProjectStaffHavingId()
+                .withApiOperationNotNullAndNotCreate()
+                .build();
+        ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
+        List<ProjectStaff> projectStaffList = new ArrayList<>();
+        projectStaffList.add(projectStaff);
+        when(projectStaffService.update(any(ProjectStaffRequest.class))).thenReturn(projectStaffList);
+
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProjectStaffResponse response = objectMapper.readValue(responseStr, ProjectStaffResponse.class);
+
+        assertEquals(1, response.getProjectStaff().size());
+        assertNotNull(response.getProjectStaff().get(0).getId());
+        assertEquals("successful", response.getResponseInfo().getStatus());
+    }
+
+
+    @Test
+    @DisplayName("should send error response with error details with 400 bad request for update")
+    void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
+                                .withOneProjectStaffHavingId()
+                                .withBadTenantIdInOneProjectStaff()
+                                .build())))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(1, response.getErrors().size());
+        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+    }
+
+
+    @Test
+    @DisplayName("should send 400 bad request in case of incorrect api operation for update")
+    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForUpdate() throws Exception {
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
+                                .withOneProjectStaffHavingId()
+                                .withApiOperationNotUpdate()
+                                .build())))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+
+        assertEquals(1, response.getErrors().size());
     }
 
     @Test
-    public void projectBeneficiaryV1SearchPostSuccess() throws Exception {
-        mockMvc.perform(post("/project/beneficiary/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
+    @DisplayName("Should accept search request and return response as accepted")
+    void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
+
+        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
+                ProjectStaffSearch.builder().projectId("12").build()
+        ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenReturn(Arrays.asList(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build()));
+
+        final MvcResult result = mockMvc.perform(post(
+                        "/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(projectStaffSearchRequest)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProjectStaffResponse response = objectMapper.readValue(responseStr,
+                ProjectStaffResponse.class);
+
+        assertEquals(response.getProjectStaff().size(), 1);
     }
 
     @Test
-    public void projectBeneficiaryV1SearchPostFailure() throws Exception {
-        mockMvc.perform(post("/project/beneficiary/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
+    @DisplayName("Should accept search request and return response as accepted")
+    void shouldThrowExceptionIfNoResultFound() throws Exception {
 
-    @Test
-    public void projectBeneficiaryV1UpdatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/beneficiary/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
+        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
+                ProjectStaffSearch.builder().projectId("12").build()
+        ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+        when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No project found."));
 
-    @Test
-    public void projectBeneficiaryV1UpdatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/beneficiary/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
 
-    @Test
-    public void projectFacilityV1CreatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/facility/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
+        final MvcResult result = mockMvc.perform(post("/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(projectStaffSearchRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
 
-    @Test
-    public void projectFacilityV1CreatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/facility/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectFacilityV1SearchPostSuccess() throws Exception {
-        mockMvc.perform(post("/project/facility/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectFacilityV1SearchPostFailure() throws Exception {
-        mockMvc.perform(post("/project/facility/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectFacilityV1UpdatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/facility/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectFacilityV1UpdatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/facility/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectResourceV1CreatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/resource/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectResourceV1CreatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/resource/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectResourceV1SearchPostSuccess() throws Exception {
-        mockMvc.perform(post("/project/resource/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectResourceV1SearchPostFailure() throws Exception {
-        mockMvc.perform(post("/project/resource/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectResourceV1UpdatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/resource/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectResourceV1UpdatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/resource/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectStaffV1CreatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/staff/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectStaffV1CreatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/staff/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectStaffV1SearchPostSuccess() throws Exception {
-        mockMvc.perform(post("/project/staff/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectStaffV1SearchPostFailure() throws Exception {
-        mockMvc.perform(post("/project/staff/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectStaffV1UpdatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/staff/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectStaffV1UpdatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/staff/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectTaskV1CreatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/task/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectTaskV1CreatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/task/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectTaskV1SearchPostSuccess() throws Exception {
-        mockMvc.perform(post("/project/task/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectTaskV1SearchPostFailure() throws Exception {
-        mockMvc.perform(post("/project/task/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectTaskV1UpdatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/task/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectTaskV1UpdatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/task/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectV1CreatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectV1CreatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/v1/_create").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectV1SearchPostSuccess() throws Exception {
-        mockMvc.perform(post("/project/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectV1SearchPostFailure() throws Exception {
-        mockMvc.perform(post("/project/v1/_search").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void projectV1UpdatePostSuccess() throws Exception {
-        mockMvc.perform(post("/project/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isOk());
-    }
-
-    @Test
-    public void projectV1UpdatePostFailure() throws Exception {
-        mockMvc.perform(post("/project/v1/_update").contentType(MediaType
-        .APPLICATION_JSON_UTF8))
-        .andExpect(status().isBadRequest());
+        assertEquals(response.getErrors().size(), 1);
     }
 
 }

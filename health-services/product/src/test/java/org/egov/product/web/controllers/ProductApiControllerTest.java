@@ -71,23 +71,16 @@ class ProductApiControllerTest {
     }
 
     @Test
-    @DisplayName("product request should pass with API Operation NULL")
-    void productRequestForCreateShouldPassForNullApiOperation() throws Exception{
+    @DisplayName("product request should not pass with API Operation NULL")
+    void productRequestForCreateShouldNotPassForNullApiOperation() throws Exception{
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
         ArrayList<Product> products = new ArrayList<>();
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID-101").build());
         when(productService.create(any(ProductRequest.class))).thenReturn(products);
 
-        MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
+        mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))
-                .andExpect(status().isAccepted()).andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ProductResponse response = objectMapper.readValue(responseStr,
-                ProductResponse.class);
-
-        assertEquals(1, response.getProduct().size());
-        assertNotNull(response.getProduct().get(0).getId());
-        assertEquals("successful", response.getResponseInfo().getStatus());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
