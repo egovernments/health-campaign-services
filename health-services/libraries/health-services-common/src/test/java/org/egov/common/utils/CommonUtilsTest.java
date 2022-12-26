@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -372,6 +373,38 @@ class CommonUtilsTest {
         objList.add(someOtherObject);
 
         assertThrows(CustomException.class, () -> CommonUtils.identifyNullIds(objList));
+    }
+
+    @Test
+    @DisplayName("should filter by lastModifiedTime")
+    void shouldFilterByLastModifiedTime() {
+        SomeObject someObject = SomeObject.builder()
+                .auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails()
+                        .build())
+                .build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+        Long lastChangedSince = Instant.now().minusMillis(5000).toEpochMilli();
+        assertTrue(objList.stream().anyMatch(CommonUtils.lastChangedSince(lastChangedSince)));
+    }
+
+    @Test
+    @DisplayName("should filter by isDeleted")
+    void shouldFilterByIsDeleted() {
+        SomeObject someObject = SomeObject.builder().isDeleted(Boolean.TRUE).build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+        assertTrue(objList.stream().anyMatch(CommonUtils.includeDeleted(Boolean.TRUE)));
+    }
+
+    @Test
+    @DisplayName("should filter by tenantId")
+    void shouldFilterByTenantId() {
+        SomeObject someObject = SomeObject.builder().tenantId("some-tenant-id").build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+        assertTrue(objList.stream().anyMatch(CommonUtils.havingTenantId("some-tenant-id")));
     }
 
     @Data

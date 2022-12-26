@@ -21,6 +21,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -75,7 +76,7 @@ class ProductServiceSearchTest {
         ProductSearch productSearch = ProductSearch.builder().id("ID101").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
-        when(productRepository.findById(anyList())).thenReturn(products);
+        when(productRepository.findById(anyList(), anyBoolean())).thenReturn(products);
 
         List<Product> products = productService.search(productSearchRequest, 10, 0, "default", null, false);
 
