@@ -56,10 +56,13 @@ class ProductRepositoryTest {
     private SelectQueryBuilder selectQueryBuilder;
 
     @Mock
-    Producer producer;
+    private Producer producer;
 
     @Mock
-    RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private ProductRowMapper productRowMapper;
 
     @Mock
     private HashOperations hashOperations;

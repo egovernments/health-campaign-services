@@ -25,50 +25,31 @@ import javax.validation.constraints.Size;
 @Builder
 public class Document {
     @JsonProperty("id")
-
-
     @Size(min = 2, max = 64)
-
     private String id = null;
 
     @JsonProperty("tenantId")
     @NotNull
-
-
     @Size(min = 2, max = 128)
-
     private String tenantId = null;
 
     @JsonProperty("documentType")
     @NotNull
-
-
     @Size(min = 2, max = 64)
-
     private String documentType = null;
 
     @JsonProperty("fileStoreId")
     @NotNull
-
-
     @Size(min = 2, max = 64)
-
     private String fileStoreId = null;
 
     @JsonProperty("documentUid")
-
-
     @Size(min = 2, max = 64)
-
     private String documentUid = null;
 
     @JsonProperty("auditDetails")
-
     @Valid
-
-
     private AuditDetails auditDetails = null;
-
 
 }
 

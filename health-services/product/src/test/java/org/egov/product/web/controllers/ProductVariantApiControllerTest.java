@@ -58,6 +58,7 @@ public class ProductVariantApiControllerTest {
     void shouldCreateProductVariantAndReturnWith202Accepted() throws Exception {
         ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
                 .withOneProductVariant()
+                .withApiOperationNotUpdate()
                 .build();
         ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
         List<ProductVariant> productVariants = new ArrayList<>();

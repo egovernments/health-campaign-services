@@ -6,6 +6,7 @@ import org.egov.product.helper.ProductTestBuilder;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,21 +35,32 @@ class ProductServiceUpdateTest {
 
     @Test
     @DisplayName("should throw exception if product ids are null or empty")
-    void shouldThrowExceptionIfProductIdNotFound() throws Exception {
+    void shouldThrowExceptionIfProductIdNotFound() {
         Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
         product.setRowVersion(123);
         ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product).withRequestInfo().build();
         when(productRepository.findById(any(List.class))).thenReturn(Arrays.asList());
+
         assertThrows(Exception.class, () -> productService.update(productRequest));
     }
 
     @Test
     @DisplayName("should throw exception for row versions mismatch")
-    void shouldThrowExceptionIfRowVersionIsNotSimilar() throws Exception {
+    void shouldThrowExceptionIfRowVersionIsNotSimilar() {
         Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
         product.setRowVersion(123);
         ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product).withRequestInfo().build();
         when(productRepository.findById(any(List.class))).thenReturn(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("213").build()));
+
         assertThrows(Exception.class, () -> productService.update(productRequest));
+    }
+
+    @Test
+    @DisplayName("should throw exception if Ids are null")
+    void shouldThrowExceptionIfIdsAreNull() {
+        Product product = ProductTestBuilder.builder().goodProduct().withId(null).build();
+        ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product).withRequestInfo().build();
+
+        assertThrows(CustomException.class, () -> productService.update(productRequest));
     }
 }

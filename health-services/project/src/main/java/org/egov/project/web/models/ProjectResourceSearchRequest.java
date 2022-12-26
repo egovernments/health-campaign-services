@@ -1,14 +1,14 @@
 package org.egov.project.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.request.RequestInfo;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 
 /**
 * ProjectResourceSearchRequest
@@ -20,21 +20,16 @@ import org.egov.common.contract.request.RequestInfo;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectResourceSearchRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
+public class ProjectResourceSearchRequest {
 
-  @Valid
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
+    private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-
-    private RequestInfo requestInfo = null;
-
-        @JsonProperty("ProjectResource")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("ProjectResource")
+    @NotNull
+    @Valid
     private ProjectResourceSearch projectResource = null;
 
 

@@ -148,12 +148,25 @@ class ProductVariantServiceUpdateTest {
 
     @Test
     @DisplayName("Should throw exception for row versions mismatch")
-    void shouldThrowExceptionIfRowVersionIsNotSimilar() throws Exception {
+    void shouldThrowExceptionIfRowVersionIsNotSimilar() {
         ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
         productVariant.setRowVersion(123);
-        ProductVariantRequest productVariantRequest = ProductVariantRequestTestBuilder.builder().withOneProductVariantHavingId().build();
+        ProductVariantRequest productVariantRequest = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariantHavingId().build();
         mockValidateProuctId();
-        mockFindById();
+        when(productVariantRepository.findById(productVariantIds))
+                .thenReturn(Collections.singletonList(productVariant));
+
         assertThrows(Exception.class, () -> productVariantService.update(productVariantRequest));
     }
+
+    @Test
+    @DisplayName("Should throw exception If Ids are null")
+    void shouldThrowExceptionIfIdsAreNull() {
+        ProductVariantRequest productVariantRequest = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariantHavingId().build();
+
+        assertThrows(Exception.class, () -> productVariantService.update(productVariantRequest));
+    }
+
 }

@@ -1,18 +1,17 @@
 package org.egov.project.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
 * TaskRequest
@@ -25,34 +24,25 @@ import org.egov.common.contract.request.RequestInfo;
 @AllArgsConstructor
 @Builder
 public class TaskRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
     private RequestInfo requestInfo = null;
 
-        @JsonProperty("Task")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("Task")
+    @NotNull
+    @Valid
     private List<Task> task = new ArrayList<>();
 
-        @JsonProperty("apiOperation")
-    
-  @Valid
-
-
+    @JsonProperty("apiOperation")
+    @Valid
     private ApiOperation apiOperation = null;
 
-
-        public TaskRequest addTaskItem(Task taskItem) {
+    public TaskRequest addTaskItem(Task taskItem) {
         this.task.add(taskItem);
         return this;
-        }
+    }
 
 }
 

@@ -24,27 +24,20 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class ProjectStaffResponse   {
-        @JsonProperty("ResponseInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("ResponseInfo")
+    @NotNull
+    @Valid
     private ResponseInfo responseInfo = null;
 
-        @JsonProperty("ProjectStaff")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("ProjectStaff")
+    @NotNull
+    @Valid
     private List<ProjectStaff> projectStaff = new ArrayList<>();
 
-
-        public ProjectStaffResponse addProjectStaffItem(ProjectStaff projectStaffItem) {
+    public ProjectStaffResponse addProjectStaffItem(ProjectStaff projectStaffItem) {
         this.projectStaff.add(projectStaffItem);
         return this;
-        }
-
+    }
 }
 

@@ -3,10 +3,10 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.product.service.ProductService;
 import org.egov.product.service.ProductVariantService;
-import org.egov.product.web.models.ApiOperation;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductResponse;
@@ -57,8 +57,8 @@ public class ProductApiController {
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProductResponse> productV1CreatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest productRequest) throws Exception {
-        if(productRequest.getApiOperation() != ApiOperation.CREATE && productRequest.getApiOperation() != null){
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation().toString()));
+        if (!CommonUtils.isForCreate(productRequest)){
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", productRequest.getApiOperation()));
         }
 
         List<Product> products = productService.create(productRequest);
@@ -89,8 +89,10 @@ public class ProductApiController {
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProductResponse> productV1UpdatePost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductRequest productRequest) throws Exception {
-        if (!productRequest.getApiOperation().equals(ApiOperation.UPDATE) && !productRequest.getApiOperation().equals(ApiOperation.DELETE)) {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", productRequest.getApiOperation().toString()));
+        if (!CommonUtils.isForUpdate(productRequest)
+                && !CommonUtils.isForDelete(productRequest)) {
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request",
+                    productRequest.getApiOperation()));
         }
 
         List<Product> products = productService.update(productRequest);
@@ -106,7 +108,7 @@ public class ProductApiController {
     @RequestMapping(value = "/variant/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1CreatePost(@ApiParam(value = "Capture details of Product Variant.", required = true)
                                                                                  @Valid @RequestBody ProductVariantRequest request) throws Exception {
-        if (request.getApiOperation() == null || request.getApiOperation().equals(ApiOperation.CREATE)) {
+        if (CommonUtils.isForCreate(request)) {
             List<ProductVariant> productVariants = productVariantService.create(request);
             ProductVariantResponse response = ProductVariantResponse.builder()
                     .productVariant(productVariants)
@@ -116,7 +118,7 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", request.getApiOperation().toString()));
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", request.getApiOperation()));
         }
     }
 
@@ -139,8 +141,8 @@ public class ProductApiController {
 
     @RequestMapping(value = "/variant/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1UpdatePost(@ApiParam(value = "Capture details of Product Variant.", required = true) @Valid @RequestBody ProductVariantRequest request) {
-        if (request.getApiOperation().equals(ApiOperation.UPDATE)
-                || request.getApiOperation().equals(ApiOperation.DELETE)) {
+        if (CommonUtils.isForUpdate(request)
+                || CommonUtils.isForDelete(request)) {
             List<ProductVariant> productVariants = productVariantService.update(request);
             ProductVariantResponse response = ProductVariantResponse.builder()
                     .productVariant(productVariants)
@@ -150,7 +152,7 @@ public class ProductApiController {
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
         } else {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", request.getApiOperation().toString()));
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", request.getApiOperation()));
         }
     }
 

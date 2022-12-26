@@ -24,27 +24,21 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class TaskResponse   {
-        @JsonProperty("ResponseInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("ResponseInfo")
+    @NotNull
+    @Valid
     private ResponseInfo responseInfo = null;
 
-        @JsonProperty("Task")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("Task")
+    @NotNull
+    @Valid
     private List<Task> task = new ArrayList<>();
 
-
-        public TaskResponse addTaskItem(Task taskItem) {
+    public TaskResponse addTaskItem(Task taskItem) {
         this.task.add(taskItem);
         return this;
-        }
+    }
 
 }
 
