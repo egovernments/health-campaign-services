@@ -234,14 +234,15 @@ public class CommonUtils {
     }
 
     public static <T> Predicate<T> includeDeleted(Boolean includeDeleted) {
-        if (includeDeleted == null)
-            return obj -> true;
-        return obj -> {
-            Method getIsDeletedMethod = getMethod("getIsDeleted", obj.getClass());
-            Boolean isDeleted = (Boolean) ReflectionUtils
-                    .invokeMethod(getIsDeletedMethod, obj);
-            return Objects.equals(isDeleted, includeDeleted);
-        };
+        if (includeDeleted == null || !includeDeleted) {
+            return obj -> {
+                Method getIsDeletedMethod = getMethod("getIsDeleted", obj.getClass());
+                Boolean isDeleted = (Boolean) ReflectionUtils
+                        .invokeMethod(getIsDeletedMethod, obj);
+                return Objects.equals(isDeleted, false);
+            };
+        }
+        return obj -> true;
     }
 
     public static <T> Predicate<T> havingTenantId(String tenantId) {
