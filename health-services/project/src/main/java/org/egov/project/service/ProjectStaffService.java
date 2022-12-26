@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
+import org.egov.common.utils.CommonUtils;
 import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
@@ -150,11 +151,13 @@ public class ProjectStaffService {
         if (isSearchByIdOnly(projectStaffSearchRequest.getProjectStaff())) {
             List<String> ids = new ArrayList<>();
             ids.add(projectStaffSearchRequest.getProjectStaff().getId());
-            return projectStaffRepository.findById(ids);
+            return projectStaffRepository.findById(ids, includeDeleted).stream()
+                    .filter(CommonUtils.lastChangedSince(lastChangedSince))
+                    .filter(CommonUtils.havingTenantId(tenantId))
+                    .collect(Collectors.toList());
         }
         return projectStaffRepository.find(projectStaffSearchRequest.getProjectStaff(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
-
 
 }

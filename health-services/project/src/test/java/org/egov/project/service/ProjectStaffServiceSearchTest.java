@@ -22,9 +22,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+
 
 @ExtendWith(MockitoExtension.class)
 class ProjectStaffServiceSearchTest {
@@ -38,35 +40,33 @@ class ProjectStaffServiceSearchTest {
     private ArrayList<ProjectStaff> projectStaffs;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws QueryBuilderException {
         projectStaffs = new ArrayList<>();
-    }
-
-    private ProjectStaffSearchRequest getProjectStaffSearchRequest() {
-        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").userId("some-user-id").build();
-        return ProjectStaffSearchRequest.builder()
-                .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
-                        .withCompleteRequestInfo().build()).build();
     }
 
     @Test
     @DisplayName("should not raise exception if no search results are found")
-    void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
+    void shouldNotRaiseExceptionIfNoProjectStaffFound() throws Exception {
         when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
-        ProjectStaffSearchRequest projectStaffSearchRequest = getProjectStaffSearchRequest();
+        ProjectStaffSearch productVariantSearch = ProjectStaffSearch.builder().id("ID101").userId("some-user-id").build();
+        ProjectStaffSearchRequest productVariantSearchRequest = ProjectStaffSearchRequest.builder()
+                .projectStaff(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo().build()).build();
 
-        assertDoesNotThrow(() -> projectStaffService.search(projectStaffSearchRequest, 10, 0, "default", null, false));
+        assertDoesNotThrow(() -> projectStaffService.search(productVariantSearchRequest, 10, 0, "default", null, false));
     }
 
-
     @Test
-    @DisplayName("should return products if search criteria is matched")
-    void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
+    @DisplayName("should return project staff if search criteria is matched")
+    void shouldReturnProjectStaffIfSearchCriteriaIsMatched() throws Exception {
         when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectStaffs);
-        projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build());
-        ProjectStaffSearchRequest projectStaffSearchRequest = getProjectStaffSearchRequest();
+        projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withId().withAuditDetails().build());
+        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").projectId("some-projectId").build();
+        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
+                .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo().build()).build();
 
         List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest, 10, 0, "default", null, false);
 
@@ -78,14 +78,14 @@ class ProjectStaffServiceSearchTest {
     void shouldReturnFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
         projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build());
         ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").build();
-        ProjectStaffSearchRequest staffSearchRequest = ProjectStaffSearchRequest.builder()
+        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(projectStaffRepository.findById(anyList())).thenReturn(projectStaffs);
+        when(projectStaffRepository.findById(anyList(), anyBoolean())).thenReturn(projectStaffs);
 
-        List<ProjectStaff> productVariants = projectStaffService.search(staffSearchRequest,
-                10, 0, "default", null, false);
+        List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest,
+                10, 0, null, null, false);
 
-        assertEquals(1, productVariants.size());
+        assertEquals(1, projectStaffs.size());
     }
 }
