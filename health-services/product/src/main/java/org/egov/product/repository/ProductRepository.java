@@ -34,6 +34,7 @@ public class ProductRepository extends GenericRepository<Product> {
                 .entries(tableName).containsKey(id))
                 .collect(Collectors.toList());
         if (!productIds.isEmpty()) {
+            System.out.println("cache hit");
             return productIds;
         }
         Map<String, Object> paramMap = new HashMap<>();

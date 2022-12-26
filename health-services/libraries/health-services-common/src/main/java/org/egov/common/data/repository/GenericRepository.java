@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getDifference;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 
@@ -127,5 +128,22 @@ public abstract class GenericRepository<T> {
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
         return namedParameterJdbcTemplate.query(query, paramsMap, rowMapper);
+    }
+
+    public List<String> validateId(List<String> idsToValidate, String columnName){
+        List<String> validIds = idsToValidate.stream().filter(id -> redisTemplate.opsForHash()
+                        .entries(tableName).containsKey(id))
+                .collect(Collectors.toList());
+        List<String> idsToFindInDb = getDifference(idsToValidate, validIds);
+
+        if (!idsToFindInDb.isEmpty()) {
+            Map<String, Object> paramMap = new HashMap<>();
+            paramMap.put("ids", idsToFindInDb);
+            String query = String.format("SELECT %s FROM %s WHERE %s IN (:ids) AND isDeleted = false fetch first %s rows only",
+                    columnName, tableName, columnName, idsToFindInDb.size());
+            validIds.addAll(namedParameterJdbcTemplate.queryForList(query, paramMap, String.class));
+        }
+
+        return validIds;
     }
 }
