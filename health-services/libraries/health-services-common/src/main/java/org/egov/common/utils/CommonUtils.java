@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -218,6 +219,42 @@ public class CommonUtils {
                 .collect(Collectors.toList());
     }
 
+    public static <T> Predicate<T> lastChangedSince(Long lastChangedSince) {
+        if (lastChangedSince == null)
+            return obj -> true;
+        return obj -> {
+            Method getAuditDetailsMethod = getMethod("getAuditDetails", obj.getClass());
+            Object auditDetails = ReflectionUtils.invokeMethod(getAuditDetailsMethod, obj);
+            Method getLastModifiedTimeMethod = getMethod("getLastModifiedTime",
+                    auditDetails.getClass());
+            Long lastModifiedTime = (Long) ReflectionUtils
+                    .invokeMethod(getLastModifiedTimeMethod, auditDetails);
+            return lastModifiedTime > lastChangedSince;
+        };
+    }
+
+    public static <T> Predicate<T> includeDeleted(Boolean includeDeleted) {
+        if (includeDeleted == null)
+            return obj -> true;
+        return obj -> {
+            Method getIsDeletedMethod = getMethod("getIsDeleted", obj.getClass());
+            Boolean isDeleted = (Boolean) ReflectionUtils
+                    .invokeMethod(getIsDeletedMethod, obj);
+            return Objects.equals(isDeleted, includeDeleted);
+        };
+    }
+
+    public static <T> Predicate<T> havingTenantId(String tenantId) {
+        if (tenantId == null)
+            return obj -> true;
+        return obj -> {
+            Method getTenantIdMethod = getMethod("getTenantId", obj.getClass());
+            String actualTenantId  = (String) ReflectionUtils
+                    .invokeMethod(getTenantIdMethod, obj);
+            return Objects.equals(actualTenantId, tenantId);
+        };
+    }
+
     public static <T> Class<?> getObjClass(List<T> objList) {
         return objList.stream().findAny().get().getClass();
     }
@@ -253,6 +290,6 @@ public class CommonUtils {
     private static Method findMethod(String methodName, Class<?> clazz) {
         return Arrays.stream(ReflectionUtils.getDeclaredMethods(clazz))
                 .filter(m -> m.getName().equals(methodName))
-                .findFirst().orElseThrow(() -> new CustomException("INVALID_OBJECT", "Invalid object"));
+                .findFirst().orElseThrow(() -> new CustomException("INVALID_OBJECT_OR_METHOD", "Invalid object or method"));
     }
 }
