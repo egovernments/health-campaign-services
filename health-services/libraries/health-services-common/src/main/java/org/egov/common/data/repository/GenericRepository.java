@@ -131,8 +131,9 @@ public abstract class GenericRepository<T> {
     }
 
     public List<String> validateId(List<String> idsToValidate, String columnName){
-        List<String> validIds = idsToValidate.stream().filter(id -> redisTemplate.opsForHash()
-                        .entries(tableName).containsKey(id))
+        Map<Object, Object> cacheMap = redisTemplate.opsForHash()
+                .entries(tableName);
+        List<String> validIds = idsToValidate.stream().filter(id -> cacheMap.containsKey(id))
                 .collect(Collectors.toList());
         List<String> idsToFindInDb = getDifference(idsToValidate, validIds);
 

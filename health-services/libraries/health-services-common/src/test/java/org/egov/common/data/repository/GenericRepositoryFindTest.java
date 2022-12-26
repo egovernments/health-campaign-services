@@ -19,7 +19,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -116,5 +118,21 @@ class GenericRepositoryFindTest {
                 2, 0, "default", null, true);
 
         assertEquals(2, productVariantResponse.size());
+    }
+
+    @Test
+    @DisplayName("validate id using column name")
+    void shouldReturnValidIdsFromDBOrCache() {
+        HashMap<String, Object> hashtable = new HashMap<String, Object>();
+        hashtable.put("id1", new Object());
+        hashtable.put("id2", new Object());
+        when(hashOperations.entries(anyString())).thenReturn(hashtable);
+        when(namedParameterJdbcTemplate.queryForList(anyString(), anyMap(), any()))
+                .thenReturn(Arrays.asList("id3", "id4"));
+        List<String> idsToValidate = Arrays.asList("id1", "id2", "id3", "id4");
+
+        List<String> idsFound = someRepository.validateId(idsToValidate, "colName");
+
+        assertEquals(idsToValidate.size(), idsFound.size());
     }
 }

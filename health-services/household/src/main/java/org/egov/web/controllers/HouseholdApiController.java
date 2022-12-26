@@ -4,7 +4,10 @@ package org.egov.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.utils.CommonUtils;
+import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.service.HouseholdService;
 import org.egov.tracer.model.CustomException;
+import org.egov.web.models.Household;
 import org.egov.web.models.HouseholdMemberRequest;
 import org.egov.web.models.HouseholdMemberResponse;
 import org.egov.web.models.HouseholdMemberSearchRequest;
@@ -26,6 +29,7 @@ import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
+import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
 
@@ -37,10 +41,12 @@ public class HouseholdApiController {
 
     private final HttpServletRequest request;
 
+    private final HouseholdService householdService;
     @Autowired
-    public HouseholdApiController(ObjectMapper objectMapper, HttpServletRequest request) {
+    public HouseholdApiController(ObjectMapper objectMapper, HttpServletRequest request, HouseholdService householdService) {
         this.objectMapper = objectMapper;
         this.request = request;
+        this.householdService = householdService;
     }
 
     @RequestMapping(value = "/member/v1/_create", method = RequestMethod.POST)
@@ -97,7 +103,11 @@ public class HouseholdApiController {
                     String.format("API Operation %s not valid for create request", request.getApiOperation()));
         }
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+        List<Household> households = householdService.create(request);
+        HouseholdResponse response = HouseholdResponse.builder().responseInfo(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true)).household(households).build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)

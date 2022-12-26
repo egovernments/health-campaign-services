@@ -3,12 +3,14 @@ package org.egov.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.TestConfiguration;
 import org.egov.helper.HouseholdRequestTestBuilder;
+import org.egov.service.HouseholdService;
 import org.egov.tracer.model.ErrorRes;
 import org.egov.web.models.HouseholdRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,6 +32,9 @@ class HouseholdApiControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private HouseholdService householdService;
 
     @Test
     @DisplayName("household create request should pass if API Operation is create")
