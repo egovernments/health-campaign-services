@@ -63,7 +63,7 @@ public class ProjectStaffTestBuilder {
         return this;
     }
 
-    public ProjectStaffTestBuilder withIsDeleted() {
+    public ProjectStaffTestBuilder withDeleted() {
         this.builder.isDeleted(true);
         return this;
     }

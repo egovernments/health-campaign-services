@@ -3,9 +3,9 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.service.ProjectStaffService;
-import org.egov.project.web.models.ApiOperation;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -199,9 +199,10 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffRequest) throws Exception {
-        if(projectStaffRequest.getApiOperation() != ApiOperation.CREATE && projectStaffRequest.getApiOperation() != null){
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", projectStaffRequest.getApiOperation().toString()));
+        if (!CommonUtils.isForCreate(projectStaffRequest)){
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", projectStaffRequest.getApiOperation()));
         }
+
         List<ProjectStaff> projectStaffs = projectStaffService.create(projectStaffRequest);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
                 .projectStaff(projectStaffs)
@@ -237,8 +238,10 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
-        if (projectStaffUpdateRequest.getApiOperation().equals(ApiOperation.CREATE)) {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request", projectStaffUpdateRequest.getApiOperation().toString()));
+        if (!CommonUtils.isForUpdate(projectStaffUpdateRequest)
+                && !CommonUtils.isForDelete(projectStaffUpdateRequest)) {
+            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request",
+                    projectStaffUpdateRequest.getApiOperation()));
         }
 
         List<ProjectStaff> projectStaffs = projectStaffService.update(projectStaffUpdateRequest);
@@ -248,8 +251,7 @@ public class ProjectApiController {
                         .createResponseInfo(projectStaffUpdateRequest.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
-    }
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);    }
 
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest task) {
