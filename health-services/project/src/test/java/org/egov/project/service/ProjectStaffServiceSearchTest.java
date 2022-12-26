@@ -76,7 +76,7 @@ class ProjectStaffServiceSearchTest {
     @Test
     @DisplayName("should return from cache if search criteria has id only")
     void shouldReturnFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
-        projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build());
+        projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withAuditDetails().withDeleted().build());
         ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
@@ -84,7 +84,7 @@ class ProjectStaffServiceSearchTest {
         when(projectStaffRepository.findById(anyList(), anyBoolean())).thenReturn(projectStaffs);
 
         List<ProjectStaff> projectStaffs = projectStaffService.search(projectStaffSearchRequest,
-                10, 0, null, null, false);
+                10, 0, null, null, true);
 
         assertEquals(1, projectStaffs.size());
     }

@@ -25,8 +25,11 @@ import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getSet;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.identifyNullIds;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.validateEntities;
 import static org.egov.common.utils.CommonUtils.validateIds;
 
@@ -152,8 +155,9 @@ public class ProjectStaffService {
             List<String> ids = new ArrayList<>();
             ids.add(projectStaffSearchRequest.getProjectStaff().getId());
             return projectStaffRepository.findById(ids, includeDeleted).stream()
-                    .filter(CommonUtils.lastChangedSince(lastChangedSince))
-                    .filter(CommonUtils.havingTenantId(tenantId))
+                    .filter(lastChangedSince(lastChangedSince))
+                    .filter(havingTenantId(tenantId))
+                    .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
         return projectStaffRepository.find(projectStaffSearchRequest.getProjectStaff(),
