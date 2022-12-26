@@ -1,13 +1,12 @@
 package org.egov.common.utils;
 
 import digit.models.coremodels.AuditDetails;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.helpers.SomeObject;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -416,18 +415,5 @@ class CommonUtilsTest {
 
     enum SomeEnum {
         CREATE, UPDATE, DELETE;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SomeObject {
-        private String id;
-        private String otherField;
-        private Integer rowVersion;
-        private String tenantId;
-        private Boolean isDeleted;
-        private AuditDetails auditDetails;
     }
 }

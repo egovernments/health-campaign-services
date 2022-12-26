@@ -2,7 +2,6 @@ package org.egov.project.service;
 
 import digit.models.coremodels.UserSearchRequest;
 import org.egov.common.contract.request.User;
-import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
@@ -43,9 +42,6 @@ class ProjectStaffServiceUpdateTest {
     private ProjectStaffService projectStaffService;
 
     @Mock
-    private IdGenService idGenService;
-
-    @Mock
     private ProjectService projectService;
 
     @Mock
@@ -71,7 +67,7 @@ class ProjectStaffServiceUpdateTest {
 
     private void mockValidateProjectId() {
         lenient().when(projectService.validateProjectIds(any(List.class)))
-                .thenReturn(Collections.singletonList("some-id"));
+                .thenReturn(Collections.singletonList("some-project-id"));
     }
 
 

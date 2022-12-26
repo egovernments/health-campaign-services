@@ -6,10 +6,12 @@ import digit.models.coremodels.AuditDetails;
 import org.egov.project.web.models.AdditionalFields;
 import org.egov.project.web.models.ProjectStaff;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+@Component
 public class ProjectStaffRowMapper implements RowMapper<ProjectStaff> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

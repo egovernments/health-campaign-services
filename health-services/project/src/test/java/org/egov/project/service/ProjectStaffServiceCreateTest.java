@@ -70,11 +70,7 @@ class ProjectStaffServiceCreateTest {
 
     private void mockValidateProjectId() {
         lenient().when(projectService.validateProjectIds(any(List.class)))
-                .thenReturn(Collections.singletonList("some-id"));
-    }
-
-    private void mockIdGeneration(List<String> ids) throws Exception {
-        when(idGenService.getIdList(any(), any(), any(), any(), any())).thenReturn(ids);
+                .thenReturn(Collections.singletonList("some-project-id"));
     }
 
     private void mockValidateUsers() {
@@ -87,19 +83,11 @@ class ProjectStaffServiceCreateTest {
         );
     }
 
-    private List<String> getIdGens() {
-        List<String> ids = new ArrayList<String>();
-        ids.add("some-id");
-        ids.add("some-id-2");
-        return ids;
-    }
-
     @Test
     @DisplayName("should enrich the formatted id in project staff")
     void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
         mockValidateProjectId();
         mockValidateUsers();
-        mockIdGeneration(getIdGens());
 
         List<ProjectStaff> projectStaffs = projectStaffService.create(request);
 
@@ -111,7 +99,6 @@ class ProjectStaffServiceCreateTest {
     void shouldSendTheEnrichedProjectStaffToTheKafkaTopic() throws Exception {
         mockValidateProjectId();
         mockValidateUsers();
-        mockIdGeneration(getIdGens());
 
         projectStaffService.create(request);
 
@@ -126,7 +113,6 @@ class ProjectStaffServiceCreateTest {
     void shouldUpdateAuditDetailsBeforePushingTheProjectStaffsToKafka() throws Exception {
         mockValidateProjectId();
         mockValidateUsers();
-        mockIdGeneration(getIdGens());
 
         List<ProjectStaff> projectStaffs = projectStaffService.create(request);
 
@@ -141,7 +127,6 @@ class ProjectStaffServiceCreateTest {
     void shouldSetRowVersionAs1AndDeletedAsFalse() throws Exception {
         mockValidateProjectId();
         mockValidateUsers();
-        mockIdGeneration(getIdGens());
 
         List<ProjectStaff> projectStaffs = projectStaffService.create(request);
 
@@ -154,7 +139,6 @@ class ProjectStaffServiceCreateTest {
     void shouldValidateCorrectProductId() throws Exception {
         mockValidateProjectId();
         mockValidateUsers();
-        mockIdGeneration(getIdGens());
 
         projectStaffService.create(request);
 
