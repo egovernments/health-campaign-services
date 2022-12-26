@@ -1,9 +1,8 @@
-package org.egov.product.repository;
+package org.egov.common.data.repository;
 
+import org.egov.common.helpers.SomeObject;
+import org.egov.common.helpers.SomeRepository;
 import org.egov.common.producer.Producer;
-import org.egov.product.helper.ProductVariantTestBuilder;
-import org.egov.product.repository.rowmapper.ProductVariantRowMapper;
-import org.egov.product.web.models.ProductVariant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,22 +15,21 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ProductVariantRepositorySaveTest {
-
+class GenericRepositorySaveTest {
     @InjectMocks
-    private ProductVariantRepository productVariantRepository;
+    private SomeRepository someRepository;
 
     @Mock
     private Producer producer;
@@ -40,37 +38,42 @@ class ProductVariantRepositorySaveTest {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Mock
-    private ProductVariantRowMapper productVariantRowMapper;
-
-    @Mock
     private HashOperations hashOperations;
 
-    private List<ProductVariant> productVariants;
+    private List<SomeObject> someObjects;
 
-    private static final String TOPIC = "save-product-variant-topic";
+    private static final String TOPIC = "save-topic";
 
     @BeforeEach
     void setUp() {
-        productVariants = Collections.singletonList(ProductVariantTestBuilder
-                .builder().withId().build());
-        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
-        ReflectionTestUtils.setField(productVariantRepository, "timeToLive", "60");
+        someObjects = new ArrayList<>();
+        someObjects.add(SomeObject.builder()
+                        .id("some-id")
+                        .otherField("other-field")
+                        .isDeleted(false)
+                .build());
+        someObjects.add(SomeObject.builder()
+                .id("other-id")
+                .isDeleted(true)
+                .build());
+        lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        ReflectionTestUtils.setField(someRepository, "timeToLive", "60");
     }
 
     @Test
     @DisplayName("should save and return saved objects back")
     void shouldSaveAndReturnSavedObjectsBack() {
-        List<ProductVariant> result = productVariantRepository
-                .save(productVariants, TOPIC);
+        List<SomeObject> result = someRepository
+                .save(someObjects, TOPIC);
 
-        assertEquals(result, productVariants);
+        assertEquals(result, someObjects);
         verify(producer, times(1)).push(any(String.class), any(Object.class));
     }
 
     @Test
     @DisplayName("should save and add objects in the cache")
     void shouldSaveAndAddObjectsInTheCache() {
-        productVariantRepository.save(productVariants, TOPIC);
+        someRepository.save(someObjects, TOPIC);
 
         InOrder inOrder = inOrder(producer, hashOperations);
 
