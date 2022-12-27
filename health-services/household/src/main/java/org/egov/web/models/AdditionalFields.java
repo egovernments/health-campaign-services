@@ -23,36 +23,28 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AdditionalFields   {
-        @JsonProperty("schema")
-    
+public class AdditionalFields {
 
-    @Size(min=2,max=64) 
-
+    @JsonProperty("schema")
+    @Size(min = 2, max = 64)
     private String schema = null;
 
-        @JsonProperty("version")
-    
-
+    @JsonProperty("version")
     @Min(1)
-
     private Integer version = null;
 
-        @JsonProperty("fields")
-    
-  @Valid
-
-
+    @JsonProperty("fields")
+    @Valid
     private List<Field> fields = null;
 
 
-        public AdditionalFields addFieldsItem(Field fieldsItem) {
-            if (this.fields == null) {
+    public AdditionalFields addFieldsItem(Field fieldsItem) {
+        if (this.fields == null) {
             this.fields = new ArrayList<>();
-            }
+        }
         this.fields.add(fieldsItem);
         return this;
-        }
+    }
 
 }
 

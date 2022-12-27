@@ -31,7 +31,7 @@ class HouseholdServiceTest {
 
     @Test
     @DisplayName("should call validateId once")
-    void shouldCallValidateIdOnce() {
+    void shouldCallValidateIdOnce() throws Exception {
         HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
                 .withApiOperationCreate().build();
         when(householdRepository.validateIds(anyList(), anyString())).thenReturn(Arrays.asList());
@@ -53,7 +53,7 @@ class HouseholdServiceTest {
 
     @Test
     @DisplayName("should not call validateId if clientReferenceId is null")
-    void shouldNotCallValidateIdIfClientReferenceIdIsNull() {
+    void shouldNotCallValidateIdIfClientReferenceIdIsNull() throws Exception {
         HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
                 .withApiOperationCreate().build();
         householdRequest.getHousehold().get(0).setClientReferenceId(null);

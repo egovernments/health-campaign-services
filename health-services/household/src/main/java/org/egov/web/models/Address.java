@@ -24,112 +24,72 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Address   {
-        @JsonProperty("id")
-    
+public class Address {
 
-    @Size(min=2,max=64) 
-
+    @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
-        @JsonProperty("tenantId")
-    
-
-
+    @JsonProperty("tenantId")
     private String tenantId = null;
 
-        @JsonProperty("doorNo")
-    
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("doorNo")
+    @Size(min = 2, max = 64)
     private String doorNo = null;
 
-        @JsonProperty("latitude")
-    
-
+    @JsonProperty("latitude")
     @DecimalMin("-90")
-    @DecimalMax("90") 
-
+    @DecimalMax("90")
     private Double latitude = null;
 
-        @JsonProperty("longitude")
-    
-
+    @JsonProperty("longitude")
     @DecimalMin("-180")
-    @DecimalMax("180") 
-
+    @DecimalMax("180")
     private Double longitude = null;
 
-        @JsonProperty("locationAccuracy")
-    
-
+    @JsonProperty("locationAccuracy")
     @DecimalMin("0")
-    @DecimalMax("10000") 
-
+    @DecimalMax("10000")
     private Double locationAccuracy = null;
 
-        @JsonProperty("type")
-    
-
-
+    @JsonProperty("type")
     private String type = null;
 
-        @JsonProperty("addressLine1")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("addressLine1")
+    @Size(min = 2, max = 256)
     private String addressLine1 = null;
 
-        @JsonProperty("addressLine2")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("addressLine2")
+    @Size(min = 2, max = 256)
     private String addressLine2 = null;
 
-        @JsonProperty("landmark")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("landmark")
+    @Size(min = 2, max = 256)
     private String landmark = null;
 
-        @JsonProperty("city")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("city")
+    @Size(min = 2, max = 256)
     private String city = null;
 
-        @JsonProperty("pincode")
-    
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("pincode")
+    @Size(min = 2, max = 64)
     private String pincode = null;
 
-        @JsonProperty("buildingName")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("buildingName")
+    @Size(min = 2, max = 256)
     private String buildingName = null;
 
-        @JsonProperty("street")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("street")
+    @Size(min = 2, max = 256)
     private String street = null;
 
-        @JsonProperty("locality")
-    
-  @Valid
-
-
+    @JsonProperty("locality")
+    @Valid
     private Boundary locality = null;
+
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
 
 
 }
