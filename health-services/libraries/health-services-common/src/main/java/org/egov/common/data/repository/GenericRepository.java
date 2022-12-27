@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.producer.Producer;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -97,10 +98,23 @@ public abstract class GenericRepository<T> {
     }
 
     private void putInCache(List<T> objects) {
-        Method getIdMethod = getMethod("getId", getObjClass(objects));
+        String methodName = "getId";
+        try{
+            getMethod("getClientReferenceId", getObjClass(objects));
+            methodName = "getClientReferenceId";
+        } catch (CustomException e){
+            log.info("class does not have getClientReferenceId property");
+        }
+        Method getIdMethod = getMethod(methodName, getObjClass(objects));
         Map<String, T> objMap = objects.stream()
                 .collect(Collectors
-                        .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
+                        .toMap(obj -> {
+                                  String value = (String) ReflectionUtils.invokeMethod(getIdMethod, obj);
+                                  if(value == null){
+                                      value = (String) ReflectionUtils.invokeMethod(getMethod("getId", getObjClass(objects)), obj);
+                                  }
+                                  return value;
+                        },
                                 obj -> obj));
         redisTemplate.opsForHash().putAll(tableName, objMap);
         redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
