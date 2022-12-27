@@ -44,7 +44,7 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-common</artifactId>
-            <version>1.0.6-SNAPSHOT</version>
+            <version>1.0.7-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
