@@ -23,12 +23,15 @@ public class HouseholdService {
     }
 
     public List<Household> create(HouseholdRequest householdRequest){
-        List<String> ids = householdRequest.getHousehold().stream().map(Household::getClientReferenceId).collect(Collectors.toList());
-        List<String> alreadyExists = householdRepository.validateId(ids, "clientReferenceId");
-        if (!alreadyExists.isEmpty()) {
-            log.info("Already exists {alreadyExists}", alreadyExists);
-            throw new CustomException("AlREADY_EXISTS", String.format("ClientReferenceId already exists %s", alreadyExists));
+        List<String> ids = householdRequest.getHousehold().stream().map(Household::getClientReferenceId).filter(h -> h != null).collect(Collectors.toList());
+        if (!ids.isEmpty()) {
+            List<String> alreadyExists = householdRepository.validateIds(ids, "clientReferenceId");
+            if (!alreadyExists.isEmpty()) {
+                log.info("Already exists {alreadyExists}", alreadyExists);
+                throw new CustomException("AlREADY_EXISTS", String.format("ClientReferenceId already exists %s", alreadyExists));
+            }
         }
+
 
         return householdRequest.getHousehold();
     }

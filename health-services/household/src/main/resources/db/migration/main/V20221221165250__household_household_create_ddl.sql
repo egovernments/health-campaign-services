@@ -12,5 +12,6 @@ CREATE TABLE HOUSEHOLD
     lastModifiedTime  bigint,
     rowVersion        bigint,
     isDeleted         boolean,
-    CONSTRAINT uk_household_id PRIMARY KEY (id)
+    CONSTRAINT uk_household_id PRIMARY KEY (id),
+    CONSTRAINT uk_household_client_reference_id UNIQUE (clientReferenceId)
 );
