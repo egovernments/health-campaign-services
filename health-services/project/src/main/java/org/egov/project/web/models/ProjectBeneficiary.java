@@ -1,6 +1,7 @@
 package org.egov.project.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,6 +44,11 @@ public class ProjectBeneficiary {
 
     @JsonProperty("dateOfRegistration")
     private Integer dateOfRegistration = null;
+
+    @JsonProperty("beneficiaryClientReferenceId")
+    @NotNull
+    @Size(min=2,max=64)
+    private String beneficiaryClientReferenceId = null;
 
     @JsonProperty("additionalFields")
     @Valid
