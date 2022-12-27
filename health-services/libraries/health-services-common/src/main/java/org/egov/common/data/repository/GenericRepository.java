@@ -130,7 +130,7 @@ public abstract class GenericRepository<T> {
         return namedParameterJdbcTemplate.query(query, paramsMap, rowMapper);
     }
 
-    public List<String> validateId(List<String> idsToValidate, String columnName){
+    public List<String> validateIds(List<String> idsToValidate, String columnName){
         Map<Object, Object> cacheMap = redisTemplate.opsForHash()
                 .entries(tableName);
         List<String> validIds = idsToValidate.stream().filter(id -> cacheMap.containsKey(id))

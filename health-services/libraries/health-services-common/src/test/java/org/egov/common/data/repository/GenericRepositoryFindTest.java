@@ -123,7 +123,7 @@ class GenericRepositoryFindTest {
     @Test
     @DisplayName("validate id using column name")
     void shouldReturnValidIdsFromDBOrCache() {
-        HashMap<String, Object> hashtable = new HashMap<String, Object>();
+        HashMap<String, Object> hashtable = new HashMap<>();
         hashtable.put("id1", new Object());
         hashtable.put("id2", new Object());
         when(hashOperations.entries(anyString())).thenReturn(hashtable);
@@ -131,7 +131,7 @@ class GenericRepositoryFindTest {
                 .thenReturn(Arrays.asList("id3", "id4"));
         List<String> idsToValidate = Arrays.asList("id1", "id2", "id3", "id4");
 
-        List<String> idsFound = someRepository.validateId(idsToValidate, "colName");
+        List<String> idsFound = someRepository.validateIds(idsToValidate, "colName");
 
         assertEquals(idsToValidate.size(), idsFound.size());
     }
