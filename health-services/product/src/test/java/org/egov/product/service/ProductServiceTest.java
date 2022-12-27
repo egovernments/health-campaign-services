@@ -66,7 +66,6 @@ class ProductServiceTest {
     void shouldEnrichTheFormattedIdInProduct() throws Exception {
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
-        //when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
 
         List<Product> products = productService.create(request);
 
@@ -78,28 +77,11 @@ class ProductServiceTest {
     void shouldSendTheEnrichedProductToTheKafkaTopic() throws Exception {
         ProductRequest response = ProductRequestTestBuilder.builder().addGoodProduct().build();
         response.getProduct().get(0).setId("some-id");
-        //when(productEnrichment.enrichProduct(any(ProductRequest.class))).thenReturn(response);
 
         productService.create(request);
 
-        //verify(productEnrichment, times(1)).enrichProduct(any(ProductRequest.class));
         verify(productRepository, times(1)).save(any(List.class), any(String.class));
     }
-
-    @Test
-    @DisplayName("should validate and return valid productIds")
-    void shouldValidateAndReturnValidProductIds() {
-        List<String> productIds = new ArrayList<>();
-        productIds.add("some-id");
-        productIds.add("some-other-id");
-        List<String> validProductIds = new ArrayList<>(productIds);
-        when(productRepository.validateProductId(productIds)).thenReturn(validProductIds);
-
-        List<String> result = productService.validateProductId(productIds);
-
-        assertEquals(2, result.size());
-    }
-
     @Test
     void shouldGenerateRequestWithRowVersionAndIsDeleted() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().build();
