@@ -1,4 +1,4 @@
-CREATE TABLE INDIVIDUAL
+CREATE TABLE IF NOT EXISTS INDIVIDUAL
 (
     id                character varying(64),
     userId            character varying(64),
@@ -11,14 +11,16 @@ CREATE TABLE INDIVIDUAL
     dateOfBirth       bigint,
     gender            character varying(10),
     bloodGroup        character varying(10),
-    latitude          real,
-    longitude         real,
+    latitude          double precision,
+    longitude         double precision,
     mobileNumber      character varying(20),
     altContactNumber  character varying(20),
     email             character varying(200),
     fatherName        character varying(100),
     husbandName       character varying(100),
     photo             text,
+    -- Comma separated
+    addressIds        text,
     additionalDetails jsonb,
     createdBy         character varying(64),
     lastModifiedBy    character varying(64),

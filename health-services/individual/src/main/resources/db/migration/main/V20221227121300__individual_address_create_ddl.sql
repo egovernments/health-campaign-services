@@ -1,10 +1,10 @@
-CREATE TABLE ADDRESS
+CREATE TABLE IF NOT EXISTS ADDRESS
 (
     id                character varying(64),
     tenantId          character varying(1000),
     doorNo            character varying(64),
-    latitude          real,
-    longitude         real,
+    latitude          double precision,
+    longitude         double precision,
     locationAccuracy  int,
     type              character varying(64),
     addressLine1      character varying(256),
@@ -15,12 +15,5 @@ CREATE TABLE ADDRESS
     buildingName      character varying(256),
     street            character varying(256),
     localityCode      character varying(256),
-    additionalDetails jsonb,
-    createdBy         character varying(64),
-    lastModifiedBy    character varying(64),
-    createdTime       bigint,
-    lastModifiedTime  bigint,
-    rowVersion        bigint,
-    isDeleted         boolean,
     CONSTRAINT uk_address_id PRIMARY KEY (id)
 )

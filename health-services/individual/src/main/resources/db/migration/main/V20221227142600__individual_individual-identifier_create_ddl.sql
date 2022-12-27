@@ -1,4 +1,4 @@
-CREATE TABLE INDIVIDUAL_IDENTIFIER
+CREATE TABLE IF NOT EXISTS INDIVIDUAL_IDENTIFIER
 (
     id               character varying(64),
     individualId     character varying(64),

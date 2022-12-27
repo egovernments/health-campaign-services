@@ -21,22 +21,28 @@ import javax.validation.constraints.Size;
 @AllArgsConstructor
 @Builder
 public class Identifier   {
-        @JsonProperty("type")
-      @NotNull
+    @JsonProperty("id")
 
 
-    @Size(min=2,max=64) 
-
-    private String type = null;
-
-        @JsonProperty("id")
-      @NotNull
-
-
-    @Size(min=2,max=64) 
 
     private String id = null;
 
+
+        @JsonProperty("identifierType")
+      @NotNull
+
+
+    @Size(min=2,max=64) 
+
+    private String identifierType = null;
+
+        @JsonProperty("indentifierId")
+      @NotNull
+
+
+    @Size(min=2,max=64) 
+
+    private String indentifierId = null;
 
 }
 
