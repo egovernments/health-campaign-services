@@ -1,7 +1,10 @@
 package org.egov.individual.helper;
 
+import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
+
+import java.util.Arrays;
 
 public class IndividualTestBuilder {
     private Individual.IndividualBuilder builder;
@@ -31,8 +34,22 @@ public class IndividualTestBuilder {
         return this;
     }
 
+    public IndividualTestBuilder withTenantId(String... args) {
+        this.builder.tenantId(args.length > 0 ? args[0] : "some-tenant-id");
+        return this;
+    }
+
     public IndividualTestBuilder withNoPropertiesSet(String... args) {
         this.builder.build();
+        return this;
+    }
+
+    public IndividualTestBuilder withAddress() {
+        Address address = Address.builder()
+                .city("some-city")
+                .tenantId("some-tenant-id")
+                .build();
+        this.builder.address(Arrays.asList(address));
         return this;
     }
 }

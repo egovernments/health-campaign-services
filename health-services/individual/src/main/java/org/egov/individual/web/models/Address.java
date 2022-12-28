@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 /**
@@ -28,13 +29,13 @@ public class Address   {
         @JsonProperty("id")
     
 
-    @Size(min=2,max=64) 
-
+    @Size(min=2,max=64)
     private String id = null;
 
         @JsonProperty("tenantId")
     
 
+        @NotNull
 
     private String tenantId = null;
 
