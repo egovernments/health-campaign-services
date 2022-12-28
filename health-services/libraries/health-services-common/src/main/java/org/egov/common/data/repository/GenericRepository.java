@@ -127,6 +127,8 @@ public abstract class GenericRepository<T> {
         paramsMap.put("lastModifiedTime", lastChangedSince);
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
+        log.info(query);
+        log.info(paramsMap.toString());
         return namedParameterJdbcTemplate.query(query, paramsMap, rowMapper);
     }
 
