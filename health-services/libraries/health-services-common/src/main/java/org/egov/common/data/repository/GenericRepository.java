@@ -85,7 +85,9 @@ public abstract class GenericRepository<T> {
         paramMap.put("ids", ids);
 
         objFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, rowMapper));
-        putInCache(objFound);
+        if(objFound.size() > 0 ){
+            putInCache(objFound);
+        }
         return objFound;
     }
 

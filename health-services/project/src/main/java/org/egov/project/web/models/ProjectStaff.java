@@ -32,6 +32,7 @@ public class ProjectStaff {
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min=2,max=1000)
     private String tenantId = null;
 
     @JsonProperty("userId")
