@@ -1,7 +1,6 @@
 package org.egov.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +8,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
 import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Size;
@@ -86,19 +84,5 @@ public class Address {
 
     @JsonProperty("localityCode")
     private String localityCode = null;
-
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
-    @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
-
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
 }
 

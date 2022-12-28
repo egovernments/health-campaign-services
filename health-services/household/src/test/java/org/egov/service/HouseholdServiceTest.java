@@ -115,8 +115,8 @@ class HouseholdServiceTest {
 
         List<Household> households = householdService.create(householdRequest);
 
-        assertEquals(households.get(0).getRowVersion(), 1);
-        assertEquals(households.get(0).getIsDeleted(), false);
+        assertEquals(households.stream().findAny().get().getRowVersion(), 1);
+        assertEquals(households.stream().findAny().get().getIsDeleted(), false);
     }
 
     @Test
