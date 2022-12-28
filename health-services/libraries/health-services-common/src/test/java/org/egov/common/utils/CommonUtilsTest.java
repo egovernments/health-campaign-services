@@ -406,6 +406,20 @@ class CommonUtilsTest {
         assertTrue(objList.stream().anyMatch(CommonUtils.havingTenantId("some-tenant-id")));
     }
 
+    @Test
+    @DisplayName("should enrich with id")
+    void shouldEnrichWithId() {
+        List<String> idList = new ArrayList<>();
+        idList.add("some-id");
+        SomeObject someObject = SomeObject.builder().otherField("other-field").build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        CommonUtils.enrichId(objList, idList);
+
+        assertNotNull(objList.stream().findAny().get().getId());
+    }
+
     @Data
     @Builder
     public static class SomeRequest {

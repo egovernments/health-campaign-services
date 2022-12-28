@@ -165,6 +165,16 @@ public class CommonUtils {
                 });
     }
 
+    public static <T> void enrichId(List<T> objList, List<String> idList) {
+        Class<?> objClass = getObjClass(objList);
+        Method setIdMethod = getMethod("setId", objClass);
+        IntStream.range(0, objList.size())
+                .forEach(i -> {
+                    final Object obj = objList.get(i);
+                    ReflectionUtils.invokeMethod(setIdMethod, obj, idList.get(i));
+                });
+    }
+
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
         Class<?> objClass = getObjClass(existingObjList);
         Class<?> requestObjClass = request.getClass();
