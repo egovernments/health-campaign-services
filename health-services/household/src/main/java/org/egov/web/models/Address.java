@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
+import javax.validation.Valid;
 import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Size;
@@ -26,7 +27,6 @@ import javax.validation.constraints.Size;
 public class Address {
 
     @JsonProperty("id")
-    @Size(min = 2, max = 64)
     private String id = null;
 
     @JsonProperty("tenantId")
@@ -82,7 +82,8 @@ public class Address {
     @Size(min = 2, max = 256)
     private String street = null;
 
-    @JsonProperty("localityCode")
-    private String localityCode = null;
+    @JsonProperty("locality")
+    @Valid
+    private Boundary locality = null;
 }
 
