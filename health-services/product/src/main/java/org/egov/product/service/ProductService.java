@@ -41,7 +41,7 @@ public class ProductService {
     }
 
     public List<String> validateProductId(List<String> productIds) {
-        return productRepository.validateProductId(productIds);
+        return productRepository.validateIds(productIds, "id");
     }
 
     public List<Product> create(ProductRequest productRequest) throws Exception {

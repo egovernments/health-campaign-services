@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getDifference;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 
@@ -85,6 +86,7 @@ public abstract class GenericRepository<T> {
 
         objFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, rowMapper));
         putInCache(objFound);
+
         return objFound;
     }
 
@@ -96,6 +98,9 @@ public abstract class GenericRepository<T> {
     }
 
     private void putInCache(List<T> objects) {
+        if(objects == null || objects.isEmpty()) {
+            return;
+        }
         Method getIdMethod = getMethod("getId", getObjClass(objects));
         Map<String, T> objMap = objects.stream()
                 .collect(Collectors
@@ -127,5 +132,23 @@ public abstract class GenericRepository<T> {
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
         return namedParameterJdbcTemplate.query(query, paramsMap, rowMapper);
+    }
+
+    public List<String> validateIds(List<String> idsToValidate, String columnName){
+        Map<Object, Object> cacheMap = redisTemplate.opsForHash()
+                .entries(tableName);
+        List<String> validIds = idsToValidate.stream().filter(id -> cacheMap.containsKey(id))
+                .collect(Collectors.toList());
+        List<String> idsToFindInDb = getDifference(idsToValidate, validIds);
+
+        if (!idsToFindInDb.isEmpty()) {
+            Map<String, Object> paramMap = new HashMap<>();
+            paramMap.put("ids", idsToFindInDb);
+            String query = String.format("SELECT %s FROM %s WHERE %s IN (:ids) AND isDeleted = false fetch first %s rows only",
+                    columnName, tableName, columnName, idsToFindInDb.size());
+            validIds.addAll(namedParameterJdbcTemplate.queryForList(query, paramMap, String.class));
+        }
+
+        return validIds;
     }
 }
