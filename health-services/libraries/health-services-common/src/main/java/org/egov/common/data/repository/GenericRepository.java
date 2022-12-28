@@ -85,9 +85,8 @@ public abstract class GenericRepository<T> {
         paramMap.put("ids", ids);
 
         objFound.addAll(namedParameterJdbcTemplate.query(query, paramMap, rowMapper));
-        if(objFound.size() > 0 ){
-            putInCache(objFound);
-        }
+        putInCache(objFound);
+
         return objFound;
     }
 
@@ -99,6 +98,9 @@ public abstract class GenericRepository<T> {
     }
 
     private void putInCache(List<T> objects) {
+        if(objects == null || objects.isEmpty()) {
+            return;
+        }
         Method getIdMethod = getMethod("getId", getObjClass(objects));
         Map<String, T> objMap = objects.stream()
                 .collect(Collectors
