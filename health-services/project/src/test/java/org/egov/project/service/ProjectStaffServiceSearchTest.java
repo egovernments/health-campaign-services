@@ -48,8 +48,20 @@ class ProjectStaffServiceSearchTest {
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProjectStaffFound() throws Exception {
         when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(null);
         ProjectStaffSearch productVariantSearch = ProjectStaffSearch.builder().id("ID101").userId("some-user-id").build();
+        ProjectStaffSearchRequest productVariantSearchRequest = ProjectStaffSearchRequest.builder()
+                .projectStaff(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo().build()).build();
+
+        assertDoesNotThrow(() -> projectStaffService.search(productVariantSearchRequest, 10, 0, "default", null, false));
+    }
+
+    @Test
+    @DisplayName("should not raise exception if no search results for ids are found")
+    void shouldNotRaiseExceptionIfNoProjectStaffFoundForByIds() throws Exception {
+        when(projectStaffRepository.findById(anyList(),anyBoolean())).thenReturn(Collections.emptyList());
+        ProjectStaffSearch productVariantSearch = ProjectStaffSearch.builder().id("ID101").build();
         ProjectStaffSearchRequest productVariantSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
