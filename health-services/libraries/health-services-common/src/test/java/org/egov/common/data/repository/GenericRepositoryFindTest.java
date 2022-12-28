@@ -89,6 +89,18 @@ class GenericRepositoryFindTest {
     }
 
     @Test
+    @DisplayName("should return empty list if the record is not found in db and cache")
+    void shouldReturnEmptyListIfRecordIsNotFoundInDbAndCache() {
+        when(hashOperations.multiGet(anyString(), anyList())).thenReturn(Collections.emptyList());
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(RowMapper.class)))
+                .thenReturn(Collections.emptyList());
+
+        List<SomeObject> result = someRepository.findById(someObjectIds);
+
+        assertEquals(result.size(), 0);
+    }
+
+    @Test
     @DisplayName("get objects from db for the search request")
     void shouldReturnObjectsFromDBForSearchRequest() throws QueryBuilderException {
         List<SomeObject> result = new ArrayList<>(someObjects);
