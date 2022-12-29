@@ -7,11 +7,13 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.helpers.SomeObject;
+import org.egov.common.helpers.SomeObjectWithClientRefId;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -404,6 +406,58 @@ class CommonUtilsTest {
         List<SomeObject> objList = new ArrayList<>();
         objList.add(someObject);
         assertTrue(objList.stream().anyMatch(CommonUtils.havingTenantId("some-tenant-id")));
+    }
+
+    @Test
+    @DisplayName("should enrich with id")
+    void shouldEnrichWithId() {
+        List<String> idList = new ArrayList<>();
+        idList.add("some-id");
+        SomeObject someObject = SomeObject.builder().otherField("other-field").build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        CommonUtils.enrichId(objList, idList);
+
+        assertNotNull(objList.stream().findAny().get().getId());
+    }
+
+    @Test
+    @DisplayName("should return id field if clientReferenceId field not present")
+    void shouldReturnIdIfClientRefIdNotPresent() {
+        SomeObject someObject = SomeObject.builder().id("some-id").tenantId("some-tenant-id").build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        Method getId = CommonUtils.getIdMethod(objList);
+
+        assertTrue(getId.toString().endsWith("getId()"));
+    }
+
+    @Test
+    @DisplayName("should return id field if clientReferenceId field is null")
+    void shouldReturnIdIfClientRefIdIsNull() {
+        SomeObjectWithClientRefId someObject =SomeObjectWithClientRefId.builder()
+                .id("some-id").tenantId("some-tenant-id").build();
+        List<SomeObjectWithClientRefId> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        Method getId = CommonUtils.getIdMethod(objList);
+
+        assertTrue(getId.toString().endsWith("getId()"));
+    }
+
+    @Test
+    @DisplayName("should return clientReferenceId field if clientReferenceId field is not null")
+    void shouldReturnClientRefIdIfNotNull() {
+        SomeObjectWithClientRefId someObject =SomeObjectWithClientRefId.builder()
+                .id("some-id").clientReferenceId("some-id").tenantId("some-tenant-id").build();
+        List<SomeObjectWithClientRefId> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        Method getId = CommonUtils.getIdMethod(objList);
+
+        assertTrue(getId.toString().endsWith("getClientReferenceId()"));
     }
 
     @Data
