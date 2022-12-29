@@ -12,7 +12,7 @@ import org.egov.web.models.HouseholdSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -74,7 +74,9 @@ public class HouseholdService {
                                   Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
 
         if (isSearchByIdOnly(request.getHousehold())) {
-            return householdRepository.findById(Arrays.asList(request.getHousehold().getId()),
+            List<String> ids = new ArrayList<>();
+            ids.add(request.getHousehold().getId());
+            return householdRepository.findById(ids,
                     "id", includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
@@ -83,7 +85,9 @@ public class HouseholdService {
         }
 
         if (isSearchByClientReferenceIdOnly(request.getHousehold())) {
-             return householdRepository.findById(Arrays.asList(request.getHousehold().getClientReferenceId()),
+            List<String> ids = new ArrayList<>();
+            ids.add(request.getHousehold().getClientReferenceId());
+             return householdRepository.findById(ids,
                         "clientReferenceId", includeDeleted).stream()
                      .filter(lastChangedSince(lastChangedSince))
                      .filter(havingTenantId(tenantId))

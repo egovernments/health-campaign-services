@@ -39,6 +39,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
         List<String> foundInCache = ids.stream().filter(redisMap::containsKey).collect(Collectors.toList());
         objFound = foundInCache.stream().map(id -> (Household)redisMap.get(id)).collect(Collectors.toList());
+        log.info("cache hit: {}", !objFound.isEmpty());
         ids.removeAll(foundInCache);
         if (ids.isEmpty()) {
             return objFound;
@@ -52,7 +53,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         paramMap.put("ids", ids);
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
-        //putInCache(objFound);
+        putInCache(objFound);
         return objFound;
     }
 
