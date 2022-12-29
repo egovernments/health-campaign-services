@@ -91,28 +91,6 @@ public abstract class GenericRepository<T> {
         return objFound;
     }
 
-    public List<T> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<T> objFound;
-        Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
-        List<String> foundInCache = ids.stream().filter(redisMap::containsKey).collect(Collectors.toList());
-        objFound = foundInCache.stream().map(id -> (T)redisMap.get(id)).collect(Collectors.toList());
-        ids.removeAll(foundInCache);
-        if (ids.isEmpty()) {
-            return objFound;
-        }
-
-        String query = String.format("SELECT * FROM %s WHERE %s IN (:ids) AND isDeleted = false", this.tableName, columnName);
-        if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM %s WHERE %s IN (:ids)", this.tableName, columnName);
-        }
-        Map<String, Object> paramMap = new HashMap();
-        paramMap.put("ids", ids);
-
-        objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
-        putInCache(objFound);
-        return objFound;
-    }
-
     public List<T> save(List<T> objects, String topic) {
         producer.push(topic, objects);
         log.info("Pushed to kafka");
@@ -120,7 +98,7 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
-    private void putInCache(List<T> objects) {
+    protected void putInCache(List<T> objects) {
         if(objects == null || objects.isEmpty()) {
             return;
         }

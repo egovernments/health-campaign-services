@@ -147,21 +147,4 @@ class GenericRepositoryFindTest {
 
         assertEquals(idsToValidate.size(), idsFound.size());
     }
-
-    @Test
-    @DisplayName("should found id by column name")
-    void shouldFoundIdByColumnName() {
-        HashMap<String, Object> hashtable = new HashMap<>();
-        hashtable.put("id1", SomeObject.builder().id("id1").build());
-        when(hashOperations.entries(anyString())).thenReturn(hashtable);
-        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(RowMapper.class)))
-                .thenReturn(Arrays.asList(SomeObject.builder().id("id2").build()));
-        ArrayList<String> ids = new ArrayList<>();
-        ids.add("id1");
-        ids.add("id2");
-
-        List<SomeObject> objects = someRepository.findById(ids, "someid", false);
-
-        assertEquals(objects.size(), 2);
-    }
 }
