@@ -101,9 +101,9 @@ public abstract class GenericRepository<T> {
             return objFound;
         }
 
-        String query = String.format("SELECT * FROM %s WHERE %s IN (:ids) AND isDeleted = false", columnName, this.tableName);
+        String query = String.format("SELECT * FROM %s WHERE %s IN (:ids) AND isDeleted = false", this.tableName, columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM %s WHERE %s IN (:ids)", columnName, this.tableName);
+            query = String.format("SELECT * FROM %s WHERE %s IN (:ids)", this.tableName, columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
