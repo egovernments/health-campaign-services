@@ -103,10 +103,10 @@ public abstract class GenericRepository<T> {
             return;
         }
 
-        Method getId = getIdMethod(objects);
+        Method getIdMethod = getIdMethod(objects);
         Map<String, T> objMap = objects.stream()
                 .collect(Collectors
-                        .toMap(obj -> (String) ReflectionUtils.invokeMethod(getId, obj),
+                        .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
                                 obj -> obj));
         redisTemplate.opsForHash().putAll(tableName, objMap);
         redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);

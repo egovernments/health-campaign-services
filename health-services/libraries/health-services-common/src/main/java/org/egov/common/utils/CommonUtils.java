@@ -167,10 +167,10 @@ public class CommonUtils {
 
     public static <T> Method getIdMethod(List<T> objList) {
         try{
-            Method clientRefId = getMethod("getClientReferenceId", getObjClass(objList));
-            String value = (String) ReflectionUtils.invokeMethod(clientRefId, objList.stream().findAny().get());
+            Method getClientReferenceId = getMethod("getClientReferenceId", getObjClass(objList));
+            String value = (String) ReflectionUtils.invokeMethod(getClientReferenceId, objList.stream().findAny().get());
             if (value != null) {
-                return clientRefId;
+                return getClientReferenceId;
             }
         } catch (CustomException e){
             log.error(e.getMessage());
