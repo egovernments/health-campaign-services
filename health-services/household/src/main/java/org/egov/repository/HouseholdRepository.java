@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 @Slf4j
@@ -31,6 +32,28 @@ public class HouseholdRepository extends GenericRepository<Household> {
                                   SelectQueryBuilder selectQueryBuilder,
                                   HouseholdRowMapper householdRowMapper) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdRowMapper, Optional.of("household"));
+    }
+
+    public List<Household> findById(List<String> ids, String columnName, Boolean includeDeleted) {
+        List<Household> objFound;
+        Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
+        List<String> foundInCache = ids.stream().filter(redisMap::containsKey).collect(Collectors.toList());
+        objFound = foundInCache.stream().map(id -> (Household)redisMap.get(id)).collect(Collectors.toList());
+        ids.removeAll(foundInCache);
+        if (ids.isEmpty()) {
+            return objFound;
+        }
+
+        String query = String.format("SELECT * FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
+        if (null != includeDeleted && includeDeleted) {
+            query = String.format("SELECT * FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
+        }
+        Map<String, Object> paramMap = new HashMap();
+        paramMap.put("ids", ids);
+
+        objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
+        //putInCache(objFound);
+        return objFound;
     }
 
     public List<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
