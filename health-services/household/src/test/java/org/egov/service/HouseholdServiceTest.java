@@ -4,6 +4,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.helper.HouseholdRequestTestBuilder;
+import org.egov.helper.HouseholdTestBuilder;
 import org.egov.repository.HouseholdRepository;
 import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Household;
@@ -22,6 +23,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -55,6 +57,10 @@ class HouseholdServiceTest {
         lenient().when(idGenService.getIdList(any(RequestInfo.class),
                         any(String.class),
                         eq("household.id"), eq(""), anyInt()))
+                .thenReturn(idList);
+        lenient().when(idGenService.getIdList(any(RequestInfo.class),
+                        any(String.class),
+                        eq("address.id"), eq(""), anyInt()))
                 .thenReturn(idList);
     }
 
@@ -132,6 +138,36 @@ class HouseholdServiceTest {
         assertNotNull(households.stream().findAny().get().getAuditDetails().getCreatedTime());
         assertNotNull(households.stream().findAny().get().getAuditDetails().getLastModifiedBy());
         assertNotNull(households.stream().findAny().get().getAuditDetails().getLastModifiedTime());
+    }
+
+    @Test
+    @DisplayName("should generate address Id where address is not null")
+    void shouldEnrichAddressIdIfAddressNotNull() throws Exception {
+        Household withAddress = HouseholdTestBuilder.builder().withHousehold().build();
+        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder()
+                .withHousehold(Arrays.asList(withAddress)).withRequestInfo()
+                .withApiOperationCreate().build();
+        when(householdRepository.validateIds(anyList(), anyString())).thenReturn(Arrays.asList());
+
+        List<Household> households = householdService.create(householdRequest);
+
+        assertNotNull(households.get(0).getAddress().getId());
+    }
+
+    @Test
+    @DisplayName("should not generate address Id where address is null")
+    void shouldNotEnrichAddressIdIfAddressNull() throws Exception {
+        Household withNullAddress = HouseholdTestBuilder.builder().withHousehold().withAddress(null).build();
+        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder()
+                .withHousehold(Arrays.asList(withNullAddress)).withRequestInfo()
+                .withApiOperationCreate().build();
+        when(householdRepository.validateIds(anyList(), anyString())).thenReturn(Arrays.asList());
+
+        List<Household> households = householdService.create(householdRequest);
+
+        assertNull(households.get(0).getAddress());
+        verify(idGenService, times(1))
+                .getIdList(any(RequestInfo.class), anyString(), anyString(), anyString(), anyInt());
     }
 
     @Test

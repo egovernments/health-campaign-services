@@ -27,6 +27,7 @@ import javax.validation.constraints.Size;
 public class Address {
 
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
     @JsonProperty("tenantId")

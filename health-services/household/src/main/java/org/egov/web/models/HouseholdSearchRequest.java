@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -21,22 +22,15 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 public class HouseholdSearchRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
 
-  @Valid
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
+    private RequestInfo requestInfo = null;
 
-
-    private org.egov.common.contract.request.RequestInfo requestInfo = null;
-
-        @JsonProperty("Household")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("Household")
+    @NotNull
+    @Valid
     private HouseholdSearch household = null;
-
-
 }
 

@@ -29,7 +29,6 @@ public class HouseholdTestBuilder {
                 .rowVersion(1)
                 .clientReferenceId("some-id")
                 .tenantId("default");
-
         return this;
     }
 

@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -19,37 +20,18 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdSearch   {
-        @JsonProperty("id")
-    
-
-
+@Table(name = "household h")
+public class HouseholdSearch {
+    @JsonProperty("id")
     private String id = null;
 
-        @JsonProperty("tenantId")
-    
-
-
-    private String tenantId = null;
-
-        @JsonProperty("clientReferenceId")
-    
-
-
+    @JsonProperty("clientReferenceId")
     private String clientReferenceId = null;
 
-        @JsonProperty("memberCount")
-    
+//    @JsonProperty("memberCount")
+//    private Integer memberCount = null;
 
-
-    private Integer memberCount = null;
-
-        @JsonProperty("boundaryCode")
-    
-
-
-    private String boundaryCode = null;
-
-
+    @JsonProperty("boundaryCode")
+    private String localityCode = null;
 }
 

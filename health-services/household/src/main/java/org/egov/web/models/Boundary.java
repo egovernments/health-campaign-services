@@ -7,10 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * Boundary
@@ -55,12 +52,12 @@ public class Boundary {
 
     private String longitude = null;
 
-        @JsonProperty("children")
-    
-  @Valid
-
-
-    private List<Boundary> children = null;
+//        @JsonProperty("children")
+//
+//  @Valid
+//
+//
+//    private List<Boundary> children = null;
 
         @JsonProperty("materializedPath")
     
@@ -69,13 +66,13 @@ public class Boundary {
     private String materializedPath = null;
 
 
-        public Boundary addChildrenItem(Boundary childrenItem) {
-            if (this.children == null) {
-            this.children = new ArrayList<>();
-            }
-        this.children.add(childrenItem);
-        return this;
-        }
+//        public Boundary addChildrenItem(Boundary childrenItem) {
+//            if (this.children == null) {
+//            this.children = new ArrayList<>();
+//            }
+//        this.children.add(childrenItem);
+//        return this;
+//        }
 
 }
 

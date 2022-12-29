@@ -2,9 +2,11 @@ package org.egov.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.web.models.ApiOperation;
+import org.egov.web.models.Household;
 import org.egov.web.models.HouseholdRequest;
 
 import java.util.Arrays;
+import java.util.List;
 
 public class HouseholdRequestTestBuilder {
     private HouseholdRequest.HouseholdRequestBuilder builder;
@@ -23,6 +25,11 @@ public class HouseholdRequestTestBuilder {
 
     public HouseholdRequestTestBuilder withHousehold(){
         this.builder.household(Arrays.asList(HouseholdTestBuilder.builder().withHousehold().build()));
+        return this;
+    }
+
+    public HouseholdRequestTestBuilder withHousehold(List<Household> households) {
+        this.builder.household(households);
         return this;
     }
 
