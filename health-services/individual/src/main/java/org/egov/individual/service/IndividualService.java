@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichId;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 
 @Service
@@ -47,7 +47,7 @@ public class IndividualService {
                     getTenantId(addresses), "address.id",
                     null, addresses.size());
             //  enrich id
-            IntStream.range(0, addresses.size()).forEach(i -> addresses.get(i).setId(addressIdList.get(i)));
+            enrichId(addresses, addressIdList);
         }
         //  -----
         //  generate id for individual
@@ -71,8 +71,7 @@ public class IndividualService {
                 tenantId, "identifier.id",
                 null, identifiers.size());
         //  enrich id for identifier
-        IntStream.range(0, identifiers.size())
-                .forEach(i -> identifiers.get(i).setId(identifierIdList.get(i)));
+        enrichId(identifiers, identifierIdList);
         //  -----
         //  save
         individualRepository.save(request.getIndividual(), "save-individual-topic");
