@@ -28,9 +28,9 @@ import java.util.List;
 @Builder
 public class Individual   {
         @JsonProperty("id")
-    
 
 
+        @Size(min=2,max=64)
     private String id = null;
 
         @JsonProperty("tenantId")
@@ -104,7 +104,7 @@ public class Individual   {
     
   @Valid
 
-
+        @Size(min=1)
     private List<Address> address = null;
 
         @JsonProperty("fatherName")

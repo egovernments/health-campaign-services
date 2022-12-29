@@ -49,6 +49,12 @@ class IndividualServiceTest {
         mockIdGen("identifier.id", "some-identifier-id");
     }
 
+    private void mockIdGen(String value, String o) throws Exception {
+        when(idGenService.getIdList(any(RequestInfo.class), anyString(),
+                eq(value), eq(null), anyInt()))
+                .thenReturn(Collections.singletonList(o));
+    }
+
     @Test
     @DisplayName("should generate address id if address is not null")
     void shouldGenerateAddressIdIfAddressIsNotNull() throws Exception {
@@ -61,21 +67,40 @@ class IndividualServiceTest {
                         .withAddress()
                         .build())
                 .build();
-        mockIdGen("address.id", "some-address-id");
         mockIdGen("individual.id", "some-individual-id");
 
         List<Individual> response = individualService.create(request);
 
-        assertEquals("some-address-id",
-                response.stream().findFirst().get()
+        assertNotNull(response.stream().findFirst().get()
                         .getAddress().stream().findFirst().get()
                         .getId());
     }
 
-    private void mockIdGen(String value, String o) throws Exception {
-        when(idGenService.getIdList(any(RequestInfo.class), anyString(),
-                eq(value), eq(null), anyInt()))
-                .thenReturn(Collections.singletonList(o));
+    @Test
+    @DisplayName("should enrich address audit details and individual id if address is not null")
+    void shouldEnrichAddressWithAuditDetailsAndIndividualIdIfAddressIsNotNull() throws Exception {
+        IndividualRequest request = IndividualRequestTestBuilder.builder()
+                .withApiOperation(ApiOperation.CREATE)
+                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withName()
+                        .withTenantId()
+                        .withAddress()
+                        .build())
+                .build();
+        mockIdGen("individual.id", "some-individual-id");
+
+        List<Individual> response = individualService.create(request);
+
+        assertNotNull(response.stream().findFirst().get()
+                .getAddress().stream().findFirst().get()
+                .getId());
+        assertNotNull(response.stream().findFirst().get()
+                .getAddress().stream().findFirst().get()
+                .getIndividualId());
+        assertNotNull(response.stream().findFirst().get()
+                .getAddress().stream().findFirst().get()
+                .getAuditDetails());
     }
 
     @Test
@@ -138,7 +163,7 @@ class IndividualServiceTest {
 
         assertNotNull(response.stream().findFirst().get()
                 .getIdentifiers().stream().findFirst().get()
-                .getIndentifierId());
+                .getIdentifierId());
         assertEquals("SYSTEM_GENERATED",
                 response.stream().findFirst().get()
                         .getIdentifiers().stream().findFirst().get()
@@ -146,8 +171,8 @@ class IndividualServiceTest {
     }
 
     @Test
-    @DisplayName("should generate id for identifiers")
-    void shouldGenerateIdForIdentifiers() throws Exception {
+    @DisplayName("should enrich identifier with individual id")
+    void shouldEnrichIdentifierWithIndividualId() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
                 .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
@@ -162,7 +187,35 @@ class IndividualServiceTest {
 
         assertNotNull(response.stream().findFirst().get()
                 .getIdentifiers().stream().findFirst().get()
-                .getIndentifierId());
+                .getIdentifierId());
+        assertEquals("SYSTEM_GENERATED",
+                response.stream().findFirst().get()
+                        .getIdentifiers().stream().findFirst().get()
+                        .getIdentifierType());
+        assertEquals("some-individual-id",
+                response.stream().findFirst().get()
+                        .getIdentifiers().stream().findFirst().get()
+                        .getIndividualId());
+    }
+
+    @Test
+    @DisplayName("should enrich identifiers")
+    void shouldEnrichIdentifiers() throws Exception {
+        IndividualRequest request = IndividualRequestTestBuilder.builder()
+                .withApiOperation(ApiOperation.CREATE)
+                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withTenantId()
+                        .withName()
+                        .build())
+                .build();
+        mockIdGen("individual.id", "some-individual-id");
+
+        List<Individual> response = individualService.create(request);
+
+        assertNotNull(response.stream().findFirst().get()
+                .getIdentifiers().stream().findFirst().get()
+                .getIdentifierId());
         assertEquals("SYSTEM_GENERATED",
                 response.stream().findFirst().get()
                         .getIdentifiers().stream().findFirst().get()
@@ -171,6 +224,9 @@ class IndividualServiceTest {
                 response.stream().findFirst().get()
                         .getIdentifiers().stream().findFirst().get()
                         .getId());
+        assertNotNull(response.stream().findFirst().get()
+                .getIdentifiers().stream().findFirst().get()
+                .getAuditDetails());
     }
 
     @Test

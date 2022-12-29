@@ -1,6 +1,7 @@
 package org.egov.individual.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,12 @@ public class Address   {
 
     @Size(min=2,max=64)
     private String id = null;
+
+    @JsonProperty("individualId")
+
+
+    @Size(min=2,max=64)
+    private String individualId = null;
 
         @JsonProperty("tenantId")
     
@@ -131,6 +138,25 @@ public class Address   {
 
 
     private Boundary locality = null;
+
+    @JsonProperty("isDeleted")
+
+
+
+    private Boolean isDeleted = null;
+
+    @JsonProperty("rowVersion")
+
+
+
+    private Integer rowVersion = null;
+
+    @JsonProperty("auditDetails")
+
+    @Valid
+
+
+    private AuditDetails auditDetails = null;
 
 
 }

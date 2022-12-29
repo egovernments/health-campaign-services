@@ -1,12 +1,14 @@
 package org.egov.individual.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
@@ -23,9 +25,15 @@ import javax.validation.constraints.Size;
 public class Identifier   {
     @JsonProperty("id")
 
-
+    @Size(min=2,max=64)
 
     private String id = null;
+
+    @JsonProperty("individualId")
+
+    @Size(min=2,max=64)
+
+    private String individualId = null;
 
 
         @JsonProperty("identifierType")
@@ -36,13 +44,32 @@ public class Identifier   {
 
     private String identifierType = null;
 
-        @JsonProperty("indentifierId")
+        @JsonProperty("identifierId")
       @NotNull
 
 
     @Size(min=2,max=64) 
 
-    private String indentifierId = null;
+    private String identifierId = null;
+
+    @JsonProperty("isDeleted")
+
+
+
+    private Boolean isDeleted = null;
+
+    @JsonProperty("rowVersion")
+
+
+
+    private Integer rowVersion = null;
+
+    @JsonProperty("auditDetails")
+
+    @Valid
+
+
+    private AuditDetails auditDetails = null;
 
 }
 
