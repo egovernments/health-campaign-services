@@ -124,6 +124,25 @@ public class CommonUtils {
         return actual.equals(expected);
     }
 
+    public static boolean isSearchByClientReferenceIdOnly(Object obj) {
+        Class<?> objClass = obj.getClass();
+        Method setClientReferenceId = getMethod("setClientReferenceId", objClass);
+        Method getClientReferenceId = getMethod("getClientReferenceId", objClass);
+
+        Object finalObject = null;
+        try {
+            finalObject = objClass.newInstance();
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        Object id = ReflectionUtils.invokeMethod(getClientReferenceId, obj);
+        ReflectionUtils.invokeMethod(setClientReferenceId, finalObject, id);
+
+        String actual = obj.toString();
+        String expected = finalObject.toString();
+        return actual.equals(expected);
+    }
+
 
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList) {
         Class<?> objClass = getObjClass(objList);

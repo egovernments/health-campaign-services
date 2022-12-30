@@ -206,6 +206,27 @@ class CommonUtilsTest {
     }
 
     @Test
+    @DisplayName("should return true if search is by clientReferenceId only")
+    void shouldReturnTrueIfSearchIsByClientReferenceIdOnly() {
+        SomeObjectWithClientRefId someObject = SomeObjectWithClientRefId.builder()
+                .clientReferenceId("some-id")
+                .build();
+
+        assertTrue(CommonUtils.isSearchByClientReferenceIdOnly(someObject));
+    }
+
+    @Test
+    @DisplayName("should return false if search is not by clientReferenceId only")
+    void shouldReturnFalseIfSearchIsNotByClientReferenceIdOnly() {
+        SomeObjectWithClientRefId someObject = SomeObjectWithClientRefId.builder()
+                .clientReferenceId("some-id")
+                .otherField("other-field")
+                .build();
+
+        assertFalse(CommonUtils.isSearchByClientReferenceIdOnly(someObject));
+    }
+
+    @Test
     @DisplayName("should check row version")
     void shouldCheckRowVersion() {
         SomeObject someObject = SomeObject.builder()
