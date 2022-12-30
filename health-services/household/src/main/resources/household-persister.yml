@@ -24,7 +24,7 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
 
-        - query: INSERT INTO ADDRESS(id, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street,  additionalDetails, localityCode, createdby, lastmodifiedby, createdtime, lastmodifiedtime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO ADDRESS(id, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.address
           jsonMaps:
             - jsonPath: $.*.address.id
@@ -34,20 +34,11 @@ serviceMaps:
             - jsonPath: $.*.address.longitude
             - jsonPath: $.*.address.locationAccuracy
             - jsonPath: $.*.address.type
-            - jsonPath: $.*.address.addressline1
-            - jsonPath: $.*.address.addressline2
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
             - jsonPath: $.*.address.landmark
             - jsonPath: $.*.address.city
             - jsonPath: $.*.address.pincode
             - jsonPath: $.*.address.buildingName
             - jsonPath: $.*.address.street
-            - jsonPath: $.*.address.additionalFields
-              type: JSON
-              dbType: JSONB
             - jsonPath: $.*.address.locality.code
-            - jsonPath: $.*.address.auditDetails.createdBy
-            - jsonPath: $.*.address.auditDetails.lastModifiedBy
-            - jsonPath: $.*.address.auditDetails.createdTime
-            - jsonPath: $.*.address.auditDetails.lastModifiedTime
-            - jsonPath: $.*.address.rowVersion
-            - jsonPath: $.*.address.isDeleted
