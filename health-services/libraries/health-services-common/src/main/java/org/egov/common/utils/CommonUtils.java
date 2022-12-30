@@ -165,6 +165,30 @@ public class CommonUtils {
                 });
     }
 
+    public static <T> Method getIdMethod(List<T> objList) {
+        try{
+            Method getClientReferenceId = getMethod("getClientReferenceId", getObjClass(objList));
+            String value = (String) ReflectionUtils.invokeMethod(getClientReferenceId, objList.stream().findAny().get());
+            if (value != null) {
+                return getClientReferenceId;
+            }
+        } catch (CustomException e){
+            log.error(e.getMessage());
+        }
+
+        return getMethod("getId", getObjClass(objList));
+    }
+
+    public static <T> void enrichId(List<T> objList, List<String> idList) {
+        Class<?> objClass = getObjClass(objList);
+        Method setIdMethod = getMethod("setId", objClass);
+        IntStream.range(0, objList.size())
+                .forEach(i -> {
+                    final Object obj = objList.get(i);
+                    ReflectionUtils.invokeMethod(setIdMethod, obj, idList.get(i));
+                });
+    }
+
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
         Class<?> objClass = getObjClass(existingObjList);
         Class<?> requestObjClass = request.getClass();
