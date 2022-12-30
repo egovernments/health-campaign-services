@@ -36,3 +36,10 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/project/src/main/resources/db"
         image-name: "project-db"
+  - name: "builds/health-campaign-services/health-services/individual"
+    build:
+      - work-dir: "health-services/individual"
+        image-name: "individual"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/individual/src/main/resources/db"
+        image-name: "individual-db"
