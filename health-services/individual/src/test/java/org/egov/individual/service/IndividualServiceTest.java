@@ -68,6 +68,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 
@@ -89,6 +90,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 
@@ -115,6 +117,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 
@@ -135,6 +138,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 
@@ -158,6 +162,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 
@@ -182,6 +187,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 
@@ -210,6 +216,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 
@@ -224,6 +231,10 @@ class IndividualServiceTest {
                 response.stream().findFirst().get()
                         .getIdentifiers().stream().findFirst().get()
                         .getId());
+        assertEquals("some-sys-gen-id",
+                response.stream().findFirst().get()
+                        .getIdentifiers().stream().findFirst().get()
+                        .getIdentifierId());
         assertNotNull(response.stream().findFirst().get()
                 .getIdentifiers().stream().findFirst().get()
                 .getAuditDetails());
@@ -241,6 +252,7 @@ class IndividualServiceTest {
                         .build())
                 .build();
         mockIdGen("individual.id", "some-individual-id");
+        mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
 
         List<Individual> response = individualService.create(request);
 

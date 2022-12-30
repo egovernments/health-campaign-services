@@ -1,5 +1,6 @@
 package org.egov.individual.web.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -12,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,10 +62,8 @@ public class Individual   {
     private Name name = null;
 
         @JsonProperty("dateOfBirth")
-    
-
-
-    private String dateOfBirth = null;
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
+    private LocalDate dateOfBirth = null;
 
         @JsonProperty("gender")
     

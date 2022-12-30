@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.getTenantId;
@@ -58,8 +59,20 @@ public class IndividualService {
                 tenantId, "identifier.id",
                 null, identifiers.size());
         enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
+        List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
+                tenantId, "sys.gen.identifier.id",
+                null, identifiers.size());
+        enrichWithSysGenId(identifiers, sysGenIdList);
         individualRepository.save(request.getIndividual(), "save-individual-topic");
         return request.getIndividual();
+    }
+
+    private static void enrichWithSysGenId(List<Identifier> identifiers, List<String> sysGenIdList) {
+        IntStream.range(0, identifiers.size()).forEach(i -> {
+            if (identifiers.get(i).getIdentifierType().equals("SYSTEM_GENERATED")) {
+                identifiers.get(i).setIdentifierId(sysGenIdList.get(i));
+            }
+        });
     }
 
     private static Individual enrichIndividualIdInIdentifiers(Individual individual) {
@@ -90,7 +103,6 @@ public class IndividualService {
             List<Identifier> identifiers = new ArrayList<>();
             identifiers.add(Identifier.builder()
                     .identifierType("SYSTEM_GENERATED")
-                    .identifierId(UUID.randomUUID().toString())
                     .build());
             individual.setIdentifiers(identifiers);
         }

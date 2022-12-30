@@ -7,8 +7,7 @@ CREATE TABLE IF NOT EXISTS INDIVIDUAL
     givenName         character varying(200),
     familyName        character varying(200),
     otherNames        character varying(200),
-    -- YYYYMMDD
-    dateOfBirth       character varying(8),
+    dateOfBirth       date,
     gender            character varying(10),
     bloodGroup        character varying(10),
     mobileNumber      character varying(20),
