@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getDifference;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 
@@ -101,7 +102,8 @@ public abstract class GenericRepository<T> {
         if(objects == null || objects.isEmpty()) {
             return;
         }
-        Method getIdMethod = getMethod("getId", getObjClass(objects));
+
+        Method getIdMethod = getIdMethod(objects);
         Map<String, T> objMap = objects.stream()
                 .collect(Collectors
                         .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
