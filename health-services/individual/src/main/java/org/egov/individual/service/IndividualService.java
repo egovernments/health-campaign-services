@@ -55,9 +55,7 @@ public class IndividualService {
                 .collect(Collectors.toList()));
         List<Identifier> identifiers = collectFromList(request.getIndividual(),
                 Individual::getIdentifiers);
-        List<String> identifierIdList = idGenService.getIdList(request.getRequestInfo(),
-                tenantId, "identifier.id",
-                null, identifiers.size());
+        List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
         enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
         List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
                 tenantId, "sys.gen.identifier.id",
