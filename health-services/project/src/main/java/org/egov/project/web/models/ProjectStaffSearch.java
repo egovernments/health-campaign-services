@@ -25,10 +25,13 @@ import javax.validation.constraints.Size;
 @Table(name="project_staff")
 public class ProjectStaffSearch   {
 
+
     @JsonProperty("id")
+    @Size(min=2,max=64)
     private String id = null;
 
     @JsonProperty("tenantId")
+    @Size(min=2,max=1000)
     private String tenantId = null;
 
     @JsonProperty("userId")
