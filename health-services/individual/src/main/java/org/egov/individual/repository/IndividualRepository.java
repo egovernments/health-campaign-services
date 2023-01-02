@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -23,5 +24,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
                                    IndividualRowMapper individualRowMapper) {
         super(producer, namedParameterJdbcTemplate, redisTemplate,
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
+    }
+
+    public List<Individual> findById(List<String> ids, String idColumn, boolean includeDeleted) {
+
+        return null;
     }
 }

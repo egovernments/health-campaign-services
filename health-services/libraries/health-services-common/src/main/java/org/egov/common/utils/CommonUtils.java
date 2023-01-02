@@ -6,6 +6,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -295,6 +298,49 @@ public class CommonUtils {
         if (nullCount > 0) {
             throw new CustomException("NULL_ID", String.format("Ids cannot be null, found %d", nullCount));
         }
+    }
+
+    public static <T, R> List<R> collectFromList(List<T> objList, Function<T, List<R>> function) {
+        return objList.stream()
+                .flatMap(obj -> {
+                    List<R> aList = function.apply(obj);
+                    if (aList == null || aList.isEmpty()) {
+                        return new ArrayList<R>().stream();
+                    }
+                    return aList.stream();
+                })
+                .collect(Collectors.toList());
+    }
+
+    public static String getIdFieldName(Object obj) {
+        String defaultVal = "id";
+        try {
+            Field idField = obj.getClass().getDeclaredField("id");
+            idField.setAccessible(true);
+            Object idFieldValue = idField.get(obj);
+            if (idFieldValue != null) {
+                return "id";
+            }
+            Field clientReferenceIdField = obj.getClass().getDeclaredField("clientReferenceId");
+            clientReferenceIdField.setAccessible(true);
+            Object clientReferenceIdFieldValue = clientReferenceIdField.get(obj);
+            if (clientReferenceIdFieldValue != null) {
+                return "clientReferenceId";
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            return defaultVal;
+        }
+        return defaultVal;
+    }
+
+    public static Function<Integer, List<String>> uuidSupplier() {
+        return integer ->  {
+            List<String> uuidList = new ArrayList<>();
+            for (int i = 0; i < integer; i++) {
+                uuidList.add(UUID.randomUUID().toString());
+            }
+            return uuidList;
+        };
     }
 
     public static Method getMethod(String methodName, Class<?> clazz) {

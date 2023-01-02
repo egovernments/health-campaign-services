@@ -10,6 +10,7 @@ import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualResponse;
+import org.egov.individual.web.models.IndividualSearch;
 import org.egov.individual.web.models.IndividualSearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
@@ -133,7 +134,7 @@ class IndividualApiControllerTest {
         Individual responseIndividual = IndividualTestBuilder.builder()
                 .withId()
                 .build();
-        when(individualService.search(any(IndividualSearchRequest.class),
+        when(individualService.search(any(IndividualSearch.class),
                 any(Integer.class),
                 any(Integer.class),
                 any(String.class),
