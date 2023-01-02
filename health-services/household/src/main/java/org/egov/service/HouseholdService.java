@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.service.IdGenService;
 import org.egov.repository.HouseholdRepository;
-import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Address;
 import org.egov.web.models.Household;
 import org.egov.web.models.HouseholdRequest;
@@ -14,18 +13,23 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.identifyNullIds;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByClientReferenceIdOnly;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.validateEntities;
 
 @Service
 @Slf4j
@@ -42,17 +46,6 @@ public class HouseholdService {
     }
 
     public List<Household> create(HouseholdRequest householdRequest) throws Exception {
-        List<String> ids = householdRequest.getHousehold().stream().map(Household::getClientReferenceId)
-                .filter(Objects::nonNull).collect(Collectors.toList());
-        if (!ids.isEmpty()) {
-            List<String> alreadyExists = householdRepository.validateIds(ids, "clientReferenceId");
-            if (!alreadyExists.isEmpty()) {
-                log.info("Already exists {}", alreadyExists);
-                throw new CustomException("AlREADY_EXISTS",
-                        String.format("ClientReferenceId already exists %s", alreadyExists));
-            }
-        }
-
         List<String> idList =  idGenService.getIdList(householdRequest.getRequestInfo(),
                 getTenantId(householdRequest.getHousehold()),
                 "household.id", "", householdRequest.getHousehold().size());
@@ -84,7 +77,7 @@ public class HouseholdService {
                     .collect(Collectors.toList());
         }
 
-        if (isSearchByClientReferenceIdOnly(request.getHousehold())) {
+        if (isSearchByIdOnly(request.getHousehold(), "clientReferenceId")) {
             List<String> ids = new ArrayList<>();
             ids.add(request.getHousehold().getClientReferenceId());
              return householdRepository.findById(ids,
@@ -97,5 +90,22 @@ public class HouseholdService {
 
         return householdRepository.find(request.getHousehold(), limit, offset,
                         tenantId, lastChangedSince, includeDeleted);
+    }
+
+    public List<Household> update(HouseholdRequest request) {
+        identifyNullIds(request.getHousehold());
+        Map<String, Household> hMap = getIdToObjMap(request.getHousehold());
+
+        log.info("Checking if already exists");
+        List<String> householdIds = new ArrayList<>(hMap.keySet());
+        List<Household> existingHouseholds = householdRepository.findById(householdIds, "id", false);
+        validateEntities(hMap, existingHouseholds);
+        checkRowVersion(hMap, existingHouseholds);
+
+        log.info("Updating lastModifiedTime and lastModifiedBy");
+        enrichForUpdate(hMap, existingHouseholds, request);
+
+        householdRepository.save(request.getHousehold(), "update-household-topic");
+        return request.getHousehold();
     }
 }

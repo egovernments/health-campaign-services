@@ -212,7 +212,7 @@ class CommonUtilsTest {
                 .clientReferenceId("some-id")
                 .build();
 
-        assertTrue(CommonUtils.isSearchByClientReferenceIdOnly(someObject));
+        assertTrue(CommonUtils.isSearchByIdOnly(someObject, "clientReferenceId"));
     }
 
     @Test
@@ -223,7 +223,7 @@ class CommonUtilsTest {
                 .otherField("other-field")
                 .build();
 
-        assertFalse(CommonUtils.isSearchByClientReferenceIdOnly(someObject));
+        assertFalse(CommonUtils.isSearchByIdOnly(someObject, "clientReferenceId"));
     }
 
     @Test

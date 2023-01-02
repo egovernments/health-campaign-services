@@ -106,9 +106,14 @@ public class CommonUtils {
     }
 
     public static boolean isSearchByIdOnly(Object obj) {
+        return isSearchByIdOnly(obj, "id");
+    }
+
+    public static boolean isSearchByIdOnly(Object obj, String fieldName) {
         Class<?> objClass = obj.getClass();
-        Method setIdMethod = getMethod("setId", objClass);
-        Method getIdMethod = getMethod("getId", objClass);
+        String propertyName = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+        Method setIdMethod = getMethod("set"+propertyName, objClass);
+        Method getIdMethod = getMethod("get"+propertyName, objClass);
 
         Object finalObject = null;
         try {
@@ -123,26 +128,6 @@ public class CommonUtils {
         String expected = finalObject.toString();
         return actual.equals(expected);
     }
-
-    public static boolean isSearchByClientReferenceIdOnly(Object obj) {
-        Class<?> objClass = obj.getClass();
-        Method setClientReferenceId = getMethod("setClientReferenceId", objClass);
-        Method getClientReferenceId = getMethod("getClientReferenceId", objClass);
-
-        Object finalObject = null;
-        try {
-            finalObject = objClass.newInstance();
-        } catch (InstantiationException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-        Object id = ReflectionUtils.invokeMethod(getClientReferenceId, obj);
-        ReflectionUtils.invokeMethod(setClientReferenceId, finalObject, id);
-
-        String actual = obj.toString();
-        String expected = finalObject.toString();
-        return actual.equals(expected);
-    }
-
 
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList) {
         Class<?> objClass = getObjClass(objList);
