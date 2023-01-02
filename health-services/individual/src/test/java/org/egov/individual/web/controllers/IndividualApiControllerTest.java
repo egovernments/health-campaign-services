@@ -3,12 +3,14 @@ package org.egov.individual.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.individual.TestConfiguration;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
+import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualResponse;
+import org.egov.individual.web.models.IndividualSearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -110,6 +113,59 @@ class IndividualApiControllerTest {
 
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+        assertEquals(1, response.getErrors().size());
+    }
+
+    @Test
+    @DisplayName("should send 200 OK if search is successful and results are not empty")
+    void shouldSend200OkIfSearchIsSuccessfulAndResultsAreNotEmpty() throws Exception {
+        IndividualSearchRequest request = IndividualSearchRequestTestBuilder.builder()
+                .withIndividualSearch()
+                .withRequestInfo()
+                .build();
+        Individual responseIndividual = IndividualTestBuilder.builder()
+                .withId()
+                .build();
+        when(individualService.search(any(IndividualSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenReturn(Collections.singletonList(responseIndividual));
+
+        MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+
+        String responseStr = result.getResponse().getContentAsString();
+        IndividualResponse response = objectMapper.readValue(responseStr,
+                IndividualResponse.class);
+        assertEquals(1, response.getIndividual().size());
+        assertEquals("some-id", response.getIndividual().stream().findAny().get().getId());
+        assertEquals("successful", response.getResponseInfo().getStatus());
+    }
+
+    @Test
+    @DisplayName("should send 400 Bad Request in case validation error in search request")
+    void shouldSend400BadRequestInCaseOfValidationErrorInSearchRequest() throws Exception {
+        IndividualSearchRequest request = IndividualSearchRequestTestBuilder.builder()
+                .withIndividualSearch()
+                .withRequestInfo()
+                .build();
+
+        MvcResult result = mockMvc.perform(post("/v1/_search?offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType
+                                .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();

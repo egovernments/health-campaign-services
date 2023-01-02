@@ -1,5 +1,6 @@
 package org.egov.individual.web.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
@@ -9,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import java.time.LocalDate;
 
 /**
 * A representation of an Individual.
@@ -47,11 +49,12 @@ public class IndividualSearch   {
 
     private Name name = null;
 
-        @JsonProperty("dateOfBirth")
+    @JsonProperty("dateOfBirth")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
     
 
 
-    private String dateOfBirth = null;
+    private LocalDate dateOfBirth = null;
 
         @JsonProperty("gender")
     

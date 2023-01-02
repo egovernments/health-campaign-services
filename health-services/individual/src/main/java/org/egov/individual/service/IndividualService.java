@@ -7,6 +7,7 @@ import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
+import org.egov.individual.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -117,5 +118,14 @@ public class IndividualService {
                     return aList.stream();
                 })
                 .collect(Collectors.toList());
+    }
+
+    public List<Individual> search(IndividualSearchRequest request,
+                                   Integer limit,
+                                   Integer offset,
+                                   String tenantId,
+                                   Long lastChangedSince,
+                                   Boolean includeDeleted) {
+        throw new UnsupportedOperationException();
     }
 }
