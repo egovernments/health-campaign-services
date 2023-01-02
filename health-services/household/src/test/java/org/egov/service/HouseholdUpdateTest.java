@@ -13,12 +13,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class HouseholdUpdateTest {
+class HouseholdUpdateTest {
 
     @InjectMocks
     HouseholdService householdService;
@@ -51,7 +51,7 @@ public class HouseholdUpdateTest {
         HouseholdRequest request = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo().build();
         request.getHousehold().get(0).setRowVersion(10);
         when(householdRepository.findById(anyList(), eq("id"), eq(false)))
-                .thenReturn(Arrays.asList(HouseholdTestBuilder.builder().withHousehold().withRowVersion(5).build()));
+                .thenReturn(Collections.singletonList(HouseholdTestBuilder.builder().withHousehold().withRowVersion(5).build()));
 
         assertThrows(CustomException.class, () -> householdService.update(request));
     }
@@ -66,7 +66,7 @@ public class HouseholdUpdateTest {
 
         List<Household> households = householdService.update(request);
 
-        assertEquals(households.get(0).getRowVersion(), 2);
+        assertEquals(2, households.get(0).getRowVersion());
     }
 
     @Test
@@ -79,7 +79,7 @@ public class HouseholdUpdateTest {
 
         List<Household> households = householdService.update(request);
 
-        assertEquals(households.get(0).getIsDeleted(), true);
+        assertTrue(households.get(0).getIsDeleted());
     }
 
     @Test
@@ -90,7 +90,7 @@ public class HouseholdUpdateTest {
         when(householdRepository.findById(anyList(), eq("id"), eq(false)))
                 .thenReturn(request.getHousehold());
 
-        List<Household> households = householdService.update(request);
+        householdService.update(request);
 
         verify(householdRepository, times(1)).save(anyList(), anyString());
     }
