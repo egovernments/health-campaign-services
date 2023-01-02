@@ -35,7 +35,7 @@ public class HouseholdFindTest {
 
     @Test
     @DisplayName("should search only by id if only id is present")
-    void shouldOnlySeachByIdIfOnlyIdIsPresent() throws QueryBuilderException {
+    void shouldOnlySearchByIdIfOnlyIdIsPresent() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().id("some-id").build()).build();
@@ -51,7 +51,7 @@ public class HouseholdFindTest {
 
     @Test
     @DisplayName("should search only by clientReferenceId if only clientReferenceId is present")
-    void shouldOnlySeachByClientReferenceIdIfOnlyClientReferenceIdIsPresent() throws QueryBuilderException {
+    void shouldOnlySearchByClientReferenceIdIfOnlyClientReferenceIdIsPresent() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().clientReferenceId("some-id").build()).build();
@@ -82,7 +82,7 @@ public class HouseholdFindTest {
     }
 
     @Test
-    @DisplayName("should call find if more paramters are available")
+    @DisplayName("should call find if more parameters are available")
     void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())

@@ -48,7 +48,7 @@ class HouseholdApiControllerTest {
     private HouseholdService householdService;
 
     @Test
-    @DisplayName("household create request should pass if API Operation is create")
+    @DisplayName("should household create request pass if API Operation is create")
     void householdV1CreatePostSuccess() throws Exception {
         HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
                 .withApiOperationCreate().build();
@@ -76,7 +76,7 @@ class HouseholdApiControllerTest {
     }
 
     @Test
-    @DisplayName("should household search request pass if all the required query parms are present")
+    @DisplayName("should household search request pass if all the required query parameters are present")
     void shouldSearchRequestPassIfQueryParamsArePresent() throws Exception {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
@@ -90,7 +90,7 @@ class HouseholdApiControllerTest {
     }
 
     @Test
-    @DisplayName("should household search request fail if the required query parms are missing")
+    @DisplayName("should household search request fail if the required query parameters are missing")
     void shouldSearchRequestPassIfQueryParamsAreMissing() throws Exception {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
@@ -100,6 +100,39 @@ class HouseholdApiControllerTest {
 
         mockMvc.perform(post("/v1/_search?limit=10&offset=0").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdSearchRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("household update request should pass if API Operation is update")
+    void shouldHouseholdUpdateRequestPassForUpdateOperation() throws Exception {
+        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
+                .withApiOperationUpdate().build();
+
+        mockMvc.perform(post("/v1/_update").contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdRequest)))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    @DisplayName("household update request should pass if API Operation is delete")
+    void shouldHouseholdUpdateRequestPassForDeleteOperation() throws Exception {
+        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
+                .withApiOperationDelete().build();
+
+        mockMvc.perform(post("/v1/_update").contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdRequest)))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    @DisplayName("household update request should pass if API Operation is create")
+    void shouldFailHouseholdUpdateRequestPassForCreateOperation() throws Exception {
+        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
+                .withApiOperationCreate().build();
+
+        mockMvc.perform(post("/v1/_update").contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdRequest)))
                 .andExpect(status().isBadRequest());
     }
 }
