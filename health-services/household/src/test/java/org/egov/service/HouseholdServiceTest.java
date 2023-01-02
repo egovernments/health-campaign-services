@@ -6,11 +6,9 @@ import org.egov.common.service.IdGenService;
 import org.egov.helper.HouseholdRequestTestBuilder;
 import org.egov.helper.HouseholdTestBuilder;
 import org.egov.repository.HouseholdRepository;
-import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Household;
 import org.egov.web.models.HouseholdRequest;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +23,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -34,7 +31,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HouseholdServiceTest {
@@ -59,30 +55,6 @@ class HouseholdServiceTest {
                         any(String.class),
                         eq("household.id"), eq(""), anyInt()))
                 .thenReturn(idList);
-    }
-
-    @Test
-    @Disabled
-    @DisplayName("should call validateId once")
-    void shouldCallValidateIdOnce() throws Exception {
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
-                .withApiOperationCreate().build();
-        when(householdRepository.validateIds(anyList(), anyString())).thenReturn(Arrays.asList());
-
-        householdService.create(householdRequest);
-
-        verify(householdRepository, times(1)).validateIds(anyList(), anyString());
-    }
-
-    @Test
-    @Disabled
-    @DisplayName("should fail if client reference Id is already present in DB")
-    void shouldFailIfClientReferenceIdIsAlreadyPresentInDB() {
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
-                .withApiOperationCreate().build();
-        when(householdRepository.validateIds(anyList(), anyString())).thenReturn(Arrays.asList("id101"));
-
-        assertThrows(CustomException.class, () -> householdService.create(householdRequest));
     }
 
     @Test
