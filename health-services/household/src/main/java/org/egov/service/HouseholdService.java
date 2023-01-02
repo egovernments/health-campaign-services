@@ -22,6 +22,7 @@ import java.util.stream.IntStream;
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -54,9 +55,7 @@ public class HouseholdService {
         List<Address> addresses = householdRequest.getHousehold().stream().map(Household::getAddress)
                 .filter(Objects::nonNull).collect(Collectors.toList());
         if (!addresses.isEmpty()) {
-           IntStream.range(0, addresses.size()).forEach(i -> {
-              addresses.get(i).setId(UUID.randomUUID().toString());
-           });
+           IntStream.range(0, addresses.size()).forEach(i -> addresses.get(i).setId(UUID.randomUUID().toString()));
         }
 
         householdRepository.save(householdRequest.getHousehold(), "save-household-topic");
@@ -66,26 +65,16 @@ public class HouseholdService {
     public List<Household> search(HouseholdSearchRequest request, Integer limit, Integer offset, String tenantId,
                                   Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
 
-        if (isSearchByIdOnly(request.getHousehold())) {
+        String idFieldName = getIdFieldName(request.getHousehold());
+        if (isSearchByIdOnly(request.getHousehold(), idFieldName)) {
             List<String> ids = new ArrayList<>();
             ids.add(request.getHousehold().getId());
             return householdRepository.findById(ids,
-                    "id", includeDeleted).stream()
+                    idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-        }
-
-        if (isSearchByIdOnly(request.getHousehold(), "clientReferenceId")) {
-            List<String> ids = new ArrayList<>();
-            ids.add(request.getHousehold().getClientReferenceId());
-             return householdRepository.findById(ids,
-                        "clientReferenceId", includeDeleted).stream()
-                     .filter(lastChangedSince(lastChangedSince))
-                     .filter(havingTenantId(tenantId))
-                     .filter(includeDeleted(includeDeleted))
-                     .collect(Collectors.toList());
         }
 
         return householdRepository.find(request.getHousehold(), limit, offset,
