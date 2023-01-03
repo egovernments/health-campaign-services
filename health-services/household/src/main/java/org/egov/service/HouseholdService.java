@@ -81,7 +81,7 @@ public class HouseholdService {
             return householdRepository.find(householdSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
-            throw new CustomException("ERROR_QUERY", e.getMessage());
+            throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
 
