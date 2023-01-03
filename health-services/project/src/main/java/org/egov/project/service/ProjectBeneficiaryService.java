@@ -15,11 +15,15 @@ import org.egov.common.service.MdmsService;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.project.web.models.HouseholdResponse;
+import org.egov.project.web.models.HouseholdSearch;
+import org.egov.project.web.models.HouseholdSearchRequest;
 import org.egov.project.web.models.Project;
 import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectType;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.validation.Valid;
@@ -81,6 +85,12 @@ public class ProjectBeneficiaryService {
         return mdmsCriteriaReq;
     }
 
+    @Value("${egov.household.host}")
+    private String householdServiceHost;
+
+    @Value("${egov.search.household.url}")
+    private String householdServiceSearchUrl;
+
     @Autowired
     public ProjectBeneficiaryService(
             IdGenService idGenService,
@@ -119,7 +129,11 @@ public class ProjectBeneficiaryService {
             log.info(" beneficiaryType {} {}",beneficiaryType, project);
 
             // TODO - Search Beneficiary
-            searchBeneficiary(beneficiaryType, beneficiary);
+            try {
+                searchBeneficiary(beneficiaryType, beneficiary, beneficiaryRequest.getRequestInfo(), tenantId);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
         });
 
@@ -141,10 +155,27 @@ public class ProjectBeneficiaryService {
         return projectBeneficiary;
     }
 
-    private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary) {
+    private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary, @NotNull @Valid RequestInfo requestInfo, String tenantId) throws Exception {
         switch (beneficiaryType){
+            // TODO - Add constant or enum
             case "HOUSEHOLD":
-                //serviceRequestClient.fetchResult(new StringBuilder(beneficiaryType));
+                HouseholdSearch householdSearch = HouseholdSearch
+                        .builder()
+                        .id(beneficiary.getBeneficiaryId())
+                        .build();
+                if( beneficiary.getBeneficiaryClientReferenceId() != null ){
+
+                }
+                HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
+                        .requestInfo(requestInfo)
+                        .household(householdSearch)
+                        .build();
+
+                HouseholdResponse householdResponse = serviceRequestClient.fetchResult(
+                        new StringBuilder(householdServiceHost+householdServiceSearchUrl+"?limit=10&offset=0&tenantId="+tenantId),
+                        householdSearchRequest,
+                        HouseholdResponse.class);
+                log.info("{}",householdResponse);
                 break;
             case "INDIVIDUAL":
                 //serviceRequestClient.fetchResult();
