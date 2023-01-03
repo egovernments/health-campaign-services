@@ -20,36 +20,21 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 public class Boundary {
-        @JsonProperty("code")
-      @NotNull
 
-
-
+    @JsonProperty("code")
+    @NotNull
     private String code = null;
 
-        @JsonProperty("name")
-      @NotNull
-
-
-
+    @JsonProperty("name")
     private String name = null;
 
-        @JsonProperty("label")
-    
-
-
+    @JsonProperty("label")
     private String label = null;
 
-        @JsonProperty("latitude")
-    
-
-
+    @JsonProperty("latitude")
     private String latitude = null;
 
-        @JsonProperty("longitude")
-    
-
-
+    @JsonProperty("longitude")
     private String longitude = null;
 
 //        @JsonProperty("children")
@@ -59,10 +44,7 @@ public class Boundary {
 //
 //    private List<Boundary> children = null;
 
-        @JsonProperty("materializedPath")
-    
-
-
+    @JsonProperty("materializedPath")
     private String materializedPath = null;
 
 

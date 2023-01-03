@@ -4,10 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.service.IdGenService;
 import org.egov.repository.HouseholdRepository;
+import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Address;
 import org.egov.web.models.Household;
 import org.egov.web.models.HouseholdRequest;
-import org.egov.web.models.HouseholdSearchRequest;
+import org.egov.web.models.HouseholdSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ import java.util.stream.IntStream;
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -54,42 +56,33 @@ public class HouseholdService {
         List<Address> addresses = householdRequest.getHousehold().stream().map(Household::getAddress)
                 .filter(Objects::nonNull).collect(Collectors.toList());
         if (!addresses.isEmpty()) {
-           IntStream.range(0, addresses.size()).forEach(i -> {
-              addresses.get(i).setId(UUID.randomUUID().toString());
-           });
+           IntStream.range(0, addresses.size()).forEach(i -> addresses.get(i).setId(UUID.randomUUID().toString()));
         }
 
         householdRepository.save(householdRequest.getHousehold(), "save-household-topic");
         return householdRequest.getHousehold();
     }
 
-    public List<Household> search(HouseholdSearchRequest request, Integer limit, Integer offset, String tenantId,
-                                  Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+    public List<Household> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
+                                  Long lastChangedSince, Boolean includeDeleted) {
 
-        if (isSearchByIdOnly(request.getHousehold())) {
+        String idFieldName = getIdFieldName(householdSearch);
+        if (isSearchByIdOnly(householdSearch, idFieldName)) {
             List<String> ids = new ArrayList<>();
-            ids.add(request.getHousehold().getId());
+            ids.add(householdSearch.getId());
             return householdRepository.findById(ids,
-                    "id", includeDeleted).stream()
+                    idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
-
-        if (isSearchByIdOnly(request.getHousehold(), "clientReferenceId")) {
-            List<String> ids = new ArrayList<>();
-            ids.add(request.getHousehold().getClientReferenceId());
-             return householdRepository.findById(ids,
-                        "clientReferenceId", includeDeleted).stream()
-                     .filter(lastChangedSince(lastChangedSince))
-                     .filter(havingTenantId(tenantId))
-                     .filter(includeDeleted(includeDeleted))
-                     .collect(Collectors.toList());
+        try {
+            return householdRepository.find(householdSearch, limit, offset,
+                    tenantId, lastChangedSince, includeDeleted);
+        } catch (QueryBuilderException e) {
+            throw new CustomException("ERROR_QUERY", e.getMessage());
         }
-
-        return householdRepository.find(request.getHousehold(), limit, offset,
-                        tenantId, lastChangedSince, includeDeleted);
     }
 
     public List<Household> update(HouseholdRequest request) {

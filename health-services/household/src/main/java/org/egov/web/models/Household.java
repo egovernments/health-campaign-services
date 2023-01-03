@@ -31,6 +31,7 @@ public class Household {
     private String id = null;
 
     @JsonProperty("tenantId")
+    @NotNull
     private String tenantId = null;
 
     @JsonProperty("clientReferenceId")
