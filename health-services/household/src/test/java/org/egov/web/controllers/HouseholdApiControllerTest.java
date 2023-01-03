@@ -81,7 +81,7 @@ class HouseholdApiControllerTest {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().build()).build();
-        when(householdService.search(any(HouseholdSearchRequest.class), anyInt(),
+        when(householdService.search(any(HouseholdSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
         mockMvc.perform(post("/v1/_search?limit=10&offset=0&tenantId=default").contentType(MediaType
@@ -95,7 +95,7 @@ class HouseholdApiControllerTest {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().build()).build();
-        when(householdService.search(any(HouseholdSearchRequest.class), anyInt(),
+        when(householdService.search(any(HouseholdSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
         mockMvc.perform(post("/v1/_search?limit=10&offset=0").contentType(MediaType

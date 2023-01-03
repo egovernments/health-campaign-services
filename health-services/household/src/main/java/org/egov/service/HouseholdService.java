@@ -4,10 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.service.IdGenService;
 import org.egov.repository.HouseholdRepository;
+import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Address;
 import org.egov.web.models.Household;
 import org.egov.web.models.HouseholdRequest;
-import org.egov.web.models.HouseholdSearchRequest;
+import org.egov.web.models.HouseholdSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -62,13 +63,13 @@ public class HouseholdService {
         return householdRequest.getHousehold();
     }
 
-    public List<Household> search(HouseholdSearchRequest request, Integer limit, Integer offset, String tenantId,
-                                  Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+    public List<Household> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
+                                  Long lastChangedSince, Boolean includeDeleted) {
 
-        String idFieldName = getIdFieldName(request.getHousehold());
-        if (isSearchByIdOnly(request.getHousehold(), idFieldName)) {
+        String idFieldName = getIdFieldName(householdSearch);
+        if (isSearchByIdOnly(householdSearch, idFieldName)) {
             List<String> ids = new ArrayList<>();
-            ids.add(request.getHousehold().getId());
+            ids.add(householdSearch.getId());
             return householdRepository.findById(ids,
                     idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -76,9 +77,12 @@ public class HouseholdService {
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
-
-        return householdRepository.find(request.getHousehold(), limit, offset,
-                        tenantId, lastChangedSince, includeDeleted);
+        try {
+            return householdRepository.find(householdSearch, limit, offset,
+                    tenantId, lastChangedSince, includeDeleted);
+        } catch (QueryBuilderException e) {
+            throw new CustomException("ERROR_QUERY", e.getMessage());
+        }
     }
 
     public List<Household> update(HouseholdRequest request) {

@@ -42,7 +42,7 @@ public class HouseholdFindTest {
         when(householdRepository.findById(anyList(), eq("id"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
-        householdService.search(householdSearchRequest, 10, 0, "default",
+        householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
                 null, false);
 
         verify(householdRepository, times(1))
@@ -58,7 +58,7 @@ public class HouseholdFindTest {
         when(householdRepository.findById(anyList(), eq("clientReferenceId"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
-        householdService.search(householdSearchRequest, 10, 0, "default",
+        householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
                 null, false);
 
         verify(householdRepository, times(1)).findById(anyList(),
@@ -74,7 +74,7 @@ public class HouseholdFindTest {
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
-        householdService.search(householdSearchRequest, 10, 0,
+        householdService.search(householdSearchRequest.getHousehold(), 10, 0,
                 "default", 0L, false);
 
         verify(householdRepository, times(0))
@@ -90,7 +90,7 @@ public class HouseholdFindTest {
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
-        householdService.search(householdSearchRequest, 10, 0,
+        householdService.search(householdSearchRequest.getHousehold(), 10, 0,
                 "default", 0L, false);
 
         verify(householdRepository, times(1))
