@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
@@ -123,16 +124,16 @@ public class ProjectBeneficiaryService {
 
         String tenantId = getTenantId(projectBeneficiary);
 
+        Set<String> projectIds = getSet(projectBeneficiary, "getProjectId");
 
-        List<Project> existingProjects = projectService.findByIds(new ArrayList<>(getSet(projectBeneficiary, "getProjectId")));
+        List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
         List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryRequest.getRequestInfo());
 
         Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
         Map<String, Project> projectMap = getIdToObjMap(existingProjects);
 
-
         // TODO - CHeck if project exists
-        validateIds(getSet(projectBeneficiary, "getProjectId"), projectService::validateProjectIds);
+        validateIds(projectIds, projectService::validateProjectIds);
 
         for (ProjectBeneficiary beneficiary : projectBeneficiary) {
             Project project = projectMap.get(beneficiary.getProjectId());
@@ -164,7 +165,6 @@ public class ProjectBeneficiaryService {
 
     private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
         Object response;
-
         switch (beneficiaryType) {
             case "HOUSEHOLD":
                 response = searchHouseholdBeneficiary(beneficiary, requestInfo, tenantId);
@@ -181,13 +181,23 @@ public class ProjectBeneficiaryService {
         } else if (response instanceof IndividualResponse && ((IndividualResponse) response).getIndividual().isEmpty()) {
             throw new CustomException("INVALID_BENEFICIARY", beneficiary.getBeneficiaryId());
         }
+
     }
 
     private HouseholdResponse searchHouseholdBeneficiary(ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
-        HouseholdSearch householdSearch = HouseholdSearch
-                .builder()
-                .id(beneficiary.getBeneficiaryId())
-                .build();
+
+        HouseholdSearch householdSearch = null;
+        if (beneficiary.getBeneficiaryId() != null) {
+            householdSearch = HouseholdSearch
+                    .builder()
+                    .id(beneficiary.getBeneficiaryId())
+                    .build();
+        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
+            householdSearch = HouseholdSearch
+                    .builder()
+                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
+                    .build();
+        }
 
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(requestInfo)
@@ -201,10 +211,19 @@ public class ProjectBeneficiaryService {
     }
 
     private IndividualResponse searchIndividualBeneficiary(ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
-        IndividualSearch individualSearch = IndividualSearch
-                .builder()
-                .id(beneficiary.getBeneficiaryId())
-                .build();
+        IndividualSearch individualSearch = null;
+
+        if (beneficiary.getBeneficiaryId() != null) {
+            individualSearch = IndividualSearch
+                    .builder()
+                    .id(beneficiary.getBeneficiaryId())
+                    .build();
+        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
+            individualSearch = IndividualSearch
+                    .builder()
+                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
+                    .build();
+        }
 
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .requestInfo(requestInfo)
