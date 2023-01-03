@@ -1,0 +1,44 @@
+serviceMaps:
+  serviceName: household
+  mappings:
+    - version: 1.0
+      description: Persists household.
+      fromTopic: save-household-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO HOUSEHOLD(id, tenantId, clientReferenceId, numberOfMembers, addressId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.memberCount
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+        - query: INSERT INTO ADDRESS(id, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*.address
+          jsonMaps:
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.address.tenantId
+            - jsonPath: $.*.address.doorNo
+            - jsonPath: $.*.address.latitude
+            - jsonPath: $.*.address.longitude
+            - jsonPath: $.*.address.locationAccuracy
+            - jsonPath: $.*.address.type
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
+            - jsonPath: $.*.address.landmark
+            - jsonPath: $.*.address.city
+            - jsonPath: $.*.address.pincode
+            - jsonPath: $.*.address.buildingName
+            - jsonPath: $.*.address.street
+            - jsonPath: $.*.address.locality.code

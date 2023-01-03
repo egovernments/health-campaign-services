@@ -1,0 +1,13 @@
+ServiceMaps:
+  serviceName: household
+  version: 1.0.0
+  mappings:
+    - topic: save-household-topic
+      configKey: INDEX
+      indexes:
+        - name: householdIndex-v1
+          type: household
+          id: $.*.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.*.auditDetails.createdTime
