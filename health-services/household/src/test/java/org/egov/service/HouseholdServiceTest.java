@@ -70,7 +70,7 @@ class HouseholdServiceTest {
     }
 
     @Test
-    @DisplayName("should generate and set ID from IDgen service")
+    @DisplayName("should generate and set ID using ID generation service")
     void shouldGenerateAndSetIdFromIdGenService() throws Exception {
         HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
                 .withApiOperationCreate().build();

@@ -42,7 +42,7 @@ config:
         image-name: "household"
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/household/src/main/resources/db"
-        image-name: "project-db"
+        image-name: "household-db"
   - name: "builds/health-campaign-services/health-services/individual"
     build:
       - work-dir: "health-services/individual"
