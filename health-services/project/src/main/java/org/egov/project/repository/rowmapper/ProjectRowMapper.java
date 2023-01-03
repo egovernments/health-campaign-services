@@ -19,16 +19,12 @@ public class ProjectRowMapper implements RowMapper<Project> {
 
     @Override
     public Project mapRow(ResultSet resultSet, int i) throws SQLException {
- //       try {
             return Project.builder()
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantid"))
                     .startDate(resultSet.getLong("startDate"))
                     .endDate(resultSet.getLong("endDate"))
-//                    .additionalFields(
-//                            resultSet.getString("additionalDetails") == null
-//                                    ? null
-//                                    : objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .projectTypeId(resultSet.getString("projectTypeId"))
                     .auditDetails(AuditDetails.builder()
                             .createdBy(resultSet.getString("createdby"))
                             .createdTime(resultSet.getLong("createdtime"))
@@ -38,8 +34,5 @@ public class ProjectRowMapper implements RowMapper<Project> {
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
                     .build();
-//        } catch (JsonProcessingException e) {
-//            throw new RuntimeException(e);
-//        }
     }
 }

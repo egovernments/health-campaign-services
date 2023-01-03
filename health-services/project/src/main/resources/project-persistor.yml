@@ -39,7 +39,7 @@ serviceMaps:
             - jsonPath: $.*.isDeleted
 
     - version: 1.0
-      description: Update Profject Staff
+      description: Update Project Staff
       fromTopic: update-project-staff-topic
       isTransaction: true
       queryMaps:
@@ -54,6 +54,74 @@ serviceMaps:
             - jsonPath: $.*.startDate
 
             - jsonPath: $.*.endDate
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a project beneficiary
+      fromTopic: save-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: INSERT INTO project_beneficiary (id, tenantId, projectId, beneficiaryId, beneficiaryClientReferenceId, dateOfRegistration, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+
+            - jsonPath: $.*.tenantId
+
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.beneficiaryId
+
+            - jsonPath: $.*.beneficiaryClientReferenceId
+
+            - jsonPath: $.*.dateOfRegistration
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Project Beneficiary
+      fromTopic: update-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: UPDATE project_beneficiary SET projectId=?, beneficiaryId=?, beneficiaryClientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.beneficiaryId
+
+            - jsonPath: $.*.beneficiaryClientReferenceId
+
+            - jsonPath: $.*.dateOfRegistration
 
             - jsonPath: $.*.additionalFields
               type: JSON

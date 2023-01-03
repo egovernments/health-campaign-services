@@ -2,29 +2,21 @@ package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.UserDetailResponse;
-import digit.models.coremodels.UserSearchRequest;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.contract.request.User;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
-import org.egov.common.service.UserService;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.project.web.models.Project;
 import org.egov.project.web.models.ProjectBeneficiary;
-import org.egov.project.web.models.ProjectSearch;
-import org.egov.project.web.models.ProjectSearchRequest;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffRequest;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.egov.project.web.models.ProjectType;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,16 +25,14 @@ import org.springframework.stereotype.Service;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.getTenantId;
@@ -70,6 +60,8 @@ public class ProjectBeneficiaryService {
 
     private final ProjectService projectService;
 
+    private final ServiceRequestClient serviceRequestClient;
+
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId,String masterName,String moduleName) {
         MasterDetail masterDetail = new MasterDetail();
         masterDetail.setName(masterName);
@@ -94,32 +86,52 @@ public class ProjectBeneficiaryService {
             IdGenService idGenService,
             ProjectBeneficiaryRepository projectBeneficiaryRepository,
             ProjectService projectService,
-            MdmsService mdmsService
+            MdmsService mdmsService,
+            ServiceRequestClient serviceRequestClient
     ) {
         this.idGenService = idGenService;
         this.projectBeneficiaryRepository = projectBeneficiaryRepository;
         this.projectService = projectService;
         this.mdmsService = mdmsService;
+        this.serviceRequestClient = serviceRequestClient;
     }
 
     public List<ProjectBeneficiary> create(BeneficiaryRequest beneficiaryRequest) throws Exception {
+
         List<ProjectBeneficiary> projectBeneficiary = beneficiaryRequest.getProjectBeneficiary();
+
         String tenantId = getTenantId(projectBeneficiary);
-        // TODO - CHeck if client reference id or server reference id exists
+
+
+        List<Project> existingProjects = projectService.findByIds(new ArrayList<>(getSet(projectBeneficiary, "getProjectId")));
+        List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryRequest.getRequestInfo());
+
+        Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
+        Map<String, Project> projectMap = getIdToObjMap(existingProjects);
+
 
         // TODO - CHeck if project exists
         validateIds(getSet(projectBeneficiary, "getProjectId"), projectService::validateProjectIds);
 
-        // TODO - Fetch beneficiary from mdms based on project
-        List<String> beneficiaryTypes = getBeneficiaryTypes(projectBeneficiary, tenantId, beneficiaryRequest.getRequestInfo());
-        // TODO - Search beneficiary
+        projectBeneficiary.forEach(beneficiary -> {
+            Project project = projectMap.get(beneficiary.getProjectId());
+            String beneficiaryType = projectTypeMap.get(project.getProjectTypeId()).getBeneficiaryType();
+            log.info(" beneficiaryType {} {}",beneficiaryType, project);
+
+            // TODO - Search Beneficiary
+            searchBeneficiary(beneficiaryType, beneficiary);
+
+        });
+
 
         // TODO - GENERTAE ID
-
         log.info("Generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(beneficiaryRequest.getRequestInfo(),
                 getTenantId(projectBeneficiary),
-                "project.beneficiary.id", "", projectBeneficiary.size());
+                "project.beneficiary.id",
+                "",
+                projectBeneficiary.size());
+
         log.info("IDs generated");
 
         enrichForCreate(projectBeneficiary, idList, beneficiaryRequest.getRequestInfo());
@@ -129,9 +141,20 @@ public class ProjectBeneficiaryService {
         return projectBeneficiary;
     }
 
-    private List<String> getBeneficiaryTypes(List<ProjectBeneficiary> projectBeneficiary, String tenantId, @NotNull @Valid RequestInfo requestInfo) throws Exception {
-        List<Project> existingProjects = projectService.findByIds(new ArrayList<>(getSet(projectBeneficiary, "getProjectId")));
+    private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary) {
+        switch (beneficiaryType){
+            case "HOUSEHOLD":
+                //serviceRequestClient.fetchResult(new StringBuilder(beneficiaryType));
+                break;
+            case "INDIVIDUAL":
+                //serviceRequestClient.fetchResult();
+                break;
+            default:
+                break;
+        }
+    }
 
+    private List<ProjectType> getProjectTypes(String tenantId, @NotNull @Valid RequestInfo requestInfo) throws Exception {
         MdmsCriteriaReq serviceRegistry = getMdmsRequest(
                 requestInfo,
                 tenantId,
@@ -139,16 +162,12 @@ public class ProjectBeneficiaryService {
                 "HCM-PROJECT-TYPES"
         );
 
-        log.info(serviceRegistry.toString());
-        JsonNode response = mdmsService.fetchResultFromMdms(serviceRegistry, JsonNode.class);
-
+        JsonNode response = mdmsService.fetchResultFromMdms(serviceRegistry, JsonNode.class).get("MdmsRes");
+        JsonNode jsonNode = response.get("HCM-PROJECT-TYPES").withArray("projectTypes");
         ObjectMapper mapper = new ObjectMapper();
-//        List<ProjectType> projectTypes = mapper.readValue(response.get("MdmsRes").get("HCM-PROJECT-TYPES").get("projectTypes"),
-//                ProjectType.class);
-
-
-        // make call to mdms using projectTypeId
-        return null;
+        TypeFactory typeFactory = mapper.getTypeFactory();
+        List<ProjectType> projectTypes = mapper.convertValue(jsonNode, typeFactory.constructCollectionType(List.class, ProjectType.class));
+        return projectTypes;
     }
 
 
@@ -161,6 +180,16 @@ public class ProjectBeneficiaryService {
                 projectService::validateProjectIds);
         log.info("Checking existing project beneficiary");
 
+
+        // TODO - CHeck if client reference id or server reference id exists
+        List<String> ids = projectBeneficiary.stream().map(ProjectBeneficiary::getBeneficiaryClientReferenceId)
+                .filter(Objects::nonNull).collect(Collectors.toList());
+
+        List<String> alreadyExists = projectBeneficiaryRepository.validateIds(ids, "beneficiaryClientReferenceId");
+
+        if(alreadyExists.size() != 0 ){
+            throw new CustomException("ERROR","ERROR");
+        }
         Map<String, ProjectBeneficiary> projectBeneficiaryMap = getIdToObjMap(projectBeneficiary);
 
         log.info("Checking if already exists");

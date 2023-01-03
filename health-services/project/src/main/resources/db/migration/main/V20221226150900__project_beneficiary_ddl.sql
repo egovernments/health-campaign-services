@@ -1,4 +1,4 @@
-CREATE TABLE PROJECT_BENEFICIARY
+CREATE TABLE IF NOT EXISTS PROJECT_BENEFICIARY
 (
     id                                  character varying(64),
     tenantId                            character varying(1000),
@@ -14,5 +14,5 @@ CREATE TABLE PROJECT_BENEFICIARY
     rowVersion                          bigint,
     isDeleted                           boolean,
     CONSTRAINT uk_project_beneficiary_id PRIMARY KEY (id),
-    CONSTRAINT uk_project_beneficiary_client_reference_id UNIQUE (projectBeneficiaryClientReferenceId)
+    CONSTRAINT uk_project_beneficiary_client_reference_id UNIQUE (beneficiaryClientReferenceId)
 );
