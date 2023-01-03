@@ -33,6 +33,7 @@ public class Address {
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min = 2, max = 1000)
     private String tenantId = null;
 
     @JsonProperty("doorNo")

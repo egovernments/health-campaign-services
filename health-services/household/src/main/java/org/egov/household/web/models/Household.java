@@ -32,9 +32,11 @@ public class Household {
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min = 2, max = 1000)
     private String tenantId = null;
 
     @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
     private String clientReferenceId = null;
 
     @JsonProperty("memberCount")
