@@ -1,5 +1,6 @@
 package org.egov.project.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -14,10 +15,14 @@ import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
+import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.project.web.models.HouseholdResponse;
 import org.egov.project.web.models.HouseholdSearch;
 import org.egov.project.web.models.HouseholdSearchRequest;
+import org.egov.project.web.models.IndividualResponse;
+import org.egov.project.web.models.IndividualSearch;
+import org.egov.project.web.models.IndividualSearchRequest;
 import org.egov.project.web.models.Project;
 import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectType;
@@ -91,6 +96,12 @@ public class ProjectBeneficiaryService {
     @Value("${egov.search.household.url}")
     private String householdServiceSearchUrl;
 
+    @Value("${egov.individual.host}")
+    private String individualServiceHost;
+
+    @Value("${egov.search.household.url}")
+    private String individualServiceSearchUrl;
+
     @Autowired
     public ProjectBeneficiaryService(
             IdGenService idGenService,
@@ -123,19 +134,15 @@ public class ProjectBeneficiaryService {
         // TODO - CHeck if project exists
         validateIds(getSet(projectBeneficiary, "getProjectId"), projectService::validateProjectIds);
 
-        projectBeneficiary.forEach(beneficiary -> {
+        for (ProjectBeneficiary beneficiary : projectBeneficiary) {
             Project project = projectMap.get(beneficiary.getProjectId());
             String beneficiaryType = projectTypeMap.get(project.getProjectTypeId()).getBeneficiaryType();
-            log.info(" beneficiaryType {} {}",beneficiaryType, project);
+            log.info(" beneficiaryType {} {}", beneficiaryType, project);
 
             // TODO - Search Beneficiary
-            try {
-                searchBeneficiary(beneficiaryType, beneficiary, beneficiaryRequest.getRequestInfo(), tenantId);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            searchBeneficiary(beneficiaryType, beneficiary, beneficiaryRequest.getRequestInfo(), tenantId);
 
-        });
+        }
 
 
         // TODO - GENERTAE ID
@@ -155,52 +162,75 @@ public class ProjectBeneficiaryService {
         return projectBeneficiary;
     }
 
-    private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary, @NotNull @Valid RequestInfo requestInfo, String tenantId) throws Exception {
-        switch (beneficiaryType){
-            // TODO - Add constant or enum
+    private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
+        Object response;
+
+        switch (beneficiaryType) {
             case "HOUSEHOLD":
-                HouseholdSearch householdSearch = HouseholdSearch
-                        .builder()
-                        .id(beneficiary.getBeneficiaryId())
-                        .build();
-                if( beneficiary.getBeneficiaryClientReferenceId() != null ){
-
-                }
-                HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
-                        .requestInfo(requestInfo)
-                        .household(householdSearch)
-                        .build();
-
-                HouseholdResponse householdResponse = serviceRequestClient.fetchResult(
-                        new StringBuilder(householdServiceHost+householdServiceSearchUrl+"?limit=10&offset=0&tenantId="+tenantId),
-                        householdSearchRequest,
-                        HouseholdResponse.class);
-                log.info("{}",householdResponse);
+                response = searchHouseholdBeneficiary(beneficiary, requestInfo, tenantId);
                 break;
             case "INDIVIDUAL":
-                //serviceRequestClient.fetchResult();
+                response = searchIndividualBeneficiary(beneficiary, requestInfo, tenantId);
                 break;
             default:
-                break;
+                throw new CustomException("INVALID_BENEFICIARY_TYPE", beneficiaryType);
+        }
+
+        if (response instanceof HouseholdResponse && ((HouseholdResponse) response).getHousehold().isEmpty()) {
+            throw new CustomException("INVALID_BENEFICIARY", beneficiary.getBeneficiaryId());
+        } else if (response instanceof IndividualResponse && ((IndividualResponse) response).getIndividual().isEmpty()) {
+            throw new CustomException("INVALID_BENEFICIARY", beneficiary.getBeneficiaryId());
         }
     }
 
-    private List<ProjectType> getProjectTypes(String tenantId, @NotNull @Valid RequestInfo requestInfo) throws Exception {
-        MdmsCriteriaReq serviceRegistry = getMdmsRequest(
-                requestInfo,
-                tenantId,
-                "projectTypes",
-                "HCM-PROJECT-TYPES"
-        );
+    private HouseholdResponse searchHouseholdBeneficiary(ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
+        HouseholdSearch householdSearch = HouseholdSearch
+                .builder()
+                .id(beneficiary.getBeneficiaryId())
+                .build();
 
-        JsonNode response = mdmsService.fetchResultFromMdms(serviceRegistry, JsonNode.class).get("MdmsRes");
-        JsonNode jsonNode = response.get("HCM-PROJECT-TYPES").withArray("projectTypes");
-        ObjectMapper mapper = new ObjectMapper();
-        TypeFactory typeFactory = mapper.getTypeFactory();
-        List<ProjectType> projectTypes = mapper.convertValue(jsonNode, typeFactory.constructCollectionType(List.class, ProjectType.class));
-        return projectTypes;
+        HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .household(householdSearch)
+                .build();
+
+        return serviceRequestClient.fetchResult(
+                new StringBuilder(householdServiceHost + householdServiceSearchUrl + "?limit=10&offset=0&tenantId=" + tenantId),
+                householdSearchRequest,
+                HouseholdResponse.class);
     }
 
+    private IndividualResponse searchIndividualBeneficiary(ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
+        IndividualSearch individualSearch = IndividualSearch
+                .builder()
+                .id(beneficiary.getBeneficiaryId())
+                .build();
+
+        IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .individual(individualSearch)
+                .build();
+
+        return serviceRequestClient.fetchResult(
+                new StringBuilder(individualServiceHost + individualServiceSearchUrl + "?limit=10&offset=0&tenantId=" + tenantId),
+                individualSearchRequest,
+                IndividualResponse.class);
+    }
+
+    private List<ProjectType> getProjectTypes(String tenantId, RequestInfo requestInfo) throws Exception {
+        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, "projectTypes", "HCM-PROJECT-TYPES");
+        return convertToProjectTypeList(response);
+    }
+
+    private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name, String moduleName) throws Exception {
+        MdmsCriteriaReq serviceRegistry = getMdmsRequest(requestInfo, tenantId, name, moduleName);
+        return mdmsService.fetchResultFromMdms(serviceRegistry, JsonNode.class).get("MdmsRes");
+    }
+
+    private List<ProjectType> convertToProjectTypeList(JsonNode jsonNode) {
+        JsonNode projectTypesNode = jsonNode.get("HCM-PROJECT-TYPES").withArray("projectTypes");
+        return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<ProjectType>>() {});
+    }
 
     public List<ProjectBeneficiary> update(BeneficiaryRequest beneficiaryRequest) {
         List<ProjectBeneficiary> projectBeneficiary = beneficiaryRequest.getProjectBeneficiary();
