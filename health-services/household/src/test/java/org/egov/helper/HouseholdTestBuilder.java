@@ -32,6 +32,11 @@ public class HouseholdTestBuilder {
         return this;
     }
 
+    public HouseholdTestBuilder withRowVersion(int rowVersion) {
+        this.builder.rowVersion(rowVersion);
+        return this;
+    }
+
     public HouseholdTestBuilder withAddress(Address address){
         this.builder.address(address);
         return this;
