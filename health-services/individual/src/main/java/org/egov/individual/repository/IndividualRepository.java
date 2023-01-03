@@ -59,9 +59,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private void enrichIndividuals(List<Individual> individuals, Boolean includeDeleted) {
         if (!individuals.isEmpty()) {
             individuals.forEach(individual -> {
-                String individualAddressQuery = getQuery("SELECT ia.addressId FROM individual_address ia WHERE ia.individualId =:individualId",
-                        includeDeleted);
-                String addressQuery = String.format("SELECT * FROM address WHERE id IN (%s)", individualAddressQuery);
+                String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.rowVersion, ia.isDeleted FROM address a, individual_address ia WHERE a.id = ia.addressId and ia.individualId =:individualId", includeDeleted, "ia");
                 Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                 indServerGenIdParamMap.put("individualId", individual.getId());
                 List<Address> addresses = this.namedParameterJdbcTemplate
@@ -78,11 +76,21 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     private String getQuery(String baseQuery, Boolean includeDeleted) {
+        return getQuery(baseQuery, includeDeleted, null);
+    }
+
+    private String getQuery(String baseQuery, Boolean includeDeleted, String alias) {
+        String isDeletedClause = " AND %sisDeleted = false";
+        if (alias != null) {
+            isDeletedClause = String.format(isDeletedClause, alias + ".");
+        } else {
+            isDeletedClause = String.format(isDeletedClause, "");
+        }
         StringBuilder baseQueryBuilder = new StringBuilder(baseQuery);
         if (null != includeDeleted && includeDeleted) {
             return baseQuery;
         } else {
-            baseQueryBuilder.append("AND isDeleted = false");
+            baseQueryBuilder.append(isDeletedClause);
         }
         return baseQueryBuilder.toString();
     }

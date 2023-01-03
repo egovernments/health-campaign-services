@@ -12,8 +12,10 @@ import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -21,6 +23,7 @@ import java.util.stream.IntStream;
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
@@ -114,7 +117,9 @@ public class IndividualService {
         String idFieldName = getIdFieldName(individualSearch);
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
             List<String> ids = new ArrayList<>();
-            ids.add(individualSearch.getId());
+            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+                            .singletonList(individualSearch)),
+                    individualSearch));
             return individualRepository.findById(ids, idFieldName, includeDeleted)
                     .stream().filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

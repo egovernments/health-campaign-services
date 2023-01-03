@@ -1,5 +1,6 @@
 package org.egov.individual.repository.rowmapper;
 
+import digit.models.coremodels.AuditDetails;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Boundary;
 import org.springframework.jdbc.core.RowMapper;
@@ -12,6 +13,7 @@ public class AddressRowMapper implements RowMapper<Address> {
     public Address mapRow(ResultSet resultSet, int i) throws SQLException {
         return Address.builder()
                 .id(resultSet.getString("id"))
+                .individualId(resultSet.getString("individualId"))
                 .tenantId(resultSet.getString("tenantId"))
                 .doorNo(resultSet.getString("doorNo"))
                 .latitude(resultSet.getDouble("latitude"))
@@ -26,6 +28,12 @@ public class AddressRowMapper implements RowMapper<Address> {
                 .buildingName(resultSet.getString("buildingName"))
                 .street(resultSet.getString("street"))
                 .locality(Boundary.builder().code(resultSet.getString("localityCode")).build())
+                .auditDetails(AuditDetails.builder().createdBy(resultSet.getString("createdBy"))
+                        .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                        .createdTime(resultSet.getLong("createdTime"))
+                        .lastModifiedTime(resultSet.getLong("lastModifiedTime")).build())
+                .rowVersion(resultSet.getInt("rowVersion"))
+                .isDeleted(resultSet.getBoolean("isDeleted"))
                         .build();
     }
 }
