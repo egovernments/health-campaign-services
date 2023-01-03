@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.validator.constraints.Range;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -41,6 +42,7 @@ public class Household {
 
     @JsonProperty("memberCount")
     @NotNull
+    @Range(min = 0, max = 1000)
     private Integer memberCount = null;
 
     @JsonProperty("address")
