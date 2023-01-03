@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Size;
 import java.time.LocalDate;
 
 /**
@@ -25,21 +26,21 @@ import java.time.LocalDate;
 @Builder
 public class IndividualSearch   {
         @JsonProperty("id")
-    
 
 
+        @Size(min=2,max=64)
     private String id = null;
 
         @JsonProperty("tenantId")
-    
 
 
+        @Size(min=2,max=1000)
     private String tenantId = null;
 
         @JsonProperty("clientReferenceId")
-    
 
 
+        @Size(min=2,max=64)
     private String clientReferenceId = null;
 
         @JsonProperty("name")

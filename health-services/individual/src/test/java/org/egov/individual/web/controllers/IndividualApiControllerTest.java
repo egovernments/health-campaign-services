@@ -53,6 +53,7 @@ class IndividualApiControllerTest {
     void shouldCreateAnIndividualAndReturn202AcceptedWhenApiOperationIsCreate() throws Exception {
         Individual individual = IndividualTestBuilder.builder()
                 .withName()
+                .withTenantId()
                 .build();
         Individual responseIndividual = IndividualTestBuilder.builder()
                 .withId()
@@ -98,7 +99,7 @@ class IndividualApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         ErrorRes response = objectMapper.readValue(responseStr,
                 ErrorRes.class);
-        assertEquals(1, response.getErrors().size());
+        assertEquals(2, response.getErrors().size());
     }
 
     @Test
