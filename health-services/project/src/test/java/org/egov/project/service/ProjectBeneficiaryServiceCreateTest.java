@@ -1,14 +1,22 @@
 package org.egov.project.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.UserSearchRequest;
+import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
+import org.egov.common.service.MdmsService;
 import org.egov.common.service.UserService;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
+import org.egov.project.web.models.Household;
+import org.egov.project.web.models.HouseholdResponse;
+import org.egov.project.web.models.Project;
 import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
@@ -51,6 +59,12 @@ class ProjectBeneficiaryServiceCreateTest {
     private IdGenService idGenService;
 
     @Mock
+    private MdmsService mdmsService;
+
+    @Mock
+    private ServiceRequestClient serviceRequestClient;
+
+    @Mock
     private ProjectBeneficiaryRepository projectBeneficiaryRepository;
 
 
@@ -73,12 +87,19 @@ class ProjectBeneficiaryServiceCreateTest {
         lenient().when(projectService.validateProjectIds(any(List.class)))
                 .thenReturn(Collections.singletonList("some-project-id"));
     }
+    private void mockProjectFindIds() {
+        when(projectService.findByIds(any(List.class))).thenReturn(Collections.singletonList(
+                Project.builder().id("some-project-id").projectTypeId("some-project-type-id").build()));
+    }
 
 
     @Test
     @DisplayName("should enrich the formatted id in project staff")
     void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
         mockValidateProjectId();
+        mockMdms();
+        mockProjectFindIds();
+        mockServiceRequestClient();
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(request);
 
@@ -89,6 +110,9 @@ class ProjectBeneficiaryServiceCreateTest {
     @DisplayName("should send the enriched project staff to the kafka topic")
     void shouldSendTheEnrichedProjectStaffToTheKafkaTopic() throws Exception {
         mockValidateProjectId();
+        mockMdms();
+        mockProjectFindIds();
+        mockServiceRequestClient();
 
         projectBeneficiaryService.create(request);
 
@@ -102,6 +126,9 @@ class ProjectBeneficiaryServiceCreateTest {
     @DisplayName("should update audit details before pushing the project staff to kafka")
     void shouldUpdateAuditDetailsBeforePushingTheProjectStaffsToKafka() throws Exception {
         mockValidateProjectId();
+        mockMdms();
+        mockProjectFindIds();
+        mockServiceRequestClient();
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(request);
 
@@ -115,6 +142,10 @@ class ProjectBeneficiaryServiceCreateTest {
     @DisplayName("should set row version as 1 and deleted as false")
     void shouldSetRowVersionAs1AndDeletedAsFalse() throws Exception {
         mockValidateProjectId();
+        mockMdms();
+        mockProjectFindIds();
+        mockServiceRequestClient();
+
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(request);
 
@@ -122,19 +153,115 @@ class ProjectBeneficiaryServiceCreateTest {
         assertFalse(projectBeneficiaries.stream().findAny().get().getIsDeleted());
     }
 
+
+
     @Test
-    @DisplayName("should validate correct product id")
-    void shouldValidateCorrectProductId() throws Exception {
+    @DisplayName("should validate correct project id")
+    void shouldValidateCorrectProjectId() throws Exception {
         mockValidateProjectId();
+        mockMdms();
+        mockProjectFindIds();
+        mockServiceRequestClient();
 
         projectBeneficiaryService.create(request);
 
         verify(projectService, times(1)).validateProjectIds(any(List.class));
     }
 
+    private void mockServiceRequestClient() throws Exception {
+        when(serviceRequestClient.fetchResult(any(StringBuilder.class), any(), eq(HouseholdResponse.class))).thenReturn(
+                HouseholdResponse.builder().
+                        household(
+                                Collections.singletonList(
+                                        Household.builder().build()
+                                )
+                        ).
+                        build()
+        );
+    }
+
+    private void mockMdms() throws Exception {
+        String responseString = "{\n" +
+                "    \"ResponseInfo\": null,\n" +
+                "    \"MdmsRes\": {\n" +
+                "        \"HCM-PROJECT-TYPES\": {\n" +
+                "            \"projectTypes\": [\n" +
+                "                {\n" +
+                "                    \"id\": \"some-project-type-id\",\n" +
+                "                    \"name\": \"Default project type configuration for LLIN Campaigns\",\n" +
+                "                    \"code\": \"LLIN-Default\",\n" +
+                "                    \"group\": \"MALARIA\",\n" +
+                "                    \"beneficiaryType\": \"HOUSEHOLD\",\n" +
+                "                    \"eligibilityCriteria\": [\n" +
+                "                        \"All households are eligible.\",\n" +
+                "                        \"Prison inmates are eligible.\"\n" +
+                "                    ],\n" +
+                "                    \"taskProcedure\": [\n" +
+                "                        \"1 bednet is to be distributed per 2 household members.\",\n" +
+                "                        \"If there are 4 household members, 2 bednets should be distributed.\",\n" +
+                "                        \"If there are 5 household members, 3 bednets should be distributed.\"\n" +
+                "                    ],\n" +
+                "                    \"resources\": [\n" +
+                "                        {\n" +
+                "                            \"productVariantId\": \"943dd353-7641-4984-a59d-a01891cb05ca\",\n" +
+                "                            \"isBaseUnitVariant\": false\n" +
+                "                        },\n" +
+                "                        {\n" +
+                "                            \"productVariantId\": \"07bf993a-0d6a-4ff6-a1e6-58562e900d81\",\n" +
+                "                            \"isBaseUnitVariant\": true\n" +
+                "                        }\n" +
+                "                    ]\n" +
+                "                },\n" +
+                "                {\n" +
+                "                    \"id\": \"a6907f0c-7a91-4c76-afc2-a279d8a7b76a\",\n" +
+                "                    \"name\": \"Mozambique specific configuration for LLIN Campaigns\",\n" +
+                "                    \"code\": \"LLIN-Moz\",\n" +
+                "                    \"group\": \"MALARIA\",\n" +
+                "                    \"beneficiaryType\": \"HOUSEHOLD\",\n" +
+                "                    \"eligibilityCriteria\": [\n" +
+                "                        \"All households having members under the age of 18 are eligible.\",\n" +
+                "                        \"Prison inmates are eligible.\"\n" +
+                "                    ],\n" +
+                "                    \"taskProcedure\": [\n" +
+                "                        \"1 bednet is to be distributed per 2 household members.\",\n" +
+                "                        \"If there are 4 household members, 2 bednets should be distributed.\",\n" +
+                "                        \"If there are 5 household members, 3 bednets should be distributed.\"\n" +
+                "                    ],\n" +
+                "                    \"resources\": [\n" +
+                "                        {\n" +
+                "                            \"productVariantId\": \"ff940b7a-b990-4ab9-a699-13db261306ed\",\n" +
+                "                            \"isBaseUnitVariant\": false\n" +
+                "                        },\n" +
+                "                        {\n" +
+                "                            \"productVariantId\": \"07bf993a-0d6a-4ff6-a1e6-58562e900d81\",\n" +
+                "                            \"isBaseUnitVariant\": true\n" +
+                "                        }\n" +
+                "                    ]\n" +
+                "                }\n" +
+                "            ]\n" +
+                "        }\n" +
+                "    }\n" +
+                "}\n" +
+                "\n" +
+                "\n" +
+                "\n" +
+                "\n" +
+                "\n" +
+                "\n" +
+                "\n" +
+                "\n" +
+                "\n";
+        ObjectMapper map = new ObjectMapper();
+        JsonNode node = map.readTree(responseString);
+
+        when(mdmsService.fetchResultFromMdms(any(MdmsCriteriaReq.class), eq(JsonNode.class)))
+                .thenReturn(node);
+    }
+
     @Test
-    @DisplayName("should throw exception for any invalid product id")
-    void shouldThrowExceptionForAnyInvalidProductId() throws Exception {
+    @DisplayName("should throw exception for any invalid project id")
+    void shouldThrowExceptionForAnyInvalidProjectId() throws Exception {
+
         when(projectService.validateProjectIds(any(List.class))).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.create(request));

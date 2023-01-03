@@ -34,6 +34,7 @@ public class ProjectBeneficiaryTestBuilder {
     public ProjectBeneficiaryTestBuilder withId() {
         withIdNull().builder.id("some-id").beneficiaryId("beneficiary-id")
                 .dateOfRegistration(12121212)
+                .projectId("some-project-id")
                 .beneficiaryClientReferenceId("beneficiaryClientReferenceId")
                 .tenantId("some-tenant-id");
         return this;

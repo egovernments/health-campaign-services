@@ -126,14 +126,15 @@ public class ProjectBeneficiaryService {
 
         Set<String> projectIds = getSet(projectBeneficiary, "getProjectId");
 
+        // TODO - CHeck if project exists
+        validateIds(projectIds, projectService::validateProjectIds);
+
+
         List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
         List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryRequest.getRequestInfo());
 
         Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
         Map<String, Project> projectMap = getIdToObjMap(existingProjects);
-
-        // TODO - CHeck if project exists
-        validateIds(projectIds, projectService::validateProjectIds);
 
         for (ProjectBeneficiary beneficiary : projectBeneficiary) {
             Project project = projectMap.get(beneficiary.getProjectId());

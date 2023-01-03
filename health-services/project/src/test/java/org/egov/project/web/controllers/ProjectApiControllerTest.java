@@ -5,6 +5,7 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.project.TestConfiguration;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
+import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
@@ -52,6 +53,8 @@ public class ProjectApiControllerTest {
     @MockBean
     private ProjectStaffService projectStaffService;
 
+    @MockBean
+    private ProjectBeneficiaryService projectBeneficiaryService;
 
     @Test
     @DisplayName("should create project staff and return with 202 accepted")
