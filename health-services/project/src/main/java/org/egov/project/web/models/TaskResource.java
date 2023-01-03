@@ -51,6 +51,9 @@ public class TaskResource   {
     @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
 
+    @JsonProperty("rowVersion")
+    private Integer rowVersion = null;
+
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
