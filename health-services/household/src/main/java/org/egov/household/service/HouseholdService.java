@@ -11,8 +11,10 @@ import org.egov.household.web.models.HouseholdSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -24,6 +26,7 @@ import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -69,7 +72,9 @@ public class HouseholdService {
         String idFieldName = getIdFieldName(householdSearch);
         if (isSearchByIdOnly(householdSearch, idFieldName)) {
             List<String> ids = new ArrayList<>();
-            ids.add(householdSearch.getId());
+            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+                            .singletonList(householdSearch)),
+                    householdSearch));
             return householdRepository.findById(ids,
                     idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))

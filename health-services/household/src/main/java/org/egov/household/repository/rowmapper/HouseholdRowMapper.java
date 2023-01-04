@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import org.egov.household.web.models.AdditionalFields;
 import org.egov.household.web.models.Address;
+import org.egov.household.web.models.AddressType;
 import org.egov.household.web.models.Boundary;
 import org.egov.household.web.models.Household;
 import org.springframework.jdbc.core.RowMapper;
@@ -41,7 +42,7 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                             .latitude(resultSet.getDouble("latitude"))
                             .longitude(resultSet.getDouble("longitude"))
                             .locationAccuracy(resultSet.getDouble("locationAccuracy"))
-                            .type(resultSet.getString("type"))
+                            .type(AddressType.fromValue(resultSet.getString("type")))
                             .addressLine1(resultSet.getString("addressLine1"))
                             .addressLine2(resultSet.getString("addressLine2"))
                             .landmark(resultSet.getString("landmark"))
