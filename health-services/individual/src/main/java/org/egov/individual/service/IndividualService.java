@@ -7,18 +7,28 @@ import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
+import org.egov.individual.web.models.IndividualSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.uuidSupplier;
 
 @Service
 @Slf4j
@@ -86,16 +96,6 @@ public class IndividualService {
                         .forEach(address -> address.setIndividualId(individual.getId())));
     }
 
-    private static Function<Integer, List<String>> uuidSupplier() {
-        return integer ->  {
-            List<String> uuidList = new ArrayList<>();
-            for (int i = 0; i < integer; i++) {
-                uuidList.add(UUID.randomUUID().toString());
-            }
-            return uuidList;
-        };
-    }
-
     private static Individual enrichWithSystemGeneratedIdentifier(Individual individual) {
         if (individual.getIdentifiers() == null || individual.getIdentifiers().isEmpty()) {
             List<Identifier> identifiers = new ArrayList<>();
@@ -107,15 +107,37 @@ public class IndividualService {
         return individual;
     }
 
-    private <T, R> List<R> collectFromList(List<T> objList, Function<T, List<R>> function) {
-        return objList.stream()
-                .flatMap(obj -> {
-                    List<R> aList = function.apply(obj);
-                    if (aList == null || aList.isEmpty()) {
-                        return new ArrayList<R>().stream();
-                    }
-                    return aList.stream();
-                })
+    public List<Individual> search(IndividualSearch individualSearch,
+                                   Integer limit,
+                                   Integer offset,
+                                   String tenantId,
+                                   Long lastChangedSince,
+                                   Boolean includeDeleted) {
+        String idFieldName = getIdFieldName(individualSearch);
+        if (isSearchByIdOnly(individualSearch, idFieldName)) {
+            List<String> ids = new ArrayList<>();
+            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+                            .singletonList(individualSearch)),
+                    individualSearch));
+            return individualRepository.findById(ids, idFieldName, includeDeleted)
+                    .stream().filter(lastChangedSince(lastChangedSince))
+                    .filter(havingTenantId(tenantId))
+                    .filter(includeDeleted(includeDeleted))
+                    .collect(Collectors.toList());
+        }
+        return individualRepository.find(individualSearch, limit, offset, tenantId,
+                lastChangedSince, includeDeleted).stream()
+                .filter(havingBoundaryCode(individualSearch.getBoundaryCode()))
                 .collect(Collectors.toList());
+    }
+
+    private Predicate<Individual> havingBoundaryCode(String boundaryCode) {
+        if (boundaryCode == null) {
+            return individual -> true;
+        }
+        return individual -> individual.getAddress()
+                .stream()
+                .anyMatch(address -> address.getLocality().getCode()
+                        .equalsIgnoreCase(boundaryCode));
     }
 }

@@ -56,6 +56,7 @@ public class MainConfiguration {
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
         objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance,
                 ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.WRAPPER_ARRAY);
+        objectMapper.registerModule(new JavaTimeModule());
         return objectMapper;
     }
 
