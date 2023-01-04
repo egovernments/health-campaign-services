@@ -2,24 +2,15 @@ package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.UserSearchRequest;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import org.apache.commons.io.IOUtils;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.contract.request.User;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
-import org.egov.common.service.UserService;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
-import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.BeneficiaryRequest;
-import org.egov.project.web.models.Household;
-import org.egov.project.web.models.HouseholdResponse;
-import org.egov.project.web.models.Project;
-import org.egov.project.web.models.ProjectBeneficiary;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.project.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,9 +19,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -48,6 +41,10 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ProjectBeneficiaryServiceCreateTest {
+
+    private final String HOUSEHOLD_RESPONSE_FILE_NAME = "/responses/mdms-household-response.json";
+
+    private final String INDIVIDUAL_RESPONSE_FILE_NAME = "/responses/mdms-individual-response.json";
 
     @InjectMocks
     private ProjectBeneficiaryService projectBeneficiaryService;
@@ -67,7 +64,6 @@ class ProjectBeneficiaryServiceCreateTest {
     @Mock
     private ProjectBeneficiaryRepository projectBeneficiaryRepository;
 
-
     private BeneficiaryRequest request;
 
     @BeforeEach
@@ -78,28 +74,58 @@ class ProjectBeneficiaryServiceCreateTest {
         List<String> idList = new ArrayList<>();
         idList.add("some-id");
         lenient().when(idGenService.getIdList(any(RequestInfo.class),
-                any(String.class),
-                eq("project.beneficiary.id"), eq(""), anyInt()))
+                        any(String.class),
+                        eq("project.beneficiary.id"), eq(""), anyInt()))
                 .thenReturn(idList);
+        ReflectionTestUtils.setField(projectBeneficiaryService, "householdServiceHost", "household-service");
+        ReflectionTestUtils.setField(projectBeneficiaryService, "householdServiceSearchUrl", "/v1/_search");
+        ReflectionTestUtils.setField(projectBeneficiaryService, "individualServiceHost", "individual-service");
+        ReflectionTestUtils.setField(projectBeneficiaryService, "individualServiceSearchUrl", "/v1/_search");
     }
 
     private void mockValidateProjectId() {
-        lenient().when(projectService.validateProjectIds(any(List.class)))
-                .thenReturn(Collections.singletonList("some-project-id"));
-    }
-    private void mockProjectFindIds() {
-        when(projectService.findByIds(any(List.class))).thenReturn(Collections.singletonList(
-                Project.builder().id("some-project-id").projectTypeId("some-project-type-id").build()));
+        lenient().when(projectService.validateProjectIds(
+                any(List.class))
+            ).thenReturn(Collections.singletonList("some-project-id"));
     }
 
+    private void mockProjectFindIds() {
+        when(projectService.findByIds(
+                any(List.class)
+        )).thenReturn(
+                Collections.singletonList(
+                        Project.builder().id("some-project-id").projectTypeId("some-project-type-id").build())
+        );
+    }
+
+    private void mockServiceRequestClientWithHousehold() throws Exception {
+        when(serviceRequestClient.fetchResult(
+                any(StringBuilder.class),
+                any(),
+                eq(HouseholdResponse.class))
+        ).thenReturn(
+                HouseholdResponse.builder().household(Collections.singletonList(Household.builder().build())).build()
+        );
+    }
+
+    private void mockMdms(String responseFileName) throws Exception {
+        InputStream inputStream = getClass().getResourceAsStream(responseFileName);
+        String responseString = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+
+        ObjectMapper map = new ObjectMapper();
+        JsonNode node = map.readTree(responseString);
+
+        when(mdmsService.fetchResultFromMdms(any(MdmsCriteriaReq.class), eq(JsonNode.class)))
+                .thenReturn(node);
+    }
 
     @Test
-    @DisplayName("should enrich the formatted id in project staff")
-    void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
+    @DisplayName("should enrich the formatted id in project beneficiary")
+    void shouldEnrichTheFormattedIdInProjectBeneficiary() throws Exception {
         mockValidateProjectId();
-        mockMdms();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        mockServiceRequestClient();
+        mockServiceRequestClientWithHousehold();
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(request);
 
@@ -107,12 +133,12 @@ class ProjectBeneficiaryServiceCreateTest {
     }
 
     @Test
-    @DisplayName("should send the enriched project staff to the kafka topic")
-    void shouldSendTheEnrichedProjectStaffToTheKafkaTopic() throws Exception {
+    @DisplayName("should send the enriched project beneficiary to the kafka topic")
+    void shouldSendTheEnrichedProjectBeneficiaryToTheKafkaTopic() throws Exception {
         mockValidateProjectId();
-        mockMdms();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        mockServiceRequestClient();
+        mockServiceRequestClientWithHousehold();
 
         projectBeneficiaryService.create(request);
 
@@ -123,12 +149,12 @@ class ProjectBeneficiaryServiceCreateTest {
     }
 
     @Test
-    @DisplayName("should update audit details before pushing the project staff to kafka")
-    void shouldUpdateAuditDetailsBeforePushingTheProjectStaffsToKafka() throws Exception {
+    @DisplayName("should update audit details before pushing the project beneficiary to kafka")
+    void shouldUpdateAuditDetailsBeforePushingTheProjectBeneficiariesToKafka() throws Exception {
         mockValidateProjectId();
-        mockMdms();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        mockServiceRequestClient();
+        mockServiceRequestClientWithHousehold();
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(request);
 
@@ -142,10 +168,9 @@ class ProjectBeneficiaryServiceCreateTest {
     @DisplayName("should set row version as 1 and deleted as false")
     void shouldSetRowVersionAs1AndDeletedAsFalse() throws Exception {
         mockValidateProjectId();
-        mockMdms();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        mockServiceRequestClient();
-
+        mockServiceRequestClientWithHousehold();
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(request);
 
@@ -154,117 +179,107 @@ class ProjectBeneficiaryServiceCreateTest {
     }
 
 
-
     @Test
     @DisplayName("should validate correct project id")
     void shouldValidateCorrectProjectId() throws Exception {
         mockValidateProjectId();
-        mockMdms();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        mockServiceRequestClient();
+        mockServiceRequestClientWithHousehold();
 
         projectBeneficiaryService.create(request);
 
         verify(projectService, times(1)).validateProjectIds(any(List.class));
     }
 
-    private void mockServiceRequestClient() throws Exception {
-        when(serviceRequestClient.fetchResult(any(StringBuilder.class), any(), eq(HouseholdResponse.class))).thenReturn(
-                HouseholdResponse.builder().
-                        household(
-                                Collections.singletonList(
-                                        Household.builder().build()
-                                )
-                        ).
-                        build()
-        );
-    }
-
-    private void mockMdms() throws Exception {
-        String responseString = "{\n" +
-                "    \"ResponseInfo\": null,\n" +
-                "    \"MdmsRes\": {\n" +
-                "        \"HCM-PROJECT-TYPES\": {\n" +
-                "            \"projectTypes\": [\n" +
-                "                {\n" +
-                "                    \"id\": \"some-project-type-id\",\n" +
-                "                    \"name\": \"Default project type configuration for LLIN Campaigns\",\n" +
-                "                    \"code\": \"LLIN-Default\",\n" +
-                "                    \"group\": \"MALARIA\",\n" +
-                "                    \"beneficiaryType\": \"HOUSEHOLD\",\n" +
-                "                    \"eligibilityCriteria\": [\n" +
-                "                        \"All households are eligible.\",\n" +
-                "                        \"Prison inmates are eligible.\"\n" +
-                "                    ],\n" +
-                "                    \"taskProcedure\": [\n" +
-                "                        \"1 bednet is to be distributed per 2 household members.\",\n" +
-                "                        \"If there are 4 household members, 2 bednets should be distributed.\",\n" +
-                "                        \"If there are 5 household members, 3 bednets should be distributed.\"\n" +
-                "                    ],\n" +
-                "                    \"resources\": [\n" +
-                "                        {\n" +
-                "                            \"productVariantId\": \"943dd353-7641-4984-a59d-a01891cb05ca\",\n" +
-                "                            \"isBaseUnitVariant\": false\n" +
-                "                        },\n" +
-                "                        {\n" +
-                "                            \"productVariantId\": \"07bf993a-0d6a-4ff6-a1e6-58562e900d81\",\n" +
-                "                            \"isBaseUnitVariant\": true\n" +
-                "                        }\n" +
-                "                    ]\n" +
-                "                },\n" +
-                "                {\n" +
-                "                    \"id\": \"a6907f0c-7a91-4c76-afc2-a279d8a7b76a\",\n" +
-                "                    \"name\": \"Mozambique specific configuration for LLIN Campaigns\",\n" +
-                "                    \"code\": \"LLIN-Moz\",\n" +
-                "                    \"group\": \"MALARIA\",\n" +
-                "                    \"beneficiaryType\": \"HOUSEHOLD\",\n" +
-                "                    \"eligibilityCriteria\": [\n" +
-                "                        \"All households having members under the age of 18 are eligible.\",\n" +
-                "                        \"Prison inmates are eligible.\"\n" +
-                "                    ],\n" +
-                "                    \"taskProcedure\": [\n" +
-                "                        \"1 bednet is to be distributed per 2 household members.\",\n" +
-                "                        \"If there are 4 household members, 2 bednets should be distributed.\",\n" +
-                "                        \"If there are 5 household members, 3 bednets should be distributed.\"\n" +
-                "                    ],\n" +
-                "                    \"resources\": [\n" +
-                "                        {\n" +
-                "                            \"productVariantId\": \"ff940b7a-b990-4ab9-a699-13db261306ed\",\n" +
-                "                            \"isBaseUnitVariant\": false\n" +
-                "                        },\n" +
-                "                        {\n" +
-                "                            \"productVariantId\": \"07bf993a-0d6a-4ff6-a1e6-58562e900d81\",\n" +
-                "                            \"isBaseUnitVariant\": true\n" +
-                "                        }\n" +
-                "                    ]\n" +
-                "                }\n" +
-                "            ]\n" +
-                "        }\n" +
-                "    }\n" +
-                "}\n" +
-                "\n" +
-                "\n" +
-                "\n" +
-                "\n" +
-                "\n" +
-                "\n" +
-                "\n" +
-                "\n" +
-                "\n";
-        ObjectMapper map = new ObjectMapper();
-        JsonNode node = map.readTree(responseString);
-
-        when(mdmsService.fetchResultFromMdms(any(MdmsCriteriaReq.class), eq(JsonNode.class)))
-                .thenReturn(node);
-    }
-
     @Test
     @DisplayName("should throw exception for any invalid project id")
     void shouldThrowExceptionForAnyInvalidProjectId() throws Exception {
-
         when(projectService.validateProjectIds(any(List.class))).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.create(request));
     }
 
+    @Test
+    @DisplayName("should throw exception on zero search results")
+    void shouldThrowExceptionOnZeroHouseholdSearchResult() throws Exception {
+        mockValidateProjectId();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
+        mockProjectFindIds();
+
+        when(serviceRequestClient.fetchResult(any(StringBuilder.class), any(), eq(HouseholdResponse.class)))
+                .thenReturn(HouseholdResponse.builder().household(Collections.emptyList()).build());
+
+        assertThrows(CustomException.class, () -> projectBeneficiaryService.create(request));
+    }
+
+    @Test
+    @DisplayName("should call mdms client and service client for household beneficiary type")
+    void shouldCallMdmsClientAndServiceClientWithHouseholdBeneficiaryType() throws Exception {
+        mockValidateProjectId();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
+        mockProjectFindIds();
+
+        when(serviceRequestClient.fetchResult(
+                any(StringBuilder.class),
+                any(HouseholdSearchRequest.class),
+                eq(HouseholdResponse.class))
+        ).thenReturn(
+                HouseholdResponse.builder().household(Collections.singletonList(Household.builder().build())).build()
+        );
+
+        projectBeneficiaryService.create(request);
+
+        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(mdmsService, times(1)).fetchResultFromMdms(any(), any());
+        verify(serviceRequestClient, times(1)).fetchResult(
+                any(StringBuilder.class),
+                any(HouseholdSearchRequest.class),
+                eq(HouseholdResponse.class)
+        );
+    }
+
+    @Test
+    @DisplayName("should call mdms client and service client for individual beneficiary type")
+    void shouldCallMdmsClientAndServiceClientWithIndividualBeneficiaryType() throws Exception {
+        mockValidateProjectId();
+        mockMdms(INDIVIDUAL_RESPONSE_FILE_NAME);
+        mockProjectFindIds();
+
+        when(serviceRequestClient.fetchResult(
+                any(StringBuilder.class),
+                any(IndividualSearchRequest.class),
+                eq(IndividualResponse.class))
+        ).thenReturn(
+                IndividualResponse.builder().individual(Collections.singletonList(Individual.builder().build())).build()
+        );
+
+        projectBeneficiaryService.create(request);
+
+        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(mdmsService, times(1)).fetchResultFromMdms(any(), any());
+        verify(serviceRequestClient, times(1)).fetchResult(
+                any(StringBuilder.class),
+                any(IndividualSearchRequest.class),
+                eq(IndividualResponse.class)
+        );
+    }
+
+    @Test
+    @DisplayName("should throw exception on zero search results")
+    void shouldThrowExceptionOnZeroIndividualSearchResult() throws Exception {
+        mockValidateProjectId();
+        mockMdms(INDIVIDUAL_RESPONSE_FILE_NAME);
+        mockProjectFindIds();
+
+        when(serviceRequestClient.fetchResult(
+                any(StringBuilder.class),
+                any(),
+                eq(IndividualResponse.class))
+        ).thenReturn(
+                IndividualResponse.builder().individual(Collections.emptyList()).build()
+        );
+
+        assertThrows(CustomException.class, () -> projectBeneficiaryService.create(request));
+    }
 }
