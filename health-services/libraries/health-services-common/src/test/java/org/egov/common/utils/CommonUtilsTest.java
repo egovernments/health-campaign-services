@@ -6,6 +6,7 @@ import lombok.Data;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.helpers.OtherObject;
 import org.egov.common.helpers.SomeObject;
 import org.egov.common.helpers.SomeObjectWithClientRefId;
 import org.egov.tracer.model.CustomException;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -479,6 +481,51 @@ class CommonUtilsTest {
         Method getId = CommonUtils.getIdMethod(objList);
 
         assertTrue(getId.toString().endsWith("getClientReferenceId()"));
+    }
+
+    @Test
+    @DisplayName("should get the name of the clientReferenceId field if available and not null")
+    void shouldGetTheNameOfTheClientReferenceIdFieldIfAvailableAndNotNull() {
+        SomeObjectWithClientRefId someObject = SomeObjectWithClientRefId.builder()
+                .clientReferenceId("some-client-reference-id").build();
+        assertEquals("clientReferenceId", CommonUtils.getIdFieldName(someObject));
+    }
+
+    @Test
+    @DisplayName("should get the name of the id field if available and not null")
+    void shouldGetTheNameOfIdFieldIfAvailableAndNotNull() {
+        SomeObjectWithClientRefId someObject = SomeObjectWithClientRefId.builder()
+                .id("some-id").build();
+        assertEquals("id", CommonUtils.getIdFieldName(someObject));
+    }
+
+    @Test
+    @DisplayName("should get a list of other objects from a list of some objects")
+    void shouldGetAListOfOtherObjectsFromAListOfSomeObjects() {
+        List<SomeObject> someObjects = new ArrayList<>();
+        someObjects.add(SomeObject.builder()
+                        .otherField("some-other-field")
+                        .otherObject(Arrays.asList(OtherObject.builder()
+                                        .someOtherField("some-other-field").build(),
+                                OtherObject.builder()
+                                        .someOtherField("some-other-field").build()))
+                .build());
+        someObjects.add(SomeObject.builder()
+                .otherField("some-other-field")
+                .otherObject(Arrays.asList(OtherObject.builder()
+                                .someOtherField("some-other-field").build(),
+                        OtherObject.builder()
+                                .someOtherField("some-other-field").build()))
+                .build());
+
+        assertEquals(4, CommonUtils.collectFromList(someObjects,
+                        SomeObject::getOtherObject).size());
+    }
+
+    @Test
+    @DisplayName("should supply specified number of uuids")
+    void shouldSupplySpecifiedNumberOfUuids() {
+        assertEquals(5, CommonUtils.uuidSupplier().apply(5).size());
     }
 
     @Data
