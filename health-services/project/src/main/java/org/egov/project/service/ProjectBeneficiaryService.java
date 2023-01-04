@@ -3,7 +3,6 @@ package org.egov.project.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
@@ -15,7 +14,6 @@ import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
-import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.project.web.models.HouseholdResponse;
 import org.egov.project.web.models.HouseholdSearch;
@@ -31,8 +29,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -126,28 +122,10 @@ public class ProjectBeneficiaryService {
 
         Set<String> projectIds = getSet(projectBeneficiary, "getProjectId");
 
-        // TODO - CHeck if project exists
         validateIds(projectIds, projectService::validateProjectIds);
 
+        validateBeneficiary(beneficiaryRequest, projectBeneficiary, tenantId, projectIds);
 
-        List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
-        List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryRequest.getRequestInfo());
-
-        Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
-        Map<String, Project> projectMap = getIdToObjMap(existingProjects);
-
-        for (ProjectBeneficiary beneficiary : projectBeneficiary) {
-            Project project = projectMap.get(beneficiary.getProjectId());
-            String beneficiaryType = projectTypeMap.get(project.getProjectTypeId()).getBeneficiaryType();
-            log.info(" beneficiaryType {} {}", beneficiaryType, project);
-
-            // TODO - Search Beneficiary
-            searchBeneficiary(beneficiaryType, beneficiary, beneficiaryRequest.getRequestInfo(), tenantId);
-
-        }
-
-
-        // TODO - GENERTAE ID
         log.info("Generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(beneficiaryRequest.getRequestInfo(),
                 getTenantId(projectBeneficiary),
@@ -252,8 +230,9 @@ public class ProjectBeneficiaryService {
         return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<ProjectType>>() {});
     }
 
-    public List<ProjectBeneficiary> update(BeneficiaryRequest beneficiaryRequest) {
+    public List<ProjectBeneficiary> update(BeneficiaryRequest beneficiaryRequest) throws Exception {
         List<ProjectBeneficiary> projectBeneficiary = beneficiaryRequest.getProjectBeneficiary();
+        String tenantId = getTenantId(projectBeneficiary);
 
         identifyNullIds(projectBeneficiary);
         log.info("Checking existing project beneficiary");
@@ -262,21 +241,23 @@ public class ProjectBeneficiaryService {
         log.info("Checking existing project beneficiary");
 
 
-        // TODO - CHeck if client reference id or server reference id exists
-        List<String> ids = projectBeneficiary.stream().map(ProjectBeneficiary::getBeneficiaryClientReferenceId)
-                .filter(Objects::nonNull).collect(Collectors.toList());
+        Set<String> projectIds = getSet(projectBeneficiary, "getProjectId");
+        //TODO CHECK CLIENT REFERENCE
 
-        List<String> alreadyExists = projectBeneficiaryRepository.validateIds(ids, "beneficiaryClientReferenceId");
-
-        if(alreadyExists.size() != 0 ){
-            throw new CustomException("ERROR","ERROR");
-        }
+//        List<String> ids = projectBeneficiary.stream().map(ProjectBeneficiary::getBeneficiaryClientReferenceId)
+//                .filter(Objects::nonNull).collect(Collectors.toList());
+      //  List<String> alreadyExists = projectBeneficiaryRepository.validateIds(ids, "beneficiaryClientReferenceId");
+//        if(alreadyExists.size() != 0 ){
+//            throw new CustomException("ERROR","ERROR");
+//        }
         Map<String, ProjectBeneficiary> projectBeneficiaryMap = getIdToObjMap(projectBeneficiary);
 
         log.info("Checking if already exists");
         List<String> projectBeneficiaryIds = new ArrayList<>(projectBeneficiaryMap.keySet());
         List<ProjectBeneficiary> existingProjectBeneficiaryIds = projectBeneficiaryRepository
                 .findById(projectBeneficiaryIds);
+
+        validateBeneficiary(beneficiaryRequest, projectBeneficiary, tenantId, projectIds);
 
         validateEntities(projectBeneficiaryMap, existingProjectBeneficiaryIds);
 
@@ -288,6 +269,19 @@ public class ProjectBeneficiaryService {
         projectBeneficiaryRepository.save(projectBeneficiary, UPDATE_KAFKA_TOPIC);
         log.info("Pushed to kafka");
         return projectBeneficiary;
+    }
+
+    private void validateBeneficiary(BeneficiaryRequest beneficiaryRequest, List<ProjectBeneficiary> projectBeneficiary, String tenantId, Set<String> projectIds) throws Exception {
+        List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
+        List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryRequest.getRequestInfo());
+        Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
+        Map<String, Project> projectMap = getIdToObjMap(existingProjects);
+
+        for (ProjectBeneficiary beneficiary : projectBeneficiary) {
+            Project project = projectMap.get(beneficiary.getProjectId());
+            String beneficiaryType = projectTypeMap.get(project.getProjectTypeId()).getBeneficiaryType();
+            searchBeneficiary(beneficiaryType, beneficiary, beneficiaryRequest.getRequestInfo(), tenantId);
+        }
     }
 
     public List<ProjectBeneficiary> search(BeneficiarySearchRequest beneficiarySearchRequest,
