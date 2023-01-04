@@ -126,6 +126,7 @@ public class Individual   {
   @Valid
 
 
+        @Size(min = 1)
     private List<Identifier> identifiers = null;
 
         @JsonProperty("photo")

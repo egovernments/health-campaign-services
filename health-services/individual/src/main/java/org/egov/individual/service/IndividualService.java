@@ -48,6 +48,7 @@ public class IndividualService {
 
     public List<Individual> create(IndividualRequest request) throws Exception {
         final String tenantId = getTenantId(request.getIndividual());
+        log.info("Generating id for individuals");
         List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
                 tenantId, "individual.id",
                 null, request.getIndividual().size());
@@ -55,10 +56,12 @@ public class IndividualService {
         List<Address> addresses = collectFromList(request.getIndividual(),
                 Individual::getAddress);
         if (!addresses.isEmpty()) {
+            log.info("Enriching addresses");
             List<String> addressIdList = uuidSupplier().apply(addresses.size());
             enrichForCreate(addresses, addressIdList, request.getRequestInfo());
             enrichIndividualIdInAddress(request);
         }
+        log.info("Enriching identifiers");
         request.setIndividual(request.getIndividual().stream()
                 .map(IndividualService::enrichWithSystemGeneratedIdentifier)
                         .map(IndividualService::enrichIndividualIdInIdentifiers)
@@ -67,10 +70,13 @@ public class IndividualService {
                 Individual::getIdentifiers);
         List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
         enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
-        List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
-                tenantId, "sys.gen.identifier.id",
-                null, identifiers.size());
-        enrichWithSysGenId(identifiers, sysGenIdList);
+        if (request.getIndividual().stream().anyMatch(individual -> individual.getIdentifiers().stream()
+                .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
+            List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
+                    tenantId, "sys.gen.identifier.id",
+                    null, identifiers.size());
+            enrichWithSysGenId(identifiers, sysGenIdList);
+        }
         individualRepository.save(request.getIndividual(), "save-individual-topic");
         return request.getIndividual();
     }
