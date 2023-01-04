@@ -127,6 +127,10 @@ public class CommonUtils {
         Object id = ReflectionUtils.invokeMethod(getIdMethod, obj);
         ReflectionUtils.invokeMethod(setIdMethod, finalObject, id);
 
+        if (id == null) {
+            return false;
+        }
+
         String actual = obj.toString();
         String expected = finalObject.toString();
         return actual.equals(expected);

@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Exclude;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -30,12 +31,6 @@ public class IndividualSearch   {
 
         @Size(min=2,max=64)
     private String id = null;
-
-        @JsonProperty("tenantId")
-
-
-        @Size(min=2,max=1000)
-    private String tenantId = null;
 
         @JsonProperty("clientReferenceId")
 
@@ -69,12 +64,14 @@ public class IndividualSearch   {
   @Valid
 
 
+        @Exclude
     private Identifier identifier = null;
 
         @JsonProperty("boundaryCode")
     
 
 
+        @Exclude
     private String boundaryCode = null;
 
 

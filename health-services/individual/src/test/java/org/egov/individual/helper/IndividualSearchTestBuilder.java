@@ -1,6 +1,11 @@
 package org.egov.individual.helper;
 
+import org.egov.individual.web.models.Gender;
+import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.IndividualSearch;
+import org.egov.individual.web.models.Name;
+
+import java.time.LocalDate;
 
 public class IndividualSearchTestBuilder {
     private IndividualSearch.IndividualSearchBuilder builder;
@@ -27,8 +32,38 @@ public class IndividualSearchTestBuilder {
         return this;
     }
 
-    public IndividualSearchTestBuilder byTenantId(String... args) {
-        this.builder.tenantId(args != null && args.length > 0 ? args[0] : "some-tenant-id");
+
+    public IndividualSearchTestBuilder byName() {
+        this.builder.name(Name.builder()
+                        .givenName("some-given-name")
+                        .familyName("some-family-name")
+                        .otherNames("some-other-name")
+                .build());
+        return this;
+    }
+
+    public IndividualSearchTestBuilder byGender(String... args) {
+        this.builder.gender(args != null && args.length > 0 ?
+                Gender.valueOf(args[0]) : Gender.MALE);
+        return this;
+    }
+
+    public IndividualSearchTestBuilder byDateOfBirth(LocalDate... args) {
+        this.builder.dateOfBirth(args != null && args.length > 0 ?
+                args[0] : LocalDate.now());
+        return this;
+    }
+
+    public IndividualSearchTestBuilder byIdentifier() {
+        this.builder.identifier(Identifier.builder()
+                        .identifierId("some-identifier-id")
+                        .identifierType("SYSTEM_GENERATED")
+                .build());
+        return this;
+    }
+
+    public IndividualSearchTestBuilder byBoundaryCode() {
+        this.builder.boundaryCode("some-boundary-code");
         return this;
     }
 }

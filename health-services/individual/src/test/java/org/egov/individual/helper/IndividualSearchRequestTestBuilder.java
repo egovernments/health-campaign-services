@@ -42,7 +42,6 @@ public class IndividualSearchRequestTestBuilder {
                                 .identifierType("SYSTEM_GENERATED")
                                 .identifierId("some-identifier-id")
                                 .build())
-                        .tenantId("some-tenant-id")
                 .build());
         return this;
     }

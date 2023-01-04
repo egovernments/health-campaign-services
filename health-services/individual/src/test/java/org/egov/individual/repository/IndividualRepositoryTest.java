@@ -7,6 +7,7 @@ import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
+import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualSearch;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,5 +81,97 @@ class IndividualRepositoryTest {
                 .query(anyString(), anyMap(), any(AddressRowMapper.class));
         verify(namedParameterJdbcTemplate, times(1))
                 .query(anyString(), anyMap(), any(IdentifierRowMapper.class));
+    }
+
+    @Test
+    @DisplayName("should find by other params from db and return all the dependent entities as well if present")
+    void shouldFindOtherParamsFromDbAndReturnAllTheDependentEntitiesAsWellIfPresent() throws QueryBuilderException {
+        IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
+                .byId()
+                .byClientReferenceId()
+                .byGender()
+                .byName()
+                .byDateOfBirth()
+                .byBoundaryCode()
+                .build();
+        Individual individual = IndividualTestBuilder.builder()
+                .withId()
+                .build();
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IndividualRowMapper.class)))
+                .thenReturn(Collections.singletonList(individual));
+
+        individualRepository.find(individualSearch,
+                2, 0, "default", null, true);
+
+        verify(namedParameterJdbcTemplate, times(1))
+                .query(anyString(), anyMap(), any(IndividualRowMapper.class));
+        verify(namedParameterJdbcTemplate, times(1))
+                .query(anyString(), anyMap(), any(AddressRowMapper.class));
+        verify(namedParameterJdbcTemplate, times(1))
+                .query(anyString(), anyMap(), any(IdentifierRowMapper.class));
+    }
+
+    @Test
+    @DisplayName("should find only by identifier")
+    void shouldFindOnlyByIdentifier() throws QueryBuilderException {
+        IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
+                .byIdentifier()
+                .build();
+        Individual individual = IndividualTestBuilder.builder()
+                .withId()
+                .build();
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IdentifierRowMapper.class)))
+                .thenReturn(Collections.singletonList(Identifier.builder()
+                                .individualId("some-id")
+                                .identifierId("some-identifier-id")
+                                .identifierType("SYSTEM_GENERATED")
+                        .build()));
+        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IndividualRowMapper.class)))
+                .thenReturn(Collections.singletonList(individual));
+
+        individualRepository.find(individualSearch,
+                2, 0, "default", null, true);
+
+        verify(namedParameterJdbcTemplate, times(1))
+                .query(anyString(), anyMap(), any(IndividualRowMapper.class));
+        verify(namedParameterJdbcTemplate, times(1))
+                .query(anyString(), anyMap(), any(AddressRowMapper.class));
+        verify(namedParameterJdbcTemplate, times(1))
+                .query(anyString(), anyMap(), any(IdentifierRowMapper.class));
+    }
+
+    @Test
+    @DisplayName("should find by other params and identifier from db and return all the dependent entities as well if present")
+    void shouldFindOtherParamsAndIdentifierFromDbAndReturnAllTheDependentEntitiesAsWellIfPresent() throws QueryBuilderException {
+        IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
+                .byId()
+                .byClientReferenceId()
+                .byGender()
+                .byName()
+                .byDateOfBirth()
+                .byBoundaryCode()
+                .byIdentifier()
+                .build();
+        Individual individual = IndividualTestBuilder.builder()
+                .withId()
+                .build();
+        when(namedParameterJdbcTemplate.query(anyString(),
+                anyMap(), any(IdentifierRowMapper.class)))
+                .thenReturn(Collections.singletonList(Identifier.builder()
+                        .identifierId("some-identifier-id")
+                        .identifierType("SYSTEM_GENERATED")
+                                .individualId("some-id")
+                        .build()));
+        when(namedParameterJdbcTemplate.query(anyString(),
+                anyMap(), any(IndividualRowMapper.class)))
+                .thenReturn(Collections.singletonList(individual));
+
+        individualRepository.find(individualSearch,
+                2, 0, "default", null, true);
+
+        verify(namedParameterJdbcTemplate, times(1)).query(anyString(),
+                anyMap(), any(IndividualRowMapper.class));
+        verify(namedParameterJdbcTemplate, times(1)).query(anyString(),
+                anyMap(), any(AddressRowMapper.class));
     }
 }

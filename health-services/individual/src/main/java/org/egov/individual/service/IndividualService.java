@@ -1,7 +1,6 @@
 package org.egov.individual.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Address;
@@ -9,7 +8,6 @@ import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualSearch;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -17,6 +15,7 @@ import org.springframework.util.ReflectionUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -126,11 +125,19 @@ public class IndividualService {
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
-        try {
-            return individualRepository.find(individualSearch, limit, offset, tenantId,
-                    lastChangedSince, includeDeleted);
-        } catch (QueryBuilderException e) {
-            throw new CustomException("ERROR_IN_QUERY", e.getMessage());
+        return individualRepository.find(individualSearch, limit, offset, tenantId,
+                lastChangedSince, includeDeleted).stream()
+                .filter(havingBoundaryCode(individualSearch.getBoundaryCode()))
+                .collect(Collectors.toList());
+    }
+
+    private Predicate<Individual> havingBoundaryCode(String boundaryCode) {
+        if (boundaryCode == null) {
+            return individual -> true;
         }
+        return individual -> individual.getAddress()
+                .stream()
+                .anyMatch(address -> address.getLocality().getCode()
+                        .equalsIgnoreCase(boundaryCode));
     }
 }

@@ -64,7 +64,7 @@ class IndividualServiceSearchTest {
     void shouldNotCallFindByIdIfParametersOtherThanIdArePresent() throws QueryBuilderException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byClientReferenceId()
-                .byTenantId()
+                .byName()
                 .build();
 
         individualService.search(individualSearch, 0, 10,
@@ -79,7 +79,7 @@ class IndividualServiceSearchTest {
     void shouldCallFindIfParametersOtherThanIdArePresent() throws QueryBuilderException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byClientReferenceId()
-                .byTenantId()
+                .byGender()
                 .build();
 
         individualService.search(individualSearch, 0, 10,
