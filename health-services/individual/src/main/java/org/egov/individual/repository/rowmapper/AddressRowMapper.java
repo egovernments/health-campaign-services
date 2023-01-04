@@ -2,6 +2,7 @@ package org.egov.individual.repository.rowmapper;
 
 import digit.models.coremodels.AuditDetails;
 import org.egov.individual.web.models.Address;
+import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Boundary;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -19,7 +20,7 @@ public class AddressRowMapper implements RowMapper<Address> {
                 .latitude(resultSet.getDouble("latitude"))
                 .longitude(resultSet.getDouble("longitude"))
                 .locationAccuracy(resultSet.getDouble("locationAccuracy"))
-                .type(resultSet.getString("type"))
+                .type(AddressType.fromValue(resultSet.getString("type")))
                 .addressLine1(resultSet.getString("addressLine1"))
                 .addressLine2(resultSet.getString("addressLine2"))
                 .landmark(resultSet.getString("landmark"))

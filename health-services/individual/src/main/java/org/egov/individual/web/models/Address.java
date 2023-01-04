@@ -77,7 +77,7 @@ public class Address   {
     
 
 
-    private String type = null;
+    private AddressType type = null;
 
         @JsonProperty("addressLine1")
     
