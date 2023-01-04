@@ -29,7 +29,6 @@ public class ProjectRepository extends GenericRepository<ProjectStaff> {
                 projectStaffRowMapper, Optional.of("project"));
     }
 
-
     public List<String> validateProjectIds(List<String> ids) {
         List<String> productIds = ids.stream().filter(id -> redisTemplate.opsForHash()
                         .entries(tableName).containsKey(id))
