@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
+import javax.validation.constraints.Size;
+
 /**
 * A representation of Household.
 */
@@ -23,9 +25,11 @@ import org.springframework.validation.annotation.Validated;
 @Table(name = "household h")
 public class HouseholdSearch {
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
     @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
     private String clientReferenceId = null;
 
 //    @JsonProperty("memberCount")
