@@ -1,14 +1,18 @@
 package org.egov.individual.web.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Exclude;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Size;
+import java.time.LocalDate;
 
 /**
 * A representation of an Individual.
@@ -23,21 +27,15 @@ import javax.validation.Valid;
 @Builder
 public class IndividualSearch   {
         @JsonProperty("id")
-    
 
 
+        @Size(min=2,max=64)
     private String id = null;
 
-        @JsonProperty("tenantId")
-    
-
-
-    private String tenantId = null;
-
         @JsonProperty("clientReferenceId")
-    
 
 
+        @Size(min=2,max=64)
     private String clientReferenceId = null;
 
         @JsonProperty("name")
@@ -47,11 +45,12 @@ public class IndividualSearch   {
 
     private Name name = null;
 
-        @JsonProperty("dateOfBirth")
+    @JsonProperty("dateOfBirth")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
     
 
 
-    private String dateOfBirth = null;
+    private LocalDate dateOfBirth = null;
 
         @JsonProperty("gender")
     
@@ -65,12 +64,14 @@ public class IndividualSearch   {
   @Valid
 
 
+        @Exclude
     private Identifier identifier = null;
 
         @JsonProperty("boundaryCode")
     
 
 
+        @Exclude
     private String boundaryCode = null;
 
 

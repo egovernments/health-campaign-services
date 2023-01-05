@@ -6,10 +6,12 @@ import io.swagger.annotations.ApiParam;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.service.ProjectBeneficiaryService;
+import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectFacilityRequest;
 import org.egov.project.web.models.ProjectFacilityResponse;
@@ -32,6 +34,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -42,6 +45,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.io.IOException;
 import java.util.List;
 
@@ -49,6 +53,7 @@ import java.util.List;
 
 @Controller
 @RequestMapping("")
+@Validated
 public class ProjectApiController {
 
     private final ObjectMapper objectMapper;
