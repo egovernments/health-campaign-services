@@ -4,6 +4,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.utils.ObjectUtils;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -56,22 +57,27 @@ public interface GenericQueryBuilder {
     static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap){
         List<String> whereClauses = new ArrayList<>();
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
-            field.setAccessible(true);
-            try {
-                if(!field.getType().isPrimitive() && checkCondition.check(field, object)){
-                    if(ObjectUtils.isWrapper(field)){
-                        String fieldName = field.getName();
-                        paramsMap.put(fieldName, field.get(object));
-                        whereClauses.add(String.format("%s=:%s", fieldName, fieldName));
-                    }else{
-                        Object objectAtField = field.get(object);
-                        if(objectAtField != null){
-                            whereClauses.addAll(getFieldsWithCondition(objectAtField, checkCondition, paramsMap));
+            if (field.getType().equals(LocalDate.class) || field.getType().isEnum()) {
+                // do nothing
+            } else {
+                field.setAccessible(true);
+                try {
+                    if (!field.getType().isPrimitive() && checkCondition.check(field, object)
+                            && QueryFieldChecker.isNotAnnotatedWithExclude.check(field, object)) {
+                        if (ObjectUtils.isWrapper(field)) {
+                            String fieldName = field.getName();
+                            paramsMap.put(fieldName, field.get(object));
+                            whereClauses.add(String.format("%s=:%s", fieldName, fieldName));
+                        } else {
+                            Object objectAtField = field.get(object);
+                            if (objectAtField != null) {
+                                whereClauses.addAll(getFieldsWithCondition(objectAtField, checkCondition, paramsMap));
+                            }
                         }
                     }
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
                 }
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
             }
         });
         return whereClauses;

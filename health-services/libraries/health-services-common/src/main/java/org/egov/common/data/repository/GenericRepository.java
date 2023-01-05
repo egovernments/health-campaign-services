@@ -119,12 +119,15 @@ public abstract class GenericRepository<T> {
                               Long lastChangedSince,
                               Boolean includeDeleted) throws QueryBuilderException {
         String query = selectQueryBuilder.build(searchObject);
-        query += " and tenantId=:tenantId ";
+        query += " AND tenantId=:tenantId ";
+        if (query.contains(tableName + " AND")) {
+            query = query.replace(tableName + " AND", tableName + " WHERE");
+        }
         if (Boolean.FALSE.equals(includeDeleted)) {
-            query += "and isDeleted=:isDeleted ";
+            query += "AND isDeleted=:isDeleted ";
         }
         if (lastChangedSince != null) {
-            query += "and lastModifiedTime>=:lastModifiedTime ";
+            query += "AND lastModifiedTime>=:lastModifiedTime ";
         }
         query += "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
@@ -139,7 +142,7 @@ public abstract class GenericRepository<T> {
     public List<String> validateIds(List<String> idsToValidate, String columnName){
         Map<Object, Object> cacheMap = redisTemplate.opsForHash()
                 .entries(tableName);
-        List<String> validIds = idsToValidate.stream().filter(id -> cacheMap.containsKey(id))
+        List<String> validIds = idsToValidate.stream().filter(cacheMap::containsKey)
                 .collect(Collectors.toList());
         List<String> idsToFindInDb = getDifference(idsToValidate, validIds);
 
