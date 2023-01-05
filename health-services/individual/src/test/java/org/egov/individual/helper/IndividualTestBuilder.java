@@ -52,4 +52,9 @@ public class IndividualTestBuilder {
         this.builder.address(Arrays.asList(address));
         return this;
     }
+
+    public IndividualTestBuilder withIsDeleted(boolean isDeleted) {
+        this.builder.isDeleted(isDeleted);
+        return this;
+    }
 }

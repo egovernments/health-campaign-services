@@ -146,4 +146,8 @@ public class IndividualService {
                 .anyMatch(address -> address.getLocality().getCode()
                         .equalsIgnoreCase(boundaryCode));
     }
+
+    public List<Individual> update(IndividualRequest request) {
+        throw new UnsupportedOperationException();
+    }
 }
