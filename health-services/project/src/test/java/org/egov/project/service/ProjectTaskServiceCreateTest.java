@@ -67,7 +67,7 @@ class ProjectTaskServiceCreateTest {
     void shouldTaskRowVersionSetToOne() throws Exception {
         List<Task> tasks = projectTaskService.create(request);
 
-        assertEquals(tasks.stream().findAny().get().getRowVersion(), 1);
+        assertEquals(1, tasks.stream().findAny().get().getRowVersion());
     }
 
     @Test
@@ -96,5 +96,14 @@ class ProjectTaskServiceCreateTest {
 
         assertThrows(CustomException.class, () -> projectTaskService.create(request));
         verify(projectRepository, times(1)).validateIds(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("should set resource ID for task")
+    void shouldSetResourceIDForTask() throws Exception {
+       List<Task> tasks = projectTaskService.create(request);
+
+       assertNotNull(tasks.stream().findAny().get().getResources().get(0).getId());
+       assertNotNull(tasks.stream().findAny().get().getResources().get(1).getId());
     }
 }

@@ -4,7 +4,7 @@ import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskResource;
 
-import java.util.Collections;
+import java.util.Arrays;
 
 public class TaskTestBuilder {
 
@@ -28,9 +28,10 @@ public class TaskTestBuilder {
                 .plannedStartDate(100L).plannedEndDate(101L)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .address(AddressTestBuilder.builder().withAddress().build())
-                .resources(Collections.singletonList(TaskResource.builder()
-                        .id("id101").tenantId("default").isDelivered(false)
-                        .quantity("100").productVariantId("v101").build()))
+                .resources(Arrays.asList(TaskResource.builder().tenantId("default").isDelivered(false)
+                        .quantity("100").productVariantId("v101").build(),
+                        TaskResource.builder().tenantId("default").isDelivered(false)
+                                .quantity("100").productVariantId("v101").build()))
                 .isDeleted(false).rowVersion(0).projectBeneficiaryId("some-id")
                 .projectId("some-id").createdBy("some-id")
                 .createdDate(100L).status("status").build();

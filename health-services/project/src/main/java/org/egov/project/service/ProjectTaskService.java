@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @Slf4j
@@ -50,9 +52,14 @@ public class ProjectTaskService {
         CommonUtils.enrichForCreate(request.getTask(), taskIdList, request.getRequestInfo());
 
         //For each task Enrich Resources with Ids
+        IntStream.range(0,request.getTask().size()).forEach(i -> {
+            Task task = request.getTask().get(i);
+            IntStream.range(0, task.getResources().size()).forEach(
+                    j -> task.getResources().get(j).setId(UUID.randomUUID().toString())
+            );
+        });
 
 
         return request.getTask();
     }
-
 }
