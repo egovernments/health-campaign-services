@@ -12,23 +12,30 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.identifyNullIds;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
+import static org.egov.common.utils.CommonUtils.validateEntities;
 
 @Service
 @Slf4j
@@ -148,6 +155,21 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualRequest request) {
-        throw new UnsupportedOperationException();
+        Method idMethod = getIdMethod(request.getIndividual());
+        identifyNullIds(request.getIndividual(), idMethod);
+        Map<String, Individual> iMap = getIdToObjMap(request.getIndividual(), idMethod);
+
+        log.info("Checking if already exists");
+        List<String> householdIds = new ArrayList<>(iMap.keySet());
+        List<Individual> existingIndividuals = individualRepository.findById(householdIds,
+                getIdFieldName(idMethod), false);
+        validateEntities(iMap, existingIndividuals, idMethod);
+        checkRowVersion(iMap, existingIndividuals, idMethod);
+
+        log.info("Updating lastModifiedTime and lastModifiedBy");
+        enrichForUpdate(iMap, existingIndividuals, request, idMethod);
+
+        individualRepository.save(request.getIndividual(), "update-individual-topic");
+        return request.getIndividual();
     }
 }

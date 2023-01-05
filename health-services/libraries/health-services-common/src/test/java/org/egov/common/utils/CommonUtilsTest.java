@@ -528,6 +528,15 @@ class CommonUtilsTest {
         assertEquals(5, CommonUtils.uuidSupplier().apply(5).size());
     }
 
+    @Test
+    @DisplayName("should get id field name from method")
+    void shouldGetIdFieldNameFromMethod() {
+        SomeObjectWithClientRefId someObject = SomeObjectWithClientRefId.builder()
+                .clientReferenceId("some-client-reference-id").build();
+        assertEquals("clientReferenceId", CommonUtils.getIdFieldName(CommonUtils
+                .getMethod("getClientReferenceId", someObject.getClass())));
+    }
+
     @Data
     @Builder
     public static class SomeRequest {

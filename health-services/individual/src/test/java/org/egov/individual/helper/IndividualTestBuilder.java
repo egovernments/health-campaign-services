@@ -1,5 +1,6 @@
 package org.egov.individual.helper;
 
+import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
@@ -55,6 +56,23 @@ public class IndividualTestBuilder {
 
     public IndividualTestBuilder withIsDeleted(boolean isDeleted) {
         this.builder.isDeleted(isDeleted);
+        return this;
+    }
+
+    public IndividualTestBuilder withClientReferenceId(String... args) {
+        this.builder.clientReferenceId(args.length > 0 ? args[0] : "some-client-reference-id");
+        return this;
+    }
+
+    public IndividualTestBuilder withRowVersion(int... args) {
+        this.builder.rowVersion(args.length > 0 ? args[0] : 1);
+        return this;
+    }
+
+    public IndividualTestBuilder withAuditDetails() {
+        this.builder.auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails()
+                .build());
         return this;
     }
 }
