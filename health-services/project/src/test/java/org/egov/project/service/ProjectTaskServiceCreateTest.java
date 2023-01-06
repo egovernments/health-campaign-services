@@ -1,9 +1,15 @@
 package org.egov.project.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.project.helper.TaskRequestTestBuilder;
 import org.egov.project.repository.ProjectRepository;
+import org.egov.project.repository.ProjectTaskRepository;
+import org.egov.project.web.models.ProductVariant;
+import org.egov.project.web.models.ProductVariantResponse;
+import org.egov.project.web.models.ProductVariantSearchRequest;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.tracer.model.CustomException;
@@ -16,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -45,6 +52,12 @@ class ProjectTaskServiceCreateTest {
     @Mock
     private IdGenService idGenService;
 
+    @Mock
+    private ServiceRequestClient client;
+
+    @Mock
+    private ProjectTaskRepository projectTaskRepository;
+
     private TaskRequest request;
     @BeforeEach
     void setUp() throws Exception {
@@ -60,6 +73,15 @@ class ProjectTaskServiceCreateTest {
                         any(String.class),
                         eq("project.task.id"), eq(""), anyInt()))
                 .thenReturn(idList);
+
+        ProductVariantResponse response = ProductVariantResponse.builder()
+                .productVariant(Arrays.asList(
+                        ProductVariant.builder().productId("some-id").id("some-id").build()))
+                .responseInfo(ResponseInfo.builder().build()).build();
+        lenient().when(client.fetchResult(any(StringBuilder.class), any(ProductVariantSearchRequest.class),
+                eq(ProductVariantResponse.class))).thenReturn(response);
+
+
     }
 
     @Test
@@ -105,5 +127,56 @@ class ProjectTaskServiceCreateTest {
 
        assertNotNull(tasks.stream().findAny().get().getResources().get(0).getId());
        assertNotNull(tasks.stream().findAny().get().getResources().get(1).getId());
+    }
+
+    @Test
+    @DisplayName("should set audit details for task resources")
+    void shouldSetAuditDetailsForTaskResources() throws Exception {
+        List<Task> tasks = projectTaskService.create(request);
+
+        Task task = tasks.stream().findAny().get();
+        assertNotNull(task.getResources().stream().findAny().get().getAuditDetails().getCreatedBy());
+        assertNotNull(task.getResources().stream().findAny().get().getAuditDetails().getCreatedTime());
+        assertNotNull(task.getResources().stream().findAny().get().getAuditDetails().getLastModifiedBy());
+        assertNotNull(task.getResources().stream().findAny().get().getAuditDetails().getLastModifiedTime());
+    }
+
+    @Test
+    @DisplayName("should set row version and isDeleted for task resources")
+    void shouldSetIsDeletedAndRowVersionsForTaskResources() throws Exception {
+        List<Task> tasks = projectTaskService.create(request);
+
+        Task task = tasks.stream().findAny().get();
+        assertFalse(task.getResources().stream().findAny().get().getIsDeleted());
+        assertEquals(task.getResources().stream().findAny().get().getRowVersion(), 1);
+    }
+
+    @Test
+    @DisplayName("should set resources task id")
+    void shouldSetTaskResourcesTaskId() throws Exception {
+        List<Task> tasks = projectTaskService.create(request);
+
+        Task task = tasks.stream().findAny().get();
+        assertNotNull(task.getResources().stream().findAny().get().getTaskId());
+    }
+
+    @Test
+    @DisplayName("should throw exception if product variant does not exist")
+    void shouldThrowExceptionIfProductVaraintDoesNotExist() throws Exception {
+        ProductVariantResponse response = ProductVariantResponse.builder()
+                .productVariant(Collections.emptyList())
+                .responseInfo(ResponseInfo.builder().build()).build();
+        when(client.fetchResult(any(StringBuilder.class), any(ProductVariantSearchRequest.class),
+                eq(ProductVariantResponse.class))).thenReturn(response);
+
+        assertThrows(CustomException.class, () -> projectTaskService.create(request));
+    }
+
+    @Test
+    @DisplayName("should send data to kafka")
+    void shouldSendToKafkaForPersist() throws Exception {
+        projectTaskService.create(request);
+
+        verify(projectTaskRepository, times(1)).save(anyList(), eq("save-project-task-topic"));
     }
 }

@@ -13,42 +13,42 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 /**
-* TaskResource
-*/
+ * ProductVariant
+ */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TaskResource   {
+public class ProductVariant {
+
     @JsonProperty("id")
-    @Size(min=2,max=64)
     private String id = null;
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min = 2, max = 1000)
     private String tenantId = null;
 
-    private String taskId = null;
-
-    @JsonProperty("productVariantId")
+    @JsonProperty("productId")
     @NotNull
-    @Size(min=2,max=64)
-    private String productVariantId = null;
+    @Size(min = 2, max = 64)
+    private String productId = null;
 
-    @JsonProperty("quantity")
+    @JsonProperty("sku")
+    @Size(min = 0, max = 1000)
+    private String sku = null;
+
+    @JsonProperty("variation")
     @NotNull
-    private Long quantity = null;
+    @Size(min = 0, max = 1000)
+    private String variation = null;
 
-    @JsonProperty("isDelivered")
-    @NotNull
-    private Boolean isDelivered = null;
-
-    @JsonProperty("deliveryComment")
-    @Size(min=0,max=1000)
-    private String deliveryComment = null;
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
@@ -59,6 +59,5 @@ public class TaskResource   {
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
-
 }
 

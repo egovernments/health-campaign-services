@@ -6,6 +6,7 @@ import io.swagger.annotations.ApiParam;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -22,6 +23,7 @@ import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffResponse;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
+import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskResponse;
 import org.egov.project.web.models.TaskSearchRequest;
@@ -58,11 +60,14 @@ public class ProjectApiController {
 
     private final ProjectStaffService projectStaffService;
 
+    private final ProjectTaskService projectTaskService;
+
     @Autowired
-    public ProjectApiController(ObjectMapper objectMapper, HttpServletRequest request, ProjectStaffService projectStaffService) {
+    public ProjectApiController(ObjectMapper objectMapper, HttpServletRequest request, ProjectStaffService projectStaffService, ProjectTaskService projectTaskService) {
         this.objectMapper = objectMapper;
         this.request = request;
         this.projectStaffService = projectStaffService;
+        this.projectTaskService = projectTaskService;
     }
 
     @RequestMapping(value = "/beneficiary/v1/_create", method = RequestMethod.POST)
@@ -257,13 +262,20 @@ public class ProjectApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);    }
 
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) {
+    public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
         if (!CommonUtils.isForCreate(request)) {
             throw new CustomException("INVALID_API_OPERATION",
                     String.format("API Operation %s not valid for create request", request.getApiOperation()));
         }
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+        List<Task> tasks = projectTaskService.create(request);
+        TaskResponse response = TaskResponse.builder()
+                .task(tasks)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)

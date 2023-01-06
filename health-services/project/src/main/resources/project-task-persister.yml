@@ -6,18 +6,20 @@ serviceMaps:
       fromTopic: save-project-task-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO project_task(id, tenantId, projectId, projectBeneficiaryId, plannedStartDate, plannedEndDate, actualStartDate, actualEndDate, addressId, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO project_task(id, tenantId, projectId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, plannedStartDate, plannedEndDate, actualStartDate, actualEndDate, addressId, status, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.projectId
             - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
             - jsonPath: $.*.plannedStartDate
             - jsonPath: $.*.plannedEndDate
             - jsonPath: $.*.actualStartDate
             - jsonPath: $.*.actualEndDate
             - jsonPath: $.*.address.id
+            - jsonPath: $.*.status
             - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB

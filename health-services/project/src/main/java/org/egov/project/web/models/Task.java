@@ -42,6 +42,10 @@ public class Task {
     @NotNull
     private String projectBeneficiaryId = null;
 
+    @JsonProperty("projectBeneficiaryClientReferenceId")
+    @NotNull
+    private String projectBeneficiaryClientReferenceId = null;
+
     @JsonProperty("resources")
     @NotNull
     @Valid
