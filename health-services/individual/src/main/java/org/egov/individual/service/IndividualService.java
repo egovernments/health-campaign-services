@@ -1,10 +1,12 @@
 package org.egov.individual.service;
 
+import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
+import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
@@ -97,7 +99,7 @@ public class IndividualService {
         for (Individual individual : individuals) {
             Map<AddressType, Integer> addressTypeCountMap = new EnumMap<>(AddressType.class);
             if (individual.getAddress() == null) {
-                return;
+                continue;
             }
             for (Address address : individual.getAddress()) {
                 addressTypeCountMap.merge(address.getType(), 1, Integer::sum);
@@ -198,7 +200,44 @@ public class IndividualService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(iMap, existingIndividuals, request, idMethod);
 
+        if (request.getApiOperation().equals(ApiOperation.DELETE)) {
+            deleteRelatedEntities(request, idMethod, iMap, existingIndividuals);
+            individualRepository.save(request.getIndividual(), "delete-individual-topic");
+            return request.getIndividual();
+        }
+
         individualRepository.save(request.getIndividual(), "update-individual-topic");
         return request.getIndividual();
+    }
+
+    private void deleteRelatedEntities(IndividualRequest request, Method idMethod,
+                                       Map<String, Individual> iMap,
+                                       List<Individual> existingIndividuals) {
+        IntStream.range(0, existingIndividuals.size()).forEach(i -> {
+            Individual individualInReq = iMap.get(ReflectionUtils.invokeMethod(idMethod,
+                    existingIndividuals.get(i)));
+            if (existingIndividuals.get(i).getAddress() != null) {
+                individualInReq.setAddress(new ArrayList<>(existingIndividuals.get(i).getAddress()));
+                for (Address addressInReq : individualInReq.getAddress()) {
+                    // update audit details and isDeleted
+                    AuditDetails auditDetails = addressInReq.getAuditDetails();
+                    auditDetails.setLastModifiedTime(System.currentTimeMillis());
+                    auditDetails.setLastModifiedBy(request.getRequestInfo()
+                            .getUserInfo().getUuid());
+                    addressInReq.setIsDeleted(true);
+                    addressInReq.setRowVersion(addressInReq.getRowVersion() + 1);
+                }
+            }
+            individualInReq.setIdentifiers(new ArrayList<>(existingIndividuals.get(i)
+                    .getIdentifiers()));
+            for (Identifier identifierInReq : individualInReq.getIdentifiers()) {
+                AuditDetails auditDetails = identifierInReq.getAuditDetails();
+                auditDetails.setLastModifiedTime(System.currentTimeMillis());
+                auditDetails.setLastModifiedBy(request.getRequestInfo()
+                        .getUserInfo().getUuid());
+                identifierInReq.setIsDeleted(true);
+                identifierInReq.setRowVersion(identifierInReq.getRowVersion() + 1);
+            }
+        });
     }
 }
