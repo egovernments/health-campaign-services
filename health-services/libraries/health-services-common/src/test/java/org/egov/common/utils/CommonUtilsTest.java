@@ -471,8 +471,8 @@ class CommonUtilsTest {
     }
 
     @Test
-    @DisplayName("should return clientReferenceId field if clientReferenceId field is not null")
-    void shouldReturnClientRefIdIfNotNull() {
+    @DisplayName("should not return clientReferenceId field if clientReferenceId field is not null and id is present")
+    void shouldNotReturnClientRefIdIfNotNullAndIdIsPresent() {
         SomeObjectWithClientRefId someObject =SomeObjectWithClientRefId.builder()
                 .id("some-id").clientReferenceId("some-id").tenantId("some-tenant-id").build();
         List<SomeObjectWithClientRefId> objList = new ArrayList<>();
@@ -480,7 +480,7 @@ class CommonUtilsTest {
 
         Method getId = CommonUtils.getIdMethod(objList);
 
-        assertTrue(getId.toString().endsWith("getClientReferenceId()"));
+        assertFalse(getId.toString().endsWith("getClientReferenceId()"));
     }
 
     @Test
@@ -535,6 +535,67 @@ class CommonUtilsTest {
                 .clientReferenceId("some-client-reference-id").build();
         assertEquals("clientReferenceId", CommonUtils.getIdFieldName(CommonUtils
                 .getMethod("getClientReferenceId", someObject.getClass())));
+    }
+
+    @Test
+    @DisplayName("enrich ids from existing entities when key is id")
+    void shouldEnrichIdsFromExistingEntitiesWhenKeyIsId() {
+        List<SomeObjectWithClientRefId> existingEntities = new ArrayList<>();
+        existingEntities.add(SomeObjectWithClientRefId.builder()
+                        .id("some-id")
+                .clientReferenceId("some-client-reference-id").build());
+        List<SomeObjectWithClientRefId> entitiesToUpdate = new ArrayList<>();
+        entitiesToUpdate.add(SomeObjectWithClientRefId.builder()
+                .id("some-id")
+                .build());
+        Method idMethod = CommonUtils.getIdMethod(entitiesToUpdate);
+        Map<String, SomeObjectWithClientRefId> idToObjMap = CommonUtils.getIdToObjMap(entitiesToUpdate, idMethod);
+        CommonUtils.enrichIdsFromExistingEntities(idToObjMap, existingEntities, idMethod);
+        assertEquals("some-client-reference-id",
+                entitiesToUpdate.stream().findFirst().get().getClientReferenceId());
+        assertEquals("some-id",
+                entitiesToUpdate.stream().findFirst().get().getId());
+    }
+
+    @Test
+    @DisplayName("enrich ids from existing entities when key is clientReferenceId")
+    void shouldEnrichIdsFromExistingEntitiesWhenKeyIsClientReferenceId() {
+        List<SomeObjectWithClientRefId> existingEntities = new ArrayList<>();
+        existingEntities.add(SomeObjectWithClientRefId.builder()
+                .id("some-id")
+                .clientReferenceId("some-client-reference-id").build());
+        List<SomeObjectWithClientRefId> entitiesToUpdate = new ArrayList<>();
+        entitiesToUpdate.add(SomeObjectWithClientRefId.builder()
+                .clientReferenceId("some-client-reference-id")
+                .build());
+        Method idMethod = CommonUtils.getIdMethod(entitiesToUpdate);
+        Map<String, SomeObjectWithClientRefId> idToObjMap = CommonUtils.getIdToObjMap(entitiesToUpdate, idMethod);
+        CommonUtils.enrichIdsFromExistingEntities(idToObjMap, existingEntities, idMethod);
+        assertEquals("some-client-reference-id",
+                entitiesToUpdate.stream().findFirst().get().getClientReferenceId());
+        assertEquals("some-id",
+                entitiesToUpdate.stream().findFirst().get().getId());
+    }
+
+    @Test
+    @DisplayName("enrich ids from existing entities when both id and clientReferenceId are present")
+    void shouldEnrichIdsFromExistingEntitiesWhenBothIdAndClientReferenceIdArePresent() {
+        List<SomeObjectWithClientRefId> existingEntities = new ArrayList<>();
+        existingEntities.add(SomeObjectWithClientRefId.builder()
+                .id("some-id")
+                .clientReferenceId("some-client-reference-id").build());
+        List<SomeObjectWithClientRefId> entitiesToUpdate = new ArrayList<>();
+        entitiesToUpdate.add(SomeObjectWithClientRefId.builder()
+                .clientReferenceId("some-client-reference-id")
+                        .id("some-id")
+                .build());
+        Method idMethod = CommonUtils.getIdMethod(entitiesToUpdate);
+        Map<String, SomeObjectWithClientRefId> idToObjMap = CommonUtils.getIdToObjMap(entitiesToUpdate, idMethod);
+        CommonUtils.enrichIdsFromExistingEntities(idToObjMap, existingEntities, idMethod);
+        assertEquals("some-client-reference-id",
+                entitiesToUpdate.stream().findFirst().get().getClientReferenceId());
+        assertEquals("some-id",
+                entitiesToUpdate.stream().findFirst().get().getId());
     }
 
     @Data

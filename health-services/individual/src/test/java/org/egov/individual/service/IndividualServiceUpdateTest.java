@@ -107,6 +107,7 @@ class IndividualServiceUpdateTest {
                 .withTenantId()
                 .withAddress()
                 .withRowVersion()
+                .withAuditDetails()
                 .build());
         when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
                 .thenReturn(individualsInDb);

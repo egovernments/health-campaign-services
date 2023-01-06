@@ -183,16 +183,16 @@ public class CommonUtils {
 
     public static <T> Method getIdMethod(List<T> objList) {
         try{
-            Method getClientReferenceId = getMethod("getClientReferenceId", getObjClass(objList));
-            String value = (String) ReflectionUtils.invokeMethod(getClientReferenceId, objList.stream().findAny().get());
+            Method getId = getMethod("getId", getObjClass(objList));
+            String value = (String) ReflectionUtils.invokeMethod(getId, objList.stream().findAny().get());
             if (value != null) {
-                return getClientReferenceId;
+                return getId;
             }
         } catch (CustomException e){
             log.error(e.getMessage());
         }
 
-        return getMethod("getId", getObjClass(objList));
+        return getMethod("getClientReferenceId", getObjClass(objList));
     }
 
     public static <T> void enrichId(List<T> objList, List<String> idList) {
@@ -383,6 +383,24 @@ public class CommonUtils {
             return method.getName().contains("Reference") ? "clientReferenceId" : "id";
         }
         return "id";
+    }
+
+    public static <T> void enrichIdsFromExistingEntities(Map<String, T> idToObjMap, List<T> existingEntities,
+                                                         Method idMethod) {
+        IntStream.range(0, existingEntities.size()).forEach(i -> {
+            T existing = existingEntities.get(i);
+            String id = (String) ReflectionUtils.invokeMethod(getMethod("getId",
+                    existing.getClass()), existing);
+            String clientReferenceId = (String) ReflectionUtils.invokeMethod(getMethod("getClientReferenceId",
+                    existing.getClass()), existing);
+            String key = getIdFieldName(idMethod).equalsIgnoreCase("id")
+                    ? id : clientReferenceId;
+            T toUpdate = idToObjMap.get(key);
+            ReflectionUtils.invokeMethod(getMethod("setId", toUpdate.getClass()),
+                    toUpdate, id);
+            ReflectionUtils.invokeMethod(getMethod("setClientReferenceId",
+                    toUpdate.getClass()), toUpdate, clientReferenceId);
+        });
     }
 
     public static Function<Integer, List<String>> uuidSupplier() {

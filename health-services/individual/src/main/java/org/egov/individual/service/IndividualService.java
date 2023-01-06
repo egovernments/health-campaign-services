@@ -25,6 +25,7 @@ import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.enrichIdsFromExistingEntities;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
@@ -165,6 +166,12 @@ public class IndividualService {
                 getIdFieldName(idMethod), false);
         validateEntities(iMap, existingIndividuals, idMethod);
         checkRowVersion(iMap, existingIndividuals, idMethod);
+        // enrich id and clientReferenceId from existingIndividuals for response
+        // if update is using server generated id then we need to enrich client reference id
+        // if update is using client reference id then we need to enrich the server generated id for response
+        // if update has both client reference id and server generated id then nothing to enrich
+        // so, we enrich both every time to be safe
+        enrichIdsFromExistingEntities(iMap, existingIndividuals, idMethod);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(iMap, existingIndividuals, request, idMethod);
