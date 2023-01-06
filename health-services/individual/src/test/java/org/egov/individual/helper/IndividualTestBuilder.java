@@ -2,6 +2,7 @@ package org.egov.individual.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.individual.web.models.Address;
+import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
 
@@ -45,11 +46,16 @@ public class IndividualTestBuilder {
         return this;
     }
 
-    public IndividualTestBuilder withAddress() {
+    public IndividualTestBuilder withAddress(Address... addresses) {
         Address address = Address.builder()
                 .city("some-city")
                 .tenantId("some-tenant-id")
+                .type(AddressType.PERMANENT)
                 .build();
+        if (addresses != null && addresses.length > 0) {
+            this.builder.address(Arrays.asList(addresses));
+            return this;
+        }
         this.builder.address(Arrays.asList(address));
         return this;
     }

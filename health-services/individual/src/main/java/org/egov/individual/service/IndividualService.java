@@ -4,10 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Address;
+import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualSearch;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -15,6 +17,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -55,6 +58,7 @@ public class IndividualService {
 
 
     public List<Individual> create(IndividualRequest request) throws Exception {
+        validateAddressType(request.getIndividual());
         final String tenantId = getTenantId(request.getIndividual());
         log.info("Generating id for individuals");
         List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
@@ -87,6 +91,23 @@ public class IndividualService {
         }
         individualRepository.save(request.getIndividual(), "save-individual-topic");
         return request.getIndividual();
+    }
+
+    private void validateAddressType(List<Individual> individuals) {
+        for (Individual individual : individuals) {
+            Map<AddressType, Integer> addressTypeCountMap = new EnumMap<>(AddressType.class);
+            if (individual.getAddress() == null) {
+                return;
+            }
+            for (Address address : individual.getAddress()) {
+                addressTypeCountMap.merge(address.getType(), 1, Integer::sum);
+            }
+            addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1).findFirst().ifPresent(e -> {
+                throw new CustomException("ERROR_IN_ADDRESS",
+                        String.format("Found %d of type %s, allowed 1",
+                        e.getValue(), e.getKey().name()));
+            });
+        }
     }
 
     private static void enrichWithSysGenId(List<Identifier> identifiers, List<String> sysGenIdList) {
@@ -156,6 +177,7 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualRequest request) {
+        validateAddressType(request.getIndividual());
         Method idMethod = getIdMethod(request.getIndividual());
         identifyNullIds(request.getIndividual(), idMethod);
         Map<String, Individual> iMap = getIdToObjMap(request.getIndividual(), idMethod);
