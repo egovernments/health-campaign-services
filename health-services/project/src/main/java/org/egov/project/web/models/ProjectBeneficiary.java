@@ -46,9 +46,8 @@ public class ProjectBeneficiary {
     private Integer dateOfRegistration = null;
 
     @JsonProperty("beneficiaryClientReferenceId")
-    @NotNull
     @Size(min=2,max=64)
-    private String beneficiaryClientReferenceId = null;
+    private String clientReferenceId = null;
 
     @JsonProperty("additionalFields")
     @Valid

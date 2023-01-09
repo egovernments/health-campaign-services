@@ -22,7 +22,7 @@ public class ProjectBeneficiaryTestBuilder {
 
     public ProjectBeneficiaryTestBuilder withIdNull() {
         this.builder.projectId("some-project-id")
-                .beneficiaryClientReferenceId("beneficiaryClientReferenceId")
+                .clientReferenceId("beneficiaryClientReferenceId")
                 .id(null)
                 .beneficiaryId("beneficiary-id")
                 .dateOfRegistration(12121212)
@@ -35,7 +35,7 @@ public class ProjectBeneficiaryTestBuilder {
         withIdNull().builder.id("some-id").beneficiaryId("beneficiary-id")
                 .dateOfRegistration(12121212)
                 .projectId("some-project-id")
-                .beneficiaryClientReferenceId("beneficiaryClientReferenceId")
+                .clientReferenceId("beneficiaryClientReferenceId")
                 .tenantId("some-tenant-id");
         return this;
     }
@@ -53,7 +53,7 @@ public class ProjectBeneficiaryTestBuilder {
     public ProjectBeneficiaryTestBuilder goodProjectBeneficiary() {
         this.builder.projectId("some-project-id")
                 .beneficiaryId("beneficiary-id")
-                .beneficiaryClientReferenceId("beneficiaryClientReferenceId")
+                .clientReferenceId("beneficiaryClientReferenceId")
                 .dateOfRegistration(12121212)
                 .tenantId("some-tenant-id")
                 .rowVersion(1)

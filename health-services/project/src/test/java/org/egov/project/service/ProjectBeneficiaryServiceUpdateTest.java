@@ -111,7 +111,11 @@ class ProjectBeneficiaryServiceUpdateTest {
     }
 
     private void mockFindById() {
-        lenient().when(projectBeneficiaryRepository.findById(projectBeneficiaryIds)).thenReturn(request.getProjectBeneficiary());
+        lenient().when(projectBeneficiaryRepository.findById(
+                eq(projectBeneficiaryIds),
+                anyString(),
+                eq(false))
+        ).thenReturn(request.getProjectBeneficiary());
     }
 
     private void mockMdms(String responseFileName) throws Exception {
@@ -191,7 +195,7 @@ class ProjectBeneficiaryServiceUpdateTest {
 
         projectBeneficiaryService.update(request);
 
-        verify(projectBeneficiaryRepository, times(1)).findById(anyList());
+        verify(projectBeneficiaryRepository, times(1)).findById(anyList(), anyString(), eq(false));
     }
 
     @Test
@@ -203,7 +207,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockServiceRequestClient();
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        when(projectBeneficiaryRepository.findById(anyList())).thenReturn(Collections.emptyList());
+        when(projectBeneficiaryRepository.findById(anyList(), anyString(), eq(false))).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request));
     }

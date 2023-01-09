@@ -1,11 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.AdditionalFields;
 import org.egov.project.web.models.ProjectBeneficiary;
-import org.egov.project.web.models.ProjectStaff;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +18,9 @@ public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantid"))
                     .projectId(resultSet.getString("projectId"))
+                    .dateOfRegistration(resultSet.getInt("dateOfRegistration"))
+                    .beneficiaryId(resultSet.getString("beneficiaryid"))
+                    .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .auditDetails(AuditDetails.builder()
                             .createdBy(resultSet.getString("createdby"))
                             .createdTime(resultSet.getLong("createdtime"))

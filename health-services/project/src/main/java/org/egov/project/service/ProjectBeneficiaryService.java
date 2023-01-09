@@ -42,6 +42,9 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.enrichIdsFromExistingEntities;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.getTenantId;
@@ -130,55 +133,42 @@ public class ProjectBeneficiaryService {
 
     public List<ProjectBeneficiary> update(BeneficiaryRequest beneficiaryRequest) throws Exception {
         List<ProjectBeneficiary> projectBeneficiary = beneficiaryRequest.getProjectBeneficiary();
+        Method idMethod = getIdMethod(projectBeneficiary);
         String tenantId = getTenantId(projectBeneficiary);
         Set<String> projectIds = getSet(projectBeneficiary, "getProjectId");
 
-        identifyNullIds(projectBeneficiary);
+        identifyNullIds(projectBeneficiary, idMethod);
 
-        log.info("Checking existing projects");
+        log.info("Checking existing project if exists");
         validateIds(projectIds, projectService::validateProjectIds);
 
         log.info("Checking Beneficiary");
         validateBeneficiary(beneficiaryRequest, projectBeneficiary, tenantId, projectIds);
 
-        log.info("Checking Client Reference Ids");
-        validateClientReferenceIds(projectBeneficiary);
-
-        Map<String, ProjectBeneficiary> projectBeneficiaryMap = getIdToObjMap(projectBeneficiary);
-
-        log.info("Checking if already exists");
+        log.info("Checking if already exists based on client ids ");
+        Map<String, ProjectBeneficiary> projectBeneficiaryMap  = getIdToObjMap(projectBeneficiary, idMethod);
         List<String> projectBeneficiaryIds = new ArrayList<>(projectBeneficiaryMap.keySet());
-        List<ProjectBeneficiary> existingProjectBeneficiaryIds = projectBeneficiaryRepository.findById(projectBeneficiaryIds);
+        List<ProjectBeneficiary> existingProjectBeneficiaryIds = projectBeneficiaryRepository.findById(
+                projectBeneficiaryIds,
+                getIdFieldName(idMethod),
+                false
+        );
 
-        validateEntities(projectBeneficiaryMap, existingProjectBeneficiaryIds);
+        validateEntities(projectBeneficiaryMap, existingProjectBeneficiaryIds, idMethod);
 
-        checkRowVersion(projectBeneficiaryMap, existingProjectBeneficiaryIds);
+        log.info("Checking row version");
+        checkRowVersion(projectBeneficiaryMap, existingProjectBeneficiaryIds, idMethod);
+
+        log.info("Updating Ids from existing entities");
+        enrichIdsFromExistingEntities(projectBeneficiaryMap, existingProjectBeneficiaryIds, idMethod);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
-        enrichForUpdate(projectBeneficiaryMap, existingProjectBeneficiaryIds, beneficiaryRequest);
+        enrichForUpdate(projectBeneficiaryMap, existingProjectBeneficiaryIds, beneficiaryRequest, idMethod);
 
         projectBeneficiaryRepository.save(projectBeneficiary, UPDATE_KAFKA_TOPIC);
         log.info("Pushed to kafka");
         return projectBeneficiary;
     }
-
-    private void validateClientReferenceIds(List<ProjectBeneficiary> projectBeneficiary) {
-
-        List<String> beneficiaryClientIds = projectBeneficiary.stream().map(ProjectBeneficiary::getBeneficiaryClientReferenceId).filter(Objects::nonNull).collect(Collectors.toList());
-
-        List<String> alreadyExistingBeneficiaryClientIds = projectBeneficiaryRepository.validateIds(
-                beneficiaryClientIds,
-                "beneficiaryClientReferenceId"
-        );
-
-        List<String> invalidIds = CommonUtils.getDifference(beneficiaryClientIds, alreadyExistingBeneficiaryClientIds);
-        if (!invalidIds.isEmpty()) {
-            log.error("Invalid IDs {}", invalidIds);
-            throw new CustomException("INVALID_BENEFICIARY_CLIENT_ID", invalidIds.toString());
-        }
-
-    }
-
 
     private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
         Object response;
@@ -214,10 +204,10 @@ public class ProjectBeneficiaryService {
                     .builder()
                     .id(beneficiary.getBeneficiaryId())
                     .build();
-        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
+        } else if (beneficiary.getClientReferenceId() != null) {
             householdSearch = HouseholdSearch
                     .builder()
-                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
+                    .clientReferenceId(beneficiary.getClientReferenceId())
                     .build();
         }
 
@@ -245,10 +235,10 @@ public class ProjectBeneficiaryService {
                     .builder()
                     .id(beneficiary.getBeneficiaryId())
                     .build();
-        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
+        } else if (beneficiary.getClientReferenceId() != null) {
             individualSearch = IndividualSearch
                     .builder()
-                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
+                    .clientReferenceId(beneficiary.getClientReferenceId())
                     .build();
         }
 
