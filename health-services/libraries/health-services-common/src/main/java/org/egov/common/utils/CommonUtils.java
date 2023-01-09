@@ -185,14 +185,12 @@ public class CommonUtils {
         return getIdMethod(objList, "id", "clientReferenceId");
     }
 
-    // TODO: Write JUnit
     public static <T> Method getIdMethod(List<T> objList, String idFieldName) {
         String idMethodName = "get" + idFieldName.substring(0, 1).toUpperCase()
                 + idFieldName.substring(1);
         return getMethod(idMethodName, getObjClass(objList));
     }
 
-    // TODO: Write JUnit
     public static <T> Method getIdMethod(List<T> objList, String idField, String clientReferenceIdField) {
         String idMethodName = "get" + idField.substring(0, 1).toUpperCase()
                 + idField.substring(1);

@@ -15,6 +15,7 @@ import org.egov.common.data.query.annotations.Table;
 public class SomeObjectWithClientRefId {
     private String id;
     private String clientReferenceId;
+    private String otherClientReferenceId;
     private String otherField;
     private Integer rowVersion;
     private String tenantId;
