@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.stream.IntStream;
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.enrichIdsFromExistingEntities;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
@@ -91,17 +93,19 @@ public class HouseholdService {
     }
 
     public List<Household> update(HouseholdRequest request) {
-        identifyNullIds(request.getHousehold());
-        Map<String, Household> hMap = getIdToObjMap(request.getHousehold());
+        Method idMethod = getIdMethod(request.getHousehold());
+        identifyNullIds(request.getHousehold(), idMethod);
+        Map<String, Household> hMap = getIdToObjMap(request.getHousehold(), idMethod);
 
         log.info("Checking if already exists");
         List<String> householdIds = new ArrayList<>(hMap.keySet());
-        List<Household> existingHouseholds = householdRepository.findById(householdIds, "id", false);
-        validateEntities(hMap, existingHouseholds);
-        checkRowVersion(hMap, existingHouseholds);
+        List<Household> existingHouseholds = householdRepository.findById(householdIds, getIdFieldName(idMethod), false);
+        validateEntities(hMap, existingHouseholds, idMethod);
+        checkRowVersion(hMap, existingHouseholds, idMethod);
+        enrichIdsFromExistingEntities(hMap, existingHouseholds, idMethod);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
-        enrichForUpdate(hMap, existingHouseholds, request);
+        enrichForUpdate(hMap, existingHouseholds, request, idMethod);
 
         householdRepository.save(request.getHousehold(), "update-household-topic");
         return request.getHousehold();
