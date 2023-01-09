@@ -273,6 +273,24 @@ class ProjectBeneficiaryServiceUpdateTest {
     }
 
     @Test
+    @DisplayName("should throw exception on zero search results for household")
+    void shouldThrowExceptionOnZeroHouseholdSearchResult() throws Exception {
+        mockValidateProjectId();
+        mockValidateBeneficiarytId();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
+        mockProjectFindIds();
+        when(serviceRequestClient.fetchResult(
+                any(StringBuilder.class),
+                any(),
+                eq(HouseholdResponse.class))
+        ).thenReturn(
+                HouseholdResponse.builder().household(Collections.emptyList()).build()
+        );
+
+        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request));
+    }
+
+    @Test
     @DisplayName("should call mdms client and service client for individual beneficiary type")
     void shouldCallMdmsClientAndServiceClientWithIndividualBeneficiaryType() throws Exception {
         mockValidateProjectId();
@@ -300,7 +318,7 @@ class ProjectBeneficiaryServiceUpdateTest {
     }
 
     @Test
-    @DisplayName("should throw exception on zero search results")
+    @DisplayName("should throw exception on zero search results for individual")
     void shouldThrowExceptionOnZeroIndividualSearchResult() throws Exception {
         mockValidateProjectId();
         mockValidateBeneficiarytId();
