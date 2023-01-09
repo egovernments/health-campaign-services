@@ -94,4 +94,49 @@ class HouseholdUpdateTest {
 
         verify(householdRepository, times(1)).save(anyList(), anyString());
     }
+
+    @Test
+    @DisplayName("should update data based on clientReferenceId if ID is null")
+    void shouldUpdateDataBasedOnClientReferenceIdIfIDNull() {
+        Household household = HouseholdTestBuilder.builder().withHousehold().withId(null).withClientReferenceId("crf_101").build();
+        HouseholdRequest request = HouseholdRequestTestBuilder.builder()
+                .withHousehold(Collections.singletonList(household)).withRequestInfo()
+                .withApiOperationDelete().build();
+        when(householdRepository.findById(anyList(), eq("clientReferenceId"), eq(false)))
+                .thenReturn(request.getHousehold());
+
+        householdService.update(request);
+
+        verify(householdRepository, times(1)).save(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("should update data based on ID if clientReferenceID is Null")
+    void shouldUpdateDataBasedOnIDIfClientReferenceIdNull() {
+        Household household = HouseholdTestBuilder.builder().withHousehold().withId("ID101").withClientReferenceId(null).build();
+        HouseholdRequest request = HouseholdRequestTestBuilder.builder()
+                .withHousehold(Collections.singletonList(household)).withRequestInfo()
+                .withApiOperationDelete().build();
+        when(householdRepository.findById(anyList(), eq("id"), eq(false)))
+                .thenReturn(request.getHousehold());
+
+        householdService.update(request);
+
+        verify(householdRepository, times(1)).save(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("should update data based on ID if clientReferenceID is also present")
+    void shouldUpdateDataBasedOnIDIfClientReferenceIdPresent() {
+        Household household = HouseholdTestBuilder.builder().withHousehold().withId("ID101").withClientReferenceId("crf_101").build();
+        HouseholdRequest request = HouseholdRequestTestBuilder.builder()
+                .withHousehold(Collections.singletonList(household)).withRequestInfo()
+                .withApiOperationDelete().build();
+        when(householdRepository.findById(anyList(), eq("id"), eq(false)))
+                .thenReturn(request.getHousehold());
+
+        householdService.update(request);
+
+        verify(householdRepository, times(1)).save(anyList(), anyString());
+    }
 }
