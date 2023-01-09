@@ -213,6 +213,27 @@ class ProjectBeneficiaryServiceUpdateTest {
     }
 
     @Test
+    @DisplayName("should enrich ids from existing entities")
+    void shouldEnrichIdsFromExistingEntities() throws Exception {
+        mockValidateProjectId();
+        mockValidateBeneficiarytId();
+        mockFindById();
+        mockServiceRequestClient();
+        mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
+        mockProjectFindIds();
+
+        BeneficiaryRequest requestWithoutClientReferenceId = BeneficiaryRequestTestBuilder.builder()
+                .withOneProjectBeneficiary()
+                .build();
+        requestWithoutClientReferenceId.setApiOperation(ApiOperation.UPDATE);
+        requestWithoutClientReferenceId.getProjectBeneficiary().get(0).setClientReferenceId(null);
+
+        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(requestWithoutClientReferenceId);
+        assertEquals(request.getProjectBeneficiary().get(0).getClientReferenceId(),
+                projectBeneficiaries.get(0).getClientReferenceId());
+    }
+
+    @Test
     @DisplayName("should send the updates to kafka")
     void shouldSendTheUpdatesToKafka() throws Exception {
         mockValidateProjectId();
