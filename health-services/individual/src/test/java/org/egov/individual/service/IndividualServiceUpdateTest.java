@@ -188,6 +188,7 @@ class IndividualServiceUpdateTest {
                 .withTenantId()
                 .withAddress()
                 .withRowVersion()
+                .withIdentifiers()
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
                 .withApiOperation(ApiOperation.DELETE)
@@ -202,6 +203,7 @@ class IndividualServiceUpdateTest {
                 .withTenantId()
                 .withAddress()
                 .withRowVersion()
+                .withIdentifiers()
                 .withAuditDetails()
                 .build());
         when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))

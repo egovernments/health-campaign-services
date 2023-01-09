@@ -7,7 +7,9 @@ import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class IndividualTestBuilder {
     private Individual.IndividualBuilder builder;
@@ -52,12 +54,18 @@ public class IndividualTestBuilder {
                 .city("some-city")
                 .tenantId("some-tenant-id")
                 .type(AddressType.PERMANENT)
+                .auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails().build())
+                .rowVersion(1)
                 .build();
+        List<Address> addressList = new ArrayList<>();
         if (addresses != null && addresses.length > 0) {
-            this.builder.address(Arrays.asList(addresses));
+            addressList.addAll(Arrays.asList(addresses));
+            this.builder.address(addressList);
             return this;
         }
-        this.builder.address(Arrays.asList(address));
+        addressList.add(address);
+        this.builder.address(addressList);
         return this;
     }
 
@@ -105,6 +113,8 @@ public class IndividualTestBuilder {
         Identifier identifier = Identifier.builder()
                 .identifierType("SYSTEM_GENERATED")
                 .identifierId("some-identifier-id")
+                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
+                .rowVersion(1)
                 .build();
         if (identifiers != null && identifiers.length > 0) {
             this.builder.identifiers(Arrays.asList(identifiers));

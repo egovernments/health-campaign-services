@@ -5,6 +5,7 @@ import org.egov.individual.TestConfiguration;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
+import org.egov.individual.service.AddressService;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
@@ -48,6 +49,9 @@ class IndividualApiControllerTest {
 
     @MockBean
     private IndividualService individualService;
+
+    @MockBean
+    private AddressService addressService;
 
     @Test
     @DisplayName("should create an individual and return 202 accepted when api operation is create")

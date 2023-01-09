@@ -5,7 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.individual.service.AddressService;
 import org.egov.individual.service.IndividualService;
+import org.egov.individual.web.models.Address;
+import org.egov.individual.web.models.AddressRequest;
+import org.egov.individual.web.models.AddressResponse;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualResponse;
@@ -37,17 +41,18 @@ import java.util.List;
 
     private final IndividualService individualService;
 
-        private final ObjectMapper objectMapper;
+    private final AddressService addressService;
 
-        private final HttpServletRequest servletRequest;
+        private final ObjectMapper objectMapper;
 
         @Autowired
         public IndividualApiController(IndividualService individualService,
                                        ObjectMapper objectMapper,
-                                       HttpServletRequest servletRequest) {
+                                       HttpServletRequest servletRequest,
+                                       AddressService addressService) {
             this.individualService = individualService;
             this.objectMapper = objectMapper;
-        this.servletRequest = servletRequest;
+            this.addressService = addressService;
         }
 
                 @RequestMapping(value="/v1/_create", method = RequestMethod.POST)
@@ -99,5 +104,23 @@ import java.util.List;
                                         request.getApiOperation()));
                     }
                 }
+
+    @RequestMapping(value="address/v1/_create", method = RequestMethod.POST)
+    public ResponseEntity<AddressResponse> individualAddressV1CreatePost(@ApiParam(value = "Capture details of Address." ,required=true )  @Valid @RequestBody AddressRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue="true") Boolean echoResource) throws Exception {
+        if (CommonUtils.isForCreate(request)) {
+            List<Address> addresses = addressService.create(request);
+            AddressResponse response = AddressResponse.builder()
+                    .address(addresses)
+                    .responseInfo(ResponseInfoFactory
+                            .createResponseInfo(request.getRequestInfo(), true))
+                    .build();
+
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        } else {
+            throw new CustomException("INVALID_API_OPERATION",
+                    String.format("API Operation %s not valid for create request",
+                            request.getApiOperation()));
+        }
+    }
 
         }

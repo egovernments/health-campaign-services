@@ -179,14 +179,13 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualRequest request) {
-        validateAddressType(request.getIndividual());
         Method idMethod = getIdMethod(request.getIndividual());
         identifyNullIds(request.getIndividual(), idMethod);
         Map<String, Individual> iMap = getIdToObjMap(request.getIndividual(), idMethod);
 
         log.info("Checking if already exists");
-        List<String> householdIds = new ArrayList<>(iMap.keySet());
-        List<Individual> existingIndividuals = individualRepository.findById(householdIds,
+        List<String> individualIds = new ArrayList<>(iMap.keySet());
+        List<Individual> existingIndividuals = individualRepository.findById(individualIds,
                 getIdFieldName(idMethod), false);
         validateEntities(iMap, existingIndividuals, idMethod);
         checkRowVersion(iMap, existingIndividuals, idMethod);
