@@ -3,10 +3,17 @@ package org.egov.project.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.project.TestConfiguration;
+import org.egov.project.helper.BeneficiaryRequestTestBuilder;
+import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.web.models.BeneficiaryRequest;
+import org.egov.project.web.models.BeneficiaryResponse;
+import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.project.web.models.ProjectBeneficiary;
+import org.egov.project.web.models.ProjectBeneficiarySearch;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffResponse;
@@ -42,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 */
 @WebMvcTest(ProjectApiController.class)
 @Import(TestConfiguration.class)
-public class ProjectApiControllerTest {
+public class ProjectBeneficiaryApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -51,45 +58,51 @@ public class ProjectApiControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private ProjectStaffService projectStaffService;
-
-    @MockBean
     private ProjectBeneficiaryService projectBeneficiaryService;
 
+    @MockBean
+    private ProjectStaffService projectStaffService;
+
     @Test
-    @DisplayName("should create project staff and return with 202 accepted")
+    @DisplayName("should create project beneficiary and return with 202 accepted")
     void shouldCreateProjectStaffAndReturnWith202Accepted() throws Exception {
-        ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
-                .withOneProjectStaff()
+        BeneficiaryRequest request = BeneficiaryRequestTestBuilder.builder()
+                .withOneProjectBeneficiary()
                 .withApiOperationNotUpdate()
                 .build();
-        ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
-        List<ProjectStaff> projectStaffList = new ArrayList<>();
-        projectStaffList.add(projectStaff);
-        when(projectStaffService.create(any(ProjectStaffRequest.class))).thenReturn(projectStaffList);
+        List<ProjectBeneficiary> projectBeneficiaries = getProjectBeneficiaries();
+        when(projectBeneficiaryService.create(any(BeneficiaryRequest.class))).thenReturn(projectBeneficiaries);
 
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
+        final MvcResult result = mockMvc.perform(post("/beneficiary/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        ProjectStaffResponse response = objectMapper.readValue(responseStr, ProjectStaffResponse.class);
+        BeneficiaryResponse response = objectMapper.readValue(responseStr, BeneficiaryResponse.class);
 
-        assertEquals(1, response.getProjectStaff().size());
-        assertNotNull(response.getProjectStaff().get(0).getId());
+        assertEquals(1, response.getProjectBeneficiary().size());
+        assertNotNull(response.getProjectBeneficiary().get(0).getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
+
+    private List<ProjectBeneficiary> getProjectBeneficiaries() {
+        ProjectBeneficiary projectBeneficiary = ProjectBeneficiaryTestBuilder.builder().withId().build();
+        List<ProjectBeneficiary> projectBeneficiaries = new ArrayList<>();
+        projectBeneficiaries.add(projectBeneficiary);
+        return projectBeneficiaries;
+    }
+
 
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
+        final MvcResult result = mockMvc.perform(post("/beneficiary/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
-                                .withOneProjectStaff()
-                                .withBadTenantIdInOneProjectStaff()
+                        .content(objectMapper.writeValueAsString(BeneficiaryRequestTestBuilder.builder()
+                                .withOneProjectBeneficiary()
+                                .withBadTenantIdInOneProjectBeneficiary()
                                 .build())))
                 .andExpect(status().isBadRequest())
                 .andReturn();
@@ -104,10 +117,10 @@ public class ProjectApiControllerTest {
     @Test
     @DisplayName("should send 400 bad request in case of incorrect api operation for create")
     void shouldSend400BadRequestInCaseOfIncorrectApiOperationForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
+        final MvcResult result = mockMvc.perform(post("/beneficiary/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
-                                .withOneProjectStaff()
+                        .content(objectMapper.writeValueAsString(BeneficiaryRequestTestBuilder.builder()
+                                .withOneProjectBeneficiary()
                                 .withApiOperationNotNullAndNotCreate()
                                 .build())))
                 .andExpect(status().isBadRequest())
@@ -121,40 +134,39 @@ public class ProjectApiControllerTest {
 
 
     @Test
-    @DisplayName("should update project staff and return with 202 accepted")
+    @DisplayName("should update project beneficiary and return with 202 accepted")
     void shouldUpdateProjectStaffAndReturnWith202Accepted() throws Exception {
-        ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
-                .withOneProjectStaffHavingId()
+        BeneficiaryRequest request = BeneficiaryRequestTestBuilder.builder()
+                .withOneProjectBeneficiaryHavingId()
                 .withApiOperationNotNullAndNotCreate()
                 .build();
-        ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
-        List<ProjectStaff> projectStaffList = new ArrayList<>();
-        projectStaffList.add(projectStaff);
-        when(projectStaffService.update(any(ProjectStaffRequest.class))).thenReturn(projectStaffList);
+        ProjectBeneficiary projectBeneficiary = ProjectBeneficiaryTestBuilder.builder().withId().build();
+        List<ProjectBeneficiary> projectBeneficiaries = new ArrayList<>();
+        projectBeneficiaries.add(projectBeneficiary);
+        when(projectBeneficiaryService.update(any(BeneficiaryRequest.class))).thenReturn(projectBeneficiaries);
 
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+        final MvcResult result = mockMvc.perform(post("/beneficiary/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        ProjectStaffResponse response = objectMapper.readValue(responseStr, ProjectStaffResponse.class);
+        BeneficiaryResponse response = objectMapper.readValue(responseStr, BeneficiaryResponse.class);
 
-        assertEquals(1, response.getProjectStaff().size());
-        assertNotNull(response.getProjectStaff().get(0).getId());
+        assertEquals(1, response.getProjectBeneficiary().size());
+        assertNotNull(response.getProjectBeneficiary().get(0).getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
-
 
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+        final MvcResult result = mockMvc.perform(post("/beneficiary/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
-                                .withOneProjectStaffHavingId()
-                                .withBadTenantIdInOneProjectStaff()
+                        .content(objectMapper.writeValueAsString(BeneficiaryRequestTestBuilder.builder()
+                                .withOneProjectBeneficiaryHavingId()
+                                .withBadTenantIdInOneProjectBeneficiary()
                                 .build())))
                 .andExpect(status().isBadRequest())
                 .andReturn();
@@ -166,14 +178,13 @@ public class ProjectApiControllerTest {
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
 
-
     @Test
     @DisplayName("should send 400 bad request in case of incorrect api operation for update")
     void shouldSend400BadRequestInCaseOfIncorrectApiOperationForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
+        final MvcResult result = mockMvc.perform(post("/beneficiary/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
-                                .withOneProjectStaffHavingId()
+                        .content(objectMapper.writeValueAsString(BeneficiaryRequestTestBuilder.builder()
+                                .withOneProjectBeneficiaryHavingId()
                                 .withApiOperationNotUpdate()
                                 .build())))
                 .andExpect(status().isBadRequest())
@@ -185,42 +196,45 @@ public class ProjectApiControllerTest {
         assertEquals(1, response.getErrors().size());
     }
 
+
     @Test
     @DisplayName("Should accept search request and return response as accepted")
     void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
 
-        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
-                ProjectStaffSearch.builder().projectId("12").build()
+        BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
+                ProjectBeneficiarySearch.builder().projectId("12").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
-        when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
+
+        when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),
                 any(Integer.class),
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(Arrays.asList(ProjectBeneficiaryTestBuilder.builder().withId().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(post(
-                        "/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        "/beneficiary/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectStaffSearchRequest)))
+                        .content(objectMapper.writeValueAsString(beneficiarySearchRequest)))
                 .andExpect(status().isAccepted())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        ProjectStaffResponse response = objectMapper.readValue(responseStr,
-                ProjectStaffResponse.class);
+        BeneficiaryResponse response = objectMapper.readValue(responseStr,
+                BeneficiaryResponse.class);
 
-        assertEquals(response.getProjectStaff().size(), 1);
+        assertEquals(response.getProjectBeneficiary().size(), 1);
     }
 
     @Test
     @DisplayName("Should accept search request and return response as accepted")
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
-        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
-                ProjectStaffSearch.builder().projectId("12").build()
+        BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
+                ProjectBeneficiarySearch.builder().projectId("12").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
-        when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
+
+        when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),
                 any(Integer.class),
                 any(Integer.class),
                 any(String.class),
@@ -228,9 +242,9 @@ public class ProjectApiControllerTest {
                 any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No project found."));
 
 
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+        final MvcResult result = mockMvc.perform(post("/beneficiary/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectStaffSearchRequest)))
+                        .content(objectMapper.writeValueAsString(beneficiarySearchRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
