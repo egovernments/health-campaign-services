@@ -1,6 +1,7 @@
 CREATE TABLE PROJECT_TASK
 (
     id                                  character varying(64),
+    clientReferenceId                   character varying(64),
     tenantId                            character varying(1000),
     projectId                           character varying(64),
     projectBeneficiaryId                character varying(64),
@@ -18,5 +19,6 @@ CREATE TABLE PROJECT_TASK
     lastModifiedTime                    bigint,
     rowVersion                          bigint,
     isDeleted                           boolean,
-    CONSTRAINT uk_project_task_id PRIMARY KEY (id)
+    CONSTRAINT uk_project_task_id PRIMARY KEY (id),
+    CONSTRAINT uk_task_clientReference_id UNIQUE (clientReferenceId)
 );

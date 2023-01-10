@@ -14,6 +14,7 @@ import org.egov.project.web.models.ProductVariantSearchRequest;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskResource;
+import org.egov.project.web.models.TaskResourceRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -87,12 +88,20 @@ public class ProjectTaskService {
             checkIfProductVariantExist(pvId,getTenantId(task.getResources()), request.getRequestInfo());
             enrichForCreate(task.getResources(), uuidSupplier().apply(task.getResources().size()),
                     request.getRequestInfo());
-            task.getResources().forEach(r -> r.setTaskId(task.getId()));
+            task.getResources().forEach(r -> {
+                r.setTaskId(task.getId());
+                r.setTaskClientReferenceId(task.getClientReferenceId());
+            });
         });
 
         projectTaskRepository.save(request.getTask(), "save-project-task-topic");
 
         return request.getTask();
+    }
+
+    public List<TaskResource> createResource(TaskResourceRequest request) {
+
+        return request.getResources();
     }
 
     private void checkIfProductVariantExist(List<String> productVariantIds, String tenantId, RequestInfo requestInfo) {

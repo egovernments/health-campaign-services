@@ -31,7 +31,17 @@ public class TaskResource   {
     @NotNull
     private String tenantId = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
+    @JsonProperty("taskId")
+    @Size(min = 2, max = 64)
     private String taskId = null;
+
+    @JsonProperty("taskClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String taskClientReferenceId = null;
 
     @JsonProperty("productVariantId")
     @NotNull

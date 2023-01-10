@@ -33,6 +33,10 @@ public class Task {
     @NotNull
     private String tenantId = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
     @JsonProperty("projectId")
     @NotNull
     @Size(min=2,max=64)
@@ -40,10 +44,11 @@ public class Task {
 
     @JsonProperty("projectBeneficiaryId")
     @NotNull
+    @Size(min = 2, max = 64)
     private String projectBeneficiaryId = null;
 
     @JsonProperty("projectBeneficiaryClientReferenceId")
-    @NotNull
+    @Size(min = 2, max = 64)
     private String projectBeneficiaryClientReferenceId = null;
 
     @JsonProperty("resources")
