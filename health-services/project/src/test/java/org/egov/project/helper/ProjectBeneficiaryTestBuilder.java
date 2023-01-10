@@ -4,6 +4,9 @@ import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.project.web.models.AdditionalFields;
 import org.egov.project.web.models.ProjectBeneficiary;
 
+import java.time.LocalDate;
+import java.util.Date;
+
 public class ProjectBeneficiaryTestBuilder {
 
     private ProjectBeneficiary.ProjectBeneficiaryBuilder builder;
@@ -25,7 +28,7 @@ public class ProjectBeneficiaryTestBuilder {
                 .clientReferenceId("beneficiaryClientReferenceId")
                 .id(null)
                 .beneficiaryId("beneficiary-id")
-                .dateOfRegistration(12121212)
+                .dateOfRegistration(LocalDate.of(2023, 1, 1))
                 .tenantId("some-tenant-id")
                 .rowVersion(1);
         return this;
@@ -33,7 +36,7 @@ public class ProjectBeneficiaryTestBuilder {
 
     public ProjectBeneficiaryTestBuilder withId() {
         withIdNull().builder.id("some-id").beneficiaryId("beneficiary-id")
-                .dateOfRegistration(12121212)
+                .dateOfRegistration(LocalDate.of(2023, 1, 1))
                 .projectId("some-project-id")
                 .clientReferenceId("beneficiaryClientReferenceId")
                 .tenantId("some-tenant-id");
@@ -54,7 +57,7 @@ public class ProjectBeneficiaryTestBuilder {
         this.builder.projectId("some-project-id")
                 .beneficiaryId("beneficiary-id")
                 .clientReferenceId("beneficiaryClientReferenceId")
-                .dateOfRegistration(12121212)
+                .dateOfRegistration(LocalDate.of(2023, 1, 1))
                 .tenantId("some-tenant-id")
                 .rowVersion(1)
                 .additionalFields(AdditionalFields.builder().build())

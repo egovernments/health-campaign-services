@@ -27,9 +27,7 @@ public class MdmsService {
         this.mdmsUrl = mdmsUrl;
     }
 
-
-    // TODO: Rename to fetchConfig
-    public <T> T fetchResultFromMdms(Object request, Class<T> clazz) throws Exception {
+    public <T> T fetchConfig(Object request, Class<T> clazz) throws Exception {
         T response;
         try {
             response = restRepo.fetchResult(new StringBuilder(mdmsHost+mdmsUrl), request, clazz);

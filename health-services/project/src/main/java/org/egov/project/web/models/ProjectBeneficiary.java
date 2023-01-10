@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -12,6 +13,7 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.time.LocalDate;
 
 /**
 * A representation of the registration of an entity to a Project.
@@ -42,10 +44,9 @@ public class ProjectBeneficiary {
     @Size(min=2,max=64)
     private String beneficiaryId = null;
 
-    // TODO: Make this as LocalDate, refer Individual service
-    //  There will also be change in redisObjectMapper and objectMapper - refer to individual service
     @JsonProperty("dateOfRegistration")
-    private Integer dateOfRegistration = null;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
+    private LocalDate dateOfRegistration = null;
 
     @JsonProperty("beneficiaryClientReferenceId")
     @Size(min=2,max=64)

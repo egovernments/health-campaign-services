@@ -124,8 +124,7 @@ public class ProjectBeneficiaryService {
         enrichForCreate(projectBeneficiary, idList, beneficiaryRequest.getRequestInfo());
         log.info("Enrichment done");
         projectBeneficiaryRepository.save(projectBeneficiary,SAVE_KAFKA_TOPIC);
-        // TODO: Remove this log
-        log.info("Pushed to kafka");
+
         return projectBeneficiary;
     }
 
@@ -137,8 +136,7 @@ public class ProjectBeneficiaryService {
 
         identifyNullIds(projectBeneficiary, idMethod);
 
-        // TODO: Fix English for this log
-        log.info("Checking existing project if exists");
+        log.info("validate projects");
         validateIds(projectIds, projectService::validateProjectIds);
 
         log.info("Checking Beneficiary");
@@ -165,8 +163,7 @@ public class ProjectBeneficiaryService {
         enrichForUpdate(projectBeneficiaryMap, existingProjectBeneficiaryIds, beneficiaryRequest, idMethod);
 
         projectBeneficiaryRepository.save(projectBeneficiary, UPDATE_KAFKA_TOPIC);
-        // TODO: Remove this log
-        log.info("Pushed to kafka");
+
         return projectBeneficiary;
     }
 
@@ -260,7 +257,7 @@ public class ProjectBeneficiaryService {
 
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name, String moduleName) throws Exception {
         MdmsCriteriaReq serviceRegistry = getMdmsRequest(requestInfo, tenantId, name, moduleName);
-        return mdmsService.fetchResultFromMdms(serviceRegistry, JsonNode.class).get("MdmsRes");
+        return mdmsService.fetchConfig(serviceRegistry, JsonNode.class).get("MdmsRes");
     }
 
     private List<ProjectType> convertToProjectTypeList(JsonNode jsonNode) {
@@ -315,7 +312,6 @@ public class ProjectBeneficiaryService {
                                      Boolean includeDeleted) throws Exception {
 
         if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary())) {
-            // TODO: There are some changes here, refer to individual search
             List<String> ids = new ArrayList<>();
             ids.add(beneficiarySearchRequest.getProjectBeneficiary().getId());
             return projectBeneficiaryRepository.findById(ids, includeDeleted).stream()

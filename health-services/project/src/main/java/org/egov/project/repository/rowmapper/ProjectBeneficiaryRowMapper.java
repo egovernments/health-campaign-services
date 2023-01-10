@@ -18,7 +18,7 @@ public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantid"))
                     .projectId(resultSet.getString("projectId"))
-                    .dateOfRegistration(resultSet.getInt("dateOfRegistration"))
+                    .dateOfRegistration(resultSet.getDate("dateOfRegistration").toLocalDate())
                     .beneficiaryId(resultSet.getString("beneficiaryid"))
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .auditDetails(AuditDetails.builder()

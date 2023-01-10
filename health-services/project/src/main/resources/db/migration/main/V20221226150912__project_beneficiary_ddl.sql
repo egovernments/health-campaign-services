@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS PROJECT_BENEFICIARY
     clientReferenceId                   character varying(64),
     createdBy                           character varying(64),
     lastModifiedBy                      character varying(64),
-    dateOfRegistration                  bigint,
+    dateOfRegistration                  date,
     additionalDetails                   jsonb,
     createdTime                         bigint,
     lastModifiedTime                    bigint,

@@ -115,7 +115,7 @@ class ProjectBeneficiaryServiceCreateTest {
         ObjectMapper map = new ObjectMapper();
         JsonNode node = map.readTree(responseString);
 
-        when(mdmsService.fetchResultFromMdms(any(MdmsCriteriaReq.class), eq(JsonNode.class)))
+        when(mdmsService.fetchConfig(any(MdmsCriteriaReq.class), eq(JsonNode.class)))
                 .thenReturn(node);
     }
 
@@ -231,7 +231,7 @@ class ProjectBeneficiaryServiceCreateTest {
         projectBeneficiaryService.create(request);
 
         verify(projectService, times(1)).validateProjectIds(any(List.class));
-        verify(mdmsService, times(1)).fetchResultFromMdms(any(), any());
+        verify(mdmsService, times(1)).fetchConfig(any(), any());
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
                 any(HouseholdSearchRequest.class),
@@ -257,7 +257,7 @@ class ProjectBeneficiaryServiceCreateTest {
         projectBeneficiaryService.create(request);
 
         verify(projectService, times(1)).validateProjectIds(any(List.class));
-        verify(mdmsService, times(1)).fetchResultFromMdms(any(), any());
+        verify(mdmsService, times(1)).fetchConfig(any(), any());
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
                 any(IndividualSearchRequest.class),
