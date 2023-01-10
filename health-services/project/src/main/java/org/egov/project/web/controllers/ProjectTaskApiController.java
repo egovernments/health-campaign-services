@@ -65,14 +65,18 @@ public class ProjectTaskApiController {
     }
 
     @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1SearchPost(@ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest task,
+    public ResponseEntity<TaskResponse> projectTaskV1SearchPost(@ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest request,
                                                                 @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
                                                                 @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
                                                                 @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
                                                                 @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                 @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
 
-        return new ResponseEntity<TaskResponse>(HttpStatus.NOT_IMPLEMENTED);
+        List<Task> households = projectTaskService.search(request.getTask(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        TaskResponse response = TaskResponse.builder().responseInfo(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true)).task(households).build();
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @RequestMapping(value = "/task/v1/_update", method = RequestMethod.POST)

@@ -53,7 +53,7 @@ public class Address {
     private Double locationAccuracy = null;
 
     @JsonProperty("type")
-    private String type = null;
+    private AddressType type = null;
 
     @JsonProperty("addressLine1")
     @Size(min = 2, max = 256)
