@@ -14,7 +14,6 @@ import org.egov.project.web.models.ProductVariantSearchRequest;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskResource;
-import org.egov.project.web.models.TaskResourceRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -97,11 +96,6 @@ public class ProjectTaskService {
         projectTaskRepository.save(request.getTask(), "save-project-task-topic");
 
         return request.getTask();
-    }
-
-    public List<TaskResource> createResource(TaskResourceRequest request) {
-
-        return request.getResources();
     }
 
     private void checkIfProductVariantExist(List<String> productVariantIds, String tenantId, RequestInfo requestInfo) {
