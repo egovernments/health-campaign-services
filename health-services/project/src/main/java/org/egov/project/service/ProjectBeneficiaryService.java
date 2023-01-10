@@ -12,7 +12,6 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
-import org.egov.common.utils.CommonUtils;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -29,13 +28,11 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -127,6 +124,7 @@ public class ProjectBeneficiaryService {
         enrichForCreate(projectBeneficiary, idList, beneficiaryRequest.getRequestInfo());
         log.info("Enrichment done");
         projectBeneficiaryRepository.save(projectBeneficiary,SAVE_KAFKA_TOPIC);
+        // TODO: Remove this log
         log.info("Pushed to kafka");
         return projectBeneficiary;
     }
@@ -139,6 +137,7 @@ public class ProjectBeneficiaryService {
 
         identifyNullIds(projectBeneficiary, idMethod);
 
+        // TODO: Fix English for this log
         log.info("Checking existing project if exists");
         validateIds(projectIds, projectService::validateProjectIds);
 
@@ -166,6 +165,7 @@ public class ProjectBeneficiaryService {
         enrichForUpdate(projectBeneficiaryMap, existingProjectBeneficiaryIds, beneficiaryRequest, idMethod);
 
         projectBeneficiaryRepository.save(projectBeneficiary, UPDATE_KAFKA_TOPIC);
+        // TODO: Remove this log
         log.info("Pushed to kafka");
         return projectBeneficiary;
     }
@@ -315,6 +315,7 @@ public class ProjectBeneficiaryService {
                                      Boolean includeDeleted) throws Exception {
 
         if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary())) {
+            // TODO: There are some changes here, refer to individual search
             List<String> ids = new ArrayList<>();
             ids.add(beneficiarySearchRequest.getProjectBeneficiary().getId());
             return projectBeneficiaryRepository.findById(ids, includeDeleted).stream()

@@ -42,6 +42,8 @@ public class ProjectBeneficiary {
     @Size(min=2,max=64)
     private String beneficiaryId = null;
 
+    // TODO: Make this as LocalDate, refer Individual service
+    //  There will also be change in redisObjectMapper and objectMapper - refer to individual service
     @JsonProperty("dateOfRegistration")
     private Integer dateOfRegistration = null;
 

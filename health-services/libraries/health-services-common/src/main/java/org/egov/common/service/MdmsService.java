@@ -1,14 +1,6 @@
 package org.egov.common.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.jayway.jsonpath.JsonPath;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,10 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -40,6 +28,7 @@ public class MdmsService {
     }
 
 
+    // TODO: Rename to fetchConfig
     public <T> T fetchResultFromMdms(Object request, Class<T> clazz) throws Exception {
         T response;
         try {
