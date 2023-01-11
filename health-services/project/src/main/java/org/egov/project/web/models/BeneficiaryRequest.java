@@ -10,12 +10,13 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
-* BeneficiaryRequest
-*/
+ * BeneficiaryRequest
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
 
@@ -23,37 +24,29 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BeneficiaryRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
-
-  @Valid
-
-
+public class BeneficiaryRequest {
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
     private RequestInfo requestInfo = null;
 
-        @JsonProperty("ProjectBeneficiary")
-    
-  @Valid
-
-
+    @JsonProperty("ProjectBeneficiary")
+    @Valid
+    @Size(min=1)
     private List<ProjectBeneficiary> projectBeneficiary = null;
 
-        @JsonProperty("apiOperation")
-    
-  @Valid
-
-
+    @JsonProperty("apiOperation")
+    @Valid
     private ApiOperation apiOperation = null;
 
 
-        public BeneficiaryRequest addProjectBeneficiaryItem(ProjectBeneficiary projectBeneficiaryItem) {
-            if (this.projectBeneficiary == null) {
+    public BeneficiaryRequest addProjectBeneficiaryItem(ProjectBeneficiary projectBeneficiaryItem) {
+        if (this.projectBeneficiary == null) {
             this.projectBeneficiary = new ArrayList<>();
-            }
+        }
         this.projectBeneficiary.add(projectBeneficiaryItem);
         return this;
-        }
+    }
 
 }
 

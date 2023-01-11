@@ -85,7 +85,7 @@ class ProjectStaffServiceCreateTest {
 
     @Test
     @DisplayName("should enrich the formatted id in project staff")
-    void shouldEnrichTheFormattedIdInProductVariants() throws Exception {
+    void shouldEnrichTheFormattedIdInProjectStaff() throws Exception {
         mockValidateProjectId();
         mockValidateUsers();
 
