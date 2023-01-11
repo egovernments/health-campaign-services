@@ -237,6 +237,8 @@ public class IndividualService {
                 identifierInReq.setIsDeleted(true);
                 identifierInReq.setRowVersion(identifierInReq.getRowVersion() + 1);
             }
+
+            // also deletes in household_individual_mapping table if such an individual exists
         });
     }
 }

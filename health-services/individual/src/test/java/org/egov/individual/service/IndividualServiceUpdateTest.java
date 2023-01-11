@@ -187,6 +187,7 @@ class IndividualServiceUpdateTest {
                 .withName("some-new-family-name", "some-new-given-name")
                 .withTenantId()
                 .withAddress()
+                .withIdentifiers()
                 .withRowVersion()
                 .withIdentifiers()
                 .build();
@@ -201,7 +202,8 @@ class IndividualServiceUpdateTest {
                 .withId()
                 .withName()
                 .withTenantId()
-                .withAddress()
+                .withAddressHavingAuditDetails()
+                .withIdentifiersHavingAuditDetails()
                 .withRowVersion()
                 .withIdentifiers()
                 .withAuditDetails()

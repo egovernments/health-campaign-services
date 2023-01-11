@@ -32,6 +32,16 @@ public class HouseholdTestBuilder {
         return this;
     }
 
+    public HouseholdTestBuilder withId(String id) {
+        this.builder.id(id);
+        return this;
+    }
+
+    public HouseholdTestBuilder withClientReferenceId(String clientReferenceId) {
+        this.builder.clientReferenceId(clientReferenceId);
+        return this;
+    }
+
     public HouseholdTestBuilder withRowVersion(int rowVersion) {
         this.builder.rowVersion(rowVersion);
         return this;

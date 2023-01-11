@@ -21,3 +21,23 @@ ServiceMaps:
           isBulk: true
           jsonPath: $.*
           timeStampField: $.auditDetails.createdTime
+
+    - topic: save-project-beneficiary-topic
+      configKey: INDEX
+      indexes:
+        - name: projec-beneficiary-index-v1
+          type: projectBeneficiary
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.createdTime
+
+    - topic: update-project-beneficiary-topic
+      configKey: INDEX
+      indexes:
+        - name: projec-beneficiary-index-v1
+          type: projectBeneficiary
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.createdTime
