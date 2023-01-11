@@ -14,4 +14,5 @@ CREATE TABLE IF NOT EXISTS PROJECT_BENEFICIARY
     rowVersion                          bigint,
     isDeleted                           boolean,
     CONSTRAINT uk_project_beneficiary_id PRIMARY KEY (id)
+    CONSTRAINT uk_project_beneficiary_client_reference_id UNIQUE (clientReferenceId)
 );
