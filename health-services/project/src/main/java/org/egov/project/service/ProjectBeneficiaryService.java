@@ -125,6 +125,7 @@ public class ProjectBeneficiaryService {
         log.info("Enrichment done");
         projectBeneficiaryRepository.save(projectBeneficiary,SAVE_KAFKA_TOPIC);
 
+
         return projectBeneficiary;
     }
 
