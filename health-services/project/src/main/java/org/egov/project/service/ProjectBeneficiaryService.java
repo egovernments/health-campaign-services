@@ -71,7 +71,7 @@ public class ProjectBeneficiaryService {
     @Value("${egov.search.household.url}")
     private String householdServiceSearchUrl;
 
-    @Value(" ${egov.individual.host}")
+    @Value("${egov.individual.host}")
     private String individualServiceHost;
 
     @Value("${egov.search.individual.url}")
@@ -124,7 +124,6 @@ public class ProjectBeneficiaryService {
         enrichForCreate(projectBeneficiary, idList, beneficiaryRequest.getRequestInfo());
         log.info("Enrichment done");
         projectBeneficiaryRepository.save(projectBeneficiary,SAVE_KAFKA_TOPIC);
-
 
         return projectBeneficiary;
     }
