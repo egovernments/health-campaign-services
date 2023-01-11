@@ -95,6 +95,13 @@ public class HouseholdService {
     public List<Household> update(HouseholdRequest request) {
         Method idMethod = getIdMethod(request.getHousehold());
         identifyNullIds(request.getHousehold(), idMethod);
+
+        List<Address> addresses = request.getHousehold().stream().map(Household::getAddress)
+                .filter(Objects::nonNull).filter(address ->  address.getId() == null).collect(Collectors.toList());
+        if (!addresses.isEmpty()) {
+            addresses.forEach(address -> address.setId(UUID.randomUUID().toString()));
+        }
+
         Map<String, Household> hMap = getIdToObjMap(request.getHousehold(), idMethod);
 
         log.info("Checking if already exists");
