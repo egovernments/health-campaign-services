@@ -187,6 +187,7 @@ class IndividualServiceUpdateTest {
                 .withName("some-new-family-name", "some-new-given-name")
                 .withTenantId()
                 .withAddress()
+                .withIdentifiers()
                 .withRowVersion()
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
@@ -200,7 +201,8 @@ class IndividualServiceUpdateTest {
                 .withId()
                 .withName()
                 .withTenantId()
-                .withAddress()
+                .withAddressHavingAuditDetails()
+                .withIdentifiersHavingAuditDetails()
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
