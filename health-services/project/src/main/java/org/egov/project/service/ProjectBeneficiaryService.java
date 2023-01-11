@@ -71,10 +71,10 @@ public class ProjectBeneficiaryService {
     @Value("${egov.search.household.url}")
     private String householdServiceSearchUrl;
 
-    @Value("${egov.individual.host}")
+    @Value(" ${egov.individual.host}")
     private String individualServiceHost;
 
-    @Value("${egov.search.household.url}")
+    @Value("${egov.search.individual.url}")
     private String individualServiceSearchUrl;
 
     private final IdGenService idGenService;
