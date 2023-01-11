@@ -1,13 +1,12 @@
 package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.project.TestConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.TaskRequest;
-import org.egov.project.web.models.TaskResource;
-import org.egov.project.web.models.TaskResourceRequest;
 import org.egov.project.web.models.TaskSearch;
 import org.egov.project.web.models.TaskSearchRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +18,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Arrays;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
