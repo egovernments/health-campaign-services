@@ -110,11 +110,6 @@ public class ProjectTaskService {
         return request.getTask();
     }
 
-    public List<TaskResource> createResource(TaskResourceRequest request) {
-
-        return request.getResources();
-    }
-
     private void checkIfProductVariantExist(List<String> productVariantIds, String tenantId, RequestInfo requestInfo) {
         for (String productVariantId: productVariantIds) {
             ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
