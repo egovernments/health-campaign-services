@@ -1,5 +1,6 @@
 package org.egov.household.service;
 
+import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.helper.HouseholdRequestTestBuilder;
 import org.egov.household.helper.HouseholdTestBuilder;
 import org.egov.household.repository.HouseholdRepository;
@@ -7,6 +8,7 @@ import org.egov.household.web.models.Address;
 import org.egov.household.web.models.Household;
 import org.egov.household.web.models.HouseholdRequest;
 import org.egov.tracer.model.CustomException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,6 +40,15 @@ class HouseholdUpdateTest {
 
     @Mock
     HouseholdRepository householdRepository;
+
+    @Mock
+    HouseholdConfiguration householdConfiguration;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(householdConfiguration.getCreateTopic()).thenReturn("create-topic");
+        lenient().when(householdConfiguration.getUpdateTopic()).thenReturn("update-topic");
+    }
 
     @Test
     @DisplayName("should throw exception if household not found")

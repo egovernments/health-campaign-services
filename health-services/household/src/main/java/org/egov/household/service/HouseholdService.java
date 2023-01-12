@@ -3,6 +3,7 @@ package org.egov.household.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.service.IdGenService;
+import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.repository.HouseholdRepository;
 import org.egov.household.web.models.Address;
 import org.egov.household.web.models.Household;
@@ -46,10 +47,14 @@ public class HouseholdService {
 
     private final IdGenService idGenService;
 
+    private final HouseholdConfiguration householdConfiguration;
+
     @Autowired
-    public HouseholdService(HouseholdRepository householdRepository, IdGenService idGenService) {
+    public HouseholdService(HouseholdRepository householdRepository, IdGenService idGenService,
+                            HouseholdConfiguration householdConfiguration) {
         this.householdRepository = householdRepository;
         this.idGenService = idGenService;
+        this.householdConfiguration = householdConfiguration;
     }
 
     public List<Household> create(HouseholdRequest householdRequest) throws Exception {
@@ -64,7 +69,7 @@ public class HouseholdService {
            IntStream.range(0, addresses.size()).forEach(i -> addresses.get(i).setId(UUID.randomUUID().toString()));
         }
 
-        householdRepository.save(householdRequest.getHousehold(), "save-household-topic");
+        householdRepository.save(householdRequest.getHousehold(), householdConfiguration.getCreateTopic());
         return householdRequest.getHousehold();
     }
 
@@ -114,7 +119,7 @@ public class HouseholdService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholds, request, idMethod);
 
-        householdRepository.save(request.getHousehold(), "update-household-topic");
+        householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic());
         return request.getHousehold();
     }
 }
