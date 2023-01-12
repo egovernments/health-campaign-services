@@ -182,8 +182,22 @@ public class CommonUtils {
     }
 
     public static <T> Method getIdMethod(List<T> objList) {
+        return getIdMethod(objList, "id", "clientReferenceId");
+    }
+
+    public static <T> Method getIdMethod(List<T> objList, String idFieldName) {
+        String idMethodName = "get" + idFieldName.substring(0, 1).toUpperCase()
+                + idFieldName.substring(1);
+        return getMethod(idMethodName, getObjClass(objList));
+    }
+
+    public static <T> Method getIdMethod(List<T> objList, String idField, String clientReferenceIdField) {
+        String idMethodName = "get" + idField.substring(0, 1).toUpperCase()
+                + idField.substring(1);
+        String clientReferenceIdMethodName = "get" + clientReferenceIdField.substring(0, 1).toUpperCase()
+                + clientReferenceIdField.substring(1);
         try{
-            Method getId = getMethod("getId", getObjClass(objList));
+            Method getId = getMethod(idMethodName, getObjClass(objList));
             String value = (String) ReflectionUtils.invokeMethod(getId, objList.stream().findAny().get());
             if (value != null) {
                 return getId;
@@ -192,7 +206,7 @@ public class CommonUtils {
             log.error(e.getMessage());
         }
 
-        return getMethod("getClientReferenceId", getObjClass(objList));
+        return getMethod(clientReferenceIdMethodName, getObjClass(objList));
     }
 
     public static <T> void enrichId(List<T> objList, List<String> idList) {

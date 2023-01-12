@@ -13,6 +13,7 @@ import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.platform.commons.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
@@ -596,6 +597,30 @@ class CommonUtilsTest {
                 entitiesToUpdate.stream().findFirst().get().getClientReferenceId());
         assertEquals("some-id",
                 entitiesToUpdate.stream().findFirst().get().getId());
+    }
+
+    @Test
+    @DisplayName("should be able to get id method based on a field name")
+    void shouldBeAbleToGetIdMethodBasedOnAFieldName() {
+        List<SomeObjectWithClientRefId> objList = new ArrayList<>();
+        objList.add(SomeObjectWithClientRefId.builder()
+                .id("some-id")
+                .otherClientReferenceId("some-other-client-reference-id").build());
+        Method idMethod = CommonUtils.getIdMethod(objList, "otherClientReferenceId");
+        assertEquals("some-other-client-reference-id", ReflectionUtils.invokeMethod(idMethod,
+                objList.get(0)));
+    }
+
+    @Test
+    @DisplayName("should be able to get id method based on available field name")
+    void shouldBeAbleToGetIdMethodBasedOnAvailableFieldName() {
+        List<SomeObjectWithClientRefId> objList = new ArrayList<>();
+        objList.add(SomeObjectWithClientRefId.builder()
+                .id("some-id")
+                .otherClientReferenceId("some-other-client-reference-id").build());
+        Method idMethod = CommonUtils.getIdMethod(objList, "id", "otherClientReferenceId");
+        assertEquals("some-id", ReflectionUtils.invokeMethod(idMethod,
+                objList.get(0)));
     }
 
     @Data
