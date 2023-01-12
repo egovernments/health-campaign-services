@@ -2,6 +2,7 @@ package org.egov.project.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.project.repository.ProjectRepository;
+import org.egov.project.web.models.Project;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,4 +25,7 @@ public class ProjectService {
         return projectRepository.validateProjectIds(productIds);
     }
 
+    public List<Project> findByIds(List<String> projectIds){
+        return projectRepository.findById(projectIds);
+    }
 }

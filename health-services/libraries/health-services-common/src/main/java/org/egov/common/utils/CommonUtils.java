@@ -10,6 +10,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,13 +139,17 @@ public class CommonUtils {
 
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList) {
         Class<?> objClass = getObjClass(objList);
+        checkRowVersion(idToObjMap, objList, getMethod("getId", objClass));
+    }
+
+    public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList, Method idMethod) {
+        Class<?> objClass = getObjClass(objList);
         Method rowVersionMethod = getMethod("getRowVersion", objClass);
-        Method getIdMethod = getMethod("getId", objClass);
         Set<Object> rowVersionMismatch = objList.stream()
                 .filter(obj -> !Objects.equals(ReflectionUtils.invokeMethod(rowVersionMethod, obj),
                         ReflectionUtils.invokeMethod(rowVersionMethod,
-                                idToObjMap.get(ReflectionUtils.invokeMethod(getIdMethod, obj)))))
-                .map(obj -> ReflectionUtils.invokeMethod(getIdMethod, obj)).collect(Collectors.toSet());
+                                idToObjMap.get(ReflectionUtils.invokeMethod(idMethod, obj)))))
+                .map(obj -> ReflectionUtils.invokeMethod(idMethod, obj)).collect(Collectors.toSet());
         if (!rowVersionMismatch.isEmpty()) {
             log.error("Mismatch in row versions {}", rowVersionMismatch);
             throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
@@ -177,17 +182,31 @@ public class CommonUtils {
     }
 
     public static <T> Method getIdMethod(List<T> objList) {
+        return getIdMethod(objList, "id", "clientReferenceId");
+    }
+
+    public static <T> Method getIdMethod(List<T> objList, String idFieldName) {
+        String idMethodName = "get" + idFieldName.substring(0, 1).toUpperCase()
+                + idFieldName.substring(1);
+        return getMethod(idMethodName, getObjClass(objList));
+    }
+
+    public static <T> Method getIdMethod(List<T> objList, String idField, String clientReferenceIdField) {
+        String idMethodName = "get" + idField.substring(0, 1).toUpperCase()
+                + idField.substring(1);
+        String clientReferenceIdMethodName = "get" + clientReferenceIdField.substring(0, 1).toUpperCase()
+                + clientReferenceIdField.substring(1);
         try{
-            Method getClientReferenceId = getMethod("getClientReferenceId", getObjClass(objList));
-            String value = (String) ReflectionUtils.invokeMethod(getClientReferenceId, objList.stream().findAny().get());
+            Method getId = getMethod(idMethodName, getObjClass(objList));
+            String value = (String) ReflectionUtils.invokeMethod(getId, objList.stream().findAny().get());
             if (value != null) {
-                return getClientReferenceId;
+                return getId;
             }
         } catch (CustomException e){
             log.error(e.getMessage());
         }
 
-        return getMethod("getId", getObjClass(objList));
+        return getMethod(clientReferenceIdMethodName, getObjClass(objList));
     }
 
     public static <T> void enrichId(List<T> objList, List<String> idList) {
@@ -202,8 +221,12 @@ public class CommonUtils {
 
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
         Class<?> objClass = getObjClass(existingObjList);
+        enrichForUpdate(idToObjMap, existingObjList, request, getMethod("getId", objClass));
+    }
+
+    public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request, Method idMethod) {
+        Class<?> objClass = getObjClass(existingObjList);
         Class<?> requestObjClass = request.getClass();
-        Method getIdMethod = getMethod("getId", objClass);
         Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
         Method getRowVersionMethod = getMethod("getRowVersion", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
@@ -212,7 +235,7 @@ public class CommonUtils {
         Method getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
         Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
         IntStream.range(0, existingObjList.size()).forEach(i -> {
-            Object obj = idToObjMap.get(ReflectionUtils.invokeMethod(getIdMethod,
+            Object obj = idToObjMap.get(ReflectionUtils.invokeMethod(idMethod,
                     existingObjList.get(i)));
             Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
             Method nameMethod = CommonUtils.getMethod("name", Enum.class);
@@ -233,8 +256,12 @@ public class CommonUtils {
 
     public static <T> Map<String, T> getIdToObjMap(List<T> objList) {
         Class<?> objClass = getObjClass(objList);
+        return getIdToObjMap(objList, getMethod("getId", objClass));
+    }
+
+    public static <T> Map<String, T> getIdToObjMap(List<T> objList, Method idMethod) {
         return objList.stream().collect(Collectors.toMap(obj -> (String) ReflectionUtils
-                .invokeMethod(getMethod("getId", objClass), obj), obj -> obj));
+                .invokeMethod(idMethod, obj), obj -> obj));
     }
 
     public static <T> void validateEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList) {
@@ -248,9 +275,32 @@ public class CommonUtils {
         }
     }
 
-    public static <T> List<String> getIdList(List<T> objInDbList) {
-        return objInDbList.stream().map(obj -> (String) ReflectionUtils
-                        .invokeMethod(getMethod("getId", obj.getClass()), obj))
+    public static <T> void validateEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList,
+                                            Method idMethod) {
+        if (idToObjInRequestMap.size() > objInDbList.size()) {
+            List<String> idsForObjInDb = getIdList(objInDbList, idMethod);
+            List<String> idsForInvalidObj = idToObjInRequestMap.keySet().stream()
+                    .filter(id -> !idsForObjInDb.contains(id))
+                    .collect(Collectors.toList());
+            log.error("Invalid entities {}", idsForInvalidObj);
+            throw new CustomException("INVALID_ENTITY", idsForInvalidObj.toString());
+        }
+    }
+
+    public static <T> List<String> getIdList(List<T> objList) {
+        if (objList == null || objList.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Class<?> objClass = getObjClass(objList);
+        return getIdList(objList, getMethod("getId", objClass));
+    }
+
+    public static <T> List<String> getIdList(List<T> objList, Method idMethod) {
+        if (objList == null || objList.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return objList.stream().map(obj -> (String) ReflectionUtils
+                        .invokeMethod(idMethod, obj))
                 .collect(Collectors.toList());
     }
 
@@ -296,8 +346,13 @@ public class CommonUtils {
     }
 
     public static <T> void identifyNullIds(List<T> objList) {
+        Class<?> objClass = getObjClass(objList);
+        identifyNullIds(objList, getMethod("getId", objClass));
+    }
+
+    public static <T> void identifyNullIds(List<T> objList, Method idMethod) {
         Long nullCount = objList.stream().filter(obj -> null == ReflectionUtils.invokeMethod(
-                getMethod("getId", obj.getClass()), obj)).count();
+                idMethod, obj)).count();
 
         if (nullCount > 0) {
             throw new CustomException("NULL_ID", String.format("Ids cannot be null, found %d", nullCount));
@@ -335,6 +390,31 @@ public class CommonUtils {
             return defaultVal;
         }
         return defaultVal;
+    }
+
+    public static String getIdFieldName(Method method) {
+        if (method != null) {
+            return method.getName().contains("Reference") ? "clientReferenceId" : "id";
+        }
+        return "id";
+    }
+
+    public static <T> void enrichIdsFromExistingEntities(Map<String, T> idToObjMap, List<T> existingEntities,
+                                                         Method idMethod) {
+        IntStream.range(0, existingEntities.size()).forEach(i -> {
+            T existing = existingEntities.get(i);
+            String id = (String) ReflectionUtils.invokeMethod(getMethod("getId",
+                    existing.getClass()), existing);
+            String clientReferenceId = (String) ReflectionUtils.invokeMethod(getMethod("getClientReferenceId",
+                    existing.getClass()), existing);
+            String key = getIdFieldName(idMethod).equalsIgnoreCase("id")
+                    ? id : clientReferenceId;
+            T toUpdate = idToObjMap.get(key);
+            ReflectionUtils.invokeMethod(getMethod("setId", toUpdate.getClass()),
+                    toUpdate, id);
+            ReflectionUtils.invokeMethod(getMethod("setClientReferenceId",
+                    toUpdate.getClass()), toUpdate, clientReferenceId);
+        });
     }
 
     public static Function<Integer, List<String>> uuidSupplier() {

@@ -1,6 +1,5 @@
 package org.egov.project.web.models;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -13,44 +12,38 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.time.LocalDate;
 
 /**
-* A representation of the registration of an entity to a Project.
+* A representation of Household.
 */
-    @ApiModel(description = "A representation of the registration of an entity to a Project.")
+    @ApiModel(description = "A representation of Household.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectBeneficiary {
+public class Household {
+
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
     @JsonProperty("tenantId")
     @NotNull
     private String tenantId = null;
 
-    @JsonProperty("projectId")
-    @NotNull
-    @Size(min=2,max=64)
-    private String projectId = null;
-
-    @JsonProperty("beneficiaryId")
-    @NotNull
-    @Size(min=2,max=64)
-    private String beneficiaryId = null;
-
-    @JsonProperty("dateOfRegistration")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private LocalDate dateOfRegistration = null;
-
-    @JsonProperty("beneficiaryClientReferenceId")
-    @Size(min=2,max=64)
+    @JsonProperty("clientReferenceId")
     private String clientReferenceId = null;
+
+    @JsonProperty("memberCount")
+    @NotNull
+    private Integer memberCount = null;
+
+    @JsonProperty("address")
+    @Valid
+    private Address address = null;
 
     @JsonProperty("additionalFields")
     @Valid
@@ -65,5 +58,5 @@ public class ProjectBeneficiary {
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
-
 }
+
