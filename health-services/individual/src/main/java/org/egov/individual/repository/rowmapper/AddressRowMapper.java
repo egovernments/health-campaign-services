@@ -5,15 +5,18 @@ import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Boundary;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+@Component
 public class AddressRowMapper implements RowMapper<Address> {
     @Override
     public Address mapRow(ResultSet resultSet, int i) throws SQLException {
         return Address.builder()
                 .id(resultSet.getString("id"))
+                .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .individualId(resultSet.getString("individualId"))
                 .tenantId(resultSet.getString("tenantId"))
                 .doorNo(resultSet.getString("doorNo"))

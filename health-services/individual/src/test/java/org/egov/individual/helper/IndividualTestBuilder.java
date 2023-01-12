@@ -1,10 +1,15 @@
 package org.egov.individual.helper;
 
+import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.individual.web.models.Address;
+import org.egov.individual.web.models.AddressType;
+import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class IndividualTestBuilder {
     private Individual.IndividualBuilder builder;
@@ -44,12 +49,95 @@ public class IndividualTestBuilder {
         return this;
     }
 
-    public IndividualTestBuilder withAddress() {
+    public IndividualTestBuilder withAddress(Address... addresses) {
         Address address = Address.builder()
                 .city("some-city")
                 .tenantId("some-tenant-id")
+                .type(AddressType.PERMANENT)
+                .auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails().build())
+                .rowVersion(1)
                 .build();
+        List<Address> addressList = new ArrayList<>();
+        if (addresses != null && addresses.length > 0) {
+            addressList.addAll(Arrays.asList(addresses));
+            this.builder.address(addressList);
+            return this;
+        }
+        addressList.add(address);
+        this.builder.address(addressList);
+        return this;
+    }
+
+    public IndividualTestBuilder withAddressHavingAuditDetails(Address... addresses) {
+        Address address = Address.builder()
+                .city("some-city")
+                .tenantId("some-tenant-id")
+                .type(AddressType.PERMANENT)
+                .auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails()
+                        .build())
+                .rowVersion(1)
+                .build();
+        if (addresses != null && addresses.length > 0) {
+            this.builder.address(Arrays.asList(addresses));
+            return this;
+        }
         this.builder.address(Arrays.asList(address));
+        return this;
+    }
+
+    public IndividualTestBuilder withIsDeleted(boolean isDeleted) {
+        this.builder.isDeleted(isDeleted);
+        return this;
+    }
+
+    public IndividualTestBuilder withClientReferenceId(String... args) {
+        this.builder.clientReferenceId(args.length > 0 ? args[0] : "some-client-reference-id");
+        return this;
+    }
+
+    public IndividualTestBuilder withRowVersion(int... args) {
+        this.builder.rowVersion(args.length > 0 ? args[0] : 1);
+        return this;
+    }
+
+    public IndividualTestBuilder withAuditDetails() {
+        this.builder.auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails()
+                .build());
+        return this;
+    }
+
+    public IndividualTestBuilder withIdentifiers(Identifier... identifiers) {
+        Identifier identifier = Identifier.builder()
+                .identifierType("SYSTEM_GENERATED")
+                .identifierId("some-identifier-id")
+                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
+                .rowVersion(1)
+                .build();
+        if (identifiers != null && identifiers.length > 0) {
+            this.builder.identifiers(Arrays.asList(identifiers));
+            return this;
+        }
+        this.builder.identifiers(Arrays.asList(identifier));
+        return this;
+    }
+
+    public IndividualTestBuilder withIdentifiersHavingAuditDetails(Identifier... identifiers) {
+        Identifier identifier = Identifier.builder()
+                .identifierType("SYSTEM_GENERATED")
+                .identifierId("some-identifier-id")
+                .auditDetails(AuditDetailsTestBuilder.builder()
+                        .withAuditDetails()
+                        .build())
+                .rowVersion(1)
+                .build();
+        if (identifiers != null && identifiers.length > 0) {
+            this.builder.identifiers(Arrays.asList(identifiers));
+            return this;
+        }
+        this.builder.identifiers(Arrays.asList(identifier));
         return this;
     }
 }
