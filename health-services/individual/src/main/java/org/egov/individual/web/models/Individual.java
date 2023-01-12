@@ -104,7 +104,7 @@ public class Individual   {
     
   @Valid
 
-        @Size(min=1)
+        @Size(min=1, max = 3)
     private List<Address> address = null;
 
         @JsonProperty("fatherName")

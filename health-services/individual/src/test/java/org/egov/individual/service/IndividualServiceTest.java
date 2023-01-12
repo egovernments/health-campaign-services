@@ -6,9 +6,12 @@ import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.web.models.Address;
+import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
+import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,21 +19,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceTest {
@@ -51,7 +57,7 @@ class IndividualServiceTest {
     }
 
     private void mockIdGen(String value, String o) throws Exception {
-        when(idGenService.getIdList(any(RequestInfo.class), anyString(),
+        lenient().when(idGenService.getIdList(any(RequestInfo.class), anyString(),
                 eq(value), eq(null), anyInt()))
                 .thenReturn(Collections.singletonList(o));
     }
@@ -243,5 +249,71 @@ class IndividualServiceTest {
 
         verify(individualRepository, times(1))
                 .save(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("should validate if only permanent address is present when addresses are not null")
+    void shouldValidateIfOnlyPermanentAddressIsPresentWhenAddressesAreNotNull() {
+        Individual individual = IndividualTestBuilder.builder()
+                .withTenantId()
+                .withName()
+                .withAddress()
+                .build();
+
+        assertDoesNotThrow(() -> ReflectionTestUtils.invokeMethod(individualService,
+                "validateAddressType",
+                Collections.singletonList(individual)));
+    }
+
+    @Test
+    @DisplayName("should throw exception if two permanent addresses are present")
+    void shouldThrowExceptionIfTwoPermanentAddressesArePresent() {
+        Individual individual = IndividualTestBuilder.builder()
+                .withTenantId()
+                .withName()
+                .withAddress(Address.builder()
+                        .city("some-city")
+                        .tenantId("some-tenant-id")
+                        .type(AddressType.PERMANENT)
+                        .build(), Address.builder()
+                        .city("some-city")
+                        .tenantId("some-tenant-id")
+                        .type(AddressType.PERMANENT)
+                        .build())
+                .build();
+
+        assertThrows(CustomException.class, () -> ReflectionTestUtils.invokeMethod(individualService,
+                "validateAddressType",
+                Collections.singletonList(individual)));
+    }
+
+    @Test
+    @DisplayName("should throw exception if total number of addresses exceed three")
+    void shouldThrowExceptionIfTotalNumberOfAddressesExceedThree() {
+        Individual individual = IndividualTestBuilder.builder()
+                .withTenantId()
+                .withName()
+                .withAddress(Address.builder()
+                        .city("some-city")
+                        .tenantId("some-tenant-id")
+                        .type(AddressType.PERMANENT)
+                        .build(), Address.builder()
+                        .city("some-city")
+                        .tenantId("some-tenant-id")
+                        .type(AddressType.CORRESPONDENCE)
+                        .build(), Address.builder()
+                        .city("some-city")
+                        .tenantId("some-tenant-id")
+                        .type(AddressType.OTHER)
+                        .build(), Address.builder()
+                        .city("some-city")
+                        .tenantId("some-tenant-id")
+                        .type(AddressType.CORRESPONDENCE)
+                        .build())
+                .build();
+
+        assertThrows(CustomException.class, () -> ReflectionTestUtils.invokeMethod(individualService,
+                "validateAddressType",
+                Collections.singletonList(individual)));
     }
 }
