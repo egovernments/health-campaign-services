@@ -42,3 +42,63 @@ serviceMaps:
             - jsonPath: $.*.address.buildingName
             - jsonPath: $.*.address.street
             - jsonPath: $.*.address.locality.code
+
+    - version: 1.0
+      description: Updates household.
+      fromTopic: update-household-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE HOUSEHOLD SET tenantId = ?, clientReferenceId = ?, numberOfMembers = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.memberCount
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+        - query: UPDATE ADDRESS SET tenantId = ?, doorno = ?, latitude = ?, longitude = ?, locationAccuracy = ?, type = ?, addressline1 = ?, addressline2 = ?, landmark = ?, city = ?, pincode = ?, buildingName = ?, street = ?, localityCode = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.address.tenantId
+            - jsonPath: $.*.address.doorNo
+            - jsonPath: $.*.address.latitude
+            - jsonPath: $.*.address.longitude
+            - jsonPath: $.*.address.locationAccuracy
+            - jsonPath: $.*.address.type
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
+            - jsonPath: $.*.address.landmark
+            - jsonPath: $.*.address.city
+            - jsonPath: $.*.address.pincode
+            - jsonPath: $.*.address.buildingName
+            - jsonPath: $.*.address.street
+            - jsonPath: $.*.address.locality.code
+            - jsonPath: $.*.address.id
+
+    - version: 1.0
+      description: Updates household.
+      fromTopic: delete-household-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE HOUSEHOLD SET lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+        - query: UPDATE HOUSEHOLD_INDIVIDUAL_MAPPING SET lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE householdId = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id

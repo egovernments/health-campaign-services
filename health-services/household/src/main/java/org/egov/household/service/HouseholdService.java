@@ -5,6 +5,7 @@ import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.service.IdGenService;
 import org.egov.household.repository.HouseholdRepository;
 import org.egov.household.web.models.Address;
+import org.egov.household.web.models.ApiOperation;
 import org.egov.household.web.models.Household;
 import org.egov.household.web.models.HouseholdRequest;
 import org.egov.household.web.models.HouseholdSearch;
@@ -107,7 +108,12 @@ public class HouseholdService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholds, request, idMethod);
 
-        householdRepository.save(request.getHousehold(), "update-household-topic");
+        if (request.getApiOperation().equals(ApiOperation.DELETE)) {
+            householdRepository.save(request.getHousehold(), "delete-household-topic");
+        } else {
+            householdRepository.save(request.getHousehold(), "update-household-topic");
+        }
+
         return request.getHousehold();
     }
 }
