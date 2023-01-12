@@ -98,7 +98,7 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
-    protected void putInCache(List<T> objects) {
+    public void putInCache(List<T> objects) {
         if(objects == null || objects.isEmpty()) {
             return;
         }
