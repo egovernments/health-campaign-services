@@ -3,6 +3,7 @@ package org.egov.household.service;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
+import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.helper.HouseholdRequestTestBuilder;
 import org.egov.household.helper.HouseholdTestBuilder;
 import org.egov.household.repository.HouseholdRepository;
@@ -46,6 +47,9 @@ class HouseholdServiceTest {
     IdGenService idGenService;
 
     @Mock
+    HouseholdConfiguration householdConfiguration;
+
+    @Mock
     Producer producer;
 
     @BeforeEach
@@ -56,6 +60,8 @@ class HouseholdServiceTest {
                         any(String.class),
                         eq("household.id"), eq(""), anyInt()))
                 .thenReturn(idList);
+        lenient().when(householdConfiguration.getCreateTopic()).thenReturn("create-topic");
+        lenient().when(householdConfiguration.getUpdateTopic()).thenReturn("update-topic");
     }
 
     @Test
