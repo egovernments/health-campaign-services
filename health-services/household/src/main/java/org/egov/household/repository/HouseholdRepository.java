@@ -34,6 +34,11 @@ public class HouseholdRepository extends GenericRepository<Household> {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdRowMapper, Optional.of("household"));
     }
 
+    /*
+        1. Update putInCache Method.
+        2. Update findById method in other services to use putInCache.
+     */
+
     public List<Household> findById(List<String> ids, String columnName, Boolean includeDeleted) {
         List<Household> objFound;
         Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
