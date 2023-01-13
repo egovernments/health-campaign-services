@@ -458,6 +458,11 @@ public class CommonUtils {
         return "id";
     }
 
+    public static <T> Predicate<T> notHavingErrors() {
+        return obj -> !((Boolean) ReflectionUtils.invokeMethod(getMethod("getHasErrors",
+                obj.getClass()), obj));
+    }
+
     public static <T> void enrichIdsFromExistingEntities(Map<String, T> idToObjMap, List<T> existingEntities,
                                                          Method idMethod) {
         IntStream.range(0, existingEntities.size()).forEach(i -> {

@@ -163,7 +163,7 @@ public class Individual   {
     private AuditDetails auditDetails = null;
 
         @JsonIgnore
-        private Boolean hasErrors;
+        private Boolean hasErrors = Boolean.FALSE;
 
 
         public Individual addAddressItem(Address addressItem) {

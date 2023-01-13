@@ -17,6 +17,7 @@ import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -36,6 +37,7 @@ import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 
 @Service
@@ -46,14 +48,21 @@ public class IndividualService {
 
     private final IndividualRepository individualRepository;
 
-    private final Validator<IndividualRequest> validator;
+    private List<Validator<IndividualRequest>> validators;
+
+    private final Predicate<Validator<IndividualRequest>> isApplicableForUpdate = validator ->
+            validator.getClass().equals(NullIdValidator.class)
+            || validator.getClass().equals(NonExistentEntityValidator.class)
+            || validator.getClass().equals(AddressTypeValidator.class)
+            || validator.getClass().equals(RowVersionValidator.class);
 
     @Autowired
     public IndividualService(IdGenService idGenService,
-                             IndividualRepository individualRepository, Validator<IndividualRequest> validator) {
+                             IndividualRepository individualRepository,
+                             List<Validator<IndividualRequest>> validators) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
-        this.validator = validator;
+        this.validators = validators;
     }
 
 
@@ -180,18 +189,20 @@ public class IndividualService {
     public List<Individual> update(IndividualRequest request) {
         Method idMethod = getIdMethod(request.getIndividual());
         Map<String, Individual> iMap = getIdToObjMap(request.getIndividual(), idMethod);
-        validator.validate(request);
+        List<ErrorDetails> errorDetails = validators.stream().filter(isApplicableForUpdate)
+                .map(validator -> validator.validate(request))
+                .flatMap(Collection::stream).collect(Collectors.toList());
+        log.error(errorDetails.toString());
 
-        // enrich id and clientReferenceId from existingIndividuals for response
-        // if update is using server generated id then we need to enrich client reference id
-        // if update is using client reference id then we need to enrich the server generated id for response
-        // if update has both client reference id and server generated id then nothing to enrich
-        // so, we enrich both every time to be safe
+        // necessary to enrich server gen id in case where request has only clientReferenceId
+        // this is because persister config has where clause on server gen id only
+        // to solve this we might have to create different topic which would only cater to clientReferenceId
 
-        log.info("Updating lastModifiedTime and lastModifiedBy");
-        enrichForUpdate(iMap, request);
-
-        individualRepository.save(request.getIndividual(), "update-individual-topic");
+        if (request.getIndividual().stream().anyMatch(notHavingErrors())) {
+            log.info("Updating lastModifiedTime and lastModifiedBy");
+            enrichForUpdate(iMap, request);
+            individualRepository.save(request.getIndividual(), "update-individual-topic");
+        }
         return request.getIndividual();
     }
 
