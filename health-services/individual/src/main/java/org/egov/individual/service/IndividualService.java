@@ -6,7 +6,6 @@ import org.egov.common.service.IdGenService;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
-import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
@@ -26,22 +25,18 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.enrichIdsFromExistingEntities;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.identifyNullIds;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
-import static org.egov.common.utils.CommonUtils.validateEntities;
 
 @Service
 @Slf4j
@@ -51,15 +46,19 @@ public class IndividualService {
 
     private final IndividualRepository individualRepository;
 
+    private final Validator<IndividualRequest> validator;
+
     @Autowired
     public IndividualService(IdGenService idGenService,
-                             IndividualRepository individualRepository) {
+                             IndividualRepository individualRepository, Validator<IndividualRequest> validator) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
+        this.validator = validator;
     }
 
 
     public List<Individual> create(IndividualRequest request) throws Exception {
+        // validation layer
         validateAddressType(request.getIndividual());
         final String tenantId = getTenantId(request.getIndividual());
         log.info("Generating id for individuals");
@@ -179,32 +178,18 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualRequest request) {
-        validateAddressType(request.getIndividual());
         Method idMethod = getIdMethod(request.getIndividual());
-        identifyNullIds(request.getIndividual(), idMethod);
         Map<String, Individual> iMap = getIdToObjMap(request.getIndividual(), idMethod);
+        validator.validate(request);
 
-        log.info("Checking if already exists");
-        List<String> householdIds = new ArrayList<>(iMap.keySet());
-        List<Individual> existingIndividuals = individualRepository.findById(householdIds,
-                getIdFieldName(idMethod), false);
-        validateEntities(iMap, existingIndividuals, idMethod);
-        checkRowVersion(iMap, existingIndividuals, idMethod);
         // enrich id and clientReferenceId from existingIndividuals for response
         // if update is using server generated id then we need to enrich client reference id
         // if update is using client reference id then we need to enrich the server generated id for response
         // if update has both client reference id and server generated id then nothing to enrich
         // so, we enrich both every time to be safe
-        enrichIdsFromExistingEntities(iMap, existingIndividuals, idMethod);
 
         log.info("Updating lastModifiedTime and lastModifiedBy");
-        enrichForUpdate(iMap, existingIndividuals, request, idMethod);
-
-        if (request.getApiOperation().equals(ApiOperation.DELETE)) {
-            deleteRelatedEntities(request, idMethod, iMap, existingIndividuals);
-            individualRepository.save(request.getIndividual(), "delete-individual-topic");
-            return request.getIndividual();
-        }
+        enrichForUpdate(iMap, request);
 
         individualRepository.save(request.getIndividual(), "update-individual-topic");
         return request.getIndividual();

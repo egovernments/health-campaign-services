@@ -109,6 +109,13 @@ public class CommonUtils {
                 .lastModifiedTime(System.currentTimeMillis()).build();
     }
 
+    public static AuditDetails getAuditDetailsForUpdate(String modifiedByUuid) {
+        log.info("Creating audit details for update api");
+        return AuditDetails.builder()
+                .lastModifiedBy(modifiedByUuid)
+                .lastModifiedTime(System.currentTimeMillis()).build();
+    }
+
     public static boolean isSearchByIdOnly(Object obj) {
         return isSearchByIdOnly(obj, "id");
     }
@@ -154,6 +161,17 @@ public class CommonUtils {
             log.error("Mismatch in row versions {}", rowVersionMismatch);
             throw new CustomException("ROW_VERSION_MISMATCH", rowVersionMismatch.toString());
         }
+    }
+
+    public static <T> List<T> getEntitiesWithMismatchedRowVersion(Map<String, T> idToObjMap,
+                                                                  List<T> objList, Method idMethod) {
+        Class<?> objClass = getObjClass(objList);
+        Method rowVersionMethod = getMethod("getRowVersion", objClass);
+        return objList.stream()
+                .filter(obj -> !Objects.equals(ReflectionUtils.invokeMethod(rowVersionMethod, obj),
+                        ReflectionUtils.invokeMethod(rowVersionMethod,
+                                idToObjMap.get(ReflectionUtils.invokeMethod(idMethod, obj)))))
+                .collect(Collectors.toList());
     }
 
     public static <T> String getTenantId(List<T> objList) {
@@ -217,6 +235,31 @@ public class CommonUtils {
                     final Object obj = objList.get(i);
                     ReflectionUtils.invokeMethod(setIdMethod, obj, idList.get(i));
                 });
+    }
+
+    public static <T> void enrichForUpdate(Map<String, T> idToObjMap, Object request) {
+        Class<?> objClass = getObjClass(Arrays.asList(idToObjMap.values().toArray()));
+        Class<?> requestObjClass = request.getClass();
+        Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
+        Method getRowVersionMethod = getMethod("getRowVersion", objClass);
+        Method setRowVersionMethod = getMethod("setRowVersion", objClass);
+        Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
+        Method getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
+        Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
+        idToObjMap.keySet().forEach(i -> {
+            Object obj = idToObjMap.get(i);
+            Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
+            Method nameMethod = CommonUtils.getMethod("name", Enum.class);
+            if ("DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation))) {
+                ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+            }
+            Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
+            ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
+            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
+                    .invokeMethod(getRequestInfoMethod, request);
+            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(requestInfo.getUserInfo().getUuid());
+            ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
+        });
     }
 
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
@@ -285,6 +328,17 @@ public class CommonUtils {
             log.error("Invalid entities {}", idsForInvalidObj);
             throw new CustomException("INVALID_ENTITY", idsForInvalidObj.toString());
         }
+    }
+
+    public static <T> List<T> checkNonExistentEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList,
+                                                       Method idMethod) {
+        if (idToObjInRequestMap.size() > objInDbList.size()) {
+            List<String> idsForObjInDb = getIdList(objInDbList, idMethod);
+            return idToObjInRequestMap.entrySet().stream()
+                    .filter(e -> !idsForObjInDb.contains(e.getKey())).map(Map.Entry::getValue)
+                    .collect(Collectors.toList());
+        }
+        return Collections.emptyList();
     }
 
     public static <T> List<String> getIdList(List<T> objList) {
@@ -357,6 +411,11 @@ public class CommonUtils {
         if (nullCount > 0) {
             throw new CustomException("NULL_ID", String.format("Ids cannot be null, found %d", nullCount));
         }
+    }
+
+    public static <T> List<T> identifyObjectsWithNullIds(List<T> objList, Method idMethod) {
+        return objList.stream().filter(obj -> null == ReflectionUtils.invokeMethod(
+                idMethod, obj)).collect(Collectors.toList());
     }
 
     public static <T, R> List<R> collectFromList(List<T> objList, Function<T, List<R>> function) {
