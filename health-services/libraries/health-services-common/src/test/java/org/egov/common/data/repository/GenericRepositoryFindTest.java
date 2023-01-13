@@ -101,7 +101,7 @@ class GenericRepositoryFindTest {
     }
 
     @Test
-    @DisplayName("get objects from db for the search request")
+    @DisplayName("should get objects from db for the search request")
     void shouldReturnObjectsFromDBForSearchRequest() throws QueryBuilderException {
         List<SomeObject> result = new ArrayList<>(someObjects);
         List<SomeObject> deleted = result.stream().filter(someObject -> someObject.getIsDeleted() == Boolean.TRUE)
@@ -133,7 +133,7 @@ class GenericRepositoryFindTest {
     }
 
     @Test
-    @DisplayName("validate id using column name")
+    @DisplayName("should validate id using column name")
     void shouldReturnValidIdsFromDBOrCache() {
         HashMap<String, Object> hashtable = new HashMap<>();
         hashtable.put("id1", new Object());
