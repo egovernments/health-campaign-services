@@ -1,6 +1,9 @@
 package org.egov.project.repository.rowmapper;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import org.egov.project.web.models.AdditionalFields;
 import org.egov.project.web.models.ProjectBeneficiary;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -11,16 +14,22 @@ import java.sql.SQLException;
 @Component
 public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary> {
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     public ProjectBeneficiary mapRow(ResultSet resultSet, int i) throws SQLException {
-
+            try {
             return ProjectBeneficiary.builder()
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantid"))
                     .projectId(resultSet.getString("projectId"))
-                    .dateOfRegistration(resultSet.getDate("dateOfRegistration").toLocalDate())
+                    .dateOfRegistration(resultSet.getLong("dateOfRegistration"))
                     .beneficiaryId(resultSet.getString("beneficiaryid"))
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
+                    .additionalFields(resultSet.getString("additionalDetails") == null
+                            ? null : objectMapper.readValue(resultSet.getString("additionalDetails"),
+                            AdditionalFields.class)
+                    )
                     .auditDetails(AuditDetails.builder()
                             .createdBy(resultSet.getString("createdby"))
                             .createdTime(resultSet.getLong("createdtime"))
@@ -30,6 +39,9 @@ public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
                     .build();
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
+            }
     }
 
 }

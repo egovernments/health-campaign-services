@@ -28,7 +28,7 @@ public class ProjectBeneficiaryTestBuilder {
                 .clientReferenceId("beneficiaryClientReferenceId")
                 .id(null)
                 .beneficiaryId("beneficiary-id")
-                .dateOfRegistration(LocalDate.of(2023, 1, 1))
+                .dateOfRegistration(1673577580L)
                 .tenantId("some-tenant-id")
                 .rowVersion(1);
         return this;
@@ -36,7 +36,7 @@ public class ProjectBeneficiaryTestBuilder {
 
     public ProjectBeneficiaryTestBuilder withId() {
         withIdNull().builder.id("some-id").beneficiaryId("beneficiary-id")
-                .dateOfRegistration(LocalDate.of(2023, 1, 1))
+                .dateOfRegistration(1673577580L)
                 .projectId("some-project-id")
                 .clientReferenceId("beneficiaryClientReferenceId")
                 .tenantId("some-tenant-id");
@@ -57,7 +57,7 @@ public class ProjectBeneficiaryTestBuilder {
         this.builder.projectId("some-project-id")
                 .beneficiaryId("beneficiary-id")
                 .clientReferenceId("beneficiaryClientReferenceId")
-                .dateOfRegistration(LocalDate.of(2023, 1, 1))
+                .dateOfRegistration(1673577580L)
                 .tenantId("some-tenant-id")
                 .rowVersion(1)
                 .additionalFields(AdditionalFields.builder().build())
