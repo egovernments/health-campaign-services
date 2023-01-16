@@ -201,10 +201,10 @@ public class ProjectBeneficiaryService {
                     .builder()
                     .id(beneficiary.getBeneficiaryId())
                     .build();
-        } else if (beneficiary.getClientReferenceId() != null) {
+        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
             householdSearch = HouseholdSearch
                     .builder()
-                    .clientReferenceId(beneficiary.getClientReferenceId())
+                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
                     .build();
         }
 
@@ -232,10 +232,10 @@ public class ProjectBeneficiaryService {
                     .builder()
                     .id(beneficiary.getBeneficiaryId())
                     .build();
-        } else if (beneficiary.getClientReferenceId() != null) {
+        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
             individualSearch = IndividualSearch
                     .builder()
-                    .clientReferenceId(beneficiary.getClientReferenceId())
+                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
                     .build();
         }
 

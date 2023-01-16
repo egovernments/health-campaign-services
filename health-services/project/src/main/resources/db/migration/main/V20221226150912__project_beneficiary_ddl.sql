@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS PROJECT_BENEFICIARY
     projectId                           character varying(64),
     beneficiaryId                       character varying(64),
     clientReferenceId                   character varying(64),
+    beneficiaryClientReferenceId        character varying(64),
     createdBy                           character varying(64),
     lastModifiedBy                      character varying(64),
     dateOfRegistration                  bigint,
