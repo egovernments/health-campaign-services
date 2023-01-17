@@ -43,7 +43,6 @@ public class Task {
     private String projectId = null;
 
     @JsonProperty("projectBeneficiaryId")
-    @NotNull
     @Size(min = 2, max = 64)
     private String projectBeneficiaryId = null;
 

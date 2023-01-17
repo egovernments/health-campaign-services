@@ -7,6 +7,7 @@ import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -55,6 +56,9 @@ public class ProjectBeneficiaryApiControllerTest {
 
     @MockBean
     private ProjectStaffService projectStaffService;
+
+    @MockBean
+    private ProjectTaskService projectTaskService;
 
     @Test
     @DisplayName("should create project beneficiary and return with 202 accepted")

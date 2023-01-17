@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.project.TestConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
+import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.TaskRequest;
@@ -43,6 +44,9 @@ class ProjectTaskApiControllerTest {
 
     @MockBean
     private ProjectStaffService projectStaffService;
+
+    @MockBean
+    private ProjectBeneficiaryService projectBeneficiaryService;
 
     @Test
     @DisplayName("should project task create request fail if API operation is update")

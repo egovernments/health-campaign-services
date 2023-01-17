@@ -6,6 +6,7 @@ import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
+import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.web.models.Address;
@@ -15,13 +16,13 @@ import org.egov.project.web.models.ProductVariantSearchRequest;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskResource;
-import org.egov.project.web.models.TaskResourceRequest;
 import org.egov.project.web.models.TaskSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +33,7 @@ import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -52,17 +54,23 @@ public class ProjectTaskService {
 
     private final ProjectTaskRepository projectTaskRepository;
 
+    private final ProjectBeneficiaryRepository projectBeneficiaryRepository;
+
     @Value("${egov.product.host}")
     private String productHost;
 
     @Value("${egov.search.product.variant.url}")
     private String productVariantSearchUrl;
 
-    public ProjectTaskService(IdGenService idGenService, ProjectRepository projectRepository, ServiceRequestClient serviceRequestClient, ProjectTaskRepository projectTaskRepository) {
+    public ProjectTaskService(IdGenService idGenService, ProjectRepository projectRepository,
+                              ServiceRequestClient serviceRequestClient,
+                              ProjectTaskRepository projectTaskRepository,
+                              ProjectBeneficiaryRepository projectBeneficiaryRepository) {
         this.idGenService = idGenService;
         this.projectRepository = projectRepository;
         this.serviceRequestClient = serviceRequestClient;
         this.projectTaskRepository = projectTaskRepository;
+        this.projectBeneficiaryRepository = projectBeneficiaryRepository;
     }
 
     public List<Task> create(TaskRequest request) throws Exception {
@@ -78,6 +86,7 @@ public class ProjectTaskService {
         }
 
         //Check If ProjectBeneficiaryId exist
+        validateProjectBeneficiaryIds(request);
 
         //Enrich Request with Ids
         List<String> taskIdList = idGenService.getIdList(request.getRequestInfo(), CommonUtils.getTenantId(request.getTask()),
@@ -108,6 +117,24 @@ public class ProjectTaskService {
         projectTaskRepository.save(request.getTask(), "save-project-task-topic");
 
         return request.getTask();
+    }
+
+    private void validateProjectBeneficiaryIds(TaskRequest request) {
+        Method idMethod = getIdMethod(request.getTask(), "projectBeneficiaryId",
+                "projectBeneficiaryClientReferenceId");
+        List<String> projectBeneficiaryIds = getIdList(request.getTask(), idMethod);
+        String columnName = "beneficiaryId";
+        if ("getProjectBeneficiaryClientReferenceId".equals(idMethod.getName())) {
+            columnName = "clientReferenceId";
+        }
+        List<String> validProjectBeneficiaryIds = projectBeneficiaryRepository.validateIds(projectBeneficiaryIds,
+                columnName);
+        List<String> invalidProjectBeneficiaryIds = CommonUtils.getDifference(projectBeneficiaryIds,
+                validProjectBeneficiaryIds);
+        if (!invalidProjectBeneficiaryIds.isEmpty()) {
+            throw new CustomException("PROJECT_BENEFICIARY_NOT_FOUND",
+                    String.format("Following project Beneficiary Ids not found: %s", invalidProjectBeneficiaryIds));
+        }
     }
 
     private void checkIfProductVariantExist(List<String> productVariantIds, String tenantId, RequestInfo requestInfo) {
