@@ -14,8 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
-* HouseholdMemberRequest
-*/
+ * HouseholdMemberRequest
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
 
@@ -23,36 +23,26 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdMemberRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
-
-  @Valid
-
-
+public class HouseholdMemberRequest {
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
     private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-        @JsonProperty("HouseholdMember")
-      @NotNull
-
-  @Valid
-
-    @Size(min=1) 
-
+    @JsonProperty("HouseholdMember")
+    @NotNull
+    @Valid
+    @Size(min = 1)
     private List<HouseholdMember> householdMember = new ArrayList<>();
 
-        @JsonProperty("apiOperation")
-    
-  @Valid
-
-
+    @JsonProperty("apiOperation")
+    @Valid
     private ApiOperation apiOperation = null;
 
-
-        public HouseholdMemberRequest addHouseholdMemberItem(HouseholdMember householdMemberItem) {
+    public HouseholdMemberRequest addHouseholdMemberItem(HouseholdMember householdMemberItem) {
         this.householdMember.add(householdMemberItem);
         return this;
-        }
+    }
 
 }
 

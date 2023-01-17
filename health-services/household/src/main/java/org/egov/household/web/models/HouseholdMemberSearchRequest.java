@@ -21,21 +21,16 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 public class HouseholdMemberSearchRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
     private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-        @JsonProperty("HouseholdMember")
-      @NotNull
-
-  @Valid
-
-
-    private HouseholdMemberSearch householdMember = null;
+    @JsonProperty("HouseholdMember")
+    @NotNull
+    @Valid
+    private HouseholdMemberSearch householdMemberSearch = null;
 
 
 }
