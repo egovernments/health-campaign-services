@@ -41,7 +41,6 @@ public class ProjectBeneficiary {
     private String projectId = null;
 
     @JsonProperty("beneficiaryId")
-    @NotNull
     @Size(min=2,max=64)
     private String beneficiaryId = null;
 
@@ -49,9 +48,13 @@ public class ProjectBeneficiary {
     @Min(value = 0, message = "Date must be greater than or equal to 0")
     private Long dateOfRegistration = null;
 
-    @JsonProperty("beneficiaryClientReferenceId")
+    @JsonProperty("clientReferenceId")
     @Size(min=2,max=64)
     private String clientReferenceId = null;
+
+    @JsonProperty("beneficiaryClientReferenceId")
+    @Size(min=2,max=64)
+    private String beneficiaryClientReferenceId = null;
 
     @JsonProperty("additionalFields")
     @Valid
