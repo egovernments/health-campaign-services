@@ -77,7 +77,7 @@ public abstract class GenericRepository<T> {
     public List<T> findById(List<String> ids, Boolean includeDeleted, String columnName) {
         List<T> objFound = findInCache(ids);
         if (!objFound.isEmpty()) {
-            Method idMethod = getIdMethod(objFound);
+            Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
@@ -106,18 +106,29 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
+    private void cacheByKey(List<T> objects, String fieldName) {
+        try{
+            Method getIdMethod = getIdMethod(objects, fieldName);
+            if (ReflectionUtils.invokeMethod(getIdMethod, objects.stream().findAny().get()) != null) {
+                Map<String, T> objMap = objects.stream()
+                        .collect(Collectors
+                                .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
+                                        obj -> obj));
+                redisTemplate.opsForHash().putAll(tableName, objMap);
+                redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
+            }
+        } catch (Exception exception) {
+            log.info(String.format("error while saving cache: %s", exception.getMessage()));
+        }
+    }
+
     public void putInCache(List<T> objects) {
         if(objects == null || objects.isEmpty()) {
             return;
         }
 
-        Method getIdMethod = getIdMethod(objects);
-        Map<String, T> objMap = objects.stream()
-                .collect(Collectors
-                        .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
-                                obj -> obj));
-        redisTemplate.opsForHash().putAll(tableName, objMap);
-        redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
+        cacheByKey(objects, "id");
+        cacheByKey(objects, "clientReferenceId");
     }
 
     public List<T> find(Object searchObject,
