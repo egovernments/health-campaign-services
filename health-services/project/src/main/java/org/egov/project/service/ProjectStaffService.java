@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
-import org.egov.common.utils.CommonUtils;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
@@ -37,10 +37,6 @@ import static org.egov.common.utils.CommonUtils.validateIds;
 @Slf4j
 public class ProjectStaffService {
 
-    public static final String SAVE_KAFKA_TOPIC = "save-project-staff-topic";
-
-    public static final String UPDATE_KAFKA_TOPIC = "update-project-staff-topic";
-
     private final IdGenService idGenService;
 
     private final ProjectStaffRepository projectStaffRepository;
@@ -49,17 +45,21 @@ public class ProjectStaffService {
 
     private final UserService userService;
 
+    private final ProjectConfiguration projectConfiguration;
+
     @Autowired
     public ProjectStaffService(
             IdGenService idGenService,
             ProjectStaffRepository projectStaffRepository,
             ProjectService projectService,
-            UserService userService
+            UserService userService,
+            ProjectConfiguration projectConfiguration
     ) {
         this.idGenService = idGenService;
         this.projectStaffRepository = projectStaffRepository;
         this.projectService = projectService;
         this.userService = userService;
+        this.projectConfiguration = projectConfiguration;
     }
 
     public List<ProjectStaff> create(ProjectStaffRequest projectStaffRequest) throws Exception {
@@ -78,7 +78,7 @@ public class ProjectStaffService {
 
         enrichForCreate(projectStaffs, idList, projectStaffRequest.getRequestInfo());
         log.info("Enrichment done");
-        projectStaffRepository.save(projectStaffs,SAVE_KAFKA_TOPIC);
+        projectStaffRepository.save(projectStaffs, projectConfiguration.getCreateProjectStaffTopic());
         log.info("Pushed to kafka");
         return projectStaffs;
     }
@@ -109,7 +109,7 @@ public class ProjectStaffService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(projectStaffMap, existingProjectStaffs, projectStaffRequest);
 
-        projectStaffRepository.save(projectStaffs, UPDATE_KAFKA_TOPIC);
+        projectStaffRepository.save(projectStaffs, projectConfiguration.getUpdateProjectStaffTopic());
         log.info("Pushed to kafka");
         return projectStaffs;
     }

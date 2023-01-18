@@ -12,6 +12,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -57,10 +58,6 @@ import static org.egov.common.utils.CommonUtils.validateIds;
 @Slf4j
 public class ProjectBeneficiaryService {
 
-    private final String SAVE_KAFKA_TOPIC = "save-project-beneficiary-topic";
-
-    private final String UPDATE_KAFKA_TOPIC = "update-project-beneficiary-topic";
-
     private final String HCM_PROJECT_TYPES = "HCM-PROJECT-TYPES";
 
     private final String PROJECT_TYPES = "projectTypes";
@@ -87,19 +84,23 @@ public class ProjectBeneficiaryService {
 
     private final ServiceRequestClient serviceRequestClient;
 
+    private final ProjectConfiguration projectConfiguration;
+
     @Autowired
     public ProjectBeneficiaryService(
             IdGenService idGenService,
             ProjectBeneficiaryRepository projectBeneficiaryRepository,
             ProjectService projectService,
             MdmsService mdmsService,
-            ServiceRequestClient serviceRequestClient
+            ServiceRequestClient serviceRequestClient,
+            ProjectConfiguration projectConfiguration
     ) {
         this.idGenService = idGenService;
         this.projectBeneficiaryRepository = projectBeneficiaryRepository;
         this.projectService = projectService;
         this.mdmsService = mdmsService;
         this.serviceRequestClient = serviceRequestClient;
+        this.projectConfiguration = projectConfiguration;
     }
 
     public List<ProjectBeneficiary> create(BeneficiaryRequest beneficiaryRequest) throws Exception {
@@ -123,7 +124,7 @@ public class ProjectBeneficiaryService {
 
         enrichForCreate(projectBeneficiary, idList, beneficiaryRequest.getRequestInfo());
         log.info("Enrichment done");
-        projectBeneficiaryRepository.save(projectBeneficiary,SAVE_KAFKA_TOPIC);
+        projectBeneficiaryRepository.save(projectBeneficiary, projectConfiguration.getCreateProjectBeneficiaryTopic());
 
         return projectBeneficiary;
     }
@@ -162,7 +163,7 @@ public class ProjectBeneficiaryService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(projectBeneficiaryMap, existingProjectBeneficiaryIds, beneficiaryRequest, idMethod);
 
-        projectBeneficiaryRepository.save(projectBeneficiary, UPDATE_KAFKA_TOPIC);
+        projectBeneficiaryRepository.save(projectBeneficiary, projectConfiguration.getUpdateProjectBeneficiaryTopic());
 
         return projectBeneficiary;
     }

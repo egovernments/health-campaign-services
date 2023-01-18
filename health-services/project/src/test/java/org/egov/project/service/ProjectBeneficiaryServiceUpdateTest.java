@@ -6,6 +6,7 @@ import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import org.apache.commons.io.IOUtils;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.MdmsService;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
@@ -69,6 +70,9 @@ class ProjectBeneficiaryServiceUpdateTest {
     @Mock
     private ServiceRequestClient serviceRequestClient;
 
+    @Mock
+    private ProjectConfiguration projectConfiguration;
+
     private BeneficiaryRequest request;
 
     private List<String> projectBeneficiaryIds;
@@ -98,6 +102,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         request.setApiOperation(ApiOperation.UPDATE);
         projectBeneficiaryIds = request.getProjectBeneficiary().stream().map(ProjectBeneficiary::getId)
                 .collect(Collectors.toList());
+        lenient().when(projectConfiguration.getUpdateProjectBeneficiaryTopic()).thenReturn("update-topic");
     }
 
 

@@ -2,6 +2,7 @@ package org.egov.product.service;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.service.IdGenService;
+import org.egov.product.config.ProductConfiguration;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
 import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ProductVariant;
@@ -48,6 +49,9 @@ class ProductVariantServiceCreateTest {
 
     private ProductVariantRequest request;
 
+    @Mock
+    private ProductConfiguration productConfiguration;
+
     @BeforeEach
     void setUp() throws Exception {
         request = ProductVariantRequestTestBuilder.builder()
@@ -59,6 +63,7 @@ class ProductVariantServiceCreateTest {
                 any(String.class),
                 eq("product.variant.id"), eq(""), anyInt()))
                 .thenReturn(idList);
+        lenient().when(productConfiguration.getCreateProductVariantTopic()).thenReturn("create-topic");
     }
 
     private void mockValidateProductId() {
