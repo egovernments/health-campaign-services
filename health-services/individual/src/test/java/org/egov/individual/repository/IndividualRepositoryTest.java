@@ -69,7 +69,6 @@ class IndividualRepositoryTest {
         Individual individual = IndividualTestBuilder.builder()
                 .withId()
                 .build();
-        when(hashOperations.entries(anyString())).thenReturn(Collections.emptyMap());
         when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IndividualRowMapper.class)))
                 .thenReturn(Collections.singletonList(individual));
 

@@ -147,8 +147,8 @@ public class ProjectBeneficiaryService {
         List<String> projectBeneficiaryIds = new ArrayList<>(projectBeneficiaryMap.keySet());
         List<ProjectBeneficiary> existingProjectBeneficiaryIds = projectBeneficiaryRepository.findById(
                 projectBeneficiaryIds,
-                getIdFieldName(idMethod),
-                false
+                false,
+                getIdFieldName(idMethod)
         );
 
         validateEntities(projectBeneficiaryMap, existingProjectBeneficiaryIds, idMethod);

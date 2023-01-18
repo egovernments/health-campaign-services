@@ -16,7 +16,9 @@ import org.egov.individual.web.models.IndividualSearch;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.sql.Date;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
@@ -40,13 +44,15 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
     public List<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
         List<Individual> objFound;
-        Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
-        List<String> foundInCache = ids.stream().filter(redisMap::containsKey).collect(Collectors.toList());
-        objFound = foundInCache.stream().map(id -> (Individual) redisMap.get(id)).collect(Collectors.toList());
-        log.info("Cache hit: {}", !objFound.isEmpty());
-        ids.removeAll(foundInCache);
-        if (ids.isEmpty()) {
-            return objFound;
+        objFound = findInCache(ids);
+        if (!objFound.isEmpty()) {
+            Method idMethod = getIdMethod(objFound, idColumn);
+            ids.removeAll(objFound.stream()
+                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+                    .collect(Collectors.toList()));
+            if (ids.isEmpty()) {
+                return objFound;
+            }
         }
 
         String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
