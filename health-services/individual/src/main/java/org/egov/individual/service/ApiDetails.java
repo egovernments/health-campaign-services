@@ -12,8 +12,11 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 public class ApiDetails {
+    private String id;
     private String url;
-    private String requestBody;
+    private Object requestBody;
+    private String methodType;
+    private String contentType;
     private Map<String, Object> requestHeaders;
     private String additionalDetails;
 }

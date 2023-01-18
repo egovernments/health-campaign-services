@@ -24,7 +24,7 @@ public class IndividualRequestTestBuilder {
     }
 
     public IndividualRequestTestBuilder withIndividuals(Individual... args) {
-        this.builder.individual(Arrays.asList(args));
+        this.builder.individuals(Arrays.asList(args));
         return this;
     }
 

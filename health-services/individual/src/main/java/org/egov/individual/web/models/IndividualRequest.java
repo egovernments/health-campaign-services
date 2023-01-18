@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -23,36 +24,23 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class IndividualRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
+public class IndividualRequest {
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
+    private RequestInfo requestInfo = null;
 
-  @Valid
-
-
-    private org.egov.common.contract.request.RequestInfo requestInfo = null;
-
-        @JsonProperty("Individual")
-      @NotNull
-
-  @Valid
-
-    @Size(min=1) 
-
-    private List<Individual> individual = new ArrayList<>();
-
-        @JsonProperty("apiOperation")
-    
-  @Valid
+    @JsonProperty("Individuals")
+    @NotNull
+    @Valid
+    @Size(min = 1)
+    private List<Individual> individuals = new ArrayList<>();
 
 
-    private ApiOperation apiOperation = null;
-
-
-        public IndividualRequest addIndividualItem(Individual individualItem) {
-        this.individual.add(individualItem);
+    public IndividualRequest addIndividualItem(Individual individualItem) {
+        this.individuals.add(individualItem);
         return this;
-        }
+    }
 
 }
 

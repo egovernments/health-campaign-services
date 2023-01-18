@@ -17,7 +17,6 @@ import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
@@ -28,16 +27,13 @@ import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
-import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 
 @Service
@@ -48,34 +44,54 @@ public class IndividualService {
 
     private final IndividualRepository individualRepository;
 
-    private List<Validator<IndividualRequest>> validators;
+    private final List<Validator<IndividualRequest, Individual>> validators;
 
-    private final Predicate<Validator<IndividualRequest>> isApplicableForUpdate = validator ->
+    private final Predicate<Validator<IndividualRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
             || validator.getClass().equals(NonExistentEntityValidator.class)
             || validator.getClass().equals(AddressTypeValidator.class)
             || validator.getClass().equals(RowVersionValidator.class);
 
+    private final Predicate<Validator<IndividualRequest, Individual>> isApplicableForCreate = validator ->
+                    validator.getClass().equals(AddressTypeValidator.class);
+
     @Autowired
     public IndividualService(IdGenService idGenService,
                              IndividualRepository individualRepository,
-                             List<Validator<IndividualRequest>> validators) {
+                             List<Validator<IndividualRequest, Individual>> validators) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
         this.validators = validators;
     }
 
-
     public List<Individual> create(IndividualRequest request) throws Exception {
+        return create(request, false);
+    }
+
+
+    public List<Individual> create(IndividualRequest request, Boolean isBulk) throws Exception {
         // validation layer
-        validateAddressType(request.getIndividual());
-        final String tenantId = getTenantId(request.getIndividual());
+        List<ErrorDetails> errorDetails = (List<ErrorDetails>) validators.stream().filter(isApplicableForCreate)
+                .map(validator -> validator.validate(request))
+                .map(e -> e.values());
+
+        if (!errorDetails.isEmpty()) {
+            if (isBulk) {
+                System.out.println("HANDLE ERRORS()");
+                throw new CustomException("HANDLE_ERRORS", "handle errors");
+            } else {
+                System.out.println("THROW CUSTOM_EXCEPTION()");
+                throw new CustomException("CUSTOM_EXCEPTION", "custom exception");
+            }
+        }
+
+        final String tenantId = getTenantId(request.getIndividuals());
         log.info("Generating id for individuals");
         List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
                 tenantId, "individual.id",
-                null, request.getIndividual().size());
-        enrichForCreate(request.getIndividual(), indIdList, request.getRequestInfo());
-        List<Address> addresses = collectFromList(request.getIndividual(),
+                null, request.getIndividuals().size());
+        enrichForCreate(request.getIndividuals(), indIdList, request.getRequestInfo());
+        List<Address> addresses = collectFromList(request.getIndividuals(),
                 Individual::getAddress);
         if (!addresses.isEmpty()) {
             log.info("Enriching addresses");
@@ -84,23 +100,23 @@ public class IndividualService {
             enrichIndividualIdInAddress(request);
         }
         log.info("Enriching identifiers");
-        request.setIndividual(request.getIndividual().stream()
+        request.setIndividuals(request.getIndividuals().stream()
                 .map(IndividualService::enrichWithSystemGeneratedIdentifier)
                         .map(IndividualService::enrichIndividualIdInIdentifiers)
                 .collect(Collectors.toList()));
-        List<Identifier> identifiers = collectFromList(request.getIndividual(),
+        List<Identifier> identifiers = collectFromList(request.getIndividuals(),
                 Individual::getIdentifiers);
         List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
         enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
-        if (request.getIndividual().stream().anyMatch(individual -> individual.getIdentifiers().stream()
+        if (request.getIndividuals().stream().anyMatch(individual -> individual.getIdentifiers().stream()
                 .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
             List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
                     tenantId, "sys.gen.identifier.id",
                     null, identifiers.size());
             enrichWithSysGenId(identifiers, sysGenIdList);
         }
-        individualRepository.save(request.getIndividual(), "save-individual-topic");
-        return request.getIndividual();
+        individualRepository.save(request.getIndividuals(), "save-individual-topic");
+        return request.getIndividuals();
     }
 
     private void validateAddressType(List<Individual> individuals) {
@@ -136,7 +152,7 @@ public class IndividualService {
     }
 
     private static void enrichIndividualIdInAddress(IndividualRequest request) {
-        request.getIndividual().stream().filter(individual -> individual.getAddress() != null)
+        request.getIndividuals().stream().filter(individual -> individual.getAddress() != null)
                 .forEach(individual -> individual.getAddress()
                         .forEach(address -> address.setIndividualId(individual.getId())));
     }
@@ -187,23 +203,24 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualRequest request) {
-        Method idMethod = getIdMethod(request.getIndividual());
-        Map<String, Individual> iMap = getIdToObjMap(request.getIndividual(), idMethod);
-        List<ErrorDetails> errorDetails = validators.stream().filter(isApplicableForUpdate)
-                .map(validator -> validator.validate(request))
-                .flatMap(Collection::stream).collect(Collectors.toList());
-        log.error(errorDetails.toString());
-
-        // necessary to enrich server gen id in case where request has only clientReferenceId
-        // this is because persister config has where clause on server gen id only
-        // to solve this we might have to create different topic which would only cater to clientReferenceId
-
-        if (request.getIndividual().stream().anyMatch(notHavingErrors())) {
-            log.info("Updating lastModifiedTime and lastModifiedBy");
-            enrichForUpdate(iMap, request);
-            individualRepository.save(request.getIndividual(), "update-individual-topic");
-        }
-        return request.getIndividual();
+//        Method idMethod = getIdMethod(request.getIndividuals());
+//        Map<String, Individual> iMap = getIdToObjMap(request.getIndividuals(), idMethod);
+//        List<ErrorDetails> errorDetails = validators.stream().filter(isApplicableForUpdate)
+//                .map(validator -> validator.validate(request))
+//                .flatMap(Collection::stream).collect(Collectors.toList());
+//        log.error(errorDetails.toString());
+//
+//        // necessary to enrich server gen id in case where request has only clientReferenceId
+//        // this is because persister config has where clause on server gen id only
+//        // to solve this we might have to create different topic which would only cater to clientReferenceId
+//
+//        if (request.getIndividuals().stream().anyMatch(notHavingErrors())) {
+//            log.info("Updating lastModifiedTime and lastModifiedBy");
+//            enrichForUpdate(iMap, request);
+//            individualRepository.save(request.getIndividuals(), "update-individual-topic");
+//        }
+//        return request.getIndividuals();
+        return null;
     }
 
     private void deleteRelatedEntities(IndividualRequest request, Method idMethod,

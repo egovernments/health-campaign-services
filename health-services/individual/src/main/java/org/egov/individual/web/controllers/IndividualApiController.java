@@ -3,14 +3,12 @@ package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
-import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualResponse;
 import org.egov.individual.web.models.IndividualSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,23 +48,30 @@ import java.util.List;
         this.servletRequest = servletRequest;
         }
 
-                @RequestMapping(value="/v1/_create", method = RequestMethod.POST)
-                public ResponseEntity<IndividualResponse> individualV1CreatePost(@ApiParam(value = "Capture details of Individual." ,required=true )  @Valid @RequestBody IndividualRequest request,@ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue="true") Boolean echoResource) throws Exception {
-                    if (CommonUtils.isForCreate(request)) {
-                        List<Individual> individuals = individualService.create(request);
-                        IndividualResponse response = IndividualResponse.builder()
-                                .individual(individuals)
-                                .responseInfo(ResponseInfoFactory
-                                        .createResponseInfo(request.getRequestInfo(), true))
-                                .build();
+    @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
+    public ResponseEntity<IndividualResponse> individualV1CreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+        List<Individual> individuals = individualService.create(request);
+        IndividualResponse response = IndividualResponse.builder()
+                .individual(individuals)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
 
-                        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
-                    } else {
-                        throw new CustomException("INVALID_API_OPERATION",
-                                String.format("API Operation %s not valid for create request",
-                                        request.getApiOperation()));
-                    }
-                }
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+
+    }
+
+    @RequestMapping(value="/v1/bulk/_create", method = RequestMethod.POST)
+    public ResponseEntity<IndividualResponse> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual." ,required=true )  @Valid @RequestBody IndividualRequest request,@ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue="true") Boolean echoResource) throws Exception {
+
+            individualService.create(request);
+            IndividualResponse response = IndividualResponse.builder()
+                    .responseInfo(ResponseInfoFactory
+                            .createResponseInfo(request.getRequestInfo(), true))
+                    .build();
+
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
 
                 @RequestMapping(value="/v1/_search", method = RequestMethod.POST)
                 public ResponseEntity<IndividualResponse> individualV1SearchPost(@ApiParam(value = "Individual details." ,required=true )  @Valid @RequestBody IndividualSearchRequest request, @NotNull
@@ -82,22 +87,17 @@ import java.util.List;
                     return ResponseEntity.status(HttpStatus.OK).body(response);
                 }
 
-                @RequestMapping(value="/v1/_update", method = RequestMethod.POST)
-                public ResponseEntity<IndividualResponse> individualV1UpdatePost(@ApiParam(value = "Details for the Individual." ,required=true )  @Valid @RequestBody IndividualRequest request,@ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue="true") Boolean echoResource) {
-                    if (CommonUtils.isForUpdate(request) || CommonUtils.isForDelete(request)) {
-                        List<Individual> individuals = individualService.update(request);
-                        IndividualResponse response = IndividualResponse.builder()
-                                .individual(individuals)
-                                .responseInfo(ResponseInfoFactory
-                                        .createResponseInfo(request.getRequestInfo(), true))
-                                .build();
+    @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
+    public ResponseEntity<IndividualResponse> individualV1UpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+        List<Individual> individuals = individualService.update(request);
+        IndividualResponse response = IndividualResponse.builder()
+                .individual(individuals)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
 
-                        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
-                    } else {
-                        throw new CustomException("INVALID_API_OPERATION",
-                                String.format("API Operation %s not valid for update request",
-                                        request.getApiOperation()));
-                    }
-                }
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+
+    }
 
         }

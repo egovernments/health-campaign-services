@@ -5,15 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ErrorDetails {
-    private ApiDetails apiDetails;
-    private List<Error> errors;
+public class Error {
+    private Exception exception;
+    private String errorCode;
+    private String errorMessage;
+    private String type;
+    private String additionalDetails;
 }
-
-

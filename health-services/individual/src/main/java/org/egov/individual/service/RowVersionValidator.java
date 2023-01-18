@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -22,7 +24,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 
 @Component
 @Order(value = 4)
-public class RowVersionValidator implements Validator<IndividualRequest> {
+public class RowVersionValidator implements Validator<IndividualRequest, Individual> {
 
     private final ObjectMapper objectMapper;
 
@@ -37,10 +39,10 @@ public class RowVersionValidator implements Validator<IndividualRequest> {
 
 
     @Override
-    public List<ErrorDetails> validate(IndividualRequest request) {
-        List<ErrorDetails> errorDetailsList = new ArrayList<>();
-        Method idMethod = getIdMethod(request.getIndividual());
-        Map<String, Individual> iMap = getIdToObjMap(request.getIndividual().stream()
+    public Map<Individual, ErrorDetails> validate(IndividualRequest request) {
+        Map<Individual, ErrorDetails> errorDetailsMap = new HashMap<>();
+        Method idMethod = getIdMethod(request.getIndividuals());
+        Map<String, Individual> iMap = getIdToObjMap(request.getIndividuals().stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
@@ -49,10 +51,12 @@ public class RowVersionValidator implements Validator<IndividualRequest> {
                     getIdFieldName(idMethod), false);
             List<Individual> individualsWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(iMap, existingIndividuals, idMethod);
-            individualsWithMismatchedRowVersion.forEach(individual ->
-                    populateErrorDetails(individual, "MISMATCHED_ROW_VERSION",
-                            "Row version mismatch", request, errorDetailsList, objectMapper));
+            individualsWithMismatchedRowVersion.forEach(individual -> {
+                Error error = Error.builder().errorMessage("Row version mismatch").errorCode("MISMATCHED_ROW_VERSION")
+                        .exception(new CustomException("MISMATCHED_ROW_VERSION", "Row version mismatch")).build();
+                populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+            });
         }
-        return errorDetailsList;
+        return errorDetailsMap;
     }
 }

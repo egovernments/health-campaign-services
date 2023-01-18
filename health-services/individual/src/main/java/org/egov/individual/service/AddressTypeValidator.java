@@ -5,18 +5,20 @@ import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Component
 @Order(value = 2)
-public class AddressTypeValidator implements Validator<IndividualRequest> {
+public class AddressTypeValidator implements Validator<IndividualRequest, Individual> {
 
     private final ObjectMapper objectMapper;
 
@@ -27,12 +29,15 @@ public class AddressTypeValidator implements Validator<IndividualRequest> {
 
 
     @Override
-    public List<ErrorDetails> validate(IndividualRequest request) {
-        List<ErrorDetails> errorDetailsList = new ArrayList<>();
-        List<Individual> individualsWithInvalidAddress = validateAddressType(request.getIndividual());
-        individualsWithInvalidAddress.forEach(individual -> populateErrorDetails(individual, "INVALID_ADDRESS",
-                "Invalid address", request, errorDetailsList, objectMapper));
-        return errorDetailsList;
+    public Map<Individual, ErrorDetails> validate(IndividualRequest request) {
+        Map<Individual, ErrorDetails> errorDetailsMap = new HashMap<>();
+        List<Individual> individualsWithInvalidAddress = validateAddressType(request.getIndividuals());
+        individualsWithInvalidAddress.forEach(individual -> {
+            Error error = Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
+                    .exception(new CustomException("INVALID_ADDRESS", "Invalid address")).build();
+            populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+        });
+        return errorDetailsMap;
     }
 
     private List<Individual> validateAddressType(List<Individual> indInReq) {
