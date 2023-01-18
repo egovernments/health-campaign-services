@@ -125,7 +125,7 @@ public class ProjectTaskService {
         List<String> projectBeneficiaryIds = getIdList(request.getTask(), idMethod);
         String columnName = "beneficiaryId";
         if ("getProjectBeneficiaryClientReferenceId".equals(idMethod.getName())) {
-            columnName = "clientReferenceId";
+            columnName = "beneficiaryClientReferenceId";
         }
         List<String> validProjectBeneficiaryIds = projectBeneficiaryRepository.validateIds(projectBeneficiaryIds,
                 columnName);
