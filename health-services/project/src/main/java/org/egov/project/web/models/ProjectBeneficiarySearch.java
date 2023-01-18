@@ -26,9 +26,11 @@ import javax.validation.constraints.Size;
 public class ProjectBeneficiarySearch   {
 
     @JsonProperty("id")
+    @Size(min=2,max=64)
     private String id = null;
 
     @JsonProperty("tenantId")
+    @Size(min=2,max=1000)
     private String tenantId = null;
 
     @JsonProperty("projectId")
@@ -39,8 +41,12 @@ public class ProjectBeneficiarySearch   {
     @Size(min=2,max=64)
     private String beneficiaryId = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min=2,max=64)
+    private String clientReferenceId = null;
+
     @JsonProperty("dateOfRegistration")
-    private Integer dateOfRegistration = null;
+    private Long dateOfRegistration = null;
 
 }
 

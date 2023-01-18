@@ -21,7 +21,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -135,16 +134,18 @@ class GenericRepositoryFindTest {
     @Test
     @DisplayName("should validate id using column name")
     void shouldReturnValidIdsFromDBOrCache() {
-        HashMap<String, Object> hashtable = new HashMap<>();
-        hashtable.put("id1", new Object());
-        hashtable.put("id2", new Object());
-        when(hashOperations.entries(anyString())).thenReturn(hashtable);
-        when(namedParameterJdbcTemplate.queryForList(anyString(), anyMap(), any()))
-                .thenReturn(Arrays.asList("id3", "id4"));
-        List<String> idsToValidate = Arrays.asList("id1", "id2", "id3", "id4");
+        when(hashOperations.multiGet(anyString(), anyList())).thenReturn(
+                Arrays.asList(SomeObject.builder().id("id1").build(),SomeObject.builder().id("id2").build())
+        );
+        when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(SomeRowMapper.class)))
+                .thenReturn(someObjects);
+        List<String> idsToValidate = new ArrayList<>();
+        idsToValidate.add("id1");
+        idsToValidate.add("id2");
+        idsToValidate.add("id3");
+        idsToValidate.add("id4");
+        List<String> idsFound = someRepository.validateIds(idsToValidate, "id");
 
-        List<String> idsFound = someRepository.validateIds(idsToValidate, "colName");
-
-        assertEquals(idsToValidate.size(), idsFound.size());
+        assertEquals(idsFound.size(), 4);
     }
 }

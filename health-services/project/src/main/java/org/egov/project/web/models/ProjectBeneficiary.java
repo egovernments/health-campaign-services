@@ -11,9 +11,9 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.time.LocalDate;
 
 /**
 * A representation of the registration of an entity to a Project.
@@ -32,6 +32,7 @@ public class ProjectBeneficiary {
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min=2,max=64)
     private String tenantId = null;
 
     @JsonProperty("projectId")
@@ -40,17 +41,20 @@ public class ProjectBeneficiary {
     private String projectId = null;
 
     @JsonProperty("beneficiaryId")
-    @NotNull
     @Size(min=2,max=64)
     private String beneficiaryId = null;
 
     @JsonProperty("dateOfRegistration")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private LocalDate dateOfRegistration = null;
+    @Min(value = 0, message = "Date must be greater than or equal to 0")
+    private Long dateOfRegistration = null;
+
+    @JsonProperty("clientReferenceId")
+    @Size(min=2,max=64)
+    private String clientReferenceId = null;
 
     @JsonProperty("beneficiaryClientReferenceId")
     @Size(min=2,max=64)
-    private String clientReferenceId = null;
+    private String beneficiaryClientReferenceId = null;
 
     @JsonProperty("additionalFields")
     @Valid

@@ -5,6 +5,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.web.models.ProjectStaff;
@@ -53,6 +54,9 @@ class ProjectStaffServiceCreateTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private ProjectConfiguration projectConfiguration;
+
     private ProjectStaffRequest request;
 
     @BeforeEach
@@ -66,6 +70,7 @@ class ProjectStaffServiceCreateTest {
                 any(String.class),
                 eq("project.staff.id"), eq(""), anyInt()))
                 .thenReturn(idList);
+        lenient().when(projectConfiguration.getCreateProjectStaffTopic()).thenReturn("create-topic");
     }
 
     private void mockValidateProjectId() {

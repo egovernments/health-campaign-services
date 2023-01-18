@@ -89,7 +89,6 @@ serviceMaps:
             - jsonPath: $.*.beneficiaryClientReferenceId
 
             - jsonPath: $.*.dateOfRegistration
-              type: DATE
 
             - jsonPath: $.*.additionalFields
               type: JSON
@@ -123,7 +122,6 @@ serviceMaps:
             - jsonPath: $.*.beneficiaryClientReferenceId
 
             - jsonPath: $.*.dateOfRegistration
-              type: DATE
 
             - jsonPath: $.*.additionalFields
               type: JSON
