@@ -106,19 +106,21 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
-    private void cacheByKey(List<T> objects, String fieldName) {
+    protected void cacheByKey(List<T> objects, String fieldName) {
         try{
             Method getIdMethod = getIdMethod(objects, fieldName);
             if (ReflectionUtils.invokeMethod(getIdMethod, objects.stream().findAny().get()) != null) {
                 Map<String, T> objMap = objects.stream()
                         .collect(Collectors
                                 .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
-                                        obj -> obj));
+                                        obj -> obj,
+                                        // in case of duplicates pick the latter
+                                        (obj1, obj2) -> obj2));
                 redisTemplate.opsForHash().putAll(tableName, objMap);
                 redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
             }
         } catch (Exception exception) {
-            log.info(String.format("error while saving cache: %s", exception.getMessage()));
+            log.warn("Error while saving cache", exception);
         }
     }
 
