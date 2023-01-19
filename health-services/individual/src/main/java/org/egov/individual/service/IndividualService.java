@@ -1,17 +1,24 @@
 package org.egov.individual.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -19,6 +26,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -27,13 +35,16 @@ import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichId;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 
 @Service
@@ -44,79 +55,161 @@ public class IndividualService {
 
     private final IndividualRepository individualRepository;
 
-    private final List<Validator<IndividualRequest, Individual>> validators;
+    private final List<Validator<IndividualBulkRequest, Individual>> validators;
 
-    private final Predicate<Validator<IndividualRequest, Individual>> isApplicableForUpdate = validator ->
+    private final ObjectMapper objectMapper;
+
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
             || validator.getClass().equals(NonExistentEntityValidator.class)
             || validator.getClass().equals(AddressTypeValidator.class)
-            || validator.getClass().equals(RowVersionValidator.class);
+            || validator.getClass().equals(RowVersionValidator.class)
+            || validator.getClass().equals(UniqueEntityValidator.class);
 
-    private final Predicate<Validator<IndividualRequest, Individual>> isApplicableForCreate = validator ->
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
                     validator.getClass().equals(AddressTypeValidator.class);
 
     @Autowired
     public IndividualService(IdGenService idGenService,
                              IndividualRepository individualRepository,
-                             List<Validator<IndividualRequest, Individual>> validators) {
+                             List<Validator<IndividualBulkRequest, Individual>> validators,
+                             @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
         this.validators = validators;
+        this.objectMapper = objectMapper;
+    }
+
+    @KafkaListener(topics = "bulk")
+    public List<Individual> bulkCreate(Map<String, Object> consumerRecord,
+                                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
+        IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
+        return create(request, true);
+    }
+
+    @KafkaListener(topics = "bulk-update")
+    public List<Individual> bulkUpdate(Map<String, Object> consumerRecord,
+                                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
+        IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
+        return update(request, true);
     }
 
     public List<Individual> create(IndividualRequest request) throws Exception {
-        return create(request, false);
+        IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .individuals(Collections.singletonList(request.getIndividual())).build();
+        return create(bulkRequest, false);
     }
 
+    public List<Individual> create(IndividualBulkRequest request, Boolean isBulk) throws Exception {
 
-    public List<Individual> create(IndividualRequest request, Boolean isBulk) throws Exception {
-        // validation layer
-        List<ErrorDetails> errorDetails = (List<ErrorDetails>) validators.stream().filter(isApplicableForCreate)
+        log.info("validation start");
+        Map<Individual, ErrorDetails> errorDetailsMap = new HashMap<>();
+        validators.stream().filter(isApplicableForCreate)
                 .map(validator -> validator.validate(request))
-                .map(e -> e.values());
+                .forEach(e -> populateErrorDetailsGeneric(request, errorDetailsMap, e, "setIndividuals"));
 
-        if (!errorDetails.isEmpty()) {
+        if (!errorDetailsMap.isEmpty()) {
             if (isBulk) {
-                System.out.println("HANDLE ERRORS()");
-                throw new CustomException("HANDLE_ERRORS", "handle errors");
+                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
             } else {
-                System.out.println("THROW CUSTOM_EXCEPTION()");
-                throw new CustomException("CUSTOM_EXCEPTION", "custom exception");
+                throw new CustomException("validation errors", errorDetailsMap.values().toString());
             }
         }
+        /*
+            How to handle senario where there are errors in valid individuals? kafka retries the entire request again.
+            What happens if there are any errors using IDgen?
+            where to call handleErrors()? call at the very end or right after the validation?
+         */
+        List<Individual> validIndividuals = request.getIndividuals().stream()
+                .filter(notHavingErrors()).collect(Collectors.toList());
+        if (!validIndividuals.isEmpty()) {
+            log.info("Getting tenantId");
+            final String tenantId = getTenantId(validIndividuals);
+            log.info("Generating id for individuals");
+            List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
+                    tenantId, "individual.id",
+                    null, validIndividuals.size());
+            enrichForCreate(validIndividuals, indIdList, request.getRequestInfo());
+            List<Address> addresses = collectFromList(validIndividuals,
+                    Individual::getAddress);
+            if (!addresses.isEmpty()) {
+                log.info("Enriching addresses");
+                List<String> addressIdList = uuidSupplier().apply(addresses.size());
+                enrichForCreate(addresses, addressIdList, request.getRequestInfo());
+                enrichIndividualIdInAddress(request);
+            }
+            log.info("Enriching identifiers");
+            request.setIndividuals(validIndividuals.stream()
+                    .map(IndividualService::enrichWithSystemGeneratedIdentifier)
+                    .map(IndividualService::enrichIndividualIdInIdentifiers)
+                    .collect(Collectors.toList()));
+            List<Identifier> identifiers = collectFromList(validIndividuals,
+                    Individual::getIdentifiers);
+            List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
+            enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
+            if (validIndividuals.stream().anyMatch(individual -> individual.getIdentifiers().stream()
+                    .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
+                List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
+                        tenantId, "sys.gen.identifier.id",
+                        null, identifiers.size());
+                enrichWithSysGenId(identifiers, sysGenIdList);
+            }
+            individualRepository.save(validIndividuals, "save-individual-topic");
+        }
 
-        final String tenantId = getTenantId(request.getIndividuals());
-        log.info("Generating id for individuals");
-        List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
-                tenantId, "individual.id",
-                null, request.getIndividuals().size());
-        enrichForCreate(request.getIndividuals(), indIdList, request.getRequestInfo());
-        List<Address> addresses = collectFromList(request.getIndividuals(),
-                Individual::getAddress);
-        if (!addresses.isEmpty()) {
-            log.info("Enriching addresses");
-            List<String> addressIdList = uuidSupplier().apply(addresses.size());
-            enrichForCreate(addresses, addressIdList, request.getRequestInfo());
-            enrichIndividualIdInAddress(request);
+        return validIndividuals;
+    }
+
+    private static void populateErrorDetails(IndividualBulkRequest request, Map<Individual, ErrorDetails> errorDetailsMap, Map<Individual, List<Error>> e) {
+        for (Map.Entry<Individual, List<Error>> entry : e.entrySet()) {
+            Individual individual = entry.getKey();
+            if (errorDetailsMap.containsKey(individual)) {
+                errorDetailsMap.get(individual).getErrors().addAll(entry.getValue());
+            } else {
+                ApiDetails apiDetails = request.getApiDetails();
+                apiDetails.setRequestBody(IndividualBulkRequest.builder()
+                        .requestInfo(request.getRequestInfo())
+                        .individuals(Collections.singletonList(individual))
+                        .build());
+                ErrorDetails errorDetails = ErrorDetails.builder()
+                        .errors(entry.getValue())
+                        .apiDetails(apiDetails)
+                        .build();
+                errorDetailsMap.put(individual, errorDetails);
+            }
         }
-        log.info("Enriching identifiers");
-        request.setIndividuals(request.getIndividuals().stream()
-                .map(IndividualService::enrichWithSystemGeneratedIdentifier)
-                        .map(IndividualService::enrichIndividualIdInIdentifiers)
-                .collect(Collectors.toList()));
-        List<Identifier> identifiers = collectFromList(request.getIndividuals(),
-                Individual::getIdentifiers);
-        List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
-        enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
-        if (request.getIndividuals().stream().anyMatch(individual -> individual.getIdentifiers().stream()
-                .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
-            List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
-                    tenantId, "sys.gen.identifier.id",
-                    null, identifiers.size());
-            enrichWithSysGenId(identifiers, sysGenIdList);
+    }
+
+    private static <T, R> void populateErrorDetailsGeneric(R request,
+                                                           Map<T, ErrorDetails> errorDetailsMap,
+                                                           Map<T, List<Error>> errorMap,
+                                                           String setPayloadMethodName) {
+        try {
+            for (Map.Entry<T, List<Error>> entry : errorMap.entrySet()) {
+                T payload = entry.getKey();
+                if (errorDetailsMap.containsKey(payload)) {
+                    errorDetailsMap.get(payload).getErrors().addAll(entry.getValue());
+                } else {
+                    ApiDetails apiDetails = (ApiDetails) ReflectionUtils
+                            .invokeMethod(getMethod("getApiDetails", request.getClass()), request);
+                    RequestInfo requestInfo = (RequestInfo) ReflectionUtils
+                            .invokeMethod(getMethod("getRequestInfo", request.getClass()), request);
+                    R newRequest = (R) ReflectionUtils.accessibleConstructor(request.getClass(), null).newInstance();
+                    ReflectionUtils.invokeMethod(getMethod("setRequestInfo", newRequest.getClass()), newRequest, requestInfo);
+                    ReflectionUtils.invokeMethod(getMethod(setPayloadMethodName, newRequest.getClass()), newRequest,
+                            Collections.singletonList(payload));
+                    apiDetails.setRequestBody(newRequest);
+                    ErrorDetails errorDetails = ErrorDetails.builder()
+                            .errors(entry.getValue())
+                            .apiDetails(apiDetails)
+                            .build();
+                    errorDetailsMap.put(payload, errorDetails);
+                }
+            }
+        } catch (Exception exception) {
+            log.error("failure in error handling", exception);
+            throw new CustomException("FAILURE_IN_ERROR_HANDLING", exception.getMessage());
         }
-        individualRepository.save(request.getIndividuals(), "save-individual-topic");
-        return request.getIndividuals();
     }
 
     private void validateAddressType(List<Individual> individuals) {
@@ -151,7 +244,7 @@ public class IndividualService {
         return individual;
     }
 
-    private static void enrichIndividualIdInAddress(IndividualRequest request) {
+    private static void enrichIndividualIdInAddress(IndividualBulkRequest request) {
         request.getIndividuals().stream().filter(individual -> individual.getAddress() != null)
                 .forEach(individual -> individual.getAddress()
                         .forEach(address -> address.setIndividualId(individual.getId())));
@@ -221,6 +314,47 @@ public class IndividualService {
 //        }
 //        return request.getIndividuals();
         return null;
+    }
+
+    public List<Individual> update(IndividualBulkRequest request, Boolean isBulk) {
+        Map<Individual, ErrorDetails> errorDetailsMap = new HashMap<>();
+        validators.stream().filter(isApplicableForUpdate)
+                .map(validator -> validator.validate(request))
+                .forEach(e -> populateErrorDetailsGeneric(request, errorDetailsMap, e, "setIndividuals"));
+
+        if (!errorDetailsMap.isEmpty()) {
+            if (isBulk) {
+                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
+            } else {
+                throw new CustomException("validation errors", errorDetailsMap.values().toString());
+            }
+        }
+
+        // necessary to enrich server gen id in case where request has only clientReferenceId
+        // this is because persister config has where clause on server gen id only
+        // to solve this we might have to create different topic which would only cater to clientReferenceId
+        request.getIndividuals().stream().forEach(
+                individual -> {
+                    List<Address> addresses = individual.getAddress().stream().filter(ad1 -> ad1.getId() == null)
+                            .collect(Collectors.toList());
+                    List<String> addressIdList = uuidSupplier().apply(addresses.size());
+                    enrichId(addresses, addressIdList);
+
+                    List<Identifier> identifiers = individual.getIdentifiers().stream().filter(identifier -> identifier.getId() == null)
+                            .collect(Collectors.toList());
+                    List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
+                    enrichId(identifiers, addressIdList);
+                }
+        );
+
+
+        if (request.getIndividuals().stream().anyMatch(notHavingErrors())) {
+            log.info("Updating lastModifiedTime and lastModifiedBy");
+            //enrichForUpdate(iMap, request);
+            individualRepository.save(request.getIndividuals(), "update-individual-topic");
+        }
+        return request.getIndividuals();
+        //return null;
     }
 
     private void deleteRelatedEntities(IndividualRequest request, Method idMethod,

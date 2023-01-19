@@ -3,7 +3,7 @@ package org.egov.individual.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualRequest;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -24,7 +24,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 
 @Component
 @Order(value = 3)
-public class NonExistentEntityValidator implements Validator<IndividualRequest, Individual> {
+public class NonExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final ObjectMapper objectMapper;
 
@@ -39,8 +39,8 @@ public class NonExistentEntityValidator implements Validator<IndividualRequest, 
 
 
     @Override
-    public Map<Individual, ErrorDetails> validate(IndividualRequest request) {
-        Map<Individual, ErrorDetails> errorDetailsMap = new HashMap<>();
+    public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getIndividuals());
         Map<String, Individual> iMap = getIdToObjMap(request.getIndividuals()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);

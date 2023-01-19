@@ -2,7 +2,7 @@ package org.egov.individual.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualRequest;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -18,7 +18,7 @@ import static org.egov.common.utils.CommonUtils.identifyObjectsWithNullIds;
 
 @Component
 @Order(value = 1)
-public class NullIdValidator implements Validator<IndividualRequest, Individual> {
+public class NullIdValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final ObjectMapper objectMapper;
 
@@ -28,8 +28,8 @@ public class NullIdValidator implements Validator<IndividualRequest, Individual>
     }
 
     @Override
-    public Map<Individual, ErrorDetails> validate(IndividualRequest request) {
-        HashMap<Individual, ErrorDetails> errorDetailsMap = new HashMap();
+    public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        HashMap<Individual, List<Error>> errorDetailsMap = new HashMap();
         Method idMethod = getIdMethod(request.getIndividuals());
         List<Individual> indWithNullIds = identifyObjectsWithNullIds(request.getIndividuals(), idMethod);
         indWithNullIds.forEach(individual -> {

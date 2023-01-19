@@ -1,10 +1,11 @@
 package org.egov.individual.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualRequest;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -18,7 +19,8 @@ import java.util.Map;
 
 @Component
 @Order(value = 2)
-public class AddressTypeValidator implements Validator<IndividualRequest, Individual> {
+@Slf4j
+public class AddressTypeValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final ObjectMapper objectMapper;
 
@@ -29,8 +31,9 @@ public class AddressTypeValidator implements Validator<IndividualRequest, Indivi
 
 
     @Override
-    public Map<Individual, ErrorDetails> validate(IndividualRequest request) {
-        Map<Individual, ErrorDetails> errorDetailsMap = new HashMap<>();
+    public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        log.info("address validation started");
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> individualsWithInvalidAddress = validateAddressType(request.getIndividuals());
         individualsWithInvalidAddress.forEach(individual -> {
             Error error = Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
