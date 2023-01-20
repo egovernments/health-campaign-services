@@ -207,7 +207,9 @@ public class IndividualService {
                     ReflectionUtils.invokeMethod(getMethod("setRequestInfo", newRequest.getClass()), newRequest, requestInfo);
                     ReflectionUtils.invokeMethod(getMethod(setPayloadMethodName, newRequest.getClass()), newRequest,
                             Collections.singletonList(payload));
-                    apiDetails.setRequestBody(newRequest);
+                    if (apiDetails != null) {
+                        apiDetails.setRequestBody(newRequest);
+                    }
                     ErrorDetails errorDetails = ErrorDetails.builder()
                             .errors(entry.getValue())
                             .apiDetails(apiDetails)
