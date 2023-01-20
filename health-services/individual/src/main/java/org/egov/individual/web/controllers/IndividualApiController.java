@@ -78,7 +78,7 @@ public class IndividualApiController {
         request.setApiDetails(ApiDetails.builder()
                 .methodType(servletRequest.getMethod())
                 .contentType(servletRequest.getContentType())
-                .url(servletRequest.getPathInfo()).build());
+                .url(servletRequest.getRequestURI()).build());
 
         producer.push("bulk", request);
 
@@ -117,7 +117,7 @@ public class IndividualApiController {
         request.setApiDetails(ApiDetails.builder()
                 .methodType(servletRequest.getMethod())
                 .contentType(servletRequest.getContentType())
-                .url(servletRequest.getPathInfo()).build());
+                .url(servletRequest.getRequestURI()).build());
 
         producer.push("bulk-update", request);
 

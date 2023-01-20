@@ -249,6 +249,39 @@ class CommonUtilsTest {
     }
 
     @Test
+    @DisplayName("should return request object with mismatched row version")
+    void shouldReturnRequestObjectWithMismatchedRowVersion() {
+        SomeObject someObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(1)
+                .build();
+
+        SomeObject someOtherObject = SomeObject.builder()
+                .id("some-other-id")
+                .rowVersion(1)
+                .build();
+        Map<String, SomeObject> idToObjMap = new HashMap<>();
+        idToObjMap.put(someObject.getId(), someObject);
+        idToObjMap.put(someOtherObject.getId(), someOtherObject);
+        SomeObject otherObject = SomeObject.builder()
+                .id("some-id")
+                .rowVersion(1)
+                .build();
+        SomeObject otherInvalidObject = SomeObject.builder()
+                .id("some-other-id")
+                .rowVersion(2)
+                .build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(otherObject);
+        objList.add(otherInvalidObject);
+
+        Method idMethod = CommonUtils.getMethod("getId", SomeObject.class);
+
+        assertEquals("some-other-id",
+                CommonUtils.getEntitiesWithMismatchedRowVersion(idToObjMap, objList, idMethod).get(0).getId());
+    }
+
+    @Test
     @DisplayName("should throw exception if row versions mismatch")
     void shouldThrowExceptionIfRowVersionsMismatch() {
         SomeObject someObject = SomeObject.builder()
