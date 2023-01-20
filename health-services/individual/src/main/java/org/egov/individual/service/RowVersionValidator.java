@@ -1,6 +1,7 @@
 package org.egov.individual.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
@@ -24,6 +25,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 
 @Component
 @Order(value = 4)
+@Slf4j
 public class RowVersionValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final ObjectMapper objectMapper;
@@ -57,6 +59,7 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
                 populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
             });
         }
+        log.info("row version validation finished");
         return errorDetailsMap;
     }
 }

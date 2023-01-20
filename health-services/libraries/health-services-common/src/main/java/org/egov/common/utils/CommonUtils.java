@@ -171,6 +171,7 @@ public class CommonUtils {
                 .filter(obj -> !Objects.equals(ReflectionUtils.invokeMethod(rowVersionMethod, obj),
                         ReflectionUtils.invokeMethod(rowVersionMethod,
                                 idToObjMap.get(ReflectionUtils.invokeMethod(idMethod, obj)))))
+                .map(obj -> idToObjMap.get(ReflectionUtils.invokeMethod(idMethod, obj)))
                 .collect(Collectors.toList());
     }
 
@@ -244,14 +245,22 @@ public class CommonUtils {
         Method getRowVersionMethod = getMethod("getRowVersion", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
-        Method getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
+
         Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
         idToObjMap.keySet().forEach(i -> {
             Object obj = idToObjMap.get(i);
-            Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
-            Method nameMethod = CommonUtils.getMethod("name", Enum.class);
-            if ("DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation))) {
-                ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+            Method getApiOperationMethod = null;
+            try {
+                getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
+            } catch (Exception e) {
+                //will be removed later
+            }
+            if (getApiOperationMethod != null) {
+                Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
+                Method nameMethod = CommonUtils.getMethod("name", Enum.class);
+                if ("DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation))) {
+                    ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+                }
             }
             Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
             ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
@@ -304,7 +313,7 @@ public class CommonUtils {
 
     public static <T> Map<String, T> getIdToObjMap(List<T> objList, Method idMethod) {
         return objList.stream().collect(Collectors.toMap(obj -> (String) ReflectionUtils
-                .invokeMethod(idMethod, obj), obj -> obj));
+                .invokeMethod(idMethod, obj), obj -> obj, (obj1, obj2) -> obj2));
     }
 
     public static <T> void validateEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList) {

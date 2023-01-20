@@ -33,7 +33,6 @@ public class AddressRowMapper implements RowMapper<Address> {
                         .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                         .createdTime(resultSet.getLong("createdTime"))
                         .lastModifiedTime(resultSet.getLong("lastModifiedTime")).build())
-                .rowVersion(resultSet.getInt("rowVersion"))
                 .isDeleted(resultSet.getBoolean("isDeleted"))
                         .build();
     }

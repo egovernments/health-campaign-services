@@ -1,6 +1,7 @@
 package org.egov.individual.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;
@@ -12,12 +13,16 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.identifyObjectsWithNullIds;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
 
 @Component
 @Order(value = 1)
+@Slf4j
 public class NullIdValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final ObjectMapper objectMapper;
@@ -30,13 +35,19 @@ public class NullIdValidator implements Validator<IndividualBulkRequest, Individ
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         HashMap<Individual, List<Error>> errorDetailsMap = new HashMap();
-        Method idMethod = getIdMethod(request.getIndividuals());
-        List<Individual> indWithNullIds = identifyObjectsWithNullIds(request.getIndividuals(), idMethod);
-        indWithNullIds.forEach(individual -> {
-            Error error = Error.builder().errorMessage("Id cannot be null").errorCode("NULL_ID")
-                    .exception(new CustomException("NULL_ID", "Id cannot be null")).build();
-            populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
-        });
+        List<Individual> individuals = request.getIndividuals()
+                .stream().filter(notHavingErrors()).collect(Collectors.toList());
+        if (!individuals.isEmpty()) {
+            Class<?> objClass = getObjClass(individuals);
+            Method idMethod = getMethod("getId", objClass);
+            List<Individual> indWithNullIds = identifyObjectsWithNullIds(individuals, idMethod);
+            indWithNullIds.forEach(individual -> {
+                Error error = Error.builder().errorMessage("Id cannot be null").errorCode("NULL_ID")
+                        .exception(new CustomException("NULL_ID", "Id cannot be null")).build();
+                populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+            });
+        }
+        log.info("null id validation finished");
         return errorDetailsMap;
     }
 }

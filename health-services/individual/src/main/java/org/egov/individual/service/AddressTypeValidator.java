@@ -34,12 +34,16 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         log.info("address validation started");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Individual> individualsWithInvalidAddress = validateAddressType(request.getIndividuals());
-        individualsWithInvalidAddress.forEach(individual -> {
-            Error error = Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
-                    .exception(new CustomException("INVALID_ADDRESS", "Invalid address")).build();
-            populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
-        });
+        List<Individual> individuals = request.getIndividuals();
+        if (!individuals.isEmpty()) {
+            List<Individual> individualsWithInvalidAddress = validateAddressType(individuals);
+            individualsWithInvalidAddress.forEach(individual -> {
+                Error error = Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
+                        .exception(new CustomException("INVALID_ADDRESS", "Invalid address")).build();
+                populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+            });
+        }
+        log.info("address validation finished");
         return errorDetailsMap;
     }
 

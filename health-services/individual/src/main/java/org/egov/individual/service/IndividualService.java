@@ -35,9 +35,11 @@ import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
-import static org.egov.common.utils.CommonUtils.enrichId;
+import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -61,13 +63,13 @@ public class IndividualService {
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
-            || validator.getClass().equals(NonExistentEntityValidator.class)
-            || validator.getClass().equals(AddressTypeValidator.class)
-            || validator.getClass().equals(RowVersionValidator.class)
-            || validator.getClass().equals(UniqueEntityValidator.class);
+                    || validator.getClass().equals(NonExistentEntityValidator.class)
+                    || validator.getClass().equals(AddressTypeValidator.class)
+                    || validator.getClass().equals(RowVersionValidator.class)
+                    || validator.getClass().equals(UniqueEntityValidator.class);
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
-                    validator.getClass().equals(AddressTypeValidator.class);
+            validator.getClass().equals(AddressTypeValidator.class);
 
     @Autowired
     public IndividualService(IdGenService idGenService,
@@ -145,8 +147,7 @@ public class IndividualService {
                     .collect(Collectors.toList()));
             List<Identifier> identifiers = collectFromList(validIndividuals,
                     Individual::getIdentifiers);
-            List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
-            enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
+            enrichForCreateIdentifier(identifiers, request.getRequestInfo());
             if (validIndividuals.stream().anyMatch(individual -> individual.getIdentifiers().stream()
                     .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
                 List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
@@ -158,6 +159,14 @@ public class IndividualService {
         }
 
         return validIndividuals;
+    }
+
+    private void enrichForCreateIdentifier(List<Identifier> identifiers, RequestInfo requestInfo) {
+        AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
+        identifiers.forEach(identifier -> {
+            identifier.setAuditDetails(auditDetails);
+            identifier.setIsDeleted(Boolean.FALSE);
+        });
     }
 
     private static void populateErrorDetails(IndividualBulkRequest request, Map<Individual, ErrorDetails> errorDetailsMap, Map<Individual, List<Error>> e) {
@@ -224,7 +233,7 @@ public class IndividualService {
             addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1).findFirst().ifPresent(e -> {
                 throw new CustomException("ERROR_IN_ADDRESS",
                         String.format("Found %d of type %s, allowed 1",
-                        e.getValue(), e.getKey().name()));
+                                e.getValue(), e.getKey().name()));
             });
         }
     }
@@ -280,7 +289,7 @@ public class IndividualService {
                     .collect(Collectors.toList());
         }
         return individualRepository.find(individualSearch, limit, offset, tenantId,
-                lastChangedSince, includeDeleted).stream()
+                        lastChangedSince, includeDeleted).stream()
                 .filter(havingBoundaryCode(individualSearch.getBoundaryCode()))
                 .collect(Collectors.toList());
     }
@@ -296,24 +305,9 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualRequest request) {
-//        Method idMethod = getIdMethod(request.getIndividuals());
-//        Map<String, Individual> iMap = getIdToObjMap(request.getIndividuals(), idMethod);
-//        List<ErrorDetails> errorDetails = validators.stream().filter(isApplicableForUpdate)
-//                .map(validator -> validator.validate(request))
-//                .flatMap(Collection::stream).collect(Collectors.toList());
-//        log.error(errorDetails.toString());
-//
-//        // necessary to enrich server gen id in case where request has only clientReferenceId
-//        // this is because persister config has where clause on server gen id only
-//        // to solve this we might have to create different topic which would only cater to clientReferenceId
-//
-//        if (request.getIndividuals().stream().anyMatch(notHavingErrors())) {
-//            log.info("Updating lastModifiedTime and lastModifiedBy");
-//            enrichForUpdate(iMap, request);
-//            individualRepository.save(request.getIndividuals(), "update-individual-topic");
-//        }
-//        return request.getIndividuals();
-        return null;
+        IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .individuals(Collections.singletonList(request.getIndividual())).build();
+        return update(bulkRequest, false);
     }
 
     public List<Individual> update(IndividualBulkRequest request, Boolean isBulk) {
@@ -330,31 +324,65 @@ public class IndividualService {
             }
         }
 
+        List<Individual> validIndividuals = request.getIndividuals().stream()
+                .filter(notHavingErrors()).collect(Collectors.toList());
+
         // necessary to enrich server gen id in case where request has only clientReferenceId
         // this is because persister config has where clause on server gen id only
         // to solve this we might have to create different topic which would only cater to clientReferenceId
-        request.getIndividuals().stream().forEach(
-                individual -> {
-                    List<Address> addresses = individual.getAddress().stream().filter(ad1 -> ad1.getId() == null)
-                            .collect(Collectors.toList());
-                    List<String> addressIdList = uuidSupplier().apply(addresses.size());
-                    enrichId(addresses, addressIdList);
+        if (!validIndividuals.isEmpty()) {
+            validIndividuals.forEach(
+                    individual -> {
+                        // individualid not enriched
+                        // audit details for individual address
+                        // creation details null
 
-                    List<Identifier> identifiers = individual.getIdentifiers().stream().filter(identifier -> identifier.getId() == null)
-                            .collect(Collectors.toList());
-                    List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
-                    enrichId(identifiers, addressIdList);
-                }
-        );
+                        AuditDetails auditDetails = AuditDetails.builder()
+                                .createdBy(request.getRequestInfo().getUserInfo().getUuid())
+                                .lastModifiedBy(request.getRequestInfo().getUserInfo().getUuid())
+                                .createdTime(System.currentTimeMillis())
+                                .lastModifiedTime(System.currentTimeMillis())
+                                .build();
 
+                        enrichAddress(request, individual, auditDetails);
+                        enrichIdentifier(individual, auditDetails);
+                    }
+            );
 
-        if (request.getIndividuals().stream().anyMatch(notHavingErrors())) {
+            Map<String, Individual> iMap = getIdToObjMap(validIndividuals);
             log.info("Updating lastModifiedTime and lastModifiedBy");
-            //enrichForUpdate(iMap, request);
-            individualRepository.save(request.getIndividuals(), "update-individual-topic");
+            enrichForUpdate(iMap, request);
+            individualRepository.save(validIndividuals, "update-individual-topic");
         }
         return request.getIndividuals();
-        //return null;
+    }
+
+    private static void enrichIdentifier(Individual individual, AuditDetails auditDetails) {
+        if (individual.getIdentifiers() != null) {
+            enrichIndividualIdInIdentifiers(individual);
+            individual.getIdentifiers().forEach(identifier -> {
+                identifier.setAuditDetails(auditDetails);
+            });
+        }
+    }
+
+    private static void enrichAddress(IndividualBulkRequest request, Individual individual, AuditDetails auditDetails) {
+        List<Address> addresses = individual.getAddress().stream().filter(ad1 -> ad1.getId() == null)
+                .collect(Collectors.toList());
+        if (!addresses.isEmpty()) {
+            List<String> addressIdList = uuidSupplier().apply(addresses.size());
+            enrichForCreate(addresses, addressIdList, request.getRequestInfo());
+            addresses.forEach(address -> address.setIndividualId(individual.getId()));
+        }
+
+        List<Address> addressesForUpdate = individual.getAddress().stream().filter(ad1 -> ad1.getId() != null)
+                .collect(Collectors.toList());
+        if (!addressesForUpdate.isEmpty()) {
+            addressesForUpdate.forEach(address -> {
+                address.setIndividualId(individual.getId());
+                address.setAuditDetails(auditDetails);
+            });
+        }
     }
 
     private void deleteRelatedEntities(IndividualRequest request, Method idMethod,
@@ -383,7 +411,6 @@ public class IndividualService {
                 auditDetails.setLastModifiedBy(request.getRequestInfo()
                         .getUserInfo().getUuid());
                 identifierInReq.setIsDeleted(true);
-                identifierInReq.setRowVersion(identifierInReq.getRowVersion() + 1);
             }
 
             // also deletes in household_individual_mapping table if such an individual exists
