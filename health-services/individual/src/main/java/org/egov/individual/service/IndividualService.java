@@ -257,13 +257,21 @@ public class IndividualService {
     private static <R,T> void populateErrorDetailsForException(R request, Map<T, ErrorDetails> errorDetailsMap,
                                                                List<T> validIndividuals, Exception exception,
                                                                String payloadMethodName) {
+        Error.ErrorType errorType = Error.ErrorType.NON_RECOVERABLE;
+        String errorCode = "INTERNAL_SERVER_ERROR";
+        if (exception instanceof CustomException) {
+            errorCode = ((CustomException) exception).getCode();
+            if (!((CustomException) exception).getCode().equals("IDGEN_ERROR")) {
+                errorType = Error.ErrorType.RECOVERABLE;
+            }
+        }
+        List<Error> errorList = new ArrayList<>();
+        errorList.add(Error.builder().errorMessage(exception.getMessage())
+                .errorCode(errorCode)
+                .type(errorType)
+                .exception(new CustomException(errorCode, exception.getMessage())).build());
+        Map<T, List<Error>> errorListMap = new HashMap<>();
         validIndividuals.forEach(payload -> {
-            List<Error> errorList = new ArrayList<>();
-            errorList.add(Error.builder().errorMessage(exception.getMessage())
-                    .errorCode("INTERNAL_SERVER_ERROR")
-                    .type(Error.ErrorType.NON_RECOVERABLE)
-                    .exception(new CustomException("INTERNAL_SERVER_ERROR", exception.getMessage())).build());
-            Map<T, List<Error>> errorListMap = new HashMap<>();
             errorListMap.put(payload, errorList);
             populateErrorDetailsGeneric(request, errorDetailsMap, errorListMap, payloadMethodName);
         });
