@@ -122,4 +122,9 @@ public class HouseholdService {
         householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic());
         return request.getHousehold();
     }
+
+    public List<Household> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
+       return householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+    }
+
 }

@@ -23,13 +23,9 @@ public class HouseholdMemberRowMapper implements RowMapper<HouseholdMember> {
     public HouseholdMember mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
             return HouseholdMember.builder()
-                    .id(resultSet.getString("id"))
                     .householdId(resultSet.getString("householdId"))
-                    .householdClientReferenceId(resultSet.getString("householdClientReferenceId"))
                     .individualId(resultSet.getString("individualId"))
-                    .individualClientReferenceId(resultSet.getString("individualClientReferenceId"))
                     .isHeadOfHousehold(resultSet.getBoolean("isHeadOfHousehold"))
-                    .tenantId(resultSet.getString("tenantId"))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .rowVersion(resultSet.getInt("rowVersion"))

@@ -34,12 +34,9 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
                                         RedisTemplate<String, Object> redisTemplate,
                                         SelectQueryBuilder selectQueryBuilder,
                                         HouseholdMemberRowMapper householdMemberRowMapper) {
-        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdMemberRowMapper, Optional.of("household"));
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdMemberRowMapper, Optional.of("household_member"));
     }
 
-
-
-   /* TODO - need to update the query*/
     public List<HouseholdMember> findById(List<String> ids, String columnName, Boolean includeDeleted) {
         List<HouseholdMember> objFound;
         Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
@@ -51,9 +48,9 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
             return objFound;
         }
 
-        String query = String.format("SELECT * FROM household_member h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT * FROM household_member where %s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM household_member h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
+            query = String.format("SELECT * FROM household_member WHERE %s IN (:ids)", columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
@@ -63,28 +60,18 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         return objFound;
     }
 
-    /* TODO - need to update the query*/
-    public List<HouseholdMember> find(HouseholdMemberSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT * FROM household_member h LEFT JOIN address a ON h.addressid = a.id";
-        Map<String, Object> paramsMap = new HashMap<>();
-        List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
-        query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-        query = query.replace("id=:id", "h.id=:id");
+    public List<HouseholdMember> findIndividual(String individualId) {
+        String query = "SELECT * FROM household_member where individualId = :individualId AND isDeleted = false";
+        Map<String, Object> paramMap = new HashMap();
+        paramMap.put("individualId", individualId);
 
-        query = query + " and h.tenantId=:tenantId ";
-        if (Boolean.FALSE.equals(includeDeleted)) {
-            query = query + "and isDeleted=:isDeleted ";
-        }
+        return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+    }
 
-        if (lastChangedSince != null) {
-            query = query + "and lastModifiedTime>=:lastModifiedTime ";
-        }
-        query = query + "ORDER BY h.id ASC LIMIT :limit OFFSET :offset";
-        paramsMap.put("tenantId", tenantId);
-        paramsMap.put("isDeleted", includeDeleted);
-        paramsMap.put("lastModifiedTime", lastChangedSince);
-        paramsMap.put("limit", limit);
-        paramsMap.put("offset", offset);
-        return this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+    public List<HouseholdMember> findIndividualByHousehold(String householdId) {
+        String query = "SELECT * FROM household_member where householdId = :householdId AND isDeleted = false";
+        Map<String, Object> paramMap = new HashMap();
+        paramMap.put("householdId", householdId);
+        return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
     }
 }

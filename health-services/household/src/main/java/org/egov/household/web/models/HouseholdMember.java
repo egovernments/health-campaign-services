@@ -31,7 +31,6 @@ public class HouseholdMember{
     private String id = null;
 
     @JsonProperty("householdId")
-    @NotNull
     @Size(min = 2, max = 64)
     private String householdId = null;
 
@@ -40,7 +39,6 @@ public class HouseholdMember{
     private String householdClientReferenceId = null;
 
     @JsonProperty("individualId")
-    @NotNull
     @Size(min = 2, max = 64)
     private String individualId = null;
 
