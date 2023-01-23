@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS HOUSEHOLD_MEMBER
 (
     id                  character varying(64),
+    tenantId            character varying(1000),
     individualId        character varying(64),
     householdId         character varying(64),
     isHeadOfHousehold   boolean,
