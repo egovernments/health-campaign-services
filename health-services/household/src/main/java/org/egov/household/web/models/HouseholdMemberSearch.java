@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -21,6 +22,7 @@ import javax.validation.Valid;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "household_member")
 public class HouseholdMemberSearch   {
 
     @JsonProperty("id")
