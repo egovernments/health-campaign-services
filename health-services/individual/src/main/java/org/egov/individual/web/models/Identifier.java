@@ -24,6 +24,12 @@ import javax.validation.constraints.Size;
 @Builder
 public class Identifier {
 
+    @JsonProperty("id")
+
+    @Size(min = 2, max = 64)
+
+    private String id = null;
+
     @JsonProperty("individualId")
 
     @Size(min = 2, max = 64)

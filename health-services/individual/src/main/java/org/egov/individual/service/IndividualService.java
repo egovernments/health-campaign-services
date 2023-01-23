@@ -26,7 +26,9 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -37,10 +39,12 @@ import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getAuditDetailsForCreate;
+import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
@@ -66,10 +70,16 @@ public class IndividualService {
                     || validator.getClass().equals(NonExistentEntityValidator.class)
                     || validator.getClass().equals(AddressTypeValidator.class)
                     || validator.getClass().equals(RowVersionValidator.class)
-                    || validator.getClass().equals(UniqueEntityValidator.class);
+                    || validator.getClass().equals(UniqueEntityValidator.class)
+                    || validator.getClass().equals(UniqueSubEntityValidator.class);
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
-            validator.getClass().equals(AddressTypeValidator.class);
+            validator.getClass().equals(AddressTypeValidator.class)
+                    || validator.getClass().equals(UniqueSubEntityValidator.class);
+
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
+            validator.getClass().equals(NullIdValidator.class)
+                    || validator.getClass().equals(NonExistentEntityValidator.class);
 
     @Autowired
     public IndividualService(IdGenService idGenService,
@@ -119,8 +129,8 @@ public class IndividualService {
                 if (!addresses.isEmpty()) {
                     log.info("Enriching addresses");
                     List<String> addressIdList = uuidSupplier().apply(addresses.size());
-                    enrichForCreate(addresses, addressIdList, request.getRequestInfo());
-                    enrichIndividualIdInAddress(request);
+                    enrichForCreate(addresses, addressIdList, request.getRequestInfo(), false);
+                    enrichIndividualIdInAddress(validIndividuals);
                 }
                 log.info("Enriching identifiers");
                 request.setIndividuals(validIndividuals.stream()
@@ -184,7 +194,7 @@ public class IndividualService {
                         individual -> {
                             AuditDetails auditDetails = getAuditDetails(request);
                             enrichAddress(request, individual, auditDetails);
-                            enrichIdentifier(individual, auditDetails);
+                            enrichIdentifier(request, individual, auditDetails);
                         }
                 );
                 Map<String, Individual> iMap = getIdToObjMap(validIndividuals);
@@ -278,10 +288,12 @@ public class IndividualService {
     }
 
     private void enrichForCreateIdentifier(List<Identifier> identifiers, RequestInfo requestInfo) {
+        Deque<String> idStack = new LinkedList<>(uuidSupplier().apply(identifiers.size()));
         AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
         identifiers.forEach(identifier -> {
             identifier.setAuditDetails(auditDetails);
             identifier.setIsDeleted(Boolean.FALSE);
+            identifier.setId(idStack.pop());
         });
     }
 
@@ -300,8 +312,8 @@ public class IndividualService {
         return individual;
     }
 
-    private static void enrichIndividualIdInAddress(IndividualBulkRequest request) {
-        request.getIndividuals().stream().filter(individual -> individual.getAddress() != null)
+    private static void enrichIndividualIdInAddress(List<Individual> individuals) {
+        individuals.stream().filter(individual -> individual.getAddress() != null)
                 .forEach(individual -> individual.getAddress()
                         .forEach(address -> address.setIndividualId(individual.getId())));
     }
@@ -319,9 +331,7 @@ public class IndividualService {
 
     private static AuditDetails getAuditDetails(IndividualBulkRequest request) {
         return AuditDetails.builder()
-                .createdBy(request.getRequestInfo().getUserInfo().getUuid())
                 .lastModifiedBy(request.getRequestInfo().getUserInfo().getUuid())
-                .createdTime(System.currentTimeMillis())
                 .lastModifiedTime(System.currentTimeMillis())
                 .build();
     }
@@ -332,7 +342,7 @@ public class IndividualService {
                 .collect(Collectors.toList());
         if (!addresses.isEmpty()) {
             List<String> addressIdList = uuidSupplier().apply(addresses.size());
-            enrichForCreate(addresses, addressIdList, request.getRequestInfo());
+            enrichForCreate(addresses, addressIdList, request.getRequestInfo(), false);
             addresses.forEach(address -> address.setIndividualId(individual.getId()));
         }
 
@@ -342,16 +352,35 @@ public class IndividualService {
             addressesForUpdate.forEach(address -> {
                 address.setIndividualId(individual.getId());
                 address.setAuditDetails(auditDetails);
+                if (address.getIsDeleted() == null) {
+                    address.setIsDeleted(Boolean.FALSE);
+                }
             });
         }
     }
 
-    private static void enrichIdentifier(Individual individual, AuditDetails auditDetails) {
+    private static void enrichIdentifier(IndividualBulkRequest request,
+                                         Individual individual, AuditDetails auditDetails) {
         if (individual.getIdentifiers() != null) {
-            enrichIndividualIdInIdentifiers(individual);
-            individual.getIdentifiers().forEach(identifier -> {
-                identifier.setAuditDetails(auditDetails);
-            });
+            List<Identifier> identifiers = individual.getIdentifiers().stream().filter(id -> id.getId() == null)
+                    .collect(Collectors.toList());
+            if (!identifiers.isEmpty()) {
+                List<String> addressIdList = uuidSupplier().apply(identifiers.size());
+                enrichForCreate(identifiers, addressIdList, request.getRequestInfo(), false);
+                identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
+            }
+
+            List<Identifier> identifiersForUpdate = individual.getIdentifiers().stream().filter(id -> id.getId() != null)
+                    .collect(Collectors.toList());
+            if (!identifiersForUpdate.isEmpty()) {
+                identifiersForUpdate.forEach(identifier -> {
+                    identifier.setIndividualId(individual.getId());
+                    identifier.setAuditDetails(auditDetails);
+                    if (identifier.getIsDeleted() == null) {
+                        identifier.setIsDeleted(Boolean.FALSE);
+                    }
+                });
+            }
         }
     }
 
@@ -389,35 +418,73 @@ public class IndividualService {
                         .equalsIgnoreCase(boundaryCode));
     }
 
-    private void deleteRelatedEntities(IndividualRequest request, Method idMethod,
-                                       Map<String, Individual> iMap,
-                                       List<Individual> existingIndividuals) {
-        IntStream.range(0, existingIndividuals.size()).forEach(i -> {
-            Individual individualInReq = iMap.get(ReflectionUtils.invokeMethod(idMethod,
-                    existingIndividuals.get(i)));
-            if (existingIndividuals.get(i).getAddress() != null) {
-                individualInReq.setAddress(new ArrayList<>(existingIndividuals.get(i).getAddress()));
-                for (Address addressInReq : individualInReq.getAddress()) {
-                    // update audit details and isDeleted
-                    AuditDetails auditDetails = addressInReq.getAuditDetails();
-                    auditDetails.setLastModifiedTime(System.currentTimeMillis());
-                    auditDetails.setLastModifiedBy(request.getRequestInfo()
-                            .getUserInfo().getUuid());
-                    addressInReq.setIsDeleted(true);
-                    addressInReq.setRowVersion(addressInReq.getRowVersion() + 1);
-                }
-            }
-            individualInReq.setIdentifiers(new ArrayList<>(existingIndividuals.get(i)
-                    .getIdentifiers()));
-            for (Identifier identifierInReq : individualInReq.getIdentifiers()) {
-                AuditDetails auditDetails = identifierInReq.getAuditDetails();
-                auditDetails.setLastModifiedTime(System.currentTimeMillis());
-                auditDetails.setLastModifiedBy(request.getRequestInfo()
-                        .getUserInfo().getUuid());
-                identifierInReq.setIsDeleted(true);
-            }
+    public List<Individual> delete(IndividualRequest request) {
+        IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .individuals(Collections.singletonList(request.getIndividual())).build();
+        return delete(bulkRequest, false);
+    }
 
-            // also deletes in household_individual_mapping table if such an individual exists
+    @KafkaListener(topics = "bulk-delete")
+    public List<Individual> bulkDelete(Map<String, Object> consumerRecord,
+                                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
+        IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
+        return delete(request, true);
+    }
+
+    private List<Individual> delete(IndividualBulkRequest request, boolean isBulk) {
+        Map<Individual, ErrorDetails> errorDetailsMap = validate(validators, isApplicableForDelete, request,
+                "setIndividuals");
+
+        if (!errorDetailsMap.isEmpty() && !isBulk) {
+            throw new CustomException("VALIDATION_ERROR", errorDetailsMap.values().toString());
+        }
+
+        List<Individual> validIndividuals = request.getIndividuals().stream()
+                .filter(notHavingErrors()).collect(Collectors.toList());
+
+        if (!validIndividuals.isEmpty()) {
+            enrichIndividualIdInAddress(validIndividuals);
+            validIndividuals = validIndividuals.stream()
+                    .map(IndividualService::enrichIndividualIdInIdentifiers)
+                    .collect(Collectors.toList());
+            validIndividuals.forEach(individual -> {
+                enrichForDelete(Collections.singletonList(individual), request, true);
+                enrichForDelete(individual.getAddress(), request, false);
+                enrichForDelete(individual.getIdentifiers(), request, false);
+            });
+            individualRepository.save(validIndividuals, "delete-individual-topic");
+        }
+
+        if (!errorDetailsMap.isEmpty()) {
+            if (isBulk) {
+                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
+            } else {
+                throw new CustomException("VALIDATION_ERROR", errorDetailsMap.values().toString());
+            }
+        }
+
+        return validIndividuals;
+    }
+
+    private static <T> void enrichForDelete(List<T> list, Object request, boolean updateRowVersion) {
+        Class<?> objClass = getObjClass(list);
+        Class<?> requestObjClass = request.getClass();
+        Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
+        Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
+
+        Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
+        list.forEach(obj -> {
+            ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+            if (updateRowVersion) {
+                Method getRowVersionMethod = getMethod("getRowVersion", objClass);
+                Method setRowVersionMethod = getMethod("setRowVersion", objClass);
+                Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
+                ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
+            }
+            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
+                    .invokeMethod(getRequestInfoMethod, request);
+            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(requestInfo.getUserInfo().getUuid());
+            ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
         });
     }
 }

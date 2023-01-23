@@ -110,7 +110,7 @@ public class CommonUtils {
     }
 
     public static AuditDetails getAuditDetailsForUpdate(String modifiedByUuid) {
-        log.info("Creating audit details for update api");
+        log.info("Creating audit details for update/delete api");
         return AuditDetails.builder()
                 .lastModifiedBy(modifiedByUuid)
                 .lastModifiedTime(System.currentTimeMillis()).build();
@@ -184,18 +184,25 @@ public class CommonUtils {
     }
 
     public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo) {
+        enrichForCreate(objList, idList, requestInfo, true);
+    }
+
+    public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo,
+                                           boolean updateRowVersion) {
         AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
         Class<?> objClass = getObjClass(objList);
         Method setIdMethod = getMethod("setId", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
-        Method setRowVersionMethod = getMethod("setRowVersion", objClass);
         Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
         IntStream.range(0, objList.size())
                 .forEach(i -> {
                     final Object obj = objList.get(i);
                     ReflectionUtils.invokeMethod(setIdMethod, obj, idList.get(i));
                     ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetails);
-                    ReflectionUtils.invokeMethod(setRowVersionMethod, obj, 1);
+                    if (updateRowVersion) {
+                        Method setRowVersionMethod = getMethod("setRowVersion", objClass);
+                        ReflectionUtils.invokeMethod(setRowVersionMethod, obj, 1);
+                    }
                     ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, Boolean.FALSE);
                 });
     }

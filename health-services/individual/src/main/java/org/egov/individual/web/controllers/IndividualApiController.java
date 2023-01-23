@@ -104,9 +104,30 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1UpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<ResponseInfo> individualV1BulkUpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         producer.push("bulk-update", request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
+    public ResponseEntity<IndividualResponse> individualV1DeletePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+        List<Individual> individuals = individualService.delete(request);
+        IndividualResponse response = IndividualResponse.builder()
+                .individual(individuals)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> individualV1BulkDeletePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+        request.getRequestInfo().setApiId(servletRequest.getRequestURI());
+        producer.push("bulk-delete", request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

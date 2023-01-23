@@ -142,12 +142,6 @@ public class Address   {
 
     private Boolean isDeleted = null;
 
-    @JsonProperty("rowVersion")
-
-
-
-    private Integer rowVersion = null;
-
     @JsonProperty("auditDetails")
 
     @Valid

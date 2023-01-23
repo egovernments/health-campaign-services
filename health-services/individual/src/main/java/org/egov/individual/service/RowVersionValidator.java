@@ -24,7 +24,7 @@ import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 
 @Component
-@Order(value = 4)
+@Order(value = 5)
 @Slf4j
 public class RowVersionValidator implements Validator<IndividualBulkRequest, Individual> {
 

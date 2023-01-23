@@ -25,7 +25,7 @@ import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 
 @Component
-@Order(value = 3)
+@Order(value = 4)
 @Slf4j
 public class NonExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
