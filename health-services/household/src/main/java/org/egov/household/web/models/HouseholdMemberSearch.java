@@ -22,49 +22,28 @@ import javax.validation.Valid;
 @AllArgsConstructor
 @Builder
 public class HouseholdMemberSearch   {
-        @JsonProperty("id")
-    
 
-
+    @JsonProperty("id")
     private String id = null;
 
-        @JsonProperty("householdId")
-    
-
-
+    @JsonProperty("householdId")
     private String householdId = null;
 
-        @JsonProperty("householdClientReferenceId")
-    
-
-
+    @JsonProperty("householdClientReferenceId")
     private String householdClientReferenceId = null;
 
-        @JsonProperty("individualId")
-    
-
-
+    @JsonProperty("individualId")
     private String individualId = null;
 
-        @JsonProperty("individualClientReferenceId")
-    
-
-
+    @JsonProperty("individualClientReferenceId")
     private String individualClientReferenceId = null;
 
-        @JsonProperty("isHeadOfHousehold")
-    
-
-
+    @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = null;
 
-        @JsonProperty("tenantId")
-    
-  @Valid
-
-
+    @JsonProperty("tenantId")
+    @Valid
     private String tenantId = null;
-
 
 }
 

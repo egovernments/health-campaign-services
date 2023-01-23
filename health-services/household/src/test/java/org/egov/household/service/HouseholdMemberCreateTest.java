@@ -52,9 +52,6 @@ class HouseholdMemberCreateTest {
     HouseholdService householdService;
 
     @Mock
-    IdGenService idGenService;
-
-    @Mock
     HouseholdMemberConfiguration householdMemberConfiguration;
 
     @Mock
@@ -67,10 +64,6 @@ class HouseholdMemberCreateTest {
     void setUp() throws Exception {
         List<String> idList = new ArrayList<>();
         idList.add("some-id");
-        lenient().when(idGenService.getIdList(any(RequestInfo.class),
-                        any(String.class),
-                        eq("household.member.id"), eq(""), anyInt()))
-                .thenReturn(idList);
         lenient().when(householdMemberConfiguration.getCreateTopic()).thenReturn("create-topic");
         lenient().when(householdMemberConfiguration.getUpdateTopic()).thenReturn("update-topic");
     }
@@ -108,11 +101,6 @@ class HouseholdMemberCreateTest {
         List<HouseholdMember> createdHouseholdMembers =  householdMemberService.create(householdMemberRequest);
 
         verify(serviceRequestClient, times(1)).fetchResult(any(), any(), any());
-        verify(idGenService, times(1)).getIdList(any(RequestInfo.class),
-                any(String.class),
-                eq("household.member.id"),
-                eq(""),
-                anyInt());
         verify(householdMemberRepository, times(1)).save(createdHouseholdMembers, "create-topic");
     }
 

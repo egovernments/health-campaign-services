@@ -23,6 +23,7 @@ public class HouseholdMemberRowMapper implements RowMapper<HouseholdMember> {
     public HouseholdMember mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
             return HouseholdMember.builder()
+                    .id(resultSet.getString("id"))
                     .householdId(resultSet.getString("householdId"))
                     .individualId(resultSet.getString("individualId"))
                     .isHeadOfHousehold(resultSet.getBoolean("isHeadOfHousehold"))

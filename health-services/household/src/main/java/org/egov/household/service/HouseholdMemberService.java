@@ -28,7 +28,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
@@ -55,8 +57,6 @@ public class HouseholdMemberService {
 
     private final HouseholdService householdService;
 
-    private final IdGenService idGenService;
-
     private final HouseholdMemberConfiguration householdMemberConfiguration;
 
     private final ServiceRequestClient serviceRequestClient;
@@ -68,12 +68,11 @@ public class HouseholdMemberService {
     private String individualServiceSearchUrl;
 
     @Autowired
-    public HouseholdMemberService(HouseholdMemberRepository householdMemberRepository, IdGenService idGenService,
+    public HouseholdMemberService(HouseholdMemberRepository householdMemberRepository,
                                   HouseholdMemberConfiguration householdMemberConfiguration,
                                   ServiceRequestClient serviceRequestClient,
                                   HouseholdService householdService) {
         this.householdMemberRepository = householdMemberRepository;
-        this.idGenService = idGenService;
         this.householdMemberConfiguration = householdMemberConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.householdService = householdService;
@@ -103,16 +102,12 @@ public class HouseholdMemberService {
             validateHeadOfHousehold(householdMember);
         }
 
-        log.info("Generating IDs using IdGenService");
-        List<String> idList = idGenService.getIdList(householdMemberRequest.getRequestInfo(),
-                tenantId,
-                "household.member.id",
-                "",
-                householdMembers.size()
-        );
-        log.info("IDs generated");
+        List<String> uuidList = Stream.generate(UUID::randomUUID)
+                .limit(householdMembers.size())
+                .map(UUID::toString)
+                .collect(Collectors.toList());
 
-        enrichForCreate(householdMembers, idList, requestInfo);
+        enrichForCreate(householdMembers, uuidList, requestInfo);
 
         householdMemberRepository.save(householdMembers, householdMemberConfiguration.getCreateTopic());
 
