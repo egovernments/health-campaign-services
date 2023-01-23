@@ -27,6 +27,8 @@ public class NullIdValidator implements Validator<IndividualBulkRequest, Individ
 
     private final ObjectMapper objectMapper;
 
+    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.RECOVERABLE;
+
     @Autowired
     public NullIdValidator(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -43,6 +45,7 @@ public class NullIdValidator implements Validator<IndividualBulkRequest, Individ
             List<Individual> indWithNullIds = identifyObjectsWithNullIds(individuals, idMethod);
             indWithNullIds.forEach(individual -> {
                 Error error = Error.builder().errorMessage("Id cannot be null").errorCode("NULL_ID")
+                        .type(ERROR_TYPE)
                         .exception(new CustomException("NULL_ID", "Id cannot be null")).build();
                 populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
             });

@@ -33,6 +33,8 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
 
     private final IndividualRepository individualRepository;
 
+    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
+
     @Autowired
     public NonExistentEntityValidator(ObjectMapper objectMapper,
                                       IndividualRepository individualRepository) {
@@ -56,7 +58,9 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
             List<Individual> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingIndividuals, idMethod);
             nonExistentIndividuals.forEach(individual -> {
-                Error error = Error.builder().errorMessage("Individual does not exist in db").errorCode("NON_EXISTENT_INDIVIDUAL")
+                Error error = Error.builder().errorMessage("Individual does not exist in db")
+                        .errorCode("NON_EXISTENT_INDIVIDUAL")
+                        .type(ERROR_TYPE)
                         .exception(new CustomException("NON_EXISTENT_INDIVIDUAL", "Individual does not exist in db")).build();
                 populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
             });

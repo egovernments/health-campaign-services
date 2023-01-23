@@ -32,6 +32,8 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
 
     private final IndividualRepository individualRepository;
 
+    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
+
     @Autowired
     public RowVersionValidator(ObjectMapper objectMapper,
                                IndividualRepository individualRepository) {
@@ -55,6 +57,7 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
                     getEntitiesWithMismatchedRowVersion(iMap, existingIndividuals, idMethod);
             individualsWithMismatchedRowVersion.forEach(individual -> {
                 Error error = Error.builder().errorMessage("Row version mismatch").errorCode("MISMATCHED_ROW_VERSION")
+                        .type(ERROR_TYPE)
                         .exception(new CustomException("MISMATCHED_ROW_VERSION", "Row version mismatch")).build();
                 populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
             });

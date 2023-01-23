@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -13,6 +14,11 @@ public class Error {
     private Exception exception;
     private String errorCode;
     private String errorMessage;
-    private String type;
+    private ErrorType type;
     private String additionalDetails;
+
+    enum ErrorType {
+        RECOVERABLE,
+        NON_RECOVERABLE
+    }
 }

@@ -6,7 +6,6 @@ import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
-import org.egov.individual.service.ApiDetails;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
@@ -71,15 +70,7 @@ public class IndividualApiController {
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
-
-        // Json ignore, ignoring the api request.
-        // MIN MAX validation how to check?
-        // kafka retires entire request.
-        request.setApiDetails(ApiDetails.builder()
-                .methodType(servletRequest.getMethod())
-                .contentType(servletRequest.getContentType())
-                .url(servletRequest.getRequestURI()).build());
-
+        request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         producer.push("bulk", request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -114,11 +105,7 @@ public class IndividualApiController {
 
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> individualV1UpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
-        request.setApiDetails(ApiDetails.builder()
-                .methodType(servletRequest.getMethod())
-                .contentType(servletRequest.getContentType())
-                .url(servletRequest.getRequestURI()).build());
-
+        request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         producer.push("bulk-update", request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory

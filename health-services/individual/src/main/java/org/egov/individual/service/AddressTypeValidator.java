@@ -24,6 +24,8 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
 
     private final ObjectMapper objectMapper;
 
+    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.RECOVERABLE;
+
     @Autowired
     public AddressTypeValidator(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -39,6 +41,7 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
             List<Individual> individualsWithInvalidAddress = validateAddressType(individuals);
             individualsWithInvalidAddress.forEach(individual -> {
                 Error error = Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
+                        .type(ERROR_TYPE)
                         .exception(new CustomException("INVALID_ADDRESS", "Invalid address")).build();
                 populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
             });

@@ -28,6 +28,8 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
 
     private final ObjectMapper objectMapper;
 
+    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
+
     public UniqueEntityValidator(@Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
@@ -47,7 +49,9 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
                                     .filter(individual -> individual.getId().equals(id)).count() > 1
                     ).collect(Collectors.toList());
                     for (String key : duplicates) {
-                        Error error = Error.builder().errorMessage("Duplicate individual").errorCode("DUPLICATE_INDIVIDUAL")
+                        Error error = Error.builder().errorMessage("Duplicate individual")
+                                .errorCode("DUPLICATE_INDIVIDUAL")
+                                .type(ERROR_TYPE)
                                 .exception(new CustomException("DUPLICATE_INDIVIDUAL", "Duplicate individual")).build();
                         populateErrorDetails(iMap.get(key), error, errorDetailsMap, objectMapper);
                     }
@@ -65,8 +69,11 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
                                             .filter(ad -> ad.getId().equals(id)).count() > 1
                             ).collect(Collectors.toList());
                             for (String key : duplicates) {
-                                Error error = Error.builder().errorMessage("Duplicate address").errorCode("DUPLICATE_ADDRESS")
-                                        .exception(new CustomException("DUPLICATE_ADDRESS", "Duplicate address")).build();
+                                Error error = Error.builder().errorMessage("Duplicate address")
+                                        .errorCode("DUPLICATE_ADDRESS")
+                                        .type(ERROR_TYPE)
+                                        .exception(new CustomException("DUPLICATE_ADDRESS", "Duplicate address"))
+                                        .build();
                                 populateErrorDetails(iMap.get(key), error, errorDetailsMap, objectMapper);
                             }
                         }
@@ -83,8 +90,12 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
                                                 .filter(idt -> idt.getIdentifierType().equals(id)).count() > 1
                                 ).collect(Collectors.toList());
                                 for (String key : duplicates) {
-                                    Error error = Error.builder().errorMessage("Duplicate identifier").errorCode("DUPLICATE_IDENTIFIER")
-                                            .exception(new CustomException("DUPLICATE_IDENTIFIER", "Duplicate identifier")).build();
+                                    Error error = Error.builder().errorMessage("Duplicate identifier")
+                                            .errorCode("DUPLICATE_IDENTIFIER")
+                                            .type(ERROR_TYPE)
+                                            .exception(new CustomException("DUPLICATE_IDENTIFIER",
+                                                    "Duplicate identifier"))
+                                            .build();
                                     populateErrorDetails(iMap.get(key), error, errorDetailsMap, objectMapper);
                                 }
                             }
