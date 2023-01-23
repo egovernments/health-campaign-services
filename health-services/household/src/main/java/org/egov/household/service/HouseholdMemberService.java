@@ -97,7 +97,10 @@ public class HouseholdMemberService {
                     tenantId
             );
 
-            validateIndividualMapping(householdMember, searchResponse);
+            List<HouseholdMember> individualSearchResult = validateIndividualMapping(householdMember, searchResponse);
+            if(!individualSearchResult.isEmpty()) {
+                throw new CustomException("INDIVIDUAL_ALREADY_ADDED", householdMember.getIndividualId());
+            }
             enrichWithHouseholdId(householdMap, householdMember);
             validateHeadOfHousehold(householdMember);
         }
@@ -146,7 +149,7 @@ public class HouseholdMemberService {
         }
     }
 
-    private void validateIndividualMapping(HouseholdMember householdMember, IndividualResponse searchResponse) {
+    private List<HouseholdMember> validateIndividualMapping(HouseholdMember householdMember, IndividualResponse searchResponse) {
         List<Individual> individuals = searchResponse.getIndividual();
         if(individuals.isEmpty()){
             throw new CustomException("INDIVIDUAL_NOT_FOUND", householdMember.getIndividualId());
@@ -157,9 +160,7 @@ public class HouseholdMemberService {
         householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
 
         List<HouseholdMember> individualSearchResult = householdMemberRepository.findIndividual(householdMember.getIndividualId());
-        if(!individualSearchResult.isEmpty()) {
-            throw new CustomException("INDIVIDUAL_ALREADY_ADDED", householdMember.getIndividualId());
-        }
+        return individualSearchResult;
     }
 
 
@@ -187,8 +188,45 @@ public class HouseholdMemberService {
         }
     }
 
-    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) {
-        // TODO - TO IMPLEMENT
+    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) throws Exception {
+        List<HouseholdMember> householdMembers = householdMemberRequest.getHouseholdMember();
+        RequestInfo requestInfo = householdMemberRequest.getRequestInfo();
+        String tenantId = getTenantId(householdMembers);
+
+        Method idMethod = getIdMethod(householdMembers, "householdId", "householdClientReferenceId");
+        String columnName = getColumnName(idMethod);
+
+        List<Household> householdList = validateHouseholdIds(householdMembers, idMethod,  columnName);
+        Method householdMethod = getIdMethod(householdList, columnName);
+        Map<String, Household> householdMap = getIdToObjMap(householdList, householdMethod);
+
+        for (HouseholdMember householdMember : householdMembers) {
+            IndividualResponse searchResponse = searchIndividualBeneficiary(
+                    householdMember,
+                    requestInfo,
+                    tenantId
+            );
+            List<HouseholdMember> individualSearchResult = validateIndividualMapping(householdMember, searchResponse);
+            if(individualSearchResult.isEmpty()) {
+                throw new CustomException("INDIVIDUAL_NOT_ADDED", householdMember.getIndividualId());
+            }
+            enrichWithHouseholdId(householdMap, householdMember);
+        }
+
+        log.info("Checking if already exists");
+        Method idMethodForUpdate = getIdMethod(householdMembers, "id");
+
+        Map<String, HouseholdMember> hMap = getIdToObjMap(householdMembers, idMethodForUpdate);
+        List<String> householdIds = new ArrayList<>(hMap.keySet());
+        List<HouseholdMember> existingHouseholds = householdMemberRepository.findById(householdIds, "id", false);
+        validateEntities(hMap, existingHouseholds, idMethodForUpdate);
+        checkRowVersion(hMap, existingHouseholds, idMethodForUpdate);
+
+
+        log.info("Updating lastModifiedTime and lastModifiedBy");
+        enrichForUpdate(hMap, existingHouseholds, householdMemberRequest, idMethodForUpdate);
+
+        householdMemberRepository.save(householdMembers, householdMemberConfiguration.getUpdateTopic());
         return householdMemberRequest.getHouseholdMember();
     }
 

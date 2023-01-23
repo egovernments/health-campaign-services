@@ -88,7 +88,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdMemberResponse> householdMemberV1UpdatePost(@ApiParam(value = "Linkage details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+    public ResponseEntity<HouseholdMemberResponse> householdMemberV1UpdatePost(@ApiParam(value = "Linkage details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
         if (!CommonUtils.isForUpdate(householdMemberRequest)
                 && !CommonUtils.isForDelete(householdMemberRequest)) {
             throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request",
