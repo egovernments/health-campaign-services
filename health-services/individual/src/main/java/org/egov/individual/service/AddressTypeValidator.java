@@ -1,6 +1,5 @@
 package org.egov.individual.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.utils.Validator;
@@ -9,7 +8,6 @@ import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -24,19 +22,11 @@ import java.util.Map;
 @Slf4j
 public class AddressTypeValidator implements Validator<IndividualBulkRequest, Individual> {
 
-    private final ObjectMapper objectMapper;
-
     private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.RECOVERABLE;
-
-    @Autowired
-    public AddressTypeValidator(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
-        log.info("address validation started");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> individuals = request.getIndividuals();
         if (!individuals.isEmpty()) {
@@ -45,10 +35,9 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
                 Error error = Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
                         .type(ERROR_TYPE)
                         .exception(new CustomException("INVALID_ADDRESS", "Invalid address")).build();
-                populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+                populateErrorDetails(individual, error, errorDetailsMap);
             });
         }
-        log.info("address validation finished");
         return errorDetailsMap;
     }
 
@@ -62,7 +51,8 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
             for (Address address : individual.getAddress()) {
                 addressTypeCountMap.merge(address.getType(), 1, Integer::sum);
             }
-            addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1).forEach(e -> individuals.add(individual));
+            addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1)
+                    .forEach(e -> individuals.add(individual));
         }
         return individuals;
     }

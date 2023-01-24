@@ -63,6 +63,12 @@ class IndividualServiceUpdateTest {
     private UniqueEntityValidator uniqueEntityValidator;
 
     @Mock
+    private IsDeletedValidator isDeletedValidator;
+
+    @Mock
+    private IsDeletedSubEntityValidator isDeletedSubEntityValidator;
+
+    @Mock
     private RowVersionValidator rowVersionValidator;
 
     @Mock
@@ -74,7 +80,8 @@ class IndividualServiceUpdateTest {
     @BeforeEach
     void setUp() {
         validators = Arrays.asList(addressTypeValidator, nullIdValidator, nonExistentEntityValidator,
-                uniqueEntityValidator, uniqueSubEntityValidator, rowVersionValidator);
+                uniqueEntityValidator, uniqueSubEntityValidator,
+                rowVersionValidator, isDeletedSubEntityValidator, isDeletedValidator);
         ReflectionTestUtils.setField(individualService, "validators", validators);
         lenient().when(properties.getUpdateIndividualTopic()).thenReturn("update-topic");
     }

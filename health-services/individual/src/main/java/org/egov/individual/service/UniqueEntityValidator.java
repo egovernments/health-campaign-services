@@ -1,13 +1,11 @@
 package org.egov.individual.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.utils.Validator;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -24,17 +22,10 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 @Slf4j
 public class UniqueEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
-    private final ObjectMapper objectMapper;
-
     private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
-
-    public UniqueEntityValidator(@Qualifier("objectMapper") ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest individualBulkRequest) {
-        log.info("unique validation started");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = individualBulkRequest.getIndividuals()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
@@ -50,12 +41,10 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
                             .errorCode("DUPLICATE_INDIVIDUAL")
                             .type(ERROR_TYPE)
                             .exception(new CustomException("DUPLICATE_INDIVIDUAL", "Duplicate individual")).build();
-                    populateErrorDetails(iMap.get(key), error, errorDetailsMap, objectMapper);
+                    populateErrorDetails(iMap.get(key), error, errorDetailsMap);
                 }
             }
         }
-
-        log.info("unique validation finished");
         return errorDetailsMap;
     }
 }

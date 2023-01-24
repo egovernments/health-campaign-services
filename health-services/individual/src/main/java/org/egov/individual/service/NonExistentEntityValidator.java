@@ -1,6 +1,5 @@
 package org.egov.individual.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.utils.Validator;
@@ -31,16 +30,12 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 @Slf4j
 public class NonExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
-    private final ObjectMapper objectMapper;
-
     private final IndividualRepository individualRepository;
 
     private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
 
     @Autowired
-    public NonExistentEntityValidator(ObjectMapper objectMapper,
-                                      IndividualRepository individualRepository) {
-        this.objectMapper = objectMapper;
+    public NonExistentEntityValidator(IndividualRepository individualRepository) {
         this.individualRepository = individualRepository;
     }
 
@@ -64,10 +59,9 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
                         .errorCode("NON_EXISTENT_INDIVIDUAL")
                         .type(ERROR_TYPE)
                         .exception(new CustomException("NON_EXISTENT_INDIVIDUAL", "Individual does not exist in db")).build();
-                populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+                populateErrorDetails(individual, error, errorDetailsMap);
             });
         }
-        log.info("non existance validation finished");
         return errorDetailsMap;
     }
 }

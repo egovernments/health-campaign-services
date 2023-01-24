@@ -68,6 +68,8 @@ public class IndividualService {
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
+                    || validator.getClass().equals(IsDeletedValidator.class)
+                    || validator.getClass().equals(IsDeletedSubEntityValidator.class)
                     || validator.getClass().equals(NonExistentEntityValidator.class)
                     || validator.getClass().equals(AddressTypeValidator.class)
                     || validator.getClass().equals(RowVersionValidator.class)

@@ -1,6 +1,5 @@
 package org.egov.common.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.models.Error;
 import org.springframework.util.ReflectionUtils;
 
@@ -14,8 +13,7 @@ public interface Validator<R, T> {
     Map<T, List<Error>> validate(R r);
 
     default <T> void populateErrorDetails(T payload, Error error,
-                                      Map<T, List<Error>> errorDetailsMap,
-                                      ObjectMapper objectMapper) {
+                                      Map<T, List<Error>> errorDetailsMap) {
         ReflectionUtils.invokeMethod(getMethod("setHasErrors", payload.getClass()),
                 payload, Boolean.TRUE);
         if (errorDetailsMap.containsKey(payload)) {

@@ -1,6 +1,5 @@
 package org.egov.individual.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.utils.Validator;
@@ -9,7 +8,6 @@ import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -28,17 +26,10 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 @Slf4j
 public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
-    private final ObjectMapper objectMapper;
-
     private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
-
-    public UniqueSubEntityValidator(@Qualifier("objectMapper") ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest individualBulkRequest) {
-        log.info("unique sub validation started");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = individualBulkRequest.getIndividuals()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
@@ -60,7 +51,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                                     .type(ERROR_TYPE)
                                     .exception(new CustomException("DUPLICATE_ADDRESS", "Duplicate address"))
                                     .build();
-                            populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+                            populateErrorDetails(individual, error, errorDetailsMap);
                         }
                     }
                 }
@@ -82,15 +73,13 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                                         .exception(new CustomException("DUPLICATE_IDENTIFIER",
                                                 "Duplicate identifier"))
                                         .build();
-                                populateErrorDetails(individual, error, errorDetailsMap, objectMapper);
+                                populateErrorDetails(individual, error, errorDetailsMap);
                             }
                         }
                     }
                 }
             }
         }
-
-        log.info("unique sub validation finished");
         return errorDetailsMap;
     }
 }
