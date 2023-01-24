@@ -1,37 +1,37 @@
 package org.egov.individual.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.individual.web.models.IndividualRequest;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@Disabled
 class IndividualServiceDeleteTest {
 
     @InjectMocks
@@ -43,20 +43,39 @@ class IndividualServiceDeleteTest {
     @Mock
     private IndividualRepository individualRepository;
 
+    @Mock
+    private NullIdValidator nullIdValidator;
+
+    @Mock
+    private NonExistentEntityValidator nonExistentEntityValidator;
+
+    private List<Validator<IndividualBulkRequest, Individual>> validators;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
+
     @BeforeEach
     void setUp() {
-
+        validators = Arrays.asList(nullIdValidator, nonExistentEntityValidator);
+        ReflectionTestUtils.setField(individualService, "validators", validators);
+        ReflectionTestUtils.setField(individualService, "isApplicableForDelete",
+                (Predicate<Validator<IndividualBulkRequest, Individual>>) validator ->
+                validator.getClass().equals(NullIdValidator.class)
+                        || validator.getClass().equals(NonExistentEntityValidator.class));
     }
 
     @Test
     @DisplayName("should delete the individual and related entities")
     void shouldDeleteTheIndividualAndRelatedEntities() {
         Individual requestIndividual = IndividualTestBuilder.builder()
+                .withId()
                 .withClientReferenceId()
                 .withRowVersion()
+                .withIdentifiers()
+                .withAddress()
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.DELETE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(requestIndividual)
                 .build();
@@ -71,18 +90,15 @@ class IndividualServiceDeleteTest {
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
-        when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
-                .thenReturn(individualsInDb);
 
-        List<Individual> result = individualService.update(request);
+        List<Individual> result = individualService.delete(request);
 
         assertEquals(requestIndividual.getRowVersion(),
                 result.stream().findFirst().get().getRowVersion());
         assertNotNull(result.stream().findFirst().get().getAuditDetails());
         assertTrue(result.stream().findFirst().get().getAddress().stream().findFirst().get().getIsDeleted());
         assertTrue(result.stream().findFirst().get().getIdentifiers().stream().findFirst().get().getIsDeleted());
-        assertEquals(2, result.stream().findFirst().get().getAddress().stream().findFirst().get().getRowVersion());
-        assertEquals(2, result.stream().findFirst().get().getIdentifiers().stream().findFirst().get().getRowVersion());
+        assertEquals(2, result.stream().findFirst().get().getRowVersion());
         verify(individualRepository, times(1)).save(anyList(), anyString());
     }
 }

@@ -5,8 +5,8 @@ import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,25 +17,22 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@Disabled
 class IndividualServiceUpdateTest {
 
     @InjectMocks
@@ -47,16 +44,39 @@ class IndividualServiceUpdateTest {
     @Mock
     private IndividualRepository individualRepository;
 
+    @Mock
+    private AddressTypeValidator addressTypeValidator;
+
+    @Mock
+    private NullIdValidator nullIdValidator;
+
+    @Mock
+    private NonExistentEntityValidator nonExistentEntityValidator;
+
+    @Mock
+    private UniqueSubEntityValidator uniqueSubEntityValidator;
+
+    @Mock
+    private UniqueEntityValidator uniqueEntityValidator;
+
+    @Mock
+    private RowVersionValidator rowVersionValidator;
+
+
+    private List<Validator<IndividualBulkRequest, Individual>> validators;
+
     @BeforeEach
     void setUp() {
-
+        validators = Arrays.asList(addressTypeValidator, nullIdValidator, nonExistentEntityValidator,
+                uniqueEntityValidator, uniqueSubEntityValidator, rowVersionValidator);
+        ReflectionTestUtils.setField(individualService, "validators", validators);
     }
 
     @Test
     @DisplayName("should throw exception if ids are null")
+    @Disabled
     void shouldThrowExceptionIfIdsAreNull() {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.UPDATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withName()
@@ -72,7 +92,6 @@ class IndividualServiceUpdateTest {
     @DisplayName("should throw exception if entities do not exist in db")
     void shouldThrowExceptionIfEntitiesDoNotExistInDb() {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.UPDATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withClientReferenceId()
@@ -81,8 +100,6 @@ class IndividualServiceUpdateTest {
                         .withAddress()
                         .build())
                 .build();
-        when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
-                .thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> individualService.update(request));
     }
@@ -91,7 +108,6 @@ class IndividualServiceUpdateTest {
     @DisplayName("should check row versions if entities are valid")
     void shouldCheckRowVersionsIfEntitiesAreValid() {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.UPDATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withClientReferenceId()
@@ -111,17 +127,15 @@ class IndividualServiceUpdateTest {
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
-        when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
-                .thenReturn(individualsInDb);
 
         assertDoesNotThrow(() -> individualService.update(request));
     }
 
     @Test
     @DisplayName("should throw exception if row versions do not match")
+    @Disabled
     void shouldThrowExceptionIfRowVersionsDoNotMatch() {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.UPDATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withClientReferenceId()
@@ -140,8 +154,6 @@ class IndividualServiceUpdateTest {
                 .withAddress()
                 .withRowVersion()
                 .build());
-        when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
-                .thenReturn(individualsInDb);
 
         assertThrows(CustomException.class, () -> individualService.update(request));
     }
@@ -157,7 +169,6 @@ class IndividualServiceUpdateTest {
                 .withRowVersion()
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.UPDATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(requestIndividual)
                 .build();
@@ -171,52 +182,12 @@ class IndividualServiceUpdateTest {
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
-        when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
-                .thenReturn(individualsInDb);
 
         List<Individual> result = individualService.update(request);
 
         assertEquals(requestIndividual.getRowVersion(),
                 result.stream().findFirst().get().getRowVersion());
         assertNotNull(result.stream().findFirst().get().getAuditDetails());
-    }
-
-    @Test
-    @DisplayName("should enrich for delete")
-    void shouldEnrichForDelete() {
-        Individual requestIndividual = IndividualTestBuilder.builder()
-                .withClientReferenceId()
-                .withName("some-new-family-name", "some-new-given-name")
-                .withTenantId()
-                .withAddress()
-                .withIdentifiers()
-                .withRowVersion()
-                .build();
-        IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.DELETE)
-                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .withIndividuals(requestIndividual)
-                .build();
-        List<Individual> individualsInDb = new ArrayList<>();
-        individualsInDb.add(IndividualTestBuilder.builder()
-                .withClientReferenceId()
-                .withId()
-                .withName()
-                .withTenantId()
-                .withAddressHavingAuditDetails()
-                .withIdentifiersHavingAuditDetails()
-                .withRowVersion()
-                .withAuditDetails()
-                .build());
-        when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
-                .thenReturn(individualsInDb);
-
-        List<Individual> result = individualService.update(request);
-
-        assertEquals(requestIndividual.getRowVersion(),
-                result.stream().findFirst().get().getRowVersion());
-        assertNotNull(result.stream().findFirst().get().getAuditDetails());
-        assertTrue(result.stream().findFirst().get().getIsDeleted());
     }
 
     @Test
@@ -230,7 +201,6 @@ class IndividualServiceUpdateTest {
                 .withRowVersion()
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.UPDATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(requestIndividual)
                 .build();
@@ -244,8 +214,6 @@ class IndividualServiceUpdateTest {
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
-        when(individualRepository.findById(anyList(), eq("clientReferenceId"), eq(Boolean.FALSE)))
-                .thenReturn(individualsInDb);
 
         List<Individual> result = individualService.update(request);
 

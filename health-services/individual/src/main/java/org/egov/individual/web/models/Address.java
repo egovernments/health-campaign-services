@@ -140,7 +140,7 @@ public class Address   {
 
 
 
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
 

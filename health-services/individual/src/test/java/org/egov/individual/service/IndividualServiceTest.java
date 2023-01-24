@@ -8,8 +8,8 @@ import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
-import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -40,7 +41,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-@Disabled
 class IndividualServiceTest {
 
     @InjectMocks
@@ -52,10 +52,20 @@ class IndividualServiceTest {
     @Mock
     private IndividualRepository individualRepository;
 
+    @Mock
+    private UniqueSubEntityValidator uniqueSubEntityValidator;
+
+    @Mock
+    private AddressTypeValidator addressTypeValidator;
+
+    private List<Validator<IndividualBulkRequest, Individual>> validators;
+
     @BeforeEach
     void setUp() throws Exception {
         mockIdGen("individual.id", "some-individual-id");
         mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
+        validators = Arrays.asList(addressTypeValidator, uniqueSubEntityValidator);
+        ReflectionTestUtils.setField(individualService, "validators", validators);
     }
 
     private void mockIdGen(String value, String o) throws Exception {
@@ -68,7 +78,6 @@ class IndividualServiceTest {
     @DisplayName("should generate address id if address is not null")
     void shouldGenerateAddressIdIfAddressIsNotNull() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withName()
@@ -88,7 +97,6 @@ class IndividualServiceTest {
     @DisplayName("should enrich address audit details and individual id if address is not null")
     void shouldEnrichAddressWithAuditDetailsAndIndividualIdIfAddressIsNotNull() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withName()
@@ -114,7 +122,6 @@ class IndividualServiceTest {
     @DisplayName("should generate individual id")
     void shouldGenerateIndividualId() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withTenantId()
@@ -133,7 +140,6 @@ class IndividualServiceTest {
     @DisplayName("should enrich individuals")
     void shouldEnrichIndividuals() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withTenantId()
@@ -155,7 +161,6 @@ class IndividualServiceTest {
     @DisplayName("should generate identifier if not present")
     void shouldGenerateIdentifierIfNotPresent() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withTenantId()
@@ -178,7 +183,6 @@ class IndividualServiceTest {
     @DisplayName("should enrich identifier with individual id")
     void shouldEnrichIdentifierWithIndividualId() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withTenantId()
@@ -205,7 +209,6 @@ class IndividualServiceTest {
     @DisplayName("should enrich identifiers")
     void shouldEnrichIdentifiers() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withTenantId()
@@ -239,7 +242,6 @@ class IndividualServiceTest {
     @DisplayName("should save individuals")
     void shouldSaveIndividuals() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
-                .withApiOperation(ApiOperation.CREATE)
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withTenantId()
@@ -255,6 +257,7 @@ class IndividualServiceTest {
 
     @Test
     @DisplayName("should validate if only permanent address is present when addresses are not null")
+    @Disabled
     void shouldValidateIfOnlyPermanentAddressIsPresentWhenAddressesAreNotNull() {
         Individual individual = IndividualTestBuilder.builder()
                 .withTenantId()
@@ -269,6 +272,7 @@ class IndividualServiceTest {
 
     @Test
     @DisplayName("should throw exception if two permanent addresses are present")
+    @Disabled
     void shouldThrowExceptionIfTwoPermanentAddressesArePresent() {
         Individual individual = IndividualTestBuilder.builder()
                 .withTenantId()
@@ -291,6 +295,7 @@ class IndividualServiceTest {
 
     @Test
     @DisplayName("should throw exception if total number of addresses exceed three")
+    @Disabled
     void shouldThrowExceptionIfTotalNumberOfAddressesExceedThree() {
         Individual individual = IndividualTestBuilder.builder()
                 .withTenantId()

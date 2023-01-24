@@ -2,11 +2,8 @@ package org.egov.individual.helper;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualRequest;
-
-import java.util.Arrays;
 
 public class IndividualRequestTestBuilder {
     private IndividualRequest.IndividualRequestBuilder builder;
@@ -23,8 +20,8 @@ public class IndividualRequestTestBuilder {
         return this.builder.build();
     }
 
-    public IndividualRequestTestBuilder withIndividuals(Individual... args) {
-        this.builder.individuals(Arrays.asList(args));
+    public IndividualRequestTestBuilder withIndividuals(Individual individual) {
+        this.builder.individual(individual);
         return this;
     }
 
@@ -34,8 +31,8 @@ public class IndividualRequestTestBuilder {
         return this;
     }
 
-    public IndividualRequestTestBuilder withApiOperation(ApiOperation apiOperation) {
-        this.builder.apiOperation(apiOperation);
-        return this;
-    }
+//    public IndividualRequestTestBuilder withApiOperation(ApiOperation apiOperation) {
+//        this.builder.apiOperation(apiOperation);
+//        return this;
+//    }
 }

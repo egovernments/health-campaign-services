@@ -21,6 +21,7 @@ public class IndividualTestBuilder {
     }
 
     public Individual build() {
+        this.builder.hasErrors(false);
         return this.builder.build();
     }
 
@@ -69,7 +70,7 @@ public class IndividualTestBuilder {
                 .auditDetails(AuditDetailsTestBuilder.builder()
                         .withAuditDetails()
                         .build())
-                .rowVersion(1)
+//                .rowVersion(1)
                 .build();
         if (addresses != null && addresses.length > 0) {
             this.builder.address(Arrays.asList(addresses));
@@ -121,7 +122,7 @@ public class IndividualTestBuilder {
                 .auditDetails(AuditDetailsTestBuilder.builder()
                         .withAuditDetails()
                         .build())
-                .rowVersion(1)
+//                .rowVersion(1)
                 .build();
         if (identifiers != null && identifiers.length > 0) {
             this.builder.identifiers(Arrays.asList(identifiers));

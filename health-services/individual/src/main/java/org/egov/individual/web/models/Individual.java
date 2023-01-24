@@ -146,8 +146,7 @@ public class Individual   {
         @JsonProperty("isDeleted")
     
 
-
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
         @JsonProperty("rowVersion")
     

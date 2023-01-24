@@ -5,7 +5,6 @@ import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualSearchTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.IndividualSearch;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +19,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-@Disabled
 class IndividualServiceSearchTest {
 
     @InjectMocks

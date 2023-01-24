@@ -54,9 +54,8 @@ public class Identifier {
     private String identifierId = null;
 
     @JsonProperty("isDeleted")
-    @NotNull
 
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
 
