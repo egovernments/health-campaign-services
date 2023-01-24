@@ -1,6 +1,7 @@
-package org.egov.individual.service;
+package org.egov.common.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.Error;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.ArrayList;

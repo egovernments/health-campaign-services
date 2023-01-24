@@ -64,9 +64,10 @@ serviceMaps:
             - jsonPath: $.*.address.*.auditDetails.createdTime
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.address.*.isDeleted
-        - query: INSERT INTO individual_identifier(identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO individual_identifier(id, identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.identifiers.*
           jsonMaps:
+            - jsonPath: $.*.identifiers.*.id
             - jsonPath: $.*.identifiers.*.identifierType
             - jsonPath: $.*.identifiers.*.identifierId
             - jsonPath: $.*.identifiers.*.individualId
@@ -80,7 +81,7 @@ serviceMaps:
       fromTopic: update-individual-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE individual SET userId=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+        - query: UPDATE individual SET userId=?, tenantId=?, givenName=?, familyName=?, otherNames=?, dateOfBirth=?, Gender=?, bloodGroup=?, mobileNumber=?, altContactNumber=?, email=?, fatherName=?, husbandName=?, photo=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.userId
@@ -104,7 +105,6 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.rowVersion
-            - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id
         - query: INSERT INTO address(id, tenantId, doorNo, latitude, longitude, locationAccuracy, type, addressLine1, addressLine2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET doorno=?, latitude=?, longitude=?, locationaccuracy=?, type=?, addressline1=?, addressline2=?, landmark=?, city=?, pincode=?, buildingname=?, street=?, localitycode=?;
           basePath: $.*.address.*
@@ -137,7 +137,7 @@ serviceMaps:
             - jsonPath: $.*.address.*.buildingName
             - jsonPath: $.*.address.*.street
             - jsonPath: $.*.address.*.locality.code
-        - query: INSERT INTO individual_address(individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (individualId, addressId) DO UPDATE SET lastModifiedBy = ?, lastModifiedTime = ? ;
+        - query: INSERT INTO individual_address(individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (individualId, addressId, type, isDeleted) DO UPDATE SET lastModifiedBy = ?, lastModifiedTime = ? ;
           basePath: $.*.address.*
           jsonMaps:
             - jsonPath: $.*.address.*.individualId
@@ -150,9 +150,10 @@ serviceMaps:
             - jsonPath: $.*.address.*.isDeleted
             - jsonPath: $.*.address.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
-        - query: INSERT INTO individual_identifier(individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (individualId, identifierType) DO UPDATE SET identifierId = ?, lastModifiedBy = ?, lastModifiedTime = ?;
+        - query: INSERT INTO individual_identifier(id, individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET identifierId = ?, lastModifiedBy = ?, lastModifiedTime = ?;
           basePath: $.*.identifiers.*
           jsonMaps:
+            - jsonPath: $.*.identifiers.*.id
             - jsonPath: $.*.identifiers.*.individualId
             - jsonPath: $.*.identifiers.*.identifierType
             - jsonPath: $.*.identifiers.*.identifierId
@@ -164,3 +165,30 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.identifierId
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
+    - version: 1.0
+      description: Deletes Individual and related Entities
+      fromTopic: delete-individual-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE individual SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+        - query: UPDATE individual_address SET lastModifiedBy=?, lastModifiedTime=?, isDeleted=? WHERE individualId=?;
+          basePath: $.*.address.*
+          jsonMaps:
+            - jsonPath: $.*.address.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.address.*.isDeleted
+            - jsonPath: $.*.address.*.individualId
+        - query: UPDATE individual_identifier SET lastModifiedBy=?, lastModifiedTime=?, isDeleted=? WHERE individualId=?;
+          basePath: $.*.identifiers.*
+          jsonMaps:
+            - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.identifiers.*.isDeleted
+            - jsonPath: $.*.identifiers.*.individualId

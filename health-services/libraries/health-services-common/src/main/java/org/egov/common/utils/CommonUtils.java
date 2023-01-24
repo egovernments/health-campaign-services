@@ -3,7 +3,12 @@ package org.egov.common.utils;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.ApiDetails;
+import org.egov.common.models.Error;
+import org.egov.common.models.ErrorDetails;
 import org.egov.tracer.model.CustomException;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
@@ -523,6 +528,74 @@ public class CommonUtils {
             methodMap.put(methodName, method);
             methodCache.put(clazz, methodMap);
             return method;
+        }
+    }
+
+    public static <T> void enrichForDelete(List<T> list, Object request, boolean updateRowVersion) {
+        Class<?> objClass = getObjClass(list);
+        Class<?> requestObjClass = request.getClass();
+        Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
+        Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
+
+        Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
+        list.forEach(obj -> {
+            ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+            if (updateRowVersion) {
+                Method getRowVersionMethod = getMethod("getRowVersion", objClass);
+                Method setRowVersionMethod = getMethod("setRowVersion", objClass);
+                Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
+                ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
+            }
+            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
+                    .invokeMethod(getRequestInfoMethod, request);
+            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(requestInfo.getUserInfo().getUuid());
+            ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
+        });
+    }
+
+    public static <T, R> Map<T, ErrorDetails> validate(List<Validator<R, T>> validators,
+                                                       Predicate<Validator<R, T>> applicableValidators,
+                                                       R request,
+                                                       String payloadMethodName) {
+        Map<T, ErrorDetails> errorDetailsMap = new HashMap<>();
+        validators.stream().filter(applicableValidators)
+                .map(validator -> validator.validate(request))
+                .forEach(e -> populateErrorDetailsGeneric(request, errorDetailsMap, e,
+                        payloadMethodName));
+        return errorDetailsMap;
+    }
+
+    public static <T, R> void populateErrorDetailsGeneric(R request,
+                                                           Map<T, ErrorDetails> errorDetailsMap,
+                                                           Map<T, List<Error>> errorMap,
+                                                           String setPayloadMethodName) {
+        try {
+            for (Map.Entry<T, List<Error>> entry : errorMap.entrySet()) {
+                T payload = entry.getKey();
+                if (errorDetailsMap.containsKey(payload)) {
+                    errorDetailsMap.get(payload).getErrors().addAll(entry.getValue());
+                } else {
+                    RequestInfo requestInfo = (RequestInfo) ReflectionUtils
+                            .invokeMethod(getMethod("getRequestInfo", request.getClass()), request);
+                    R newRequest = (R) ReflectionUtils.accessibleConstructor(request.getClass(), null).newInstance();
+                    ReflectionUtils.invokeMethod(getMethod("setRequestInfo", newRequest.getClass()), newRequest, requestInfo);
+                    ReflectionUtils.invokeMethod(getMethod(setPayloadMethodName, newRequest.getClass()), newRequest,
+                            Collections.singletonList(payload));
+                    ApiDetails apiDetails = ApiDetails.builder()
+                            .methodType(HttpMethod.POST.name())
+                            .contentType(MediaType.APPLICATION_JSON_VALUE)
+                            .url(requestInfo.getApiId()).build();
+                    apiDetails.setRequestBody(newRequest);
+                    ErrorDetails errorDetails = ErrorDetails.builder()
+                            .errors(entry.getValue())
+                            .apiDetails(apiDetails)
+                            .build();
+                    errorDetailsMap.put(payload, errorDetails);
+                }
+            }
+        } catch (Exception exception) {
+            log.error("failure in error handling", exception);
+            throw new CustomException("FAILURE_IN_ERROR_HANDLING", exception.getMessage());
         }
     }
 

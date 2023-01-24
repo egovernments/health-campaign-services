@@ -3,6 +3,7 @@ package org.egov.individual.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
+import org.egov.common.utils.Validator;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;

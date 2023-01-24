@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.individual.service.ApiDetails;
+import org.egov.common.models.ApiDetails;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;

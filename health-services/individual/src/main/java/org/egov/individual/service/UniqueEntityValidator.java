@@ -2,6 +2,8 @@ package org.egov.individual.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.Error;
+import org.egov.common.utils.Validator;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.tracer.model.CustomException;

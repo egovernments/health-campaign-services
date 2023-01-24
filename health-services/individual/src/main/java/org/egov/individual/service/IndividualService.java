@@ -3,8 +3,10 @@ package org.egov.individual.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.Error;
+import org.egov.common.models.ErrorDetails;
 import org.egov.common.service.IdGenService;
+import org.egov.common.utils.Validator;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
@@ -15,20 +17,15 @@ import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -37,21 +34,21 @@ import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichForDelete;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.getAuditDetailsForCreate;
 import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetailsGeneric;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
+import static org.egov.common.utils.CommonUtils.validate;
 
 @Service
 @Slf4j
@@ -139,7 +136,8 @@ public class IndividualService {
                         .collect(Collectors.toList()));
                 List<Identifier> identifiers = collectFromList(validIndividuals,
                         Individual::getIdentifiers);
-                enrichForCreateIdentifier(identifiers, request.getRequestInfo());
+                List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
+                enrichForCreate(identifiers, identifierIdList, request.getRequestInfo(), false);
                 if (validIndividuals.stream().anyMatch(individual -> individual.getIdentifiers().stream()
                         .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
                     List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
@@ -192,7 +190,7 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 validIndividuals.forEach(
                         individual -> {
-                            AuditDetails auditDetails = getAuditDetails(request);
+                            AuditDetails auditDetails = getAuditDetailsForUpdate(request.getRequestInfo().getUserInfo().getUuid());
                             enrichAddress(request, individual, auditDetails);
                             enrichIdentifier(request, individual, auditDetails);
                         }
@@ -217,53 +215,6 @@ public class IndividualService {
         return validIndividuals;
     }
 
-    private static <T, R> Map<T, ErrorDetails> validate(List<Validator<R, T>> validators,
-                                                        Predicate<Validator<R, T>> applicableValidators,
-                                                        R request,
-                                                        String payloadMethodName) {
-        Map<T, ErrorDetails> errorDetailsMap = new HashMap<>();
-        validators.stream().filter(applicableValidators)
-                .map(validator -> validator.validate(request))
-                .forEach(e -> populateErrorDetailsGeneric(request, errorDetailsMap, e,
-                        payloadMethodName));
-        return errorDetailsMap;
-    }
-
-    private static <T, R> void populateErrorDetailsGeneric(R request,
-                                                           Map<T, ErrorDetails> errorDetailsMap,
-                                                           Map<T, List<Error>> errorMap,
-                                                           String setPayloadMethodName) {
-        try {
-            for (Map.Entry<T, List<Error>> entry : errorMap.entrySet()) {
-                T payload = entry.getKey();
-                if (errorDetailsMap.containsKey(payload)) {
-                    errorDetailsMap.get(payload).getErrors().addAll(entry.getValue());
-                } else {
-                    RequestInfo requestInfo = (RequestInfo) ReflectionUtils
-                            .invokeMethod(getMethod("getRequestInfo", request.getClass()), request);
-                    R newRequest = (R) ReflectionUtils.accessibleConstructor(request.getClass(), null).newInstance();
-                    ReflectionUtils.invokeMethod(getMethod("setRequestInfo", newRequest.getClass()), newRequest, requestInfo);
-                    ReflectionUtils.invokeMethod(getMethod(setPayloadMethodName, newRequest.getClass()), newRequest,
-                            Collections.singletonList(payload));
-                    ApiDetails apiDetails = ApiDetails.builder()
-                            .methodType(HttpMethod.POST.name())
-                            .contentType(MediaType.APPLICATION_JSON_VALUE)
-                            .url(requestInfo.getApiId()).build();
-                    apiDetails.setRequestBody(newRequest);
-                    ErrorDetails errorDetails = ErrorDetails.builder()
-                            .errors(entry.getValue())
-                            .apiDetails(apiDetails)
-                            .build();
-                    errorDetailsMap.put(payload, errorDetails);
-                }
-            }
-        } catch (Exception exception) {
-            log.error("failure in error handling", exception);
-            throw new CustomException("FAILURE_IN_ERROR_HANDLING", exception.getMessage());
-        }
-    }
-
-
     private static <R,T> void populateErrorDetailsForException(R request, Map<T, ErrorDetails> errorDetailsMap,
                                                                List<T> validIndividuals, Exception exception,
                                                                String payloadMethodName) {
@@ -284,16 +235,6 @@ public class IndividualService {
         validIndividuals.forEach(payload -> {
             errorListMap.put(payload, errorList);
             populateErrorDetailsGeneric(request, errorDetailsMap, errorListMap, payloadMethodName);
-        });
-    }
-
-    private void enrichForCreateIdentifier(List<Identifier> identifiers, RequestInfo requestInfo) {
-        Deque<String> idStack = new LinkedList<>(uuidSupplier().apply(identifiers.size()));
-        AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
-        identifiers.forEach(identifier -> {
-            identifier.setAuditDetails(auditDetails);
-            identifier.setIsDeleted(Boolean.FALSE);
-            identifier.setId(idStack.pop());
         });
     }
 
@@ -327,13 +268,6 @@ public class IndividualService {
             individual.setIdentifiers(identifiers);
         }
         return individual;
-    }
-
-    private static AuditDetails getAuditDetails(IndividualBulkRequest request) {
-        return AuditDetails.builder()
-                .lastModifiedBy(request.getRequestInfo().getUserInfo().getUuid())
-                .lastModifiedTime(System.currentTimeMillis())
-                .build();
     }
 
     private static void enrichAddress(IndividualBulkRequest request, Individual individual,
@@ -464,27 +398,5 @@ public class IndividualService {
         }
 
         return validIndividuals;
-    }
-
-    private static <T> void enrichForDelete(List<T> list, Object request, boolean updateRowVersion) {
-        Class<?> objClass = getObjClass(list);
-        Class<?> requestObjClass = request.getClass();
-        Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
-        Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
-
-        Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
-        list.forEach(obj -> {
-            ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
-            if (updateRowVersion) {
-                Method getRowVersionMethod = getMethod("getRowVersion", objClass);
-                Method setRowVersionMethod = getMethod("setRowVersion", objClass);
-                Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
-                ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
-            }
-            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
-                    .invokeMethod(getRequestInfoMethod, request);
-            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(requestInfo.getUserInfo().getUuid());
-            ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
-        });
     }
 }

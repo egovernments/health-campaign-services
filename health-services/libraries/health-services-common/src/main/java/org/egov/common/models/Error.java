@@ -1,4 +1,4 @@
-package org.egov.individual.service;
+package org.egov.common.models;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +17,7 @@ public class Error {
     private ErrorType type;
     private String additionalDetails;
 
-    enum ErrorType {
+    public enum ErrorType {
         RECOVERABLE,
         NON_RECOVERABLE
     }

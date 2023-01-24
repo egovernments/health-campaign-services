@@ -1,4 +1,4 @@
-package org.egov.individual.service;
+package org.egov.common.models;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

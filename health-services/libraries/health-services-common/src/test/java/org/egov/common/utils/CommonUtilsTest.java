@@ -9,21 +9,29 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.helpers.OtherObject;
 import org.egov.common.helpers.SomeObject;
 import org.egov.common.helpers.SomeObjectWithClientRefId;
+import org.egov.common.helpers.SomeValidator;
+import org.egov.common.models.Error;
+import org.egov.common.models.ErrorDetails;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -34,8 +42,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class CommonUtilsTest {
+
+    @Mock
+    SomeValidator someValidator;
 
     @BeforeEach
     void setUp() {
@@ -654,6 +670,57 @@ class CommonUtilsTest {
         Method idMethod = CommonUtils.getIdMethod(objList, "id", "otherClientReferenceId");
         assertEquals("some-id", ReflectionUtils.invokeMethod(idMethod,
                 objList.get(0)));
+    }
+
+    @Test
+    @DisplayName("should enrich with audit details and is delete")
+    void shouldEnrichWithAuditDetailsAndIsDelete() {
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        SomeObject someObject = SomeObject.builder().otherField("other-field")
+                .requestInfo(requestInfo).build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        CommonUtils.enrichForDelete(objList, someObject, false);
+
+        assertNotNull(objList.stream().findAny().get().getAuditDetails());
+        assertTrue(objList.stream().findAny().get().getIsDeleted());
+    }
+    @Test
+    @DisplayName("should call validate method")
+    void shouldCallValidateMethod() {
+        List<Validator<SomeObject, OtherObject>> validators = new ArrayList<>();
+        validators.add(someValidator);
+        Predicate<Validator<SomeObject, OtherObject>> isApplicableForTest = validator -> true;
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        SomeObject someObject = SomeObject.builder().otherField("other-field")
+                .requestInfo(requestInfo).build();
+        List<SomeObject> objList = new ArrayList<>();
+        objList.add(someObject);
+
+        when(someValidator.validate(any())).thenReturn(Collections.emptyMap());
+        CommonUtils.validate(validators, isApplicableForTest, someObject, "setOtherObject");
+
+        verify(someValidator, times(1)).validate(any());
+    }
+
+    @Test
+    @DisplayName("should populate error details map")
+    void shouldPopulateErrorDetailsMap() {
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        SomeObject someObject = SomeObject.builder().otherField("other-field")
+                .requestInfo(requestInfo).build();
+        OtherObject otherObject = OtherObject.builder().someOtherField("some").build();
+        Map<OtherObject, ErrorDetails> errorDetailsMap = new HashMap<>();
+        Map<OtherObject, List<Error>> errors = new HashMap<>();
+        errors.put(otherObject, Arrays.asList(Error.builder().errorCode("SOMECODE").build()));
+
+        CommonUtils.populateErrorDetailsGeneric(someObject, errorDetailsMap, errors, "setOtherObject");
+
+        assertEquals(errorDetailsMap.size(), 1);
     }
 
     @Data
