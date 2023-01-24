@@ -136,13 +136,6 @@ public class IndividualService {
                         Individual::getIdentifiers);
                 List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
                 enrichForCreate(identifiers, identifierIdList, request.getRequestInfo(), false);
-                if (validIndividuals.stream().anyMatch(individual -> individual.getIdentifiers().stream()
-                        .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
-                    List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
-                            tenantId, "sys.gen.identifier.id",
-                            null, identifiers.size());
-                    enrichWithSysGenId(identifiers, sysGenIdList);
-                }
                 individualRepository.save(validIndividuals, "save-individual-topic");
             }
         } catch (Exception exception) {
@@ -223,7 +216,9 @@ public class IndividualService {
 
     private static Individual enrichIndividualIdInIdentifiers(Individual individual) {
         List<Identifier> identifiers = individual.getIdentifiers();
-        identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
+        identifiers.forEach(identifier -> {
+            identifier.setIndividualId(individual.getId());
+        });
         individual.setIdentifiers(identifiers);
         return individual;
     }
@@ -239,6 +234,7 @@ public class IndividualService {
             List<Identifier> identifiers = new ArrayList<>();
             identifiers.add(Identifier.builder()
                     .identifierType("SYSTEM_GENERATED")
+                    .identifierId(individual.getId())
                     .build());
             individual.setIdentifiers(identifiers);
         }

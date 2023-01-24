@@ -230,7 +230,7 @@ class IndividualServiceTest {
                 response.stream().findFirst().get()
                         .getIdentifiers().stream().findFirst().get()
                         .getId());
-        assertEquals("some-sys-gen-id",
+        assertEquals("some-individual-id",
                 response.stream().findFirst().get()
                         .getIdentifiers().stream().findFirst().get()
                         .getIdentifierId());
