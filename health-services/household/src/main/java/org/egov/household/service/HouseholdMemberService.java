@@ -159,7 +159,7 @@ public class HouseholdMemberService {
         householdMember.setIndividualId(individual.getId());
         householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
 
-        List<HouseholdMember> individualSearchResult = householdMemberRepository.findIndividual(householdMember.getIndividualId());
+        List<HouseholdMember> individualSearchResult = householdMemberRepository.findIndividual(individual.getId());
         return individualSearchResult;
     }
 
