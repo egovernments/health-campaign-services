@@ -64,7 +64,7 @@ public class HouseholdMemberService {
     @Value("${egov.individual.host}")
     private String individualServiceHost;
 
-    @Value("${egov.search.individual.url}")
+    @Value("${egov.individual.search.url}")
     private String individualServiceSearchUrl;
 
     @Autowired
@@ -99,7 +99,7 @@ public class HouseholdMemberService {
 
             List<HouseholdMember> individualSearchResult = validateIndividualMapping(householdMember, searchResponse);
             if(!individualSearchResult.isEmpty()) {
-                throw new CustomException("INDIVIDUAL_ALREADY_ADDED", householdMember.getIndividualId());
+                throw new CustomException("INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD", householdMember.getIndividualId());
             }
             enrichWithHouseholdId(householdMap, householdMember);
             validateHeadOfHousehold(householdMember);
@@ -144,7 +144,7 @@ public class HouseholdMemberService {
                     .collect(Collectors.toList());
 
             if(!householdMembersHeadCheck.isEmpty()){
-                throw new CustomException("HOUSEHOLD_ALREADY_HAVE_HEAD_OF_HOUSEHOLD", householdMember.getIndividualId());
+                throw new CustomException("HOUSEHOLD_ALREADY_HAS_HEAD", householdMember.getIndividualId());
             }
         }
     }
@@ -208,7 +208,7 @@ public class HouseholdMemberService {
             );
             List<HouseholdMember> individualSearchResult = validateIndividualMapping(householdMember, searchResponse);
             if(individualSearchResult.isEmpty()) {
-                throw new CustomException("INDIVIDUAL_NOT_ADDED", householdMember.getIndividualId());
+                throw new CustomException("INDIVIDUAL_NOT_MEMBER_OF_HOUSEHOLD", householdMember.getIndividualId());
             }
             enrichWithHouseholdId(householdMap, householdMember);
         }
