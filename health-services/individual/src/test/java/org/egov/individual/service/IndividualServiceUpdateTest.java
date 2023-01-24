@@ -3,6 +3,7 @@ package org.egov.individual.service;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.Validator;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
@@ -30,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -63,6 +65,9 @@ class IndividualServiceUpdateTest {
     @Mock
     private RowVersionValidator rowVersionValidator;
 
+    @Mock
+    private IndividualProperties properties;
+
 
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
@@ -71,6 +76,7 @@ class IndividualServiceUpdateTest {
         validators = Arrays.asList(addressTypeValidator, nullIdValidator, nonExistentEntityValidator,
                 uniqueEntityValidator, uniqueSubEntityValidator, rowVersionValidator);
         ReflectionTestUtils.setField(individualService, "validators", validators);
+        lenient().when(properties.getUpdateIndividualTopic()).thenReturn("update-topic");
     }
 
     @Test

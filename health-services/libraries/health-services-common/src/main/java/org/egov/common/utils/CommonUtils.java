@@ -114,6 +114,12 @@ public class CommonUtils {
                 .lastModifiedTime(System.currentTimeMillis()).build();
     }
 
+    /**
+     * Get auditDetails having only the lastModifiedBy and lastModifiedTime fields set.
+     *
+     * @param modifiedByUuid is the uuid of the user performing this update.
+     * @return auditDetails
+     */
     public static AuditDetails getAuditDetailsForUpdate(String modifiedByUuid) {
         log.info("Creating audit details for update/delete api");
         return AuditDetails.builder()
@@ -184,14 +190,37 @@ public class CommonUtils {
         Object obj = objList.stream().findAny().get();
         Method getTenantIdMethod = getMethod("getTenantId", obj.getClass());
         String tenantId = (String) ReflectionUtils.invokeMethod(getTenantIdMethod, obj);
-        log.info("Tenant ID {}", tenantId);
+        log.info("tenantId is {}", tenantId);
         return tenantId;
     }
 
+    /**
+     * Enriches objList with requestInfo, auditDetails, rowVersion and sets idDeleted to FALSE.
+     *
+     * <p>It also enriches the system generated ids in the objList. To be used for create APIs.
+     *
+     * @param objList is list of objects
+     * @param idList is the list of system generated ids
+     * @param requestInfo is requestInfo, usually part of the request object
+     * @param <T> is any type that has an id field, auditDetails field, rowVersion field and isDeleted field with setters and getters
+     */
     public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo) {
         enrichForCreate(objList, idList, requestInfo, true);
     }
 
+    /**
+     * Enriches objList with requestInfo, auditDetails, rowVersion and sets idDeleted to FALSE.
+     *
+     * <p>It also enriches the system generated ids in the type objList.
+     * This method updates rowVersion if and only if the updateRowVersion param is set.
+     * To be used for create APIs.
+     *
+     * @param objList is list of objects with type objList
+     * @param idList is the list of system generated ids
+     * @param requestInfo is requestInfo, usually part of the request object
+     * @param updateRowVersion denoting whether to update rowVersion or not
+     * @param <T> is any type that has an id field, auditDetails field, rowVersion field and isDeleted field with setters and getters
+     */
     public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo,
                                            boolean updateRowVersion) {
         AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
@@ -253,7 +282,6 @@ public class CommonUtils {
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, Object request) {
         Class<?> objClass = getObjClass(Arrays.asList(idToObjMap.values().toArray()));
         Class<?> requestObjClass = request.getClass();
-        Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
         Method getRowVersionMethod = getMethod("getRowVersion", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
@@ -261,19 +289,6 @@ public class CommonUtils {
         Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
         idToObjMap.keySet().forEach(i -> {
             Object obj = idToObjMap.get(i);
-            Method getApiOperationMethod = null;
-            try {
-                getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
-            } catch (Exception e) {
-                //will be removed later
-            }
-            if (getApiOperationMethod != null) {
-                Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
-                Method nameMethod = CommonUtils.getMethod("name", Enum.class);
-                if ("DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation))) {
-                    ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
-                }
-            }
             Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
             ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
             RequestInfo requestInfo = (RequestInfo) ReflectionUtils
@@ -439,6 +454,15 @@ public class CommonUtils {
                 idMethod, obj)).collect(Collectors.toList());
     }
 
+    /**
+     * Collects list of objects from an object in objList and then merges those list of objects into a single list.
+     *
+     * @param objList is the list of objects from which the list is to be collected
+     * @param function which takes an object from the objList and returns the list of required objects from that object
+     * @return single combined list of all objects collected from each object in the objList
+     * @param <T> is the object in objList
+     * @param <R> is the object in the list of objects in one object in the objList
+     */
     public static <T, R> List<R> collectFromList(List<T> objList, Function<T, List<R>> function) {
         return objList.stream()
                 .flatMap(obj -> {
@@ -531,14 +555,21 @@ public class CommonUtils {
         }
     }
 
-    public static <T> void enrichForDelete(List<T> list, Object request, boolean updateRowVersion) {
-        Class<?> objClass = getObjClass(list);
-        Class<?> requestObjClass = request.getClass();
+    /**
+     * Enriches objList with requestInfo, auditDetails, rowVersion and sets idDeleted to FALSE.
+     *
+     * <p>To be used for delete APIs
+     *
+     * @param objList is list of objects
+     * @param requestInfo is requestInfo, usually part of the request object
+     * @param updateRowVersion determines whether to update the rowVersion or not
+     * @param <T> is any type that has an auditDetails field, rowVersion field and isDeleted field with setters and getters
+     */
+    public static <T> void enrichForDelete(List<T> objList, RequestInfo requestInfo, boolean updateRowVersion) {
+        Class<?> objClass = getObjClass(objList);
         Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
-
-        Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
-        list.forEach(obj -> {
+        objList.forEach(obj -> {
             ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
             if (updateRowVersion) {
                 Method getRowVersionMethod = getMethod("getRowVersion", objClass);
@@ -546,25 +577,44 @@ public class CommonUtils {
                 Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
                 ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
             }
-            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
-                    .invokeMethod(getRequestInfoMethod, request);
             AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(requestInfo.getUserInfo().getUuid());
             ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
         });
     }
 
+    /**
+     * Validate and return the consolidated errorDetailsMap based on all the validations.
+     *
+     * @param validators is the list of validators
+     * @param applicableValidators is a predicate defining the validators to apply
+     * @param request is the request body
+     * @param setPayloadMethodName is a setter method available on the request body
+     * @return a map of payload vs errorDetails object
+     * @param <T> is the type of payload
+     * @param <R> is the type of request
+     */
     public static <T, R> Map<T, ErrorDetails> validate(List<Validator<R, T>> validators,
                                                        Predicate<Validator<R, T>> applicableValidators,
                                                        R request,
-                                                       String payloadMethodName) {
+                                                       String setPayloadMethodName) {
         Map<T, ErrorDetails> errorDetailsMap = new HashMap<>();
         validators.stream().filter(applicableValidators)
                 .map(validator -> validator.validate(request))
                 .forEach(e -> populateErrorDetails(request, errorDetailsMap, e,
-                        payloadMethodName));
+                        setPayloadMethodName));
         return errorDetailsMap;
     }
 
+    /**
+     * Populate error details for error handler.
+     *
+     * @param request is the request body having a getRequestInfo method
+     * @param errorDetailsMap is a map of payload vs errorDetails
+     * @param errorMap is a map of payload vs all its errors across validations
+     * @param setPayloadMethodName is a setter method available on the request body
+     * @param <T> is the type of payload
+     * @param <R> is the type of request
+     */
     public static <T, R> void populateErrorDetails(R request,
                                                    Map<T, ErrorDetails> errorDetailsMap,
                                                    Map<T, List<Error>> errorMap,
@@ -576,10 +626,14 @@ public class CommonUtils {
                     errorDetailsMap.get(payload).getErrors().addAll(entry.getValue());
                 } else {
                     RequestInfo requestInfo = (RequestInfo) ReflectionUtils
-                            .invokeMethod(getMethod("getRequestInfo", request.getClass()), request);
-                    R newRequest = (R) ReflectionUtils.accessibleConstructor(request.getClass(), null).newInstance();
-                    ReflectionUtils.invokeMethod(getMethod("setRequestInfo", newRequest.getClass()), newRequest, requestInfo);
-                    ReflectionUtils.invokeMethod(getMethod(setPayloadMethodName, newRequest.getClass()), newRequest,
+                            .invokeMethod(getMethod("getRequestInfo",
+                                    request.getClass()), request);
+                    R newRequest = (R) ReflectionUtils.accessibleConstructor(request.getClass(),
+                            null).newInstance();
+                    ReflectionUtils.invokeMethod(getMethod("setRequestInfo",
+                            newRequest.getClass()), newRequest, requestInfo);
+                    ReflectionUtils.invokeMethod(getMethod(setPayloadMethodName,
+                                    newRequest.getClass()), newRequest,
                             Collections.singletonList(payload));
                     ApiDetails apiDetails = ApiDetails.builder()
                             .methodType(HttpMethod.POST.name())
@@ -599,9 +653,21 @@ public class CommonUtils {
         }
     }
 
+    /**
+     * Populate error details for exception scenarios.
+     *
+     *
+     * @param request is the request body
+     * @param errorDetailsMap is a map of payload vs errorDetails
+     * @param validPayloads are the paylaods without validation errors
+     * @param exception is the exception
+     * @param setPayloadMethodName is a setter method available on the request body
+     * @param <T> is the type of payload
+     * @param <R> is the type of request
+     */
     public static <R,T> void populateErrorDetails(R request, Map<T, ErrorDetails> errorDetailsMap,
                                                   List<T> validPayloads, Exception exception,
-                                                  String payloadMethodName) {
+                                                  String setPayloadMethodName) {
         Error.ErrorType errorType = Error.ErrorType.NON_RECOVERABLE;
         String errorCode = "INTERNAL_SERVER_ERROR";
         if (exception instanceof CustomException) {
@@ -618,8 +684,15 @@ public class CommonUtils {
                 .exception(new CustomException(errorCode, exception.getMessage())).build());
         Map<T, List<Error>> errorListMap = new HashMap<>();
         validPayloads.forEach(payload -> {
-            errorListMap.put(payload, errorList);
-            populateErrorDetails(request, errorDetailsMap, errorListMap, payloadMethodName);
+            // TODO: Get a peer review done
+            if (errorListMap.containsKey(payload)) {
+                errorListMap.get(payload).addAll(errorList);
+            } else {
+                errorListMap.put(payload, errorList);
+            }
+            // errorListMap.put(payload, errorList);
+            // TODO: ends here
+            populateErrorDetails(request, errorDetailsMap, errorListMap, setPayloadMethodName);
         });
     }
 

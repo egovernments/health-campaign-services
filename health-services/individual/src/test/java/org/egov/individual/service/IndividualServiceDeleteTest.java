@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.Validator;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceDeleteTest {
@@ -55,6 +57,9 @@ class IndividualServiceDeleteTest {
     @Mock
     private ObjectMapper objectMapper;
 
+    @Mock
+    private IndividualProperties properties;
+
 
     @BeforeEach
     void setUp() {
@@ -64,6 +69,7 @@ class IndividualServiceDeleteTest {
                 (Predicate<Validator<IndividualBulkRequest, Individual>>) validator ->
                 validator.getClass().equals(NullIdValidator.class)
                         || validator.getClass().equals(NonExistentEntityValidator.class));
+        when(properties.getDeleteIndividualTopic()).thenReturn("delete-topic");
     }
 
     @Test

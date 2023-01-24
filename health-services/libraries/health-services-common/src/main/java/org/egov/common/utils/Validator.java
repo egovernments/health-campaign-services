@@ -16,7 +16,8 @@ public interface Validator<R, T> {
     default <T> void populateErrorDetails(T payload, Error error,
                                       Map<T, List<Error>> errorDetailsMap,
                                       ObjectMapper objectMapper) {
-        ReflectionUtils.invokeMethod(getMethod("setHasErrors", payload.getClass()), payload, Boolean.TRUE);
+        ReflectionUtils.invokeMethod(getMethod("setHasErrors", payload.getClass()),
+                payload, Boolean.TRUE);
         if (errorDetailsMap.containsKey(payload)) {
             errorDetailsMap.get(payload).add(error);
         } else {

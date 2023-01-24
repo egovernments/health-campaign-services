@@ -682,7 +682,7 @@ class CommonUtilsTest {
         List<SomeObject> objList = new ArrayList<>();
         objList.add(someObject);
 
-        CommonUtils.enrichForDelete(objList, someObject, false);
+        CommonUtils.enrichForDelete(objList, someObject.getRequestInfo(), false);
 
         assertNotNull(objList.stream().findAny().get().getAuditDetails());
         assertTrue(objList.stream().findAny().get().getIsDeleted());

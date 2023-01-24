@@ -4,6 +4,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.Validator;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
@@ -40,6 +41,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceTest {
@@ -59,6 +61,9 @@ class IndividualServiceTest {
     @Mock
     private AddressTypeValidator addressTypeValidator;
 
+    @Mock
+    private IndividualProperties properties;
+
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
     @BeforeEach
@@ -67,6 +72,7 @@ class IndividualServiceTest {
         mockIdGen("sys.gen.identifier.id", "some-sys-gen-id");
         validators = Arrays.asList(addressTypeValidator, uniqueSubEntityValidator);
         ReflectionTestUtils.setField(individualService, "validators", validators);
+        when(properties.getSaveIndividualTopic()).thenReturn("save-topic");
     }
 
     private void mockIdGen(String value, String o) throws Exception {
