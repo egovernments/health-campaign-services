@@ -3,7 +3,6 @@ package org.egov.individual.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.Validator;
@@ -25,7 +24,6 @@ import org.springframework.util.ReflectionUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -46,7 +44,7 @@ import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetailsGeneric;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 import static org.egov.common.utils.CommonUtils.validate;
 
@@ -148,7 +146,7 @@ public class IndividualService {
                 individualRepository.save(validIndividuals, "save-individual-topic");
             }
         } catch (Exception exception) {
-            populateErrorDetailsForException(request, errorDetailsMap, validIndividuals, exception, "setIndividuals");
+            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, "setIndividuals");
         }
 
         if (!errorDetailsMap.isEmpty()) {
@@ -201,7 +199,7 @@ public class IndividualService {
                 individualRepository.save(validIndividuals, "update-individual-topic");
             }
         } catch (Exception exception) {
-            populateErrorDetailsForException(request, errorDetailsMap, validIndividuals, exception, "setIndividuals");
+            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, "setIndividuals");
         }
 
         if (!errorDetailsMap.isEmpty()) {
@@ -213,29 +211,6 @@ public class IndividualService {
         }
 
         return validIndividuals;
-    }
-
-    private static <R,T> void populateErrorDetailsForException(R request, Map<T, ErrorDetails> errorDetailsMap,
-                                                               List<T> validIndividuals, Exception exception,
-                                                               String payloadMethodName) {
-        Error.ErrorType errorType = Error.ErrorType.NON_RECOVERABLE;
-        String errorCode = "INTERNAL_SERVER_ERROR";
-        if (exception instanceof CustomException) {
-            errorCode = ((CustomException) exception).getCode();
-            if (!((CustomException) exception).getCode().equals("IDGEN_ERROR")) {
-                errorType = Error.ErrorType.RECOVERABLE;
-            }
-        }
-        List<Error> errorList = new ArrayList<>();
-        errorList.add(Error.builder().errorMessage(exception.getMessage())
-                .errorCode(errorCode)
-                .type(errorType)
-                .exception(new CustomException(errorCode, exception.getMessage())).build());
-        Map<T, List<Error>> errorListMap = new HashMap<>();
-        validIndividuals.forEach(payload -> {
-            errorListMap.put(payload, errorList);
-            populateErrorDetailsGeneric(request, errorDetailsMap, errorListMap, payloadMethodName);
-        });
     }
 
     private static void enrichWithSysGenId(List<Identifier> identifiers, List<String> sysGenIdList) {
@@ -376,17 +351,21 @@ public class IndividualService {
         List<Individual> validIndividuals = request.getIndividuals().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
-        if (!validIndividuals.isEmpty()) {
-            enrichIndividualIdInAddress(validIndividuals);
-            validIndividuals = validIndividuals.stream()
-                    .map(IndividualService::enrichIndividualIdInIdentifiers)
-                    .collect(Collectors.toList());
-            validIndividuals.forEach(individual -> {
-                enrichForDelete(Collections.singletonList(individual), request, true);
-                enrichForDelete(individual.getAddress(), request, false);
-                enrichForDelete(individual.getIdentifiers(), request, false);
-            });
-            individualRepository.save(validIndividuals, "delete-individual-topic");
+        try {
+            if (!validIndividuals.isEmpty()) {
+                enrichIndividualIdInAddress(validIndividuals);
+                validIndividuals = validIndividuals.stream()
+                        .map(IndividualService::enrichIndividualIdInIdentifiers)
+                        .collect(Collectors.toList());
+                validIndividuals.forEach(individual -> {
+                    enrichForDelete(Collections.singletonList(individual), request, true);
+                    enrichForDelete(individual.getAddress(), request, false);
+                    enrichForDelete(individual.getIdentifiers(), request, false);
+                });
+                individualRepository.save(validIndividuals, "delete-individual-topic");
+            }
+        } catch(Exception exception) {
+            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, "setIndividuals");
         }
 
         if (!errorDetailsMap.isEmpty()) {

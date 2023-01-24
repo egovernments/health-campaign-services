@@ -560,15 +560,15 @@ public class CommonUtils {
         Map<T, ErrorDetails> errorDetailsMap = new HashMap<>();
         validators.stream().filter(applicableValidators)
                 .map(validator -> validator.validate(request))
-                .forEach(e -> populateErrorDetailsGeneric(request, errorDetailsMap, e,
+                .forEach(e -> populateErrorDetails(request, errorDetailsMap, e,
                         payloadMethodName));
         return errorDetailsMap;
     }
 
-    public static <T, R> void populateErrorDetailsGeneric(R request,
-                                                           Map<T, ErrorDetails> errorDetailsMap,
-                                                           Map<T, List<Error>> errorMap,
-                                                           String setPayloadMethodName) {
+    public static <T, R> void populateErrorDetails(R request,
+                                                   Map<T, ErrorDetails> errorDetailsMap,
+                                                   Map<T, List<Error>> errorMap,
+                                                   String setPayloadMethodName) {
         try {
             for (Map.Entry<T, List<Error>> entry : errorMap.entrySet()) {
                 T payload = entry.getKey();
@@ -597,6 +597,30 @@ public class CommonUtils {
             log.error("failure in error handling", exception);
             throw new CustomException("FAILURE_IN_ERROR_HANDLING", exception.getMessage());
         }
+    }
+
+    public static <R,T> void populateErrorDetails(R request, Map<T, ErrorDetails> errorDetailsMap,
+                                                  List<T> validPayloads, Exception exception,
+                                                  String payloadMethodName) {
+        Error.ErrorType errorType = Error.ErrorType.NON_RECOVERABLE;
+        String errorCode = "INTERNAL_SERVER_ERROR";
+        if (exception instanceof CustomException) {
+            errorCode = ((CustomException) exception).getCode();
+            // in case further cases come up, we can add more cases in a set and check using contains.
+            if (!((CustomException) exception).getCode().equals("IDGEN_ERROR")) {
+                errorType = Error.ErrorType.RECOVERABLE;
+            }
+        }
+        List<Error> errorList = new ArrayList<>();
+        errorList.add(Error.builder().errorMessage(exception.getMessage())
+                .errorCode(errorCode)
+                .type(errorType)
+                .exception(new CustomException(errorCode, exception.getMessage())).build());
+        Map<T, List<Error>> errorListMap = new HashMap<>();
+        validPayloads.forEach(payload -> {
+            errorListMap.put(payload, errorList);
+            populateErrorDetails(request, errorDetailsMap, errorListMap, payloadMethodName);
+        });
     }
 
     private static Method findMethod(String methodName, Class<?> clazz) {

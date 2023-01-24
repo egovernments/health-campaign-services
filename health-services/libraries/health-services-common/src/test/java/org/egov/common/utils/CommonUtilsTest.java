@@ -718,9 +718,28 @@ class CommonUtilsTest {
         Map<OtherObject, List<Error>> errors = new HashMap<>();
         errors.put(otherObject, Arrays.asList(Error.builder().errorCode("SOMECODE").build()));
 
-        CommonUtils.populateErrorDetailsGeneric(someObject, errorDetailsMap, errors, "setOtherObject");
+        CommonUtils.populateErrorDetails(someObject, errorDetailsMap, errors, "setOtherObject");
 
         assertEquals(errorDetailsMap.size(), 1);
+    }
+
+    @Test
+    @DisplayName("should populate error details map for custom exception")
+    void shouldPopulateErrorDetailsMapForCustomException() {
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        SomeObject someObject = SomeObject.builder().otherField("other-field")
+                .requestInfo(requestInfo).build();
+        OtherObject otherObject = OtherObject.builder().someOtherField("some").build();
+        List<OtherObject> validPayloads = Arrays.asList(otherObject);
+        Map<OtherObject, ErrorDetails> errorDetailsMap = new HashMap<>();
+        Map<OtherObject, List<Error>> errors = new HashMap<>();
+        errors.put(otherObject, Arrays.asList(Error.builder().errorCode("SOMECODE").build()));
+        CustomException exception = new CustomException("IDGEN_ERROR", "some error in ID gen");
+        CommonUtils.populateErrorDetails(someObject, errorDetailsMap, validPayloads, exception, "setOtherObject");
+
+        assertEquals(errorDetailsMap.size(), 1);
+        assertEquals(errorDetailsMap.get(otherObject).getErrors().get(0).getType(), Error.ErrorType.NON_RECOVERABLE);
     }
 
     @Data
