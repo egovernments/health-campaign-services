@@ -28,6 +28,8 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.egov.common.utils.ValidatorUtils.getErrorForNullId;
+
 @Slf4j
 public class CommonUtils {
 
@@ -661,7 +663,7 @@ public class CommonUtils {
      *
      * @param request is the request body
      * @param errorDetailsMap is a map of payload vs errorDetails
-     * @param validPayloads are the paylaods without validation errors
+     * @param validPayloads are the payloads without validation errors
      * @param exception is the exception
      * @param setPayloadMethodName is a setter method available on the request body
      * @param <T> is the type of payload
@@ -693,6 +695,52 @@ public class CommonUtils {
             }
             populateErrorDetails(request, errorDetailsMap, errorListMap, setPayloadMethodName);
         });
+    }
+
+    /**
+     * Validate for null ids
+     *
+     * @param request is the request body
+     * @param getPayloadMethodName is the get method of the payloads available on the request body
+     * @return a map of payload vs list of all errors for that payload
+     * @param <R> is the type of request
+     * @param <T> is the type of payload
+     */
+    public static <R,T> HashMap<T, List<Error>> validateForNullId(R request, String getPayloadMethodName) {
+        HashMap<T, List<Error>> errorDetailsMap = new HashMap<>();
+        List<T> validPayloads = ((List<T>)ReflectionUtils.invokeMethod(getMethod(getPayloadMethodName,
+                request.getClass()), request)).stream().filter(notHavingErrors()).collect(Collectors.toList());
+        if (!validPayloads.isEmpty()) {
+            Class<?> objClass = getObjClass(validPayloads);
+            Method idMethod = getMethod("getId", objClass);
+            List<T> payloadWithNullIds = identifyObjectsWithNullIds(validPayloads, idMethod);
+            payloadWithNullIds.forEach(payload -> {
+                Error error = getErrorForNullId();
+                populateErrorDetails(payload, error, errorDetailsMap);
+            });
+        }
+        return errorDetailsMap;
+    }
+
+    /**
+     * Populate error details for validators.
+     *
+     * @param payload is the payload in request body
+     * @param error is the error for the validator
+     * @param errorDetailsMap is a map of payload vs errorDetails
+     * @param <T> is the type of payload
+     */
+    public static <T> void populateErrorDetails(T payload, Error error,
+                                  Map<T, List<Error>> errorDetailsMap) {
+        ReflectionUtils.invokeMethod(getMethod("setHasErrors", payload.getClass()),
+                payload, Boolean.TRUE);
+        if (errorDetailsMap.containsKey(payload)) {
+            errorDetailsMap.get(payload).add(error);
+        } else {
+            List<Error> errors = new ArrayList<>();
+            errors.add(error);
+            errorDetailsMap.put(payload, errors);
+        }
     }
 
     private static Method findMethod(String methodName, Class<?> clazz) {

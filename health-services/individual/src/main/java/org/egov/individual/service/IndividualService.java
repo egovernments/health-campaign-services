@@ -358,7 +358,6 @@ public class IndividualService {
     @KafkaListener(topics = "${individual.consumer.bulk.delete.topic}")
     public List<Individual> bulkDelete(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        log.info(consumerRecord.toString());
         IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
         return delete(request, true);
     }

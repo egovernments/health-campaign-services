@@ -6,7 +6,6 @@ import org.egov.common.utils.Validator;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -24,6 +23,8 @@ import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 
 @Component
 @Order(value = 4)
@@ -31,8 +32,6 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 public class NonExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final IndividualRepository individualRepository;
-
-    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
 
     @Autowired
     public NonExistentEntityValidator(IndividualRepository individualRepository) {
@@ -55,10 +54,7 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
             List<Individual> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingIndividuals, idMethod);
             nonExistentIndividuals.forEach(individual -> {
-                Error error = Error.builder().errorMessage("Individual does not exist in db")
-                        .errorCode("NON_EXISTENT_INDIVIDUAL")
-                        .type(ERROR_TYPE)
-                        .exception(new CustomException("NON_EXISTENT_INDIVIDUAL", "Individual does not exist in db")).build();
+                Error error = getErrorForNonExistentEntity();
                 populateErrorDetails(individual, error, errorDetailsMap);
             });
         }

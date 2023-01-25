@@ -37,7 +37,6 @@ import java.util.function.UnaryOperator;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -190,13 +189,15 @@ class CommonUtilsTest {
                 .withCompleteRequestInfo().build();
         AuditDetails existingAuditDetails = CommonUtils.getAuditDetailsForCreate(requestInfo);
 
-        requestInfo.getUserInfo().setUuid("other-uuid");
+        RequestInfo otherRequestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        otherRequestInfo.getUserInfo().setUuid("other-uuid");
         AuditDetails auditDetails = CommonUtils.getAuditDetailsForUpdate(existingAuditDetails,
-                requestInfo.getUserInfo().getUuid());
+                otherRequestInfo.getUserInfo().getUuid());
 
         assertEquals(auditDetails.getCreatedTime(), existingAuditDetails.getCreatedTime());
         assertEquals(auditDetails.getCreatedBy(), existingAuditDetails.getCreatedBy());
-        assertNotEquals(auditDetails.getLastModifiedBy(), existingAuditDetails.getLastModifiedBy());
+        assertEquals(auditDetails.getLastModifiedBy(), existingAuditDetails.getLastModifiedBy());
         assertTrue(auditDetails.getCreatedTime() != null
                 && auditDetails.getLastModifiedTime() != null
                 && auditDetails.getCreatedBy() != null

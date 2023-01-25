@@ -7,7 +7,6 @@ import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -20,13 +19,13 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueSubEntity;
 
 @Component
 @Order(value = 3)
 @Slf4j
 public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest, Individual> {
-
-    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest individualBulkRequest) {
@@ -45,14 +44,10 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                                 address.stream()
                                         .filter(ad -> ad.getId().equals(id)).count() > 1
                         ).collect(Collectors.toList());
-                        for (String key : duplicates) {
-                            Error error = Error.builder().errorMessage("Duplicate address")
-                                    .errorCode("DUPLICATE_ADDRESS")
-                                    .type(ERROR_TYPE)
-                                    .exception(new CustomException("DUPLICATE_ADDRESS", "Duplicate address"))
-                                    .build();
+                        duplicates.forEach( duplicate -> {
+                            Error error = getErrorForUniqueSubEntity();
                             populateErrorDetails(individual, error, errorDetailsMap);
-                        }
+                        });
                     }
                 }
 
@@ -66,15 +61,10 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                                     identifiers.stream()
                                             .filter(idt -> idt.getIdentifierType().equals(id)).count() > 1
                             ).collect(Collectors.toList());
-                            for (String key : duplicates) {
-                                Error error = Error.builder().errorMessage("Duplicate identifier")
-                                        .errorCode("DUPLICATE_IDENTIFIER")
-                                        .type(ERROR_TYPE)
-                                        .exception(new CustomException("DUPLICATE_IDENTIFIER",
-                                                "Duplicate identifier"))
-                                        .build();
+                            duplicates.forEach( duplicate -> {
+                                Error error = getErrorForUniqueSubEntity();
                                 populateErrorDetails(individual, error, errorDetailsMap);
-                            }
+                            });
                         }
                     }
                 }

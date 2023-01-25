@@ -6,7 +6,6 @@ import org.egov.common.utils.Validator;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -23,6 +22,8 @@ import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
 @Component
 @Order(value = 5)
@@ -30,8 +31,6 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 public class RowVersionValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final IndividualRepository individualRepository;
-
-    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
 
     @Autowired
     public RowVersionValidator(IndividualRepository individualRepository) {
@@ -53,9 +52,7 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
             List<Individual> individualsWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(iMap, existingIndividuals, idMethod);
             individualsWithMismatchedRowVersion.forEach(individual -> {
-                Error error = Error.builder().errorMessage("Row version mismatch").errorCode("MISMATCHED_ROW_VERSION")
-                        .type(ERROR_TYPE)
-                        .exception(new CustomException("MISMATCHED_ROW_VERSION", "Row version mismatch")).build();
+                Error error = getErrorForRowVersionMismatch();
                 populateErrorDetails(individual, error, errorDetailsMap);
             });
         }

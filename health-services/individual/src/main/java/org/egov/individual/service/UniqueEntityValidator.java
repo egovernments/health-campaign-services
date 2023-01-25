@@ -5,7 +5,6 @@ import org.egov.common.models.Error;
 import org.egov.common.utils.Validator;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -16,13 +15,13 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 @Component
 @Order(value = 2)
 @Slf4j
 public class UniqueEntityValidator implements Validator<IndividualBulkRequest, Individual> {
-
-    private static final Error.ErrorType ERROR_TYPE = Error.ErrorType.NON_RECOVERABLE;
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest individualBulkRequest) {
@@ -37,10 +36,7 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
                                 .filter(individual -> individual.getId().equals(id)).count() > 1
                 ).collect(Collectors.toList());
                 for (String key : duplicates) {
-                    Error error = Error.builder().errorMessage("Duplicate individual")
-                            .errorCode("DUPLICATE_INDIVIDUAL")
-                            .type(ERROR_TYPE)
-                            .exception(new CustomException("DUPLICATE_INDIVIDUAL", "Duplicate individual")).build();
+                    Error error = getErrorForUniqueEntity();
                     populateErrorDetails(iMap.get(key), error, errorDetailsMap);
                 }
             }
