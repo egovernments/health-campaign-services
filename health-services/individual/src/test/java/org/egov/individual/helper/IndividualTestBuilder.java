@@ -3,6 +3,7 @@ package org.egov.individual.helper;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
+import org.egov.individual.web.models.Gender;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
@@ -21,7 +22,7 @@ public class IndividualTestBuilder {
     }
 
     public Individual build() {
-        this.builder.hasErrors(false);
+        this.builder.gender(Gender.MALE).hasErrors(false);
         return this.builder.build();
     }
 
