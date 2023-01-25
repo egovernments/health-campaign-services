@@ -55,12 +55,12 @@ public interface GenericQueryBuilder {
         return stringBuilder;
     }
 
-    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap){
+    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap) {
         List<String> whereClauses = new ArrayList<>();
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
             if (field.getType().equals(LocalDate.class) || field.getType().isEnum()) {
                 // do nothing
-            }  else {
+            } else {
                 field.setAccessible(true);
                 try {
                     if (!field.getType().isPrimitive() && checkCondition.check(field, object)
@@ -73,17 +73,17 @@ public interface GenericQueryBuilder {
                                 && field.getGenericType() instanceof ParameterizedType
                                 && ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0].equals(String.class)) {
                             ArrayList<String> arrayList = (ArrayList<String>) field.get(object);
-                            if(arrayList != null && !arrayList.isEmpty()) {
+                            if (arrayList != null && !arrayList.isEmpty()) {
                                 String fieldName = field.getName();
                                 StringBuilder value = new StringBuilder();
                                 for (String arrayValue : arrayList) {
                                     String paramName = fieldName + "_" + arrayList.indexOf(arrayValue);
-                                    value.append(":"+paramName+",");
+                                    value.append(":" + paramName + ",");
                                     paramsMap.put(paramName, arrayValue);
                                 }
-                                whereClauses.add(String.format("%s IN (%s)", fieldName, value.deleteCharAt(value.length()-1).toString()));
+                                whereClauses.add(String.format("%s IN (%s)", fieldName, value.deleteCharAt(value.length() - 1).toString()));
                             }
-                        }  else {
+                        } else {
                             Object objectAtField = field.get(object);
                             if (objectAtField != null) {
                                 whereClauses.addAll(getFieldsWithCondition(objectAtField, checkCondition, paramsMap));
