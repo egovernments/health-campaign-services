@@ -12,6 +12,9 @@ import org.egov.common.data.query.exception.QueryBuilderException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -26,6 +29,53 @@ class GenericQueryBuilderTest {
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
                 "dummyString=:dummyString AND dummyInt=:dummyInt";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should build select queries for the arraylist of string")
+    void shouldBuildSelectQueriesForTheArrayListOfString() throws QueryBuilderException {
+        ArrayList<String> strings = new ArrayList<>();
+        strings.add("value1");
+        strings.add("value2");
+        DummyData data = DummyData.builder()
+                .dummyStringList(strings)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+                "dummyStringList IN (:dummyStringList_0,:dummyStringList_1)";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should build select query for an empty ArrayList of String")
+    void shouldBuildSelectQueryForAnEmptyArrayListOfString() throws QueryBuilderException {
+        ArrayList<String> strings = new ArrayList<>();
+        DummyData data = DummyData.builder()
+                .dummyStringList(strings)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should handle null arraylist of string while building select query")
+    void shouldHandleNullArrayListOfStringWhileBuildingSelectQuery() throws QueryBuilderException {
+        DummyData data = DummyData.builder()
+                .dummyStringList(null)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -152,7 +202,7 @@ class GenericQueryBuilderTest {
         private Boolean dummyBoolean;
         private Float dummyFloat;
         private Double dummyDouble;
-
+        private ArrayList<String> dummyStringList;
         private int dummyPrimitiveInt;
         private boolean dummyPrimitiveBoolean;
         private float dummyPrimitiveFloat;
