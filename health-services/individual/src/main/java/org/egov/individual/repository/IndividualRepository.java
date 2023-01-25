@@ -44,7 +44,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
     public List<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
         List<Individual> objFound;
-        objFound = findInCache(ids);
+        objFound = findInCache(ids).stream()
+                .filter(individual -> individual.getIsDeleted().equals(includeDeleted))
+                .collect(Collectors.toList());
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, idColumn);
             ids.removeAll(objFound.stream()
@@ -61,7 +63,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         paramMap.put("ids", ids);
         List<Individual> individuals = this.namedParameterJdbcTemplate
                 .query(individualQuery, paramMap, this.rowMapper);
-        enrichIndividuals(individuals);
+        enrichIndividuals(individuals, includeDeleted);
         objFound.addAll(individuals);
         putInCache(objFound);
         return objFound;
@@ -75,7 +77,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (searchObject.getIdentifier() == null) {
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
-                enrichIndividuals(individuals);
+                enrichIndividuals(individuals, includeDeleted);
             }
             return individuals;
         } else {
@@ -91,7 +93,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 if (!individuals.isEmpty()) {
                     individuals.forEach(individual -> {
                         individual.setIdentifiers(identifiers);
-                        List<Address> addresses = getAddressForIndividual(individual.getId());
+                        List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
                         individual.setAddress(addresses);
                     });
                 }
@@ -141,22 +143,24 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return GenericQueryBuilder.generateQuery(identifierQuery, identifierWhereFields).toString();
     }
 
-    private List<Address> getAddressForIndividual(String individualId) {
-        String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted FROM address a, individual_address ia WHERE a.id = ia.addressId and ia.individualId =:individualId", false, "ia");
+    private List<Address> getAddressForIndividual(String individualId, Boolean includeDeleted) {
+        String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted FROM address a, individual_address ia WHERE a.id = ia.addressId and ia.individualId =:individualId", includeDeleted, "ia");
         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
         indServerGenIdParamMap.put("individualId", individualId);
+        indServerGenIdParamMap.put("isDeleted", includeDeleted);
         return this.namedParameterJdbcTemplate
                 .query(addressQuery, indServerGenIdParamMap, new AddressRowMapper());
     }
 
-    private void enrichIndividuals(List<Individual> individuals) {
+    private void enrichIndividuals(List<Individual> individuals, Boolean includeDeleted) {
         if (!individuals.isEmpty()) {
             individuals.forEach(individual -> {
                 Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                 indServerGenIdParamMap.put("individualId", individual.getId());
-                List<Address> addresses = getAddressForIndividual(individual.getId());
+                indServerGenIdParamMap.put("isDeleted", includeDeleted);
+                List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
                 String individualIdentifierQuery = getQuery("SELECT * FROM individual_identifier ii WHERE ii.individualId =:individualId",
-                        false);
+                        includeDeleted);
                 List<Identifier> identifiers = this.namedParameterJdbcTemplate
                         .query(individualIdentifierQuery, indServerGenIdParamMap,
                                 new IdentifierRowMapper());
