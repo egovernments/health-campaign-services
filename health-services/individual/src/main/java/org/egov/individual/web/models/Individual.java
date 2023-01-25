@@ -49,7 +49,7 @@ public class Individual   {
     private String clientReferenceId = null;
 
         @JsonProperty("userId")
-    
+
 
 
     private String userId = null;
@@ -67,63 +67,64 @@ public class Individual   {
     private LocalDate dateOfBirth = null;
 
         @JsonProperty("gender")
-    
+
   @Valid
+  @NotNull
 
 
     private Gender gender = null;
 
         @JsonProperty("bloodGroup")
-    
 
-    @Size(max=3) 
+
+    @Size(max=3)
 
     private String bloodGroup = null;
 
         @JsonProperty("mobileNumber")
-    
 
-    @Size(max=20) 
+
+    @Size(max=20)
 
     private String mobileNumber = null;
 
         @JsonProperty("altContactNumber")
-    
 
-    @Size(max=16) 
+
+    @Size(max=16)
 
     private String altContactNumber = null;
 
         @JsonProperty("email")
-    
 
-    @Size(min=5,max=200) 
+
+    @Size(min=5,max=200)
 
     private String email = null;
 
         @JsonProperty("address")
-    
+
   @Valid
 
         @Size(min=1, max = 3)
     private List<Address> address = null;
 
         @JsonProperty("fatherName")
-    
 
-    @Size(max=100) 
+
+    @Size(max=100)
 
     private String fatherName = null;
 
         @JsonProperty("husbandName")
-    
 
-    @Size(max=100) 
+
+    @Size(max=100)
 
     private String husbandName = null;
 
         @JsonProperty("identifiers")
-    
+
   @Valid
 
 
@@ -131,31 +132,31 @@ public class Individual   {
     private List<Identifier> identifiers = null;
 
         @JsonProperty("photo")
-    
+
 
 
     private String photo = null;
 
         @JsonProperty("additionalFields")
-    
+
   @Valid
 
 
     private AdditionalFields additionalFields = null;
 
         @JsonProperty("isDeleted")
-    
+
 
     private Boolean isDeleted = Boolean.FALSE;
 
         @JsonProperty("rowVersion")
-    
+
 
 
     private Integer rowVersion = null;
 
         @JsonProperty("auditDetails")
-    
+
   @Valid
 
 
