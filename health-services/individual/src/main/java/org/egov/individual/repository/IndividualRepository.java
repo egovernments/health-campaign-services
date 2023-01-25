@@ -83,10 +83,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
         } else {
             Map<String, Object> identifierParamMap = new HashMap<>();
             String identifierQuery = getIdentifierQuery(searchObject.getIdentifier(), identifierParamMap);
+            identifierParamMap.put("isDeleted", includeDeleted);
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
                     .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
             if (!identifiers.isEmpty()) {
-                query = query.replace(" AND tenantId=:tenantId ", " AND tenantId=:tenantId AND id=:individualId ");
+                query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
                 paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
