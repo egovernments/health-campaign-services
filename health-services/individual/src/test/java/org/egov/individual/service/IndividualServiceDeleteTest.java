@@ -81,6 +81,7 @@ class IndividualServiceDeleteTest {
                 .withRowVersion()
                 .withIdentifiers()
                 .withAddress()
+                .withIsDeleted(true)
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())

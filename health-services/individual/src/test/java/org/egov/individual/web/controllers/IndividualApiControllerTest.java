@@ -3,6 +3,7 @@ package org.egov.individual.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.producer.Producer;
 import org.egov.individual.TestConfiguration;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
@@ -51,6 +52,9 @@ class IndividualApiControllerTest {
 
     @MockBean
     private Producer producer;
+
+    @MockBean
+    private IndividualProperties individualProperties;
 
     @Test
     @DisplayName("should create an individual and return 202 accepted when api operation is create")

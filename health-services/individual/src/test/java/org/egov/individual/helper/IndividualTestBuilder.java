@@ -53,6 +53,7 @@ public class IndividualTestBuilder {
                 .city("some-city")
                 .tenantId("some-tenant-id")
                 .type(AddressType.PERMANENT)
+                .isDeleted(false)
                 .build();
         if (addresses != null && addresses.length > 0) {
             this.builder.address(Arrays.asList(addresses));
@@ -106,6 +107,7 @@ public class IndividualTestBuilder {
         Identifier identifier = Identifier.builder()
                 .identifierType("SYSTEM_GENERATED")
                 .identifierId("some-identifier-id")
+                .isDeleted(false)
                 .build();
         if (identifiers != null && identifiers.length > 0) {
             this.builder.identifiers(Arrays.asList(identifiers));
