@@ -104,27 +104,24 @@ public class CommonUtils {
                 .lastModifiedTime(time).build();
     }
 
-    public static AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails,
-                                                        String modifiedByUuid) {
-        log.info("Creating audit details for update api");
-        return AuditDetails.builder()
-                .createdBy(existingAuditDetails.getCreatedBy())
-                .createdTime(existingAuditDetails.getCreatedTime())
-                .lastModifiedBy(modifiedByUuid)
-                .lastModifiedTime(System.currentTimeMillis()).build();
-    }
-
     /**
      * Get auditDetails having only the lastModifiedBy and lastModifiedTime fields set.
      *
+     * @param existingAuditDetails is the audit details coming from request.
      * @param modifiedByUuid is the uuid of the user performing this update.
      * @return auditDetails
      */
-    public static AuditDetails getAuditDetailsForUpdate(String modifiedByUuid) {
+    public static AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String modifiedByUuid) {
         log.info("Creating audit details for update/delete api");
-        return AuditDetails.builder()
-                .lastModifiedBy(modifiedByUuid)
-                .lastModifiedTime(System.currentTimeMillis()).build();
+        if (existingAuditDetails == null) {
+            return AuditDetails.builder()
+                    .lastModifiedBy(modifiedByUuid)
+                    .lastModifiedTime(System.currentTimeMillis()).build();
+        } else {
+            existingAuditDetails.setLastModifiedBy(modifiedByUuid);
+            existingAuditDetails.setLastModifiedTime(System.currentTimeMillis());
+            return existingAuditDetails;
+        }
     }
 
     public static boolean isSearchByIdOnly(Object obj) {
@@ -285,6 +282,7 @@ public class CommonUtils {
         Method getRowVersionMethod = getMethod("getRowVersion", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
+        Method getAuditDetailsMethod = getMethod("getAuditDetails", objClass);
 
         Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
         idToObjMap.keySet().forEach(i -> {
@@ -293,7 +291,8 @@ public class CommonUtils {
             ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
             RequestInfo requestInfo = (RequestInfo) ReflectionUtils
                     .invokeMethod(getRequestInfoMethod, request);
-            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(requestInfo.getUserInfo().getUuid());
+            AuditDetails existingAuditDetails = (AuditDetails) ReflectionUtils.invokeMethod(getAuditDetailsMethod, obj);
+            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(existingAuditDetails, requestInfo.getUserInfo().getUuid());
             ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
         });
     }
@@ -569,6 +568,7 @@ public class CommonUtils {
         Class<?> objClass = getObjClass(objList);
         Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
+        Method getAuditDetailsMethod = getMethod("getAuditDetails", objClass);
         objList.forEach(obj -> {
             ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
             if (updateRowVersion) {
@@ -577,7 +577,9 @@ public class CommonUtils {
                 Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
                 ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
             }
-            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(requestInfo.getUserInfo().getUuid());
+            AuditDetails existingAuditDetails = (AuditDetails) ReflectionUtils.invokeMethod(getAuditDetailsMethod, obj);
+            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(existingAuditDetails,
+                    requestInfo.getUserInfo().getUuid());
             ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
         });
     }
@@ -684,14 +686,11 @@ public class CommonUtils {
                 .exception(new CustomException(errorCode, exception.getMessage())).build());
         Map<T, List<Error>> errorListMap = new HashMap<>();
         validPayloads.forEach(payload -> {
-            // TODO: Get a peer review done
             if (errorListMap.containsKey(payload)) {
                 errorListMap.get(payload).addAll(errorList);
             } else {
                 errorListMap.put(payload, errorList);
             }
-            // errorListMap.put(payload, errorList);
-            // TODO: ends here
             populateErrorDetails(request, errorDetailsMap, errorListMap, setPayloadMethodName);
         });
     }

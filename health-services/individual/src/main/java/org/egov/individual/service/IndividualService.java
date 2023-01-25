@@ -204,10 +204,8 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 validIndividuals.forEach(
                         individual -> {
-                            AuditDetails auditDetails = getAuditDetailsForUpdate(request.getRequestInfo()
-                                    .getUserInfo().getUuid());
-                            enrichAddressForUpdate(request, individual, auditDetails);
-                            enrichIdentifierForUpdate(request, individual, auditDetails);
+                            enrichAddressForUpdate(request, individual);
+                            enrichIdentifierForUpdate(request, individual);
                         }
                 );
                 Map<String, Individual> iMap = getIdToObjMap(validIndividuals);
@@ -251,8 +249,7 @@ public class IndividualService {
         return individual;
     }
 
-    private static void enrichAddressForUpdate(IndividualBulkRequest request, Individual individual,
-                                               AuditDetails auditDetails) {
+    private static void enrichAddressForUpdate(IndividualBulkRequest request, Individual individual) {
         List<Address> addressesToCreate = individual.getAddress().stream()
                 .filter(ad1 -> ad1.getId() == null)
                 .collect(Collectors.toList());
@@ -270,6 +267,9 @@ public class IndividualService {
             log.info("enriching addresses to update");
             addressesToUpdate.forEach(address -> {
                 address.setIndividualId(individual.getId());
+                AuditDetails existingAuditDetails = address.getAuditDetails();
+                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                        request.getRequestInfo().getUserInfo().getUuid());
                 address.setAuditDetails(auditDetails);
                 if (address.getIsDeleted() == null) {
                     address.setIsDeleted(Boolean.FALSE);
@@ -279,7 +279,7 @@ public class IndividualService {
     }
 
     private static void enrichIdentifierForUpdate(IndividualBulkRequest request,
-                                                  Individual individual, AuditDetails auditDetails) {
+                                                  Individual individual) {
         if (individual.getIdentifiers() != null) {
             List<Identifier> identifiersToCreate = individual.getIdentifiers().stream().filter(havingNullId())
                     .collect(Collectors.toList());
@@ -295,6 +295,9 @@ public class IndividualService {
             if (!identifiersToUpdate.isEmpty()) {
                 identifiersToUpdate.forEach(identifier -> {
                     identifier.setIndividualId(individual.getId());
+                    AuditDetails existingAuditDetails = identifier.getAuditDetails();
+                    AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                            request.getRequestInfo().getUserInfo().getUuid());
                     identifier.setAuditDetails(auditDetails);
                     if (identifier.getIsDeleted() == null) {
                         identifier.setIsDeleted(Boolean.FALSE);
@@ -355,6 +358,7 @@ public class IndividualService {
     @KafkaListener(topics = "${individual.consumer.bulk.delete.topic}")
     public List<Individual> bulkDelete(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        log.info(consumerRecord.toString());
         IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
         return delete(request, true);
     }
@@ -374,9 +378,31 @@ public class IndividualService {
                         .collect(Collectors.toList());
                 validIndividuals.forEach(individual -> {
                     RequestInfo requestInfo = request.getRequestInfo();
-                    enrichForDelete(Collections.singletonList(individual), requestInfo, true);
-                    enrichForDelete(individual.getAddress(), requestInfo, false);
-                    enrichForDelete(individual.getIdentifiers(), requestInfo, false);
+                    if (individual.getIsDeleted()) {
+                        enrichForDelete(Collections.singletonList(individual), requestInfo, true);
+                        enrichForDelete(individual.getAddress(), requestInfo, false);
+                        enrichForDelete(individual.getIdentifiers(), requestInfo, false);
+                    } else {
+                        Integer previousRowVersion = individual.getRowVersion();
+                        individual.getIdentifiers().stream().filter(Identifier::getIsDeleted)
+                                .forEach(identifier -> {
+                                    AuditDetails existingAuditDetails = identifier.getAuditDetails();
+                                    AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                            request.getRequestInfo().getUserInfo().getUuid());
+                                    identifier.setAuditDetails(auditDetails);
+                                    individual.setAuditDetails(auditDetails);
+                                    individual.setRowVersion(previousRowVersion + 1);
+                                });
+                        individual.getAddress().stream().filter(Address::getIsDeleted)
+                                .forEach(address -> {
+                                    AuditDetails existingAuditDetails = address.getAuditDetails();
+                                    AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                            request.getRequestInfo().getUserInfo().getUuid());
+                                    address.setAuditDetails(auditDetails);
+                                    individual.setAuditDetails(auditDetails);
+                                    individual.setRowVersion(previousRowVersion + 1);
+                                });
+                    }
                 });
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());

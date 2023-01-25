@@ -178,17 +178,18 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id
-        - query: UPDATE individual_address SET lastModifiedBy=?, lastModifiedTime=?, isDeleted=? WHERE individualId=?;
+        - query: UPDATE individual_address SET lastModifiedBy=?, lastModifiedTime=?, isDeleted=? WHERE individualId=? AND addressId=?;
           basePath: $.*.address.*
           jsonMaps:
             - jsonPath: $.*.address.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.address.*.isDeleted
             - jsonPath: $.*.address.*.individualId
-        - query: UPDATE individual_identifier SET lastModifiedBy=?, lastModifiedTime=?, isDeleted=? WHERE individualId=?;
+            - jsonPath: $.*.address.*.id
+        - query: UPDATE individual_identifier SET lastModifiedBy=?, lastModifiedTime=?, isDeleted=? WHERE id=?;
           basePath: $.*.identifiers.*
           jsonMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
-            - jsonPath: $.*.identifiers.*.individualId
+            - jsonPath: $.*.identifiers.*.id

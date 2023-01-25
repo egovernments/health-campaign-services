@@ -11,9 +11,6 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
 
 @Component
 @Order(2)
@@ -24,8 +21,7 @@ public class IsDeletedValidator implements Validator<IndividualBulkRequest, Indi
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         HashMap<Individual, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Individual> validIndividuals = request.getIndividuals()
-                .stream().filter(notHavingErrors()).collect(Collectors.toList());
+        List<Individual> validIndividuals = request.getIndividuals();
         validIndividuals.stream().filter(Individual::getIsDeleted).forEach(individual -> {
             Error error = Error.builder().errorMessage("isDeleted cannot be true")
                     .errorCode("IS_DELETED_TRUE")

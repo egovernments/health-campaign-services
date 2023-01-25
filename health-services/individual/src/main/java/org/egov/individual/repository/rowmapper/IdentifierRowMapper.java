@@ -11,6 +11,7 @@ public class IdentifierRowMapper implements RowMapper<Identifier> {
     @Override
     public Identifier mapRow(ResultSet resultSet, int i) throws SQLException {
         return Identifier.builder()
+                .id(resultSet.getString("id"))
                 .individualId(resultSet.getString("individualId"))
                 .identifierType(resultSet.getString("identifierType"))
                 .identifierId(resultSet.getString("identifierId"))
