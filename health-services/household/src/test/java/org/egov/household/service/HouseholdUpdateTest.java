@@ -100,6 +100,7 @@ class HouseholdUpdateTest {
     @Test
     @DisplayName("should send data to kafka topic")
     void shouldSendDataToKafkaTopic() {
+
         HouseholdRequest request = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
                 .withApiOperationDelete().build();
         when(householdRepository.findById(anyList(), eq("id"), eq(false)))
