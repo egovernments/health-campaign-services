@@ -5,6 +5,7 @@ import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.project.helper.TaskRequestTestBuilder;
+import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.web.models.ProductVariant;
@@ -50,6 +51,9 @@ class ProjectTaskServiceCreateTest {
     private ProjectRepository projectRepository;
 
     @Mock
+    private ProjectBeneficiaryRepository projectBeneficiaryRepository;
+
+    @Mock
     private IdGenService idGenService;
 
     @Mock
@@ -66,6 +70,11 @@ class ProjectTaskServiceCreateTest {
         List<String> validIds = new ArrayList<>();
         validIds.add("some-id");
         when(projectRepository.validateIds(anyList(), anyString())).thenReturn(validIds);
+
+        List<String> validBeneficiaryIds = new ArrayList<>();
+        validBeneficiaryIds.add("some-id");
+        lenient().when(projectBeneficiaryRepository.validateIds(anyList(), anyString()))
+                .thenReturn(validBeneficiaryIds);
 
         List<String> idList = new ArrayList<>();
         idList.add("some-id");
@@ -118,6 +127,15 @@ class ProjectTaskServiceCreateTest {
 
         assertThrows(CustomException.class, () -> projectTaskService.create(request));
         verify(projectRepository, times(1)).validateIds(anyList(), anyString());
+    }
+
+    @Test
+    @DisplayName("should throw exception if projectBeneficiaryId does not exist")
+    void shouldThrowExceptionIfProjectBeneficiaryIdDoesNotExist() {
+        when(projectBeneficiaryRepository.validateIds(anyList(), anyString())).thenReturn(Collections.emptyList());
+
+        assertThrows(CustomException.class, () -> projectTaskService.create(request));
+        verify(projectBeneficiaryRepository, times(1)).validateIds(anyList(), anyString());
     }
 
     @Test
