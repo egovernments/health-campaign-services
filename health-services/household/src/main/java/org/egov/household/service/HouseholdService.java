@@ -119,7 +119,12 @@ public class HouseholdService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholds, request, idMethod);
 
-        householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic());
+        householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic(), "id");
         return request.getHousehold();
     }
+
+    public List<Household> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
+       return householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+    }
+
 }

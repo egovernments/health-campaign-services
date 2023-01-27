@@ -106,6 +106,13 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
+    public List<T> save(List<T> objects, String topic, String cacheKey) {
+        producer.push(topic, objects);
+        log.info("Pushed to kafka");
+        putInCache(objects, cacheKey);
+        return objects;
+    }
+
     protected void cacheByKey(List<T> objects, String fieldName) {
         try{
             Method getIdMethod = getIdMethod(objects, fieldName);
@@ -131,6 +138,14 @@ public abstract class GenericRepository<T> {
 
         cacheByKey(objects, "id");
         cacheByKey(objects, "clientReferenceId");
+    }
+
+    public void putInCache(List<T> objects, String key) {
+        if(objects == null || objects.isEmpty()) {
+            return;
+        }
+
+        cacheByKey(objects, key);
     }
 
     public List<T> find(Object searchObject,
