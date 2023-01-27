@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.egov.common.data.query.annotations.Table;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -17,8 +18,7 @@ import javax.validation.constraints.Size;
 public class ProductVariantSearch   {
 
     @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("productId")
     @Size(min = 2, max = 64)

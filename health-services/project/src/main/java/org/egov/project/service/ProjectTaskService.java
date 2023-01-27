@@ -10,6 +10,7 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.web.models.Address;
+import org.egov.project.web.models.ProductVariant;
 import org.egov.project.web.models.ProductVariantResponse;
 import org.egov.project.web.models.ProductVariantSearch;
 import org.egov.project.web.models.ProductVariantSearchRequest;
@@ -27,11 +28,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.getDifference;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -103,8 +106,8 @@ public class ProjectTaskService {
         //For each task Enrich Resources with Ids
         IntStream.range(0,request.getTask().size()).forEach(i -> {
             Task task = request.getTask().get(i);
-            List<String> pvId = task.getResources().stream()
-                    .map(TaskResource::getProductVariantId).collect(Collectors.toList());
+            Set<String> pvId = task.getResources().stream()
+                    .map(TaskResource::getProductVariantId).collect(Collectors.toSet());
             checkIfProductVariantExist(pvId,getTenantId(task.getResources()), request.getRequestInfo());
             enrichForCreate(task.getResources(), uuidSupplier().apply(task.getResources().size()),
                     request.getRequestInfo());
@@ -137,27 +140,30 @@ public class ProjectTaskService {
         }
     }
 
-    private void checkIfProductVariantExist(List<String> productVariantIds, String tenantId, RequestInfo requestInfo) {
-        for (String productVariantId: productVariantIds) {
-            ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
-                    .id(productVariantId).build();
-            ProductVariantSearchRequest request = ProductVariantSearchRequest.builder().productVariant(productVariantSearch)
-                    .requestInfo(requestInfo).build();
-            StringBuilder url = new StringBuilder(productHost + productVariantSearchUrl
-                    + "?limit=1&offset=0&tenantId=" + tenantId);
-            ProductVariantResponse response;
-            try {
-                response = serviceRequestClient.fetchResult(url, request, ProductVariantResponse.class);
-            } catch (Exception e) {
-                throw new CustomException("PRODUCT_VARIANT",
-                        String.format("Something went wrong: %s", e.getMessage()));
-            }
+    private void checkIfProductVariantExist(Set<String> pvIds, String tenantId, RequestInfo requestInfo) {
 
-            if (response == null || response.getProductVariant().isEmpty()) {
-                throw new CustomException("PRODUCT_VARIANT_NOT_FOUND",
-                        String.format("Following product variant not found: %s", productVariantId));
-            }
+        List<String> productVariantIds = new ArrayList<>(pvIds);
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .id(productVariantIds).build();
+        ProductVariantSearchRequest request = ProductVariantSearchRequest.builder().productVariant(productVariantSearch)
+                .requestInfo(requestInfo).build();
+        StringBuilder url = new StringBuilder(productHost + productVariantSearchUrl
+                + "?limit=1&offset=0&tenantId=" + tenantId);
+        ProductVariantResponse response;
+        try {
+            response = serviceRequestClient.fetchResult(url, request, ProductVariantResponse.class);
+        } catch (Exception e) {
+            throw new CustomException("PRODUCT_VARIANT",
+                    String.format("Something went wrong: %s", e.getMessage()));
         }
+
+        if (response == null || response.getProductVariant().size() != productVariantIds.size()) {
+            List<String> validId = response.getProductVariant().stream()
+                    .map(ProductVariant::getId).collect(Collectors.toList());
+            throw new CustomException("PRODUCT_VARIANT_NOT_FOUND",
+                    String.format("Following product variant not found: %s", getDifference(productVariantIds, validId)));
+        }
+
     }
 
     public List<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
