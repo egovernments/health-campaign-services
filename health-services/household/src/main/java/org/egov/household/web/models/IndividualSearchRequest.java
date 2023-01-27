@@ -11,27 +11,25 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 /**
-* HouseholdMemberSearchRequest
+* IndividualSearchRequest
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-27T11:47:19.561+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdMemberSearchRequest   {
+public class IndividualSearchRequest   {
 
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-    @JsonProperty("HouseholdMember")
+    @JsonProperty("Individual")
     @NotNull
     @Valid
-    private HouseholdMemberSearch householdMemberSearch = null;
-
+    private IndividualSearch individual = null;
 
 }
-

@@ -1,11 +1,14 @@
 package org.egov.household.service;
 
+import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.helper.HouseholdRequestTestBuilder;
 import org.egov.household.helper.HouseholdTestBuilder;
 import org.egov.household.repository.HouseholdRepository;
+import org.egov.household.web.models.Address;
 import org.egov.household.web.models.Household;
 import org.egov.household.web.models.HouseholdRequest;
 import org.egov.tracer.model.CustomException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,11 +20,14 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +40,15 @@ class HouseholdUpdateTest {
 
     @Mock
     HouseholdRepository householdRepository;
+
+    @Mock
+    HouseholdConfiguration householdConfiguration;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(householdConfiguration.getCreateTopic()).thenReturn("create-topic");
+        lenient().when(householdConfiguration.getUpdateTopic()).thenReturn("update-topic");
+    }
 
     @Test
     @DisplayName("should throw exception if household not found")
@@ -92,7 +107,7 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
     }
 
     @Test
@@ -107,7 +122,7 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
     }
 
     @Test
@@ -122,7 +137,7 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
     }
 
     @Test
@@ -137,6 +152,52 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
+    }
+
+    @Test
+    @DisplayName("should create address if previously null and address is sent")
+    void shouldCreateAddressIfPreviouslyNullAndAddressIsSent() {
+        Address address = Address.builder()
+                .tenantId("default").addressLine1("line 1").addressLine2("line 2")
+                .build();
+        Household household = HouseholdTestBuilder.builder()
+                .withHousehold()
+                .withAddress(address)
+                .build();
+        Household existingHousehold = HouseholdTestBuilder.builder()
+                .withHousehold()
+                .withAddress(null)
+                .build();
+        HouseholdRequest request = HouseholdRequestTestBuilder.builder()
+                .withHousehold(Collections.singletonList(household)).withRequestInfo()
+                .withApiOperationDelete().build();
+        when(householdRepository.findById(anyList(), eq("id"), eq(false)))
+                .thenReturn(Collections.singletonList(existingHousehold));
+
+        List<Household> households = householdService.update(request);
+
+        assertNotNull(households.get(0).getAddress().getId());
+    }
+
+    @Test
+    @DisplayName("should set address id as null on no address")
+    void shouldSetAddressIdAsNullOnNoAddress() {
+        Household householdRequest = HouseholdTestBuilder.builder()
+                .withHousehold()
+                .withAddress(null)
+                .build();
+        Household existingHousehold = HouseholdTestBuilder.builder()
+                .withHousehold()
+                .build();
+        HouseholdRequest request = HouseholdRequestTestBuilder.builder()
+                .withHousehold(Collections.singletonList(householdRequest)).withRequestInfo()
+                .withApiOperationDelete().build();
+        when(householdRepository.findById(anyList(), eq("id"), eq(false)))
+                .thenReturn(Collections.singletonList(existingHousehold));
+
+        List<Household> households = householdService.update(request);
+
+        assertNull(households.get(0).getAddress());
     }
 }

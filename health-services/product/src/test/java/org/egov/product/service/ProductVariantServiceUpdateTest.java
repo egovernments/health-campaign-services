@@ -1,6 +1,7 @@
 package org.egov.product.service;
 
 import org.egov.common.service.IdGenService;
+import org.egov.product.config.ProductConfiguration;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
 import org.egov.product.helper.ProductVariantTestBuilder;
 import org.egov.product.repository.ProductVariantRepository;
@@ -26,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,6 +47,9 @@ class ProductVariantServiceUpdateTest {
     @Mock
     private ProductVariantRepository productVariantRepository;
 
+    @Mock
+    private ProductConfiguration productConfiguration;
+
     private ProductVariantRequest request;
 
     private List<String> productVariantIds;
@@ -57,6 +62,7 @@ class ProductVariantServiceUpdateTest {
         request.setApiOperation(ApiOperation.UPDATE);
         productVariantIds = request.getProductVariant().stream().map(ProductVariant::getId)
                 .collect(Collectors.toList());
+        lenient().when(productConfiguration.getUpdateProductVariantTopic()).thenReturn("update-topic");
     }
 
     private void mockFindById() {

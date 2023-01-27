@@ -1,12 +1,14 @@
 package org.egov.product.service;
 
 import org.egov.common.producer.Producer;
+import org.egov.product.config.ProductConfiguration;
 import org.egov.product.helper.ProductRequestTestBuilder;
 import org.egov.product.helper.ProductTestBuilder;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
 import org.egov.tracer.model.CustomException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +21,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +35,14 @@ class ProductServiceUpdateTest {
 
     @Mock
     private Producer producer;
+
+    @Mock
+    private ProductConfiguration productConfiguration;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        lenient().when(productConfiguration.getUpdateProductTopic()).thenReturn("update-topic");
+    }
 
     @Test
     @DisplayName("should throw exception if product ids are null or empty")

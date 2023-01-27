@@ -8,6 +8,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryRequest;
@@ -72,6 +73,9 @@ class ProjectBeneficiaryServiceCreateTest {
     @Mock
     private ProjectBeneficiaryRepository projectBeneficiaryRepository;
 
+    @Mock
+    private ProjectConfiguration projectConfiguration;
+
     private BeneficiaryRequest request;
 
     @BeforeEach
@@ -89,6 +93,7 @@ class ProjectBeneficiaryServiceCreateTest {
         ReflectionTestUtils.setField(projectBeneficiaryService, "householdServiceSearchUrl", "/v1/_search");
         ReflectionTestUtils.setField(projectBeneficiaryService, "individualServiceHost", "individual-service");
         ReflectionTestUtils.setField(projectBeneficiaryService, "individualServiceSearchUrl", "/v1/_search");
+        lenient().when(projectConfiguration.getCreateProjectBeneficiaryTopic()).thenReturn("create-topic");
     }
 
     private void mockValidateProjectId() {

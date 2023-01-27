@@ -22,7 +22,7 @@ public class ProjectService {
     }
 
     public List<String> validateProjectIds(List<String> productIds) {
-        return projectRepository.validateProjectIds(productIds);
+        return projectRepository.validateIds(productIds, "id");
     }
 
     public List<Project> findByIds(List<String> projectIds){
