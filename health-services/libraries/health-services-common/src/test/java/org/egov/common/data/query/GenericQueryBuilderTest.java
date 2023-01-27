@@ -13,9 +13,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GenericQueryBuilderTest {
@@ -46,12 +47,38 @@ class GenericQueryBuilderTest {
                 .dummyStringList(strings)
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
-                "dummyStringList IN (:dummyStringList_0,:dummyStringList_1)";
+                "dummyStringList IN (:dummyStringList)";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
+        Map<String, Object> paramMap = queryBuilder.getParamsMap();
 
         assertEquals(expectedQuery, actualQuery);
+        assertEquals(strings, paramMap.get("dummyStringList"));
+    }
+
+    @Test
+    @DisplayName("should build select queries only for arraylist of type string")
+    void shouldBuildSelectQueriesForArrayListOfTypeString() throws QueryBuilderException {
+        ArrayList<String> strings = new ArrayList<>();
+        strings.add("value1");
+        strings.add("value2");
+        ArrayList<Integer> ints = new ArrayList<>();
+        ints.add(12);
+        DummyData data = DummyData.builder()
+                .dummyStringList(strings)
+                .dummyIntegerList(ints)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+                "dummyStringList IN (:dummyStringList)";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+        Map<String, Object> paramMap = queryBuilder.getParamsMap();
+
+        assertEquals(expectedQuery, actualQuery);
+        assertEquals(strings, paramMap.get("dummyStringList"));
+        assertNull(paramMap.get("dummyIntegerList"));
     }
 
     @Test
@@ -203,6 +230,7 @@ class GenericQueryBuilderTest {
         private Float dummyFloat;
         private Double dummyDouble;
         private ArrayList<String> dummyStringList;
+        private ArrayList<Integer> dummyIntegerList;
         private int dummyPrimitiveInt;
         private boolean dummyPrimitiveBoolean;
         private float dummyPrimitiveFloat;

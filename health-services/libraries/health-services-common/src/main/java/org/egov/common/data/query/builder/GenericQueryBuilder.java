@@ -73,19 +73,10 @@ public interface GenericQueryBuilder {
                                 && field.getGenericType() instanceof ParameterizedType
                                 && ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0].equals(String.class)) {
                             ArrayList<String> arrayList = (ArrayList<String>) field.get(object);
+                            String fieldName = field.getName();
                             if (arrayList != null && !arrayList.isEmpty()) {
-                                String fieldName = field.getName();
-                                StringBuilder value = new StringBuilder();
-                                for (int i = 0; i < arrayList.size(); i++) {
-                                    String arrayValue = arrayList.get(i);
-                                    String paramName = fieldName + "_" + i;
-                                    value.append(":" + paramName);
-                                    if (i < arrayList.size() - 1) {
-                                        value.append(",");
-                                    }
-                                    paramsMap.put(paramName, arrayValue);
-                                }
-                                whereClauses.add(String.format("%s IN (%s)", fieldName, value));
+                                whereClauses.add(String.format("%s IN (:%s)", fieldName, fieldName));
+                                paramsMap.put(fieldName, arrayList);
                             }
                         } else {
                             Object objectAtField = field.get(object);
