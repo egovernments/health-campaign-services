@@ -3,6 +3,7 @@ package org.egov.project.service;
 import digit.models.coremodels.UserSearchRequest;
 import org.egov.common.contract.request.User;
 import org.egov.common.service.UserService;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.repository.ProjectStaffRepository;
@@ -50,6 +51,9 @@ class ProjectStaffServiceUpdateTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private ProjectConfiguration projectConfiguration;
+
     private ProjectStaffRequest request;
 
     private List<String> projectStaffIds;
@@ -62,6 +66,7 @@ class ProjectStaffServiceUpdateTest {
         request.setApiOperation(ApiOperation.UPDATE);
         projectStaffIds = request.getProjectStaff().stream().map(ProjectStaff::getId)
                 .collect(Collectors.toList());
+        lenient().when(projectConfiguration.getUpdateProjectStaffTopic()).thenReturn("update-topic");
     }
 
 

@@ -26,6 +26,7 @@ public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary
                     .dateOfRegistration(resultSet.getLong("dateOfRegistration"))
                     .beneficiaryId(resultSet.getString("beneficiaryid"))
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
+                    .beneficiaryClientReferenceId(resultSet.getString("beneficiaryClientReferenceId"))
                     .additionalFields(resultSet.getString("additionalDetails") == null
                             ? null : objectMapper.readValue(resultSet.getString("additionalDetails"),
                             AdditionalFields.class)

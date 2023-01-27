@@ -16,14 +16,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getDifference;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
 
 @Slf4j
 public abstract class GenericRepository<T> {
@@ -59,28 +57,38 @@ public abstract class GenericRepository<T> {
         return findById(ids, false);
     }
 
-    public List<T> findById(List<String> ids, Boolean includeDeleted) {
+    protected List<T> findInCache(List<String> ids) {
         ArrayList<T> objFound = new ArrayList<>();
         Collection<Object> collection = new ArrayList<>(ids);
         List<Object> objFromCache = redisTemplate.opsForHash()
-                .multiGet(tableName, collection);
-        if (!objFromCache.isEmpty() && !objFromCache.contains(null)) {
+                .multiGet(tableName, collection).stream().filter(Objects::nonNull).collect(Collectors.toList());
+        if (!objFromCache.isEmpty()) {
             log.info("Cache hit");
             objFound = (ArrayList<T>) objFromCache.stream().map(Object.class::cast)
                     .collect(Collectors.toList());
-            // return only if all the objFromCache are found in cache
-            Method getIdMethod = getMethod("getId", getObjClass(objFromCache));
+        }
+        return objFound;
+    }
+
+    public List<T> findById(List<String> ids, Boolean includeDeleted) {
+        return findById(ids, includeDeleted, "id");
+    }
+
+    public List<T> findById(List<String> ids, Boolean includeDeleted, String columnName) {
+        List<T> objFound = findInCache(ids);
+        if (!objFound.isEmpty()) {
+            Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
-                    .map(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj))
+                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
             if (ids.isEmpty()) {
                 return objFound;
             }
         }
 
-        String query = String.format("SELECT * FROM %s WHERE id IN (:ids) AND isDeleted = false", tableName);
+        String query = String.format("SELECT * FROM %s WHERE %s IN (:ids) AND isDeleted = false", tableName, columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM %s WHERE id IN (:ids)", tableName);
+            query = String.format("SELECT * FROM %s WHERE %s IN (:ids)", tableName, columnName);
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
@@ -98,18 +106,31 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
+    protected void cacheByKey(List<T> objects, String fieldName) {
+        try{
+            Method getIdMethod = getIdMethod(objects, fieldName);
+            if (ReflectionUtils.invokeMethod(getIdMethod, objects.stream().findAny().get()) != null) {
+                Map<String, T> objMap = objects.stream()
+                        .collect(Collectors
+                                .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
+                                        obj -> obj,
+                                        // in case of duplicates pick the latter
+                                        (obj1, obj2) -> obj2));
+                redisTemplate.opsForHash().putAll(tableName, objMap);
+                redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
+            }
+        } catch (Exception exception) {
+            log.warn("Error while saving cache", exception);
+        }
+    }
+
     public void putInCache(List<T> objects) {
         if(objects == null || objects.isEmpty()) {
             return;
         }
 
-        Method getIdMethod = getIdMethod(objects);
-        Map<String, T> objMap = objects.stream()
-                .collect(Collectors
-                        .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
-                                obj -> obj));
-        redisTemplate.opsForHash().putAll(tableName, objMap);
-        redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
+        cacheByKey(objects, "id");
+        cacheByKey(objects, "clientReferenceId");
     }
 
     public List<T> find(Object searchObject,
@@ -140,20 +161,9 @@ public abstract class GenericRepository<T> {
     }
 
     public List<String> validateIds(List<String> idsToValidate, String columnName){
-        Map<Object, Object> cacheMap = redisTemplate.opsForHash()
-                .entries(tableName);
-        List<String> validIds = idsToValidate.stream().filter(cacheMap::containsKey)
+        List<T> validIds = findById(idsToValidate, false, columnName);
+        Method idMethod = getIdMethod(validIds, columnName);
+        return validIds.stream().map((obj) -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                 .collect(Collectors.toList());
-        List<String> idsToFindInDb = getDifference(idsToValidate, validIds);
-
-        if (!idsToFindInDb.isEmpty()) {
-            Map<String, Object> paramMap = new HashMap<>();
-            paramMap.put("ids", idsToFindInDb);
-            String query = String.format("SELECT %s FROM %s WHERE %s IN (:ids) AND isDeleted = false fetch first %s rows only",
-                    columnName, tableName, columnName, idsToFindInDb.size());
-            validIds.addAll(namedParameterJdbcTemplate.queryForList(query, paramMap, String.class));
-        }
-
-        return validIds;
     }
 }
