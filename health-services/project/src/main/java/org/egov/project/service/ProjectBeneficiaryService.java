@@ -313,8 +313,7 @@ public class ProjectBeneficiaryService {
                                      Boolean includeDeleted) throws Exception {
 
         if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary())) {
-            List<String> ids = new ArrayList<>();
-            ids.add(beneficiarySearchRequest.getProjectBeneficiary().getId());
+            List<String> ids = beneficiarySearchRequest.getProjectBeneficiary().getId();
             return projectBeneficiaryRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
