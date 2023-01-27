@@ -4,6 +4,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.utils.ObjectUtils;
 
+import java.lang.reflect.ParameterizedType;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,7 +55,7 @@ public interface GenericQueryBuilder {
         return stringBuilder;
     }
 
-    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap){
+    static List<String> getFieldsWithCondition(Object object, QueryFieldChecker checkCondition, Map<String, Object> paramsMap) {
         List<String> whereClauses = new ArrayList<>();
         Arrays.stream(object.getClass().getDeclaredFields()).forEach(field -> {
             if (field.getType().equals(LocalDate.class) || field.getType().isEnum()) {
@@ -68,6 +69,15 @@ public interface GenericQueryBuilder {
                             String fieldName = field.getName();
                             paramsMap.put(fieldName, field.get(object));
                             whereClauses.add(String.format("%s=:%s", fieldName, fieldName));
+                        } else if (field.getType().isAssignableFrom(ArrayList.class)
+                                && field.getGenericType() instanceof ParameterizedType
+                                && ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0].equals(String.class)) {
+                            ArrayList<String> arrayList = (ArrayList<String>) field.get(object);
+                            String fieldName = field.getName();
+                            if (arrayList != null && !arrayList.isEmpty()) {
+                                whereClauses.add(String.format("%s IN (:%s)", fieldName, fieldName));
+                                paramsMap.put(fieldName, arrayList);
+                            }
                         } else {
                             Object objectAtField = field.get(object);
                             if (objectAtField != null) {
