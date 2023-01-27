@@ -119,7 +119,7 @@ public class HouseholdService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholds, request, idMethod);
 
-        householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic());
+        householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic(), "id");
         return request.getHousehold();
     }
 

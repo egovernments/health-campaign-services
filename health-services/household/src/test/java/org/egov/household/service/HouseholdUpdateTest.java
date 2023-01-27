@@ -107,7 +107,7 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
     }
 
     @Test
@@ -122,7 +122,7 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
     }
 
     @Test
@@ -137,7 +137,7 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
     }
 
     @Test
@@ -152,7 +152,7 @@ class HouseholdUpdateTest {
 
         householdService.update(request);
 
-        verify(householdRepository, times(1)).save(anyList(), anyString());
+        verify(householdRepository, times(1)).save(anyList(), anyString(), eq("id"));
     }
 
     @Test
