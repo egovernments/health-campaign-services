@@ -76,12 +76,16 @@ public interface GenericQueryBuilder {
                             if (arrayList != null && !arrayList.isEmpty()) {
                                 String fieldName = field.getName();
                                 StringBuilder value = new StringBuilder();
-                                for (String arrayValue : arrayList) {
-                                    String paramName = fieldName + "_" + arrayList.indexOf(arrayValue);
-                                    value.append(":" + paramName + ",");
+                                for (int i = 0; i < arrayList.size(); i++) {
+                                    String arrayValue = arrayList.get(i);
+                                    String paramName = fieldName + "_" + i;
+                                    value.append(":" + paramName);
+                                    if (i < arrayList.size() - 1) {
+                                        value.append(",");
+                                    }
                                     paramsMap.put(paramName, arrayValue);
                                 }
-                                whereClauses.add(String.format("%s IN (%s)", fieldName, value.deleteCharAt(value.length() - 1).toString()));
+                                whereClauses.add(String.format("%s IN (%s)", fieldName, value));
                             }
                         } else {
                             Object objectAtField = field.get(object);
