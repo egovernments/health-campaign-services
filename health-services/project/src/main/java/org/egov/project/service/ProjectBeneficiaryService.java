@@ -42,6 +42,7 @@ import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.enrichIdsFromExistingEntities;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getSet;
@@ -168,44 +169,46 @@ public class ProjectBeneficiaryService {
         return projectBeneficiary;
     }
 
-    private void searchBeneficiary(String beneficiaryType, ProjectBeneficiary beneficiary, RequestInfo requestInfo, String tenantId) throws Exception {
+    private void searchBeneficiary(String beneficiaryType, List<ProjectBeneficiary> beneficiaryList, RequestInfo requestInfo, String tenantId) throws Exception {
         Object response;
         switch (beneficiaryType) {
             case "HOUSEHOLD":
-                response = searchHouseholdBeneficiary(beneficiary, requestInfo, tenantId);
+                response = searchHouseholdBeneficiary(beneficiaryList, requestInfo, tenantId);
                 break;
             case "INDIVIDUAL":
-                response = searchIndividualBeneficiary(beneficiary, requestInfo, tenantId);
+                response = searchIndividualBeneficiary(beneficiaryList, requestInfo, tenantId);
                 break;
             default:
                 throw new CustomException("INVALID_BENEFICIARY_TYPE", beneficiaryType);
         }
 
-        if (response instanceof HouseholdResponse && ((HouseholdResponse) response).getHousehold().isEmpty()) {
-            throw new CustomException("INVALID_BENEFICIARY", beneficiary.getBeneficiaryId());
-        } else if (response instanceof IndividualResponse && ((IndividualResponse) response).getIndividual().isEmpty()) {
-            throw new CustomException("INVALID_BENEFICIARY", beneficiary.getBeneficiaryId());
+        if ((response instanceof HouseholdResponse
+                && ((HouseholdResponse) response).getHousehold().size() != beneficiaryList.size()) ||
+                (response instanceof IndividualResponse
+                && ((IndividualResponse) response).getIndividual().size() != beneficiaryList.size())) {
+            throw new CustomException("INVALID_BENEFICIARY", "invalid beneficiary");
         }
-
     }
 
     private HouseholdResponse searchHouseholdBeneficiary(
-            ProjectBeneficiary beneficiary,
+            List<ProjectBeneficiary> beneficiaryList,
             RequestInfo requestInfo,
             String tenantId
     ) throws Exception {
 
         HouseholdSearch householdSearch = null;
 
-        if (beneficiary.getBeneficiaryId() != null) {
+        if (beneficiaryList.get(0).getBeneficiaryId() != null) {
+            Method idMethod = getIdMethod(beneficiaryList, "beneficiaryId");
             householdSearch = HouseholdSearch
                     .builder()
-                    .id(beneficiary.getBeneficiaryId())
+                    .id(getIdList(beneficiaryList, idMethod))
                     .build();
-        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
+        } else if (beneficiaryList.get(0).getBeneficiaryClientReferenceId() != null) {
+            Method idMethod = getIdMethod(beneficiaryList, "beneficiaryClientReferenceId");
             householdSearch = HouseholdSearch
                     .builder()
-                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
+                    .clientReferenceId(getIdList(beneficiaryList, idMethod))
                     .build();
         }
 
@@ -218,25 +221,26 @@ public class ProjectBeneficiaryService {
                 new StringBuilder(householdServiceHost + householdServiceSearchUrl + "?limit=10&offset=0&tenantId=" + tenantId),
                 householdSearchRequest,
                 HouseholdResponse.class);
-
     }
 
     private IndividualResponse searchIndividualBeneficiary(
-            ProjectBeneficiary beneficiary,
+            List<ProjectBeneficiary> beneficiaryList,
             RequestInfo requestInfo,
             String tenantId
     ) throws Exception {
         IndividualSearch individualSearch = null;
 
-        if (beneficiary.getBeneficiaryId() != null) {
+        if (beneficiaryList.get(0).getBeneficiaryId() != null) {
+            Method idMethod = getIdMethod(beneficiaryList, "beneficiaryId");
             individualSearch = IndividualSearch
                     .builder()
-                    .id(beneficiary.getBeneficiaryId())
+                    .id(getIdList(beneficiaryList, idMethod))
                     .build();
-        } else if (beneficiary.getBeneficiaryClientReferenceId() != null) {
+        } else if (beneficiaryList.get(0).getBeneficiaryClientReferenceId() != null) {
+            Method idMethod = getIdMethod(beneficiaryList, "getBeneficiaryClientReferenceId");
             individualSearch = IndividualSearch
                     .builder()
-                    .clientReferenceId(beneficiary.getBeneficiaryClientReferenceId())
+                    .clientReferenceId(getIdList(beneficiaryList, idMethod))
                     .build();
         }
 
@@ -279,10 +283,12 @@ public class ProjectBeneficiaryService {
         Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
         Map<String, Project> projectMap = getIdToObjMap(existingProjects);
 
-        for (ProjectBeneficiary beneficiary : projectBeneficiary) {
-            Project project = projectMap.get(beneficiary.getProjectId());
-            String beneficiaryType = projectTypeMap.get(project.getProjectTypeId()).getBeneficiaryType();
-            searchBeneficiary(beneficiaryType, beneficiary, beneficiaryRequest.getRequestInfo(), tenantId);
+        Map<String, List<ProjectBeneficiary>> beneficiaryTypeMap = projectBeneficiary.stream()
+                .collect(Collectors.groupingBy(b -> projectTypeMap.get(projectMap.get(b
+                        .getProjectId()).getProjectTypeId()).getBeneficiaryType()));
+
+        for (Map.Entry<String, List<ProjectBeneficiary>> entry : beneficiaryTypeMap.entrySet()) {
+            searchBeneficiary(entry.getKey(), entry.getValue(), beneficiaryRequest.getRequestInfo(), tenantId);
         }
     }
 
