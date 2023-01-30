@@ -1,8 +1,8 @@
-package org.egov.individual.service;
+package org.egov.individual.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.utils.Validator;
+import org.egov.common.validator.Validator;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
@@ -21,6 +21,7 @@ import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueSubEntity;
+import static org.egov.individual.Constants.GET_IDENTIFIER_TYPE;
 
 @Component
 @Order(value = 3)
@@ -54,7 +55,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                 if (individual.getIdentifiers() != null) {
                     List<Identifier> identifiers = individual.getIdentifiers();
                     if (!identifiers.isEmpty()) {
-                        Method idMethod = getMethod("getIdentifierType", Identifier.class);
+                        Method idMethod = getMethod(GET_IDENTIFIER_TYPE, Identifier.class);
                         Map<String, Identifier> identifierMap = getIdToObjMap(identifiers, idMethod);
                         if (identifierMap.keySet().size() != identifiers.size()) {
                             List<String> duplicates = identifierMap.keySet().stream().filter(id ->

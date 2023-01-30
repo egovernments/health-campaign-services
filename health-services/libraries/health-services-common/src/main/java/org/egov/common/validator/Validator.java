@@ -1,4 +1,4 @@
-package org.egov.common.utils;
+package org.egov.common.validator;
 
 import org.egov.common.models.Error;
 

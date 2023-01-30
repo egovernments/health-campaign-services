@@ -1,8 +1,8 @@
-package org.egov.individual.service;
+package org.egov.individual.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.utils.Validator;
+import org.egov.common.validator.Validator;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.AddressType;
 import org.egov.individual.web.models.Individual;

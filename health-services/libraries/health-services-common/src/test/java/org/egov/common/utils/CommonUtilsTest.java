@@ -12,6 +12,7 @@ import org.egov.common.helpers.SomeObjectWithClientRefId;
 import org.egov.common.helpers.SomeValidator;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

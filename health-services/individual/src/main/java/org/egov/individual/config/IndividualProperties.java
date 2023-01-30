@@ -31,4 +31,7 @@ public class IndividualProperties {
 
     @Value("${individual.consumer.bulk.delete.topic}")
     private String bulkDeleteIndividualTopic;
+
+    @Value("${idgen.individual.id.format}")
+    private String individualId;
 }

@@ -1,7 +1,7 @@
 package org.egov.common.helpers;
 
 import org.egov.common.models.Error;
-import org.egov.common.utils.Validator;
+import org.egov.common.validator.Validator;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;

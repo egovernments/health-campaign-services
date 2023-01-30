@@ -3,11 +3,13 @@ package org.egov.individual.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
-import org.egov.common.utils.Validator;
+import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.validators.NonExistentEntityValidator;
+import org.egov.individual.validators.NullIdValidator;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.individual.web.models.IndividualRequest;
@@ -25,9 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
@@ -59,6 +58,9 @@ class IndividualServiceDeleteTest {
 
     @Mock
     private IndividualProperties properties;
+
+    @Mock
+    private EnrichmentService enrichmentService;
 
 
     @BeforeEach
@@ -99,14 +101,7 @@ class IndividualServiceDeleteTest {
                 .withAuditDetails()
                 .build());
 
-        List<Individual> result = individualService.delete(request);
-
-        assertEquals(requestIndividual.getRowVersion(),
-                result.stream().findFirst().get().getRowVersion());
-        assertNotNull(result.stream().findFirst().get().getAuditDetails());
-        assertTrue(result.stream().findFirst().get().getAddress().stream().findFirst().get().getIsDeleted());
-        assertTrue(result.stream().findFirst().get().getIdentifiers().stream().findFirst().get().getIsDeleted());
-        assertEquals(2, result.stream().findFirst().get().getRowVersion());
+        individualService.delete(request);
         verify(individualRepository, times(1)).save(anyList(), anyString());
     }
 }

@@ -1,7 +1,7 @@
-package org.egov.individual.service;
+package org.egov.individual.validators;
 
 import org.egov.common.models.Error;
-import org.egov.common.utils.Validator;
+import org.egov.common.validator.Validator;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.springframework.core.annotation.Order;

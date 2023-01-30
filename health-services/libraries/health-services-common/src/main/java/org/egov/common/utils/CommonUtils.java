@@ -6,6 +6,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.ApiDetails;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
