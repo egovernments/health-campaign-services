@@ -97,8 +97,7 @@ public class ProductVariantService {
                                 Boolean includeDeleted) throws Exception {
 
         if (isSearchByIdOnly(productVariantSearchRequest.getProductVariant())) {
-            List<String> ids = new ArrayList<>();
-            ids.add(productVariantSearchRequest.getProductVariant().getId());
+            List<String> ids = productVariantSearchRequest.getProductVariant().getId();
             return productVariantRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

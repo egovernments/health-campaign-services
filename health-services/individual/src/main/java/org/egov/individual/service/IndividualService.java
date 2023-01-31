@@ -182,10 +182,9 @@ public class IndividualService {
                                    Boolean includeDeleted) {
         String idFieldName = getIdFieldName(individualSearch);
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
-            List<String> ids = new ArrayList<>();
-            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(individualSearch)),
-                    individualSearch));
+                    individualSearch);
             return individualRepository.findById(ids, idFieldName, includeDeleted)
                     .stream().filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

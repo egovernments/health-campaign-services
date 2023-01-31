@@ -38,7 +38,7 @@ class HouseholdFindTest {
     void shouldOnlySearchByIdIfOnlyIdIsPresent() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .household(HouseholdSearch.builder().id("some-id").build()).build();
+                .household(HouseholdSearch.builder().id(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.findById(anyList(), eq("id"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
@@ -54,7 +54,7 @@ class HouseholdFindTest {
     void shouldOnlySearchByClientReferenceIdIfOnlyClientReferenceIdIsPresent() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .household(HouseholdSearch.builder().clientReferenceId("some-id").build()).build();
+                .household(HouseholdSearch.builder().clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.findById(anyList(), eq("clientReferenceId"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
@@ -70,7 +70,8 @@ class HouseholdFindTest {
     void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .household(HouseholdSearch.builder().id("someid").clientReferenceId("some-id").build()).build();
+                .household(HouseholdSearch.builder().id(Collections.singletonList("someid"))
+                        .clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
@@ -86,7 +87,8 @@ class HouseholdFindTest {
     void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .household(HouseholdSearch.builder().id("someid").clientReferenceId("some-id").build()).build();
+                .household(HouseholdSearch.builder().id(Collections.singletonList("someid"))
+                        .clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 

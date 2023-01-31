@@ -85,8 +85,7 @@ public class ProductService {
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception {
         if (isSearchByIdOnly(productSearchRequest.getProduct())) {
-            List<String> ids = new ArrayList<>();
-            ids.add(productSearchRequest.getProduct().getId());
+            List<String> ids = productSearchRequest.getProduct().getId();
             return productRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
