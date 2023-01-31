@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -205,7 +206,7 @@ class ProductApiControllerTest {
 
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .product(ProductSearch.builder().id("ID101").type("DRUG").build())
+                .product(ProductSearch.builder().id(Collections.singletonList("ID101")).type("DRUG").build())
                 .build();
         when(productService.search(any(ProductSearchRequest.class),
                 any(Integer.class),
@@ -233,7 +234,7 @@ class ProductApiControllerTest {
 
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .product(ProductSearch.builder().id("ID101").type("DRUG").build())
+                .product(ProductSearch.builder().id(Collections.singletonList("ID101")).type("DRUG").build())
                 .build();
         when(productService.search(any(ProductSearchRequest.class),
                 any(Integer.class),

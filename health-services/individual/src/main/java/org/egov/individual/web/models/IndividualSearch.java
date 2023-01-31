@@ -11,8 +11,8 @@ import org.egov.common.data.query.annotations.Exclude;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
-import javax.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
 * A representation of an Individual.
@@ -26,54 +26,31 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class IndividualSearch   {
-        @JsonProperty("id")
+    @JsonProperty("id")
+    private List<String> id = null;
 
+    @JsonProperty("clientReferenceId")
+    private List<String> clientReferenceId = null;
 
-        @Size(min=2,max=64)
-    private String id = null;
-
-        @JsonProperty("clientReferenceId")
-
-
-        @Size(min=2,max=64)
-    private String clientReferenceId = null;
-
-        @JsonProperty("name")
-    
-  @Valid
-
-
+    @JsonProperty("name")
+    @Valid
     private Name name = null;
 
     @JsonProperty("dateOfBirth")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    
-
-
     private LocalDate dateOfBirth = null;
 
-        @JsonProperty("gender")
-    
-  @Valid
-
-
+    @JsonProperty("gender")
+    @Valid
     private Gender gender = null;
 
-        @JsonProperty("identifier")
-    
-  @Valid
-
-
-        @Exclude
+    @JsonProperty("identifier")
+    @Valid
+    @Exclude
     private Identifier identifier = null;
 
-        @JsonProperty("boundaryCode")
-    
-
-
-        @Exclude
+    @JsonProperty("boundaryCode")
+    @Exclude
     private String boundaryCode = null;
-
-
 }
 

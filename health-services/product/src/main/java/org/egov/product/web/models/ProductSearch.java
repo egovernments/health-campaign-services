@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * ProductSearch
@@ -24,8 +24,7 @@ import javax.validation.constraints.Size;
 public class ProductSearch {
 
     @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("type")
     private String type = null;

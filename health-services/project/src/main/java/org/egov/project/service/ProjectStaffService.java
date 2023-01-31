@@ -152,8 +152,7 @@ public class ProjectStaffService {
                                      Boolean includeDeleted) throws Exception {
 
         if (isSearchByIdOnly(projectStaffSearchRequest.getProjectStaff())) {
-            List<String> ids = new ArrayList<>();
-            ids.add(projectStaffSearchRequest.getProjectStaff().getId());
+            List<String> ids = projectStaffSearchRequest.getProjectStaff().getId();
             return projectStaffRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

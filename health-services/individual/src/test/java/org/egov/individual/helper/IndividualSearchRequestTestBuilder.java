@@ -9,6 +9,7 @@ import org.egov.individual.web.models.IndividualSearchRequest;
 import org.egov.individual.web.models.Name;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 public class IndividualSearchRequestTestBuilder {
     private IndividualSearchRequest.IndividualSearchRequestBuilder builder;
@@ -30,8 +31,10 @@ public class IndividualSearchRequestTestBuilder {
             this.builder.individual(args[0]).build();
             return this;
         }
+        ArrayList<String> ids = new ArrayList<>();
+        ids.add("some-id");
         this.builder.individual(IndividualSearch.builder()
-                        .id("some-id")
+                        .id(ids)
                         .name(Name.builder()
                                 .givenName("some-given-name")
                                 .build())

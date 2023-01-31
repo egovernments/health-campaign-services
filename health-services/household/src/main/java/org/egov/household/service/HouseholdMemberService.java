@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.http.client.ServiceRequestClient;
-import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.repository.HouseholdMemberRepository;
@@ -37,7 +36,6 @@ import java.util.stream.Stream;
 import static org.egov.common.utils.CommonUtils.checkRowVersion;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.enrichIdsFromExistingEntities;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -45,7 +43,6 @@ import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.identifyNullIds;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
@@ -171,10 +168,9 @@ public class HouseholdMemberService {
 
         String idFieldName = getIdFieldName(householdMemberSearch);
         if (isSearchByIdOnly(householdMemberSearch, idFieldName)) {
-            List<String> ids = new ArrayList<>();
-            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdMemberSearch)),
-                    householdMemberSearch));
+                    householdMemberSearch);
             return householdMemberRepository.findById(ids,
                     idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
