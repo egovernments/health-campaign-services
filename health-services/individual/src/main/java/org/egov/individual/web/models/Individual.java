@@ -19,9 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
-* A representation of an Individual.
-*/
-    @ApiModel(description = "A representation of an Individual.")
+ * A representation of an Individual.
+ */
+@ApiModel(description = "A representation of an Individual.")
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-27T11:47:19.561+05:30")
 
@@ -29,158 +29,121 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Individual   {
-        @JsonProperty("id")
+public class Individual {
 
-
-        @Size(min=2,max=64)
+    @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
-        @JsonProperty("tenantId")
+    @JsonProperty("tenantId")
     @NotNull
-
-        @Size(min=2,max=1000)
+    @Size(min = 2, max = 1000)
     private String tenantId = null;
 
-        @JsonProperty("clientReferenceId")
-
-
-        @Size(min=2,max=64)
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
     private String clientReferenceId = null;
 
-        @JsonProperty("userId")
-
-
-
+    @JsonProperty("userId")
     private String userId = null;
 
-        @JsonProperty("name")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("name")
+    @NotNull
+    @Valid
     private Name name = null;
 
-        @JsonProperty("dateOfBirth")
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
+    @JsonProperty("dateOfBirth")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
     private LocalDate dateOfBirth = null;
 
-        @JsonProperty("gender")
-
-  @Valid
-  @NotNull
-
-
+    @JsonProperty("gender")
+    @Valid
+    @NotNull
     private Gender gender = null;
 
-        @JsonProperty("bloodGroup")
-
-
-    @Size(max=3)
-
+    @JsonProperty("bloodGroup")
+    @Size(max = 3)
     private String bloodGroup = null;
 
-        @JsonProperty("mobileNumber")
-
-
-    @Size(max=20)
-
+    @JsonProperty("mobileNumber")
+    @Size(max = 20)
     private String mobileNumber = null;
 
-        @JsonProperty("altContactNumber")
-
-
-    @Size(max=16)
-
+    @JsonProperty("altContactNumber")
+    @Size(max = 16)
     private String altContactNumber = null;
 
-        @JsonProperty("email")
-
-
-    @Size(min=5,max=200)
-
+    @JsonProperty("email")
+    @Size(min = 5, max = 200)
     private String email = null;
 
-        @JsonProperty("address")
-
-  @Valid
-
-        @Size(min=1, max = 3)
+    @JsonProperty("address")
+    @Valid
+    @Size(min = 1, max = 3)
     private List<Address> address = null;
 
-        @JsonProperty("fatherName")
-
-
-    @Size(max=100)
-
+    @JsonProperty("fatherName")
+    @Size(max = 100)
     private String fatherName = null;
 
-        @JsonProperty("husbandName")
-
-
-    @Size(max=100)
-
+    @JsonProperty("husbandName")
+    @Size(max = 100)
     private String husbandName = null;
 
-        @JsonProperty("identifiers")
-
-  @Valid
-
-
-        @Size(min = 1)
+    @JsonProperty("identifiers")
+    @Valid
+    @Size(min = 1)
+    @NotNull
     private List<Identifier> identifiers = null;
 
-        @JsonProperty("photo")
+    @JsonProperty("skills")
+    @Valid
+    private List<Skill> skills = null;
 
-
-
+    @JsonProperty("photo")
     private String photo = null;
 
-        @JsonProperty("additionalFields")
-
-  @Valid
-
-
+    @JsonProperty("additionalFields")
+    @Valid
     private AdditionalFields additionalFields = null;
 
-        @JsonProperty("isDeleted")
-
-
+    @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-        @JsonProperty("rowVersion")
-
-
-
+    @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
-        @JsonProperty("auditDetails")
-
-  @Valid
-
-
+    @JsonProperty("auditDetails")
+    @Valid
     private AuditDetails auditDetails = null;
 
-        @JsonIgnore
-        private Boolean hasErrors = Boolean.FALSE;
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 
 
-        public Individual addAddressItem(Address addressItem) {
-            if (this.address == null) {
+    public Individual addAddressItem(Address addressItem) {
+        if (this.address == null) {
             this.address = new ArrayList<>();
-            }
+        }
         this.address.add(addressItem);
         return this;
-        }
+    }
 
-        public Individual addIdentifiersItem(Identifier identifiersItem) {
-            if (this.identifiers == null) {
+    public Individual addIdentifiersItem(Identifier identifiersItem) {
+        if (this.identifiers == null) {
             this.identifiers = new ArrayList<>();
-            }
+        }
         this.identifiers.add(identifiersItem);
         return this;
+    }
+
+    public Individual addSkillsItem(Skill skillItem) {
+        if (this.skills == null) {
+            this.skills = new ArrayList<>();
         }
+        this.skills.add(skillItem);
+        return this;
+    }
 
 }
 

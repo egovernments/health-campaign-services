@@ -6,6 +6,7 @@ import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
+import org.egov.individual.web.models.Skill;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,14 @@ public class IsDeletedSubEntityValidator  implements Validator<IndividualBulkReq
                         Error error = getErrorForIsDeleteSubEntity();
                         populateErrorDetails(individual, error, errorDetailsMap);
                     });
+            List<Skill> skills = individual.getSkills();
+            if (skills != null && !skills.isEmpty()) {
+                skills.stream().filter(Skill::getIsDeleted)
+                        .forEach(skill -> {
+                            Error error = getErrorForIsDeleteSubEntity();
+                            populateErrorDetails(individual, error, errorDetailsMap);
+                        });
+            }
         }
         return errorDetailsMap;
     }

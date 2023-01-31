@@ -145,11 +145,14 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
-        Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request,
-                isBulk);
-        Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Individual> validIndividuals = tuple.getX();
+        try {
+            Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
+                    isApplicableForUpdate, request,
+                    isBulk);
+            Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+            List<Individual> validIndividuals = tuple.getX();
+
+
 
         try {
             if (!validIndividuals.isEmpty()) {
@@ -165,6 +168,10 @@ public class IndividualService {
         handleErrors(isBulk, errorDetailsMap);
 
         return validIndividuals;
+        } catch (Exception e) {
+            log.error("Error occurred", e);
+        }
+        return null;
     }
 
     public List<Individual> search(IndividualSearch individualSearch,

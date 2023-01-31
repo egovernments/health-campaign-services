@@ -76,6 +76,20 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.createdTime
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
+        - query: INSERT INTO individual_skill(id, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*.skills.*
+          jsonMaps:
+            - jsonPath: $.*.skills.*.id
+            - jsonPath: $.*.skills.*.individualId
+            - jsonPath: $.*.skills.*.type
+            - jsonPath: $.*.skills.*.level
+            - jsonPath: $.*.skills.*.experience
+            - jsonPath: $.*.skills.*.auditDetails.createdBy
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.skills.*.auditDetails.createdTime
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.skills.*.isDeleted
+
     - version: 1.0
       description: Updates Individual
       fromTopic: update-individual-topic
@@ -165,6 +179,25 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.identifierId
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
+        - query: INSERT INTO individual_skill(id, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET type = ?, level = ?, experience = ?, lastModifiedBy = ?, lastModifiedTime = ?;
+          basePath: $.*.skills.*
+          jsonMaps:
+            - jsonPath: $.*.skills.*.id
+            - jsonPath: $.*.skills.*.individualId
+            - jsonPath: $.*.skills.*.type
+            - jsonPath: $.*.skills.*.level
+            - jsonPath: $.*.skills.*.experience
+            - jsonPath: $.*.skills.*.auditDetails.createdBy
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.skills.*.auditDetails.createdTime
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.skills.*.isDeleted
+            - jsonPath: $.*.skills.*.type
+            - jsonPath: $.*.skills.*.level
+            - jsonPath: $.*.skills.*.experience
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedTime
+
     - version: 1.0
       description: Deletes Individual and related Entities
       fromTopic: delete-individual-topic
@@ -193,3 +226,10 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
             - jsonPath: $.*.identifiers.*.id
+        - query: UPDATE individual_skill SET lastModifiedBy=?, lastModifiedTime=?, isDeleted=? WHERE id=?;
+          basePath: $.*.skills.*
+          jsonMaps:
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.skills.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.skills.*.isDeleted
+            - jsonPath: $.*.skills.*.id

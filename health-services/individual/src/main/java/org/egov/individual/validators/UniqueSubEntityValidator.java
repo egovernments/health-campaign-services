@@ -7,6 +7,7 @@ import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
+import org.egov.individual.web.models.Skill;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueSubEntity;
+import static org.egov.individual.Constants.GET_ID;
 import static org.egov.individual.Constants.GET_IDENTIFIER_TYPE;
 
 @Component
@@ -39,7 +41,6 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                         .collect(Collectors.toList());
                 if (!address.isEmpty()) {
                     Map<String, Address> aMap = getIdToObjMap(address);
-
                     if (aMap.keySet().size() != address.size()) {
                         List<String> duplicates = aMap.keySet().stream().filter(id ->
                                 address.stream()
@@ -67,6 +68,22 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                                 populateErrorDetails(individual, error, errorDetailsMap);
                             });
                         }
+                    }
+                }
+
+                List<Skill> skills = individual.getSkills();
+                if (skills != null && !skills.isEmpty()) {
+                    Method idMethod = getMethod(GET_ID, Identifier.class);
+                    Map<String, Skill> skillMap = getIdToObjMap(skills, idMethod);
+                    if (skillMap.keySet().size() != skills.size()) {
+                        List<String> duplicates = skillMap.keySet().stream().filter(id ->
+                                skills.stream()
+                                        .filter(idt -> idt.getId().equals(id)).count() > 1
+                        ).collect(Collectors.toList());
+                        duplicates.forEach(duplicate -> {
+                            Error error = getErrorForUniqueSubEntity();
+                            populateErrorDetails(individual, error, errorDetailsMap);
+                        });
                     }
                 }
             }
