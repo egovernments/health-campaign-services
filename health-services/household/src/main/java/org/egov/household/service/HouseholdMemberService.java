@@ -12,6 +12,7 @@ import org.egov.household.web.models.Household;
 import org.egov.household.web.models.HouseholdMember;
 import org.egov.household.web.models.HouseholdMemberRequest;
 import org.egov.household.web.models.HouseholdMemberSearch;
+import org.egov.household.web.models.HouseholdMemberSearchRequest;
 import org.egov.household.web.models.Individual;
 import org.egov.household.web.models.IndividualResponse;
 import org.egov.household.web.models.IndividualSearch;
@@ -24,6 +25,7 @@ import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -188,6 +190,35 @@ public class HouseholdMemberService {
         }
     }
 
+    private void enrichHouseholdSearchRequest(HouseholdMemberSearch householdMemberSearch) {
+        if ( householdMemberSearch.getHouseholdClientReferenceId() != null) {
+            String householdClientReferenceId = householdMemberSearch.getHouseholdClientReferenceId();
+            List<Household> searched = householdService.findById(Arrays.asList(householdClientReferenceId), "clientReferenceId", false);
+            Household household = searched.stream().findFirst().orElse(null);
+            if (household != null) {
+                householdMemberSearch.setHouseholdId(household.getId());
+                householdMemberSearch.setHouseholdClientReferenceId(null);
+            }
+        }
+    }
+
+    private void encrichIndividualSearchRequest(HouseholdMemberSearchRequest householdMemberSearchRequest, String tenantId, HouseholdMemberSearch householdMemberSearch) throws Exception {
+        if ( householdMemberSearch.getIndividualClientReferenceId() != null) {
+            String individualClientReferenceId = householdMemberSearch.getIndividualClientReferenceId();
+            IndividualResponse searchResponse =  getIndividualResponse(tenantId, IndividualSearchRequest.builder()
+                    .individual(
+                            IndividualSearch.builder().clientReferenceId(individualClientReferenceId).build()
+                    ).requestInfo(householdMemberSearchRequest.getRequestInfo())
+                    .build());
+            Individual individual = searchResponse.getIndividual().stream().findFirst().orElse(null);
+
+            if(individual != null){
+                householdMemberSearch.setIndividualId(individual.getId());
+                householdMemberSearch.setIndividualClientReferenceId(null);
+            }
+        }
+    }
+
     public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) throws Exception {
         List<HouseholdMember> householdMembers = householdMemberRequest.getHouseholdMember();
         RequestInfo requestInfo = householdMemberRequest.getRequestInfo();
@@ -254,6 +285,10 @@ public class HouseholdMemberService {
                 .individual(individualSearch)
                 .build();
 
+        return getIndividualResponse(tenantId, individualSearchRequest);
+    }
+
+    private IndividualResponse getIndividualResponse(String tenantId, IndividualSearchRequest individualSearchRequest) throws Exception {
         return serviceRequestClient.fetchResult(
                 new StringBuilder(individualServiceHost + individualServiceSearchUrl + "?limit=10&offset=0&tenantId=" + tenantId),
                 individualSearchRequest,
