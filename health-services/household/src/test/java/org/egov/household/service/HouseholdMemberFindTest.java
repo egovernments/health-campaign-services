@@ -3,11 +3,8 @@ package org.egov.household.service;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.household.repository.HouseholdRepository;
 import org.egov.household.web.models.HouseholdMemberSearch;
 import org.egov.household.web.models.HouseholdMemberSearchRequest;
-import org.egov.household.web.models.HouseholdSearch;
-import org.egov.household.web.models.HouseholdSearchRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,10 +35,11 @@ class HouseholdMemberFindTest {
 
     @Test
     @DisplayName("should search only by id if only id is present")
-    void shouldOnlySearchByIdIfOnlyIdIsPresent() throws QueryBuilderException {
+    void shouldOnlySearchByIdIfOnlyIdIsPresent() {
         HouseholdMemberSearchRequest householdSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .householdMemberSearch(HouseholdMemberSearch.builder().id("some-id").build()).build();
+                .householdMemberSearch(HouseholdMemberSearch.builder()
+                        .id(Collections.singletonList("some-id")).build()).build();
         when(householdMemberRepository.findById(anyList(), eq("id"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
@@ -58,7 +56,8 @@ class HouseholdMemberFindTest {
     void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .householdMemberSearch(HouseholdMemberSearch.builder().id("someid").householdId("household-id").build()).build();
+                .householdMemberSearch(HouseholdMemberSearch.builder()
+                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
@@ -76,7 +75,8 @@ class HouseholdMemberFindTest {
     void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .householdMemberSearch(HouseholdMemberSearch.builder().id("someid").householdId("household-id").build()).build();
+                .householdMemberSearch(HouseholdMemberSearch.builder()
+                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 

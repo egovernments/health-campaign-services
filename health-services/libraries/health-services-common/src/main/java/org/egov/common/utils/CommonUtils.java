@@ -198,7 +198,7 @@ public class CommonUtils {
                 + clientReferenceIdField.substring(1);
         try{
             Method getId = getMethod(idMethodName, getObjClass(objList));
-            String value = (String) ReflectionUtils.invokeMethod(getId, objList.stream().findAny().get());
+            Object value = ReflectionUtils.invokeMethod(getId, objList.stream().findAny().get());
             if (value != null) {
                 return getId;
             }

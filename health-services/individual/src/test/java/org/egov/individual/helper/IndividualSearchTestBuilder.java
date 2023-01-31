@@ -6,6 +6,7 @@ import org.egov.individual.web.models.IndividualSearch;
 import org.egov.individual.web.models.Name;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 public class IndividualSearchTestBuilder {
     private IndividualSearch.IndividualSearchBuilder builder;
@@ -23,12 +24,25 @@ public class IndividualSearchTestBuilder {
     }
 
     public IndividualSearchTestBuilder byId(String... args) {
-        this.builder.id(args != null && args.length > 0 ? args[0] : "some-id");
+        ArrayList<String> ids = new ArrayList<>();
+        if (args != null && args.length > 0) {
+            ids.add(args[0]);
+        } else {
+            ids.add("some-id");
+        }
+        this.builder.id(ids);
         return this;
     }
 
     public IndividualSearchTestBuilder byClientReferenceId(String... args) {
-        this.builder.clientReferenceId(args != null && args.length > 0 ? args[0] : "some-client-reference-id");
+        ArrayList<String> ids = new ArrayList<>();
+        if (args != null && args.length > 0) {
+            ids.add(args[0]);
+        } else {
+            ids.add("some-client-reference-id");
+        }
+
+        this.builder.clientReferenceId(ids);
         return this;
     }
 
