@@ -186,35 +186,6 @@ public class HouseholdMemberService {
         }
     }
 
-    private void enrichHouseholdSearchRequest(HouseholdMemberSearch householdMemberSearch) {
-        if ( householdMemberSearch.getHouseholdClientReferenceId() != null) {
-            String householdClientReferenceId = householdMemberSearch.getHouseholdClientReferenceId();
-            List<Household> searched = householdService.findById(Arrays.asList(householdClientReferenceId), "clientReferenceId", false);
-            Household household = searched.stream().findFirst().orElse(null);
-            if (household != null) {
-                householdMemberSearch.setHouseholdId(household.getId());
-                householdMemberSearch.setHouseholdClientReferenceId(null);
-            }
-        }
-    }
-
-    private void encrichIndividualSearchRequest(HouseholdMemberSearchRequest householdMemberSearchRequest, String tenantId, HouseholdMemberSearch householdMemberSearch) throws Exception {
-        if ( householdMemberSearch.getIndividualClientReferenceId() != null) {
-            String individualClientReferenceId = householdMemberSearch.getIndividualClientReferenceId();
-            IndividualResponse searchResponse =  getIndividualResponse(tenantId, IndividualSearchRequest.builder()
-                    .individual(
-                            IndividualSearch.builder().clientReferenceId(individualClientReferenceId).build()
-                    ).requestInfo(householdMemberSearchRequest.getRequestInfo())
-                    .build());
-            Individual individual = searchResponse.getIndividual().stream().findFirst().orElse(null);
-
-            if(individual != null){
-                householdMemberSearch.setIndividualId(individual.getId());
-                householdMemberSearch.setIndividualClientReferenceId(null);
-            }
-        }
-    }
-
     public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) throws Exception {
         List<HouseholdMember> householdMembers = householdMemberRequest.getHouseholdMember();
         RequestInfo requestInfo = householdMemberRequest.getRequestInfo();
