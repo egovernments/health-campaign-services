@@ -27,7 +27,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -145,14 +144,11 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
-        try {
-            Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
-                    isApplicableForUpdate, request,
-                    isBulk);
-            Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
-            List<Individual> validIndividuals = tuple.getX();
-
-
+        Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
+                isApplicableForUpdate, request,
+                isBulk);
+        Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Individual> validIndividuals = tuple.getX();
 
         try {
             if (!validIndividuals.isEmpty()) {
@@ -166,12 +162,7 @@ public class IndividualService {
         }
 
         handleErrors(isBulk, errorDetailsMap);
-
         return validIndividuals;
-        } catch (Exception e) {
-            log.error("Error occurred", e);
-        }
-        return null;
     }
 
     public List<Individual> search(IndividualSearch individualSearch,

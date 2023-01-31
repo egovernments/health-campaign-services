@@ -37,19 +37,21 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validIndividuals.isEmpty()) {
             for (Individual individual : validIndividuals) {
-                List<Address> address = individual.getAddress().stream().filter(ad -> ad.getId() != null)
-                        .collect(Collectors.toList());
-                if (!address.isEmpty()) {
-                    Map<String, Address> aMap = getIdToObjMap(address);
-                    if (aMap.keySet().size() != address.size()) {
-                        List<String> duplicates = aMap.keySet().stream().filter(id ->
-                                address.stream()
-                                        .filter(ad -> ad.getId().equals(id)).count() > 1
-                        ).collect(Collectors.toList());
-                        duplicates.forEach( duplicate -> {
-                            Error error = getErrorForUniqueSubEntity();
-                            populateErrorDetails(individual, error, errorDetailsMap);
-                        });
+                if (individual.getAddress() != null) {
+                    List<Address> address = individual.getAddress().stream().filter(ad -> ad.getId() != null)
+                            .collect(Collectors.toList());
+                    if (!address.isEmpty()) {
+                        Map<String, Address> aMap = getIdToObjMap(address);
+                        if (aMap.keySet().size() != address.size()) {
+                            List<String> duplicates = aMap.keySet().stream().filter(id ->
+                                    address.stream()
+                                            .filter(ad -> ad.getId().equals(id)).count() > 1
+                            ).collect(Collectors.toList());
+                            duplicates.forEach( duplicate -> {
+                                Error error = getErrorForUniqueSubEntity();
+                                populateErrorDetails(individual, error, errorDetailsMap);
+                            });
+                        }
                     }
                 }
 
@@ -73,7 +75,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
 
                 List<Skill> skills = individual.getSkills();
                 if (skills != null && !skills.isEmpty()) {
-                    Method idMethod = getMethod(GET_ID, Identifier.class);
+                    Method idMethod = getMethod(GET_ID, Skill.class);
                     Map<String, Skill> skillMap = getIdToObjMap(skills, idMethod);
                     if (skillMap.keySet().size() != skills.size()) {
                         List<String> duplicates = skillMap.keySet().stream().filter(id ->

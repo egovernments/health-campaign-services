@@ -7,6 +7,7 @@ import org.egov.individual.web.models.Gender;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
+import org.egov.individual.web.models.Skill;
 
 import java.util.Arrays;
 
@@ -115,6 +116,16 @@ public class IndividualTestBuilder {
             return this;
         }
         this.builder.identifiers(Arrays.asList(identifier));
+        return this;
+    }
+
+    public IndividualTestBuilder withSkills(Skill... skills) {
+        Skill skill = Skill.builder().type("type").experience("exp").level("lvl").build();
+        if (skills != null && skills.length > 0) {
+            this.builder.skills(Arrays.asList(skills));
+            return this;
+        }
+        this.builder.skills(Arrays.asList(skill));
         return this;
     }
 

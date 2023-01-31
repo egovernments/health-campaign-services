@@ -93,7 +93,6 @@ public class Individual {
     @JsonProperty("identifiers")
     @Valid
     @Size(min = 1)
-    @NotNull
     private List<Identifier> identifiers = null;
 
     @JsonProperty("skills")

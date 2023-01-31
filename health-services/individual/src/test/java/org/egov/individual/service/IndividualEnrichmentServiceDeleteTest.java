@@ -49,6 +49,7 @@ public class IndividualEnrichmentServiceDeleteTest {
                 .withRowVersion()
                 .withIdentifiers()
                 .withAddress()
+                .withSkills()
                 .withIsDeleted(true)
                 .build();
         IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
@@ -61,6 +62,7 @@ public class IndividualEnrichmentServiceDeleteTest {
                 .withId()
                 .withName()
                 .withTenantId()
+                .withSkills()
                 .withAddressHavingAuditDetails()
                 .withIdentifiersHavingAuditDetails()
                 .withRowVersion()
@@ -74,6 +76,7 @@ public class IndividualEnrichmentServiceDeleteTest {
         assertNotNull(request.getIndividuals().get(0).getAuditDetails());
         assertTrue(request.getIndividuals().get(0).getAddress().stream().findFirst().get().getIsDeleted());
         assertTrue(request.getIndividuals().get(0).getIdentifiers().stream().findFirst().get().getIsDeleted());
+        assertTrue(request.getIndividuals().get(0).getSkills().stream().findFirst().get().getIsDeleted());
         assertEquals(2, request.getIndividuals().get(0).getRowVersion());
     }
 }

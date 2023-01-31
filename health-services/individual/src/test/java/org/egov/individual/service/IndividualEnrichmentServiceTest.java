@@ -53,8 +53,8 @@ public class IndividualEnrichmentServiceTest {
     }
 
     @Test
-    @DisplayName("should generate address id if address is null")
-    void shouldGenerateAddressIdIfAddressIsNull() throws Exception {
+    @DisplayName("should generate address id if address id is null")
+    void shouldGenerateAddressIdIfAddressIdIsNull() throws Exception {
         IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
@@ -68,6 +68,26 @@ public class IndividualEnrichmentServiceTest {
 
         assertNotNull(request.getIndividuals().get(0)
                 .getAddress().stream().findFirst().get()
+                .getId());
+    }
+
+    @Test
+    @DisplayName("should generate skill id if skill id is null")
+    void shouldGenerateAddressIdIfSkillIDIsNull() throws Exception {
+        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withName()
+                        .withTenantId()
+                        .withAddress()
+                        .withSkills()
+                        .build())
+                .build();
+
+        enrichmentService.create(request.getIndividuals(), request);
+
+        assertNotNull(request.getIndividuals().get(0)
+                .getSkills().stream().findFirst().get()
                 .getId());
     }
 

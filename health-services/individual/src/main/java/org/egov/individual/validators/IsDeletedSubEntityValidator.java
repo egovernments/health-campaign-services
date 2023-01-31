@@ -26,18 +26,26 @@ public class IsDeletedSubEntityValidator  implements Validator<IndividualBulkReq
         HashMap<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = request.getIndividuals();
         for (Individual individual : validIndividuals) {
-            individual.getIdentifiers().stream().filter(Identifier::getIsDeleted)
-                    .forEach(identifier -> {
-                        Error error = getErrorForIsDeleteSubEntity();
-                        populateErrorDetails(individual, error, errorDetailsMap);
-                    });
-            individual.getAddress().stream().filter(Address::getIsDeleted)
-                    .forEach(address -> {
-                        Error error = getErrorForIsDeleteSubEntity();
-                        populateErrorDetails(individual, error, errorDetailsMap);
-                    });
+            List<Identifier> identifiers = individual.getIdentifiers();
+            if (identifiers != null) {
+                identifiers.stream().filter(Identifier::getIsDeleted)
+                        .forEach(identifier -> {
+                            Error error = getErrorForIsDeleteSubEntity();
+                            populateErrorDetails(individual, error, errorDetailsMap);
+                        });
+            }
+
+            List<Address> addresses = individual.getAddress();
+            if (addresses != null) {
+                addresses.stream().filter(Address::getIsDeleted)
+                        .forEach(address -> {
+                            Error error = getErrorForIsDeleteSubEntity();
+                            populateErrorDetails(individual, error, errorDetailsMap);
+                        });
+            }
+
             List<Skill> skills = individual.getSkills();
-            if (skills != null && !skills.isEmpty()) {
+            if (skills != null) {
                 skills.stream().filter(Skill::getIsDeleted)
                         .forEach(skill -> {
                             Error error = getErrorForIsDeleteSubEntity();

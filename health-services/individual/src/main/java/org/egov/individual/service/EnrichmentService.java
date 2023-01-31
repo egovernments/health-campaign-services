@@ -91,33 +91,41 @@ public class EnrichmentService {
                 }
             } else {
                 Integer previousRowVersion = individual.getRowVersion();
-                individual.getIdentifiers().stream().filter(Identifier::getIsDeleted)
-                        .forEach(identifier -> {
-                            AuditDetails existingAuditDetails = identifier.getAuditDetails();
-                            AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
-                                    request.getRequestInfo().getUserInfo().getUuid());
-                            identifier.setAuditDetails(auditDetails);
-                            individual.setAuditDetails(auditDetails);
-                            individual.setRowVersion(previousRowVersion + 1);
-                        });
-                individual.getAddress().stream().filter(Address::getIsDeleted)
-                        .forEach(address -> {
-                            AuditDetails existingAuditDetails = address.getAuditDetails();
-                            AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
-                                    request.getRequestInfo().getUserInfo().getUuid());
-                            address.setAuditDetails(auditDetails);
-                            individual.setAuditDetails(auditDetails);
-                            individual.setRowVersion(previousRowVersion + 1);
-                        });
-                individual.getSkills().stream().filter(Skill::getIsDeleted)
-                        .forEach(skill -> {
-                            AuditDetails existingAuditDetails = skill.getAuditDetails();
-                            AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
-                                    request.getRequestInfo().getUserInfo().getUuid());
-                            skill.setAuditDetails(auditDetails);
-                            individual.setAuditDetails(auditDetails);
-                            individual.setRowVersion(previousRowVersion + 1);
-                        });
+                if (individual.getIdentifiers() != null) {
+                    individual.getIdentifiers().stream().filter(Identifier::getIsDeleted)
+                            .forEach(identifier -> {
+                                AuditDetails existingAuditDetails = identifier.getAuditDetails();
+                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                        request.getRequestInfo().getUserInfo().getUuid());
+                                identifier.setAuditDetails(auditDetails);
+                                individual.setAuditDetails(auditDetails);
+                                individual.setRowVersion(previousRowVersion + 1);
+                            });
+                }
+
+                if (individual.getAddress() != null) {
+                    individual.getAddress().stream().filter(Address::getIsDeleted)
+                            .forEach(address -> {
+                                AuditDetails existingAuditDetails = address.getAuditDetails();
+                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                        request.getRequestInfo().getUserInfo().getUuid());
+                                address.setAuditDetails(auditDetails);
+                                individual.setAuditDetails(auditDetails);
+                                individual.setRowVersion(previousRowVersion + 1);
+                            });
+                }
+
+                if (individual.getSkills() != null) {
+                    individual.getSkills().stream().filter(Skill::getIsDeleted)
+                            .forEach(skill -> {
+                                AuditDetails existingAuditDetails = skill.getAuditDetails();
+                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                        request.getRequestInfo().getUserInfo().getUuid());
+                                skill.setAuditDetails(auditDetails);
+                                individual.setAuditDetails(auditDetails);
+                                individual.setRowVersion(previousRowVersion + 1);
+                            });
+                }
             }
         });
     }
@@ -158,8 +166,10 @@ public class EnrichmentService {
 
     private static Individual enrichIndividualIdInIdentifiers(Individual individual) {
         List<Identifier> identifiers = individual.getIdentifiers();
-        identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
-        individual.setIdentifiers(identifiers);
+        if (identifiers != null) {
+            identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
+            individual.setIdentifiers(identifiers);
+        }
         return individual;
     }
 
@@ -188,6 +198,10 @@ public class EnrichmentService {
     }
 
     private static void enrichAddressForUpdate(IndividualBulkRequest request, Individual individual) {
+        if (individual.getAddress() == null) {
+            return;
+        }
+
         List<Address> addressesToCreate = individual.getAddress().stream()
                 .filter(ad1 -> ad1.getId() == null)
                 .collect(Collectors.toList());

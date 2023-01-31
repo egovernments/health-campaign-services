@@ -9,10 +9,12 @@ import org.egov.common.producer.Producer;
 import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
+import org.egov.individual.repository.rowmapper.SkillRowMapper;
 import org.egov.individual.web.models.Address;
 import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualSearch;
+import org.egov.individual.web.models.Skill;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -167,6 +169,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 List<Identifier> identifiers = this.namedParameterJdbcTemplate
                         .query(individualIdentifierQuery, indServerGenIdParamMap,
                                 new IdentifierRowMapper());
+                String individualSkillQuery = getQuery("SELECT * FROM individual_skill WHERE individualId =:individualId",
+                        includeDeleted);
+                List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, indServerGenIdParamMap,
+                        new SkillRowMapper());
+                individual.setSkills(skills);
                 individual.setAddress(addresses);
                 individual.setIdentifiers(identifiers);
             });

@@ -32,6 +32,14 @@ public class ValidatorUtils {
                 .exception(new CustomException("NON_EXISTENT_ENTITY", "Entity does not exist in db")).build();
     }
 
+    public static Error getErrorForNonExistentSubEntity(String subEntityId) {
+        return Error.builder().errorMessage(String.format("Sub Entity does not exist in db for %s", subEntityId))
+                .errorCode("NON_EXISTENT_SUB_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("NON_EXISTENT_SUB_ENTITY",
+                        String.format("Sub Entity does not exist in db for %s", subEntityId))).build();
+    }
+
     public static Error getErrorForUniqueEntity() {
         return Error.builder().errorMessage("Duplicate entity")
                 .errorCode("DUPLICATE_ENTITY")
