@@ -49,7 +49,8 @@ class ProjectBeneficiaryServiceSearchTest {
     void shouldNotRaiseExceptionIfNoProjectBeneficiaryFound() throws Exception {
         when(projectBeneficiaryRepository.find(any(ProjectBeneficiarySearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
-        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder().id("ID101").projectId("some-id").build();
+        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
+                .id(Collections.singletonList("ID101")).projectId("some-id").build();
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -64,7 +65,8 @@ class ProjectBeneficiaryServiceSearchTest {
         when(projectBeneficiaryRepository.find(any(ProjectBeneficiarySearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectBeneficiary);
         projectBeneficiary.add(ProjectBeneficiaryTestBuilder.builder().withId().withId().withAuditDetails().build());
-        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder().id("ID101").projectId("some-projectId").build();
+        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
+                .id(Collections.singletonList("ID101")).projectId("some-projectId").build();
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -78,7 +80,8 @@ class ProjectBeneficiaryServiceSearchTest {
     @DisplayName("should return from cache if search criteria has id only")
     void shouldReturnFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
         projectBeneficiary.add(ProjectBeneficiaryTestBuilder.builder().withId().withAuditDetails().withDeleted().build());
-        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder().id("ID101").build();
+        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
+                .id(Collections.singletonList("ID101")).build();
         BeneficiarySearchRequest projectStaffSearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();

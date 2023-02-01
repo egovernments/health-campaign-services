@@ -11,6 +11,7 @@ import org.egov.household.web.models.Household;
 import org.egov.household.web.models.HouseholdMember;
 import org.egov.household.web.models.HouseholdMemberRequest;
 import org.egov.household.web.models.HouseholdMemberSearch;
+import org.egov.household.web.models.HouseholdMemberSearchRequest;
 import org.egov.household.web.models.Individual;
 import org.egov.household.web.models.IndividualResponse;
 import org.egov.household.web.models.IndividualSearch;
@@ -23,6 +24,7 @@ import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -166,10 +168,9 @@ public class HouseholdMemberService {
 
         String idFieldName = getIdFieldName(householdMemberSearch);
         if (isSearchByIdOnly(householdMemberSearch, idFieldName)) {
-            List<String> ids = new ArrayList<>();
-            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdMemberSearch)),
-                    householdMemberSearch));
+                    householdMemberSearch);
             return householdMemberRepository.findById(ids,
                     idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -251,6 +252,10 @@ public class HouseholdMemberService {
                 .individual(individualSearch)
                 .build();
 
+        return getIndividualResponse(tenantId, individualSearchRequest);
+    }
+
+    private IndividualResponse getIndividualResponse(String tenantId, IndividualSearchRequest individualSearchRequest) throws Exception {
         return serviceRequestClient.fetchResult(
                 new StringBuilder(individualServiceHost + individualServiceSearchUrl + "?limit=10&offset=0&tenantId=" + tenantId),
                 individualSearchRequest,

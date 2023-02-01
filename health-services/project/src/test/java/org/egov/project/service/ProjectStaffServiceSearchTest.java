@@ -1,6 +1,5 @@
 package org.egov.project.service;
 
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.repository.ProjectStaffRepository;
@@ -40,7 +39,7 @@ class ProjectStaffServiceSearchTest {
     private ArrayList<ProjectStaff> projectStaffs;
 
     @BeforeEach
-    void setUp() throws QueryBuilderException {
+    void setUp() {
         projectStaffs = new ArrayList<>();
     }
 
@@ -48,8 +47,10 @@ class ProjectStaffServiceSearchTest {
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProjectStaffFound() throws Exception {
         when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
-        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").userId("some-user-id").build();
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
+                .thenReturn(Collections.emptyList());
+        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
+                .id(Collections.singletonList("ID101")).userId("some-user-id").build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -60,9 +61,10 @@ class ProjectStaffServiceSearchTest {
 
     @Test
     @DisplayName("should not raise exception if no search results are found for search by id")
-    void shouldNotRaiseExceptionIfNoProjectStaffFoundForSearchById() throws Exception {
+    void shouldNotRaiseExceptionIfNoProjectStaffFoundForSearchById() {
         when(projectStaffRepository.findById(anyList(),anyBoolean())).thenReturn(Collections.emptyList());
-        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").build();
+        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
+                .id(Collections.singletonList("ID101")).build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -76,7 +78,7 @@ class ProjectStaffServiceSearchTest {
         when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectStaffs);
         projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withId().withAuditDetails().build());
-        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").projectId("some-projectId").build();
+        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id(Collections.singletonList("ID101")).projectId("some-projectId").build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -90,7 +92,8 @@ class ProjectStaffServiceSearchTest {
     @DisplayName("should return from cache if search criteria has id only")
     void shouldReturnFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
         projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withAuditDetails().withDeleted().build());
-        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id("ID101").build();
+        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
+                .id(Collections.singletonList("ID101")).build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();

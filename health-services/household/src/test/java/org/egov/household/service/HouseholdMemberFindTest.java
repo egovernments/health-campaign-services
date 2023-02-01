@@ -35,10 +35,11 @@ class HouseholdMemberFindTest {
 
     @Test
     @DisplayName("should search only by id if only id is present")
-    void shouldOnlySearchByIdIfOnlyIdIsPresent() throws QueryBuilderException {
+    void shouldOnlySearchByIdIfOnlyIdIsPresent() {
         HouseholdMemberSearchRequest householdSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .householdMemberSearch(HouseholdMemberSearch.builder().id("some-id").build()).build();
+                .householdMemberSearch(HouseholdMemberSearch.builder()
+                        .id(Collections.singletonList("some-id")).build()).build();
         when(householdMemberRepository.findById(anyList(), eq("id"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
@@ -55,7 +56,8 @@ class HouseholdMemberFindTest {
     void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .householdMemberSearch(HouseholdMemberSearch.builder().id("someid").householdId("household-id").build()).build();
+                .householdMemberSearch(HouseholdMemberSearch.builder()
+                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
@@ -73,7 +75,8 @@ class HouseholdMemberFindTest {
     void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .householdMemberSearch(HouseholdMemberSearch.builder().id("someid").householdId("household-id").build()).build();
+                .householdMemberSearch(HouseholdMemberSearch.builder()
+                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 

@@ -10,6 +10,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
 * Search model for household member
@@ -26,7 +27,7 @@ import javax.validation.Valid;
 public class HouseholdMemberSearch   {
 
     @JsonProperty("id")
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("householdId")
     private String householdId = null;

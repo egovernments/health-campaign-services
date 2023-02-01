@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.List;
+
 /**
 * A representation of Household.
 */
@@ -23,10 +25,10 @@ import org.springframework.validation.annotation.Validated;
 @Table(name = "household h")
 public class HouseholdSearch {
     @JsonProperty("id")
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("clientReferenceId")
-    private String clientReferenceId = null;
+    private List<String> clientReferenceId = null;
 
 //    @JsonProperty("memberCount")
 //    private Integer memberCount = null;

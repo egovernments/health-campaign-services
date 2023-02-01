@@ -48,7 +48,8 @@ class ProductVariantServiceSearchTest {
     void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
         when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").variation("some-variation").build();
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .id(Collections.singletonList("ID101")).variation("some-variation").build();
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
                 .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -62,7 +63,8 @@ class ProductVariantServiceSearchTest {
         when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(productVariants);
         productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation().withAuditDetails().build());
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").variation("some-variation").build();
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id(Collections.singletonList("ID101"))
+                .variation("some-variation").build();
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
                 .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -79,7 +81,8 @@ class ProductVariantServiceSearchTest {
                 .withAuditDetails().build();
         productVariant.setIsDeleted(false);
         productVariants.add(productVariant);
-        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id("ID101").build();
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .id(Collections.singletonList("ID101")).build();
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
                 .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
