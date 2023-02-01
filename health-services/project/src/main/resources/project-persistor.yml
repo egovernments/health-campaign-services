@@ -112,7 +112,7 @@ serviceMaps:
       isTransaction: true
       queryMaps:
 
-        - query: UPDATE project_beneficiary SET projectId=?, beneficiaryId=?, clientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ?
+        - query: UPDATE project_beneficiary SET projectId=?, beneficiaryId=?, clientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?  WHERE id = ? AND isDeleted=false
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.projectId
@@ -133,6 +133,18 @@ serviceMaps:
 
             - jsonPath: $.*.rowVersion
 
-            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
 
+    - version: 1.0
+      description: Deletes Project Beneficiaries
+      fromTopic: delete-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE project_beneficiary SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id

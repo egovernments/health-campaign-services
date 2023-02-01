@@ -2,23 +2,19 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.producer.Producer;
 import org.egov.project.TestConfiguration;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
-import org.egov.project.helper.ProjectStaffRequestTestBuilder;
-import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.web.models.BeneficiaryBulkResponse;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectBeneficiarySearch;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffRequest;
-import org.egov.project.web.models.ProjectStaffResponse;
-import org.egov.project.web.models.ProjectStaffSearch;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
@@ -63,9 +59,15 @@ public class ProjectBeneficiaryApiControllerTest {
     @MockBean
     private ProjectStaffService projectStaffService;
 
+    @MockBean
+    private Producer producer;
+
+    @MockBean
+    private ProjectConfiguration projectConfiguration;
+
     @Test
     @DisplayName("should create project beneficiary and return with 202 accepted")
-    void shouldCreateProjectStaffAndReturnWith202Accepted() throws Exception {
+    void shouldCreateProjectBeneficiaryAndReturnWith202Accepted() throws Exception {
         BeneficiaryRequest request = BeneficiaryRequestTestBuilder.builder()
                 .withOneProjectBeneficiary()
                 .withApiOperationNotUpdate()
@@ -82,8 +84,8 @@ public class ProjectBeneficiaryApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         BeneficiaryResponse response = objectMapper.readValue(responseStr, BeneficiaryResponse.class);
 
-        assertEquals(1, response.getProjectBeneficiary().size());
-        assertNotNull(response.getProjectBeneficiary().get(0).getId());
+        assertNotNull(response.getProjectBeneficiary());
+        assertNotNull(response.getProjectBeneficiary().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
@@ -135,7 +137,7 @@ public class ProjectBeneficiaryApiControllerTest {
 
     @Test
     @DisplayName("should update project beneficiary and return with 202 accepted")
-    void shouldUpdateProjectStaffAndReturnWith202Accepted() throws Exception {
+    void shouldUpdateProjectBeneficiaryAndReturnWith202Accepted() throws Exception {
         BeneficiaryRequest request = BeneficiaryRequestTestBuilder.builder()
                 .withOneProjectBeneficiaryHavingId()
                 .withApiOperationNotNullAndNotCreate()
@@ -154,8 +156,8 @@ public class ProjectBeneficiaryApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         BeneficiaryResponse response = objectMapper.readValue(responseStr, BeneficiaryResponse.class);
 
-        assertEquals(1, response.getProjectBeneficiary().size());
-        assertNotNull(response.getProjectBeneficiary().get(0).getId());
+        assertNotNull(response.getProjectBeneficiary());
+        assertNotNull(response.getProjectBeneficiary().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
@@ -220,10 +222,10 @@ public class ProjectBeneficiaryApiControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        BeneficiaryResponse response = objectMapper.readValue(responseStr,
-                BeneficiaryResponse.class);
+        BeneficiaryBulkResponse response = objectMapper.readValue(responseStr,
+                BeneficiaryBulkResponse.class);
 
-        assertEquals(response.getProjectBeneficiary().size(), 1);
+        assertEquals(response.getProjectBeneficiaries().size(), 1);
     }
 
     @Test

@@ -3,10 +3,15 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.producer.Producer;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.web.models.BeneficiaryBulkRequest;
+import org.egov.project.web.models.BeneficiaryBulkResponse;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -43,12 +48,10 @@ import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 import java.io.IOException;
 import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
-
 @Controller
 @RequestMapping("")
 @Validated
@@ -62,23 +65,40 @@ public class ProjectApiController {
 
     private final ProjectBeneficiaryService projectBeneficiaryService;
 
+    private final Producer producer;
+
+    private final ProjectConfiguration projectConfiguration;
+
     @Autowired
-    public ProjectApiController(ObjectMapper objectMapper, HttpServletRequest request, ProjectStaffService projectStaffService, ProjectBeneficiaryService projectBeneficiaryService) {
+    public ProjectApiController(ObjectMapper objectMapper,
+                                HttpServletRequest request,
+                                ProjectStaffService projectStaffService,
+                                ProjectBeneficiaryService projectBeneficiaryService,
+                                Producer producer,
+                                ProjectConfiguration projectConfiguration) {
         this.objectMapper = objectMapper;
         this.request = request;
         this.projectStaffService = projectStaffService;
         this.projectBeneficiaryService = projectBeneficiaryService;
+        this.producer = producer;
+        this.projectConfiguration = projectConfiguration;
+    }
+
+    @RequestMapping(value = "/beneficiary/v1/bulk/_create", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkCreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
+        beneficiaryRequest.getRequestInfo().setApiId(request.getRequestURI());
+        producer.push(projectConfiguration.getBulkCreateProjectBeneficiaryTopic(), request);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(beneficiaryRequest.getRequestInfo(), true));
     }
 
     @RequestMapping(value = "/beneficiary/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1CreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) throws Exception {
-        if (!CommonUtils.isForCreate(beneficiaryRequest)){
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", beneficiaryRequest.getApiOperation()));
-        }
+
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(beneficiaryRequest);
         BeneficiaryResponse response = BeneficiaryResponse.builder()
-                .projectBeneficiary(projectBeneficiaries)
+                .projectBeneficiary(projectBeneficiaries.get(0))
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(beneficiaryRequest.getRequestInfo(), true))
                 .build();
@@ -86,7 +106,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest, @NotNull
+    public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
                                                                               @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
@@ -98,8 +118,8 @@ public class ProjectApiController {
                 lastChangedSince,
                 includeDeleted
         );
-        BeneficiaryResponse beneficiaryResponse = BeneficiaryResponse.builder()
-                .projectBeneficiary(projectBeneficiaries)
+        BeneficiaryBulkResponse beneficiaryResponse = BeneficiaryBulkResponse.builder()
+                .projectBeneficiaries(projectBeneficiaries)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(beneficiarySearchRequest.getRequestInfo(), true))
                 .build();
@@ -109,19 +129,44 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/beneficiary/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1UpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
-        if (!CommonUtils.isForUpdate(beneficiaryRequest)
-                && !CommonUtils.isForDelete(beneficiaryRequest)) {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request",
-                    beneficiaryRequest.getApiOperation()));
-        }
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(beneficiaryRequest);
         BeneficiaryResponse response = BeneficiaryResponse.builder()
-                .projectBeneficiary(projectBeneficiaries)
+                .projectBeneficiary(projectBeneficiaries.get(0))
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(beneficiaryRequest.getRequestInfo(), true))
                 .build();
 
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/beneficiary/v1/bulk/_update", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkUpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+
+        beneficiaryRequest.getRequestInfo().setApiId(request.getRequestURI());
+        producer.push(projectConfiguration.getBulkUpdateProjectBeneficiaryTopic(), request);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(beneficiaryRequest.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/beneficiary/v1/bulk/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkDeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
+        beneficiaryRequest.getRequestInfo().setApiId(request.getRequestURI());
+        producer.push(projectConfiguration.getBulkDeleteProjectBeneficiaryTopic(), request);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(beneficiaryRequest.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/beneficiary/v1/_delete", method = RequestMethod.POST)
+    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1DeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) throws Exception {
+
+
+        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.delete(beneficiaryRequest);
+        BeneficiaryResponse response = BeneficiaryResponse.builder()
+                .projectBeneficiary(projectBeneficiaries.get(0))
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(beneficiaryRequest.getRequestInfo(), true))
+                .build();
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 

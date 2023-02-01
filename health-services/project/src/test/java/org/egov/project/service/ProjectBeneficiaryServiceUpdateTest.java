@@ -7,10 +7,11 @@ import org.apache.commons.io.IOUtils;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.MdmsService;
 import org.egov.project.config.ProjectConfiguration;
+import org.egov.project.helper.BeneficiaryBulkRequestTestBuilder;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.ApiOperation;
+import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.Household;
 import org.egov.project.web.models.HouseholdResponse;
@@ -73,7 +74,7 @@ class ProjectBeneficiaryServiceUpdateTest {
     @Mock
     private ProjectConfiguration projectConfiguration;
 
-    private BeneficiaryRequest request;
+    private BeneficiaryBulkRequest request;
 
     private List<String> projectBeneficiaryIds;
 
@@ -96,11 +97,10 @@ class ProjectBeneficiaryServiceUpdateTest {
     }
     @BeforeEach
     void setUp() throws Exception {
-        request = BeneficiaryRequestTestBuilder.builder()
+        request = BeneficiaryBulkRequestTestBuilder.builder()
                 .withOneProjectBeneficiary()
                 .build();
-        request.setApiOperation(ApiOperation.UPDATE);
-        projectBeneficiaryIds = request.getProjectBeneficiary().stream().map(ProjectBeneficiary::getId)
+        projectBeneficiaryIds = request.getProjectBeneficiaries().stream().map(ProjectBeneficiary::getId)
                 .collect(Collectors.toList());
         lenient().when(projectConfiguration.getUpdateProjectBeneficiaryTopic()).thenReturn("update-topic");
     }
@@ -120,7 +120,7 @@ class ProjectBeneficiaryServiceUpdateTest {
                 eq(projectBeneficiaryIds),
                 eq(false),
                 anyString())
-        ).thenReturn(request.getProjectBeneficiary());
+        ).thenReturn(request.getProjectBeneficiaries());
     }
 
     private void mockMdms(String responseFileName) throws Exception {
@@ -137,7 +137,7 @@ class ProjectBeneficiaryServiceUpdateTest {
     @Test
     @DisplayName("should update the lastModifiedTime in the result")
     void shouldUpdateTheLastModifiedTimeInTheResult() throws Exception {
-        Long time = request.getProjectBeneficiary().get(0).getAuditDetails().getLastModifiedTime();
+        Long time = request.getProjectBeneficiaries().get(0).getAuditDetails().getLastModifiedTime();
         mockValidateProjectId();
         mockValidateBeneficiarytId();
         mockFindById();
@@ -145,7 +145,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
 
-        List<ProjectBeneficiary> result = projectBeneficiaryService.update(request);
+        List<ProjectBeneficiary> result = projectBeneficiaryService.update(request, false);
 
         assertNotEquals(time, result.get(0).getAuditDetails().getLastModifiedTime());
     }
@@ -153,7 +153,7 @@ class ProjectBeneficiaryServiceUpdateTest {
     @Test
     @DisplayName("should update the row version in the result")
     void shouldUpdateTheRowVersionInTheResult() throws Exception {
-        Integer rowVersion = request.getProjectBeneficiary().get(0).getRowVersion();
+        Integer rowVersion = request.getProjectBeneficiaries().get(0).getRowVersion();
         mockValidateProjectId();
         mockValidateBeneficiarytId();
         mockFindById();
@@ -161,7 +161,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
 
-        List<ProjectBeneficiary> result = projectBeneficiaryService.update(request);
+        List<ProjectBeneficiary> result = projectBeneficiaryService.update(request, false);
 
         assertEquals(rowVersion, result.get(0).getRowVersion() - 1);
     }
@@ -175,7 +175,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockServiceRequestClient();
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        projectBeneficiaryService.update(request);
+        projectBeneficiaryService.update(request, false);
 
         verify(projectService, times(1)).validateProjectIds(any(List.class));
     }
@@ -185,7 +185,7 @@ class ProjectBeneficiaryServiceUpdateTest {
     void shouldThrowExceptionForAnyInvalidProjectId() throws Exception {
         when(projectService.validateProjectIds(any(List.class))).thenReturn(Collections.emptyList());
 
-        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request));
+        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
     }
 
     @Test
@@ -198,7 +198,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
 
-        projectBeneficiaryService.update(request);
+        projectBeneficiaryService.update(request, false);
 
         verify(projectBeneficiaryRepository, times(1)).findById(anyList(), eq(false), anyString());
     }
@@ -214,7 +214,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockProjectFindIds();
         when(projectBeneficiaryRepository.findById(anyList(), eq(false), anyString())).thenReturn(Collections.emptyList());
 
-        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request));
+        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
     }
 
     @Test
@@ -227,14 +227,14 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
 
-        BeneficiaryRequest requestWithoutClientReferenceId = BeneficiaryRequestTestBuilder.builder()
+        BeneficiaryBulkRequest requestWithoutClientReferenceId = BeneficiaryBulkRequestTestBuilder.builder()
                 .withOneProjectBeneficiary()
                 .build();
-        requestWithoutClientReferenceId.setApiOperation(ApiOperation.UPDATE);
-        requestWithoutClientReferenceId.getProjectBeneficiary().get(0).setClientReferenceId(null);
+        requestWithoutClientReferenceId.getProjectBeneficiaries().get(0).setClientReferenceId(null);
 
-        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(requestWithoutClientReferenceId);
-        assertEquals(request.getProjectBeneficiary().get(0).getClientReferenceId(),
+        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService
+                .update(requestWithoutClientReferenceId, false);
+        assertEquals(request.getProjectBeneficiaries().get(0).getClientReferenceId(),
                 projectBeneficiaries.get(0).getClientReferenceId());
     }
 
@@ -247,11 +247,11 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockServiceRequestClient();
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        when(projectBeneficiaryRepository.save(anyList(), anyString())).thenReturn(request.getProjectBeneficiary());
+        when(projectBeneficiaryRepository.save(anyList(), anyString())).thenReturn(request.getProjectBeneficiaries());
 
-        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(request);
+        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(request, false);
 
-        assertEquals(request.getProjectBeneficiary(), projectBeneficiaries);
+        assertEquals(request.getProjectBeneficiaries(), projectBeneficiaries);
     }
 
     @Test
@@ -287,7 +287,7 @@ class ProjectBeneficiaryServiceUpdateTest {
                 HouseholdResponse.builder().household(Collections.singletonList(Household.builder().build())).build()
         );
 
-        projectBeneficiaryService.update(request);
+        projectBeneficiaryService.update(request, false);
 
         verify(projectService, times(1)).validateProjectIds(any(List.class));
         verify(mdmsService, times(1)).fetchConfig(any(), any());
@@ -313,7 +313,7 @@ class ProjectBeneficiaryServiceUpdateTest {
                 HouseholdResponse.builder().household(Collections.emptyList()).build()
         );
 
-        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request));
+        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
     }
 
     @Test
@@ -332,7 +332,7 @@ class ProjectBeneficiaryServiceUpdateTest {
                 IndividualResponse.builder().individual(Collections.singletonList(Individual.builder().build())).build()
         );
 
-        projectBeneficiaryService.update(request);
+        projectBeneficiaryService.update(request, false);
 
         verify(projectService, times(1)).validateProjectIds(any(List.class));
         verify(mdmsService, times(1)).fetchConfig(any(), any());
@@ -358,6 +358,6 @@ class ProjectBeneficiaryServiceUpdateTest {
                 IndividualResponse.builder().individual(Collections.emptyList()).build()
         );
 
-        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request));
+        assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
     }
 }

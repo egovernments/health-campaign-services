@@ -699,6 +699,38 @@ public class CommonUtils {
     }
 
     /**
+     * Populate error details for exception scenarios.
+     *
+     *
+     * @param request is the request body
+     * @param errorListMap is a map of payload vs errorList
+     * @param validPayloads are the payloads without validation errors
+     * @param exception is the exception
+     * @param <T> is the type of payload
+     * @param <R> is the type of request
+     */
+    public static <R,T> void populateErrorDetails(R request, Map<T, List<Error>> errorListMap,
+                                                  List<T> validPayloads, Exception exception) {
+        Error.ErrorType errorType = Error.ErrorType.NON_RECOVERABLE;
+        String errorCode = "INTERNAL_SERVER_ERROR";
+        if (exception instanceof CustomException) {
+            errorCode = ((CustomException) exception).getCode();
+            // in case further cases come up, we can add more cases in a set and check using contains.
+            if (!((CustomException) exception).getCode().equals("IDGEN_ERROR")) {
+                errorType = Error.ErrorType.RECOVERABLE;
+            }
+        }
+        List<Error> errorList = new ArrayList<>();
+        errorList.add(Error.builder().errorMessage(exception.getMessage())
+                .errorCode(errorCode)
+                .type(errorType)
+                .exception(new CustomException(errorCode, exception.getMessage())).build());
+        validPayloads.forEach(payload -> {
+            errorListMap.put(payload, errorList);
+        });
+    }
+
+    /**
      * Validate for null ids
      *
      * @param request is the request body
