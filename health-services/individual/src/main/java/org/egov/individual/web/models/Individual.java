@@ -62,8 +62,8 @@ public class Individual {
     private Gender gender = null;
 
     @JsonProperty("bloodGroup")
-    @Size(max = 3)
-    private String bloodGroup = null;
+    @Valid
+    private BloodGroup bloodGroup = null;
 
     @JsonProperty("mobileNumber")
     @Size(max = 20)
