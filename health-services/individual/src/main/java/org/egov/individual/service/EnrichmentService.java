@@ -209,6 +209,9 @@ public class EnrichmentService {
         List<Address> addressesToCreate = individual.getAddress().stream()
                 .filter(ad1 -> ad1.getId() == null)
                 .collect(Collectors.toList());
+        List<Address> addressesToUpdate = individual.getAddress().stream()
+                .filter(ad1 -> ad1.getId() != null)
+                .collect(Collectors.toList());
         if (!addressesToCreate.isEmpty()) {
             log.info("enriching addresses to create");
             List<String> addressIdList = uuidSupplier().apply(addressesToCreate.size());
@@ -216,9 +219,6 @@ public class EnrichmentService {
             addressesToCreate.forEach(address -> address.setIndividualId(individual.getId()));
         }
 
-        List<Address> addressesToUpdate = individual.getAddress().stream()
-                .filter(ad1 -> ad1.getId() != null)
-                .collect(Collectors.toList());
         if (!addressesToUpdate.isEmpty()) {
             log.info("enriching addresses to update");
             addressesToUpdate.forEach(address -> {
@@ -239,15 +239,16 @@ public class EnrichmentService {
         if (individual.getIdentifiers() != null) {
             List<Identifier> identifiersToCreate = individual.getIdentifiers().stream().filter(havingNullId())
                     .collect(Collectors.toList());
+            List<Identifier> identifiersToUpdate = individual.getIdentifiers().stream()
+                    .filter(notHavingNullId())
+                    .collect(Collectors.toList());
+
             if (!identifiersToCreate.isEmpty()) {
                 List<String> identifierIdList = uuidSupplier().apply(identifiersToCreate.size());
                 enrichForCreate(identifiersToCreate, identifierIdList, request.getRequestInfo(), false);
                 identifiersToCreate.forEach(identifier -> identifier.setIndividualId(individual.getId()));
             }
 
-            List<Identifier> identifiersToUpdate = individual.getIdentifiers().stream()
-                    .filter(notHavingNullId())
-                    .collect(Collectors.toList());
             if (!identifiersToUpdate.isEmpty()) {
                 identifiersToUpdate.forEach(identifier -> {
                     identifier.setIndividualId(individual.getId());

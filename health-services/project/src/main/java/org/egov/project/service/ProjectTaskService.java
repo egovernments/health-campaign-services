@@ -13,9 +13,16 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
+import org.egov.project.task.validators.IsDeletedSubEntityValidator;
+import org.egov.project.task.validators.IsDeletedValidator;
+import org.egov.project.task.validators.NonExistentEntityValidator;
+import org.egov.project.task.validators.NullIdValidator;
 import org.egov.project.task.validators.ProductVariantIdValidator;
 import org.egov.project.task.validators.ProjectBeneficiaryIdValidator;
 import org.egov.project.task.validators.ProjectIdValidator;
+import org.egov.project.task.validators.RowVersionValidator;
+import org.egov.project.task.validators.UniqueEntityValidator;
+import org.egov.project.task.validators.UniqueSubEntityValidator;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskBulkRequest;
 import org.egov.project.web.models.TaskRequest;
@@ -62,8 +69,20 @@ public class ProjectTaskService {
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
             validator.getClass().equals(ProjectIdValidator.class)
-            || validator.getClass().equals(ProjectBeneficiaryIdValidator.class)
-            || validator.getClass().equals(ProductVariantIdValidator.class);
+                    || validator.getClass().equals(ProjectBeneficiaryIdValidator.class)
+                    || validator.getClass().equals(ProductVariantIdValidator.class);
+
+    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
+            validator.getClass().equals(ProjectIdValidator.class)
+                    || validator.getClass().equals(ProjectBeneficiaryIdValidator.class)
+                    || validator.getClass().equals(ProductVariantIdValidator.class)
+                    || validator.getClass().equals(NullIdValidator.class)
+                    || validator.getClass().equals(IsDeletedValidator.class)
+                    || validator.getClass().equals(IsDeletedSubEntityValidator.class)
+                    || validator.getClass().equals(NonExistentEntityValidator.class)
+                    || validator.getClass().equals(RowVersionValidator.class)
+                    || validator.getClass().equals(UniqueEntityValidator.class)
+                    || validator.getClass().equals(UniqueSubEntityValidator.class);
 
     private final List<Validator<TaskBulkRequest, Task>> validators;
 
@@ -81,10 +100,11 @@ public class ProjectTaskService {
         this.validators = validators;
     }
 
-    public List<Task> create(TaskRequest request) throws Exception {
+    public Task create(TaskRequest request) throws Exception {
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
-        return create(bulkRequest, false);
+        List<Task> tasks = create(bulkRequest, false);
+        return create(bulkRequest, false).get(0);
     }
 
     public List<Task> create(TaskBulkRequest request, boolean isBulk) throws Exception {
@@ -106,6 +126,38 @@ public class ProjectTaskService {
         handleErrors(isBulk, errorDetailsMap);
 
         return validTasks;
+    }
+
+    public Task update(TaskRequest request) throws Exception {
+        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .tasks(Collections.singletonList(request.getTask())).build();
+        return update(bulkRequest, false).get(0);
+    }
+
+    public List<Task> update(TaskBulkRequest request, boolean isBulk) {
+        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
+                isApplicableForUpdate, request,
+                isBulk);
+        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Task> validTasks = tuple.getX();
+        try {
+            if (!validTasks.isEmpty()) {
+                enrichmentService.update(validTasks, request);
+                projectTaskRepository.save(request.getTasks(), projectConfiguration.getUpdateProjectTaskTopic());
+            }
+        } catch (Exception exception) {
+            log.error("error occurred", exception);
+            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
+        }
+
+        handleErrors(isBulk, errorDetailsMap);
+
+        return validTasks;
+
+    }
+
+    public List<Task> delete(TaskBulkRequest request, boolean isBulk) {
+        return null;
     }
 
     private Tuple<List<Task>, Map<Task, ErrorDetails>> validate(List<Validator<TaskBulkRequest, Task>> validators,

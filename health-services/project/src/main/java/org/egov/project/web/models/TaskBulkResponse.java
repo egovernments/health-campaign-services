@@ -10,6 +10,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.List;
 
 /**
 * TaskResponse
@@ -21,17 +22,17 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TaskResponse   {
+public class TaskBulkResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("Task")
+    @JsonProperty("Tasks")
     @NotNull
     @Valid
-    private Task task = null;
+    private List<Task> tasks = null;
 
 }
 

@@ -31,6 +31,15 @@ public class ProjectConfiguration {
     @Value("${project.task.kafka.create.topic}")
     private String createProjectTaskTopic;
 
+    @Value("update-project-task-topic")
+    private String updateProjectTaskTopic;
+
+    @Value("${project.task.kafka.create.bulk.topic}")
+    private String createProjectTaskBulkTopic;
+
+    @Value("${project.task.kafka.update.bulk.topic}")
+    private String updateProjectTaskBulkTopic;
+
     @Value("${project.task.idgen.id.format}")
     private String projectTaskIdFormat;
 
