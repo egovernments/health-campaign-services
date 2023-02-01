@@ -84,8 +84,12 @@ public class EnrichmentService {
             RequestInfo requestInfo = request.getRequestInfo();
             if (individual.getIsDeleted()) {
                 enrichForDelete(Collections.singletonList(individual), requestInfo, true);
-                enrichForDelete(individual.getAddress(), requestInfo, false);
-                enrichForDelete(individual.getIdentifiers(), requestInfo, false);
+                if (individual.getAddress() != null && !individual.getAddress().isEmpty()) {
+                    enrichForDelete(individual.getAddress(), requestInfo, false);
+                }
+                if (individual.getIdentifiers() != null && !individual.getIdentifiers().isEmpty()) {
+                    enrichForDelete(individual.getIdentifiers(), requestInfo, false);
+                }
                 if (individual.getSkills() != null && !individual.getSkills().isEmpty()) {
                     enrichForDelete(individual.getSkills(), requestInfo, false);
                 }

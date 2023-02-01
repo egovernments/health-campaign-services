@@ -79,7 +79,7 @@ public class Individual {
 
     @JsonProperty("address")
     @Valid
-    @Size(min = 1, max = 3)
+    @Size(max = 3)
     private List<Address> address = null;
 
     @JsonProperty("fatherName")
@@ -92,7 +92,6 @@ public class Individual {
 
     @JsonProperty("identifiers")
     @Valid
-    @Size(min = 1)
     private List<Identifier> identifiers = null;
 
     @JsonProperty("skills")
