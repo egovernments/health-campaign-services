@@ -84,6 +84,10 @@ public class ProjectTaskService {
                     || validator.getClass().equals(UniqueEntityValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class);
 
+    private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForDelete = validator ->
+    validator.getClass().equals(NullIdValidator.class)
+                    || validator.getClass().equals(NonExistentEntityValidator.class);
+
     private final List<Validator<TaskBulkRequest, Task>> validators;
 
     public ProjectTaskService(IdGenService idGenService, ProjectRepository projectRepository,
@@ -153,11 +157,32 @@ public class ProjectTaskService {
         handleErrors(isBulk, errorDetailsMap);
 
         return validTasks;
+    }
 
+    public Task delete(TaskRequest request) {
+        TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .tasks(Collections.singletonList(request.getTask())).build();
+        return delete(bulkRequest, false).get(0);
     }
 
     public List<Task> delete(TaskBulkRequest request, boolean isBulk) {
-        return null;
+        Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
+                isApplicableForDelete, request,
+                isBulk);
+        Map<Task, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Task> validTasks = tuple.getX();
+        try {
+            if (!validTasks.isEmpty()) {
+                enrichmentService.delete(validTasks, request);
+                projectTaskRepository.save(request.getTasks(), projectConfiguration.getDeleteProjectTaskTopic());
+            }
+        } catch (Exception exception) {
+            log.error("error occurred", exception);
+            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
+        }
+
+        handleErrors(isBulk, errorDetailsMap);
+        return validTasks;
     }
 
     private Tuple<List<Task>, Map<Task, ErrorDetails>> validate(List<Validator<TaskBulkRequest, Task>> validators,

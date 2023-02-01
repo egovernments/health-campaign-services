@@ -347,6 +347,29 @@ public class ProjectApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
+    @RequestMapping(value = "/task/v1/_delete", method = RequestMethod.POST)
+    public ResponseEntity<TaskResponse> projectTaskV1DeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
+        Task task = projectTaskService.delete(request);
+
+        TaskResponse response = TaskResponse.builder()
+                .task(task)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+
+    }
+
+    @RequestMapping(value = "/task/v1/bulk/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectTaskV1BulkDeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getDeleteProjectTaskBulkTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectResponse> projectV1CreatePost(@ApiParam(value = "Details for the new Project.", required = true) @Valid @RequestBody ProjectRequest project) {
         String accept = httpServletRequest.getHeader("Accept");

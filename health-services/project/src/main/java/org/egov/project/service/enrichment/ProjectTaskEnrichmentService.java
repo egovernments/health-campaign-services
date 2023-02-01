@@ -11,11 +11,14 @@ import org.egov.project.web.models.TaskResource;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.enrichId;
 import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 
@@ -50,6 +53,43 @@ public class ProjectTaskEnrichmentService {
         log.info("enriching tasks");
         enrichAddressesForUpdate(validTasks);
         enrichResourcesForUpdate(request, validTasks);
+        Map<String, Task> iMap = getIdToObjMap(validTasks);
+        enrichForUpdate(iMap, request);
+    }
+
+    public void delete(List<Task> validTasks, TaskBulkRequest request) throws Exception {
+        log.info("enriching tasks");
+        for (Task task : validTasks) {
+            if (task.getIsDeleted()) {
+                for (TaskResource resource : task.getResources()) {
+                    resource.setIsDeleted(true);
+                    updateAuditDetailsForResource(request, resource);
+                }
+                updateAuditDetailsForTask(request, task);
+                task.setRowVersion(task.getRowVersion() + 1);
+            } else {
+                int previousRowVersion = task.getRowVersion();
+                task.getResources().stream().filter(TaskResource::getIsDeleted).forEach(resource -> {
+                    updateAuditDetailsForResource(request, resource);
+                    updateAuditDetailsForTask(request, task);
+                    task.setRowVersion(previousRowVersion + 1);
+                });
+            }
+        }
+    }
+
+    private static void updateAuditDetailsForTask(TaskBulkRequest request, Task task) {
+        AuditDetails existingAuditDetails = task.getAuditDetails();
+        AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                request.getRequestInfo().getUserInfo().getUuid());
+        task.setAuditDetails(auditDetails);
+    }
+
+    private static void updateAuditDetailsForResource(TaskBulkRequest request, TaskResource resource) {
+        AuditDetails existingAuditDetails = resource.getAuditDetails();
+        AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                request.getRequestInfo().getUserInfo().getUuid());
+        resource.setAuditDetails(auditDetails);
     }
 
     private static void enrichResourcesForUpdate(TaskBulkRequest request, List<Task> tasks) {
@@ -61,10 +101,7 @@ public class ProjectTaskEnrichmentService {
 
             enrichResourcesForCreate(request, resourcesToCreate, task.getId());
             for (TaskResource resource : resourcesToUpdate) {
-                AuditDetails existingAuditDetails = resource.getAuditDetails();
-                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
-                        request.getRequestInfo().getUserInfo().getUuid());
-                resource.setAuditDetails(auditDetails);
+                updateAuditDetailsForResource(request, resource);
             }
         }
     }
