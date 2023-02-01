@@ -1,20 +1,21 @@
 package org.egov.individual.repository.rowmapper;
 
 import digit.models.coremodels.AuditDetails;
-import org.egov.individual.web.models.Identifier;
+import org.egov.individual.web.models.Skill;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class IdentifierRowMapper implements RowMapper<Identifier> {
+public class SkillRowMapper implements RowMapper<Skill> {
     @Override
-    public Identifier mapRow(ResultSet resultSet, int i) throws SQLException {
-        return Identifier.builder()
+    public Skill mapRow(ResultSet resultSet, int i) throws SQLException {
+        return Skill.builder()
                 .id(resultSet.getString("id"))
                 .individualId(resultSet.getString("individualId"))
-                .identifierType(resultSet.getString("identifierType"))
-                .identifierId(resultSet.getString("identifierId"))
+                .type(resultSet.getString("type"))
+                .level(resultSet.getString("level"))
+                .experience(resultSet.getString("experience"))
                 .auditDetails(AuditDetails.builder().createdBy(resultSet.getString("createdBy"))
                         .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                         .createdTime(resultSet.getLong("createdTime"))

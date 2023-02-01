@@ -1,34 +1,48 @@
 package org.egov.individual.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.ds.Tuple;
+import org.egov.common.models.ErrorDetails;
 import org.egov.common.service.IdGenService;
+import org.egov.common.utils.CommonUtils;
+import org.egov.common.validator.Validator;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.Identifier;
+import org.egov.individual.validators.AddressTypeValidator;
+import org.egov.individual.validators.IsDeletedSubEntityValidator;
+import org.egov.individual.validators.IsDeletedValidator;
+import org.egov.individual.validators.NonExistentEntityValidator;
+import org.egov.individual.validators.NullIdValidator;
+import org.egov.individual.validators.RowVersionValidator;
+import org.egov.individual.validators.UniqueEntityValidator;
+import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.individual.web.models.Individual;
+import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualSearch;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import static org.egov.common.utils.CommonUtils.collectFromList;
-import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.uuidSupplier;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.individual.Constants.SET_INDIVIDUALS;
+import static org.egov.individual.Constants.VALIDATION_ERROR;
 
 @Service
 @Slf4j
@@ -38,79 +52,117 @@ public class IndividualService {
 
     private final IndividualRepository individualRepository;
 
+    private final List<Validator<IndividualBulkRequest, Individual>> validators;
+
+    private final ObjectMapper objectMapper;
+
+    private final IndividualProperties properties;
+
+    private final EnrichmentService enrichmentService;
+
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
+            validator.getClass().equals(NullIdValidator.class)
+                    || validator.getClass().equals(IsDeletedValidator.class)
+                    || validator.getClass().equals(IsDeletedSubEntityValidator.class)
+                    || validator.getClass().equals(NonExistentEntityValidator.class)
+                    || validator.getClass().equals(AddressTypeValidator.class)
+                    || validator.getClass().equals(RowVersionValidator.class)
+                    || validator.getClass().equals(UniqueEntityValidator.class)
+                    || validator.getClass().equals(UniqueSubEntityValidator.class);
+
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
+            validator.getClass().equals(AddressTypeValidator.class)
+                    || validator.getClass().equals(UniqueSubEntityValidator.class);
+
+    private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
+            validator.getClass().equals(NullIdValidator.class)
+                    || validator.getClass().equals(NonExistentEntityValidator.class);
+
     @Autowired
     public IndividualService(IdGenService idGenService,
-                             IndividualRepository individualRepository) {
+                             IndividualRepository individualRepository,
+                             List<Validator<IndividualBulkRequest, Individual>> validators,
+                             @Qualifier("objectMapper") ObjectMapper objectMapper,
+                             IndividualProperties properties,
+                             EnrichmentService enrichmentService) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
+        this.validators = validators;
+        this.objectMapper = objectMapper;
+        this.properties = properties;
+        this.enrichmentService = enrichmentService;
     }
 
-
-    public List<Individual> create(IndividualRequest request) throws Exception {
-        final String tenantId = getTenantId(request.getIndividual());
-        log.info("Generating id for individuals");
-        List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
-                tenantId, "individual.id",
-                null, request.getIndividual().size());
-        enrichForCreate(request.getIndividual(), indIdList, request.getRequestInfo());
-        List<Address> addresses = collectFromList(request.getIndividual(),
-                Individual::getAddress);
-        if (!addresses.isEmpty()) {
-            log.info("Enriching addresses");
-            List<String> addressIdList = uuidSupplier().apply(addresses.size());
-            enrichForCreate(addresses, addressIdList, request.getRequestInfo());
-            enrichIndividualIdInAddress(request);
-        }
-        log.info("Enriching identifiers");
-        request.setIndividual(request.getIndividual().stream()
-                .map(IndividualService::enrichWithSystemGeneratedIdentifier)
-                        .map(IndividualService::enrichIndividualIdInIdentifiers)
-                .collect(Collectors.toList()));
-        List<Identifier> identifiers = collectFromList(request.getIndividual(),
-                Individual::getIdentifiers);
-        List<String> identifierIdList = uuidSupplier().apply(identifiers.size());
-        enrichForCreate(identifiers, identifierIdList, request.getRequestInfo());
-        if (request.getIndividual().stream().anyMatch(individual -> individual.getIdentifiers().stream()
-                .anyMatch(identifier -> identifier.getIdentifierType().equals("SYSTEM_GENERATED")))) {
-            List<String> sysGenIdList = idGenService.getIdList(request.getRequestInfo(),
-                    tenantId, "sys.gen.identifier.id",
-                    null, identifiers.size());
-            enrichWithSysGenId(identifiers, sysGenIdList);
-        }
-        individualRepository.save(request.getIndividual(), "save-individual-topic");
-        return request.getIndividual();
+    public List<Individual> create(IndividualRequest request) {
+        IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .individuals(Collections.singletonList(request.getIndividual())).build();
+        return create(bulkRequest, false);
     }
 
-    private static void enrichWithSysGenId(List<Identifier> identifiers, List<String> sysGenIdList) {
-        IntStream.range(0, identifiers.size()).forEach(i -> {
-            if (identifiers.get(i).getIdentifierType().equals("SYSTEM_GENERATED")) {
-                identifiers.get(i).setIdentifierId(sysGenIdList.get(i));
+    public List<Individual> create(IndividualBulkRequest request, boolean isBulk) {
+
+        Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
+                isApplicableForCreate, request,
+                isBulk);
+        Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Individual> validIndividuals = tuple.getX();
+        try {
+            if (!validIndividuals.isEmpty()) {
+                enrichmentService.create(validIndividuals, request);
+                individualRepository.save(validIndividuals,
+                        properties.getSaveIndividualTopic());
             }
-        });
-    }
-
-    private static Individual enrichIndividualIdInIdentifiers(Individual individual) {
-        List<Identifier> identifiers = individual.getIdentifiers();
-        identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
-        individual.setIdentifiers(identifiers);
-        return individual;
-    }
-
-    private static void enrichIndividualIdInAddress(IndividualRequest request) {
-        request.getIndividual().stream().filter(individual -> individual.getAddress() != null)
-                .forEach(individual -> individual.getAddress()
-                        .forEach(address -> address.setIndividualId(individual.getId())));
-    }
-
-    private static Individual enrichWithSystemGeneratedIdentifier(Individual individual) {
-        if (individual.getIdentifiers() == null || individual.getIdentifiers().isEmpty()) {
-            List<Identifier> identifiers = new ArrayList<>();
-            identifiers.add(Identifier.builder()
-                    .identifierType("SYSTEM_GENERATED")
-                    .build());
-            individual.setIdentifiers(identifiers);
+        } catch (Exception exception) {
+            log.error("error occurred", exception);
+            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
-        return individual;
+
+        handleErrors(isBulk, errorDetailsMap);
+
+        return validIndividuals;
+    }
+
+    private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
+                                                                            Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate,
+                                                                            IndividualBulkRequest request, boolean isBulk) {
+        log.info("validating request");
+        Map<Individual, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
+                isApplicableForCreate, request,
+                SET_INDIVIDUALS);
+        if (!errorDetailsMap.isEmpty() && !isBulk) {
+            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+        }
+        List<Individual> validIndividuals = request.getIndividuals().stream()
+                .filter(notHavingErrors()).collect(Collectors.toList());
+        return new Tuple<>(validIndividuals, errorDetailsMap);
+    }
+
+    public List<Individual> update(IndividualRequest request) {
+        IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .individuals(Collections.singletonList(request.getIndividual())).build();
+        return update(bulkRequest, false);
+    }
+
+    public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
+        Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
+                isApplicableForUpdate, request,
+                isBulk);
+        Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Individual> validIndividuals = tuple.getX();
+
+        try {
+            if (!validIndividuals.isEmpty()) {
+                enrichmentService.update(validIndividuals, request);
+                individualRepository.save(validIndividuals,
+                        properties.getUpdateIndividualTopic());
+            }
+        } catch (Exception exception) {
+            log.error("error occurred", exception);
+            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
+        }
+
+        handleErrors(isBulk, errorDetailsMap);
+        return validIndividuals;
     }
 
     public List<Individual> search(IndividualSearch individualSearch,
@@ -131,7 +183,7 @@ public class IndividualService {
                     .collect(Collectors.toList());
         }
         return individualRepository.find(individualSearch, limit, offset, tenantId,
-                lastChangedSince, includeDeleted).stream()
+                        lastChangedSince, includeDeleted).stream()
                 .filter(havingBoundaryCode(individualSearch.getBoundaryCode()))
                 .collect(Collectors.toList());
     }
@@ -144,5 +196,45 @@ public class IndividualService {
                 .stream()
                 .anyMatch(address -> address.getLocality().getCode()
                         .equalsIgnoreCase(boundaryCode));
+    }
+
+    public List<Individual> delete(IndividualRequest request) {
+        IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
+                .individuals(Collections.singletonList(request.getIndividual())).build();
+        return delete(bulkRequest, false);
+    }
+
+    public List<Individual> delete(IndividualBulkRequest request, boolean isBulk) {
+        Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
+                isApplicableForDelete, request,
+                isBulk);
+        Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Individual> validIndividuals = tuple.getX();
+
+        try {
+            if (!validIndividuals.isEmpty()) {
+                enrichmentService.delete(validIndividuals, request);
+                individualRepository.save(validIndividuals,
+                        properties.getDeleteIndividualTopic());
+            }
+        } catch(Exception exception) {
+            log.error("error occurred", exception);
+            populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
+        }
+
+        handleErrors(isBulk, errorDetailsMap);
+
+        return validIndividuals;
+    }
+
+    private static void handleErrors(boolean isBulk, Map<Individual, ErrorDetails> errorDetailsMap) {
+        if (!errorDetailsMap.isEmpty()) {
+            log.error("{} errors collected", errorDetailsMap.size());
+            if (isBulk) {
+                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
+            } else {
+                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+            }
+        }
     }
 }

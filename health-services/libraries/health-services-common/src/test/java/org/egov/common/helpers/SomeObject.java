@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.data.query.annotations.Table;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class SomeObject {
     private Integer rowVersion;
     private String tenantId;
     private Boolean isDeleted;
+    private RequestInfo requestInfo;
     private List<OtherObject> otherObject;
     private AuditDetails auditDetails;
 }

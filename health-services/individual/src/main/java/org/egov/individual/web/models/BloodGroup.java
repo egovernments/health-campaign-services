@@ -4,19 +4,23 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Specify the type of operation being performed i.e. CREATE, UPDATE or DELETE
+ * Gets or Sets gender
  */
-public enum ApiOperation {
-  
-  CREATE("CREATE"),
-  
-  UPDATE("UPDATE"),
-  
-  DELETE("DELETE");
+public enum BloodGroup {
+
+  B_POSITIVE("B+"),
+  B_NEGATIVE("B-"),
+  A_POSITIVE("A+"),
+  A_NEGATIVE("A-"),
+  AB_POSITIVE("AB+"),
+  AB_NEGATIVE("AB-"),
+  O_NEGATIVE("O-"),
+  O_POSITIVE("O+");
+
 
   private String value;
 
-  ApiOperation(String value) {
+  BloodGroup(String value) {
     this.value = value;
   }
 
@@ -27,8 +31,8 @@ public enum ApiOperation {
   }
 
   @JsonCreator
-  public static ApiOperation fromValue(String text) {
-    for (ApiOperation b : ApiOperation.values()) {
+  public static BloodGroup fromValue(String text) {
+    for (BloodGroup b : BloodGroup.values()) {
       if (String.valueOf(b.value).equals(text)) {
         return b;
       }

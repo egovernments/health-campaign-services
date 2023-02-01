@@ -22,47 +22,34 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Identifier {
+public class Skill {
 
     @JsonProperty("id")
-
     @Size(min = 2, max = 64)
-
     private String id = null;
 
     @JsonProperty("individualId")
-
     @Size(min = 2, max = 64)
-
     private String individualId = null;
 
-
-    @JsonProperty("identifierType")
+    @JsonProperty("type")
     @NotNull
-
-
     @Size(min = 2, max = 64)
+    private String type = null;
 
-    private String identifierType = null;
-
-    @JsonProperty("identifierId")
-    @NotNull
-
-
+    @JsonProperty("level")
     @Size(min = 2, max = 64)
+    private String level = null;
 
-    private String identifierId = null;
+    @JsonProperty("experience")
+    @Size(min = 2, max = 64)
+    private String experience = null;
 
     @JsonProperty("isDeleted")
-
     private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
-
     @Valid
-
-
     private AuditDetails auditDetails = null;
-
 }
 
