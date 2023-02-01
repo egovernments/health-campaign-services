@@ -27,4 +27,16 @@ public class ProjectConfiguration {
 
     @Value("${project.beneficiary.kafka.update.topic}")
     private String updateProjectBeneficiaryTopic;
+
+    @Value("${project.task.kafka.create.topic}")
+    private String createProjectTaskTopic;
+
+    @Value("${project.task.idgen.id.format}")
+    private String projectTaskIdFormat;
+
+    @Value("${egov.product.host}")
+    private String productHost;
+
+    @Value("${egov.search.product.variant.url}")
+    private String productVariantSearchUrl;
 }

@@ -48,8 +48,6 @@ import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
 
-import static org.egov.common.utils.CommonUtils.isForCreate;
-
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
 
 @Controller
@@ -280,10 +278,6 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
-        if (!isForCreate(request)) {
-            throw new CustomException("INVALID_API_OPERATION",
-                    String.format("API Operation %s not valid for create request", request.getApiOperation()));
-        }
 
         List<Task> tasks = projectTaskService.create(request);
         TaskResponse response = TaskResponse.builder()

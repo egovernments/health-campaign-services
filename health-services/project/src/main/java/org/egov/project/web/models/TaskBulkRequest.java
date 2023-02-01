@@ -10,6 +10,9 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
 * TaskRequest
@@ -21,20 +24,22 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TaskRequest   {
+public class TaskBulkRequest {
 
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("Task")
+    @JsonProperty("Tasks")
     @NotNull
     @Valid
-    private Task task = null;
+    @Size(min=1)
+    private List<Task> tasks = new ArrayList<>();
 
-    @JsonProperty("apiOperation")
-    @Valid
-    private ApiOperation apiOperation = null;
+    public TaskBulkRequest addTaskItem(Task taskItem) {
+        this.tasks.add(taskItem);
+        return this;
+    }
 }
 

@@ -32,6 +32,20 @@ public class ValidatorUtils {
                 .exception(new CustomException("NON_EXISTENT_ENTITY", "Entity does not exist in db")).build();
     }
 
+    public static Error getErrorForNonExistentRelatedEntity() {
+        return Error.builder().errorMessage("Related entity does not exist in db")
+                .errorCode("NON_EXISTENT_RELATED_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("NON_EXISTENT_RELATED_ENTITY", "Related entity does not exist in db")).build();
+    }
+
+    public static Error getErrorForEntityWithNetworkError() {
+        return Error.builder().errorMessage("Network error")
+                .errorCode("NETWORK_ERROR")
+                .type(Error.ErrorType.RECOVERABLE)
+                .exception(new CustomException("NETWORK_ERROR", "Network error")).build();
+    }
+
     public static Error getErrorForNonExistentSubEntity(String subEntityId) {
         return Error.builder().errorMessage(String.format("Sub Entity does not exist in db for %s", subEntityId))
                 .errorCode("NON_EXISTENT_SUB_ENTITY")
