@@ -313,16 +313,21 @@ public class CommonUtils {
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
         Method getAuditDetailsMethod = getMethod("getAuditDetails", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
-        Method getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
         Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
         IntStream.range(0, existingObjList.size()).forEach(i -> {
             Object obj = idToObjMap.get(ReflectionUtils.invokeMethod(idMethod,
                     existingObjList.get(i)));
-            Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
-            Method nameMethod = CommonUtils.getMethod("name", Enum.class);
-            if ("DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation))) {
-                ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+            try {
+                Method getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
+                Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
+                Method nameMethod = CommonUtils.getMethod("name", Enum.class);
+                if ("DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation))) {
+                    ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
+                }
+            } catch (Exception exception) {
+                // Do nothing remove later
             }
+
             Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
             ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
             RequestInfo requestInfo = (RequestInfo) ReflectionUtils

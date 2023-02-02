@@ -130,7 +130,7 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 projectBeneficiaryEnrichmentService.update(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getBulkUpdateProjectBeneficiaryTopic());
+                        projectConfiguration.getUpdateProjectBeneficiaryTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -177,7 +177,7 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 projectBeneficiaryEnrichmentService.delete(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getBulkUpdateProjectBeneficiaryTopic());
+                        projectConfiguration.getDeleteProjectBeneficiaryTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
