@@ -29,6 +29,6 @@ public enum AddressType {
                 return b;
             }
         }
-        return AddressType.OTHER;
+        return null;
     }
 }

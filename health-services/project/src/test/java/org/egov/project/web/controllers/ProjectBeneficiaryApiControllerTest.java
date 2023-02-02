@@ -2,7 +2,9 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.producer.Producer;
 import org.egov.project.TestConfiguration;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
@@ -59,6 +61,12 @@ public class ProjectBeneficiaryApiControllerTest {
 
     @MockBean
     private ProjectTaskService projectTaskService;
+
+    @MockBean
+    private Producer producer;
+
+    @MockBean
+    private ProjectConfiguration projectConfiguration;
 
     @Test
     @DisplayName("should create project beneficiary and return with 202 accepted")

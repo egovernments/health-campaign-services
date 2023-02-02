@@ -24,6 +24,7 @@ public class TaskTestBuilder {
 
     public TaskTestBuilder withTask() {
         this.builder.id("some-id").actualEndDate(100L).actualStartDate(100L)
+                .hasErrors(Boolean.FALSE)
                 .tenantId("default")
                 .plannedStartDate(100L).plannedEndDate(101L)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())

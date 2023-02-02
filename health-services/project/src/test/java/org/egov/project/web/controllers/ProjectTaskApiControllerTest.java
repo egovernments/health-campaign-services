@@ -2,8 +2,11 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.producer.Producer;
 import org.egov.project.TestConfiguration;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
+import org.egov.project.helper.TaskTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
@@ -48,31 +51,17 @@ class ProjectTaskApiControllerTest {
     @MockBean
     private ProjectBeneficiaryService projectBeneficiaryService;
 
-    @Test
-    @DisplayName("should project task create request fail if API operation is update")
-    void shouldProjectTaskCreateRequestFailIfApiOperationIsUpdate() throws Exception {
-        TaskRequest request = TaskRequestTestBuilder.builder().withTask().withRequestInfo().withApiOperationUpdate().build();
+    @MockBean
+    private Producer producer;
 
-        mockMvc.perform(post("/task/v1/_create").contentType(MediaType
-                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("should project task create request fail if API operation is delete")
-    void shouldProjectTaskCreateRequestFailIfApiOperationIsDelete() throws Exception {
-        TaskRequest request = TaskRequestTestBuilder.builder().withTask().withRequestInfo().withApiOperationDelete().build();
-
-        mockMvc.perform(post("/task/v1/_create").contentType(MediaType
-                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
+    @MockBean
+    private ProjectConfiguration projectConfiguration;
 
     @Test
     @DisplayName("should project task create request pass if API operation is create")
     void shouldProjectTaskCreateRequestPassIfApiOperationIsCreate() throws Exception {
-        TaskRequest request = TaskRequestTestBuilder.builder().withTask().withRequestInfo().withApiOperationCreate().build();
-
+        TaskRequest request = TaskRequestTestBuilder.builder().withTask().withRequestInfo().build();
+        System.out.println(TaskTestBuilder.builder().withTask().build());
         mockMvc.perform(post("/task/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted());
