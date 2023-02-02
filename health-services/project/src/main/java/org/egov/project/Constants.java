@@ -22,4 +22,6 @@ public interface Constants {
     String GET_CLIENT_REFERENCE_ID = "getClientReferenceId";
 
     String GET_PROJECT_BENEFICIARIES = "getProjectBeneficiaries";
+
+    String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
 }
