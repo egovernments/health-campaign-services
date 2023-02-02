@@ -50,12 +50,12 @@ public class ProjectIdValidator implements Validator<BeneficiaryBulkRequest, Pro
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<String> existingProjectIds = projectRepository.validateIds(entityIds,
                     getIdFieldName(idMethod));
-            List<ProjectBeneficiary> invalidEntities = eMap.values().stream().filter(entity ->
+            List<ProjectBeneficiary> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                     !existingProjectIds.contains(entity.getProjectId()))
                             .collect(Collectors.toList());
-            invalidEntities.forEach(task -> {
+            invalidEntities.forEach(projectBeneficiary -> {
                 Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(task, error, errorDetailsMap);
+                populateErrorDetails(projectBeneficiary, error, errorDetailsMap);
             });
         }
 

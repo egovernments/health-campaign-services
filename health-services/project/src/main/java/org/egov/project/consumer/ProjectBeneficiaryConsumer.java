@@ -36,4 +36,18 @@ public class ProjectBeneficiaryConsumer {
         BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
         return projectBeneficiaryService.create(request, true);
     }
+
+    @KafkaListener(topics = "${project.beneficiary.consumer.bulk.update.topic}")
+    public List<ProjectBeneficiary> bulkUpdate(Map<String, Object> consumerRecord,
+                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
+        BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
+        return projectBeneficiaryService.update(request, true);
+    }
+
+    @KafkaListener(topics = "${project.beneficiary.consumer.bulk.delete.topic}")
+    public List<ProjectBeneficiary> bulkDelete(Map<String, Object> consumerRecord,
+                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
+        BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
+        return projectBeneficiaryService.delete(request, true);
+    }
 }

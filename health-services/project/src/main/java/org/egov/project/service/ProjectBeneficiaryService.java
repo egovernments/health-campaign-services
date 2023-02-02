@@ -7,6 +7,7 @@ import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.beneficiary.validators.BeneficiaryValidator;
+import org.egov.project.beneficiary.validators.IsDeletedValidator;
 import org.egov.project.beneficiary.validators.NonExistentEntityValidator;
 import org.egov.project.beneficiary.validators.NullIdValidator;
 import org.egov.project.beneficiary.validators.ProjectIdValidator;
@@ -56,6 +57,7 @@ public class ProjectBeneficiaryService {
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(NonExistentEntityValidator.class)
+                    || validator.getClass().equals(IsDeletedValidator.class)
                     || validator.getClass().equals(ProjectIdValidator.class)
                     || validator.getClass().equals(BeneficiaryValidator.class)
                     || validator.getClass().equals(RowVersionValidator.class)

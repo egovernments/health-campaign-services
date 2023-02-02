@@ -731,6 +731,8 @@ public class CommonUtils {
                 .type(errorType)
                 .exception(new CustomException(errorCode, exception.getMessage())).build());
         validPayloads.forEach(payload -> {
+            ReflectionUtils.invokeMethod(getMethod("setHasErrors", payload.getClass()),
+                    payload, Boolean.TRUE);
             errorListMap.put(payload, errorList);
         });
     }

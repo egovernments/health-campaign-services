@@ -16,9 +16,11 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectService;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
+import org.egov.project.web.models.Household;
 import org.egov.project.web.models.HouseholdResponse;
 import org.egov.project.web.models.HouseholdSearch;
 import org.egov.project.web.models.HouseholdSearchRequest;
+import org.egov.project.web.models.Individual;
 import org.egov.project.web.models.IndividualResponse;
 import org.egov.project.web.models.IndividualSearch;
 import org.egov.project.web.models.IndividualSearchRequest;
@@ -41,6 +43,7 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
@@ -48,6 +51,8 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.project.Constants.BENEFICIARY_CLIENT_REFERENCE_ID;
 import static org.egov.project.Constants.BENEFICIARY_ID;
+import static org.egov.project.Constants.GET_CLIENT_REFERENCE_ID;
+import static org.egov.project.Constants.GET_ID;
 import static org.egov.project.Constants.GET_PROJECT_ID;
 import static org.egov.project.Constants.HCM_PROJECT_TYPES;
 import static org.egov.project.Constants.MDMS_RESPONSE;
@@ -161,10 +166,10 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
         if (response.getHousehold().size() != beneficiaryList.size()) {
             if (isBeneficiaryId) {
                 populateHouseHoldBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
-                        getIdMethod(response.getHousehold()), idMethod);
+                        getMethod(GET_ID, Household.class), idMethod);
             } else {
                 populateHouseHoldBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
-                        getIdMethod(response.getHousehold(), "clientReferenceId"), clientReferenceIdMethod);
+                        getMethod(GET_CLIENT_REFERENCE_ID, Household.class), clientReferenceIdMethod);
             }
         }
     }
@@ -238,10 +243,10 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
         if (response.getIndividual().size() != beneficiaryList.size()) {
             if (isBeneficiaryId) {
                 populateIndividualBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
-                        getIdMethod(response.getIndividual()), idMethod);
+                        getMethod(GET_ID, Individual.class), idMethod);
             } else {
                 populateIndividualBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
-                        getIdMethod(response.getIndividual(), "clientReferenceId"), clientReferenceIdMethod);
+                        getMethod(GET_CLIENT_REFERENCE_ID, Individual.class), clientReferenceIdMethod);
             }
         }
     }

@@ -87,7 +87,7 @@ public class ProjectApiController {
     @RequestMapping(value = "/beneficiary/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkCreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
         beneficiaryRequest.getRequestInfo().setApiId(request.getRequestURI());
-        producer.push(projectConfiguration.getBulkCreateProjectBeneficiaryTopic(), request);
+        producer.push(projectConfiguration.getBulkCreateProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(beneficiaryRequest.getRequestInfo(), true));
     }
@@ -144,7 +144,7 @@ public class ProjectApiController {
     public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkUpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
 
         beneficiaryRequest.getRequestInfo().setApiId(request.getRequestURI());
-        producer.push(projectConfiguration.getBulkUpdateProjectBeneficiaryTopic(), request);
+        producer.push(projectConfiguration.getBulkUpdateProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(beneficiaryRequest.getRequestInfo(), true));
     }
@@ -152,7 +152,7 @@ public class ProjectApiController {
     @RequestMapping(value = "/beneficiary/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkDeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
         beneficiaryRequest.getRequestInfo().setApiId(request.getRequestURI());
-        producer.push(projectConfiguration.getBulkDeleteProjectBeneficiaryTopic(), request);
+        producer.push(projectConfiguration.getBulkDeleteProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(beneficiaryRequest.getRequestInfo(), true));
     }

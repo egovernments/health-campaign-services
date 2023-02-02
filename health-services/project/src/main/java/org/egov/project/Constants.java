@@ -19,5 +19,7 @@ public interface Constants {
 
     String GET_ID = "getId";
 
+    String GET_CLIENT_REFERENCE_ID = "getClientReferenceId";
+
     String GET_PROJECT_BENEFICIARIES = "getProjectBeneficiaries";
 }
