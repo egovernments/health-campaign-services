@@ -10,6 +10,9 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * BeneficiaryRequest
@@ -21,16 +24,25 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BeneficiaryRequest {
+public class BeneficiaryBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("ProjectBeneficiary")
+    @JsonProperty("ProjectBeneficiaries")
     @Valid
-    @NotNull
-    private ProjectBeneficiary projectBeneficiary = null;
+    @Size(min=1)
+    private List<ProjectBeneficiary> projectBeneficiaries = null;
+
+
+    public BeneficiaryBulkRequest addProjectBeneficiaryItem(ProjectBeneficiary projectBeneficiaryItem) {
+        if (this.projectBeneficiaries == null) {
+            this.projectBeneficiaries = new ArrayList<>();
+        }
+        this.projectBeneficiaries.add(projectBeneficiaryItem);
+        return this;
+    }
 
 }
 

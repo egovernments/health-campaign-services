@@ -17,7 +17,7 @@ public class ProjectBeneficiaryTestBuilder {
     }
 
     public ProjectBeneficiary build() {
-        return this.builder.build();
+        return this.builder.hasErrors(false).build();
     }
 
     public ProjectBeneficiaryTestBuilder withIdNull() {
