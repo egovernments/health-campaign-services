@@ -108,7 +108,7 @@ public class ProjectTaskService {
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
         List<Task> tasks = create(bulkRequest, false);
-        return create(bulkRequest, false).get(0);
+        return tasks.get(0);
     }
 
     public List<Task> create(TaskBulkRequest request, boolean isBulk) throws Exception {

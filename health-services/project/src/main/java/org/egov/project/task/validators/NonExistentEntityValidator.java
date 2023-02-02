@@ -82,8 +82,14 @@ public class NonExistentEntityValidator implements Validator<TaskBulkRequest, Ta
                                           Task entity,
                                           List<T> subEntities,
                                        String getSubEntityMethodName) {
-        List<T> subEntitiesInReq = (List<T>) ReflectionUtils.invokeMethod(getMethod(getSubEntityMethodName, Task.class),
+        Object objFromReq = ReflectionUtils.invokeMethod(getMethod(getSubEntityMethodName, Task.class),
                 eMap.get(entity.getId()));
+        List<T> subEntitiesInReq;
+        if (objFromReq instanceof List) {
+            subEntitiesInReq = (List<T>) objFromReq;
+        } else {
+            subEntitiesInReq = (List<T>) Collections.singletonList(objFromReq);
+        }
 
         if (subEntities != null && !subEntities.isEmpty()) {
             List<String> existingSubEntityIds = subEntities.stream()

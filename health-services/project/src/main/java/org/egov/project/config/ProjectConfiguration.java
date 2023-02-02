@@ -37,13 +37,13 @@ public class ProjectConfiguration {
     @Value("${project.task.kafka.delete.topic}")
     private String deleteProjectTaskTopic;
 
-    @Value("${project.task.kafka.create.bulk.topic}")
+    @Value("${project.task.consumer.bulk.create.topic}")
     private String createProjectTaskBulkTopic;
 
-    @Value("${project.task.kafka.update.bulk.topic}")
+    @Value("${project.task.consumer.bulk.update.topic}")
     private String updateProjectTaskBulkTopic;
 
-    @Value("${project.task.kafka.delete.bulk.topic}")
+    @Value("${project.task.consumer.bulk.delete.topic}")
     private String deleteProjectTaskBulkTopic;
 
     @Value("${project.task.idgen.id.format}")

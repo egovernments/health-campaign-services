@@ -22,6 +22,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidRelatedEntityID;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
 
 @Component
@@ -45,11 +46,21 @@ public class ProjectBeneficiaryIdValidator implements Validator<TaskBulkRequest,
                 "projectBeneficiaryId", "projectBeneficiaryClientReferenceId");
         Map<String, Task> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        if (eMap.size() != entities.size()) {
+            List<Task> invalidTasks = entities.stream().filter(t -> ReflectionUtils.invokeMethod(idMethod, t) == null)
+                    .collect(Collectors.toList());
+            invalidTasks.forEach(task -> {
+                Error error = getErrorForInvalidRelatedEntityID();
+                populateErrorDetails(task, error, errorDetailsMap);
+            });
+        }
+
         if (!eMap.isEmpty()) {
-            String columnName = "beneficiaryId";
-            if ("getProjectBeneficiaryClientReferenceId".equals(idMethod.getName())) {
-                columnName = "beneficiaryClientReferenceId";
+            String columnName = "id";
+            if (idMethod.getName().contains("getProjectBeneficiaryClientReferenceId")) {
+                columnName = "clientReferenceId";
             }
+            entities = entities.stream().filter(notHavingErrors()).collect(Collectors.toList());
             List<String> existingProjectBeneficiaryIds = projectBeneficiaryRepository
                     .validateIds(getIdList(entities, idMethod),
                     columnName);
@@ -58,7 +69,7 @@ public class ProjectBeneficiaryIdValidator implements Validator<TaskBulkRequest,
                             .contains(ReflectionUtils.invokeMethod(idMethod, entity)))
                             .collect(Collectors.toList());
             invalidEntities.forEach(task -> {
-                Error error = getErrorForNonExistentRelatedEntity();
+                Error error = getErrorForNonExistentRelatedEntity((String) ReflectionUtils.invokeMethod(idMethod, task));
                 populateErrorDetails(task, error, errorDetailsMap);
             });
         }

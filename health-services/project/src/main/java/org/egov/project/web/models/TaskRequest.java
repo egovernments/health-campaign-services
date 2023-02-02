@@ -32,9 +32,5 @@ public class TaskRequest   {
     @NotNull
     @Valid
     private Task task = null;
-
-    @JsonProperty("apiOperation")
-    @Valid
-    private ApiOperation apiOperation = null;
 }
 

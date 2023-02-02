@@ -15,12 +15,9 @@ public class TaskResourceRowMapper implements RowMapper<TaskResource> {
     public TaskResource mapRow(ResultSet resultSet, int i) throws SQLException {
         return TaskResource.builder()
                 .id(resultSet.getString("id"))
-                .rowVersion(resultSet.getInt("rowVersion"))
                 .isDeleted(resultSet.getBoolean("isDeleted"))
                 .tenantId(resultSet.getString("tenantId"))
-                .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .taskId(resultSet.getString("taskId"))
-                .taskClientReferenceId(resultSet.getString("taskClientReferenceId"))
                 .productVariantId(resultSet.getString("productVariantId"))
                 .quantity(resultSet.getLong("quantity"))
                 .isDelivered(resultSet.getBoolean("isDelivered"))

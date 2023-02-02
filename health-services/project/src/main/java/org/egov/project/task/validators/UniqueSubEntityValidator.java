@@ -52,7 +52,8 @@ public class UniqueSubEntityValidator implements Validator<TaskBulkRequest, Task
                 }
 
                 if (entity.getResources() != null) {
-                    List<TaskResource> entities = entity.getResources();
+                    List<TaskResource> entities = entity.getResources().stream()
+                            .filter(r -> r.getId() != null).collect(Collectors.toList());
                     if (!entities.isEmpty()) {
                         Method idMethod = getMethod(GET_ID, TaskResource.class);
                         Map<String, TaskResource> eMap = getIdToObjMap(entities, idMethod);

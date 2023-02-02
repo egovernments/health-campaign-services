@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getDifference;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getTenantId;
@@ -66,7 +67,10 @@ public class ProductVariantIdValidator implements Validator<TaskBulkRequest, Tas
                     List<ProductVariant> validProductVariants = checkIfProductVariantExist(productVariantIds,
                             getTenantId(task.getResources()), request.getRequestInfo());
                     if (productVariantIds.size() != validProductVariants.size()) {
-                        Error error = getErrorForNonExistentRelatedEntity();
+                        List<String> productVariantInRequest = new ArrayList<>();
+                        productVariantInRequest.addAll(productVariantIds);
+                        Error error = getErrorForNonExistentRelatedEntity(getDifference(productVariantInRequest,
+                                getIdList(validProductVariants, getIdMethod(validProductVariants))));
                         populateErrorDetails(task, error, errorDetailsMap);
                     }
                 } catch (Exception exception) {

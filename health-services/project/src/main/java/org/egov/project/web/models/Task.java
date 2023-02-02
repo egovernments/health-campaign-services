@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
@@ -94,6 +95,9 @@ public class Task {
 
     @JsonProperty("status")
     private String status = null;
+
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 
     public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);
