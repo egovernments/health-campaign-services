@@ -10,6 +10,7 @@ import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.web.models.BeneficiaryBulkResponse;
+import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -58,6 +59,9 @@ public class ProjectBeneficiaryApiControllerTest {
 
     @MockBean
     private ProjectStaffService projectStaffService;
+
+    @MockBean
+    private ProjectTaskService projectTaskService;
 
     @MockBean
     private Producer producer;

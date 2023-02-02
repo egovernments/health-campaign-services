@@ -28,6 +28,33 @@ public class ProjectConfiguration {
     @Value("${project.beneficiary.kafka.update.topic}")
     private String updateProjectBeneficiaryTopic;
 
+    @Value("${project.task.kafka.create.topic}")
+    private String createProjectTaskTopic;
+
+    @Value("${project.task.kafka.update.topic}")
+    private String updateProjectTaskTopic;
+
+    @Value("${project.task.kafka.delete.topic}")
+    private String deleteProjectTaskTopic;
+
+    @Value("${project.task.consumer.bulk.create.topic}")
+    private String createProjectTaskBulkTopic;
+
+    @Value("${project.task.consumer.bulk.update.topic}")
+    private String updateProjectTaskBulkTopic;
+
+    @Value("${project.task.consumer.bulk.delete.topic}")
+    private String deleteProjectTaskBulkTopic;
+
+    @Value("${project.task.idgen.id.format}")
+    private String projectTaskIdFormat;
+
+    @Value("${egov.product.host}")
+    private String productHost;
+
+    @Value("${egov.search.product.variant.url}")
+    private String productVariantSearchUrl;
+
     @Value("${project.beneficiary.kafka.delete.topic}")
     private String deleteProjectBeneficiaryTopic;
 

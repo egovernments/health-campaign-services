@@ -10,8 +10,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * TaskResponse
@@ -33,12 +31,7 @@ public class TaskResponse   {
     @JsonProperty("Task")
     @NotNull
     @Valid
-    private List<Task> task = new ArrayList<>();
-
-    public TaskResponse addTaskItem(Task taskItem) {
-        this.task.add(taskItem);
-        return this;
-    }
+    private Task task = null;
 
 }
 

@@ -21,22 +21,15 @@ import javax.validation.constraints.Size;
 @AllArgsConstructor
 @Builder
 public class Field   {
-        @JsonProperty("key")
-      @NotNull
 
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("key")
+    @NotNull
+    @Size(min = 2, max = 64)
     private String key = null;
 
-        @JsonProperty("value")
-      @NotNull
-
-
-    @Size(min=2,max=10000) 
-
+    @JsonProperty("value")
+    @NotNull
+    @Size(min = 2, max = 10000)
     private String value = null;
-
-
 }
 
