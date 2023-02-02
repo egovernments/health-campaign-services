@@ -24,7 +24,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Table(name="project_beneficiary")
-public class ProjectBeneficiarySearch   {
+public class ProjectBeneficiarySearch {
 
     @JsonProperty("id")
     private List<String> id = null;
@@ -47,6 +47,5 @@ public class ProjectBeneficiarySearch   {
 
     @JsonProperty("dateOfRegistration")
     private Long dateOfRegistration = null;
-
 }
 

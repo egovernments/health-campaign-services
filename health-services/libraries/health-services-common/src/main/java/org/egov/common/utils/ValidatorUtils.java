@@ -3,6 +3,8 @@ package org.egov.common.utils;
 import org.egov.common.models.Error;
 import org.egov.tracer.model.CustomException;
 
+import java.util.List;
+
 public class ValidatorUtils {
 
     private ValidatorUtils() {}
@@ -30,6 +32,34 @@ public class ValidatorUtils {
                 .errorCode("NON_EXISTENT_ENTITY")
                 .type(Error.ErrorType.NON_RECOVERABLE)
                 .exception(new CustomException("NON_EXISTENT_ENTITY", "Entity does not exist in db")).build();
+    }
+
+    public static Error getErrorForNonExistentRelatedEntity(List<String> ids) {
+        return Error.builder().errorMessage(String.format("Related entity does not exist in db %s", ids))
+                .errorCode("NON_EXISTENT_RELATED_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("NON_EXISTENT_RELATED_ENTITY", "Related entity does not exist in db")).build();
+    }
+
+    public static Error getErrorForNonExistentRelatedEntity(String id) {
+        return Error.builder().errorMessage(String.format("Related entity does not exist in db %s", id))
+                .errorCode("NON_EXISTENT_RELATED_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("NON_EXISTENT_RELATED_ENTITY", "Related entity does not exist in db")).build();
+    }
+
+    public static Error getErrorForInvalidRelatedEntityID() {
+        return Error.builder().errorMessage("Invalid related entity ID in request")
+                .errorCode("INVALID_RELATED_ENTITY_ID")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("INVALID_RELATED_ENTITY_ID", "Invalid related entity ID in request")).build();
+    }
+
+    public static Error getErrorForEntityWithNetworkError() {
+        return Error.builder().errorMessage("Network error")
+                .errorCode("NETWORK_ERROR")
+                .type(Error.ErrorType.RECOVERABLE)
+                .exception(new CustomException("NETWORK_ERROR", "Network error")).build();
     }
 
     public static Error getErrorForNonExistentSubEntity(String subEntityId) {

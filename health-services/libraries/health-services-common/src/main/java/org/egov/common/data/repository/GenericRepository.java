@@ -13,6 +13,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -177,6 +178,9 @@ public abstract class GenericRepository<T> {
 
     public List<String> validateIds(List<String> idsToValidate, String columnName){
         List<T> validIds = findById(idsToValidate, false, columnName);
+        if (validIds.isEmpty()) {
+            return Collections.emptyList();
+        }
         Method idMethod = getIdMethod(validIds, columnName);
         return validIds.stream().map((obj) -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                 .collect(Collectors.toList());
