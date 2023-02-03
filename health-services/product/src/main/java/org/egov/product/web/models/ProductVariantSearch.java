@@ -9,6 +9,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * ProductVariantSearch
@@ -24,8 +25,7 @@ import javax.validation.constraints.Size;
 public class ProductVariantSearch   {
 
     @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("productId")
     @Size(min = 2, max = 64)

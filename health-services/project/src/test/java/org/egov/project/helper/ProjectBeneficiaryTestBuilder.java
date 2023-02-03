@@ -4,9 +4,6 @@ import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.project.web.models.AdditionalFields;
 import org.egov.project.web.models.ProjectBeneficiary;
 
-import java.time.LocalDate;
-import java.util.Date;
-
 public class ProjectBeneficiaryTestBuilder {
 
     private ProjectBeneficiary.ProjectBeneficiaryBuilder builder;
@@ -20,7 +17,7 @@ public class ProjectBeneficiaryTestBuilder {
     }
 
     public ProjectBeneficiary build() {
-        return this.builder.build();
+        return this.builder.hasErrors(false).build();
     }
 
     public ProjectBeneficiaryTestBuilder withIdNull() {

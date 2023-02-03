@@ -6,9 +6,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
 * Search model for household member
@@ -21,50 +23,30 @@ import javax.validation.Valid;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "household_member")
 public class HouseholdMemberSearch   {
-        @JsonProperty("id")
-    
 
+    @JsonProperty("id")
+    private List<String> id = null;
 
-    private String id = null;
-
-        @JsonProperty("householdId")
-    
-
-
+    @JsonProperty("householdId")
     private String householdId = null;
 
-        @JsonProperty("householdClientReferenceId")
-    
-
-
+    @JsonProperty("householdClientReferenceId")
     private String householdClientReferenceId = null;
 
-        @JsonProperty("individualId")
-    
-
-
+    @JsonProperty("individualId")
     private String individualId = null;
 
-        @JsonProperty("individualClientReferenceId")
-    
-
-
+    @JsonProperty("individualClientReferenceId")
     private String individualClientReferenceId = null;
 
-        @JsonProperty("isHeadOfHousehold")
-    
-
-
+    @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = null;
 
-        @JsonProperty("tenantId")
-    
-  @Valid
-
-
+    @JsonProperty("tenantId")
+    @Valid
     private String tenantId = null;
-
 
 }
 

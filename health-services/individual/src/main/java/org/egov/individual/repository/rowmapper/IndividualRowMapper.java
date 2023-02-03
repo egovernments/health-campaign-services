@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import org.egov.individual.web.models.AdditionalFields;
+import org.egov.individual.web.models.BloodGroup;
 import org.egov.individual.web.models.Gender;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.Name;
@@ -30,7 +31,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                             .otherNames(resultSet.getString("otherNames")).build())
                     .dateOfBirth(resultSet.getDate("dateOfBirth").toLocalDate())
                     .gender(Gender.valueOf(resultSet.getString("gender")))
-                    .bloodGroup(resultSet.getString("bloodGroup"))
+                    .bloodGroup(BloodGroup.valueOf(resultSet.getString("bloodGroup")))
                     .mobileNumber(resultSet.getString("mobileNumber"))
                     .altContactNumber(resultSet.getString("altContactNumber"))
                     .email(resultSet.getString("email"))

@@ -2,6 +2,7 @@ package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
+import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductRequest;
@@ -34,10 +35,14 @@ public class ProductService {
 
     private final IdGenService idGenService;
 
+    private final ProductConfiguration productConfiguration;
+
     @Autowired
-    public ProductService(ProductRepository productRepository, IdGenService idGenService) {
+    public ProductService(ProductRepository productRepository, IdGenService idGenService,
+                          ProductConfiguration productConfiguration) {
         this.productRepository = productRepository;
         this.idGenService = idGenService;
+        this.productConfiguration = productConfiguration;
     }
 
     public List<String> validateProductId(List<String> productIds) {
@@ -50,7 +55,7 @@ public class ProductService {
                 getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
         enrichForCreate(productRequest.getProduct(), idList, productRequest.getRequestInfo());
-        productRepository.save(productRequest.getProduct(), "save-product-topic");
+        productRepository.save(productRequest.getProduct(), productConfiguration.getCreateProductTopic());
         return productRequest.getProduct();
     }
 
@@ -69,7 +74,7 @@ public class ProductService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(pMap, existingProducts, productRequest);
 
-        productRepository.save(productRequest.getProduct(), "update-product-topic");
+        productRepository.save(productRequest.getProduct(), productConfiguration.getUpdateProductTopic());
         return productRequest.getProduct();
     }
 
@@ -80,8 +85,7 @@ public class ProductService {
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception {
         if (isSearchByIdOnly(productSearchRequest.getProduct())) {
-            List<String> ids = new ArrayList<>();
-            ids.add(productSearchRequest.getProduct().getId());
+            List<String> ids = productSearchRequest.getProduct().getId();
             return productRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

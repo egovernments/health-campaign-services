@@ -10,6 +10,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * Search model for project beneficiary.
@@ -23,11 +24,10 @@ import javax.validation.constraints.Size;
 @AllArgsConstructor
 @Builder
 @Table(name="project_beneficiary")
-public class ProjectBeneficiarySearch   {
+public class ProjectBeneficiarySearch {
 
     @JsonProperty("id")
-    @Size(min=2,max=64)
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("tenantId")
     @Size(min=2,max=1000)
@@ -47,6 +47,5 @@ public class ProjectBeneficiarySearch   {
 
     @JsonProperty("dateOfRegistration")
     private Long dateOfRegistration = null;
-
 }
 

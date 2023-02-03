@@ -3,6 +3,7 @@ package org.egov.product.service;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
+import org.egov.product.config.ProductConfiguration;
 import org.egov.product.helper.ProductRequestTestBuilder;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.Product;
@@ -45,6 +46,9 @@ class ProductServiceTest {
     @Mock
     private Producer producer;
 
+    @Mock
+    private ProductConfiguration productConfiguration;
+
     private ProductRequest request;
 
     @BeforeEach
@@ -59,6 +63,7 @@ class ProductServiceTest {
                         any(String.class),
                         eq("product.id"), eq(""), anyInt()))
                 .thenReturn(idList);
+        lenient().when(productConfiguration.getCreateProductTopic()).thenReturn("create-topic");
     }
 
     @Test

@@ -31,7 +31,6 @@ public class Boundary   {
     private String code = null;
 
         @JsonProperty("name")
-      @NotNull
 
 
 

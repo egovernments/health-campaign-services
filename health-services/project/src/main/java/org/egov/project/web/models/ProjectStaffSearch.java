@@ -10,6 +10,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * This object defines the mapping of a system staff user to a project for a certain period.
@@ -28,7 +29,7 @@ public class ProjectStaffSearch   {
 
     @JsonProperty("id")
     @Size(min=2,max=64)
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("tenantId")
     @Size(min=2,max=1000)

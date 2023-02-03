@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 /**
 * A representation of a household member (already registered as an individual)
@@ -23,75 +23,47 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdMember   {
-        @JsonProperty("id")
-    
+public class HouseholdMember{
 
-
+    @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
-        @JsonProperty("householdId")
-      @NotNull
-
-
-
+    @JsonProperty("householdId")
+    @Size(min = 2, max = 64)
     private String householdId = null;
 
-        @JsonProperty("householdClientReferenceId")
-    
-
-
+    @JsonProperty("householdClientReferenceId")
+    @Size(min = 2, max = 64)
     private String householdClientReferenceId = null;
 
-        @JsonProperty("individualId")
-      @NotNull
-
-
-
+    @JsonProperty("individualId")
+    @Size(min = 2, max = 64)
     private String individualId = null;
 
-        @JsonProperty("individualClientReferenceId")
-    
-
-
+    @JsonProperty("individualClientReferenceId")
+    @Size(min = 2, max = 64)
     private String individualClientReferenceId = null;
 
-        @JsonProperty("isHeadOfHousehold")
-    
-
-
+    @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = false;
 
-        @JsonProperty("tenantId")
-    
-
-
+    @JsonProperty("tenantId")
+    @Size(min = 2, max = 1000)
     private String tenantId = null;
 
-        @JsonProperty("additionalFields")
-    
-  @Valid
-
-
+    @JsonProperty("additionalFields")
+    @Valid
     private AdditionalFields additionalFields = null;
 
-        @JsonProperty("isDeleted")
-    
-
-
+    @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
 
-        @JsonProperty("rowVersion")
-    
-
-
+    @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
-        @JsonProperty("auditDetails")
-    
-  @Valid
-
-
+    @JsonProperty("auditDetails")
+    @Valid
     private AuditDetails auditDetails = null;
 
 

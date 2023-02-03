@@ -2,6 +2,7 @@ package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;
+import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductVariantRepository;
 import org.egov.product.web.models.ProductVariant;
 import org.egov.product.web.models.ProductVariantRequest;
@@ -38,11 +39,16 @@ public class ProductVariantService {
 
     private final ProductVariantRepository productVariantRepository;
 
+    private final ProductConfiguration productConfiguration;
+
     @Autowired
-    public ProductVariantService(IdGenService idGenService, ProductService productService, ProductVariantRepository productVariantRepository) {
+    public ProductVariantService(IdGenService idGenService, ProductService productService,
+                                 ProductVariantRepository productVariantRepository,
+                                 ProductConfiguration productConfiguration) {
         this.idGenService = idGenService;
         this.productService = productService;
         this.productVariantRepository = productVariantRepository;
+        this.productConfiguration = productConfiguration;
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
@@ -55,7 +61,7 @@ public class ProductVariantService {
         log.info("IDs generated");
         enrichForCreate(request.getProductVariant(), idList, request.getRequestInfo());
         log.info("Enrichment done");
-        productVariantRepository.save(request.getProductVariant(), "save-product-variant-topic");
+        productVariantRepository.save(request.getProductVariant(), productConfiguration.getCreateProductVariantTopic());
         log.info("Pushed to kafka");
         return request.getProductVariant();
     }
@@ -78,7 +84,7 @@ public class ProductVariantService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(pvMap, existingProductVariants, request);
 
-        productVariantRepository.save(request.getProductVariant(), "update-product-variant-topic");
+        productVariantRepository.save(request.getProductVariant(), productConfiguration.getUpdateProductVariantTopic());
         log.info("Pushed to kafka");
         return request.getProductVariant();
     }
@@ -91,8 +97,7 @@ public class ProductVariantService {
                                 Boolean includeDeleted) throws Exception {
 
         if (isSearchByIdOnly(productVariantSearchRequest.getProductVariant())) {
-            List<String> ids = new ArrayList<>();
-            ids.add(productVariantSearchRequest.getProductVariant().getId());
+            List<String> ids = productVariantSearchRequest.getProductVariant().getId();
             return productVariantRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

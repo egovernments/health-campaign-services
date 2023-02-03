@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -49,7 +50,8 @@ class ProductServiceSearchTest {
     @Test
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
-        ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
+        ProductSearch productSearch = ProductSearch.builder()
+                .id(Collections.singletonList("ID101")).name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
@@ -60,7 +62,8 @@ class ProductServiceSearchTest {
     @DisplayName("should return products if search criteria is matched")
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
         products.add(ProductTestBuilder.builder().goodProduct().withId("ID101").build());
-        ProductSearch productSearch = ProductSearch.builder().id("ID101").name("Product").build();
+        ProductSearch productSearch = ProductSearch.builder()
+                .id(Collections.singletonList("ID101")).name("Product").build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
@@ -75,7 +78,7 @@ class ProductServiceSearchTest {
         Product product = ProductTestBuilder.builder().goodProduct().withId("ID101").build();
         product.setIsDeleted(false);
         products.add(product);
-        ProductSearch productSearch = ProductSearch.builder().id("ID101").build();
+        ProductSearch productSearch = ProductSearch.builder().id(Collections.singletonList("ID101")).build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(productRepository.findById(anyList(), anyBoolean())).thenReturn(products);

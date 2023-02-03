@@ -78,10 +78,9 @@ public class HouseholdService {
 
         String idFieldName = getIdFieldName(householdSearch);
         if (isSearchByIdOnly(householdSearch, idFieldName)) {
-            List<String> ids = new ArrayList<>();
-            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdSearch)),
-                    householdSearch));
+                    householdSearch);
             return householdRepository.findById(ids,
                     idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -119,7 +118,12 @@ public class HouseholdService {
         log.info("Updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholds, request, idMethod);
 
-        householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic());
+        householdRepository.save(request.getHousehold(), householdConfiguration.getUpdateTopic(), "id");
         return request.getHousehold();
     }
+
+    public List<Household> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
+       return householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+    }
+
 }

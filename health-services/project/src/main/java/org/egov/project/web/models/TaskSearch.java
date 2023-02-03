@@ -22,17 +22,24 @@ import javax.validation.constraints.Size;
 public class TaskSearch {
 
     @JsonProperty("id")
+    @Size(min=2,max=64)
     private String id = null;
-
-    @JsonProperty("tenantId")
-    private String tenantId = null;
 
     @JsonProperty("projectId")
     @Size(min=2,max=64)
     private String projectId = null;
 
     @JsonProperty("projectBeneficiaryId")
+    @Size(min=2,max=64)
     private String projectBeneficiaryId = null;
+
+    @JsonProperty("clientReferenceId")
+    @Size(min=2,max=64)
+    private String clientReferenceId = null;
+
+    @JsonProperty("projectBeneficiaryClientReferenceId")
+    @Size(min=2,max=64)
+    private String projectBeneficiaryClientReferenceId = null;
 
     @JsonProperty("plannedStartDate")
     private Long plannedStartDate = null;

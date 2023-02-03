@@ -75,7 +75,7 @@ serviceMaps:
       isTransaction: true
       queryMaps:
 
-        - query: INSERT INTO project_beneficiary (id, tenantId, projectId, beneficiaryId, clientReferenceId, dateOfRegistration, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO project_beneficiary (id, tenantId, projectId, beneficiaryId, clientReferenceId, beneficiaryClientReferenceId, dateOfRegistration, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -85,6 +85,8 @@ serviceMaps:
             - jsonPath: $.*.projectId
 
             - jsonPath: $.*.beneficiaryId
+
+            - jsonPath: $.*.clientReferenceId
 
             - jsonPath: $.*.beneficiaryClientReferenceId
 
@@ -112,12 +114,14 @@ serviceMaps:
       isTransaction: true
       queryMaps:
 
-        - query: UPDATE project_beneficiary SET projectId=?, beneficiaryId=?, clientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ?
+        - query: UPDATE project_beneficiary SET projectId=?, beneficiaryId=?, clientReferenceId=?, beneficiaryClientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ? AND isDeleted=false
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.projectId
 
             - jsonPath: $.*.beneficiaryId
+
+            - jsonPath: $.*.clientReferenceId
 
             - jsonPath: $.*.beneficiaryClientReferenceId
 
@@ -135,4 +139,18 @@ serviceMaps:
 
             - jsonPath: $.*.isDeleted
 
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Beneficiaries
+      fromTopic: delete-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE project_beneficiary SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id

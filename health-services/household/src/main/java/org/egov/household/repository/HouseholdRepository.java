@@ -14,12 +14,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
@@ -36,13 +40,15 @@ public class HouseholdRepository extends GenericRepository<Household> {
 
     public List<Household> findById(List<String> ids, String columnName, Boolean includeDeleted) {
         List<Household> objFound;
-        Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
-        List<String> foundInCache = ids.stream().filter(redisMap::containsKey).collect(Collectors.toList());
-        objFound = foundInCache.stream().map(id -> (Household)redisMap.get(id)).collect(Collectors.toList());
-        log.info("Cache hit: {}", !objFound.isEmpty());
-        ids.removeAll(foundInCache);
-        if (ids.isEmpty()) {
-            return objFound;
+        objFound = findInCache(ids);
+        if (!objFound.isEmpty()) {
+            Method idMethod = getIdMethod(objFound, columnName);
+            ids.removeAll(objFound.stream()
+                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+                    .collect(Collectors.toList()));
+            if (ids.isEmpty()) {
+                return objFound;
+            }
         }
 
         String query = String.format("SELECT * FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
@@ -62,7 +68,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-        query = query.replace("id=:id", "h.id=:id");
+        query = query.replace("id IN (:id)", "h.id IN (:id)");
 
         query = query + " and h.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {

@@ -1,13 +1,15 @@
 package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.producer.Producer;
 import org.egov.individual.TestConfiguration;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.service.IndividualService;
-import org.egov.individual.web.models.ApiOperation;
 import org.egov.individual.web.models.Individual;
+import org.egov.individual.web.models.IndividualBulkResponse;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualResponse;
 import org.egov.individual.web.models.IndividualSearch;
@@ -26,6 +28,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -48,6 +51,12 @@ class IndividualApiControllerTest {
     @MockBean
     private IndividualService individualService;
 
+    @MockBean
+    private Producer producer;
+
+    @MockBean
+    private IndividualProperties individualProperties;
+
     @Test
     @DisplayName("should create an individual and return 202 accepted when api operation is create")
     void shouldCreateAnIndividualAndReturn202AcceptedWhenApiOperationIsCreate() throws Exception {
@@ -61,7 +70,7 @@ class IndividualApiControllerTest {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
                 .withIndividuals(individual)
                 .withRequestInfo()
-                .withApiOperation(ApiOperation.CREATE)
+                //.withApiOperation(ApiOperation.CREATE)
                 .build();
         when(individualService.create(request)).thenReturn(Collections.singletonList(responseIndividual));
 
@@ -74,8 +83,7 @@ class IndividualApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         IndividualResponse response = objectMapper.readValue(responseStr,
                 IndividualResponse.class);
-        assertEquals(1, response.getIndividual().size());
-        assertEquals("some-id", response.getIndividual().stream().findAny().get().getId());
+        assertEquals("some-id", response.getIndividual().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
@@ -87,7 +95,7 @@ class IndividualApiControllerTest {
                         .withNoPropertiesSet()
                         .build())
                 .withRequestInfo()
-                .withApiOperation(ApiOperation.CREATE)
+                //.withApiOperation(ApiOperation.CREATE)
                 .build();
 
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
@@ -110,7 +118,7 @@ class IndividualApiControllerTest {
                         .withName()
                         .build())
                 .withRequestInfo()
-                .withApiOperation(ApiOperation.UPDATE)
+                //.withApiOperation(ApiOperation.UPDATE)
                 .build();
 
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
@@ -150,9 +158,8 @@ class IndividualApiControllerTest {
                 .andReturn();
 
         String responseStr = result.getResponse().getContentAsString();
-        IndividualResponse response = objectMapper.readValue(responseStr,
-                IndividualResponse.class);
-        assertEquals(1, response.getIndividual().size());
+        IndividualBulkResponse response = objectMapper.readValue(responseStr,
+                IndividualBulkResponse.class);
         assertEquals("some-id", response.getIndividual().stream().findAny().get().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
@@ -168,6 +175,92 @@ class IndividualApiControllerTest {
         MvcResult result = mockMvc.perform(post("/v1/_search?offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType
                                 .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+
+        String responseStr = result.getResponse().getContentAsString();
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
+        assertEquals(1, response.getErrors().size());
+    }
+
+    @Test
+    @DisplayName("should update an individual and return 202 accepted when api operation is update")
+    void shouldUpdateAnIndividualAndReturn202AcceptedWhenApiOperationIsUpdate() throws Exception {
+        Individual individual = IndividualTestBuilder.builder()
+                .withName()
+                .withTenantId()
+                .build();
+        Individual responseIndividual = IndividualTestBuilder.builder()
+                .withId()
+                .withName("some-new-family-name", "some-new-given-name")
+                .build();
+        IndividualRequest request = IndividualRequestTestBuilder.builder()
+                .withIndividuals(individual)
+                .withRequestInfo()
+                //.withApiOperation(ApiOperation.UPDATE)
+                .build();
+        when(individualService.update(request)).thenReturn(Collections.singletonList(responseIndividual));
+
+        MvcResult result = mockMvc.perform(post("/v1/_update").contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+
+        String responseStr = result.getResponse().getContentAsString();
+        IndividualResponse response = objectMapper.readValue(responseStr,
+                IndividualResponse.class);
+        assertEquals("some-new-family-name", response.getIndividual().getName().getFamilyName());
+        assertEquals("successful", response.getResponseInfo().getStatus());
+    }
+
+    @Test
+    @DisplayName("should delete an individual and return 202 accepted when api operation is delete")
+    void shouldDeleteAnIndividualAndReturn202AcceptedWhenApiOperationIsDelete() throws Exception {
+        Individual individual = IndividualTestBuilder.builder()
+                .withName()
+                .withTenantId()
+                .build();
+        Individual responseIndividual = IndividualTestBuilder.builder()
+                .withId()
+                .withName()
+                .withIsDeleted(true)
+                .build();
+        IndividualRequest request = IndividualRequestTestBuilder.builder()
+                .withIndividuals(individual)
+                .withRequestInfo()
+                //.withApiOperation(ApiOperation.UPDATE)
+                .build();
+        when(individualService.update(request)).thenReturn(Collections.singletonList(responseIndividual));
+
+        MvcResult result = mockMvc.perform(post("/v1/_update").contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+
+        String responseStr = result.getResponse().getContentAsString();
+        IndividualResponse response = objectMapper.readValue(responseStr,
+                IndividualResponse.class);
+        assertTrue(response.getIndividual().getIsDeleted());
+        assertEquals("successful", response.getResponseInfo().getStatus());
+    }
+
+    @Test
+    @DisplayName("should send 400 bad request in case api operation is create for update")
+    void shouldSend400BadRequestInCaseApiOperationIsCreateForUpdate() throws Exception {
+        IndividualRequest request = IndividualRequestTestBuilder.builder()
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withName()
+                        .build())
+                .withRequestInfo()
+    //            .withApiOperation(ApiOperation.CREATE)
+                .build();
+
+        MvcResult result = mockMvc.perform(post("/v1/_update").contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
