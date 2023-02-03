@@ -16,7 +16,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
 @Component
 @Order(2)
-public class IsDeletedValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
+public class PbIsDeletedValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {

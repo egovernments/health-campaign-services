@@ -17,7 +17,7 @@ import static org.egov.project.Constants.GET_PROJECT_BENEFICIARIES;
 @Component
 @Order(value = 1)
 @Slf4j
-public class NullIdValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
+public class PbNullIdValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {

@@ -8,12 +8,12 @@ import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.MdmsService;
 import org.egov.common.validator.Validator;
 import org.egov.project.beneficiary.validators.BeneficiaryValidator;
-import org.egov.project.beneficiary.validators.IsDeletedValidator;
-import org.egov.project.beneficiary.validators.NonExistentEntityValidator;
-import org.egov.project.beneficiary.validators.NullIdValidator;
-import org.egov.project.beneficiary.validators.ProjectIdValidator;
-import org.egov.project.beneficiary.validators.RowVersionValidator;
-import org.egov.project.beneficiary.validators.UniqueEntityValidator;
+import org.egov.project.beneficiary.validators.PbIsDeletedValidator;
+import org.egov.project.beneficiary.validators.PbNonExistentEntityValidator;
+import org.egov.project.beneficiary.validators.PbNullIdValidator;
+import org.egov.project.beneficiary.validators.PbProjectIdValidator;
+import org.egov.project.beneficiary.validators.PbRowVersionValidator;
+import org.egov.project.beneficiary.validators.PbUniqueEntityValidator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryBulkRequestTestBuilder;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
@@ -85,25 +85,25 @@ class ProjectBeneficiaryServiceUpdateTest {
     private ProjectConfiguration projectConfiguration;
 
     @Mock
-    private ProjectIdValidator projectIdValidator;
+    private PbProjectIdValidator pbProjectIdValidator;
 
     @Mock
     private BeneficiaryValidator beneficiaryValidator;
 
     @Mock
-    private NullIdValidator nullIdValidator;
+    private PbNullIdValidator pbNullIdValidator;
 
     @Mock
-    private NonExistentEntityValidator nonExistentEntityValidator;
+    private PbNonExistentEntityValidator pbNonExistentEntityValidator;
 
     @Mock
-    private UniqueEntityValidator uniqueEntityValidator;
+    private PbUniqueEntityValidator pbUniqueEntityValidator;
 
     @Mock
-    private IsDeletedValidator isDeletedValidator;
+    private PbIsDeletedValidator pbIsDeletedValidator;
 
     @Mock
-    private RowVersionValidator rowVersionValidator;
+    private PbRowVersionValidator pbRowVersionValidator;
 
     @Mock
     private ProjectBeneficiaryEnrichmentService projectBeneficiaryEnrichmentService;
@@ -138,8 +138,8 @@ class ProjectBeneficiaryServiceUpdateTest {
                 .build();
         projectBeneficiaryIds = request.getProjectBeneficiaries().stream().map(ProjectBeneficiary::getId)
                 .collect(Collectors.toList());
-        validators = Arrays.asList(nullIdValidator, nonExistentEntityValidator,
-                uniqueEntityValidator, rowVersionValidator, isDeletedValidator);
+        validators = Arrays.asList(pbNullIdValidator, pbNonExistentEntityValidator,
+                pbUniqueEntityValidator, pbRowVersionValidator, pbIsDeletedValidator);
         ReflectionTestUtils.setField(projectBeneficiaryService, "validators", validators);
         lenient().when(projectConfiguration.getUpdateProjectBeneficiaryTopic()).thenReturn("update-topic");
     }

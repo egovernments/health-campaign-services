@@ -7,12 +7,12 @@ import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.beneficiary.validators.BeneficiaryValidator;
-import org.egov.project.beneficiary.validators.IsDeletedValidator;
-import org.egov.project.beneficiary.validators.NonExistentEntityValidator;
-import org.egov.project.beneficiary.validators.NullIdValidator;
-import org.egov.project.beneficiary.validators.ProjectIdValidator;
-import org.egov.project.beneficiary.validators.RowVersionValidator;
-import org.egov.project.beneficiary.validators.UniqueEntityValidator;
+import org.egov.project.beneficiary.validators.PbIsDeletedValidator;
+import org.egov.project.beneficiary.validators.PbNonExistentEntityValidator;
+import org.egov.project.beneficiary.validators.PbNullIdValidator;
+import org.egov.project.beneficiary.validators.PbProjectIdValidator;
+import org.egov.project.beneficiary.validators.PbRowVersionValidator;
+import org.egov.project.beneficiary.validators.PbUniqueEntityValidator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
@@ -55,21 +55,21 @@ public class ProjectBeneficiaryService {
     private final List<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> validators;
 
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class)
-                    || validator.getClass().equals(IsDeletedValidator.class)
-                    || validator.getClass().equals(ProjectIdValidator.class)
+            validator.getClass().equals(PbNullIdValidator.class)
+                    || validator.getClass().equals(PbNonExistentEntityValidator.class)
+                    || validator.getClass().equals(PbIsDeletedValidator.class)
+                    || validator.getClass().equals(PbProjectIdValidator.class)
                     || validator.getClass().equals(BeneficiaryValidator.class)
-                    || validator.getClass().equals(RowVersionValidator.class)
-                    || validator.getClass().equals(UniqueEntityValidator.class);
+                    || validator.getClass().equals(PbRowVersionValidator.class)
+                    || validator.getClass().equals(PbUniqueEntityValidator.class);
 
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForCreate = validator ->
-            validator.getClass().equals(ProjectIdValidator.class)
+            validator.getClass().equals(PbProjectIdValidator.class)
                     || validator.getClass().equals(BeneficiaryValidator.class);
 
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForDelete = validator ->
-            validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class);
+            validator.getClass().equals(PbNullIdValidator.class)
+                    || validator.getClass().equals(PbNonExistentEntityValidator.class);
 
     @Autowired
     public ProjectBeneficiaryService(

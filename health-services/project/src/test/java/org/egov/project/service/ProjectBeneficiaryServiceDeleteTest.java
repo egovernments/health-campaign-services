@@ -3,8 +3,8 @@ package org.egov.project.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.service.IdGenService;
 import org.egov.common.validator.Validator;
-import org.egov.project.beneficiary.validators.NonExistentEntityValidator;
-import org.egov.project.beneficiary.validators.NullIdValidator;
+import org.egov.project.beneficiary.validators.PbNonExistentEntityValidator;
+import org.egov.project.beneficiary.validators.PbNullIdValidator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryBulkRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
@@ -42,10 +42,10 @@ class ProjectBeneficiaryServiceDeleteTest {
     private ProjectBeneficiaryRepository projectBeneficiaryRepository;
 
     @Mock
-    private NullIdValidator nullIdValidator;
+    private PbNullIdValidator pbNullIdValidator;
 
     @Mock
-    private NonExistentEntityValidator nonExistentEntityValidator;
+    private PbNonExistentEntityValidator pbNonExistentEntityValidator;
 
     private List<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> validators;
 
@@ -66,12 +66,12 @@ class ProjectBeneficiaryServiceDeleteTest {
         request = BeneficiaryBulkRequestTestBuilder.builder()
                 .withOneProjectBeneficiary()
                 .build();
-        validators = Arrays.asList(nullIdValidator, nonExistentEntityValidator);
+        validators = Arrays.asList(pbNullIdValidator, pbNonExistentEntityValidator);
         ReflectionTestUtils.setField(projectBeneficiaryService, "validators", validators);
         ReflectionTestUtils.setField(projectBeneficiaryService, "isApplicableForDelete",
                 (Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>>) validator ->
-                validator.getClass().equals(NullIdValidator.class)
-                        || validator.getClass().equals(NonExistentEntityValidator.class));
+                validator.getClass().equals(PbNullIdValidator.class)
+                        || validator.getClass().equals(PbNonExistentEntityValidator.class));
         when(projectConfiguration.getDeleteProjectBeneficiaryTopic()).thenReturn("delete-topic");
     }
 

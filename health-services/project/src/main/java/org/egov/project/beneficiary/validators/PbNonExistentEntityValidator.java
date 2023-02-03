@@ -17,23 +17,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getEntitiesWithMismatchedRowVersion;
+import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
+import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
+import static org.egov.project.Constants.GET_ID;
 
 @Component
-@Order(value = 5)
+@Order(value = 4)
 @Slf4j
-public class RowVersionValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
+public class PbNonExistentEntityValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
 
     private final ProjectBeneficiaryRepository projectBeneficiaryRepository;
 
     @Autowired
-    public RowVersionValidator(ProjectBeneficiaryRepository projectBeneficiaryRepository) {
+    public PbNonExistentEntityValidator(ProjectBeneficiaryRepository projectBeneficiaryRepository) {
         this.projectBeneficiaryRepository = projectBeneficiaryRepository;
     }
 
@@ -41,21 +43,23 @@ public class RowVersionValidator implements Validator<BeneficiaryBulkRequest, Pr
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
-        Method idMethod = getIdMethod(request.getProjectBeneficiaries());
-        Map<String, ProjectBeneficiary> iMap = getIdToObjMap(request.getProjectBeneficiaries().stream()
-                .filter(notHavingErrors())
-                .collect(Collectors.toList()), idMethod);
+        List<ProjectBeneficiary> projectBeneficiaries = request.getProjectBeneficiaries();
+        Class<?> objClass = getObjClass(projectBeneficiaries);
+        Method idMethod = getMethod(GET_ID, objClass);
+        Map<String, ProjectBeneficiary> iMap = getIdToObjMap(projectBeneficiaries
+                .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
-            List<String> individualIds = new ArrayList<>(iMap.keySet());
-            List<ProjectBeneficiary> existingProjectBeneficiaries = projectBeneficiaryRepository.findById(individualIds,
-                    false, getIdFieldName(idMethod));
-            List<ProjectBeneficiary> entitiesWithMismatchedRowVersion =
-                    getEntitiesWithMismatchedRowVersion(iMap, existingProjectBeneficiaries, idMethod);
-            entitiesWithMismatchedRowVersion.forEach(projectBeneficiary -> {
-                Error error = getErrorForRowVersionMismatch();
+            List<String> beneficiaryIds = new ArrayList<>(iMap.keySet());
+            List<ProjectBeneficiary> existingProjectBeneficiaries = projectBeneficiaryRepository
+                    .findById(beneficiaryIds, false, getIdFieldName(idMethod));
+            List<ProjectBeneficiary> nonExistentIndividuals = checkNonExistentEntities(iMap,
+                    existingProjectBeneficiaries, idMethod);
+            nonExistentIndividuals.forEach(projectBeneficiary -> {
+                Error error = getErrorForNonExistentEntity();
                 populateErrorDetails(projectBeneficiary, error, errorDetailsMap);
             });
         }
+
         return errorDetailsMap;
     }
 }
