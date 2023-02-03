@@ -23,7 +23,6 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
-
         - query: INSERT INTO ADDRESS(id, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.address
           jsonMaps:
@@ -42,6 +41,7 @@ serviceMaps:
             - jsonPath: $.*.address.buildingName
             - jsonPath: $.*.address.street
             - jsonPath: $.*.address.locality.code
+
     - version: 1.0
       description: Updates household.
       fromTopic: update-household-topic
@@ -94,3 +94,17 @@ serviceMaps:
             - jsonPath: $.*.address.buildingName
             - jsonPath: $.*.address.street
             - jsonPath: $.*.address.locality.code
+
+    - version: 1.0
+      description: Deletes household.
+      fromTopic: delete-household-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE HOUSEHOLD SET lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
