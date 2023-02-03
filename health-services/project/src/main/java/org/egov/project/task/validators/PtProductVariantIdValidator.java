@@ -38,7 +38,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelated
 @Component
 @Order(value = 8)
 @Slf4j
-public class ProductVariantIdValidator implements Validator<TaskBulkRequest, Task> {
+public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, Task> {
 
     private final ProjectRepository projectRepository;
 
@@ -47,7 +47,7 @@ public class ProductVariantIdValidator implements Validator<TaskBulkRequest, Tas
     private final ProjectConfiguration projectConfiguration;
 
     @Autowired
-    public ProductVariantIdValidator(ProjectRepository projectRepository, ServiceRequestClient serviceRequestClient, ProjectConfiguration projectConfiguration) {
+    public PtProductVariantIdValidator(ProjectRepository projectRepository, ServiceRequestClient serviceRequestClient, ProjectConfiguration projectConfiguration) {
         this.projectRepository = projectRepository;
         this.serviceRequestClient = serviceRequestClient;
         this.projectConfiguration = projectConfiguration;

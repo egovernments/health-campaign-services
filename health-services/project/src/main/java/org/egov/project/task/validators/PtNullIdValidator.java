@@ -17,7 +17,7 @@ import static org.egov.project.Constants.GET_TASKS;
 @Component
 @Order(value = 1)
 @Slf4j
-public class NullIdValidator implements Validator<TaskBulkRequest, Task> {
+public class PtNullIdValidator implements Validator<TaskBulkRequest, Task> {
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {

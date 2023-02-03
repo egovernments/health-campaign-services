@@ -13,16 +13,16 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
-import org.egov.project.task.validators.IsDeletedSubEntityValidator;
-import org.egov.project.task.validators.IsDeletedValidator;
-import org.egov.project.task.validators.NonExistentEntityValidator;
-import org.egov.project.task.validators.NullIdValidator;
-import org.egov.project.task.validators.ProductVariantIdValidator;
-import org.egov.project.task.validators.ProjectBeneficiaryIdValidator;
-import org.egov.project.task.validators.ProjectIdValidator;
-import org.egov.project.task.validators.RowVersionValidator;
-import org.egov.project.task.validators.UniqueEntityValidator;
-import org.egov.project.task.validators.UniqueSubEntityValidator;
+import org.egov.project.task.validators.PtIsDeletedSubEntityValidator;
+import org.egov.project.task.validators.PtIsDeletedValidator;
+import org.egov.project.task.validators.PtNonExistentEntityValidator;
+import org.egov.project.task.validators.PtNullIdValidator;
+import org.egov.project.task.validators.PtProductVariantIdValidator;
+import org.egov.project.task.validators.PtProjectBeneficiaryIdValidator;
+import org.egov.project.task.validators.PtProjectIdValidator;
+import org.egov.project.task.validators.PtRowVersionValidator;
+import org.egov.project.task.validators.PtUniqueEntityValidator;
+import org.egov.project.task.validators.PtUniqueSubEntityValidator;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskBulkRequest;
 import org.egov.project.web.models.TaskRequest;
@@ -68,25 +68,25 @@ public class ProjectTaskService {
     private final ProjectTaskEnrichmentService enrichmentService;
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
-            validator.getClass().equals(ProjectIdValidator.class)
-                    || validator.getClass().equals(ProjectBeneficiaryIdValidator.class)
-                    || validator.getClass().equals(ProductVariantIdValidator.class);
+            validator.getClass().equals(PtProjectIdValidator.class)
+                    || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
+                    || validator.getClass().equals(PtProductVariantIdValidator.class);
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(ProjectIdValidator.class)
-                    || validator.getClass().equals(ProjectBeneficiaryIdValidator.class)
-                    || validator.getClass().equals(ProductVariantIdValidator.class)
-                    || validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(IsDeletedValidator.class)
-                    || validator.getClass().equals(IsDeletedSubEntityValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class)
-                    || validator.getClass().equals(RowVersionValidator.class)
-                    || validator.getClass().equals(UniqueEntityValidator.class)
-                    || validator.getClass().equals(UniqueSubEntityValidator.class);
+            validator.getClass().equals(PtProjectIdValidator.class)
+                    || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
+                    || validator.getClass().equals(PtProductVariantIdValidator.class)
+                    || validator.getClass().equals(PtNullIdValidator.class)
+                    || validator.getClass().equals(PtIsDeletedValidator.class)
+                    || validator.getClass().equals(PtIsDeletedSubEntityValidator.class)
+                    || validator.getClass().equals(PtNonExistentEntityValidator.class)
+                    || validator.getClass().equals(PtRowVersionValidator.class)
+                    || validator.getClass().equals(PtUniqueEntityValidator.class)
+                    || validator.getClass().equals(PtUniqueSubEntityValidator.class);
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForDelete = validator ->
-    validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class);
+    validator.getClass().equals(PtNullIdValidator.class)
+                    || validator.getClass().equals(PtNonExistentEntityValidator.class);
 
     private final List<Validator<TaskBulkRequest, Task>> validators;
 

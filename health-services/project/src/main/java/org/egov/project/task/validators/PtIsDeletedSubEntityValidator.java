@@ -17,7 +17,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDeleteSubEntity;
 
 @Component
 @Order(2)
-public class IsDeletedSubEntityValidator  implements Validator<TaskBulkRequest, Task> {
+public class PtIsDeletedSubEntityValidator  implements Validator<TaskBulkRequest, Task> {
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {

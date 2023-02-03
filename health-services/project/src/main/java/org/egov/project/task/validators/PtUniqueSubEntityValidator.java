@@ -27,7 +27,7 @@ import static org.egov.project.Constants.GET_ID;
 @Component
 @Order(value = 3)
 @Slf4j
-public class UniqueSubEntityValidator implements Validator<TaskBulkRequest, Task> {
+public class PtUniqueSubEntityValidator implements Validator<TaskBulkRequest, Task> {
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {

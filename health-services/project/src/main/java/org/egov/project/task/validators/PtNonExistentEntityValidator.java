@@ -36,12 +36,12 @@ import static org.egov.project.Constants.GET_RESOURCES;
 @Component
 @Order(value = 4)
 @Slf4j
-public class NonExistentEntityValidator implements Validator<TaskBulkRequest, Task> {
+public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, Task> {
 
     private final ProjectTaskRepository projectTaskRepository;
 
     @Autowired
-    public NonExistentEntityValidator(ProjectTaskRepository projectTaskRepository) {
+    public PtNonExistentEntityValidator(ProjectTaskRepository projectTaskRepository) {
         this.projectTaskRepository = projectTaskRepository;
     }
 
