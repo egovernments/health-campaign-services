@@ -10,8 +10,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * IndividualResponse
@@ -32,15 +30,6 @@ public class IndividualResponse {
 
     @JsonProperty("Individual")
     @Valid
-    private List<Individual> individual = null;
-
-    public IndividualResponse addIndividualItem(Individual individualItem) {
-        if (this.individual == null) {
-            this.individual = new ArrayList<>();
-        }
-        this.individual.add(individualItem);
-        return this;
-    }
-
+    private Individual individual = null;
 }
 
