@@ -128,7 +128,7 @@ public abstract class GenericRepository<T> {
                 redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
             }
         } catch (Exception exception) {
-            log.warn("Error while saving cache", exception);
+            log.warn("Error while saving to cache: {}", exception.getMessage());
         }
     }
 

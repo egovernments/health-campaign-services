@@ -26,4 +26,8 @@ public interface Constants {
     String INDIVIDUAL_NOT_FOUND = "INDIVIDUAL_NOT_FOUND";
 
     String INDIVIDUAL_NOT_FOUND_MESSAGE = "individual id is not found";
+
+    String GET_HOUSEHOLDS = "getHouseholds";
+
+    String SET_HOUSEHOLDS = "setHouseholds";
 }
