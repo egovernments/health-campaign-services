@@ -10,7 +10,7 @@ import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
 import org.egov.common.validator.Validator;
 import org.egov.project.beneficiary.validators.BeneficiaryValidator;
-import org.egov.project.beneficiary.validators.ProjectIdValidator;
+import org.egov.project.beneficiary.validators.PbProjectIdValidator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
@@ -81,7 +81,7 @@ class ProjectBeneficiaryServiceCreateTest {
     private ProjectConfiguration projectConfiguration;
 
     @Mock
-    private ProjectIdValidator projectIdValidator;
+    private PbProjectIdValidator pbProjectIdValidator;
 
     @Mock
     private BeneficiaryValidator beneficiaryValidator;
@@ -106,11 +106,11 @@ class ProjectBeneficiaryServiceCreateTest {
                 .thenReturn(idList);
         lenient().when(projectConfiguration.getCreateProjectBeneficiaryTopic()).thenReturn("create-topic");
 
-        validators = Arrays.asList(projectIdValidator, beneficiaryValidator);
+        validators = Arrays.asList(pbProjectIdValidator, beneficiaryValidator);
         ReflectionTestUtils.setField(projectBeneficiaryService, "validators", validators);
         ReflectionTestUtils.setField(projectBeneficiaryService, "isApplicableForCreate",
                 (Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>>) validator ->
-                        validator.getClass().equals(ProjectIdValidator.class)
+                        validator.getClass().equals(PbProjectIdValidator.class)
                                 || validator.getClass().equals(BeneficiaryValidator.class));
     }
 

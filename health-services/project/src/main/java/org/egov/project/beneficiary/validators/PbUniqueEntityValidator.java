@@ -21,7 +21,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 @Component
 @Order(value = 2)
 @Slf4j
-public class UniqueEntityValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
+public class PbUniqueEntityValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {

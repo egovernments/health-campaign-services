@@ -28,12 +28,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 @Component
 @Order(value = 3)
 @Slf4j
-public class ProjectIdValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
+public class PbProjectIdValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
 
     private final ProjectRepository projectRepository;
 
     @Autowired
-    public ProjectIdValidator(ProjectRepository projectRepository) {
+    public PbProjectIdValidator(ProjectRepository projectRepository) {
         this.projectRepository = projectRepository;
     }
 
