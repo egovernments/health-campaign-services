@@ -28,12 +28,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch
 @Component
 @Order(value = 5)
 @Slf4j
-public class RowVersionValidator implements Validator<TaskBulkRequest, Task> {
+public class PtRowVersionValidator implements Validator<TaskBulkRequest, Task> {
 
     private final ProjectTaskRepository projectTaskRepository;
 
     @Autowired
-    public RowVersionValidator(ProjectTaskRepository projectTaskRepository) {
+    public PtRowVersionValidator(ProjectTaskRepository projectTaskRepository) {
         this.projectTaskRepository = projectTaskRepository;
     }
 

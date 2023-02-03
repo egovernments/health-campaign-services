@@ -28,12 +28,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelated
 @Component
 @Order(value = 6)
 @Slf4j
-public class ProjectIdValidator implements Validator<TaskBulkRequest, Task> {
+public class PtProjectIdValidator implements Validator<TaskBulkRequest, Task> {
 
     private final ProjectRepository projectRepository;
 
     @Autowired
-    public ProjectIdValidator(ProjectRepository projectRepository) {
+    public PtProjectIdValidator(ProjectRepository projectRepository) {
         this.projectRepository = projectRepository;
     }
 

@@ -5,7 +5,7 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
-import org.egov.project.task.validators.UniqueSubEntityValidator;
+import org.egov.project.task.validators.PtUniqueSubEntityValidator;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskBulkRequest;
 import org.egov.project.web.models.TaskRequest;
@@ -44,7 +44,7 @@ class ProjectTaskServiceCreateTest {
     private ProjectTaskEnrichmentService projectTaskEnrichmentService;
 
     @Mock
-    private UniqueSubEntityValidator uniqueSubEntityValidator;
+    private PtUniqueSubEntityValidator ptUniqueSubEntityValidator;
 
     private List<Validator<TaskBulkRequest, Task>> validators;
 
@@ -53,7 +53,7 @@ class ProjectTaskServiceCreateTest {
         request = TaskRequestTestBuilder.builder().withTask().
                 withRequestInfo().build();
 
-        validators = Arrays.asList(uniqueSubEntityValidator);
+        validators = Arrays.asList(ptUniqueSubEntityValidator);
         ReflectionTestUtils.setField(projectTaskService, "validators", validators);
         lenient().when(projectConfiguration.getCreateProjectTaskTopic()).thenReturn("save-project-task-topic");
         lenient().when(projectConfiguration.getUpdateProjectTaskTopic()).thenReturn("update-project-task-topic");
