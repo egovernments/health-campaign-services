@@ -1,4 +1,4 @@
-package org.egov.project.web.models;
+package org.egov.individual.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -14,32 +14,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
-* TaskResponse
-*/
+ * IndividualResponse
+ */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-27T11:47:19.561+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TaskBulkResponse {
+public class IndividualBulkResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("Tasks")
-    @NotNull
+    @JsonProperty("Individual")
     @Valid
-    private List<Task> tasks = null;
+    private List<Individual> individual = null;
 
-    public TaskBulkResponse addIndividualItem(Task taskItem) {
-        if (this.tasks == null) {
-            this.tasks = new ArrayList<>();
+    public IndividualBulkResponse addIndividualItem(Individual individualItem) {
+        if (this.individual == null) {
+            this.individual = new ArrayList<>();
         }
-        this.tasks.add(taskItem);
+        this.individual.add(individualItem);
         return this;
     }
 

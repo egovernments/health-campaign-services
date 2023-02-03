@@ -10,6 +10,7 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
+import org.egov.individual.web.models.IndividualBulkResponse;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualResponse;
 import org.egov.individual.web.models.IndividualSearchRequest;
@@ -64,7 +65,7 @@ public class IndividualApiController {
 
         List<Individual> individuals = individualService.create(request);
         IndividualResponse response = IndividualResponse.builder()
-                .individual(individuals)
+                .individual(individuals.get(0))
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(request.getRequestInfo(), true))
                 .build();
@@ -83,13 +84,13 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<IndividualResponse> individualV1SearchPost(@ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request, @NotNull
+    public ResponseEntity<IndividualBulkResponse> individualV1SearchPost(@ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualSearchRequest request, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
                                                                      @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @Size(min = 2, max = 1000) @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
         List<Individual> individuals = individualService.search(request.getIndividual(), limit, offset, tenantId,
                 lastChangedSince, includeDeleted);
-        IndividualResponse response = IndividualResponse.builder()
+        IndividualBulkResponse response = IndividualBulkResponse.builder()
                 .individual(individuals)
                 .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
                 .build();
@@ -100,7 +101,7 @@ public class IndividualApiController {
     public ResponseEntity<IndividualResponse> individualV1UpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         List<Individual> individuals = individualService.update(request);
         IndividualResponse response = IndividualResponse.builder()
-                .individual(individuals)
+                .individual(individuals.get(0))
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(request.getRequestInfo(), true))
                 .build();
@@ -121,7 +122,7 @@ public class IndividualApiController {
     public ResponseEntity<IndividualResponse> individualV1DeletePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         List<Individual> individuals = individualService.delete(request);
         IndividualResponse response = IndividualResponse.builder()
-                .individual(individuals)
+                .individual(individuals.get(0))
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(request.getRequestInfo(), true))
                 .build();
