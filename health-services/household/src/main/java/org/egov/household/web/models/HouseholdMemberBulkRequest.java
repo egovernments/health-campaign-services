@@ -10,6 +10,8 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * HouseholdMemberRequest
@@ -21,16 +23,22 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdMemberRequest {
+public class HouseholdMemberBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-    @JsonProperty("HouseholdMember")
+    @JsonProperty("HouseholdMembers")
     @NotNull
     @Valid
     @Size(min = 1)
-    private HouseholdMember householdMember = null;
+    private List<HouseholdMember> householdMembers = new ArrayList<>();
+
+    public HouseholdMemberBulkRequest addHouseholdMemberItem(HouseholdMember householdMemberItem) {
+        this.householdMembers.add(householdMemberItem);
+        return this;
+    }
+
 }
 

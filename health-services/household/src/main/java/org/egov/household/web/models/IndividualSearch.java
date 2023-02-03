@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
 * A representation of an Individual.
@@ -24,13 +25,13 @@ import javax.validation.Valid;
 public class IndividualSearch   {
 
     @JsonProperty("id")
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("tenantId")
     private String tenantId = null;
 
     @JsonProperty("clientReferenceId")
-    private String clientReferenceId = null;
+    private List<String> clientReferenceId = null;
 
     @JsonProperty("name")
     @Valid
