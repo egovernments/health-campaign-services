@@ -1,11 +1,11 @@
-package org.egov.project.task.validators;
+package org.egov.project.validator.beneficiary;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectRepository;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.web.models.BeneficiaryBulkRequest;
+import org.egov.project.web.models.ProjectBeneficiary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -23,39 +23,39 @@ import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
+import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 
 @Component
-@Order(value = 6)
+@Order(value = 3)
 @Slf4j
-public class PtProjectIdValidator implements Validator<TaskBulkRequest, Task> {
+public class PbProjectIdValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
 
     private final ProjectRepository projectRepository;
 
     @Autowired
-    public PtProjectIdValidator(ProjectRepository projectRepository) {
+    public PbProjectIdValidator(ProjectRepository projectRepository) {
         this.projectRepository = projectRepository;
     }
 
 
     @Override
-    public Map<Task, List<Error>> validate(TaskBulkRequest request) {
-        Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Task> entities = request.getTasks();
+    public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
+        Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
+        List<ProjectBeneficiary> entities = request.getProjectBeneficiaries();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod("getProjectId", objClass);
-        Map<String, Task> eMap = getIdToObjMap(entities
+        Map<String, ProjectBeneficiary> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<String> existingProjectIds = projectRepository.validateIds(entityIds,
                     getIdFieldName(idMethod));
-            List<Task> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
+            List<ProjectBeneficiary> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                     !existingProjectIds.contains(entity.getProjectId()))
                             .collect(Collectors.toList());
-            invalidEntities.forEach(task -> {
-                Error error = getErrorForNonExistentRelatedEntity(task.getProjectId());
-                populateErrorDetails(task, error, errorDetailsMap);
+            invalidEntities.forEach(projectBeneficiary -> {
+                Error error = getErrorForNonExistentEntity();
+                populateErrorDetails(projectBeneficiary, error, errorDetailsMap);
             });
         }
 

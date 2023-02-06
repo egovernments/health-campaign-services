@@ -1,4 +1,4 @@
-package org.egov.project.task.validators;
+package org.egov.project.validator.task;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;

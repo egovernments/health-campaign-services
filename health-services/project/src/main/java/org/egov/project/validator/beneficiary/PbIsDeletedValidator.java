@@ -1,4 +1,4 @@
-package org.egov.project.beneficiary.validators;
+package org.egov.project.validator.beneficiary;
 
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;

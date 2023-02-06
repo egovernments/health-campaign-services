@@ -1,4 +1,4 @@
-package org.egov.project.beneficiary.validators;
+package org.egov.project.validator.beneficiary;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;

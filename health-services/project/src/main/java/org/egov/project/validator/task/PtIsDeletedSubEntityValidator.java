@@ -1,4 +1,4 @@
-package org.egov.project.task.validators;
+package org.egov.project.validator.task;
 
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
