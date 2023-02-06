@@ -6,6 +6,7 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryBulkRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
+import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
 import org.egov.project.validator.beneficiary.PbNonExistentEntityValidator;
 import org.egov.project.validator.beneficiary.PbNullIdValidator;
 import org.egov.project.web.models.BeneficiaryBulkRequest;

@@ -3,6 +3,7 @@ package org.egov.project.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.service.IdGenService;
 import org.egov.project.helper.BeneficiaryBulkRequestTestBuilder;
+import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

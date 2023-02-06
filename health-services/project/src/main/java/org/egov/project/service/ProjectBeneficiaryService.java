@@ -8,6 +8,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
+import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
 import org.egov.project.validator.beneficiary.BeneficiaryValidator;
 import org.egov.project.validator.beneficiary.PbIsDeletedValidator;
 import org.egov.project.validator.beneficiary.PbNonExistentEntityValidator;

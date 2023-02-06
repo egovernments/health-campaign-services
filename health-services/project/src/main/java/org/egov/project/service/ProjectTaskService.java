@@ -120,7 +120,7 @@ public class ProjectTaskService {
         try {
             if (!validTasks.isEmpty()) {
                 enrichmentService.create(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getCreateProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
             }
          } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -147,7 +147,7 @@ public class ProjectTaskService {
         try {
             if (!validTasks.isEmpty()) {
                 enrichmentService.update(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getUpdateProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -174,7 +174,7 @@ public class ProjectTaskService {
         try {
             if (!validTasks.isEmpty()) {
                 enrichmentService.delete(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getDeleteProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

@@ -5,14 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
-* ProjectStaffRequest
+* ProjectStaffResponse
 */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
@@ -21,14 +23,21 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectStaffRequest   {
-    @JsonProperty("RequestInfo")
+public class ProjectStaffBulkResponse {
+
+    @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private ResponseInfo responseInfo = null;
 
     @JsonProperty("ProjectStaff")
     @NotNull
-    private ProjectStaff projectStaff;
+    @Valid
+    private List<ProjectStaff> projectStaff = new ArrayList<>();
+
+    public ProjectStaffBulkResponse addProjectStaffItem(ProjectStaff projectStaffItem) {
+        this.projectStaff.add(projectStaffItem);
+        return this;
+    }
 }
 

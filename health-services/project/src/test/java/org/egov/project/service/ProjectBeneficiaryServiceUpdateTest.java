@@ -12,6 +12,7 @@ import org.egov.project.helper.BeneficiaryBulkRequestTestBuilder;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
+import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
 import org.egov.project.validator.beneficiary.BeneficiaryValidator;
 import org.egov.project.validator.beneficiary.PbIsDeletedValidator;
 import org.egov.project.validator.beneficiary.PbNonExistentEntityValidator;
