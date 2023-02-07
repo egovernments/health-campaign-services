@@ -31,7 +31,6 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -204,10 +203,10 @@ public class ProjectTaskService {
                              Long lastChangedSince, Boolean includeDeleted) {
         String idFieldName = getIdFieldName(taskSearch);
         if (isSearchByIdOnly(taskSearch, idFieldName)) {
-            List<String> ids = new ArrayList<>();
-            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(taskSearch)),
-                    taskSearch));
+                    taskSearch);
+
             return projectTaskRepository.findById(ids,
                             idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))

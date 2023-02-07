@@ -23,6 +23,7 @@ import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
 import static org.egov.project.Constants.GET_USER_ID;
 
@@ -53,18 +54,27 @@ public class PsUserIdValidator implements Validator<ProjectStaffBulkRequest, Pro
 
             Map<String, ProjectStaff> uMap = getIdToObjMap(entities,
                     getMethod(GET_USER_ID, getObjClass(entities)));
-            List<String> validUserIds = userService
-                    .search(userSearchRequest)
-                    .stream()
-                    .map(User::getUuid)
-                    .collect(Collectors.toList());
-            for (Map.Entry<String, ProjectStaff> entry : uMap.entrySet()) {
-                if (!validUserIds.contains(entry.getKey())) {
-                    ProjectStaff staff = entry.getValue();
-                    Error error = getErrorForNonExistentRelatedEntity(staff.getUserId());
-                    populateErrorDetails(staff, error, errorDetailsMap);
+            try {
+                List<String> validUserIds = userService
+                        .search(userSearchRequest)
+                        .stream()
+                        .map(User::getUuid)
+                        .collect(Collectors.toList());
+                for (Map.Entry<String, ProjectStaff> entry : uMap.entrySet()) {
+                    if (!validUserIds.contains(entry.getKey())) {
+                        ProjectStaff staff = entry.getValue();
+                        Error error = getErrorForNonExistentRelatedEntity(staff.getUserId());
+                        populateErrorDetails(staff, error, errorDetailsMap);
+                    }
                 }
+            } catch (Exception exception) {
+                log.error("error while validating users", exception);
+                entities.stream().filter(notHavingErrors()).forEach(b -> {
+                    Error error = getErrorForEntityWithNetworkError();
+                    populateErrorDetails(b, error, errorDetailsMap);
+                });
             }
+
         }
         return errorDetailsMap;
     }

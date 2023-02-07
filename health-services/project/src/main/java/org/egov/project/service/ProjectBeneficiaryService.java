@@ -23,6 +23,7 @@ import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,8 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
@@ -151,9 +154,11 @@ public class ProjectBeneficiaryService {
                                      String tenantId,
                                      Long lastChangedSince,
                                      Boolean includeDeleted) throws Exception {
-
-        if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary())) {
-            List<String> ids = beneficiarySearchRequest.getProjectBeneficiary().getId();
+        String idFieldName = getIdFieldName(beneficiarySearchRequest.getProjectBeneficiary());
+        if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary(), idFieldName)) {
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
+                            .singletonList(beneficiarySearchRequest.getProjectBeneficiary())),
+                    beneficiarySearchRequest.getProjectBeneficiary());
             return projectBeneficiaryRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
