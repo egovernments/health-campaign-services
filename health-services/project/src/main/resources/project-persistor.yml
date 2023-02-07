@@ -1,0 +1,156 @@
+serviceMaps:
+  serviceName: project
+  mappings:
+    - version: 1.0
+      description: Saves a project staff
+      fromTopic: save-project-staff-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: INSERT INTO project_staff (id, tenantId, projectId, staffId, startDate, endDate, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+
+            - jsonPath: $.*.tenantId
+
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.userId
+
+            - jsonPath: $.*.startDate
+
+            - jsonPath: $.*.endDate
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Project Staff
+      fromTopic: update-project-staff-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: UPDATE project_staff SET projectId=?, staffId=?, startDate=?, endDate=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.userId
+
+            - jsonPath: $.*.startDate
+
+            - jsonPath: $.*.endDate
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a project beneficiary
+      fromTopic: save-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: INSERT INTO project_beneficiary (id, tenantId, projectId, beneficiaryId, clientReferenceId, beneficiaryClientReferenceId, dateOfRegistration, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+
+            - jsonPath: $.*.tenantId
+
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.beneficiaryId
+
+            - jsonPath: $.*.clientReferenceId
+
+            - jsonPath: $.*.beneficiaryClientReferenceId
+
+            - jsonPath: $.*.dateOfRegistration
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update Project Beneficiary
+      fromTopic: update-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+
+        - query: UPDATE project_beneficiary SET projectId=?, beneficiaryId=?, clientReferenceId=?, beneficiaryClientReferenceId=?, dateOfRegistration=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ? AND isDeleted=false
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.projectId
+
+            - jsonPath: $.*.beneficiaryId
+
+            - jsonPath: $.*.clientReferenceId
+
+            - jsonPath: $.*.beneficiaryClientReferenceId
+
+            - jsonPath: $.*.dateOfRegistration
+
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.rowVersion
+
+            - jsonPath: $.*.isDeleted
+
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes Project Beneficiaries
+      fromTopic: delete-project-beneficiary-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE project_beneficiary SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id

@@ -17,11 +17,41 @@
 # -
 # -
 config:
-# Core Services
-  - name: "builds/health-DIGIT-OSS/core-services/egov-rn-service"
+  # libraries
+  - name: "builds/health-campaign-services/health-services/libraries/health-services-common"
     build:
-      - work-dir: "core-services/egov-rn-service"
-        image-name: "egov-rn-service"
+      - work-dir: "health-services/libraries/health-services-common"
+        image-name: "health-services-common"
+  - name: "builds/health-campaign-services/health-services/product"
+    build:
+      - work-dir: "health-services/product"
+        image-name: "product"
         dockerfile: "build/maven/Dockerfile"
-      - work-dir: "core-services/egov-rn-service/src/main/resources/db"
-        image-name: "egov-rn-service-db"
+      - work-dir: "health-services/product/src/main/resources/db"
+        image-name: "product-db"
+  - name: "builds/health-campaign-services/health-services/project"
+    build:
+      - work-dir: "health-services/project"
+        image-name: "project"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/project/src/main/resources/db"
+        image-name: "project-db"
+  - name: "builds/health-campaign-services/health-services/household"
+    build:
+      - work-dir: "health-services/household"
+        image-name: "household"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/household/src/main/resources/db"
+        image-name: "household-db"
+  - name: "builds/health-campaign-services/health-services/individual"
+    build:
+      - work-dir: "health-services/individual"
+        image-name: "individual"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/individual/src/main/resources/db"
+        image-name: "individual-db"
+  - name: "builds/health-campaign-services/core-services/dashboard-analytics"
+    build:
+      - work-dir: "core-services/dashboard-analytics"
+        image-name: "dashboard-analytics"
+        dockerfile: "build/maven/Dockerfile"
