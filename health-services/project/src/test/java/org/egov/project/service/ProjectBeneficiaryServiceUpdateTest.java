@@ -23,10 +23,10 @@ import org.egov.project.validator.beneficiary.PbUniqueEntityValidator;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.Household;
-import org.egov.project.web.models.HouseholdResponse;
+import org.egov.project.web.models.HouseholdBulkResponse;
 import org.egov.project.web.models.HouseholdSearchRequest;
 import org.egov.project.web.models.Individual;
-import org.egov.project.web.models.IndividualResponse;
+import org.egov.project.web.models.IndividualBulkResponse;
 import org.egov.project.web.models.IndividualSearchRequest;
 import org.egov.project.web.models.Project;
 import org.egov.project.web.models.ProjectBeneficiary;
@@ -116,9 +116,9 @@ class ProjectBeneficiaryServiceUpdateTest {
     private List<String> projectBeneficiaryIds;
 
     private void mockServiceRequestClient() throws Exception {
-        when(serviceRequestClient.fetchResult(any(StringBuilder.class), any(), eq(HouseholdResponse.class))).thenReturn(
-                HouseholdResponse.builder().
-                        household(
+        when(serviceRequestClient.fetchResult(any(StringBuilder.class), any(), eq(HouseholdBulkResponse.class))).thenReturn(
+                HouseholdBulkResponse.builder().
+                        households(
                                 Collections.singletonList(
                                         Household.builder().build()
                                 )
@@ -253,9 +253,9 @@ class ProjectBeneficiaryServiceUpdateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(HouseholdSearchRequest.class),
-                eq(HouseholdResponse.class))
+                eq(HouseholdBulkResponse.class))
         ).thenReturn(
-                HouseholdResponse.builder().household(Collections.singletonList(Household.builder().build())).build()
+                HouseholdBulkResponse.builder().households(Collections.singletonList(Household.builder().build())).build()
         );
 
         projectBeneficiaryService.update(request, false);
@@ -265,7 +265,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
                 any(HouseholdSearchRequest.class),
-                eq(HouseholdResponse.class)
+                eq(HouseholdBulkResponse.class)
         );
     }
 
@@ -280,9 +280,9 @@ class ProjectBeneficiaryServiceUpdateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(),
-                eq(HouseholdResponse.class))
+                eq(HouseholdBulkResponse.class))
         ).thenReturn(
-                HouseholdResponse.builder().household(Collections.emptyList()).build()
+                HouseholdBulkResponse.builder().households(Collections.emptyList()).build()
         );
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
@@ -300,9 +300,9 @@ class ProjectBeneficiaryServiceUpdateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(IndividualSearchRequest.class),
-                eq(IndividualResponse.class))
+                eq(IndividualBulkResponse.class))
         ).thenReturn(
-                IndividualResponse.builder().individual(Collections.singletonList(Individual.builder().build())).build()
+                IndividualBulkResponse.builder().individual(Collections.singletonList(Individual.builder().build())).build()
         );
 
         projectBeneficiaryService.update(request, false);
@@ -312,7 +312,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
                 any(IndividualSearchRequest.class),
-                eq(IndividualResponse.class)
+                eq(IndividualBulkResponse.class)
         );
     }
 
@@ -327,9 +327,9 @@ class ProjectBeneficiaryServiceUpdateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(),
-                eq(IndividualResponse.class))
+                eq(IndividualBulkResponse.class))
         ).thenReturn(
-                IndividualResponse.builder().individual(Collections.emptyList()).build()
+                IndividualBulkResponse.builder().individual(Collections.emptyList()).build()
         );
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));

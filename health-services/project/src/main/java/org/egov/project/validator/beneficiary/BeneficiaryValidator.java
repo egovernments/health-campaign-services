@@ -17,11 +17,11 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectService;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.Household;
-import org.egov.project.web.models.HouseholdResponse;
+import org.egov.project.web.models.HouseholdBulkResponse;
 import org.egov.project.web.models.HouseholdSearch;
 import org.egov.project.web.models.HouseholdSearchRequest;
 import org.egov.project.web.models.Individual;
-import org.egov.project.web.models.IndividualResponse;
+import org.egov.project.web.models.IndividualBulkResponse;
 import org.egov.project.web.models.IndividualSearch;
 import org.egov.project.web.models.IndividualSearchRequest;
 import org.egov.project.web.models.Project;
@@ -162,16 +162,17 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 .household(householdSearch)
                 .build();
 
-        HouseholdResponse response = null;
+        HouseholdBulkResponse response = null;
         try {
             response = serviceRequestClient.fetchResult(
                     new StringBuilder(projectConfiguration.getHouseholdServiceHost()
                             + projectConfiguration.getHouseholdServiceSearchUrl()
-                            + "?limit=10&offset=0&tenantId=" + tenantId),
+                            + "?limit=" + projectConfiguration.getSearchApiLimit()
+                            + "&offset=0&tenantId=" + tenantId),
                     householdSearchRequest,
-                    HouseholdResponse.class);
+                    HouseholdBulkResponse.class);
 
-            if (response.getHousehold().size() != beneficiaryList.size()) {
+            if (response.getHouseholds().size() != beneficiaryList.size()) {
                 if (isBeneficiaryId) {
                     populateHouseHoldBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
                             getMethod(GET_ID, Household.class), idMethod);
@@ -191,8 +192,8 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
 
     private void populateHouseHoldBeneficiaryErrorDetails(List<ProjectBeneficiary> beneficiaryList,
                                                           Map<ProjectBeneficiary, List<Error>> errorDetailsMap,
-                                                          HouseholdResponse response, Method idMethod, Method beneficiaryMethod) {
-        List<String> responseIds = response.getHousehold().stream()
+                                                          HouseholdBulkResponse response, Method idMethod, Method beneficiaryMethod) {
+        List<String> responseIds = response.getHouseholds().stream()
                 .map(household -> (String) ReflectionUtils.invokeMethod(idMethod, household))
                 .collect(Collectors.toList());
         beneficiaryList.stream()
@@ -206,7 +207,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
 
     private void populateIndividualBeneficiaryErrorDetails(List<ProjectBeneficiary> beneficiaryList,
                                                            Map<ProjectBeneficiary, List<Error>> errorDetailsMap,
-                                                           IndividualResponse response, Method idMethod,
+                                                           IndividualBulkResponse response, Method idMethod,
                                                            Method beneficiaryMethod) {
         List<String> responseIds = response.getIndividual().stream()
                 .map(individual -> (String) ReflectionUtils.invokeMethod(idMethod, individual))
@@ -256,14 +257,15 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 .individual(individualSearch)
                 .build();
 
-        IndividualResponse response = null;
+        IndividualBulkResponse response = null;
         try {
             response = serviceRequestClient.fetchResult(
                     new StringBuilder(projectConfiguration.getIndividualServiceHost()
                             + projectConfiguration.getIndividualServiceSearchUrl()
-                            + "?limit=10&offset=0&tenantId=" + tenantId),
+                            + "?limit=" + projectConfiguration.getSearchApiLimit()
+                            + "&offset=0&tenantId=" + tenantId),
                     individualSearchRequest,
-                    IndividualResponse.class);
+                    IndividualBulkResponse.class);
             if (response.getIndividual().size() != beneficiaryList.size()) {
                 if (isBeneficiaryId) {
                     populateIndividualBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
