@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import com.tarento.analytics.constant.Constants;
 
 import com.tarento.analytics.dto.AggregateDto;
 import com.tarento.analytics.dto.Data;
@@ -27,7 +28,7 @@ public class MetricsInsightsHandler implements InsightsHandler {
 		String insightIndicator = ""; 
 		if(INSIGHT_NUMBER_DIFFERENCE.equals(insightsConfig.getAction())) {
 			Double difference = (Double)currentData.getHeaderValue() - (Double) pastData.getHeaderValue();
-			if(difference >= 0) {
+			if(difference > 0) {
 				Double insightValue = (difference / (Double)pastData.getHeaderValue()) * 100;
 				if(insightValue.isInfinite()) 
 					return aggregateDto;
@@ -44,7 +45,11 @@ public class MetricsInsightsHandler implements InsightsHandler {
 					}
 					insightIndicator = INSIGHT_INDICATOR_POSITIVE;
 				}
-			} else { 
+			} else if (difference == 0) {
+				textToDisplay = INSIGHT_ZERO_TEXT;
+				insightIndicator = INSIGHT_INDICATOR_ZERO;
+				textToDisplay = textToDisplay.replace(INDICATOR_PLACEHOLDER, EQUAL);
+			} else {
 				difference = (Double) pastData.getHeaderValue() - (Double) currentData.getHeaderValue();
 				Double insightValue = (difference / (Double)pastData.getHeaderValue()) * 100;
 				if(insightValue.isInfinite()) 
@@ -64,8 +69,18 @@ public class MetricsInsightsHandler implements InsightsHandler {
 			if (textToDisplay == null) {
 				return aggregateDto;
 			} else {
-				textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER,
-						insightsConfig.getInsightInterval());
+				if(difference == 0 ){
+					if (insightsConfig.getInsightInterval().equals(Constants.Interval.day.toString())){
+						textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER,
+								YESTERDAY);
+					}else {
+						textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER,
+								INSIGHT_LAST_INTERVAL.replace(INSIGHT_INTERVAL_PLACEHOLDER, insightsConfig.getInsightInterval()));
+					}
+				}else{
+					textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER,
+							insightsConfig.getInsightInterval());
+				}
 				InsightsWidget insightsWidget = new InsightsWidget(INSIGHT_WIDGET_NAME, textToDisplay, insightIndicator,
 						insightIndicator);
 				List<Data> dataList = aggregateDto.getData();

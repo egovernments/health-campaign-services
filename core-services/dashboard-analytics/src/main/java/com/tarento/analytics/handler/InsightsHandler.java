@@ -21,6 +21,11 @@ public interface InsightsHandler {
 	public static final String INSIGHT_INTERVAL_PLACEHOLDER = "$insightInterval"; 
 	public static final String INSIGHT_INDICATOR_POSITIVE = "upper_green"; 
 	public static final String INSIGHT_INDICATOR_NEGATIVE = "lower_red"; 
+	public static final String INSIGHT_INDICATOR_ZERO = "insight_no_diff";
+	public static final String INSIGHT_ZERO_TEXT = "$indicatorNo change from $insightInterval";
+	public static final String YESTERDAY = "yesterday";
+	public static final String INSIGHT_LAST_INTERVAL = "last $insightInterval";
+	public static final String EQUAL = "=";
 	public static final String POSITIVE = "+";
 	public static final String NEGATIVE = "-"; 
 	
