@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * TaskSearch
@@ -22,8 +23,7 @@ import javax.validation.constraints.Size;
 public class TaskSearch {
 
     @JsonProperty("id")
-    @Size(min=2,max=64)
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("projectId")
     @Size(min=2,max=64)
@@ -34,8 +34,7 @@ public class TaskSearch {
     private String projectBeneficiaryId = null;
 
     @JsonProperty("clientReferenceId")
-    @Size(min=2,max=64)
-    private String clientReferenceId = null;
+    private List<String> clientReferenceId = null;
 
     @JsonProperty("projectBeneficiaryClientReferenceId")
     @Size(min=2,max=64)

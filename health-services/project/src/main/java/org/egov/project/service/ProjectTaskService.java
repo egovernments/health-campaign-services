@@ -31,7 +31,6 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
@@ -119,6 +119,7 @@ public class ProjectTaskService {
         List<Task> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
+                log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
                 projectTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
             }
@@ -127,7 +128,7 @@ public class ProjectTaskService {
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validTasks;
     }
@@ -146,6 +147,7 @@ public class ProjectTaskService {
         List<Task> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
+                log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
                 projectTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
             }
@@ -154,7 +156,7 @@ public class ProjectTaskService {
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validTasks;
     }
@@ -173,6 +175,7 @@ public class ProjectTaskService {
         List<Task> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
+                log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
                 projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
             }
@@ -181,7 +184,7 @@ public class ProjectTaskService {
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         return validTasks;
     }
 
@@ -204,10 +207,10 @@ public class ProjectTaskService {
                              Long lastChangedSince, Boolean includeDeleted) {
         String idFieldName = getIdFieldName(taskSearch);
         if (isSearchByIdOnly(taskSearch, idFieldName)) {
-            List<String> ids = new ArrayList<>();
-            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(taskSearch)),
-                    taskSearch));
+                    taskSearch);
+
             return projectTaskRepository.findById(ids,
                             idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -221,17 +224,6 @@ public class ProjectTaskService {
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
-        }
-    }
-
-    private static void handleErrors(boolean isBulk, Map<Task, ErrorDetails> errorDetailsMap) {
-        if (!errorDetailsMap.isEmpty()) {
-            log.error("{} errors collected", errorDetailsMap.size());
-            if (isBulk) {
-                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
-            } else {
-                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-            }
         }
     }
 }
