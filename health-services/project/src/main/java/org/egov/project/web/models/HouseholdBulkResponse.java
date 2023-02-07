@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -22,30 +23,23 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdResponse {
-        @JsonProperty("ResponseInfo")
-      @NotNull
+public class HouseholdBulkResponse {
+    @JsonProperty("ResponseInfo")
+    @NotNull
+    @Valid
+    private ResponseInfo responseInfo = null;
 
-  @Valid
-
-
-    private org.egov.common.contract.response.ResponseInfo responseInfo = null;
-
-        @JsonProperty("Household")
-    
-  @Valid
+    @JsonProperty("Households")
+    @Valid
+    private List<Household> households = null;
 
 
-    private List<Household> household = null;
-
-
-        public HouseholdResponse addHouseholdItem(Household householdItem) {
-            if (this.household == null) {
-            this.household = new ArrayList<>();
-            }
-        this.household.add(householdItem);
-        return this;
+    public HouseholdBulkResponse addHouseholdItem(Household householdItem) {
+        if (this.households == null) {
+            this.households = new ArrayList<>();
         }
-
+        this.households.add(householdItem);
+        return this;
+    }
 }
 
