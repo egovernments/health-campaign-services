@@ -1,4 +1,4 @@
-package org.egov.project.beneficiary.validators;
+package org.egov.project.validator.beneficiary;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;

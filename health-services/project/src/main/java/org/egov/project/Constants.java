@@ -19,6 +19,8 @@ public interface Constants {
 
     String GET_ID = "getId";
 
+    String GET_USER_ID = "getUserId";
+
     String GET_CLIENT_REFERENCE_ID = "getClientReferenceId";
 
     String GET_PROJECT_BENEFICIARIES = "getProjectBeneficiaries";
@@ -28,6 +30,10 @@ public interface Constants {
     String SET_TASKS = "setTasks";
 
     String GET_TASKS = "getTasks";
+
+    String GET_STAFF = "getProjectStaff";
+
+    String SET_STAFF = "setProjectStaff";
 
     String SYSTEM_GENERATED = "SYSTEM_GENERATED";
 

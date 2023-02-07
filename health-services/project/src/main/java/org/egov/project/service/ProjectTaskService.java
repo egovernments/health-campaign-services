@@ -13,16 +13,16 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
-import org.egov.project.task.validators.PtIsDeletedSubEntityValidator;
-import org.egov.project.task.validators.PtIsDeletedValidator;
-import org.egov.project.task.validators.PtNonExistentEntityValidator;
-import org.egov.project.task.validators.PtNullIdValidator;
-import org.egov.project.task.validators.PtProductVariantIdValidator;
-import org.egov.project.task.validators.PtProjectBeneficiaryIdValidator;
-import org.egov.project.task.validators.PtProjectIdValidator;
-import org.egov.project.task.validators.PtRowVersionValidator;
-import org.egov.project.task.validators.PtUniqueEntityValidator;
-import org.egov.project.task.validators.PtUniqueSubEntityValidator;
+import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
+import org.egov.project.validator.task.PtIsDeletedValidator;
+import org.egov.project.validator.task.PtNonExistentEntityValidator;
+import org.egov.project.validator.task.PtNullIdValidator;
+import org.egov.project.validator.task.PtProductVariantIdValidator;
+import org.egov.project.validator.task.PtProjectBeneficiaryIdValidator;
+import org.egov.project.validator.task.PtProjectIdValidator;
+import org.egov.project.validator.task.PtRowVersionValidator;
+import org.egov.project.validator.task.PtUniqueEntityValidator;
+import org.egov.project.validator.task.PtUniqueSubEntityValidator;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskBulkRequest;
 import org.egov.project.web.models.TaskRequest;
@@ -120,7 +120,7 @@ public class ProjectTaskService {
         try {
             if (!validTasks.isEmpty()) {
                 enrichmentService.create(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getCreateProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
             }
          } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -147,7 +147,7 @@ public class ProjectTaskService {
         try {
             if (!validTasks.isEmpty()) {
                 enrichmentService.update(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getUpdateProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -174,7 +174,7 @@ public class ProjectTaskService {
         try {
             if (!validTasks.isEmpty()) {
                 enrichmentService.delete(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getDeleteProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

@@ -10,6 +10,8 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
 * ProjectStaffResponse
@@ -21,7 +23,7 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectStaffResponse   {
+public class ProjectStaffBulkResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
@@ -31,6 +33,11 @@ public class ProjectStaffResponse   {
     @JsonProperty("ProjectStaff")
     @NotNull
     @Valid
-    private ProjectStaff projectStaff = null;
+    private List<ProjectStaff> projectStaff = new ArrayList<>();
+
+    public ProjectStaffBulkResponse addProjectStaffItem(ProjectStaff projectStaffItem) {
+        this.projectStaff.add(projectStaffItem);
+        return this;
+    }
 }
 

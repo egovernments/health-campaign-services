@@ -1,11 +1,11 @@
-package org.egov.project.beneficiary.validators;
+package org.egov.project.validator.staff;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.project.repository.ProjectRepository;
-import org.egov.project.web.models.BeneficiaryBulkRequest;
-import org.egov.project.web.models.ProjectBeneficiary;
+import org.egov.project.repository.ProjectStaffRepository;
+import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
@@ -24,38 +25,37 @@ import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
+import static org.egov.project.Constants.GET_ID;
 
 @Component
-@Order(value = 3)
+@Order(value = 4)
 @Slf4j
-public class PbProjectIdValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
+public class PsNonExistentEntityValidator implements Validator<ProjectStaffBulkRequest, ProjectStaff> {
 
-    private final ProjectRepository projectRepository;
+    private final ProjectStaffRepository repository;
 
     @Autowired
-    public PbProjectIdValidator(ProjectRepository projectRepository) {
-        this.projectRepository = projectRepository;
+    public PsNonExistentEntityValidator(ProjectStaffRepository repository) {
+        this.repository = repository;
     }
-
-
+    
     @Override
-    public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
-        Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
-        List<ProjectBeneficiary> entities = request.getProjectBeneficiaries();
+    public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
+        List<ProjectStaff> entities = request.getProjectStaff();
         Class<?> objClass = getObjClass(entities);
-        Method idMethod = getMethod("getProjectId", objClass);
-        Map<String, ProjectBeneficiary> eMap = getIdToObjMap(entities
+        Method idMethod = getMethod(GET_ID, objClass);
+        Map<String, ProjectStaff> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<String> existingProjectIds = projectRepository.validateIds(entityIds,
+            List<ProjectStaff> existingEntities = repository.findById(entityIds, false,
                     getIdFieldName(idMethod));
-            List<ProjectBeneficiary> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                    !existingProjectIds.contains(entity.getProjectId()))
-                            .collect(Collectors.toList());
-            invalidEntities.forEach(projectBeneficiary -> {
+            List<ProjectStaff> nonExistentEntities = checkNonExistentEntities(eMap,
+                    existingEntities, idMethod);
+            nonExistentEntities.forEach(staff -> {
                 Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(projectBeneficiary, error, errorDetailsMap);
+                populateErrorDetails(staff, error, errorDetailsMap);
             });
         }
 
