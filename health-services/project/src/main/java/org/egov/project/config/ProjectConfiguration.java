@@ -96,4 +96,7 @@ public class ProjectConfiguration {
 
     @Value("${egov.search.individual.url}")
     private String individualServiceSearchUrl;
+
+    @Value("${search.api.limit:100}")
+    private String searchApiLimit;
 }
