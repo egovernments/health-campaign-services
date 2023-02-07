@@ -1,9 +1,9 @@
-package org.egov.project.task.validators;
+package org.egov.project.validator.staff;
 
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -16,13 +16,13 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
 @Component
 @Order(2)
-public class PtIsDeletedValidator implements Validator<TaskBulkRequest, Task> {
+public class PsIsDeletedValidator implements Validator<ProjectStaffBulkRequest, ProjectStaff> {
 
     @Override
-    public Map<Task, List<Error>> validate(TaskBulkRequest request) {
-        HashMap<Task, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Task> validIndividuals = request.getTasks();
-        validIndividuals.stream().filter(Task::getIsDeleted).forEach(individual -> {
+    public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        HashMap<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
+        List<ProjectStaff> validIndividuals = request.getProjectStaff();
+        validIndividuals.stream().filter(ProjectStaff::getIsDeleted).forEach(individual -> {
             Error error = getErrorForIsDelete();
             populateErrorDetails(individual, error, errorDetailsMap);
         });

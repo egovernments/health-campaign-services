@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tarento.analytics.helper.ActionsHelper;
 import com.tarento.analytics.helper.ComputedFieldFactory;
 import com.tarento.analytics.helper.IComputedField;
 import com.tarento.analytics.model.ComputedFields;
@@ -41,6 +42,8 @@ public class LineChartResponseHandler implements IResponseHandler {
     private ObjectMapper mapper;
     @Autowired
     private ComputedFieldFactory computedFieldFactory;
+    @Autowired
+    private ActionsHelper actionsHelper;
 
     @Override
     public AggregateDto translate(AggregateRequestDto requestDto, ObjectNode aggregations) throws IOException {
@@ -113,10 +116,14 @@ public class LineChartResponseHandler implements IResponseHandler {
                                     List<ComputedFields> computedFieldsList = mapper.readValue(computedFields.toString(), new TypeReference<List<ComputedFields>>() {
                                     });
 
-                                    for (ComputedFields cfs : computedFieldsList) {
-                                        IComputedField computedFieldObject = computedFieldFactory.getInstance(cfs.getActionName());
-                                        computedFieldObject.set(requestDto, cfs.getPostAggregationTheory());
-                                        computedFieldObject.add(bucket, cfs.getFields(), cfs.getNewField(), chartNode);
+                                for (ComputedFields cfs : computedFieldsList) {
+                                    if (bucket.findValues(cfs.getFields().get(0)).isEmpty()) {
+                                        value = getValueOfPlotMap(bucket, previousVal, chartNode);
+                                        continue;
+                                    }
+                                    IComputedField computedFieldObject = computedFieldFactory.getInstance(cfs.getActionName());
+                                    computedFieldObject.set(requestDto, cfs.getPostAggregationTheory());
+                                    computedFieldObject.add(bucket, cfs.getFields(), cfs.getNewField(), chartNode);
 
                                         if (symbolFromPathDataTypeMap.equals(DAYS)) {
 
@@ -134,26 +141,10 @@ public class LineChartResponseHandler implements IResponseHandler {
                                     logger.error("execution of computed field :" + e.getMessage());
                                 }
 
-                            } else {
-                                String jsonStr = bucket.toString();
-                                JSONObject currObj = new JSONObject(jsonStr);
-                                for (Iterator<String> it = bucket.fieldNames(); it.hasNext(); ) {
-                                    String fieldName = it.next();
-                                    if (currObj.get(fieldName) instanceof JSONObject) {
-                                        if (bucket.get(fieldName).findValue("buckets") == null) {
-                                            value = previousVal + ((bucket.get(fieldName).findValue(IResponseHandler.VALUE) != null) ? bucket.get(fieldName).findValue(IResponseHandler.VALUE).asDouble() : bucket.get(fieldName).findValue(IResponseHandler.DOC_COUNT).asDouble());
-                                        }
-
-                                    }
-                                }
-
-                                //value = previousVal + ((bucket.findValue(IResponseHandler.VALUE) != null) ? bucket.findValue(IResponseHandler.VALUE).asDouble():bucket.findValue(IResponseHandler.DOC_COUNT).asDouble());
-
-                                if (chartNode.get(IS_ROUND_OFF) != null && chartNode.get(IS_ROUND_OFF).asBoolean()) {
-                                    value = (double) Math.round(value);
-                                }
-                            }
-                            //double value = previousVal + ((bucket.findValue(IResponseHandler.VALUE) != null) ? bucket.findValue(IResponseHandler.VALUE).asDouble():bucket.findValue(IResponseHandler.DOC_COUNT).asDouble());
+                        } else {
+                            value = getValueOfPlotMap(bucket, previousVal, chartNode);
+                        }
+                        //double value = previousVal + ((bucket.findValue(IResponseHandler.VALUE) != null) ? bucket.findValue(IResponseHandler.VALUE).asDouble():bucket.findValue(IResponseHandler.DOC_COUNT).asDouble());
 
                             plotMap.put(key, new Double("0") + value);
                             totalValues.add(value);
@@ -176,13 +167,37 @@ public class LineChartResponseHandler implements IResponseHandler {
             } catch (Exception e) {
                 logger.error(" Legend/Header "+headerPath.asText() +" exception occurred "+e.getMessage());
             }
-       // });
-    }
-
+            // });
+        }
+        String action = chartNode.get(ACTION).asText();
         dataList.forEach(data -> {
             appendMissingPlot(plotKeys, data, symbol, isCumulative);
         });
+        if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
+            dataList = actionsHelper.divide(action, dataList, chartNode);
+        }
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
+    }
+
+    private double getValueOfPlotMap(JsonNode bucket, double previousVal, JsonNode chartNode) {
+        String jsonStr = bucket.toString();
+        JSONObject currObj = new JSONObject(jsonStr);
+        double value = 0.0;
+        for (Iterator<String> it = bucket.fieldNames(); it.hasNext(); ) {
+            String fieldName = it.next();
+            if (currObj.get(fieldName) instanceof JSONObject) {
+                if (bucket.get(fieldName).findValue("buckets") == null) {
+                    value = previousVal + ((bucket.get(fieldName).findValue(IResponseHandler.VALUE) != null) ? bucket.get(fieldName).findValue(IResponseHandler.VALUE).asDouble() : bucket.get(fieldName).findValue(IResponseHandler.DOC_COUNT).asDouble());
+                }
+            }
+        }
+
+        //value = previousVal + ((bucket.findValue(IResponseHandler.VALUE) != null) ? bucket.findValue(IResponseHandler.VALUE).asDouble():bucket.findValue(IResponseHandler.DOC_COUNT).asDouble());
+
+        if (chartNode.get(IS_ROUND_OFF) != null && chartNode.get(IS_ROUND_OFF).asBoolean()) {
+            value = (double) Math.round(value);
+        }
+        return value;
     }
 
     private void addIterationResultsToMultiAggrMap(Map<String, Double> plotMap, Map<String, Double> multiAggrPlotMap, Boolean isCumulative) {

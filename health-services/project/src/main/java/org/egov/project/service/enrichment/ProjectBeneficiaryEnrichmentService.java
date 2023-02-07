@@ -1,4 +1,4 @@
-package org.egov.project.service;
+package org.egov.project.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.service.IdGenService;

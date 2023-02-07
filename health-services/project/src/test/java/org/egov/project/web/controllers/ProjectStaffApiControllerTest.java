@@ -11,11 +11,11 @@ import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkResponse;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffResponse;
 import org.egov.project.web.models.ProjectStaffSearch;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 */
 @WebMvcTest(ProjectApiController.class)
 @Import(TestConfiguration.class)
-public class ProjectApiControllerTest {
+class ProjectStaffApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -72,13 +72,11 @@ public class ProjectApiControllerTest {
     @DisplayName("should create project staff and return with 202 accepted")
     void shouldCreateProjectStaffAndReturnWith202Accepted() throws Exception {
         ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
-                .withOneProjectStaff()
-                .withApiOperationNotUpdate()
-                .build();
+                .withOneProjectStaff().build();
         ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
         List<ProjectStaff> projectStaffList = new ArrayList<>();
         projectStaffList.add(projectStaff);
-        when(projectStaffService.create(any(ProjectStaffRequest.class))).thenReturn(projectStaffList);
+        when(projectStaffService.create(any(ProjectStaffRequest.class))).thenReturn(projectStaffList.get(0));
 
         final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -89,20 +87,20 @@ public class ProjectApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         ProjectStaffResponse response = objectMapper.readValue(responseStr, ProjectStaffResponse.class);
 
-        assertEquals(1, response.getProjectStaff().size());
-        assertNotNull(response.getProjectStaff().get(0).getId());
+        assertNotNull(response.getProjectStaff().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
+        ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
+                .withOneProjectStaff()
+                .withBadTenantIdInOneProjectStaff()
+                .build();
         final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
-                                .withOneProjectStaff()
-                                .withBadTenantIdInOneProjectStaff()
-                                .build())))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
@@ -114,35 +112,15 @@ public class ProjectApiControllerTest {
 
 
     @Test
-    @DisplayName("should send 400 bad request in case of incorrect api operation for create")
-    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
-                                .withOneProjectStaff()
-                                .withApiOperationNotNullAndNotCreate()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
-    }
-
-
-    @Test
     @DisplayName("should update project staff and return with 202 accepted")
     void shouldUpdateProjectStaffAndReturnWith202Accepted() throws Exception {
         ProjectStaffRequest request = ProjectStaffRequestTestBuilder.builder()
                 .withOneProjectStaffHavingId()
-                .withApiOperationNotNullAndNotCreate()
                 .build();
         ProjectStaff projectStaff = ProjectStaffTestBuilder.builder().withId().build();
         List<ProjectStaff> projectStaffList = new ArrayList<>();
         projectStaffList.add(projectStaff);
-        when(projectStaffService.update(any(ProjectStaffRequest.class))).thenReturn(projectStaffList);
+        when(projectStaffService.update(any(ProjectStaffRequest.class))).thenReturn(projectStaffList.get(0));
 
         final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -153,8 +131,7 @@ public class ProjectApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         ProjectStaffResponse response = objectMapper.readValue(responseStr, ProjectStaffResponse.class);
 
-        assertEquals(1, response.getProjectStaff().size());
-        assertNotNull(response.getProjectStaff().get(0).getId());
+        assertNotNull(response.getProjectStaff().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
@@ -176,25 +153,6 @@ public class ProjectApiControllerTest {
 
         assertEquals(1, response.getErrors().size());
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
-    }
-
-
-    @Test
-    @DisplayName("should send 400 bad request in case of incorrect api operation for update")
-    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_update")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProjectStaffRequestTestBuilder.builder()
-                                .withOneProjectStaffHavingId()
-                                .withApiOperationNotUpdate()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
     }
 
     @Test
@@ -219,38 +177,9 @@ public class ProjectApiControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        ProjectStaffResponse response = objectMapper.readValue(responseStr,
-                ProjectStaffResponse.class);
+        ProjectStaffBulkResponse response = objectMapper.readValue(responseStr,
+                ProjectStaffBulkResponse.class);
 
         assertEquals(response.getProjectStaff().size(), 1);
     }
-
-    @Test
-    @DisplayName("Should accept search request and return response as accepted")
-    void shouldThrowExceptionIfNoResultFound() throws Exception {
-
-        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
-                ProjectStaffSearch.builder().projectId("12").build()
-        ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
-        when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
-                any(Integer.class),
-                any(Integer.class),
-                any(String.class),
-                any(Long.class),
-                any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No project found."));
-
-
-        final MvcResult result = mockMvc.perform(post("/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(projectStaffSearchRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(response.getErrors().size(), 1);
-    }
-
 }

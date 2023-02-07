@@ -738,6 +738,25 @@ public class CommonUtils {
     }
 
     /**
+     * Handle errors after validators & enrichment layer.
+     *
+     *
+     * @param errorDetailsMap is a map of payload vs errorList
+     * @param isBulk is to indicate whether we are using bulk api or not
+     * @param errorCode error code
+     */
+    public static <T> void handleErrors(Map<T, ErrorDetails> errorDetailsMap, boolean isBulk, String errorCode) {
+        if (!errorDetailsMap.isEmpty()) {
+            log.error("{} errors collected", errorDetailsMap.size());
+            if (isBulk) {
+                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
+            } else {
+                throw new CustomException(errorCode, errorDetailsMap.values().toString());
+            }
+        }
+    }
+
+    /**
      * Validate for null ids
      *
      * @param request is the request body

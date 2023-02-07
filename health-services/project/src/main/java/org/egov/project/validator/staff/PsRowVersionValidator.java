@@ -1,11 +1,11 @@
-package org.egov.project.task.validators;
+package org.egov.project.validator.staff;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.project.repository.ProjectTaskRepository;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.repository.ProjectStaffRepository;
+import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -28,28 +28,28 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch
 @Component
 @Order(value = 5)
 @Slf4j
-public class PtRowVersionValidator implements Validator<TaskBulkRequest, Task> {
+public class PsRowVersionValidator implements Validator<ProjectStaffBulkRequest, ProjectStaff> {
 
-    private final ProjectTaskRepository projectTaskRepository;
+    private final ProjectStaffRepository repository;
 
     @Autowired
-    public PtRowVersionValidator(ProjectTaskRepository projectTaskRepository) {
-        this.projectTaskRepository = projectTaskRepository;
+    public PsRowVersionValidator(ProjectStaffRepository repository) {
+        this.repository = repository;
     }
 
 
     @Override
-    public Map<Task, List<Error>> validate(TaskBulkRequest request) {
-        Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
-        Method idMethod = getIdMethod(request.getTasks());
-        Map<String, Task> eMap = getIdToObjMap(request.getTasks().stream()
+    public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
+        Method idMethod = getIdMethod(request.getProjectStaff());
+        Map<String, ProjectStaff> eMap = getIdToObjMap(request.getProjectStaff().stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Task> existingEntities = projectTaskRepository.findById(entityIds,
-                    getIdFieldName(idMethod), false);
-            List<Task> entitiesWithMismatchedRowVersion =
+            List<ProjectStaff> existingEntities = repository.findById(entityIds, false,
+                    getIdFieldName(idMethod));
+            List<ProjectStaff> entitiesWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
             entitiesWithMismatchedRowVersion.forEach(individual -> {
                 Error error = getErrorForRowVersionMismatch();

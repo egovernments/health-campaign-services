@@ -1,11 +1,11 @@
-package org.egov.project.task.validators;
+package org.egov.project.validator.staff;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectRepository;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -28,34 +28,34 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelated
 @Component
 @Order(value = 6)
 @Slf4j
-public class PtProjectIdValidator implements Validator<TaskBulkRequest, Task> {
+public class PsProjectIdValidator implements Validator<ProjectStaffBulkRequest, ProjectStaff> {
 
     private final ProjectRepository projectRepository;
 
     @Autowired
-    public PtProjectIdValidator(ProjectRepository projectRepository) {
+    public PsProjectIdValidator(ProjectRepository projectRepository) {
         this.projectRepository = projectRepository;
     }
 
 
     @Override
-    public Map<Task, List<Error>> validate(TaskBulkRequest request) {
-        Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Task> entities = request.getTasks();
+    public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
+        List<ProjectStaff> entities = request.getProjectStaff();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod("getProjectId", objClass);
-        Map<String, Task> eMap = getIdToObjMap(entities
+        Map<String, ProjectStaff> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             List<String> existingProjectIds = projectRepository.validateIds(entityIds,
                     getIdFieldName(idMethod));
-            List<Task> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
+            List<ProjectStaff> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                     !existingProjectIds.contains(entity.getProjectId()))
                             .collect(Collectors.toList());
-            invalidEntities.forEach(task -> {
-                Error error = getErrorForNonExistentRelatedEntity(task.getProjectId());
-                populateErrorDetails(task, error, errorDetailsMap);
+            invalidEntities.forEach(ProjectStaff -> {
+                Error error = getErrorForNonExistentRelatedEntity(ProjectStaff.getProjectId());
+                populateErrorDetails(ProjectStaff, error, errorDetailsMap);
             });
         }
 

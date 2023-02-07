@@ -2,52 +2,58 @@ package org.egov.project.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ProjectStaffRequestTestBuilder {
-    private ProjectStaffRequest.ProjectStaffRequestBuilder builder;
-
-    public ProjectStaffRequestTestBuilder() {
-        this.builder = ProjectStaffRequest.builder();
+public class ProjectStaffBulkRequestTestBuilder {
+    private ProjectStaffBulkRequest.ProjectStaffBulkRequestBuilder builder;
+    private ArrayList projectStaffs = new ArrayList();
+    public ProjectStaffBulkRequestTestBuilder() {
+        this.builder = ProjectStaffBulkRequest.builder();
     }
 
-    public static ProjectStaffRequestTestBuilder builder() {
-        return new ProjectStaffRequestTestBuilder();
+    public static ProjectStaffBulkRequestTestBuilder builder() {
+        return new ProjectStaffBulkRequestTestBuilder();
     }
 
-    public ProjectStaffRequest build() {
+    public ProjectStaffBulkRequest build() {
         return this.builder.build();
     }
 
-    public ProjectStaffRequestTestBuilder withOneProjectStaff() {
+    public ProjectStaffBulkRequestTestBuilder withOneProjectStaff() {
         List<ProjectStaff> projectStaffs = new ArrayList<>();
         projectStaffs.add(ProjectStaffTestBuilder.builder().withIdNull().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .projectStaff(projectStaffs.get(0));
+                .projectStaff(projectStaffs);
         return this;
     }
 
-    public ProjectStaffRequestTestBuilder withOneProjectStaffHavingId() {
+    public ProjectStaffBulkRequestTestBuilder withOneProjectStaffHavingId() {
         List<ProjectStaff> projectStaffs = new ArrayList<>();
         projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .projectStaff(projectStaffs.get(0));
+                .projectStaff(projectStaffs);
         return this;
     }
 
-    public ProjectStaffRequestTestBuilder withBadTenantIdInOneProjectStaff() {
+    public ProjectStaffBulkRequestTestBuilder withBadTenantIdInOneProjectStaff() {
         List<ProjectStaff> projectStaffs = new ArrayList<>();
         projectStaffs.add(ProjectStaffTestBuilder.builder().withIdNull().withBadTenantId().build());
         builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .projectStaff(projectStaffs.get(0));
+                .projectStaff(projectStaffs);
         return this;
     }
 
-    public ProjectStaffRequestTestBuilder withRequestInfo(){
+    public ProjectStaffBulkRequestTestBuilder withRequestInfo(){
         this.builder.requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build());
+        return this;
+    }
+
+    public ProjectStaffBulkRequestTestBuilder addGoodProjectStaff(){
+        projectStaffs.add(ProjectStaffTestBuilder.builder().goodProjectStaff().build());
+        this.builder.projectStaff(projectStaffs);
         return this;
     }
 }
