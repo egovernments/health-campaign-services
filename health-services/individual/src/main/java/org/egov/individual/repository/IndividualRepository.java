@@ -98,12 +98,24 @@ public class IndividualRepository extends GenericRepository<Individual> {
                         individual.setIdentifiers(identifiers);
                         List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
                         individual.setAddress(addresses);
+                        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
+                        indServerGenIdParamMap.put("individualId", individual.getId());
+                        indServerGenIdParamMap.put("isDeleted", includeDeleted);
+                        enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                     });
                 }
                 return individuals;
             }
             return Collections.emptyList();
         }
+    }
+
+    private void enrichSkills(Boolean includeDeleted, Individual individual, Map<String, Object> indServerGenIdParamMap) {
+        String individualSkillQuery = getQuery("SELECT * FROM individual_skill WHERE individualId =:individualId",
+                includeDeleted);
+        List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, indServerGenIdParamMap,
+                new SkillRowMapper());
+        individual.setSkills(skills);
     }
 
     private String getQueryForIndividual(IndividualSearch searchObject, Integer limit, Integer offset,
@@ -169,11 +181,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 List<Identifier> identifiers = this.namedParameterJdbcTemplate
                         .query(individualIdentifierQuery, indServerGenIdParamMap,
                                 new IdentifierRowMapper());
-                String individualSkillQuery = getQuery("SELECT * FROM individual_skill WHERE individualId =:individualId",
-                        includeDeleted);
-                List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, indServerGenIdParamMap,
-                        new SkillRowMapper());
-                individual.setSkills(skills);
+                enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                 individual.setAddress(addresses);
                 individual.setIdentifiers(identifiers);
             });
