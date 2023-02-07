@@ -162,7 +162,7 @@ public class ProjectBeneficiaryService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(beneficiarySearchRequest.getProjectBeneficiary())),
                     beneficiarySearchRequest.getProjectBeneficiary());
-            return projectBeneficiaryRepository.findById(ids, includeDeleted).stream()
+            return projectBeneficiaryRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
