@@ -32,6 +32,7 @@ public interface IResponseHandler {
 	public static final String CHART_NAME = "chartName";
 	public static final String CHART_TYPE = "chartType";
 	public static final String DRILL_CHART = "drillChart";
+	public static final String SHOW_LABEL = "showLabel";
 	public static final String VALUE_TYPE = "valueType";
 	public static final String FILTER_KEYS = "filterKeys";
 	
@@ -110,6 +111,9 @@ public interface IResponseHandler {
 		ChartType chartType = ChartType.fromValue(chartNode.get(CHART_TYPE).asText());
 		aggregateDto.setChartType(chartType);
 		aggregateDto.setData(dataList);
+		if (chartNode.has(SHOW_LABEL)) {
+			aggregateDto.setShowLabel(chartNode.get(SHOW_LABEL).asBoolean());
+		}
 		if(null!=chartNode.get(FILTER_KEYS))
 			aggregateDto.setFilter((ArrayNode) chartNode.get(FILTER_KEYS));
 		return aggregateDto;
