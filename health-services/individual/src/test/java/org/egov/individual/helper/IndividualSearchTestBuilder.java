@@ -34,6 +34,11 @@ public class IndividualSearchTestBuilder {
         return this;
     }
 
+    public IndividualSearchTestBuilder byNullId() {
+        this.builder.id(null);
+        return this;
+    }
+
     public IndividualSearchTestBuilder byClientReferenceId(String... args) {
         ArrayList<String> ids = new ArrayList<>();
         if (args != null && args.length > 0) {

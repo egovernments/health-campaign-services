@@ -29,8 +29,9 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .name(Name.builder().givenName(resultSet.getString("givenName"))
                             .familyName(resultSet.getString("familyName"))
                             .otherNames(resultSet.getString("otherNames")).build())
-                    .dateOfBirth(resultSet.getDate("dateOfBirth").toLocalDate())
-                    .gender(Gender.valueOf(resultSet.getString("gender")))
+                    .dateOfBirth(resultSet.getDate("dateOfBirth") != null ?
+                            resultSet.getDate("dateOfBirth").toLocalDate() : null)
+                    .gender(Gender.fromValue(resultSet.getString("gender")))
                     .bloodGroup(BloodGroup.fromValue(resultSet.getString("bloodGroup")))
                     .mobileNumber(resultSet.getString("mobileNumber"))
                     .altContactNumber(resultSet.getString("altContactNumber"))

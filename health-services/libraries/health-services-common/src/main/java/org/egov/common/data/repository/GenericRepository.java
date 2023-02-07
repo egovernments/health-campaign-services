@@ -60,7 +60,8 @@ public abstract class GenericRepository<T> {
 
     protected List<T> findInCache(List<String> ids) {
         ArrayList<T> objFound = new ArrayList<>();
-        Collection<Object> collection = new ArrayList<>(ids);
+        Collection<Object> collection = ids.stream().filter(Objects::nonNull)
+                .collect(Collectors.toList());
         List<Object> objFromCache = redisTemplate.opsForHash()
                 .multiGet(tableName, collection).stream().filter(Objects::nonNull).collect(Collectors.toList());
         if (!objFromCache.isEmpty()) {
