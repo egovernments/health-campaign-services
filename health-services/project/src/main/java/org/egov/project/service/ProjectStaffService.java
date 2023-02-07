@@ -110,6 +110,7 @@ public class ProjectStaffService {
         List<ProjectStaff> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
                 projectStaffRepository.save(validEntities, projectConfiguration.getCreateProjectStaffTopic());
             }
@@ -139,6 +140,7 @@ public class ProjectStaffService {
         List<ProjectStaff> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
                 projectStaffRepository.save(validEntities, projectConfiguration.getUpdateProjectStaffTopic());
             }
@@ -167,6 +169,7 @@ public class ProjectStaffService {
         List<ProjectStaff> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
                 projectStaffRepository.save(validEntities, projectConfiguration.getDeleteProjectStaffTopic());
             }

@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
@@ -106,6 +107,7 @@ public class ProjectBeneficiaryService {
 
         try {
             if (!validProjectBeneficiaries.isEmpty()) {
+                log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.create(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
                         projectConfiguration.getCreateProjectBeneficiaryTopic());
@@ -115,7 +117,7 @@ public class ProjectBeneficiaryService {
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validProjectBeneficiaries;
     }
@@ -134,6 +136,7 @@ public class ProjectBeneficiaryService {
 
         try {
             if (!validProjectBeneficiaries.isEmpty()) {
+                log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.update(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
                         projectConfiguration.getUpdateProjectBeneficiaryTopic());
@@ -143,7 +146,7 @@ public class ProjectBeneficiaryService {
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validProjectBeneficiaries;
     }
@@ -183,6 +186,7 @@ public class ProjectBeneficiaryService {
 
         try {
             if (!validProjectBeneficiaries.isEmpty()) {
+                log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.delete(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
                         projectConfiguration.getDeleteProjectBeneficiaryTopic());
@@ -192,7 +196,7 @@ public class ProjectBeneficiaryService {
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validProjectBeneficiaries;
     }
@@ -211,16 +215,5 @@ public class ProjectBeneficiaryService {
         List<ProjectBeneficiary> validProjectBeneficiaries = request.getProjectBeneficiaries().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         return new Tuple<>(validProjectBeneficiaries, errorDetailsMap);
-    }
-
-    private static void handleErrors(boolean isBulk, Map<ProjectBeneficiary, ErrorDetails> errorDetailsMap) {
-        if (!errorDetailsMap.isEmpty()) {
-            log.error("{} errors collected", errorDetailsMap.size());
-            if (isBulk) {
-                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
-            } else {
-                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-            }
-        }
     }
 }
