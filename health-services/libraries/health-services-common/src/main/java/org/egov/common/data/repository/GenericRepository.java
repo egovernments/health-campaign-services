@@ -13,6 +13,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +60,8 @@ public abstract class GenericRepository<T> {
 
     protected List<T> findInCache(List<String> ids) {
         ArrayList<T> objFound = new ArrayList<>();
-        Collection<Object> collection = new ArrayList<>(ids);
+        Collection<Object> collection = ids.stream().filter(Objects::nonNull)
+                .collect(Collectors.toList());
         List<Object> objFromCache = redisTemplate.opsForHash()
                 .multiGet(tableName, collection).stream().filter(Objects::nonNull).collect(Collectors.toList());
         if (!objFromCache.isEmpty()) {
@@ -127,7 +129,7 @@ public abstract class GenericRepository<T> {
                 redisTemplate.expire(tableName, Long.parseLong(timeToLive), TimeUnit.SECONDS);
             }
         } catch (Exception exception) {
-            log.warn("Error while saving cache", exception);
+            log.warn("Error while saving to cache: {}", exception.getMessage());
         }
     }
 
@@ -177,6 +179,9 @@ public abstract class GenericRepository<T> {
 
     public List<String> validateIds(List<String> idsToValidate, String columnName){
         List<T> validIds = findById(idsToValidate, false, columnName);
+        if (validIds.isEmpty()) {
+            return Collections.emptyList();
+        }
         Method idMethod = getIdMethod(validIds, columnName);
         return validIds.stream().map((obj) -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                 .collect(Collectors.toList());

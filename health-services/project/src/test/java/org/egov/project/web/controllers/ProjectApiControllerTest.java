@@ -2,11 +2,14 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.producer.Producer;
 import org.egov.project.TestConfiguration;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffResponse;
@@ -54,7 +57,16 @@ public class ProjectApiControllerTest {
     private ProjectStaffService projectStaffService;
 
     @MockBean
+    private ProjectTaskService projectTaskService;
+
+    @MockBean
     private ProjectBeneficiaryService projectBeneficiaryService;
+
+    @MockBean
+    private Producer producer;
+
+    @MockBean
+    private ProjectConfiguration projectConfiguration;
 
     @Test
     @DisplayName("should create project staff and return with 202 accepted")

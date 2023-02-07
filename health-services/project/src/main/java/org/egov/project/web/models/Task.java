@@ -1,6 +1,8 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -32,18 +34,27 @@ public class Task {
     @NotNull
     private String tenantId = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
     @JsonProperty("projectId")
     @NotNull
     @Size(min=2,max=64)
     private String projectId = null;
 
     @JsonProperty("projectBeneficiaryId")
-    @NotNull
+    @Size(min = 2, max = 64)
     private String projectBeneficiaryId = null;
+
+    @JsonProperty("projectBeneficiaryClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String projectBeneficiaryClientReferenceId = null;
 
     @JsonProperty("resources")
     @NotNull
     @Valid
+    @Size(min = 1)
     private List<TaskResource> resources = new ArrayList<>();
 
     @JsonProperty("plannedStartDate")
@@ -84,6 +95,9 @@ public class Task {
 
     @JsonProperty("status")
     private String status = null;
+
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 
     public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);

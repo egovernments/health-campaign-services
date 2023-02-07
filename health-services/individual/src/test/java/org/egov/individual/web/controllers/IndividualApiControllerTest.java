@@ -9,6 +9,7 @@ import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.Individual;
+import org.egov.individual.web.models.IndividualBulkResponse;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.individual.web.models.IndividualResponse;
 import org.egov.individual.web.models.IndividualSearch;
@@ -82,8 +83,7 @@ class IndividualApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         IndividualResponse response = objectMapper.readValue(responseStr,
                 IndividualResponse.class);
-        assertEquals(1, response.getIndividual().size());
-        assertEquals("some-id", response.getIndividual().stream().findAny().get().getId());
+        assertEquals("some-id", response.getIndividual().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
@@ -158,9 +158,8 @@ class IndividualApiControllerTest {
                 .andReturn();
 
         String responseStr = result.getResponse().getContentAsString();
-        IndividualResponse response = objectMapper.readValue(responseStr,
-                IndividualResponse.class);
-        assertEquals(1, response.getIndividual().size());
+        IndividualBulkResponse response = objectMapper.readValue(responseStr,
+                IndividualBulkResponse.class);
         assertEquals("some-id", response.getIndividual().stream().findAny().get().getId());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
@@ -213,8 +212,7 @@ class IndividualApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         IndividualResponse response = objectMapper.readValue(responseStr,
                 IndividualResponse.class);
-        assertEquals(1, response.getIndividual().size());
-        assertEquals("some-new-family-name", response.getIndividual().stream().findAny().get().getName().getFamilyName());
+        assertEquals("some-new-family-name", response.getIndividual().getName().getFamilyName());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
@@ -246,8 +244,7 @@ class IndividualApiControllerTest {
         String responseStr = result.getResponse().getContentAsString();
         IndividualResponse response = objectMapper.readValue(responseStr,
                 IndividualResponse.class);
-        assertEquals(1, response.getIndividual().size());
-        assertTrue(response.getIndividual().stream().findAny().get().getIsDeleted());
+        assertTrue(response.getIndividual().getIsDeleted());
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 

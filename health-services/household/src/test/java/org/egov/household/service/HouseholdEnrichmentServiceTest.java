@@ -4,11 +4,10 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.household.config.HouseholdConfiguration;
-import org.egov.household.helper.HouseholdRequestTestBuilder;
+import org.egov.household.helper.HouseholdBulkRequestTestBuilder;
 import org.egov.household.helper.HouseholdTestBuilder;
-import org.egov.household.repository.HouseholdRepository;
 import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdRequest;
+import org.egov.household.web.models.HouseholdBulkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,21 +26,18 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class HouseholdServiceTest {
+class HouseholdEnrichmentServiceTest {
 
     @InjectMocks
-    HouseholdService householdService;
-
-    @Mock
-    HouseholdRepository householdRepository;
+    HouseholdEnrichmentService householdService;
 
     @Mock
     IdGenService idGenService;
@@ -62,27 +58,16 @@ class HouseholdServiceTest {
                 .thenReturn(idList);
         lenient().when(householdConfiguration.getCreateTopic()).thenReturn("create-topic");
         lenient().when(householdConfiguration.getUpdateTopic()).thenReturn("update-topic");
-    }
-
-    @Test
-    @DisplayName("should not call validateId if clientReferenceId is null")
-    void shouldNotCallValidateIdIfClientReferenceIdIsNull() throws Exception {
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
-                .withApiOperationCreate().build();
-        householdRequest.getHousehold().get(0).setClientReferenceId(null);
-
-        householdService.create(householdRequest);
-
-        verify(householdRepository, times(0)).validateIds(anyList(), anyString());
+        when(householdConfiguration.getIdgenFormat()).thenReturn("household.id");
     }
 
     @Test
     @DisplayName("should generate and set ID using ID generation service")
     void shouldGenerateAndSetIdFromIdGenService() throws Exception {
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
-                .withApiOperationCreate().build();
-
-        List<Household> households = householdService.create(householdRequest);
+        HouseholdBulkRequest householdBulkRequest = HouseholdBulkRequestTestBuilder.builder().withHouseholds().withRequestInfo()
+                .build();
+        List<Household> households = householdBulkRequest.getHouseholds();
+        householdService.create(households, householdBulkRequest);
 
         assertNotNull(households.get(0).getId());
         verify(idGenService, times(1))
@@ -92,10 +77,11 @@ class HouseholdServiceTest {
     @Test
     @DisplayName("should enrich household request with rowVersion and isDeleted")
     void shouldEnrichHouseholdWithRowVersionAndIsDeleted() throws Exception {
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
-                .withApiOperationCreate().build();
+        HouseholdBulkRequest householdBulkRequest = HouseholdBulkRequestTestBuilder.builder().withHouseholds().withRequestInfo()
+                .build();
 
-        List<Household> households = householdService.create(householdRequest);
+        List<Household> households = householdBulkRequest.getHouseholds();
+        householdService.create(households, householdBulkRequest);
 
         assertEquals(1, households.stream().findAny().get().getRowVersion());
         assertFalse(households.stream().findAny().get().getIsDeleted());
@@ -104,10 +90,11 @@ class HouseholdServiceTest {
     @Test
     @DisplayName("should enrich household request with audit details")
     void shouldEnrichHouseholdWithAuditDetails() throws Exception {
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
-                .withApiOperationCreate().build();
+        HouseholdBulkRequest householdBulkRequest = HouseholdBulkRequestTestBuilder.builder().withHouseholds().withRequestInfo()
+                .build();
 
-        List<Household> households = householdService.create(householdRequest);
+        List<Household> households = householdBulkRequest.getHouseholds();
+        householdService.create(households, householdBulkRequest);
 
         assertNotNull(households.stream().findAny().get().getAuditDetails().getCreatedBy());
         assertNotNull(households.stream().findAny().get().getAuditDetails().getCreatedTime());
@@ -119,11 +106,12 @@ class HouseholdServiceTest {
     @DisplayName("should generate address Id where address is not null")
     void shouldEnrichAddressIdIfAddressNotNull() throws Exception {
         Household withAddress = HouseholdTestBuilder.builder().withHousehold().build();
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder()
-                .withHousehold(Arrays.asList(withAddress)).withRequestInfo()
-                .withApiOperationCreate().build();
+        HouseholdBulkRequest householdBulkRequest = HouseholdBulkRequestTestBuilder.builder()
+                .withHouseholds(Arrays.asList(withAddress)).withRequestInfo()
+                .build();
 
-        List<Household> households = householdService.create(householdRequest);
+        List<Household> households = householdBulkRequest.getHouseholds();
+        householdService.create(households, householdBulkRequest);
 
         assertNotNull(households.get(0).getAddress().getId());
     }
@@ -132,25 +120,14 @@ class HouseholdServiceTest {
     @DisplayName("should not generate address Id where address is null")
     void shouldNotEnrichAddressIdIfAddressNull() throws Exception {
         Household withNullAddress = HouseholdTestBuilder.builder().withHousehold().withAddress(null).build();
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder()
-                .withHousehold(Arrays.asList(withNullAddress)).withRequestInfo()
-                .withApiOperationCreate().build();
-
-        List<Household> households = householdService.create(householdRequest);
+        HouseholdBulkRequest householdBulkRequest = HouseholdBulkRequestTestBuilder.builder()
+                .withHouseholds(Arrays.asList(withNullAddress)).withRequestInfo()
+                .build();
+        List<Household> households = householdBulkRequest.getHouseholds();
+         householdService.create(households, householdBulkRequest);
 
         assertNull(households.get(0).getAddress());
         verify(idGenService, times(1))
                 .getIdList(any(RequestInfo.class), anyString(), anyString(), anyString(), anyInt());
-    }
-
-    @Test
-    @DisplayName("should send data to kafka")
-    void shouldSendDataToKafkaTopic() throws Exception {
-        HouseholdRequest householdRequest = HouseholdRequestTestBuilder.builder().withHousehold().withRequestInfo()
-                .withApiOperationCreate().build();
-
-        householdService.create(householdRequest);
-
-        verify(householdRepository, times(1)).save(anyList(), anyString());
     }
 }

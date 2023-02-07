@@ -10,9 +10,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * BeneficiaryRequest
@@ -32,21 +29,8 @@ public class BeneficiaryRequest {
 
     @JsonProperty("ProjectBeneficiary")
     @Valid
-    @Size(min=1)
-    private List<ProjectBeneficiary> projectBeneficiary = null;
-
-    @JsonProperty("apiOperation")
-    @Valid
-    private ApiOperation apiOperation = null;
-
-
-    public BeneficiaryRequest addProjectBeneficiaryItem(ProjectBeneficiary projectBeneficiaryItem) {
-        if (this.projectBeneficiary == null) {
-            this.projectBeneficiary = new ArrayList<>();
-        }
-        this.projectBeneficiary.add(projectBeneficiaryItem);
-        return this;
-    }
+    @NotNull
+    private ProjectBeneficiary projectBeneficiary = null;
 
 }
 

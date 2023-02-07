@@ -1,6 +1,7 @@
 package org.egov.project.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,6 +31,18 @@ public class TaskResource   {
     @NotNull
     private String tenantId = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
+    @JsonProperty("taskId")
+    @Size(min = 2, max = 64)
+    private String taskId = null;
+
+    @JsonProperty("taskClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String taskClientReferenceId = null;
+
     @JsonProperty("productVariantId")
     @NotNull
     @Size(min=2,max=64)
@@ -37,7 +50,7 @@ public class TaskResource   {
 
     @JsonProperty("quantity")
     @NotNull
-    private String quantity = null;
+    private Long quantity = null;
 
     @JsonProperty("isDelivered")
     @NotNull

@@ -5,7 +5,6 @@ import org.egov.common.contract.request.User;
 import org.egov.common.service.UserService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
-import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.repository.ProjectStaffRepository;
 import org.egov.project.web.models.ApiOperation;
 import org.egov.project.web.models.ProjectStaff;
@@ -182,13 +181,13 @@ class ProjectStaffServiceUpdateTest {
     @Test
     @DisplayName("Should throw exception for row versions mismatch")
     void shouldThrowExceptionIfRowVersionIsNotSimilar() throws Exception {
-        ProjectStaff ProjectStaff = ProjectStaffTestBuilder.builder().withId().build();
-        ProjectStaff.setRowVersion(123);
-        ProjectStaffRequest ProjectStaffRequest = ProjectStaffRequestTestBuilder.builder().withOneProjectStaffHavingId().build();
+        ProjectStaffRequest projectStaffRequest = ProjectStaffRequestTestBuilder.builder()
+                .withOneProjectStaffHavingId().build();
+        projectStaffRequest.getProjectStaff().get(0).setRowVersion(123);
         mockValidateProjectId();
         mockValidateUsers();
         mockFindById();
 
-        assertThrows(Exception.class, () -> projectStaffService.update(ProjectStaffRequest));
+        assertThrows(Exception.class, () -> projectStaffService.update(projectStaffRequest));
     }
 }

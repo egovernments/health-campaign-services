@@ -2,9 +2,10 @@ package org.egov.household.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.producer.Producer;
 import org.egov.household.TestConfiguration;
+import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.helper.HouseholdMemberRequestTestBuilder;
-import org.egov.household.helper.HouseholdRequestTestBuilder;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
 import org.egov.household.web.models.HouseholdMemberRequest;
@@ -51,6 +52,12 @@ class HouseholdMemberApiControllerTest {
 
     @MockBean
     private HouseholdMemberService householdMemberService;
+
+    @MockBean
+    private Producer producer;
+
+    @MockBean
+    private HouseholdConfiguration householdConfiguration;
 
     @Test
     @DisplayName("should household member create request pass if API Operation is create")
