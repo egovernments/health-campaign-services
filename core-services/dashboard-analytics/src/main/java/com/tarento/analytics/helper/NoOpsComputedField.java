@@ -53,8 +53,7 @@ public class NoOpsComputedField implements IComputedField<ObjectNode>{
 
 
         } catch (Exception e) {
-            // throw new RuntimeException("Computed field configuration not correctly provided");
-            logger.error("multiplication could not be computed " +e.getMessage());
+            logger.error("Computed field configuration not correctly provided " +e.getMessage());
             noOpsNode.put(IResponseHandler.VALUE,0);
             data.set(newField, noOpsNode);
         }

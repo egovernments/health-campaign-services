@@ -15,11 +15,10 @@ import java.util.List;
 public class ActionsHelper {
     public List<Data> divide(String action, List<Data> dataList, JsonNode chartNode) {
         if (dataList.size() != 2 && dataList.get(0).getPlots().size() != dataList.get(1).getPlots().size()) {
-            throw new RuntimeException("Plot sizes doesn't match to compute percentage");
+            throw new RuntimeException("Plot sizes doesn't match to perform the action");
         }
         List<Data> plotList = new LinkedList<>();
         double cumulativeValue = 0.0;
-        List<Plot> plots = new ArrayList<>();
         // Setting the label as the first field in aggregation paths
         plotList.add(new Data(chartNode.get(IResponseHandler.AGGS_PATH).get(0).asText(), cumulativeValue, chartNode.get(IResponseHandler.VALUE_TYPE).asText()));
         Iterator<Plot> numeratorIterator = dataList.get(0).getPlots().iterator();
