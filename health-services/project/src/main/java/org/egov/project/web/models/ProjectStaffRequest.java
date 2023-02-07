@@ -21,7 +21,7 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectStaffRequest   {
+public class ProjectStaffRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
@@ -29,6 +29,7 @@ public class ProjectStaffRequest   {
 
     @JsonProperty("ProjectStaff")
     @NotNull
+    @Valid
     private ProjectStaff projectStaff;
 }
 
