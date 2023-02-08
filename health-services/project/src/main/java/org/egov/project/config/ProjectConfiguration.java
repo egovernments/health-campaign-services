@@ -19,8 +19,20 @@ public class ProjectConfiguration {
     @Value("${project.staff.kafka.create.topic}")
     private String createProjectStaffTopic;
 
+    @Value("${project.staff.consumer.bulk.create.topic}")
+    private String bulkCreateProjectStaffTopic;
+
     @Value("${project.staff.kafka.update.topic}")
     private String updateProjectStaffTopic;
+
+    @Value("${project.staff.consumer.bulk.update.topic}")
+    private String bulkUpdateProjectStaffTopic;
+
+    @Value("${project.staff.kafka.delete.topic}")
+    private String deleteProjectStaffTopic;
+
+    @Value("${project.staff.consumer.bulk.delete.topic}")
+    private String bulkDeleteProjectStaffTopic;
 
     @Value("${project.beneficiary.kafka.create.topic}")
     private String createProjectBeneficiaryTopic;
@@ -48,6 +60,9 @@ public class ProjectConfiguration {
 
     @Value("${project.task.idgen.id.format}")
     private String projectTaskIdFormat;
+
+    @Value("${project.staff.idgen.id.format}")
+    private String projectStaffIdFormat;
 
     @Value("${egov.product.host}")
     private String productHost;
@@ -81,4 +96,7 @@ public class ProjectConfiguration {
 
     @Value("${egov.search.individual.url}")
     private String individualServiceSearchUrl;
+
+    @Value("${search.api.limit:100}")
+    private String searchApiLimit;
 }

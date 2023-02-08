@@ -42,8 +42,7 @@ public class ProjectBeneficiarySearch {
     private String beneficiaryId = null;
 
     @JsonProperty("clientReferenceId")
-    @Size(min=2,max=64)
-    private String clientReferenceId = null;
+    private List<String> clientReferenceId = null;
 
     @JsonProperty("dateOfRegistration")
     private Long dateOfRegistration = null;

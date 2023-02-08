@@ -6,15 +6,16 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
-import org.egov.project.beneficiary.validators.BeneficiaryValidator;
-import org.egov.project.beneficiary.validators.PbIsDeletedValidator;
-import org.egov.project.beneficiary.validators.PbNonExistentEntityValidator;
-import org.egov.project.beneficiary.validators.PbNullIdValidator;
-import org.egov.project.beneficiary.validators.PbProjectIdValidator;
-import org.egov.project.beneficiary.validators.PbRowVersionValidator;
-import org.egov.project.beneficiary.validators.PbUniqueEntityValidator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
+import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
+import org.egov.project.validator.beneficiary.BeneficiaryValidator;
+import org.egov.project.validator.beneficiary.PbIsDeletedValidator;
+import org.egov.project.validator.beneficiary.PbNonExistentEntityValidator;
+import org.egov.project.validator.beneficiary.PbNullIdValidator;
+import org.egov.project.validator.beneficiary.PbProjectIdValidator;
+import org.egov.project.validator.beneficiary.PbRowVersionValidator;
+import org.egov.project.validator.beneficiary.PbUniqueEntityValidator;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -22,6 +23,7 @@ import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +31,9 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
@@ -102,6 +107,7 @@ public class ProjectBeneficiaryService {
 
         try {
             if (!validProjectBeneficiaries.isEmpty()) {
+                log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.create(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
                         projectConfiguration.getCreateProjectBeneficiaryTopic());
@@ -111,7 +117,7 @@ public class ProjectBeneficiaryService {
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validProjectBeneficiaries;
     }
@@ -130,6 +136,7 @@ public class ProjectBeneficiaryService {
 
         try {
             if (!validProjectBeneficiaries.isEmpty()) {
+                log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.update(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
                         projectConfiguration.getUpdateProjectBeneficiaryTopic());
@@ -139,7 +146,7 @@ public class ProjectBeneficiaryService {
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validProjectBeneficiaries;
     }
@@ -150,10 +157,12 @@ public class ProjectBeneficiaryService {
                                      String tenantId,
                                      Long lastChangedSince,
                                      Boolean includeDeleted) throws Exception {
-
-        if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary())) {
-            List<String> ids = beneficiarySearchRequest.getProjectBeneficiary().getId();
-            return projectBeneficiaryRepository.findById(ids, includeDeleted).stream()
+        String idFieldName = getIdFieldName(beneficiarySearchRequest.getProjectBeneficiary());
+        if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary(), idFieldName)) {
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
+                            .singletonList(beneficiarySearchRequest.getProjectBeneficiary())),
+                    beneficiarySearchRequest.getProjectBeneficiary());
+            return projectBeneficiaryRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
@@ -177,6 +186,7 @@ public class ProjectBeneficiaryService {
 
         try {
             if (!validProjectBeneficiaries.isEmpty()) {
+                log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.delete(validProjectBeneficiaries, beneficiaryRequest);
                 projectBeneficiaryRepository.save(validProjectBeneficiaries,
                         projectConfiguration.getDeleteProjectBeneficiaryTopic());
@@ -186,7 +196,7 @@ public class ProjectBeneficiaryService {
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validProjectBeneficiaries;
     }
@@ -205,16 +215,5 @@ public class ProjectBeneficiaryService {
         List<ProjectBeneficiary> validProjectBeneficiaries = request.getProjectBeneficiaries().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         return new Tuple<>(validProjectBeneficiaries, errorDetailsMap);
-    }
-
-    private static void handleErrors(boolean isBulk, Map<ProjectBeneficiary, ErrorDetails> errorDetailsMap) {
-        if (!errorDetailsMap.isEmpty()) {
-            log.error("{} errors collected", errorDetailsMap.size());
-            if (isBulk) {
-                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
-            } else {
-                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-            }
-        }
     }
 }

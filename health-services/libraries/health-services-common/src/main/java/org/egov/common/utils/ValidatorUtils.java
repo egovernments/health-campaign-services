@@ -1,10 +1,12 @@
 package org.egov.common.utils;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.tracer.model.CustomException;
 
 import java.util.List;
 
+@Slf4j
 public class ValidatorUtils {
 
     private ValidatorUtils() {}
@@ -101,4 +103,5 @@ public class ValidatorUtils {
                 .exception(new CustomException("IS_DELETED_TRUE_SUB_ENTITY", "isDeleted cannot be true for sub entity"))
                 .build();
     }
+
 }

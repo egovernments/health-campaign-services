@@ -5,14 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.producer.Producer;
-import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.BeneficiaryBulkResponse;
-import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -27,6 +26,8 @@ import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.egov.project.web.models.ProjectResponse;
 import org.egov.project.web.models.ProjectSearchRequest;
 import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
+import org.egov.project.web.models.ProjectStaffBulkResponse;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffResponse;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
@@ -36,7 +37,6 @@ import org.egov.project.web.models.TaskBulkResponse;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskResponse;
 import org.egov.project.web.models.TaskSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -263,22 +263,29 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffRequest) throws Exception {
-        if (!CommonUtils.isForCreate(projectStaffRequest)){
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", projectStaffRequest.getApiOperation()));
-        }
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest request) throws Exception {
 
-        List<ProjectStaff> projectStaffs = projectStaffService.create(projectStaffRequest);
+        ProjectStaff staff = projectStaffService.create(request);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
-                .projectStaff(projectStaffs)
+                .projectStaff(staff)
                 .responseInfo(ResponseInfoFactory
-                        .createResponseInfo(projectStaffRequest.getRequestInfo(), true))
+                        .createResponseInfo(request.getRequestInfo(), true))
                 .build();
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+    @RequestMapping(value = "/staff/v1/bulk/_create", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) throws Exception {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkCreateProjectStaffTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
     @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
+    public ResponseEntity<ProjectStaffBulkResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
                                                                          @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
                                                                          @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
                                                                          @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
@@ -292,31 +299,59 @@ public class ProjectApiController {
                 lastChangedSince,
                 includeDeleted
         );
-        ProjectStaffResponse projectStaffResponse = ProjectStaffResponse.builder()
+        ProjectStaffBulkResponse response = ProjectStaffBulkResponse.builder()
                 .projectStaff(projectStaffList)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(projectStaffResponse);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
-        if (!CommonUtils.isForUpdate(projectStaffUpdateRequest)
-                && !CommonUtils.isForDelete(projectStaffUpdateRequest)) {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request",
-                    projectStaffUpdateRequest.getApiOperation()));
-        }
 
-        List<ProjectStaff> projectStaffs = projectStaffService.update(projectStaffUpdateRequest);
+        ProjectStaff staff = projectStaffService.update(projectStaffUpdateRequest);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
-                .projectStaff(projectStaffs)
+                .projectStaff(staff)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectStaffUpdateRequest.getRequestInfo(), true))
                 .build();
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/staff/v1/bulk/_update", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) throws Exception {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkUpdateProjectStaffTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/staff/v1/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
+
+        ProjectStaff staff = projectStaffService.delete(projectStaffUpdateRequest);
+        ProjectStaffResponse response = ProjectStaffResponse.builder()
+                .projectStaff(staff)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectStaffUpdateRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/staff/v1/bulk/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) throws Exception {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkDeleteProjectStaffTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
     }
 
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
@@ -331,6 +366,8 @@ public class ProjectApiController {
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
+
+
 
     @RequestMapping(value = "/task/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectTaskBulkV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {

@@ -13,16 +13,16 @@ import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
-import org.egov.project.task.validators.PtIsDeletedSubEntityValidator;
-import org.egov.project.task.validators.PtIsDeletedValidator;
-import org.egov.project.task.validators.PtNonExistentEntityValidator;
-import org.egov.project.task.validators.PtNullIdValidator;
-import org.egov.project.task.validators.PtProductVariantIdValidator;
-import org.egov.project.task.validators.PtProjectBeneficiaryIdValidator;
-import org.egov.project.task.validators.PtProjectIdValidator;
-import org.egov.project.task.validators.PtRowVersionValidator;
-import org.egov.project.task.validators.PtUniqueEntityValidator;
-import org.egov.project.task.validators.PtUniqueSubEntityValidator;
+import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
+import org.egov.project.validator.task.PtIsDeletedValidator;
+import org.egov.project.validator.task.PtNonExistentEntityValidator;
+import org.egov.project.validator.task.PtNullIdValidator;
+import org.egov.project.validator.task.PtProductVariantIdValidator;
+import org.egov.project.validator.task.PtProjectBeneficiaryIdValidator;
+import org.egov.project.validator.task.PtProjectIdValidator;
+import org.egov.project.validator.task.PtRowVersionValidator;
+import org.egov.project.validator.task.PtUniqueEntityValidator;
+import org.egov.project.validator.task.PtUniqueSubEntityValidator;
 import org.egov.project.web.models.Task;
 import org.egov.project.web.models.TaskBulkRequest;
 import org.egov.project.web.models.TaskRequest;
@@ -31,7 +31,6 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
@@ -119,15 +119,16 @@ public class ProjectTaskService {
         List<Task> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
+                log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getCreateProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
             }
          } catch (Exception exception) {
             log.error("error occurred", exception);
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validTasks;
     }
@@ -146,15 +147,16 @@ public class ProjectTaskService {
         List<Task> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
+                log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getUpdateProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validTasks;
     }
@@ -173,15 +175,16 @@ public class ProjectTaskService {
         List<Task> validTasks = tuple.getX();
         try {
             if (!validTasks.isEmpty()) {
+                log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                projectTaskRepository.save(request.getTasks(), projectConfiguration.getDeleteProjectTaskTopic());
+                projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         return validTasks;
     }
 
@@ -204,10 +207,10 @@ public class ProjectTaskService {
                              Long lastChangedSince, Boolean includeDeleted) {
         String idFieldName = getIdFieldName(taskSearch);
         if (isSearchByIdOnly(taskSearch, idFieldName)) {
-            List<String> ids = new ArrayList<>();
-            ids.add((String) ReflectionUtils.invokeMethod(getIdMethod(Collections
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(taskSearch)),
-                    taskSearch));
+                    taskSearch);
+
             return projectTaskRepository.findById(ids,
                             idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -221,17 +224,6 @@ public class ProjectTaskService {
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
-        }
-    }
-
-    private static void handleErrors(boolean isBulk, Map<Task, ErrorDetails> errorDetailsMap) {
-        if (!errorDetailsMap.isEmpty()) {
-            log.error("{} errors collected", errorDetailsMap.size());
-            if (isBulk) {
-                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
-            } else {
-                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-            }
         }
     }
 }

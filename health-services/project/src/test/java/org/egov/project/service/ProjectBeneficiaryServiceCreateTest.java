@@ -9,18 +9,19 @@ import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.MdmsService;
 import org.egov.common.validator.Validator;
-import org.egov.project.beneficiary.validators.BeneficiaryValidator;
-import org.egov.project.beneficiary.validators.PbProjectIdValidator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
+import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
+import org.egov.project.validator.beneficiary.BeneficiaryValidator;
+import org.egov.project.validator.beneficiary.PbProjectIdValidator;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.Household;
-import org.egov.project.web.models.HouseholdResponse;
+import org.egov.project.web.models.HouseholdBulkResponse;
 import org.egov.project.web.models.HouseholdSearchRequest;
 import org.egov.project.web.models.Individual;
-import org.egov.project.web.models.IndividualResponse;
+import org.egov.project.web.models.IndividualBulkResponse;
 import org.egov.project.web.models.IndividualSearchRequest;
 import org.egov.project.web.models.Project;
 import org.egov.project.web.models.ProjectBeneficiary;
@@ -133,9 +134,9 @@ class ProjectBeneficiaryServiceCreateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(),
-                eq(HouseholdResponse.class))
+                eq(HouseholdBulkResponse.class))
         ).thenReturn(
-                HouseholdResponse.builder().household(Collections.singletonList(Household.builder().build())).build()
+                HouseholdBulkResponse.builder().households(Collections.singletonList(Household.builder().build())).build()
         );
     }
 
@@ -189,8 +190,8 @@ class ProjectBeneficiaryServiceCreateTest {
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
 
-        when(serviceRequestClient.fetchResult(any(StringBuilder.class), any(), eq(HouseholdResponse.class)))
-                .thenReturn(HouseholdResponse.builder().household(Collections.emptyList()).build());
+        when(serviceRequestClient.fetchResult(any(StringBuilder.class), any(), eq(HouseholdBulkResponse.class)))
+                .thenReturn(HouseholdBulkResponse.builder().households(Collections.emptyList()).build());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.create(request));
     }
@@ -206,9 +207,9 @@ class ProjectBeneficiaryServiceCreateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(HouseholdSearchRequest.class),
-                eq(HouseholdResponse.class))
+                eq(HouseholdBulkResponse.class))
         ).thenReturn(
-                HouseholdResponse.builder().household(Collections.singletonList(Household.builder().build())).build()
+                HouseholdBulkResponse.builder().households(Collections.singletonList(Household.builder().build())).build()
         );
 
         projectBeneficiaryService.create(request);
@@ -218,7 +219,7 @@ class ProjectBeneficiaryServiceCreateTest {
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
                 any(HouseholdSearchRequest.class),
-                eq(HouseholdResponse.class)
+                eq(HouseholdBulkResponse.class)
         );
     }
 
@@ -233,9 +234,9 @@ class ProjectBeneficiaryServiceCreateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(IndividualSearchRequest.class),
-                eq(IndividualResponse.class))
+                eq(IndividualBulkResponse.class))
         ).thenReturn(
-                IndividualResponse.builder().individual(Collections.singletonList(Individual.builder().build())).build()
+                IndividualBulkResponse.builder().individual(Collections.singletonList(Individual.builder().build())).build()
         );
 
         projectBeneficiaryService.create(request);
@@ -245,7 +246,7 @@ class ProjectBeneficiaryServiceCreateTest {
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
                 any(IndividualSearchRequest.class),
-                eq(IndividualResponse.class)
+                eq(IndividualBulkResponse.class)
         );
     }
 
@@ -260,9 +261,9 @@ class ProjectBeneficiaryServiceCreateTest {
         when(serviceRequestClient.fetchResult(
                 any(StringBuilder.class),
                 any(),
-                eq(IndividualResponse.class))
+                eq(IndividualBulkResponse.class))
         ).thenReturn(
-                IndividualResponse.builder().individual(Collections.emptyList()).build()
+                IndividualBulkResponse.builder().individual(Collections.emptyList()).build()
         );
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.create(request));
