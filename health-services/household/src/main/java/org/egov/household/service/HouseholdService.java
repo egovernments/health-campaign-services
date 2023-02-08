@@ -92,7 +92,7 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
-                householdRepository.save(request.getHouseholds(), householdConfiguration.getCreateTopic());
+                householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -142,7 +142,7 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.update(validEntities, request);
-                householdRepository.save(request.getHouseholds(), householdConfiguration.getUpdateTopic());
+                householdRepository.save(validEntities, householdConfiguration.getUpdateTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -169,7 +169,7 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.delete(validEntities, request);
-                householdRepository.save(request.getHouseholds(), householdConfiguration.getDeleteTopic());
+                householdRepository.save(validEntities, householdConfiguration.getDeleteTopic());
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

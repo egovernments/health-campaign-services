@@ -58,7 +58,6 @@ public class Individual {
 
     @JsonProperty("gender")
     @Valid
-    @NotNull
     private Gender gender = null;
 
     @JsonProperty("bloodGroup")

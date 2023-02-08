@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -85,7 +86,7 @@ class ProjectBeneficiaryServiceSearchTest {
         BeneficiarySearchRequest projectStaffSearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(projectBeneficiaryRepository.findById(anyList(), anyBoolean())).thenReturn(projectBeneficiary);
+        when(projectBeneficiaryRepository.findById(anyList(), anyBoolean(), anyString())).thenReturn(projectBeneficiary);
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(projectStaffSearchRequest,
                 10, 0, null, null, true);

@@ -17,11 +17,11 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectService;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.Household;
-import org.egov.project.web.models.HouseholdResponse;
+import org.egov.project.web.models.HouseholdBulkResponse;
 import org.egov.project.web.models.HouseholdSearch;
 import org.egov.project.web.models.HouseholdSearchRequest;
 import org.egov.project.web.models.Individual;
-import org.egov.project.web.models.IndividualResponse;
+import org.egov.project.web.models.IndividualBulkResponse;
 import org.egov.project.web.models.IndividualSearch;
 import org.egov.project.web.models.IndividualSearchRequest;
 import org.egov.project.web.models.Project;
@@ -48,6 +48,7 @@ import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.project.Constants.BENEFICIARY_CLIENT_REFERENCE_ID;
 import static org.egov.project.Constants.BENEFICIARY_ID;
@@ -135,12 +136,12 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
         Method idMethod = getIdMethod(beneficiaryList, "beneficiaryId");
         Method clientReferenceIdMethod = getIdMethod(beneficiaryList, "beneficiaryClientReferenceId");
 
-        if (beneficiaryList.get(0).getBeneficiaryId() != null) {
+        if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryId() != null)) {
             householdSearch = HouseholdSearch
                     .builder()
                     .id(getIdList(beneficiaryList, idMethod))
                     .build();
-        } else if (beneficiaryList.get(0).getBeneficiaryClientReferenceId() != null) {
+        } else if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryClientReferenceId() != null)) {
             isBeneficiaryId = false;
             householdSearch = HouseholdSearch
                     .builder()
@@ -148,21 +149,30 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                     .build();
         }
 
+        if (householdSearch == null) {
+            beneficiaryList.forEach(b -> {
+                Error error = getErrorForNonExistentEntity();
+                populateErrorDetails(b, error, errorDetailsMap);
+            });
+            return;
+        }
+
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(requestInfo)
                 .household(householdSearch)
                 .build();
 
-        HouseholdResponse response = null;
+        HouseholdBulkResponse response = null;
         try {
             response = serviceRequestClient.fetchResult(
                     new StringBuilder(projectConfiguration.getHouseholdServiceHost()
                             + projectConfiguration.getHouseholdServiceSearchUrl()
-                            + "?limit=10&offset=0&tenantId=" + tenantId),
+                            + "?limit=" + projectConfiguration.getSearchApiLimit()
+                            + "&offset=0&tenantId=" + tenantId),
                     householdSearchRequest,
-                    HouseholdResponse.class);
+                    HouseholdBulkResponse.class);
 
-            if (response.getHousehold().size() != beneficiaryList.size()) {
+            if (response.getHouseholds().size() != beneficiaryList.size()) {
                 if (isBeneficiaryId) {
                     populateHouseHoldBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
                             getMethod(GET_ID, Household.class), idMethod);
@@ -172,14 +182,18 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 }
             }
         } catch (Exception e) {
-            throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching households list");
+            log.error("error while fetching households list", e);
+            beneficiaryList.forEach(b -> {
+                Error error = getErrorForEntityWithNetworkError();
+                populateErrorDetails(b, error, errorDetailsMap);
+            });
         }
     }
 
     private void populateHouseHoldBeneficiaryErrorDetails(List<ProjectBeneficiary> beneficiaryList,
-                                             Map<ProjectBeneficiary, List<Error>> errorDetailsMap,
-                                             HouseholdResponse response, Method idMethod, Method beneficiaryMethod) {
-        List<String> responseIds = response.getHousehold().stream()
+                                                          Map<ProjectBeneficiary, List<Error>> errorDetailsMap,
+                                                          HouseholdBulkResponse response, Method idMethod, Method beneficiaryMethod) {
+        List<String> responseIds = response.getHouseholds().stream()
                 .map(household -> (String) ReflectionUtils.invokeMethod(idMethod, household))
                 .collect(Collectors.toList());
         beneficiaryList.stream()
@@ -192,8 +206,8 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
     }
 
     private void populateIndividualBeneficiaryErrorDetails(List<ProjectBeneficiary> beneficiaryList,
-                                                          Map<ProjectBeneficiary, List<Error>> errorDetailsMap,
-                                                          IndividualResponse response, Method idMethod,
+                                                           Map<ProjectBeneficiary, List<Error>> errorDetailsMap,
+                                                           IndividualBulkResponse response, Method idMethod,
                                                            Method beneficiaryMethod) {
         List<String> responseIds = response.getIndividual().stream()
                 .map(individual -> (String) ReflectionUtils.invokeMethod(idMethod, individual))
@@ -218,16 +232,24 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
         Method idMethod = getIdMethod(beneficiaryList, BENEFICIARY_ID);
         Method clientReferenceIdMethod = getIdMethod(beneficiaryList, BENEFICIARY_CLIENT_REFERENCE_ID);
 
-        if (beneficiaryList.get(0).getBeneficiaryId() != null) {
+        if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryId() != null)) {
             individualSearch = IndividualSearch
                     .builder()
                     .id(getIdList(beneficiaryList, idMethod))
                     .build();
-        } else if (beneficiaryList.get(0).getBeneficiaryClientReferenceId() != null) {
+        } else if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryId() != null)) {
             individualSearch = IndividualSearch
                     .builder()
                     .clientReferenceId(getIdList(beneficiaryList, clientReferenceIdMethod))
                     .build();
+        }
+
+        if (individualSearch == null) {
+            beneficiaryList.forEach(b -> {
+                Error error = getErrorForNonExistentEntity();
+                populateErrorDetails(b, error, errorDetailsMap);
+            });
+            return;
         }
 
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
@@ -235,14 +257,15 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 .individual(individualSearch)
                 .build();
 
-        IndividualResponse response = null;
+        IndividualBulkResponse response = null;
         try {
             response = serviceRequestClient.fetchResult(
                     new StringBuilder(projectConfiguration.getIndividualServiceHost()
                             + projectConfiguration.getIndividualServiceSearchUrl()
-                            + "?limit=10&offset=0&tenantId=" + tenantId),
+                            + "?limit=" + projectConfiguration.getSearchApiLimit()
+                            + "&offset=0&tenantId=" + tenantId),
                     individualSearchRequest,
-                    IndividualResponse.class);
+                    IndividualBulkResponse.class);
             if (response.getIndividual().size() != beneficiaryList.size()) {
                 if (isBeneficiaryId) {
                     populateIndividualBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
@@ -253,7 +276,11 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 }
             }
         } catch (Exception exception) {
-            throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching individuals list");
+            log.error("error while fetching individuals list", exception);
+            beneficiaryList.forEach(b -> {
+                Error error = getErrorForEntityWithNetworkError();
+                populateErrorDetails(b, error, errorDetailsMap);
+            });
         }
     }
 
@@ -274,7 +301,8 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
 
     private List<ProjectType> convertToProjectTypeList(JsonNode jsonNode) {
         JsonNode projectTypesNode = jsonNode.get(HCM_PROJECT_TYPES).withArray(PROJECT_TYPES);
-        return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<ProjectType>>() {});
+        return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<ProjectType>>() {
+        });
     }
 
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,

@@ -18,7 +18,17 @@ public class AggregateDto {
 	
 	private String chartFormat;
 
+	private Boolean showLabel;
+
 	private String drillDownChartId;
+
+	public Boolean getShowLabel() {
+		return showLabel;
+	}
+
+	public void setShowLabel(Boolean showLabel) {
+		this.showLabel = showLabel;
+	}
 
 	public String getVisualizationCode() {
 		return visualizationCode;
