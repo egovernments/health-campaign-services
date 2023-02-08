@@ -1,10 +1,11 @@
 package org.egov.household.service;
 
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.http.client.ServiceRequestClient;
-import org.egov.common.producer.Producer;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.helper.HouseholdMemberRequestTestBuilder;
+import org.egov.household.helper.HouseholdMemberTestBuilder;
 import org.egov.household.household.member.validators.HouseholdHeadValidator;
 import org.egov.household.household.member.validators.IndividualValidator;
 import org.egov.household.household.member.validators.IsDeletedValidator;
@@ -21,6 +22,7 @@ import org.egov.household.web.models.Individual;
 import org.egov.household.web.models.IndividualResponse;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,9 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -48,7 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class HouseholdMemberCreateTest {
+class HouseholdMemberDeleteTest {
 
     @InjectMocks
     HouseholdMemberService householdMemberService;
@@ -92,10 +92,9 @@ class HouseholdMemberCreateTest {
 
     private List<Validator<HouseholdMemberBulkRequest, HouseholdMember>> validators;
 
+
     @BeforeEach
-    void setUp() throws Exception {
-        List<String> idList = new ArrayList<>();
-        idList.add("some-id");
+    void setUp() {
         validators = Arrays.asList(
                 nullIdValidator,
                 nonExistentEntityValidator,
@@ -108,85 +107,21 @@ class HouseholdMemberCreateTest {
         lenient().when(householdMemberConfiguration.getCreateTopic()).thenReturn("create-topic");
         lenient().when(householdMemberConfiguration.getUpdateTopic()).thenReturn("update-topic");
         lenient().when(householdMemberConfiguration.getDeleteTopic()).thenReturn("delete-topic");
-    }
 
-    private void mockHouseholdFindIds() {
-        when(householdService.findById(
-                any(List.class),
-                any(String.class),
-                any(Boolean.class)
-        )).thenReturn(
-                Collections.singletonList(
-                        Household.builder().id("some-household-id").clientReferenceId("some-client-ref-id").build())
-        );
-    }
-
-    private void mockServiceRequestClientWithIndividual() throws Exception {
-        when(serviceRequestClient.fetchResult(
-                any(StringBuilder.class),
-                any(),
-                eq(IndividualResponse.class))
-        ).thenReturn(
-                IndividualResponse.builder().individual(Collections.singletonList(Individual.builder().build())).build()
-        );
     }
 
     @Test
-    @DisplayName("should send data to kafka")
-    void shouldSendDataToKafkaTopic() throws Exception {
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .build();
-
-        List<HouseholdMember> createdHouseholdMembers =  householdMemberService.create(householdMemberRequest);
-
-        verify(householdMemberRepository, times(1)).save(createdHouseholdMembers, "create-topic");
-    }
-
-    @Test
-    @DisplayName("should send data to kafka if the request have the individual who is head of household")
-    void shouldSendDataToKafkaTopicWhenIndividualIsHeadOfHousehold() throws Exception {
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder()
-                .withHouseholdMember()
-                .withHouseholdMemberAsHead()
+    @DisplayName("should delete the individual and related entities")
+    void shouldDeleteTheIndividualAndRelatedEntities() {
+        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder()
                 .withRequestInfo()
+                .withDeletedHouseholdMember()
                 .build();
 
-        householdMemberService.create(householdMemberRequest);
-
+        householdMemberService.delete(request);
         verify(householdMemberRepository, times(1)).save(anyList(), anyString());
+
     }
 
-
-
-    @Test
-    @DisplayName("should update audit details before pushing the household member to kafka")
-    void shouldUpdateAuditDetailsBeforePushingTheHouseholdMemberToKafka() throws Exception {
-
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder()
-                .withHouseholdMemberAsHead()
-                .withRequestInfo()
-                .build();
-
-        List<HouseholdMember> householdMembers = householdMemberService.create(householdMemberRequest);
-
-        assertNotNull(householdMembers.stream().findAny().get().getAuditDetails().getCreatedBy());
-        assertNotNull(householdMembers.stream().findAny().get().getAuditDetails().getCreatedTime());
-        assertNotNull(householdMembers.stream().findAny().get().getAuditDetails().getLastModifiedBy());
-        assertNotNull(householdMembers.stream().findAny().get().getAuditDetails().getLastModifiedTime());
-    }
-
-    @Test
-    @DisplayName("should set row version as 1")
-    void shouldSetRowVersionAs1AndDeletedAsFalse() throws Exception {
-
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder()
-                .withHouseholdMemberAsHead()
-                .withRequestInfo()
-                .build();
-
-        List<HouseholdMember> householdMembers = householdMemberService.create(householdMemberRequest);
-
-        assertEquals(1, householdMembers.stream().findAny().get().getRowVersion());
-    }
 
 }

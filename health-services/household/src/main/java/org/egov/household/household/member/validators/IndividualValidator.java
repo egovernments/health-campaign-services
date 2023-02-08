@@ -1,5 +1,6 @@
 package org.egov.household.household.member.validators;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -37,6 +38,7 @@ import static org.egov.household.Constants.INTERNAL_SERVER_ERROR;
 
 @Component
 @Order(7)
+@Slf4j
 public class IndividualValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
     private final ServiceRequestClient serviceRequestClient;
 

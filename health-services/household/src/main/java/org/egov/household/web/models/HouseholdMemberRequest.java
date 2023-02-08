@@ -30,7 +30,6 @@ public class HouseholdMemberRequest {
     @JsonProperty("HouseholdMember")
     @NotNull
     @Valid
-    @Size(min = 1)
     private HouseholdMember householdMember = null;
 }
 

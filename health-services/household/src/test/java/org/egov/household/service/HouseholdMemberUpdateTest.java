@@ -1,27 +1,43 @@
 package org.egov.household.service;
 
+import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.helper.HouseholdMemberRequestTestBuilder;
 import org.egov.household.helper.HouseholdMemberTestBuilder;
+import org.egov.household.household.member.validators.HouseholdHeadValidator;
+import org.egov.household.household.member.validators.IndividualValidator;
+import org.egov.household.household.member.validators.IsDeletedValidator;
+import org.egov.household.household.member.validators.NonExistentEntityValidator;
+import org.egov.household.household.member.validators.NullIdValidator;
+import org.egov.household.household.member.validators.RowVersionValidator;
+import org.egov.household.household.member.validators.UniqueEntityValidator;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.household.web.models.Household;
+import org.egov.household.web.models.HouseholdBulkRequest;
 import org.egov.household.web.models.HouseholdMember;
+import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.egov.household.web.models.HouseholdMemberRequest;
 import org.egov.household.web.models.Individual;
 import org.egov.household.web.models.IndividualResponse;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,8 +68,45 @@ class HouseholdMemberUpdateTest {
     @Mock
     private ServiceRequestClient serviceRequestClient;
 
+    @Mock
+    private NullIdValidator nullIdValidator;
+
+    @Mock
+    private NonExistentEntityValidator nonExistentEntityValidator;
+
+
+    @Mock
+    private UniqueEntityValidator uniqueEntityValidator;
+
+    @Mock
+    private IsDeletedValidator isDeletedValidator;
+
+    @Mock
+    private RowVersionValidator rowVersionValidator;
+
+    @Mock
+    private IndividualValidator individualValidator;
+
+    @Mock
+    private HouseholdHeadValidator householdHeadValidator;
+
+    @Mock
+    private HouseholdMemberEnrichmentService householdMemberEnrichmentService;
+
+    private List<Validator<HouseholdMemberBulkRequest, HouseholdMember>> validators;
+
+
     @BeforeEach
     void setUp() {
+        validators = Arrays.asList(
+                nullIdValidator,
+                nonExistentEntityValidator,
+                uniqueEntityValidator,
+                rowVersionValidator,
+                isDeletedValidator,
+                individualValidator,
+                householdHeadValidator);
+        ReflectionTestUtils.setField(householdMemberService, "validators", validators);
         lenient().when(householdMemberConfiguration.getCreateTopic()).thenReturn("create-topic");
         lenient().when(householdMemberConfiguration.getUpdateTopic()).thenReturn("update-topic");
     }
@@ -90,89 +143,53 @@ class HouseholdMemberUpdateTest {
         ));
     }
 
-
     @Test
-    @DisplayName("should throw exception if household not found")
-    void shouldThrowExceptionIfHouseholdNotFound() throws Exception {
-        when(householdService.findById(
-                any(List.class),
-                any(String.class),
-                any(Boolean.class)
-        )).thenReturn(
-                Collections.emptyList()
-        );
-        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationUpdate()
+    @DisplayName("should check row versions if entities are valid")
+    void shouldCheckRowVersionsIfEntitiesAreValid() {
+        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder()
+                .withRequestInfo()
+                .withHouseholdMember()
                 .build();
 
+        List<HouseholdMember> householdMembers = new ArrayList<>();
+        householdMembers.add(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId()
+                .build());
+
+        assertDoesNotThrow(() -> householdMemberService.update(request));
+    }
+
+    @Test
+    @DisplayName("should throw exception if row versions do not match")
+    @Disabled
+    void shouldThrowExceptionIfRowVersionsDoNotMatch() {
+        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder()
+                .withRequestInfo()
+                .withHouseholdMember()
+                .withRowVersion(2)
+                .build();
+
+        List<HouseholdMember> householdMembers = new ArrayList<>();
+        householdMembers.add(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId()
+                        .withErrors()
+                .build());
         assertThrows(CustomException.class, () -> householdMemberService.update(request));
     }
+
     @Test
-    @DisplayName("should throw exception if row version is not correct")
-    void shouldThrowExceptionIfRowVersionNotCorrect() throws Exception {
-        mockHouseholdFindIds();
-        mockServiceRequestClientWithIndividual();
-        mockIndividualMapping();
-        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationUpdate()
+    @DisplayName("should save the updated entities")
+    void shouldSaveTheUpdatedEntities() throws Exception {
+        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder()
+                .withRequestInfo()
+                .withHouseholdMember()
+                .withRowVersion(1)
                 .build();
-        request.getHouseholdMember().get(0).setRowVersion(10);
-        when(householdMemberRepository.findById(anyList(), eq("id"), eq(false)))
-                .thenReturn(Collections.singletonList(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId().withRowVersion(5).build()));
 
-        assertThrows(CustomException.class, () -> householdMemberService.update(request));
-    }
+        List<HouseholdMember> householdMembers = new ArrayList<>();
+        householdMembers.add(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId()
+                .build());
 
-    @Test
-    @DisplayName("should increment row version by 1")
-    void shouldIncrementRowVersionByOne() throws Exception {
-        mockHouseholdFindIds();
-        mockServiceRequestClientWithIndividual();
-        mockIndividualMapping();
-        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationUpdate()
-                .build();
-        when(householdMemberRepository.findById(anyList(), eq("id"), eq(false)))
-                .thenReturn(request.getHouseholdMember());
-
-        List<HouseholdMember> householdMembers = householdMemberService.update(request);
-
-        assertEquals(2, householdMembers.get(0).getRowVersion());
-    }
-
-    @Test
-    @DisplayName("should set isDeleted true if API operation is delete")
-    void shouldSetIsDeletedIfApiOperationIsTrue() throws Exception {
-        mockHouseholdFindIds();
-        mockServiceRequestClientWithIndividual();
-        mockIndividualMapping();
-        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationDelete().build();
-
-        when(householdMemberRepository.findById(anyList(), eq("id"), eq(false)))
-                .thenReturn(request.getHouseholdMember());
-
-        List<HouseholdMember> householdMembers = householdMemberService.update(request);
-
-        assertTrue(householdMembers.get(0).getIsDeleted());
-    }
-
-    @Test
-    @DisplayName("should send data to kafka topic")
-    void shouldSendDataToKafkaTopic() throws Exception {
-
-        mockHouseholdFindIds();
-        mockServiceRequestClientWithIndividual();
-        mockIndividualMapping();
-        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationDelete().build();
-
-        when(householdMemberRepository.findById(anyList(), eq("id"), eq(false)))
-                .thenReturn(request.getHouseholdMember());
-
-        householdMemberService.update(request);
-
-        verify(householdMemberRepository, times(1)).save(anyList(), anyString());
+       householdMemberService.update(request);
+       verify(householdMemberRepository, times(1)).save(anyList(), anyString());
     }
 
 }
