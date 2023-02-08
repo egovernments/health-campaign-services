@@ -5,31 +5,32 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 /**
- * StockReconciliationResponse
+ * ProductVariantSearchRequest
  */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class StockReconciliationResponse {
+public class ProductVariantSearchRequest {
 
-    @JsonProperty("ResponseInfo")
+    @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private org.egov.common.contract.response.ResponseInfo responseInfo = null;
+    private RequestInfo requestInfo = null;
 
-    @JsonProperty("StockReconciliation")
+    @JsonProperty("ProductVariant")
     @NotNull
     @Valid
-    private StockReconciliation stockReconciliation = null;
+    private ProductVariantSearch productVariant = null;
 }
 

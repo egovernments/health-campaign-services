@@ -9,9 +9,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * StockRequest
@@ -32,13 +29,6 @@ public class StockRequest {
     @JsonProperty("Stock")
     @NotNull
     @Valid
-    @Size(min = 1)
-    private List<Stock> stock = new ArrayList<>();
-
-    public StockRequest addStockItem(Stock stockItem) {
-        this.stock.add(stockItem);
-        return this;
-    }
-
+    private Stock stock = null;
 }
 

@@ -3,6 +3,11 @@ package org.egov.stock.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.stock.service.StockReconciliationService;
+import org.egov.stock.service.StockService;
+import org.egov.stock.web.models.Stock;
+import org.egov.stock.web.models.StockReconciliation;
 import org.egov.stock.web.models.StockReconciliationRequest;
 import org.egov.stock.web.models.StockReconciliationResponse;
 import org.egov.stock.web.models.StockReconciliationSearchRequest;
@@ -23,111 +28,79 @@ import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
-import java.io.IOException;
+
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
 
 @Controller
-    @RequestMapping("")
-    public class StockApiController{
+@RequestMapping("")
+public class StockApiController {
 
-        private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-        private final HttpServletRequest request;
+    private final HttpServletRequest httpServletRequest;
 
-        @Autowired
-        public StockApiController(ObjectMapper objectMapper, HttpServletRequest request) {
+    private final StockReconciliationService stockReconciliationService;
+
+    private final StockService stockService;
+
+    @Autowired
+    public StockApiController(ObjectMapper objectMapper, HttpServletRequest request, StockReconciliationService stockReconciliationService, StockService stockService) {
         this.objectMapper = objectMapper;
-        this.request = request;
-        }
+        this.httpServletRequest = request;
+        this.stockReconciliationService = stockReconciliationService;
+        this.stockService = stockService;
+    }
 
-                @RequestMapping(value="/stock/reconciliation/v1/_create", method = RequestMethod.POST)
-                public ResponseEntity<StockReconciliationResponse> stockReconciliationV1CreatePost(@ApiParam(value = "Capture details of stock transaction." ,required=true )  @Valid @RequestBody StockReconciliationRequest stockReconciliation) {
-                        String accept = request.getHeader("Accept");
-                            if (accept != null && accept.contains("application/json")) {
-                            try {
-                            return new ResponseEntity<StockReconciliationResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"StockReconciliation\" : [ {    \"calculatedCount\" : { },    \"facilityId\" : \"FacilityA\",    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"commentsOnReconciliation\" : \"commentsOnReconciliation\",    \"isDeleted\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"referenceIdType\" : \"PROJECT\",    \"physicalCount\" : { },    \"eventTimestamp\" : \"1663218161\"  }, {    \"calculatedCount\" : { },    \"facilityId\" : \"FacilityA\",    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"commentsOnReconciliation\" : \"commentsOnReconciliation\",    \"isDeleted\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"referenceIdType\" : \"PROJECT\",    \"physicalCount\" : { },    \"eventTimestamp\" : \"1663218161\"  } ]}", StockReconciliationResponse.class), HttpStatus.NOT_IMPLEMENTED);
-                            } catch (IOException e) {
-                            return new ResponseEntity<StockReconciliationResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-                            }
-                            }
+    @RequestMapping(value = "/stock/reconciliation/v1/_create", method = RequestMethod.POST)
+    public ResponseEntity<StockReconciliationResponse> stockReconciliationV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockReconciliationRequest request) {
 
-                        return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
-                }
+        StockReconciliation stockReconciliation = stockReconciliationService.create(request);
 
-                @RequestMapping(value="/stock/reconciliation/v1/_search", method = RequestMethod.POST)
-                public ResponseEntity<StockReconciliationResponse> stockReconciliationV1SearchPost(@ApiParam(value = "Capture details of Stock Reconciliation." ,required=true )  @Valid @RequestBody StockReconciliationSearchRequest stock,@NotNull 
+        return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
+    }
+
+    @RequestMapping(value = "/stock/reconciliation/v1/_search", method = RequestMethod.POST)
+    public ResponseEntity<StockReconciliationResponse> stockReconciliationV1SearchPost(@ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest stock, @NotNull
     @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,@NotNull 
-    @Min(0)@ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,@NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,@ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,@ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue="false") Boolean includeDeleted) {
-                        String accept = request.getHeader("Accept");
-                            if (accept != null && accept.contains("application/json")) {
-                            try {
-                            return new ResponseEntity<StockReconciliationResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"StockReconciliation\" : [ {    \"calculatedCount\" : { },    \"facilityId\" : \"FacilityA\",    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"commentsOnReconciliation\" : \"commentsOnReconciliation\",    \"isDeleted\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"referenceIdType\" : \"PROJECT\",    \"physicalCount\" : { },    \"eventTimestamp\" : \"1663218161\"  }, {    \"calculatedCount\" : { },    \"facilityId\" : \"FacilityA\",    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"commentsOnReconciliation\" : \"commentsOnReconciliation\",    \"isDeleted\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"referenceIdType\" : \"PROJECT\",    \"physicalCount\" : { },    \"eventTimestamp\" : \"1663218161\"  } ]}", StockReconciliationResponse.class), HttpStatus.NOT_IMPLEMENTED);
-                            } catch (IOException e) {
-                            return new ResponseEntity<StockReconciliationResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-                            }
-                            }
+    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
+                                                                                       @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
 
-                        return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
-                }
+        return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
+    }
 
-                @RequestMapping(value="/stock/reconciliation/v1/_update", method = RequestMethod.POST)
-                public ResponseEntity<StockReconciliationResponse> stockReconciliationV1UpdatePost(@ApiParam(value = "Capture details of stock transaction" ,required=true )  @Valid @RequestBody StockReconciliationRequest stockReconciliation) {
-                        String accept = request.getHeader("Accept");
-                            if (accept != null && accept.contains("application/json")) {
-                            try {
-                            return new ResponseEntity<StockReconciliationResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"StockReconciliation\" : [ {    \"calculatedCount\" : { },    \"facilityId\" : \"FacilityA\",    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"commentsOnReconciliation\" : \"commentsOnReconciliation\",    \"isDeleted\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"referenceIdType\" : \"PROJECT\",    \"physicalCount\" : { },    \"eventTimestamp\" : \"1663218161\"  }, {    \"calculatedCount\" : { },    \"facilityId\" : \"FacilityA\",    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"commentsOnReconciliation\" : \"commentsOnReconciliation\",    \"isDeleted\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"referenceIdType\" : \"PROJECT\",    \"physicalCount\" : { },    \"eventTimestamp\" : \"1663218161\"  } ]}", StockReconciliationResponse.class), HttpStatus.NOT_IMPLEMENTED);
-                            } catch (IOException e) {
-                            return new ResponseEntity<StockReconciliationResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-                            }
-                            }
+    @RequestMapping(value = "/stock/reconciliation/v1/_update", method = RequestMethod.POST)
+    public ResponseEntity<StockReconciliationResponse> stockReconciliationV1UpdatePost(@ApiParam(value = "Capture details of stock transaction", required = true) @Valid @RequestBody StockReconciliationRequest request) {
+        StockReconciliation stockReconciliation = stockReconciliationService.update(request);
 
-                        return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
-                }
+        return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
+    }
 
-                @RequestMapping(value="/stock/v1/_create", method = RequestMethod.POST)
-                public ResponseEntity<StockResponse> stockV1CreatePost(@ApiParam(value = "Capture details of stock transaction." ,required=true )  @Valid @RequestBody StockRequest stock) {
-                        String accept = request.getHeader("Accept");
-                            if (accept != null && accept.contains("application/json")) {
-                            try {
-                            return new ResponseEntity<StockResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Stock\" : [ {    \"facilityId\" : \"FacilityA\",    \"quantity\" : { },    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"transactionReason\" : { },    \"transactionType\" : { },    \"isDeleted\" : { },    \"transactingPartyId\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"transactingPartyType\" : \"WAREHOUSE\",    \"referenceIdType\" : \"PROJECT\"  }, {    \"facilityId\" : \"FacilityA\",    \"quantity\" : { },    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"transactionReason\" : { },    \"transactionType\" : { },    \"isDeleted\" : { },    \"transactingPartyId\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"transactingPartyType\" : \"WAREHOUSE\",    \"referenceIdType\" : \"PROJECT\"  } ]}", StockResponse.class), HttpStatus.NOT_IMPLEMENTED);
-                            } catch (IOException e) {
-                            return new ResponseEntity<StockResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-                            }
-                            }
+    @RequestMapping(value = "/stock/v1/_create", method = RequestMethod.POST)
+    public ResponseEntity<StockResponse> stockV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockRequest request) {
+        Stock stock = stockService.create(request);
+        StockResponse response = StockResponse.builder()
+                .stock(stock)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
 
-                        return new ResponseEntity<StockResponse>(HttpStatus.NOT_IMPLEMENTED);
-                }
+        return ResponseEntity.accepted().body(response);
+    }
 
-                @RequestMapping(value="/stock/v1/_search", method = RequestMethod.POST)
-                public ResponseEntity<StockResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer." ,required=true )  @Valid @RequestBody StockSearchRequest stock,@NotNull 
+    @RequestMapping(value = "/stock/v1/_search", method = RequestMethod.POST)
+    public ResponseEntity<StockResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest stock, @NotNull
     @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,@NotNull 
-    @Min(0)@ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,@NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,@ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,@ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue="false") Boolean includeDeleted) {
-                        String accept = request.getHeader("Accept");
-                            if (accept != null && accept.contains("application/json")) {
-                            try {
-                            return new ResponseEntity<StockResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Stock\" : [ {    \"facilityId\" : \"FacilityA\",    \"quantity\" : { },    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"transactionReason\" : { },    \"transactionType\" : { },    \"isDeleted\" : { },    \"transactingPartyId\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"transactingPartyType\" : \"WAREHOUSE\",    \"referenceIdType\" : \"PROJECT\"  }, {    \"facilityId\" : \"FacilityA\",    \"quantity\" : { },    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"transactionReason\" : { },    \"transactionType\" : { },    \"isDeleted\" : { },    \"transactingPartyId\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"transactingPartyType\" : \"WAREHOUSE\",    \"referenceIdType\" : \"PROJECT\"  } ]}", StockResponse.class), HttpStatus.NOT_IMPLEMENTED);
-                            } catch (IOException e) {
-                            return new ResponseEntity<StockResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-                            }
-                            }
+    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
+                                                           @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
 
-                        return new ResponseEntity<StockResponse>(HttpStatus.NOT_IMPLEMENTED);
-                }
+        return new ResponseEntity<StockResponse>(HttpStatus.NOT_IMPLEMENTED);
+    }
 
-                @RequestMapping(value="/stock/v1/_update", method = RequestMethod.POST)
-                public ResponseEntity<StockResponse> stockV1UpdatePost(@ApiParam(value = "Capture details of stock transaction" ,required=true )  @Valid @RequestBody StockRequest stock) {
-                        String accept = request.getHeader("Accept");
-                            if (accept != null && accept.contains("application/json")) {
-                            try {
-                            return new ResponseEntity<StockResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Stock\" : [ {    \"facilityId\" : \"FacilityA\",    \"quantity\" : { },    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"transactionReason\" : { },    \"transactionType\" : { },    \"isDeleted\" : { },    \"transactingPartyId\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"transactingPartyType\" : \"WAREHOUSE\",    \"referenceIdType\" : \"PROJECT\"  }, {    \"facilityId\" : \"FacilityA\",    \"quantity\" : { },    \"productVariantId\" : { },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"clientReferenceId\" : { },    \"referenceId\" : \"C-1\",    \"transactionReason\" : { },    \"transactionType\" : { },    \"isDeleted\" : { },    \"transactingPartyId\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 1,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 6    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"transactingPartyType\" : \"WAREHOUSE\",    \"referenceIdType\" : \"PROJECT\"  } ]}", StockResponse.class), HttpStatus.NOT_IMPLEMENTED);
-                            } catch (IOException e) {
-                            return new ResponseEntity<StockResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-                            }
-                            }
+    @RequestMapping(value = "/stock/v1/_update", method = RequestMethod.POST)
+    public ResponseEntity<StockResponse> stockV1UpdatePost(@ApiParam(value = "Capture details of stock transaction", required = true) @Valid @RequestBody StockRequest request) {
+        Stock stock = stockService.update(request);
 
-                        return new ResponseEntity<StockResponse>(HttpStatus.NOT_IMPLEMENTED);
-                }
+        return new ResponseEntity<StockResponse>(HttpStatus.NOT_IMPLEMENTED);
+    }
 
-        }
+}

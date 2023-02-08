@@ -33,5 +33,11 @@ public class StockConfiguration {
 
     @Value("${stock.consumer.bulk.delete.topic}")
     private String bulkDeleteStockTopic;
+
+    @Value("${egov.product.host}")
+    private String productHost;
+
+    @Value("${egov.search.product.variant.url}")
+    private String productVariantSearchUrl;
     
 }

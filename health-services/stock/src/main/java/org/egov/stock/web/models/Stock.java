@@ -1,5 +1,6 @@
 package org.egov.stock.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
@@ -76,6 +77,9 @@ public class Stock {
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
+
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
     @Valid

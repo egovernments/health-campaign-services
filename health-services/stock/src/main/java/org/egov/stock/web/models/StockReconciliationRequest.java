@@ -9,9 +9,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * StockReconciliationRequest
@@ -32,14 +29,6 @@ public class StockReconciliationRequest {
     @JsonProperty("StockReconciliation")
     @NotNull
     @Valid
-    @Size(min = 1)
-    private List<StockReconciliation> stockReconciliation = new ArrayList<>();
-
-
-    public StockReconciliationRequest addStockReconciliationItem(StockReconciliation stockReconciliationItem) {
-        this.stockReconciliation.add(stockReconciliationItem);
-        return this;
-    }
-
+    private StockReconciliation stockReconciliation = null;
 }
 

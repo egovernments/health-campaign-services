@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
  * StockSearch
@@ -22,8 +23,7 @@ import javax.validation.Valid;
 public class StockSearch {
 
     @JsonProperty("id")
-    @Valid
-    private IdForSearch id = null;
+    private List<String> id = null;
 
     @JsonProperty("clientReferenceId")
     private String clientReferenceId = null;

@@ -9,9 +9,12 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * StockReconciliationResponse
+ * StockRequest
  */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
@@ -20,16 +23,22 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class StockReconciliationResponse {
-
-    @JsonProperty("ResponseInfo")
+public class StockBulkRequest {
+    @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private org.egov.common.contract.response.ResponseInfo responseInfo = null;
+    private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-    @JsonProperty("StockReconciliation")
+    @JsonProperty("Stock")
     @NotNull
     @Valid
-    private StockReconciliation stockReconciliation = null;
+    @Size(min = 1)
+    private List<Stock> stock = new ArrayList<>();
+
+    public StockBulkRequest addStockItem(Stock stockItem) {
+        this.stock.add(stockItem);
+        return this;
+    }
+
 }
 

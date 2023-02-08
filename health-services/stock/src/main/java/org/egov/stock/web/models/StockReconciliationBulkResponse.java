@@ -9,6 +9,8 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * StockReconciliationResponse
@@ -20,7 +22,7 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class StockReconciliationResponse {
+public class StockReconciliationBulkResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
@@ -30,6 +32,11 @@ public class StockReconciliationResponse {
     @JsonProperty("StockReconciliation")
     @NotNull
     @Valid
-    private StockReconciliation stockReconciliation = null;
+    private List<StockReconciliation> stockReconciliation = new ArrayList<>();
+
+    public StockReconciliationBulkResponse addStockReconciliationItem(StockReconciliation stockReconciliationItem) {
+        this.stockReconciliation.add(stockReconciliationItem);
+        return this;
+    }
 }
 
