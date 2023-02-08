@@ -9,6 +9,8 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * HouseholdMemberResponse
@@ -20,16 +22,24 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdMemberResponse {
+public class HouseholdMemberBulkResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private org.egov.common.contract.response.ResponseInfo responseInfo = null;
 
-    @JsonProperty("HouseholdMember")
+    @JsonProperty("HouseholdMembers")
     @Valid
-    private HouseholdMember householdMember = null;
+    private List<HouseholdMember> householdMembers = null;
 
+
+    public HouseholdMemberBulkResponse addHouseholdMemberItem(HouseholdMember householdMemberItem) {
+        if (this.householdMembers == null) {
+            this.householdMembers = new ArrayList<>();
+        }
+        this.householdMembers.add(householdMemberItem);
+        return this;
+    }
 
 }
 
