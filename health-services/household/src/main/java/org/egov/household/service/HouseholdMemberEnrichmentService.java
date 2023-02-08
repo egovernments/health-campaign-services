@@ -42,6 +42,7 @@ public class HouseholdMemberEnrichmentService {
 
     public void create(List<HouseholdMember> householdMembers,
                        HouseholdMemberBulkRequest request) throws Exception {
+        // TODO: Use uuid supplier from CommonUtils
         List<String> uuidList = Stream.generate(UUID::randomUUID)
                 .limit(householdMembers.size())
                 .map(UUID::toString)

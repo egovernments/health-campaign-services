@@ -20,8 +20,6 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
-import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD;
-import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE;
 
 @Component
 @Order(8)
@@ -48,6 +46,7 @@ public class HouseholdHeadValidator implements Validator<HouseholdMemberBulkRequ
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if(!householdMembers.isEmpty()){
+            // TODO: Use idMethod instead
             householdMemberEnrichmentService.enrichHousehold(householdMembers);
 
             householdMembers.forEach(householdMember -> {

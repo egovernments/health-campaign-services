@@ -66,6 +66,7 @@ public class HouseholdMemberService {
                     || validator.getClass().equals(RowVersionValidator.class)
                     || validator.getClass().equals(UniqueEntityValidator.class);
 
+    // TODO: Use the below three validators in update as well
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
             validator.getClass().equals(HouseholdValidator.class)
                     || validator.getClass().equals(IndividualValidator.class)

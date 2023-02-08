@@ -58,6 +58,7 @@ public class IndividualValidator implements Validator<HouseholdMemberBulkRequest
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
 
+        // TODO: Rename to validHouseholdMembers
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
@@ -65,6 +66,7 @@ public class IndividualValidator implements Validator<HouseholdMemberBulkRequest
             RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
             String tenantId = getTenantId(householdMembers);
 
+            // TODO: Use IndividualBulkResponse for search
             IndividualResponse searchResponse = searchIndividualBeneficiary(
                     householdMembers,
                     requestInfo,
