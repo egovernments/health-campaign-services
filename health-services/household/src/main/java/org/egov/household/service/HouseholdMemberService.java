@@ -16,6 +16,7 @@ import org.egov.household.household.member.validators.HmNonExistentEntityValidat
 import org.egov.household.household.member.validators.HmNullIdValidator;
 import org.egov.household.household.member.validators.HmRowVersionValidator;
 import org.egov.household.household.member.validators.HmUniqueEntityValidator;
+import org.egov.household.household.member.validators.HmUniqueIndividualValidator;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.household.web.models.HouseholdMember;
 import org.egov.household.web.models.HouseholdMemberBulkRequest;
@@ -71,7 +72,7 @@ public class HouseholdMemberService {
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
             validator.getClass().equals(HmHouseholdValidator.class)
-                    || validator.getClass().equals(HmIndividualValidator.class)
+                    || validator.getClass().equals(HmUniqueIndividualValidator.class)
                     || validator.getClass().equals(HmHouseholdHeadValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForDelete = validator ->

@@ -40,20 +40,23 @@ public class HmRowVersionValidator implements Validator<HouseholdMemberBulkReque
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
-        Method idMethod = getIdMethod(request.getHouseholdMembers());
-        Map<String, HouseholdMember> iMap = getIdToObjMap(request.getHouseholdMembers().stream()
+        List<HouseholdMember> validHouseholdMembers = request.getHouseholdMembers().stream()
                 .filter(notHavingErrors())
-                .collect(Collectors.toList()), idMethod);
-        if (!iMap.isEmpty()) {
-            List<String> householdMemberIds = new ArrayList<>(iMap.keySet());
-            List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
-                    getIdFieldName(idMethod), false);
-            List<HouseholdMember> entitiesWithMismatchedRowVersion =
-                    getEntitiesWithMismatchedRowVersion(iMap, existingHouseholdMembers, idMethod);
-            entitiesWithMismatchedRowVersion.forEach(householdMember -> {
-                Error error = getErrorForRowVersionMismatch();
-                populateErrorDetails(householdMember, error, errorDetailsMap);
-            });
+                .collect(Collectors.toList());
+        if (!validHouseholdMembers.isEmpty()) {
+            Method idMethod = getIdMethod(validHouseholdMembers);
+            Map<String, HouseholdMember> iMap = getIdToObjMap(validHouseholdMembers, idMethod);
+            if (!iMap.isEmpty()) {
+                List<String> householdMemberIds = new ArrayList<>(iMap.keySet());
+                List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
+                        getIdFieldName(idMethod), false);
+                List<HouseholdMember> entitiesWithMismatchedRowVersion =
+                        getEntitiesWithMismatchedRowVersion(iMap, existingHouseholdMembers, idMethod);
+                entitiesWithMismatchedRowVersion.forEach(householdMember -> {
+                    Error error = getErrorForRowVersionMismatch();
+                    populateErrorDetails(householdMember, error, errorDetailsMap);
+                });
+            }
         }
         return errorDetailsMap;
     }

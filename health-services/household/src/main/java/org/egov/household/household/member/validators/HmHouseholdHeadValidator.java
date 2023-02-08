@@ -26,7 +26,7 @@ import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
 import static org.egov.household.utils.CommonUtils.getColumnName;
 
 @Component
-@Order(8)
+@Order(9)
 public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
 
     private final HouseholdMemberRepository householdMemberRepository;
