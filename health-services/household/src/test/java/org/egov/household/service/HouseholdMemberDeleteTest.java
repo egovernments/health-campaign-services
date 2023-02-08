@@ -24,7 +24,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -35,7 +34,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class HouseholdMemberCreateTest {
+class HouseholdMemberDeleteTest {
 
     @InjectMocks
     HouseholdMemberService householdMemberService;
@@ -79,10 +78,9 @@ class HouseholdMemberCreateTest {
 
     private List<Validator<HouseholdMemberBulkRequest, HouseholdMember>> validators;
 
+
     @BeforeEach
-    void setUp() throws Exception {
-        List<String> idList = new ArrayList<>();
-        idList.add("some-id");
+    void setUp() {
         validators = Arrays.asList(
                 hmNullIdValidator,
                 hmNonExistentEntityValidator,
@@ -95,31 +93,21 @@ class HouseholdMemberCreateTest {
         lenient().when(householdMemberConfiguration.getCreateTopic()).thenReturn("create-topic");
         lenient().when(householdMemberConfiguration.getUpdateTopic()).thenReturn("update-topic");
         lenient().when(householdMemberConfiguration.getDeleteTopic()).thenReturn("delete-topic");
+
     }
 
     @Test
-    @DisplayName("should send data to kafka")
-    void shouldSendDataToKafkaTopic() throws Exception {
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .build();
-
-        List<HouseholdMember> createdHouseholdMembers =  householdMemberService.create(householdMemberRequest);
-
-        verify(householdMemberRepository, times(1)).save(createdHouseholdMembers, "create-topic");
-    }
-
-    @Test
-    @DisplayName("should send data to kafka if the request have the individual who is head of household")
-    void shouldSendDataToKafkaTopicWhenIndividualIsHeadOfHousehold() throws Exception {
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder()
-                .withHouseholdMember()
-                .withHouseholdMemberAsHead()
+    @DisplayName("should delete the individual and related entities")
+    void shouldDeleteTheIndividualAndRelatedEntities() {
+        HouseholdMemberRequest request = HouseholdMemberRequestTestBuilder.builder()
                 .withRequestInfo()
+                .withDeletedHouseholdMember()
                 .build();
 
-        householdMemberService.create(householdMemberRequest);
-
+        householdMemberService.delete(request);
         verify(householdMemberRepository, times(1)).save(anyList(), anyString());
+
     }
+
 
 }
