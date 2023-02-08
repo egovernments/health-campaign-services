@@ -155,7 +155,7 @@ serviceMaps:
       fromTopic: delete-household-member-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE HOUSEHOLD SET lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+        - query: UPDATE HOUSEHOLD_MEMBER SET lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy
