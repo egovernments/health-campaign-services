@@ -5,6 +5,7 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.producer.Producer;
 import org.egov.household.TestConfiguration;
 import org.egov.household.config.HouseholdConfiguration;
+import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
 import org.egov.household.web.models.HouseholdSearch;
@@ -53,6 +54,9 @@ class HouseholdApiControllerTest {
 
     @MockBean
     private HouseholdConfiguration householdConfiguration;
+
+    @MockBean
+    private HouseholdMemberConfiguration householdMemberConfiguration;
 
     @Test
     @DisplayName("should household search request pass if all the required query parameters are present")

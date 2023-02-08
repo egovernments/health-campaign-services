@@ -67,8 +67,9 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
     }
 
-    public List<HouseholdMember> findIndividualByHousehold(String householdId) {
-        String query = "SELECT * FROM household_member where householdId = :householdId AND isDeleted = false";
+    public List<HouseholdMember> findIndividualByHousehold(String householdId, String columnName) {
+        String query = String.format("SELECT * FROM household_member where %s = :householdId AND isDeleted = false",
+                columnName);
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("householdId", householdId);
         return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);

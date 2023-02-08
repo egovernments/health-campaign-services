@@ -1,5 +1,6 @@
 package org.egov.household.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -66,6 +67,7 @@ public class HouseholdMember{
     @Valid
     private AuditDetails auditDetails = null;
 
-
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 }
 

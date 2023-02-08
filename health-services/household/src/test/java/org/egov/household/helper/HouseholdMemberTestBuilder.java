@@ -22,17 +22,22 @@ public class HouseholdMemberTestBuilder {
 
     public HouseholdMemberTestBuilder withHouseholdIdAndIndividualId(){
         this.builder.id("some-id").additionalFields(AdditionalFields.builder().build())
-                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .rowVersion(1)
                 .isHeadOfHousehold(false)
                 .individualId("some-individual-id")
                 .householdId("some-household-id")
-                .tenantId("default");
+                .tenantId("default")
+                .hasErrors(false);
         return this;
     }
 
     public HouseholdMemberTestBuilder withHeadOfHousehold(){
         this.builder.isHeadOfHousehold(true);
+        return this;
+    }
+
+    public HouseholdMemberTestBuilder withErrors(){
+        this.builder.hasErrors(true);
         return this;
     }
 
@@ -44,6 +49,16 @@ public class HouseholdMemberTestBuilder {
 
     public HouseholdMemberTestBuilder withRowVersion(int rowVersion) {
         this.builder.rowVersion(rowVersion);
+        return this;
+    }
+
+    public HouseholdMemberTestBuilder withAuditDetails(int rowVersion) {
+        this.builder.auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+        return this;
+    }
+
+    public HouseholdMemberTestBuilder withDeleted(){
+        this.builder.isDeleted(true);
         return this;
     }
 
