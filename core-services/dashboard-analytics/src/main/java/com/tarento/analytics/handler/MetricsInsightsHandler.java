@@ -70,13 +70,7 @@ public class MetricsInsightsHandler implements InsightsHandler {
 				return aggregateDto;
 			} else {
 				if(difference == 0 ){
-					if (insightsConfig.getInsightInterval().equals(Constants.Interval.day.toString())){
-						textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER,
-								YESTERDAY);
-					}else {
-						textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER,
-								INSIGHT_LAST_INTERVAL.replace(INSIGHT_INTERVAL_PLACEHOLDER, insightsConfig.getInsightInterval()));
-					}
+					textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER, INTERVAL_MAP.get(insightsConfig.getInsightInterval()));
 				}else{
 					textToDisplay = textToDisplay.replace(INSIGHT_INTERVAL_PLACEHOLDER,
 							insightsConfig.getInsightInterval());
@@ -91,5 +85,7 @@ public class MetricsInsightsHandler implements InsightsHandler {
 		}
 		return aggregateDto;
 	}
+
+
 
 }

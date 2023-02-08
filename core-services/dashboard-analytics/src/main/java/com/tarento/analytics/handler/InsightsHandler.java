@@ -1,6 +1,9 @@
 package com.tarento.analytics.handler;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.tarento.analytics.dto.AggregateDto;
 import com.tarento.analytics.dto.Data;
@@ -27,8 +30,13 @@ public interface InsightsHandler {
 	public static final String INSIGHT_LAST_INTERVAL = "last $insightInterval";
 	public static final String EQUAL = "=";
 	public static final String POSITIVE = "+";
-	public static final String NEGATIVE = "-"; 
-	
+	public static final String NEGATIVE = "-";
+	public static final Map<String, String> INTERVAL_MAP = Stream.of(new String[][] {
+			{ "day", "yesterday" },
+			{ "week", "last week" },
+			{ "month", "last month" },
+			{ "year", "last year" },
+	}).collect(Collectors.toMap(data -> data[0], data -> data[1]));
 	public static final String INSIGHT_NUMBER_DIFFERENCE = "differenceOfNumbers" ; 
 	public static final String INSIGHT_PERCENTAGE_DIFFERENCE = "differenceOfPercentage" ;
 	
