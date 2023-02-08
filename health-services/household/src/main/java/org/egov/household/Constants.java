@@ -25,6 +25,10 @@ public interface Constants {
 
     String INDIVIDUAL_NOT_FOUND = "INDIVIDUAL_NOT_FOUND";
 
+    String HOUSEHOLD_ALREADY_HAS_HEAD = "HOUSEHOLD_ALREADY_HAS_HEAD";
+
+    String HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE = "household already has head";
+
     String INDIVIDUAL_NOT_FOUND_MESSAGE = "individual id is not found";
 
     String GET_HOUSEHOLDS = "getHouseholds";

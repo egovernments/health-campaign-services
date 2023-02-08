@@ -60,34 +60,38 @@ public class IndividualValidator implements Validator<HouseholdMemberBulkRequest
 
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
-        String tenantId = getTenantId(householdMembers);
 
-        IndividualResponse searchResponse = searchIndividualBeneficiary(
-                householdMembers,
-                requestInfo,
-                tenantId
-        );
-        householdMembers.forEach(householdMember -> {
-            Individual individual = validateIndividual(householdMember,
-                    searchResponse, errorDetailsMap);
-            if (individual != null) {
-                householdMember.setIndividualId(individual.getId());
-                householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
+        if(!householdMembers.isEmpty()){
+            RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
+            String tenantId = getTenantId(householdMembers);
 
-                List<HouseholdMember> individualSearchResult = householdMemberRepository
-                        .findIndividual(individual.getId());
-                if(!individualSearchResult.isEmpty()) {
-                    Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
-                            .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
-                            .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
-                                    INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
-                            .build();
-                    populateErrorDetails(householdMember, error, errorDetailsMap);
+            IndividualResponse searchResponse = searchIndividualBeneficiary(
+                    householdMembers,
+                    requestInfo,
+                    tenantId
+            );
+            householdMembers.forEach(householdMember -> {
+                Individual individual = validateIndividual(householdMember,
+                        searchResponse, errorDetailsMap);
+                if (individual != null) {
+                    householdMember.setIndividualId(individual.getId());
+                    householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
+
+                    List<HouseholdMember> individualSearchResult = householdMemberRepository
+                            .findIndividual(individual.getId());
+                    if(!individualSearchResult.isEmpty()) {
+                        Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
+                                .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
+                                .type(Error.ErrorType.NON_RECOVERABLE)
+                                .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
+                                        INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
+                                .build();
+                        populateErrorDetails(householdMember, error, errorDetailsMap);
+                    }
                 }
-            }
-        });
+            });
+        }
+
         return errorDetailsMap;
     }
 

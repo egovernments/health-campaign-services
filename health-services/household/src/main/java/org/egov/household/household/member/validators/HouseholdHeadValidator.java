@@ -17,6 +17,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD;
+import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
+import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD;
+import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE;
 
 @Component
 @Order(8)
@@ -42,16 +47,19 @@ public class HouseholdHeadValidator implements Validator<HouseholdMemberBulkRequ
 
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        householdMemberEnrichmentService.enrichHousehold(householdMembers);
+        if(!householdMembers.isEmpty()){
+            householdMemberEnrichmentService.enrichHousehold(householdMembers);
 
-        householdMembers.forEach(householdMember -> {
-            validateHeadOfHousehold(householdMember);
-        });
+            householdMembers.forEach(householdMember -> {
+                validateHeadOfHousehold(householdMember, errorDetailsMap);
+            });
+        }
 
         return errorDetailsMap;
     }
 
-    private void validateHeadOfHousehold(HouseholdMember householdMember) {
+    private void validateHeadOfHousehold(HouseholdMember householdMember, HashMap<HouseholdMember, List<Error>> errorDetailsMap) {
+
         if(householdMember.getIsHeadOfHousehold()){
             List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
                     .findIndividualByHousehold(householdMember.getHouseholdId()).stream().filter(
@@ -59,7 +67,13 @@ public class HouseholdHeadValidator implements Validator<HouseholdMemberBulkRequ
                     .collect(Collectors.toList());
 
             if(!householdMembersHeadCheck.isEmpty()){
-                throw new CustomException("HOUSEHOLD_ALREADY_HAS_HEAD", householdMember.getIndividualId());
+                Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
+                        .errorCode(HOUSEHOLD_ALREADY_HAS_HEAD)
+                        .type(Error.ErrorType.NON_RECOVERABLE)
+                        .exception(new CustomException(HOUSEHOLD_ALREADY_HAS_HEAD,
+                                HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE))
+                        .build();
+                populateErrorDetails(householdMember, error, errorDetailsMap);
             }
         }
     }
