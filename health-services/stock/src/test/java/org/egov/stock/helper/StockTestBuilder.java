@@ -25,8 +25,13 @@ public class StockTestBuilder {
         this.builder.facilityId("facility-id").productVariantId("pv-id").quantity(0).referenceId("reference-id")
                 .referenceIdType("reference-id-type").rowVersion(1).tenantId("default").transactingPartyId("transaction-party-id")
                 .transactionType(TransactionType.DISPATCHED).transactionReason(TransactionReason.RECEIVED)
-                .transactingPartyType("party-type")
-                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build()).build();
+                .transactingPartyType("party-type").hasErrors(false).isDeleted(Boolean.FALSE)
+                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+        return this;
+    }
+
+    public StockTestBuilder withId(String id) {
+        this.builder.id(id);
         return this;
     }
 }
