@@ -10,7 +10,7 @@ import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.household.web.models.HouseholdMember;
 import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.egov.household.web.models.Individual;
-import org.egov.household.web.models.IndividualResponse;
+import org.egov.household.web.models.IndividualBulkResponse;
 import org.egov.household.web.models.IndividualSearch;
 import org.egov.household.web.models.IndividualSearchRequest;
 import org.egov.tracer.model.CustomException;
@@ -39,16 +39,16 @@ import static org.egov.household.Constants.INTERNAL_SERVER_ERROR;
 @Component
 @Order(7)
 @Slf4j
-public class IndividualValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
+public class HmIndividualValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
     private final ServiceRequestClient serviceRequestClient;
 
     private final HouseholdMemberConfiguration householdMemberConfiguration;
 
     private final HouseholdMemberRepository householdMemberRepository;
 
-    public IndividualValidator(ServiceRequestClient serviceRequestClient,
-                               HouseholdMemberConfiguration householdMemberConfiguration,
-                               HouseholdMemberRepository householdMemberRepository) {
+    public HmIndividualValidator(ServiceRequestClient serviceRequestClient,
+                                 HouseholdMemberConfiguration householdMemberConfiguration,
+                                 HouseholdMemberRepository householdMemberRepository) {
         this.serviceRequestClient = serviceRequestClient;
         this.householdMemberConfiguration = householdMemberConfiguration;
         this.householdMemberRepository = householdMemberRepository;
@@ -58,21 +58,19 @@ public class IndividualValidator implements Validator<HouseholdMemberBulkRequest
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
 
-        // TODO: Rename to validHouseholdMembers
-        List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
+        List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
-        if(!householdMembers.isEmpty()){
+        if(!validHouseholdMembers.isEmpty()){
             RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
-            String tenantId = getTenantId(householdMembers);
+            String tenantId = getTenantId(validHouseholdMembers);
 
-            // TODO: Use IndividualBulkResponse for search
-            IndividualResponse searchResponse = searchIndividualBeneficiary(
-                    householdMembers,
+            IndividualBulkResponse searchResponse = searchIndividualBeneficiary(
+                    validHouseholdMembers,
                     requestInfo,
                     tenantId
             );
-            householdMembers.forEach(householdMember -> {
+            validHouseholdMembers.forEach(householdMember -> {
                 Individual individual = validateIndividual(householdMember,
                         searchResponse, errorDetailsMap);
                 if (individual != null) {
@@ -97,7 +95,7 @@ public class IndividualValidator implements Validator<HouseholdMemberBulkRequest
         return errorDetailsMap;
     }
 
-    private IndividualResponse searchIndividualBeneficiary(
+    private IndividualBulkResponse searchIndividualBeneficiary(
             List<HouseholdMember> householdMembers,
             RequestInfo requestInfo,
             String tenantId
@@ -126,21 +124,21 @@ public class IndividualValidator implements Validator<HouseholdMemberBulkRequest
         return getIndividualResponse(tenantId, individualSearchRequest);
     }
 
-    private IndividualResponse getIndividualResponse(String tenantId, IndividualSearchRequest individualSearchRequest) {
+    private IndividualBulkResponse getIndividualResponse(String tenantId, IndividualSearchRequest individualSearchRequest) {
         try {
             return serviceRequestClient.fetchResult(
                     new StringBuilder(householdMemberConfiguration.getIndividualServiceHost()
                             + householdMemberConfiguration.getIndividualServiceSearchUrl()
                             + "?limit=10&offset=0&tenantId=" + tenantId),
                     individualSearchRequest,
-                    IndividualResponse.class);
+                    IndividualBulkResponse.class);
         } catch (Exception e) {
             throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching individuals list");
         }
     }
 
     private Individual validateIndividual(HouseholdMember householdMember,
-                                          IndividualResponse searchResponse,
+                                          IndividualBulkResponse searchResponse,
                                           Map<HouseholdMember, List<Error>> errorDetailsMap) {
         List<Individual> individuals = searchResponse.getIndividual().stream().filter(individual -> {
             if (householdMember.getIndividualId() != null) {

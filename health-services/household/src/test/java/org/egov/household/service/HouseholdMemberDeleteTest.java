@@ -1,28 +1,21 @@
 package org.egov.household.service;
 
-import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.helper.HouseholdMemberRequestTestBuilder;
-import org.egov.household.helper.HouseholdMemberTestBuilder;
-import org.egov.household.household.member.validators.HouseholdHeadValidator;
-import org.egov.household.household.member.validators.IndividualValidator;
-import org.egov.household.household.member.validators.IsDeletedValidator;
-import org.egov.household.household.member.validators.NonExistentEntityValidator;
-import org.egov.household.household.member.validators.NullIdValidator;
-import org.egov.household.household.member.validators.RowVersionValidator;
-import org.egov.household.household.member.validators.UniqueEntityValidator;
+import org.egov.household.household.member.validators.HmHouseholdHeadValidator;
+import org.egov.household.household.member.validators.HmIndividualValidator;
+import org.egov.household.household.member.validators.HmIsDeletedValidator;
+import org.egov.household.household.member.validators.HmNonExistentEntityValidator;
+import org.egov.household.household.member.validators.HmNullIdValidator;
+import org.egov.household.household.member.validators.HmRowVersionValidator;
+import org.egov.household.household.member.validators.HmUniqueEntityValidator;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.household.web.models.Household;
 import org.egov.household.web.models.HouseholdMember;
 import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.egov.household.web.models.HouseholdMemberRequest;
-import org.egov.household.web.models.Individual;
-import org.egov.household.web.models.IndividualResponse;
-import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,21 +24,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HouseholdMemberDeleteTest {
@@ -66,26 +52,26 @@ class HouseholdMemberDeleteTest {
     private ServiceRequestClient serviceRequestClient;
 
     @Mock
-    private NullIdValidator nullIdValidator;
+    private HmNullIdValidator hmNullIdValidator;
 
     @Mock
-    private NonExistentEntityValidator nonExistentEntityValidator;
+    private HmNonExistentEntityValidator hmNonExistentEntityValidator;
 
 
     @Mock
-    private UniqueEntityValidator uniqueEntityValidator;
+    private HmUniqueEntityValidator hmUniqueEntityValidator;
 
     @Mock
-    private IsDeletedValidator isDeletedValidator;
+    private HmIsDeletedValidator hmIsDeletedValidator;
 
     @Mock
-    private RowVersionValidator rowVersionValidator;
+    private HmRowVersionValidator hmRowVersionValidator;
 
     @Mock
-    private IndividualValidator individualValidator;
+    private HmIndividualValidator hmIndividualValidator;
 
     @Mock
-    private HouseholdHeadValidator householdHeadValidator;
+    private HmHouseholdHeadValidator hmHouseholdHeadValidator;
 
     @Mock
     private HouseholdMemberEnrichmentService householdMemberEnrichmentService;
@@ -96,13 +82,13 @@ class HouseholdMemberDeleteTest {
     @BeforeEach
     void setUp() {
         validators = Arrays.asList(
-                nullIdValidator,
-                nonExistentEntityValidator,
-                uniqueEntityValidator,
-                rowVersionValidator,
-                isDeletedValidator,
-                individualValidator,
-                householdHeadValidator);
+                hmNullIdValidator,
+                hmNonExistentEntityValidator,
+                hmUniqueEntityValidator,
+                hmRowVersionValidator,
+                hmIsDeletedValidator,
+                hmIndividualValidator,
+                hmHouseholdHeadValidator);
         ReflectionTestUtils.setField(householdMemberService, "validators", validators);
         lenient().when(householdMemberConfiguration.getCreateTopic()).thenReturn("create-topic");
         lenient().when(householdMemberConfiguration.getUpdateTopic()).thenReturn("update-topic");

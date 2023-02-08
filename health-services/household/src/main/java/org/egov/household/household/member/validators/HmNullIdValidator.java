@@ -17,7 +17,7 @@ import static org.egov.household.Constants.GET_HOUSEHOLD_MEMBERS;
 @Component
 @Order(value = 1)
 @Slf4j
-public class NullIdValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
+public class HmNullIdValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
 
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {

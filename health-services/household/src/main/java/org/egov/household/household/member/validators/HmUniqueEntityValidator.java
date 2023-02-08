@@ -21,7 +21,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 @Component
 @Order(value = 2)
 @Slf4j
-public class UniqueEntityValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
+public class HmUniqueEntityValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
 
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest memberBulkRequest) {

@@ -10,20 +10,24 @@ import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
+import static org.egov.household.utils.CommonUtils.getColumnName;
 
 @Component
 @Order(8)
-public class HouseholdHeadValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
+public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
 
     private final HouseholdMemberRepository householdMemberRepository;
 
@@ -31,9 +35,9 @@ public class HouseholdHeadValidator implements Validator<HouseholdMemberBulkRequ
 
     private final HouseholdMemberEnrichmentService householdMemberEnrichmentService;
 
-    public HouseholdHeadValidator(HouseholdMemberRepository householdMemberRepository,
-                                  HouseholdService householdService,
-                                  HouseholdMemberEnrichmentService householdMemberEnrichmentService) {
+    public HmHouseholdHeadValidator(HouseholdMemberRepository householdMemberRepository,
+                                    HouseholdService householdService,
+                                    HouseholdMemberEnrichmentService householdMemberEnrichmentService) {
         this.householdMemberRepository = householdMemberRepository;
         this.householdService = householdService;
         this.householdMemberEnrichmentService = householdMemberEnrichmentService;
@@ -46,23 +50,24 @@ public class HouseholdHeadValidator implements Validator<HouseholdMemberBulkRequ
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if(!householdMembers.isEmpty()){
-            // TODO: Use idMethod instead
-            householdMemberEnrichmentService.enrichHousehold(householdMembers);
-
+            Method idMethod = getIdMethod(householdMembers, "householdId",
+                    "householdClientReferenceId");
+            String columnName = getColumnName(idMethod);
             householdMembers.forEach(householdMember -> {
-                validateHeadOfHousehold(householdMember, errorDetailsMap);
+                validateHeadOfHousehold(householdMember, idMethod, columnName, errorDetailsMap);
             });
         }
 
         return errorDetailsMap;
     }
 
-    private void validateHeadOfHousehold(HouseholdMember householdMember, HashMap<HouseholdMember, List<Error>> errorDetailsMap) {
+    private void validateHeadOfHousehold(HouseholdMember householdMember, Method idMethod, String columnName,
+                                         HashMap<HouseholdMember, List<Error>> errorDetailsMap) {
 
         if(householdMember.getIsHeadOfHousehold()){
             List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
-                    .findIndividualByHousehold(householdMember.getHouseholdId()).stream().filter(
-                            HouseholdMember::getIsHeadOfHousehold)
+                    .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(idMethod, householdMember),
+                            columnName).stream().filter(HouseholdMember::getIsHeadOfHousehold)
                     .collect(Collectors.toList());
 
             if(!householdMembersHeadCheck.isEmpty()){

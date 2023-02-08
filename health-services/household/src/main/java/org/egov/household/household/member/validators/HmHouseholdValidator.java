@@ -27,11 +27,11 @@ import static org.egov.household.Constants.INVALID_HOUSEHOLD_MESSAGE;
 
 @Component
 @Order(6)
-public class HouseholdValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
+public class HmHouseholdValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
 
     private final HouseholdService householdService;
 
-    public HouseholdValidator(HouseholdService householdService) {
+    public HmHouseholdValidator(HouseholdService householdService) {
         this.householdService = householdService;
     }
 

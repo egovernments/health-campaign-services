@@ -22,7 +22,6 @@ public class HouseholdMemberTestBuilder {
 
     public HouseholdMemberTestBuilder withHouseholdIdAndIndividualId(){
         this.builder.id("some-id").additionalFields(AdditionalFields.builder().build())
-                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .rowVersion(1)
                 .isHeadOfHousehold(false)
                 .individualId("some-individual-id")
@@ -50,6 +49,11 @@ public class HouseholdMemberTestBuilder {
 
     public HouseholdMemberTestBuilder withRowVersion(int rowVersion) {
         this.builder.rowVersion(rowVersion);
+        return this;
+    }
+
+    public HouseholdMemberTestBuilder withAuditDetails(int rowVersion) {
+        this.builder.auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;
     }
 

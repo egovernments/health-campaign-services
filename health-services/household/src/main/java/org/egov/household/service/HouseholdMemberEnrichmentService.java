@@ -12,9 +12,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForDelete;
@@ -22,6 +19,8 @@ import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.uuidSupplier;
+import static org.egov.household.utils.CommonUtils.getColumnName;
 
 @Slf4j
 @Service
@@ -42,11 +41,8 @@ public class HouseholdMemberEnrichmentService {
 
     public void create(List<HouseholdMember> householdMembers,
                        HouseholdMemberBulkRequest request) throws Exception {
-        // TODO: Use uuid supplier from CommonUtils
-        List<String> uuidList = Stream.generate(UUID::randomUUID)
-                .limit(householdMembers.size())
-                .map(UUID::toString)
-                .collect(Collectors.toList());
+        List<String> uuidList = uuidSupplier().apply(householdMembers.size());
+        enrichHousehold(householdMembers);
         enrichForCreate(householdMembers, uuidList, request.getRequestInfo());
     }
 
@@ -92,13 +88,5 @@ public class HouseholdMemberEnrichmentService {
         return householdMember.getHouseholdId()!= null
                 ? householdMember.getHouseholdId() :
                 householdMember.getHouseholdClientReferenceId();
-    }
-
-    private String getColumnName(Method idMethod) {
-        String columnName = "id";
-        if ("getHouseholdClientReferenceId".equals(idMethod.getName())) {
-            columnName = "clientReferenceId";
-        }
-        return columnName;
     }
 }

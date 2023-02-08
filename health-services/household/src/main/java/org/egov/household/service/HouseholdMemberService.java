@@ -8,14 +8,14 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdMemberConfiguration;
-import org.egov.household.household.member.validators.HouseholdHeadValidator;
-import org.egov.household.household.member.validators.HouseholdValidator;
-import org.egov.household.household.member.validators.IndividualValidator;
-import org.egov.household.household.member.validators.IsDeletedValidator;
-import org.egov.household.household.member.validators.NonExistentEntityValidator;
-import org.egov.household.household.member.validators.NullIdValidator;
-import org.egov.household.household.member.validators.RowVersionValidator;
-import org.egov.household.household.member.validators.UniqueEntityValidator;
+import org.egov.household.household.member.validators.HmHouseholdHeadValidator;
+import org.egov.household.household.member.validators.HmHouseholdValidator;
+import org.egov.household.household.member.validators.HmIndividualValidator;
+import org.egov.household.household.member.validators.HmIsDeletedValidator;
+import org.egov.household.household.member.validators.HmNonExistentEntityValidator;
+import org.egov.household.household.member.validators.HmNullIdValidator;
+import org.egov.household.household.member.validators.HmRowVersionValidator;
+import org.egov.household.household.member.validators.HmUniqueEntityValidator;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.household.web.models.HouseholdMember;
 import org.egov.household.web.models.HouseholdMemberBulkRequest;
@@ -60,21 +60,23 @@ public class HouseholdMemberService {
     private final List<Validator<HouseholdMemberBulkRequest, HouseholdMember>> validators;
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class)
-                    || validator.getClass().equals(IsDeletedValidator.class)
-                    || validator.getClass().equals(RowVersionValidator.class)
-                    || validator.getClass().equals(UniqueEntityValidator.class);
+            validator.getClass().equals(HmNullIdValidator.class)
+                    || validator.getClass().equals(HmNonExistentEntityValidator.class)
+                    || validator.getClass().equals(HmIsDeletedValidator.class)
+                    || validator.getClass().equals(HmRowVersionValidator.class)
+                    || validator.getClass().equals(HmUniqueEntityValidator.class)
+                    || validator.getClass().equals(HmHouseholdValidator.class)
+                    || validator.getClass().equals(HmIndividualValidator.class)
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
 
-    // TODO: Use the below three validators in update as well
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
-            validator.getClass().equals(HouseholdValidator.class)
-                    || validator.getClass().equals(IndividualValidator.class)
-                    || validator.getClass().equals(HouseholdHeadValidator.class);
+            validator.getClass().equals(HmHouseholdValidator.class)
+                    || validator.getClass().equals(HmIndividualValidator.class)
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForDelete = validator ->
-            validator.getClass().equals(NullIdValidator.class)
-                    || validator.getClass().equals(NonExistentEntityValidator.class);
+            validator.getClass().equals(HmNullIdValidator.class)
+                    || validator.getClass().equals(HmNonExistentEntityValidator.class);
 
     @Autowired
     public HouseholdMemberService(HouseholdMemberRepository householdMemberRepository,
