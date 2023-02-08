@@ -180,6 +180,9 @@ public class TarentoServiceImpl implements ClientService {
 	private Boolean getInsightsDate(AggregateRequestDto request, String insightInterval) { 
 		Long daysBetween = daysBetween(Long.parseLong(request.getRequestDate().getStartDate()), 
 				Long.parseLong(request.getRequestDate().getEndDate()));
+		if(insightInterval.equals(Constants.Interval.day.toString()) && daysBetween > 0) {
+			return Boolean.FALSE;
+		}
 		if(insightInterval.equals(Constants.Interval.month.toString()) && daysBetween > 32) {
 			return Boolean.FALSE; 
 		}
@@ -192,8 +195,11 @@ public class TarentoServiceImpl implements ClientService {
 		Calendar startCal = Calendar.getInstance();
 		Calendar endCal = Calendar.getInstance();
 		startCal.setTime(new Date(Long.parseLong(request.getRequestDate().getStartDate())));
-		endCal.setTime(new Date(Long.parseLong(request.getRequestDate().getEndDate()))); 
-		if(insightInterval.equals(Constants.Interval.month.toString())) { 
+		endCal.setTime(new Date(Long.parseLong(request.getRequestDate().getEndDate())));
+		if(insightInterval.equals(Constants.Interval.day.toString())) {
+			startCal.add(Calendar.DAY_OF_YEAR, -1);
+			endCal.add(Calendar.DAY_OF_YEAR, -1);
+		} else if(insightInterval.equals(Constants.Interval.month.toString())) {
 			startCal.add(Calendar.MONTH, -1);
 			endCal.add(Calendar.MONTH, -1);
 		} else if(insightInterval.equals(Constants.Interval.week.toString())) { 
