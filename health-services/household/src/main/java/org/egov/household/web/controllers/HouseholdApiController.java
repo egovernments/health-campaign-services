@@ -153,7 +153,7 @@ public class HouseholdApiController {
     public ResponseEntity<ResponseInfo> householdV1DeletePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
                                                               @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(householdConfiguration.getConsumerCreateTopic(), request);
+        producer.push(householdConfiguration.getConsumerDeleteTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
