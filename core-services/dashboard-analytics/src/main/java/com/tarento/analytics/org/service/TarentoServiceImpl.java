@@ -92,6 +92,10 @@ public class TarentoServiceImpl implements ClientService {
 		boolean isRequestContainsInterval = null == request.getRequestDate() ? false : (request.getRequestDate().getInterval()!=null && !request.getRequestDate().getInterval().isEmpty()) ;
 		String interval = isRequestContainsInterval? request.getRequestDate().getInterval(): (isDefaultPresent ? chartNode.get(Constants.JsonPaths.INTERVAL).asText():"");
 
+		if(isFilterForCurrentDayEnabled(chartNode)){
+			setDateRangeFilterForCurrentDay(request);
+		}
+
 		executeConfiguredQueries(chartNode, aggrObjectNode, nodes, request, interval);
 		request.setChartNode(chartNode);
 		ResponseRecorder responseRecorder = new ResponseRecorder();
@@ -149,11 +153,6 @@ public class TarentoServiceImpl implements ClientService {
 					request.getModuleLevel().equals(module)) {
 
 				String indexName = query.get(Constants.JsonPaths.INDEX_NAME).asText();
-
-				if(isFilterForCurrentDayEnabled(chartNode)){
-					setDateRangeFilterForCurrentDay(request);
-				}
-
 				ObjectNode objectNode = queryService.getChartConfigurationQuery(request, query, indexName, interval);
 				try {
 					JsonNode aggrNode = restService.search(indexName,objectNode.toString());
@@ -188,7 +187,7 @@ public class TarentoServiceImpl implements ClientService {
 		long timeInMillis = calendar.getTimeInMillis();
 		RequestDate requestDate = new RequestDate();
 		requestDate.setStartDate(Long.toString(timeInMillis));
-		timeInMillis += (24 * 60 * 60 * 1000);
+		timeInMillis += (24 * 60 * 60 * 1000) - 60000;
 
 		requestDate.setEndDate(Long.toString(timeInMillis));
 		request.setRequestDate(requestDate);
