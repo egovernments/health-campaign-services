@@ -30,19 +30,27 @@ public class ProjectStaffEnrichmentService {
     }
 
     public void create(List<ProjectStaff> entities, ProjectStaffBulkRequest request) throws Exception {
+        log.info("starting the enrichment for create project staff");
+
+        log.info("generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(entities),
                 projectConfiguration.getProjectStaffIdFormat(), "", entities.size());
 
         enrichForCreate(entities, idList, request.getRequestInfo());
+        log.info("enrichment done");
     }
 
     public void update(List<ProjectStaff> entities, ProjectStaffBulkRequest request) {
+        log.info("starting the enrichment for update project staff");
         Map<String, ProjectStaff> projectStaffMap = getIdToObjMap(entities);
         enrichForUpdate(projectStaffMap, entities, request);
+        log.info("enrichment done");
     }
 
     public void delete(List<ProjectStaff> entities, ProjectStaffBulkRequest request) {
+        log.info("starting the enrichment for delete project staff");
         enrichForDelete(entities, request.getRequestInfo(), true);
+        log.info("enrichment done");
     }
 }

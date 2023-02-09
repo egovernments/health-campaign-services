@@ -37,6 +37,8 @@ public class ProjectTaskEnrichmentService {
 
 
     public void create(List<Task> validTasks, TaskBulkRequest request) throws Exception {
+        log.info("starting the enrichment for tasks");
+
         log.info("generating id for tasks");
         List<String> taskIdList = idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(request.getTasks()),
@@ -46,21 +48,24 @@ public class ProjectTaskEnrichmentService {
         enrichForCreate(validTasks, taskIdList, request.getRequestInfo());
         enrichAddressesForCreate(validTasks);
         enrichResourcesForCreate(request, validTasks);
+        log.info("enrichment done");
     }
 
     public void update(List<Task> validTasks, TaskBulkRequest request) throws Exception {
         log.info("generating id for tasks");
-        log.info("enriching tasks");
+        log.info("enriching tasks for update");
         enrichAddressesForUpdate(validTasks);
         enrichResourcesForUpdate(request, validTasks);
         Map<String, Task> iMap = getIdToObjMap(validTasks);
         enrichForUpdate(iMap, request);
+        log.info("enrichment done");
     }
 
     public void delete(List<Task> validTasks, TaskBulkRequest request) throws Exception {
-        log.info("enriching tasks");
+        log.info("enriching tasks for delete");
         for (Task task : validTasks) {
             if (task.getIsDeleted()) {
+                log.info("enriching all task resources for delete");
                 for (TaskResource resource : task.getResources()) {
                     resource.setIsDeleted(true);
                     updateAuditDetailsForResource(request, resource);
@@ -69,6 +74,7 @@ public class ProjectTaskEnrichmentService {
                 task.setRowVersion(task.getRowVersion() + 1);
             } else {
                 int previousRowVersion = task.getRowVersion();
+                log.info("enriching task resources for delete");
                 task.getResources().stream().filter(TaskResource::getIsDeleted).forEach(resource -> {
                     updateAuditDetailsForResource(request, resource);
                     updateAuditDetailsForTask(request, task);
@@ -76,6 +82,7 @@ public class ProjectTaskEnrichmentService {
                 });
             }
         }
+        log.info("enrichment done");
     }
 
     private static void updateAuditDetailsForTask(TaskBulkRequest request, Task task) {
@@ -93,6 +100,7 @@ public class ProjectTaskEnrichmentService {
     }
 
     private static void enrichResourcesForUpdate(TaskBulkRequest request, List<Task> tasks) {
+        log.info("enriching resources");
         for (Task task : tasks) {
             List<TaskResource> resourcesToCreate = task.getResources().stream()
                     .filter(r -> r.getId() == null).collect(Collectors.toList());
@@ -130,6 +138,7 @@ public class ProjectTaskEnrichmentService {
     private static void enrichResourcesForCreate(TaskBulkRequest request,
                                                  List<Task> validTasks) {
         for (Task task : validTasks) {
+            log.info("enriching resources");
             List<TaskResource> resources = task.getResources();
             enrichResourcesForCreate(request, resources, task.getId());
         }
@@ -137,6 +146,7 @@ public class ProjectTaskEnrichmentService {
 
     private static void enrichResourcesForCreate(TaskBulkRequest request,
                                                  List<TaskResource> resources, String taskId) {
+        log.info("enriching resources");
         List<String> ids = uuidSupplier().apply(resources.size());
         enrichForCreate(resources, ids, request.getRequestInfo(), false);
         resources.forEach(taskResource -> taskResource.setTaskId(taskId));
