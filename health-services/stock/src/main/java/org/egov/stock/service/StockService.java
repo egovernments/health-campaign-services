@@ -14,6 +14,7 @@ import org.egov.stock.web.models.StockBulkRequest;
 import org.egov.stock.web.models.StockRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -25,17 +26,17 @@ public class StockService {
 
     private final List<Validator<StockBulkRequest, Stock>> validators;
 
-    private final Predicate<Validator> isApplicableForCreate = validator -> validator.equals(SproductVaraintIdValidator.class);
+    private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForCreate = validator -> validator.getClass().equals(SproductVaraintIdValidator.class);
 
-    private final Predicate<Validator> isApplicableForUpdate = validator -> validator.equals(SproductVaraintIdValidator.class)
-            || validator.equals(SisDeletedValidator.class)
-            || validator.equals(SnonExistentValidator.class)
-            || validator.equals(SnullIdValidator.class)
-            || validator.equals(SrowVersionValidator.class)
-            || validator.equals(SuniqueEntityValidator.class);
+    private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate = validator -> validator.getClass().equals(SproductVaraintIdValidator.class)
+            || validator.getClass().equals(SisDeletedValidator.class)
+            || validator.getClass().equals(SnonExistentValidator.class)
+            || validator.getClass().equals(SnullIdValidator.class)
+            || validator.getClass().equals(SrowVersionValidator.class)
+            || validator.getClass().equals(SuniqueEntityValidator.class);
 
-    private final Predicate<Validator> isApplicableForDelete = validator -> validator.equals(SnonExistentValidator.class)
-            || validator.equals(SnullIdValidator.class);
+    private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete = validator -> validator.getClass().equals(SnonExistentValidator.class)
+            || validator.getClass().equals(SnullIdValidator.class);
 
     public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators) {
         this.stockRepository = stockRepository;
@@ -43,7 +44,10 @@ public class StockService {
     }
 
     public Stock create(StockRequest request) {
-        return request.getStock();
+        StockBulkRequest bulkRequest = StockBulkRequest.builder().stock(Collections.singletonList(request.getStock()))
+                .requestInfo(request.getRequestInfo()).build();
+
+        return create(bulkRequest, false).get(0);
     }
 
     public List<Stock> create(StockBulkRequest request, boolean isBulk) {
@@ -51,10 +55,24 @@ public class StockService {
     }
 
     public Stock update(StockRequest request) {
+        StockBulkRequest bulkRequest = StockBulkRequest.builder().stock(Collections.singletonList(request.getStock()))
+                .requestInfo(request.getRequestInfo()).build();
+
+        return update(bulkRequest, false).get(0);
+    }
+
+    public List<Stock> update(StockBulkRequest request, boolean isBulk) {
         return request.getStock();
     }
 
     public Stock delete(StockRequest request) {
+        StockBulkRequest bulkRequest = StockBulkRequest.builder().stock(Collections.singletonList(request.getStock()))
+                .requestInfo(request.getRequestInfo()).build();
+
+        return delete(bulkRequest, false).get(0);
+    }
+
+    public List<Stock> delete(StockBulkRequest request, boolean isBulk) {
         return request.getStock();
     }
 }
