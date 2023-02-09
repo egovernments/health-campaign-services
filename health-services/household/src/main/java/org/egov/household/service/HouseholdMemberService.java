@@ -103,7 +103,7 @@ public class HouseholdMemberService {
         return create(householdMemberBulkRequest, false);
     }
 
-    public List<HouseholdMember> create(HouseholdMemberBulkRequest householdMemberBulkRequest, boolean isBulk) throws Exception {
+    public List<HouseholdMember> create(HouseholdMemberBulkRequest householdMemberBulkRequest, boolean isBulk) {
         Tuple<List<HouseholdMember>, Map<HouseholdMember, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, householdMemberBulkRequest, isBulk);
         Map<HouseholdMember, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -149,7 +149,7 @@ public class HouseholdMemberService {
         }
     }
 
-    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) throws Exception {
+    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) {
         HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder()
                 .requestInfo(householdMemberRequest.getRequestInfo())
                 .householdMembers(Collections.singletonList(householdMemberRequest.getHouseholdMember()))
@@ -157,7 +157,7 @@ public class HouseholdMemberService {
         return update(householdMemberBulkRequest, false);
     }
 
-    public List<HouseholdMember> update(HouseholdMemberBulkRequest householdMemberBulkRequest, boolean isBulk) throws Exception {
+    public List<HouseholdMember> update(HouseholdMemberBulkRequest householdMemberBulkRequest, boolean isBulk) {
         Tuple<List<HouseholdMember>, Map<HouseholdMember, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, householdMemberBulkRequest, isBulk);
         Map<HouseholdMember, ErrorDetails> errorDetailsMap = tuple.getY();
