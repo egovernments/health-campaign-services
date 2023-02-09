@@ -11,4 +11,12 @@ public class CommonUtils {
         }
         return columnName;
     }
+
+    public static String getHouseholdColumnName(Method idMethod) {
+        String columnName = "householdId";
+        if ("getHouseholdClientReferenceId".equals(idMethod.getName())) {
+            columnName = "householdClientReferenceId";
+        }
+        return columnName;
+    }
 }
