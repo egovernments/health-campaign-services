@@ -77,7 +77,7 @@ public class HouseholdService {
         this.enrichmentService = enrichmentService;
     }
 
-    public Household create(HouseholdRequest request) throws Exception {
+    public Household create(HouseholdRequest request) {
         log.info("received request to create household");
         HouseholdBulkRequest bulkRequest = HouseholdBulkRequest.builder()
                 .households(Collections.singletonList(request.getHousehold()))
@@ -88,7 +88,7 @@ public class HouseholdService {
         return createdHouseholds.get(0);
     }
 
-    public List<Household> create(HouseholdBulkRequest request, boolean isBulk) throws Exception {
+    public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
         log.info("received request to create households: " + request);
         Map<Household, ErrorDetails> errorDetailsMap = new HashMap<>();
         List<Household> validEntities = request.getHouseholds();
@@ -206,7 +206,6 @@ public class HouseholdService {
         log.info("finished finding Households by Ids. Found {} Households", households.size());
         return households;
     }
-
 
     private Tuple<List<Household>, Map<Household, ErrorDetails>> validate(List<Validator<HouseholdBulkRequest, Household>> validators,
                                                                 Predicate<Validator<HouseholdBulkRequest, Household>> applicableValidators,

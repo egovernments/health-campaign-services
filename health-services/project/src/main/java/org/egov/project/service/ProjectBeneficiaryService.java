@@ -93,13 +93,13 @@ public class ProjectBeneficiaryService {
         this.projectBeneficiaryEnrichmentService = projectBeneficiaryEnrichmentService;
     }
 
-    public List<ProjectBeneficiary> create(BeneficiaryRequest request) throws Exception {
+    public List<ProjectBeneficiary> create(BeneficiaryRequest request) {
         BeneficiaryBulkRequest bulkRequest = BeneficiaryBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectBeneficiaries(Collections.singletonList(request.getProjectBeneficiary())).build();
         return create(bulkRequest, false);
     }
 
-    public List<ProjectBeneficiary> create(BeneficiaryBulkRequest beneficiaryRequest, boolean isBulk) throws Exception {
+    public List<ProjectBeneficiary> create(BeneficiaryBulkRequest beneficiaryRequest, boolean isBulk) {
         Tuple<List<ProjectBeneficiary>, Map<ProjectBeneficiary, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, beneficiaryRequest, isBulk);
         Map<ProjectBeneficiary, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -122,13 +122,13 @@ public class ProjectBeneficiaryService {
         return validProjectBeneficiaries;
     }
 
-    public List<ProjectBeneficiary> update(BeneficiaryRequest request) throws Exception {
+    public List<ProjectBeneficiary> update(BeneficiaryRequest request) {
         BeneficiaryBulkRequest bulkRequest = BeneficiaryBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectBeneficiaries(Collections.singletonList(request.getProjectBeneficiary())).build();
         return update(bulkRequest, false);
     }
 
-    public List<ProjectBeneficiary> update(BeneficiaryBulkRequest beneficiaryRequest, boolean isBulk) throws Exception {
+    public List<ProjectBeneficiary> update(BeneficiaryBulkRequest beneficiaryRequest, boolean isBulk) {
         Tuple<List<ProjectBeneficiary>, Map<ProjectBeneficiary, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, beneficiaryRequest, isBulk);
         Map<ProjectBeneficiary, ErrorDetails> errorDetailsMap = tuple.getY();
