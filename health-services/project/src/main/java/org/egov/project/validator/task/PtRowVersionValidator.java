@@ -40,6 +40,7 @@ public class PtRowVersionValidator implements Validator<TaskBulkRequest, Task> {
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating row version");
         Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getTasks());
         Map<String, Task> eMap = getIdToObjMap(request.getTasks().stream()

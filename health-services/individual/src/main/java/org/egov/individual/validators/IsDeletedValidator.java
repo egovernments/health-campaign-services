@@ -1,5 +1,6 @@
 package org.egov.individual.validators;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
 import org.egov.individual.web.models.Individual;
@@ -16,10 +17,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
 @Component
 @Order(2)
+@Slf4j
 public class IsDeletedValidator implements Validator<IndividualBulkRequest, Individual> {
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        log.info("validating isDeleted field");
         HashMap<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = request.getIndividuals();
         validIndividuals.stream().filter(Individual::getIsDeleted).forEach(individual -> {

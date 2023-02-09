@@ -32,12 +32,14 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest individualBulkRequest) {
+        log.info("validating for unique sub entity");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = individualBulkRequest.getIndividuals()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validIndividuals.isEmpty()) {
             for (Individual individual : validIndividuals) {
                 if (individual.getAddress() != null) {
+                    log.info("validating for unique sub entity for address");
                     List<Address> address = individual.getAddress().stream().filter(ad -> ad.getId() != null)
                             .collect(Collectors.toList());
                     if (!address.isEmpty()) {
@@ -58,6 +60,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                 if (individual.getIdentifiers() != null) {
                     List<Identifier> identifiers = individual.getIdentifiers();
                     if (!identifiers.isEmpty()) {
+                        log.info("validating for unique sub entity for identifiers");
                         Method idMethod = getMethod(GET_IDENTIFIER_TYPE, Identifier.class);
                         Map<String, Identifier> identifierMap = getIdToObjMap(identifiers, idMethod);
                         if (identifierMap.keySet().size() != identifiers.size()) {
@@ -75,6 +78,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
 
                 List<Skill> skills = individual.getSkills();
                 if (skills != null && !skills.isEmpty()) {
+                    log.info("validating for unique sub entity for skills");
                     Method idMethod = getMethod(GET_ID, Skill.class);
                     Map<String, Skill> skillMap = getIdToObjMap(skills, idMethod);
                     if (skillMap.keySet().size() != skills.size()) {

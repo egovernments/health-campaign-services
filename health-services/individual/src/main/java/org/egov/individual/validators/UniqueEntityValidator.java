@@ -25,6 +25,7 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest individualBulkRequest) {
+        log.info("validating for unique entity");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = individualBulkRequest.getIndividuals()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());

@@ -1,5 +1,6 @@
 package org.egov.project.validator.task;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
 import org.egov.project.web.models.Task;
@@ -16,10 +17,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
 @Component
 @Order(2)
+@Slf4j
 public class PtIsDeletedValidator implements Validator<TaskBulkRequest, Task> {
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating isDeleted field");
         HashMap<Task, List<Error>> errorDetailsMap = new HashMap<>();
         List<Task> validIndividuals = request.getTasks();
         validIndividuals.stream().filter(Task::getIsDeleted).forEach(individual -> {

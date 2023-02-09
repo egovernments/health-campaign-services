@@ -25,6 +25,7 @@ public class PtUniqueEntityValidator implements Validator<TaskBulkRequest, Task>
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating unique entity");
         Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
         List<Task> validEntities = request.getTasks()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());

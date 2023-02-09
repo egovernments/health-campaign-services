@@ -21,6 +21,7 @@ public class NullIdValidator implements Validator<IndividualBulkRequest, Individ
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        log.info("validating for null id");
         return validateForNullId(request, GET_INDIVIDUALS);
     }
 }

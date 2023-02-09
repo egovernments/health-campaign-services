@@ -40,6 +40,7 @@ public class PtProjectBeneficiaryIdValidator implements Validator<TaskBulkReques
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating for project beneficiary id");
         Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
         List<Task> entities = request.getTasks();
         Method idMethod = getIdMethod(entities,

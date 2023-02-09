@@ -25,6 +25,7 @@ public class PsUniqueEntityValidator implements Validator<ProjectStaffBulkReques
 
     @Override
     public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        log.info("validating unique entity");
         Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectStaff> validEntities = request.getProjectStaff()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
