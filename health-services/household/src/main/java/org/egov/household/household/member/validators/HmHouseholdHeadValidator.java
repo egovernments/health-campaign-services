@@ -23,7 +23,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
-import static org.egov.household.utils.CommonUtils.getColumnName;
+import static org.egov.household.utils.CommonUtils.getHouseholdColumnName;
 
 @Component
 @Order(9)
@@ -52,7 +52,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
         if(!householdMembers.isEmpty()){
             Method idMethod = getIdMethod(householdMembers, "householdId",
                     "householdClientReferenceId");
-            String columnName = getColumnName(idMethod);
+            String columnName = getHouseholdColumnName(idMethod);
             householdMembers.forEach(householdMember -> {
                 validateHeadOfHousehold(householdMember, idMethod, columnName, errorDetailsMap);
             });
