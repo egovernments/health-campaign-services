@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.producer.Producer;
-import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.config.HouseholdMemberConfiguration;
@@ -23,7 +22,6 @@ import org.egov.household.web.models.HouseholdMemberSearchRequest;
 import org.egov.household.web.models.HouseholdRequest;
 import org.egov.household.web.models.HouseholdResponse;
 import org.egov.household.web.models.HouseholdSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -81,7 +79,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> householdMemberV1BulkCreatePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberBulkRequest householdMemberBulkRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<ResponseInfo> householdMemberV1BulkCreatePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberBulkRequest householdMemberBulkRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         householdMemberBulkRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(householdMemberConfiguration.getBulkCreateTopic(), householdMemberBulkRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -89,7 +87,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdMemberResponse> householdMemberV1CreatePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<HouseholdMemberResponse> householdMemberV1CreatePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         List<HouseholdMember> householdMembers = householdMemberService.create(householdMemberRequest);
         HouseholdMemberResponse response = HouseholdMemberResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(householdMemberRequest.getRequestInfo(), true))
@@ -113,7 +111,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> householdMemberV1BulkUpdatePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberBulkRequest householdMemberBulkRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<ResponseInfo> householdMemberV1BulkUpdatePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberBulkRequest householdMemberBulkRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         householdMemberBulkRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(householdMemberConfiguration.getBulkUpdateTopic(), householdMemberBulkRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -121,7 +119,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdMemberResponse> householdMemberV1UpdatePost(@ApiParam(value = "Linkage details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<HouseholdMemberResponse> householdMemberV1UpdatePost(@ApiParam(value = "Linkage details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         List<HouseholdMember> householdMembers = householdMemberService.update(householdMemberRequest);
         HouseholdMemberResponse response = HouseholdMemberResponse.builder()
                 .householdMember(householdMembers.get(0))
@@ -133,7 +131,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> householdMemberV1BulkDeletePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberBulkRequest householdMemberBulkRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<ResponseInfo> householdMemberV1BulkDeletePost(@ApiParam(value = "Capture linkage of Household to Member.", required = true) @Valid @RequestBody HouseholdMemberBulkRequest householdMemberBulkRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         householdMemberBulkRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(householdMemberConfiguration.getBulkDeleteTopic(), householdMemberBulkRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -141,7 +139,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdMemberResponse> householdMemberV1DeletePost(@ApiParam(value = "Linkage details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<HouseholdMemberResponse> householdMemberV1DeletePost(@ApiParam(value = "Linkage details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberRequest householdMemberRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         List<HouseholdMember> householdMembers = householdMemberService.delete(householdMemberRequest);
         HouseholdMemberResponse response = HouseholdMemberResponse.builder()
                 .householdMember(householdMembers.get(0))
@@ -154,7 +152,7 @@ public class HouseholdApiController {
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<HouseholdResponse> householdV1CreatePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdRequest request,
-                                                                   @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+                                                                   @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
 
         Household household = householdService.create(request);
@@ -166,7 +164,7 @@ public class HouseholdApiController {
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> householdV1CreatePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
-                                                              @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+                                                              @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(householdConfiguration.getConsumerCreateTopic(), request);
 
@@ -176,7 +174,7 @@ public class HouseholdApiController {
 
     @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
     public ResponseEntity<HouseholdResponse> householdV1DeletePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdRequest request,
-                                                                   @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+                                                                   @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
 
         Household household = householdService.delete(request);
@@ -188,7 +186,7 @@ public class HouseholdApiController {
 
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> householdV1DeletePost(@ApiParam(value = "Capture details of Household.", required = true) @Valid @RequestBody HouseholdBulkRequest request,
-                                                              @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+                                                              @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(householdConfiguration.getConsumerDeleteTopic(), request);
 
