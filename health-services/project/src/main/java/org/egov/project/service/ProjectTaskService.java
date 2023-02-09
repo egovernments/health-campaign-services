@@ -104,7 +104,7 @@ public class ProjectTaskService {
         this.validators = validators;
     }
 
-    public Task create(TaskRequest request) throws Exception {
+    public Task create(TaskRequest request) {
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
         List<Task> tasks = create(bulkRequest, false);
