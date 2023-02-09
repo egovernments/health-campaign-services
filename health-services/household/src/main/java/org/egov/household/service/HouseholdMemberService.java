@@ -94,8 +94,7 @@ public class HouseholdMemberService {
         this.validators = validators;
     }
 
-    public List<HouseholdMember> create(HouseholdMemberRequest householdMemberRequest) 
-            throws Exception {
+    public List<HouseholdMember> create(HouseholdMemberRequest householdMemberRequest) {
         HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder()
                 .requestInfo(householdMemberRequest.getRequestInfo())
                 .householdMembers(Collections.singletonList(householdMemberRequest.getHouseholdMember()))

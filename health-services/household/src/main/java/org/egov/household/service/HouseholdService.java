@@ -77,7 +77,7 @@ public class HouseholdService {
         this.enrichmentService = enrichmentService;
     }
 
-    public Household create(HouseholdRequest request) throws Exception {
+    public Household create(HouseholdRequest request) {
         HouseholdBulkRequest bulkRequest = HouseholdBulkRequest.builder()
                 .households(Collections.singletonList(request.getHousehold()))
                 .requestInfo(request.getRequestInfo()).build();
@@ -85,7 +85,7 @@ public class HouseholdService {
     }
 
 
-    public List<Household> create(HouseholdBulkRequest request, boolean isBulk) throws Exception {
+    public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
 
         Map<Household, ErrorDetails> errorDetailsMap = new HashMap<>();
         List<Household> validEntities = request.getHouseholds();
