@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 /**
@@ -51,6 +52,7 @@ public class HouseholdMember{
 
     @JsonProperty("tenantId")
     @Size(min = 2, max = 1000)
+    @NotNull
     private String tenantId = null;
 
     @JsonProperty("additionalFields")
