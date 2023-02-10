@@ -19,6 +19,6 @@ public class StockRepository extends GenericRepository<Stock> {
                              RedisTemplate<String, Object> redisTemplate,
                              SelectQueryBuilder selectQueryBuilder, StockRowMapper stockRowMapper) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
-                stockRowMapper, Optional.of("project"));
+                stockRowMapper, Optional.of("stock"));
     }
 }

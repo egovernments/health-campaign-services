@@ -11,6 +11,7 @@ import org.egov.stock.service.StockReconciliationService;
 import org.egov.stock.service.StockService;
 import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
+import org.egov.stock.web.models.StockBulkResponse;
 import org.egov.stock.web.models.StockReconciliation;
 import org.egov.stock.web.models.StockReconciliationRequest;
 import org.egov.stock.web.models.StockReconciliationResponse;
@@ -32,6 +33,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
 
@@ -107,12 +109,15 @@ public class StockApiController {
     }
 
     @RequestMapping(value = "/stock/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<StockResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest stock, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                           @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
+    public ResponseEntity<StockBulkResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest request, @NotNull
+    @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
+                                                           @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
 
-        return new ResponseEntity<StockResponse>(HttpStatus.NOT_IMPLEMENTED);
+        List<Stock> stock = stockService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        StockBulkResponse response = StockBulkResponse.builder().responseInfo(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true)).stock(stock).build();
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @RequestMapping(value = "/stock/v1/_update", method = RequestMethod.POST)

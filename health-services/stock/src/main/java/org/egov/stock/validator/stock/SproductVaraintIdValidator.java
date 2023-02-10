@@ -52,22 +52,23 @@ public class SproductVaraintIdValidator implements Validator<StockBulkRequest, S
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
         List<Stock> entities = request.getStock().stream().filter(notHavingErrors())
                 .collect(Collectors.toList());
-
-        Set<String> productVariantIds = entities.stream().map(Stock::getProductVariantId).collect(Collectors.toSet());
-        Map<String, Stock> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));
-        try {
-            List<String> validProductVariantsIds = checkIfProductVariantExist(productVariantIds,
-                    getTenantId(entities),
-                    request.getRequestInfo()).stream().map(ProductVariant::getId).collect(Collectors.toList());
-            productVariantIds.forEach(id -> {
-                if (!validProductVariantsIds.contains(id)) {
-                    Error error = getErrorForNonExistentRelatedEntity(id);
-                    populateErrorDetails(pvMap.get(id), error, errorDetailsMap);
-                }
-            });
-        } catch (Exception exception) {
-            Error error = getErrorForEntityWithNetworkError();
-            entities.forEach(entity -> populateErrorDetails(entity, error, errorDetailsMap));
+        if (!entities.isEmpty()) {
+            Set<String> productVariantIds = entities.stream().map(Stock::getProductVariantId).collect(Collectors.toSet());
+            Map<String, Stock> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));
+            try {
+                List<String> validProductVariantsIds = checkIfProductVariantExist(productVariantIds,
+                        getTenantId(entities),
+                        request.getRequestInfo()).stream().map(ProductVariant::getId).collect(Collectors.toList());
+                productVariantIds.forEach(id -> {
+                    if (!validProductVariantsIds.contains(id)) {
+                        Error error = getErrorForNonExistentRelatedEntity(id);
+                        populateErrorDetails(pvMap.get(id), error, errorDetailsMap);
+                    }
+                });
+            } catch (Exception exception) {
+                Error error = getErrorForEntityWithNetworkError();
+                entities.forEach(entity -> populateErrorDetails(entity, error, errorDetailsMap));
+            }
         }
 
         return errorDetailsMap;

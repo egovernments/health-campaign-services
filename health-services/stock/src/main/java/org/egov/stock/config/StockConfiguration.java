@@ -39,5 +39,8 @@ public class StockConfiguration {
 
     @Value("${egov.search.product.variant.url}")
     private String productVariantSearchUrl;
+
+    @Value("${stock.idgen.id.format}")
+    private String stockIdFormat;
     
 }
