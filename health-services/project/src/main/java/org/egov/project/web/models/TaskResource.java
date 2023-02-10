@@ -61,7 +61,7 @@ public class TaskResource   {
     private String deliveryComment = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
     @Valid
