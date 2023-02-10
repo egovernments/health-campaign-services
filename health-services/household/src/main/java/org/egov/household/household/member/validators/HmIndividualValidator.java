@@ -8,6 +8,7 @@ import org.egov.household.service.IndividualService;
 import org.egov.household.web.models.HouseholdMember;
 import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.egov.household.web.models.IndividualBulkResponse;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +19,11 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD;
+import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE;
+import static org.egov.household.Constants.INDIVIDUAL_CANNOT_BE_NULL;
+import static org.egov.household.Constants.INDIVIDUAL_CANNOT_BE_NULL_MESSAGE;
 
 @Component
 @Order(7)
@@ -34,6 +40,25 @@ public class HmIndividualValidator implements Validator<HouseholdMemberBulkReque
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
 
         List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
+                .filter(notHavingErrors()).collect(Collectors.toList());
+
+
+        List<HouseholdMember> invalidHouseholdMembers =  validHouseholdMembers.stream()
+                .filter(householdMember ->
+                        householdMember.getIndividualId()==null && householdMember.getIndividualClientReferenceId() ==null
+                ).collect(Collectors.toList());
+
+        invalidHouseholdMembers.forEach(householdMember -> {
+            Error error = Error.builder().errorMessage(INDIVIDUAL_CANNOT_BE_NULL_MESSAGE)
+                    .errorCode(INDIVIDUAL_CANNOT_BE_NULL)
+                    .type(Error.ErrorType.NON_RECOVERABLE)
+                    .exception(new CustomException(INDIVIDUAL_CANNOT_BE_NULL,
+                            INDIVIDUAL_CANNOT_BE_NULL_MESSAGE))
+                    .build();
+            populateErrorDetails(householdMember, error, errorDetailsMap);
+        });
+
+        validHouseholdMembers = validHouseholdMembers.stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
         if(!validHouseholdMembers.isEmpty()){
