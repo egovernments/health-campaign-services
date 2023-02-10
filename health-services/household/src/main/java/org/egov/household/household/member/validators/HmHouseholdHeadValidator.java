@@ -1,5 +1,6 @@
 package org.egov.household.household.member.validators;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdMemberRepository;
@@ -27,6 +28,7 @@ import static org.egov.household.utils.CommonUtils.getHouseholdColumnName;
 
 @Component
 @Order(9)
+@Slf4j
 public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
 
     private final HouseholdMemberRepository householdMemberRepository;
@@ -46,7 +48,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
-
+        log.info("validating head of household member");
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if(!householdMembers.isEmpty()){
@@ -57,7 +59,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 validateHeadOfHousehold(householdMember, idMethod, columnName, errorDetailsMap);
             });
         }
-
+        log.info("validated head of household member");
         return errorDetailsMap;
     }
 
@@ -65,6 +67,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                                          HashMap<HouseholdMember, List<Error>> errorDetailsMap) {
 
         if(householdMember.getIsHeadOfHousehold()){
+            log.info("validating if household already has a head");
             List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
                     .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(idMethod, householdMember),
                             columnName).stream().filter(HouseholdMember::getIsHeadOfHousehold)
@@ -77,6 +80,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                         .exception(new CustomException(HOUSEHOLD_ALREADY_HAS_HEAD,
                                 HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE))
                         .build();
+                log.debug("household already has a head, error: {}", error);
                 populateErrorDetails(householdMember, error, errorDetailsMap);
             }
         }
