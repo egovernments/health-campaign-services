@@ -69,8 +69,13 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
                     if (productVariantIds.size() != validProductVariants.size()) {
                         List<String> productVariantInRequest = new ArrayList<>();
                         productVariantInRequest.addAll(productVariantIds);
-                        Error error = getErrorForNonExistentRelatedEntity(getDifference(productVariantInRequest,
-                                getIdList(validProductVariants, getIdMethod(validProductVariants))));
+                        Error error;
+                        if (validProductVariants.isEmpty()) {
+                            error = getErrorForNonExistentRelatedEntity(productVariantInRequest);
+                        } else {
+                            error = getErrorForNonExistentRelatedEntity(getDifference(productVariantInRequest,
+                                    getIdList(validProductVariants, getIdMethod(validProductVariants))));
+                        }
                         populateErrorDetails(task, error, errorDetailsMap);
                     }
                 } catch (Exception exception) {
@@ -103,3 +108,4 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
         return response.getProductVariant();
     }
 }
+
