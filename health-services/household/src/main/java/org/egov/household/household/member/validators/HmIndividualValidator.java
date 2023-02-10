@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.household.utils.ValidatorUtil.getHouseholdMembersWithNonNullIndividuals;
 
 @Component
 @Order(7)
@@ -35,6 +36,9 @@ public class HmIndividualValidator implements Validator<HouseholdMemberBulkReque
 
         List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
+
+
+        validHouseholdMembers = getHouseholdMembersWithNonNullIndividuals(errorDetailsMap, validHouseholdMembers);
 
         if(!validHouseholdMembers.isEmpty()){
             RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
