@@ -55,7 +55,7 @@ public class Household {
     private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = false;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
