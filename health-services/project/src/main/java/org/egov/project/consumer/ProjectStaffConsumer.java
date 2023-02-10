@@ -11,6 +11,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -28,23 +29,38 @@ public class ProjectStaffConsumer {
 
     @KafkaListener(topics = "${project.staff.consumer.bulk.create.topic}")
     public List<ProjectStaff> bulkCreate(Map<String, Object> consumerRecord,
-                                         @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
-        ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
-        return service.create(request, true);
+                                         @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
+            return service.create(request, true);
+        } catch (Exception exception) {
+            log.error("error in project staff consumer bulk create", exception);
+            return Collections.emptyList();
+        }
     }
 
     @KafkaListener(topics = "${project.staff.consumer.bulk.update.topic}")
     public List<ProjectStaff> bulkUpdate(Map<String, Object> consumerRecord,
-                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
-        ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
-        return service.update(request, true);
+                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
+            return service.update(request, true);
+        } catch (Exception exception) {
+            log.error("error in project staff consumer bulk update", exception);
+            return Collections.emptyList();
+        }
     }
 
     @KafkaListener(topics = "${project.staff.consumer.bulk.delete.topic}")
     public List<ProjectStaff> bulkDelete(Map<String, Object> consumerRecord,
-                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
-        ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
-        return service.delete(request, true);
+                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
+            return service.delete(request, true);
+        } catch (Exception exception) {
+            log.error("error in project staff consumer bulk delete", exception);
+            return Collections.emptyList();
+        }
     }
 
 }

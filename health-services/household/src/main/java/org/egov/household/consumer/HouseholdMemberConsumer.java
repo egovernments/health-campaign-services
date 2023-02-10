@@ -12,6 +12,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -32,22 +33,37 @@ public class HouseholdMemberConsumer {
 
     @KafkaListener(topics = "${household.member.consumer.bulk.create.topic}")
     public List<HouseholdMember> bulkCreate(Map<String, Object> consumerRecord,
-                                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
-        HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
-        return householdMemberService.create(request, true);
+                                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
+            return householdMemberService.create(request, true);
+        } catch (Exception exception) {
+            log.error("error in household member consumer bulk create", exception);
+            return Collections.emptyList();
+        }
     }
 
     @KafkaListener(topics = "${household.member.consumer.bulk.update.topic}")
     public List<HouseholdMember> bulkUpdate(Map<String, Object> consumerRecord,
-                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
-        HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
-        return householdMemberService.update(request, true);
+                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
+            return householdMemberService.update(request, true);
+        } catch (Exception exception) {
+            log.error("error in household member consumer bulk update", exception);
+            return Collections.emptyList();
+        }
     }
 
     @KafkaListener(topics = "${household.member.consumer.bulk.delete.topic}")
     public List<HouseholdMember> bulkDelete(Map<String, Object> consumerRecord,
-                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) throws Exception {
-        HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
-        return householdMemberService.delete(request, true);
+                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
+            return householdMemberService.delete(request, true);
+        } catch (Exception exception) {
+            log.error("error in household member consumer bulk delete", exception);
+            return Collections.emptyList();
+        }
     }
 }
