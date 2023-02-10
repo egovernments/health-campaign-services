@@ -24,18 +24,33 @@ public class HouseholdMemberRequestTestBuilder {
     }
 
     public HouseholdMemberRequestTestBuilder withHouseholdMember(){
-        this.builder.householdMember(Arrays.asList(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId().build()));
+       this.builder.householdMember(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId().build());
+        return this;
+    }
+
+    public HouseholdMemberRequestTestBuilder withDeletedHouseholdMember(){
+        this.builder.householdMember(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId().withDeleted().build());
         return this;
     }
 
     public HouseholdMemberRequestTestBuilder withHouseholdMemberAsHead(){
-        this.builder.householdMember(Arrays.asList(HouseholdMemberTestBuilder.builder()
+        this.builder.householdMember(HouseholdMemberTestBuilder.builder()
                 .withHouseholdIdAndIndividualId()
                 .withHeadOfHousehold()
-                .build()));
+                .build());
         return this;
     }
-    public HouseholdMemberRequestTestBuilder withHouseholdMember(List<HouseholdMember> householdMember) {
+
+    public HouseholdMemberRequestTestBuilder withRowVersion(Integer rowVersion){
+        this.builder.householdMember(HouseholdMemberTestBuilder.builder()
+                .withHouseholdIdAndIndividualId()
+                .withHeadOfHousehold()
+                .withRowVersion(rowVersion)
+                .build());
+        return this;
+    }
+
+    public HouseholdMemberRequestTestBuilder withHouseholdMember(HouseholdMember householdMember) {
         this.builder.householdMember(householdMember);
         return this;
     }
@@ -45,18 +60,7 @@ public class HouseholdMemberRequestTestBuilder {
         return this;
     }
 
-    public HouseholdMemberRequestTestBuilder withApiOperationCreate(){
-     this.builder.apiOperation(ApiOperation.CREATE);
-     return this;
-    }
 
-    public HouseholdMemberRequestTestBuilder withApiOperationDelete(){
-        this.builder.apiOperation(ApiOperation.DELETE);
-        return this;
-    }
 
-    public HouseholdMemberRequestTestBuilder withApiOperationUpdate(){
-        this.builder.apiOperation(ApiOperation.UPDATE);
-        return this;
-    }
+
 }

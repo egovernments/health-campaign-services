@@ -83,12 +83,13 @@ public class Constants {
 		final static String INSIGHT = "insight";
 		final static String DAYS = "days";
 		final static String TRANSLATE_CODE = "translateTenantCode";
+		final static String FILTER_FOR_CURRENT_DAY = "filterForCurrentDay";
 
 	}
-	
+
 	public interface Filters {
-		final static String MODULE = "module"; 
-		final static String FILTER_ALL = "*"; 
+		final static String MODULE = "module";
+		final static String FILTER_ALL = "*";
 	}
 
 	public interface Catagory {

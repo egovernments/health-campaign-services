@@ -1,5 +1,6 @@
 package org.egov.household.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -54,7 +55,7 @@ public class Household {
     private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = false;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
@@ -62,5 +63,8 @@ public class Household {
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
+
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 }
 

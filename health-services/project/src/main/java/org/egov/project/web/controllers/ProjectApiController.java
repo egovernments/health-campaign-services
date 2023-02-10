@@ -5,14 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.producer.Producer;
-import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectStaffService;
+import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
 import org.egov.project.web.models.BeneficiaryBulkResponse;
-import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
@@ -27,6 +26,8 @@ import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.egov.project.web.models.ProjectResponse;
 import org.egov.project.web.models.ProjectSearchRequest;
 import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
+import org.egov.project.web.models.ProjectStaffBulkResponse;
 import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffResponse;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
@@ -36,7 +37,6 @@ import org.egov.project.web.models.TaskBulkResponse;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskResponse;
 import org.egov.project.web.models.TaskSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -87,7 +87,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkCreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkCreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) {
         beneficiaryRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkCreateProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -95,7 +95,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1CreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1CreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) {
 
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(beneficiaryRequest);
@@ -130,7 +130,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1UpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1UpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(beneficiaryRequest);
         BeneficiaryResponse response = BeneficiaryResponse.builder()
@@ -143,7 +143,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkUpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkUpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
         beneficiaryRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkUpdateProjectBeneficiaryTopic(), beneficiaryRequest);
@@ -152,7 +152,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkDeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkDeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) {
         beneficiaryRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkDeleteProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -160,7 +160,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1DeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1DeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) {
 
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.delete(beneficiaryRequest);
@@ -263,22 +263,29 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffRequest) throws Exception {
-        if (!CommonUtils.isForCreate(projectStaffRequest)){
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for create request", projectStaffRequest.getApiOperation()));
-        }
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest request) {
 
-        List<ProjectStaff> projectStaffs = projectStaffService.create(projectStaffRequest);
+        ProjectStaff staff = projectStaffService.create(request);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
-                .projectStaff(projectStaffs)
+                .projectStaff(staff)
                 .responseInfo(ResponseInfoFactory
-                        .createResponseInfo(projectStaffRequest.getRequestInfo(), true))
+                        .createResponseInfo(request.getRequestInfo(), true))
                 .build();
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+    @RequestMapping(value = "/staff/v1/bulk/_create", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkCreateProjectStaffTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
     @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
+    public ResponseEntity<ProjectStaffBulkResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
                                                                          @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
                                                                          @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
                                                                          @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
@@ -292,26 +299,21 @@ public class ProjectApiController {
                 lastChangedSince,
                 includeDeleted
         );
-        ProjectStaffResponse projectStaffResponse = ProjectStaffResponse.builder()
+        ProjectStaffBulkResponse response = ProjectStaffBulkResponse.builder()
                 .projectStaff(projectStaffList)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(projectStaffResponse);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
-        if (!CommonUtils.isForUpdate(projectStaffUpdateRequest)
-                && !CommonUtils.isForDelete(projectStaffUpdateRequest)) {
-            throw new CustomException("INVALID_API_OPERATION", String.format("API Operation %s not valid for update request",
-                    projectStaffUpdateRequest.getApiOperation()));
-        }
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) {
 
-        List<ProjectStaff> projectStaffs = projectStaffService.update(projectStaffUpdateRequest);
+        ProjectStaff staff = projectStaffService.update(projectStaffUpdateRequest);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
-                .projectStaff(projectStaffs)
+                .projectStaff(staff)
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectStaffUpdateRequest.getRequestInfo(), true))
                 .build();
@@ -319,8 +321,41 @@ public class ProjectApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+    @RequestMapping(value = "/staff/v1/bulk/_update", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkUpdateProjectStaffTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/staff/v1/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) {
+
+        ProjectStaff staff = projectStaffService.delete(projectStaffUpdateRequest);
+        ProjectStaffResponse response = ProjectStaffResponse.builder()
+                .projectStaff(staff)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectStaffUpdateRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/staff/v1/bulk/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkDeleteProjectStaffTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
+    public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) {
 
         Task task = projectTaskService.create(request);
         TaskResponse response = TaskResponse.builder()
@@ -332,8 +367,10 @@ public class ProjectApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+
+
     @RequestMapping(value = "/task/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectTaskBulkV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectTaskBulkV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getCreateProjectTaskBulkTopic(), request);
 
@@ -357,7 +394,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1UpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
+    public ResponseEntity<TaskResponse> projectTaskV1UpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) {
        Task task = projectTaskService.update(request);
 
         TaskResponse response = TaskResponse.builder()
@@ -371,7 +408,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectTaskV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectTaskV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getCreateProjectTaskBulkTopic(), request);
 
@@ -380,7 +417,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1DeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
+    public ResponseEntity<TaskResponse> projectTaskV1DeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) {
         Task task = projectTaskService.delete(request);
 
         TaskResponse response = TaskResponse.builder()
@@ -394,7 +431,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectTaskV1BulkDeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectTaskV1BulkDeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getDeleteProjectTaskBulkTopic(), request);
 

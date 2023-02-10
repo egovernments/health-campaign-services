@@ -5,12 +5,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * HouseholdResponse
@@ -23,29 +22,13 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class HouseholdResponse   {
-        @JsonProperty("ResponseInfo")
-      @NotNull
+    @JsonProperty("ResponseInfo")
+    @NotNull
+    @Valid
+    private ResponseInfo responseInfo = null;
 
-  @Valid
-
-
-    private org.egov.common.contract.response.ResponseInfo responseInfo = null;
-
-        @JsonProperty("Household")
-    
-  @Valid
-
-
-    private List<Household> household = null;
-
-
-        public HouseholdResponse addHouseholdItem(Household householdItem) {
-            if (this.household == null) {
-            this.household = new ArrayList<>();
-            }
-        this.household.add(householdItem);
-        return this;
-        }
-
+    @JsonProperty("Household")
+    @Valid
+    private Household household = null;
 }
 
