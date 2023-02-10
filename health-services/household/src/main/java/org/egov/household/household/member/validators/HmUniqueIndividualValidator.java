@@ -24,8 +24,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD;
 import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE;
-import static org.egov.household.Constants.INDIVIDUAL_CANNOT_BE_NULL;
-import static org.egov.household.Constants.INDIVIDUAL_CANNOT_BE_NULL_MESSAGE;
+import static org.egov.household.utils.ValidatorUtil.getHouseholdMembersWithNonNullIndividuals;
 
 @Component
 @Order(8)
@@ -48,23 +47,7 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
         List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
-        List<HouseholdMember> invalidHouseholdMembers =  validHouseholdMembers.stream()
-                .filter(householdMember ->
-                        householdMember.getIndividualId()==null && householdMember.getIndividualClientReferenceId() ==null
-                ).collect(Collectors.toList());
-
-        invalidHouseholdMembers.forEach(householdMember -> {
-            Error error = Error.builder().errorMessage(INDIVIDUAL_CANNOT_BE_NULL_MESSAGE)
-                    .errorCode(INDIVIDUAL_CANNOT_BE_NULL)
-                    .type(Error.ErrorType.NON_RECOVERABLE)
-                    .exception(new CustomException(INDIVIDUAL_CANNOT_BE_NULL,
-                            INDIVIDUAL_CANNOT_BE_NULL_MESSAGE))
-                    .build();
-            populateErrorDetails(householdMember, error, errorDetailsMap);
-        });
-
-        validHouseholdMembers = validHouseholdMembers.stream()
-                .filter(notHavingErrors()).collect(Collectors.toList());
+        validHouseholdMembers = getHouseholdMembersWithNonNullIndividuals(errorDetailsMap, validHouseholdMembers);
 
         if(!validHouseholdMembers.isEmpty()){
             RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
