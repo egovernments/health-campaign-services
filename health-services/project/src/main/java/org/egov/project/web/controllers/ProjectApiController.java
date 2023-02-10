@@ -126,7 +126,7 @@ public class ProjectApiController {
                         .createResponseInfo(beneficiarySearchRequest.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(beneficiaryResponse);
+        return ResponseEntity.status(HttpStatus.OK).body(beneficiaryResponse);
     }
 
     @RequestMapping(value = "/beneficiary/v1/_update", method = RequestMethod.POST)
@@ -305,7 +305,7 @@ public class ProjectApiController {
                         .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
