@@ -1,5 +1,6 @@
 package org.egov.household.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 /**
@@ -50,6 +52,7 @@ public class HouseholdMember{
 
     @JsonProperty("tenantId")
     @Size(min = 2, max = 1000)
+    @NotNull
     private String tenantId = null;
 
     @JsonProperty("additionalFields")
@@ -57,7 +60,7 @@ public class HouseholdMember{
     private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
@@ -66,6 +69,7 @@ public class HouseholdMember{
     @Valid
     private AuditDetails auditDetails = null;
 
-
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 }
 

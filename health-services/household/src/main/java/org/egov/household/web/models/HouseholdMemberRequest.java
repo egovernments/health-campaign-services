@@ -10,8 +10,6 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * HouseholdMemberRequest
@@ -32,17 +30,6 @@ public class HouseholdMemberRequest {
     @JsonProperty("HouseholdMember")
     @NotNull
     @Valid
-    @Size(min = 1)
-    private List<HouseholdMember> householdMember = new ArrayList<>();
-
-    @JsonProperty("apiOperation")
-    @Valid
-    private ApiOperation apiOperation = null;
-
-    public HouseholdMemberRequest addHouseholdMemberItem(HouseholdMember householdMemberItem) {
-        this.householdMember.add(householdMemberItem);
-        return this;
-    }
-
+    private HouseholdMember householdMember = null;
 }
 

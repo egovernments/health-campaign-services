@@ -94,14 +94,14 @@ public class ProjectStaffService {
         this.validators = validators;
     }
 
-    public ProjectStaff create(ProjectStaffRequest request) throws Exception {
+    public ProjectStaff create(ProjectStaffRequest request) {
         ProjectStaffBulkRequest bulkRequest = ProjectStaffBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectStaff(Collections.singletonList(request.getProjectStaff())).build();
         return create(bulkRequest, false).get(0);
     }
 
 
-    public List<ProjectStaff> create(ProjectStaffBulkRequest request, boolean isBulk) throws Exception {
+    public List<ProjectStaff> create(ProjectStaffBulkRequest request, boolean isBulk) {
         Tuple<List<ProjectStaff>, Map<ProjectStaff, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
                 isBulk);
@@ -125,7 +125,7 @@ public class ProjectStaffService {
     }
 
 
-    public ProjectStaff update(ProjectStaffRequest request) throws Exception {
+    public ProjectStaff update(ProjectStaffRequest request) {
         ProjectStaffBulkRequest bulkRequest = ProjectStaffBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectStaff(Collections.singletonList(request.getProjectStaff())).build();
         return update(bulkRequest, false).get(0);
@@ -154,7 +154,7 @@ public class ProjectStaffService {
         return validEntities;
     }
 
-    public ProjectStaff delete(ProjectStaffRequest request) throws Exception {
+    public ProjectStaff delete(ProjectStaffRequest request) {
         ProjectStaffBulkRequest bulkRequest = ProjectStaffBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectStaff(Collections.singletonList(request.getProjectStaff())).build();
         return delete(bulkRequest, false).get(0);

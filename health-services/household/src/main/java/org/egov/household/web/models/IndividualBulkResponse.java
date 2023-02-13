@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -13,8 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
-* IndividualResponse
-*/
+ * IndividualResponse
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-27T11:47:19.561+05:30")
 
@@ -22,18 +23,18 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class IndividualResponse {
+public class IndividualBulkResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
-    private org.egov.common.contract.response.ResponseInfo responseInfo = null;
+    private ResponseInfo responseInfo = null;
 
     @JsonProperty("Individual")
     @Valid
     private List<Individual> individual = null;
 
-    public IndividualResponse addIndividualItem(Individual individualItem) {
+    public IndividualBulkResponse addIndividualItem(Individual individualItem) {
         if (this.individual == null) {
             this.individual = new ArrayList<>();
         }

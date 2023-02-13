@@ -104,14 +104,14 @@ public class ProjectTaskService {
         this.validators = validators;
     }
 
-    public Task create(TaskRequest request) throws Exception {
+    public Task create(TaskRequest request) {
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
         List<Task> tasks = create(bulkRequest, false);
         return tasks.get(0);
     }
 
-    public List<Task> create(TaskBulkRequest request, boolean isBulk) throws Exception {
+    public List<Task> create(TaskBulkRequest request, boolean isBulk) {
         Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
                 isBulk);
@@ -133,7 +133,7 @@ public class ProjectTaskService {
         return validTasks;
     }
 
-    public Task update(TaskRequest request) throws Exception {
+    public Task update(TaskRequest request) {
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
         return update(bulkRequest, false).get(0);

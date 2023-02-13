@@ -99,7 +99,9 @@ public class ProjectTaskEnrichmentService {
             List<TaskResource> resourcesToUpdate = task.getResources().stream()
                     .filter(r -> r.getId() != null).collect(Collectors.toList());
 
-            enrichResourcesForCreate(request, resourcesToCreate, task.getId());
+            if (!resourcesToCreate.isEmpty()) {
+                enrichResourcesForCreate(request, resourcesToCreate, task.getId());
+            }
             for (TaskResource resource : resourcesToUpdate) {
                 updateAuditDetailsForResource(request, resource);
             }
