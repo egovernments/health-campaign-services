@@ -9,10 +9,10 @@ import java.util.Set;
 @Component
 public class DocumentQueryBuilder {
 
-    private static final String FETCH_DOCUMENT_QUERY = "select d.id as documentId, d.project_id as document_projectId, d.document_type as document_documentType, " +
-            " d.filestore_id as document_filestoreId, d.document_uid as document_documentUid, d.additional_details as document_additionalDetails, d.status as document_status, " +
-            "d.created_by as document_createdBy, d.created_time as document_createdTime, d.last_modified_by as document_lastModifiedBy, d.last_modified_time as document_lastModifiedTime " +
-            " from eg_pms_document d ";
+    private static final String FETCH_DOCUMENT_QUERY = "select d.id as documentId, d.projectId as document_projectId, d.documentType as document_documentType, " +
+            " d.filestoreId as document_filestoreId, d.documentUid as document_documentUid, d.additionalDetails as document_additionalDetails, d.status as document_status, " +
+            "d.createdBy as document_createdBy, d.createdTime as document_createdTime, d.lastModifiedBy as document_lastModifiedBy, d.lastModifiedTime as document_lastModifiedTime " +
+            " from project_document d ";
 
     /* Constructs document search query based on project Ids */
     public String getDocumentSearchQuery(Set<String> projectIds, List<Object> preparedStmtList) {
@@ -21,7 +21,7 @@ public class DocumentQueryBuilder {
 
         if (projectIds != null && !projectIds.isEmpty()) {
             addClauseIfRequired(preparedStmtList, queryBuilder);
-            queryBuilder.append(" d.project_id IN (").append(createQuery(projectIds)).append(")");
+            queryBuilder.append(" d.projectId IN (").append(createQuery(projectIds)).append(")");
             addToPreparedStatement(preparedStmtList, projectIds);
         }
 

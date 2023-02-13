@@ -9,9 +9,9 @@ import java.util.Set;
 @Component
 public class TargetQueryBuilder {
 
-    private static final String FETCH_TARGET_QUERY = "select t.id as targetId, t.project_id as target_projectId, t.beneficiary_type as target_beneficiaryType, t.total_no as target_totalNo, t.target_no as target_targetNo, " +
-            "t.is_deleted as target_isDeleted, t.created_by as target_createdBy, t.created_time as target_createdTime, t.last_modified_by as target_lastModifiedBy, t.last_modified_time as target_lastModifiedTime " +
-            " from eg_pms_target t ";
+    private static final String FETCH_TARGET_QUERY = "select t.id as targetId, t.projectId as target_projectId, t.beneficiaryType as target_beneficiaryType, t.totalNo as target_totalNo, t.targetNo as target_targetNo, " +
+            "t.isDeleted as target_isDeleted, t.createdBy as target_createdBy, t.createdTime as target_createdTime, t.lastModifiedBy as target_lastModifiedBy, t.lastModifiedTime as target_lastModifiedTime " +
+            " from project_target t ";
 
     /* Constructs target search query based on project Ids */
     public String getTargetSearchQuery(Set<String> projectIds, List<Object> preparedStmtList) {
@@ -20,7 +20,7 @@ public class TargetQueryBuilder {
 
         if (projectIds != null && !projectIds.isEmpty()) {
             addClauseIfRequired(preparedStmtList, queryBuilder);
-            queryBuilder.append(" t.project_id IN (").append(createQuery(projectIds)).append(")");
+            queryBuilder.append(" t.projectId IN (").append(createQuery(projectIds)).append(")");
             addToPreparedStatement(preparedStmtList, projectIds);
         }
 

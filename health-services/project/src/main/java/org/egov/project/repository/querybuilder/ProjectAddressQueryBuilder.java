@@ -19,16 +19,16 @@ public class ProjectAddressQueryBuilder {
     @Autowired
     private ProjectConfiguration config;
 
-    private static final String FETCH_PROJECT_ADDRESS_QUERY = "SELECT prj.id as projectId, prj.tenant_id as project_tenantId, prj.project_number as project_projectNumber, prj.name as project_name, prj.project_type as project_projectType, prj.project_subtype as project_projectSubtype, " +
+    private static final String FETCH_PROJECT_ADDRESS_QUERY = "SELECT prj.id as projectId, prj.tenantId as project_tenantId, prj.projectNumber as project_projectNumber, prj.name as project_name, prj.projectType as project_projectType, prj.projectSubType as project_projectSubtype, " +
             " prj.department as project_department, prj.description as project_description, prj.reference_id as project_referenceId, prj.start_date as project_startDate, prj.end_date as project_endDate, " +
-            "prj.is_task_enabled as project_isTaskEnabled, prj.parent as project_parent, prj.project_hierarchy as project_projectHierarchy, prj.additional_details as project_additionalDetails, prj.is_deleted as project_isDeleted, prj.row_version as project_rowVersion, " +
-            " prj.created_by as project_createdBy, prj.last_modified_by as project_lastModifiedBy, prj.created_time as project_createdTime, prj.last_modified_time as project_lastModifiedTime, " +
-            "addr.id as addressId, addr.tenant_id as address_tenantId, addr.project_id as address_projectId, addr.door_no as address_doorNo, addr.latitude as address_latitude, addr.longitude as address_longitude, addr.location_accuracy as address_locationAccuracy, " +
-            " addr.type as address_type, addr.address_line1 as address_addressLine1, addr.address_line2 as address_addressLine2, addr.landmark as address_landmark, addr.city as address_city, addr.pin_code as address_pinCode, " +
-            " addr.building_name as address_buildingName, addr.street as address_street, addr.locality as address_locality, addr.created_by as address_createdBy, addr.last_modified_by as address_lastModifiedBy, addr.created_time as address_createdTime, addr.last_modified_time as address_lastModifiedTime " +
+            "prj.isTaskEnabled as project_isTaskEnabled, prj.parent as project_parent, prj.projectHierarchy as project_projectHierarchy, prj.additionalDetails as project_additionalDetails, prj.isDeleted as project_isDeleted, prj.rowVersion as project_rowVersion, " +
+            " prj.createdBy as project_createdBy, prj.lastModifiedBy as project_lastModifiedBy, prj.createdTime as project_createdTime, prj.lastModifiedTime as project_lastModifiedTime, " +
+            "addr.id as addressId, addr.tenantId as address_tenantId, addr.projectId as address_projectId, addr.doorNo as address_doorNo, addr.latitude as address_latitude, addr.longitude as address_longitude, addr.locationAccuracy as address_locationAccuracy, " +
+            " addr.type as address_type, addr.addressLine1 as address_addressLine1, addr.addressLine2 as address_addressLine2, addr.landmark as address_landmark, addr.city as address_city, addr.pinCode as address_pinCode, " +
+            " addr.buildingName as address_buildingName, addr.street as address_street, addr.locality as address_locality " +
             " " +
-            "from eg_pms_project prj " +
-            "left join eg_pms_address addr " +
+            "from project prj " +
+            "left join project_address addr " +
             "on prj.id = addr.project_id ";
 
     private final String paginationWrapper = "SELECT * FROM " +
@@ -37,7 +37,7 @@ public class ProjectAddressQueryBuilder {
             " result) result_offset " +
             "WHERE offset_ > ? AND offset_ <= ?";
 
-    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM eg_pms_project prj ";
+    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM project prj ";
 
     /* Constructs project search query based on conditions */
     public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, List<Object> preparedStmtList, boolean isCountQuery) {
@@ -53,11 +53,11 @@ public class ProjectAddressQueryBuilder {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 if (!tenantId.contains(DOT)) {
                     log.info("State level tenant");
-                    queryBuilder.append(" prj.tenant_id like ? ");
+                    queryBuilder.append(" prj.tenantId like ? ");
                     preparedStmtList.add(tenantId+'%');
                 } else {
                     log.info("City level tenant");
-                    queryBuilder.append(" prj.tenant_id=? ");
+                    queryBuilder.append(" prj.tenantId=? ");
                     preparedStmtList.add(tenantId);
                 }
             }
@@ -70,7 +70,7 @@ public class ProjectAddressQueryBuilder {
 
             if (StringUtils.isNotBlank(project.getProjectNumber())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.project_number =? ");
+                queryBuilder.append(" prj.projectNumber =? ");
                 preparedStmtList.add(project.getProjectNumber());
             }
 
@@ -82,31 +82,31 @@ public class ProjectAddressQueryBuilder {
 
             if (StringUtils.isNotBlank(project.getProjectType())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.project_type=? ");
+                queryBuilder.append(" prj.projectType=? ");
                 preparedStmtList.add(project.getProjectType());
             }
 
             if (StringUtils.isNotBlank(project.getProjectSubType())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.project_subtype=? ");
+                queryBuilder.append(" prj.projectSubtype=? ");
                 preparedStmtList.add(project.getProjectSubType());
             }
 
             if (project.getStartDate() != null && project.getStartDate() != 0) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.start_date >= ? ");
+                queryBuilder.append(" prj.startDate >= ? ");
                 preparedStmtList.add(project.getStartDate());
             }
 
             if (project.getEndDate() != null && project.getEndDate() != 0) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.end_date <= ? ");
+                queryBuilder.append(" prj.endDate <= ? ");
                 preparedStmtList.add(project.getEndDate());
             }
 
             if (lastChangedSince != null && lastChangedSince != 0) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" ( prj.last_modified_time >= ? )");
+                queryBuilder.append(" ( prj.lastModifiedTime >= ? )");
                 preparedStmtList.add(lastChangedSince);
             }
 
@@ -142,7 +142,7 @@ public class ProjectAddressQueryBuilder {
     private void addIsDeletedCondition(List<Object> preparedStmtList, StringBuilder queryBuilder, Boolean includeDeleted) {
         if (!includeDeleted) {
             addClauseIfRequired(preparedStmtList, queryBuilder);
-            queryBuilder.append(" prj.is_deleted = false ");
+            queryBuilder.append(" prj.isDeleted = false ");
         }
     }
 
@@ -211,7 +211,7 @@ public class ProjectAddressQueryBuilder {
         StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_ADDRESS_QUERY);
         for (String projectId : projectIds) {
             addConditionalClause(preparedStmtListDescendants, queryBuilder);
-            queryBuilder.append(" ( prj.project_hierarchy LIKE ? )");
+            queryBuilder.append(" ( prj.projectHierarchy LIKE ? )");
             preparedStmtListDescendants.add('%' + projectId + '%');
         }
         

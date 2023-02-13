@@ -23,7 +23,7 @@ import java.util.Map;
 public class DocumentRowMapper implements ResultSetExtractor<List<Document>> {
 
     @Autowired
-    private ObjectMapper mapper;
+    private ObjectMapper objectMapper;
 
     @Override
     public List<Document> extractData(ResultSet rs) throws SQLException, DataAccessException {
@@ -71,7 +71,7 @@ public class DocumentRowMapper implements ResultSetExtractor<List<Document>> {
         try {
             PGobject obj = (PGobject) rs.getObject(columnName);
             if (obj != null) {
-                additionalDetails = mapper.readTree(obj.getValue());
+                additionalDetails = objectMapper.readTree(obj.getValue());
             }
         } catch (IOException e) {
             throw new CustomException("PARSING ERROR", "Failed to parse additionalDetail object");

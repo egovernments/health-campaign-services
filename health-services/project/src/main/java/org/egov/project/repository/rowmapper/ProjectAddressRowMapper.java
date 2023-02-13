@@ -26,7 +26,7 @@ import java.util.Map;
 public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>> {
 
     @Autowired
-    private ObjectMapper mapper;
+    private ObjectMapper objectMapper;
 
     @Override
     public List<Project> extractData(ResultSet rs) throws SQLException, DataAccessException {
@@ -149,7 +149,7 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
         try {
             PGobject obj = (PGobject) rs.getObject(columnName);
             if (obj != null) {
-                additionalDetails = mapper.readTree(obj.getValue());
+                additionalDetails = objectMapper.readTree(obj.getValue());
             }
         } catch (IOException e) {
             throw new CustomException("PARSING ERROR", "Failed to parse additionalDetail object");
