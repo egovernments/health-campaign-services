@@ -105,7 +105,6 @@ public class ProjectConfiguration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsEndPoint;
 
-    // TODO: Add in application.properties
     @Value("${project.document.id.verification.required}")
     private String documentIdVerificationRequired;
 
@@ -120,8 +119,10 @@ public class ProjectConfiguration {
 
     @Value("${project.search.max.limit}")
     private Integer maxLimit;
+
     @Value("${project.default.offset}")
     private Integer defaultOffset;
+
     @Value("${project.default.limit}")
     private Integer defaultLimit;
 }
