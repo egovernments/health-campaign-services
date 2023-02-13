@@ -230,7 +230,7 @@ public class ProjectBeneficiaryService {
         }
         List<ProjectBeneficiary> validProjectBeneficiaries = request.getProjectBeneficiaries().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        log.info("Validation successful. Found valid project beneficiaries");
+        log.info("validation successful, found valid project beneficiaries");
         return new Tuple<>(validProjectBeneficiaries, errorDetailsMap);
     }
 }

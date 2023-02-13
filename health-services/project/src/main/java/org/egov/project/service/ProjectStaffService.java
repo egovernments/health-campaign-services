@@ -207,7 +207,7 @@ public class ProjectStaffService {
         }
         List<ProjectStaff> validTasks = request.getProjectStaff().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        log.info("Validation successful. Found valid project staff");
+        log.info("validation successful, found valid project staff");
         return new Tuple<>(validTasks, errorDetailsMap);
     }
 

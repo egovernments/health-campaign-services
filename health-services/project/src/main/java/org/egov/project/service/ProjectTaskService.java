@@ -238,7 +238,7 @@ public class ProjectTaskService {
             return projectTaskRepository.find(taskSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
-            log.error("Error in building query", e);
+            log.error("error in building query", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }

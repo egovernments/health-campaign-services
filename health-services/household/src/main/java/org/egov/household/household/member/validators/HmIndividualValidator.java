@@ -49,13 +49,13 @@ public class HmIndividualValidator implements Validator<HouseholdMemberBulkReque
                     requestInfo,
                     tenantId
             );
-            log.info("Individuals searched successfully, total count: " + searchResponse.getIndividual().size());
+            log.info("individuals searched successfully, total count: " + searchResponse.getIndividual().size());
             validHouseholdMembers.forEach(householdMember -> {
                 individualService.validateIndividual(householdMember,
                         searchResponse, errorDetailsMap);
             });
         }
-        log.info("Household member validation completed successfully, total errors: " + errorDetailsMap.size());
+        log.info("household member validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 }
