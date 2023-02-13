@@ -37,7 +37,7 @@ public class HmIndividualValidator implements Validator<HouseholdMemberBulkReque
         List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
-
+        log.info("starting validation of household members, total household members: " + validHouseholdMembers.size());
         validHouseholdMembers = getHouseholdMembersWithNonNullIndividuals(errorDetailsMap, validHouseholdMembers);
 
         if(!validHouseholdMembers.isEmpty()){
@@ -49,12 +49,13 @@ public class HmIndividualValidator implements Validator<HouseholdMemberBulkReque
                     requestInfo,
                     tenantId
             );
+            log.info("Individuals searched successfully, total count: " + searchResponse.getIndividual().size());
             validHouseholdMembers.forEach(householdMember -> {
                 individualService.validateIndividual(householdMember,
                         searchResponse, errorDetailsMap);
             });
         }
-
+        log.info("Household member validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

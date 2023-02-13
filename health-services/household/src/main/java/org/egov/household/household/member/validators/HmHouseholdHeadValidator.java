@@ -59,7 +59,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 validateHeadOfHousehold(householdMember, idMethod, columnName, errorDetailsMap);
             });
         }
-        log.info("validated head of household member");
+        log.info("household member Head validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 
@@ -80,7 +80,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                         .exception(new CustomException(HOUSEHOLD_ALREADY_HAS_HEAD,
                                 HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE))
                         .build();
-                log.debug("household already has a head, error: {}", error);
+                log.info("household already has a head, error: {}", error);
                 populateErrorDetails(householdMember, error, errorDetailsMap);
             }
         }
