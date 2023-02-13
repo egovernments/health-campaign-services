@@ -87,29 +87,29 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectBeneficiary> validProjectBeneficiaries = beneficiaryBulkRequest.getProjectBeneficiaries()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
+        if (!validProjectBeneficiaries.isEmpty()) {
+            String tenantId = getTenantId(validProjectBeneficiaries);
 
-        String tenantId = getTenantId(validProjectBeneficiaries);
+            Set<String> projectIds = getSet(validProjectBeneficiaries, GET_PROJECT_ID);
 
-        Set<String> projectIds = getSet(validProjectBeneficiaries, GET_PROJECT_ID);
+            log.info("fetch the projects");
+            List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
+            log.info("fetch the project types");
+            List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
 
-        log.info("fetch the projects");
-        List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
-        log.info("fetch the project types");
-        List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
+            Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
+            Map<String, Project> projectMap = getIdToObjMap(existingProjects);
 
-        Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
-        Map<String, Project> projectMap = getIdToObjMap(existingProjects);
+            Map<String, List<ProjectBeneficiary>> beneficiaryTypeMap = validProjectBeneficiaries.stream()
+                    .collect(Collectors.groupingBy(b -> projectTypeMap.get(projectMap.get(b
+                            .getProjectId()).getProjectTypeId()).getBeneficiaryType()));
 
-        Map<String, List<ProjectBeneficiary>> beneficiaryTypeMap = validProjectBeneficiaries.stream()
-                .collect(Collectors.groupingBy(b -> projectTypeMap.get(projectMap.get(b
-                        .getProjectId()).getProjectTypeId()).getBeneficiaryType()));
-
-        for (Map.Entry<String, List<ProjectBeneficiary>> entry : beneficiaryTypeMap.entrySet()) {
-            log.info("fetch the beneficiaries for type {}", entry.getKey());
-            searchBeneficiary(entry.getKey(), entry.getValue(), beneficiaryBulkRequest.getRequestInfo(),
-                    tenantId, errorDetailsMap);
+            for (Map.Entry<String, List<ProjectBeneficiary>> entry : beneficiaryTypeMap.entrySet()) {
+                log.info("fetch the beneficiaries for type {}", entry.getKey());
+                searchBeneficiary(entry.getKey(), entry.getValue(), beneficiaryBulkRequest.getRequestInfo(),
+                        tenantId, errorDetailsMap);
+            }
         }
-
         return errorDetailsMap;
     }
 

@@ -32,6 +32,7 @@ public class BeneficiaryBulkRequest {
 
     @JsonProperty("ProjectBeneficiaries")
     @Valid
+    @NotNull
     @Size(min=1)
     private List<ProjectBeneficiary> projectBeneficiaries = null;
 

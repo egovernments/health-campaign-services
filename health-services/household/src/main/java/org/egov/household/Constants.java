@@ -34,4 +34,9 @@ public interface Constants {
     String GET_HOUSEHOLDS = "getHouseholds";
 
     String SET_HOUSEHOLDS = "setHouseholds";
+
+    String INDIVIDUAL_CANNOT_BE_NULL = "INDIVIDUAL_CANNOT_BE_NULL";
+
+    String INDIVIDUAL_CANNOT_BE_NULL_MESSAGE = "individual id and individual client reference id both cannot be null";
+
 }
