@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 /**
  * Stock
@@ -24,9 +25,11 @@ import javax.validation.constraints.NotNull;
 @Builder
 public class Stock {
     @JsonProperty("id")
+    @Size(min=2, max=64)
     private String id = null;
 
     @JsonProperty("clientReferenceId")
+    @Size(min=2, max=64)
     private String clientReferenceId = null;
 
     @JsonProperty("tenantId")
@@ -73,7 +76,7 @@ public class Stock {
     private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;

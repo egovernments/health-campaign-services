@@ -4,7 +4,7 @@ import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
-import org.egov.stock.validator.stock.SproductVaraintIdValidator;
+import org.egov.stock.validator.stock.SProductVariantIdValidator;
 import org.egov.stock.web.models.ProductVariant;
 import org.egov.stock.web.models.ProductVariantResponse;
 import org.egov.stock.web.models.ProductVariantSearchRequest;
@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 class ProductVariantIdValidatorTest {
 
     @InjectMocks
-    private SproductVaraintIdValidator stockProductIdValidator;
+    private SProductVariantIdValidator stockProductIdValidator;
 
     @Mock
     private ServiceRequestClient client;

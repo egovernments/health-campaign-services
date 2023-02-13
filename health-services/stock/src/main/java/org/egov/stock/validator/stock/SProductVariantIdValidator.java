@@ -36,13 +36,13 @@ import static org.egov.stock.Constants.GET_PRODUCT_VARIANT_ID;
 @Component
 @Slf4j
 @Order(5)
-public class SproductVaraintIdValidator implements Validator<StockBulkRequest, Stock> {
+public class SProductVariantIdValidator implements Validator<StockBulkRequest, Stock> {
 
     private final ServiceRequestClient serviceRequestClient;
 
     private final StockConfiguration stockConfiguration;
 
-    public SproductVaraintIdValidator(ServiceRequestClient serviceRequestClient, StockConfiguration stockConfiguration) {
+    public SProductVariantIdValidator(ServiceRequestClient serviceRequestClient, StockConfiguration stockConfiguration) {
         this.serviceRequestClient = serviceRequestClient;
         this.stockConfiguration = stockConfiguration;
     }

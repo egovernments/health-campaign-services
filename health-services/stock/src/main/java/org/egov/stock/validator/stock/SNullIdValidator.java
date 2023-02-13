@@ -17,7 +17,7 @@ import static org.egov.stock.Constants.GET_STOCK;
 @Component
 @Slf4j
 @Order(1)
-public class SnullIdValidator implements Validator<StockBulkRequest, Stock> {
+public class SNullIdValidator implements Validator<StockBulkRequest, Stock> {
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         return validateForNullId(request, GET_STOCK);

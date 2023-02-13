@@ -27,11 +27,11 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch
 @Component
 @Slf4j
 @Order(4)
-public class SrowVersionValidator implements Validator<StockBulkRequest, Stock> {
+public class SRowVersionValidator implements Validator<StockBulkRequest, Stock> {
 
     private final StockRepository stockRepository;
 
-    public SrowVersionValidator(StockRepository stockRepository) {
+    public SRowVersionValidator(StockRepository stockRepository) {
         this.stockRepository = stockRepository;
     }
 

@@ -29,11 +29,11 @@ import static org.egov.stock.Constants.GET_ID;
 @Component
 @Slf4j
 @Order(2)
-public class SnonExistentValidator implements Validator<StockBulkRequest, Stock> {
+public class SNonExistentValidator implements Validator<StockBulkRequest, Stock> {
 
     private final StockRepository stockRepository;
 
-    public SnonExistentValidator(StockRepository stockRepository) {
+    public SNonExistentValidator(StockRepository stockRepository) {
         this.stockRepository = stockRepository;
     }
 

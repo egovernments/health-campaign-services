@@ -4,7 +4,7 @@ import org.egov.common.models.Error;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockTestBuilder;
 import org.egov.stock.repository.StockRepository;
-import org.egov.stock.validator.stock.SnonExistentValidator;
+import org.egov.stock.validator.stock.SNonExistentValidator;
 import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
 public class NonExistentEntityValidatorTest {
 
     @InjectMocks
-    private SnonExistentValidator stockNonExistentValidator;
+    private SNonExistentValidator stockNonExistentValidator;
 
     @Mock
     private StockRepository stockRepository;

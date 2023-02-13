@@ -8,12 +8,12 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.service.enrichment.StockEnrichmentService;
-import org.egov.stock.validator.stock.SisDeletedValidator;
-import org.egov.stock.validator.stock.SnonExistentValidator;
-import org.egov.stock.validator.stock.SnullIdValidator;
-import org.egov.stock.validator.stock.SproductVaraintIdValidator;
-import org.egov.stock.validator.stock.SrowVersionValidator;
-import org.egov.stock.validator.stock.SuniqueEntityValidator;
+import org.egov.stock.validator.stock.SIsDeletedValidator;
+import org.egov.stock.validator.stock.SNonExistentValidator;
+import org.egov.stock.validator.stock.SNullIdValidator;
+import org.egov.stock.validator.stock.SProductVariantIdValidator;
+import org.egov.stock.validator.stock.SRowVersionValidator;
+import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
 import org.egov.stock.web.models.StockRequest;
@@ -53,19 +53,19 @@ public class StockService {
     private final StockEnrichmentService enrichmentService;
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForCreate =
-            validator -> validator.getClass().equals(SproductVaraintIdValidator.class);
+            validator -> validator.getClass().equals(SProductVariantIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
-            validator -> validator.getClass().equals(SproductVaraintIdValidator.class)
-            || validator.getClass().equals(SisDeletedValidator.class)
-            || validator.getClass().equals(SnonExistentValidator.class)
-            || validator.getClass().equals(SnullIdValidator.class)
-            || validator.getClass().equals(SrowVersionValidator.class)
-            || validator.getClass().equals(SuniqueEntityValidator.class);
+            validator -> validator.getClass().equals(SProductVariantIdValidator.class)
+            || validator.getClass().equals(SIsDeletedValidator.class)
+            || validator.getClass().equals(SNonExistentValidator.class)
+            || validator.getClass().equals(SNullIdValidator.class)
+            || validator.getClass().equals(SRowVersionValidator.class)
+            || validator.getClass().equals(SUniqueEntityValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete =
-            validator -> validator.getClass().equals(SnonExistentValidator.class)
-            || validator.getClass().equals(SnullIdValidator.class);
+            validator -> validator.getClass().equals(SNonExistentValidator.class)
+            || validator.getClass().equals(SNullIdValidator.class);
 
     public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators, StockConfiguration configuration, StockEnrichmentService enrichmentService) {
         this.stockRepository = stockRepository;
@@ -185,7 +185,7 @@ public class StockService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(stockSearchRequest.getStock())),
                     stockSearchRequest.getStock());
-            return stockRepository.findById(ids, includeDeleted).stream()
+            return stockRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

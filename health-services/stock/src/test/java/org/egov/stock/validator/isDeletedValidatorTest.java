@@ -3,7 +3,7 @@ package org.egov.stock.validator;
 
 import org.egov.common.models.Error;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
-import org.egov.stock.validator.stock.SisDeletedValidator;
+import org.egov.stock.validator.stock.SIsDeletedValidator;
 import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class isDeletedValidatorTest {
 
     @InjectMocks
-    private SisDeletedValidator stockIsDeletedValidator;
+    private SIsDeletedValidator stockIsDeletedValidator;
 
     @Test
     @DisplayName("should add stock to error details if is Deleted is true")

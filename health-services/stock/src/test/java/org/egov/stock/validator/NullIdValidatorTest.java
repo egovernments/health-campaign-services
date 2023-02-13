@@ -2,7 +2,7 @@ package org.egov.stock.validator;
 
 import org.egov.common.models.Error;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
-import org.egov.stock.validator.stock.SnullIdValidator;
+import org.egov.stock.validator.stock.SNullIdValidator;
 import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class NullIdValidatorTest {
 
     @InjectMocks
-    private SnullIdValidator stockNullIdValidator;
+    private SNullIdValidator stockNullIdValidator;
 
     @Test
     @DisplayName("should add to error details if id is null")

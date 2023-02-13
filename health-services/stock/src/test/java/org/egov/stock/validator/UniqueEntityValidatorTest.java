@@ -2,7 +2,7 @@ package org.egov.stock.validator;
 
 import org.egov.common.models.Error;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
-import org.egov.stock.validator.stock.SuniqueEntityValidator;
+import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class UniqueEntityValidatorTest {
 
     @InjectMocks
-    private SuniqueEntityValidator stockUniqueEntityValidator;
+    private SUniqueEntityValidator stockUniqueEntityValidator;
 
     @Test
     @DisplayName("should add to error if duplicate entity is found")

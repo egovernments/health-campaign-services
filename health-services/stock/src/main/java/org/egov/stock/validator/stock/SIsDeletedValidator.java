@@ -20,7 +20,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 @Component
 @Slf4j
 @Order(6)
-public class SisDeletedValidator implements Validator<StockBulkRequest, Stock> {
+public class SIsDeletedValidator implements Validator<StockBulkRequest, Stock> {
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         HashMap<Stock, List<Error>> errorDetailsMap = new HashMap<>();
