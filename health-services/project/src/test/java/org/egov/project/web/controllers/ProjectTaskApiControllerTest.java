@@ -8,6 +8,7 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
 import org.egov.project.helper.TaskTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
+import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.TaskRequest;
@@ -56,6 +57,9 @@ class ProjectTaskApiControllerTest {
 
     @MockBean
     private ProjectConfiguration projectConfiguration;
+
+    @MockBean
+    private ProjectService projectService;
 
     @Test
     @DisplayName("should project task create request pass if API operation is create")

@@ -5,13 +5,12 @@ import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,30 +19,49 @@ import java.util.List;
  */
 @ApiModel(description = "The purpose of this object to define the Project for a geography and period")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-08T16:20:57.141+05:30")
 
-@Data
-@NoArgsConstructor
+@Getter
+@Setter
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class Project {
-
     @JsonProperty("id")
     private String id = null;
 
     @JsonProperty("tenantId")
-    @NotNull
     private String tenantId = null;
 
+    @JsonProperty("projectNumber")
+    private String projectNumber = null;
+
+    @JsonProperty("name")
+    private String name = null;
+
+    @JsonProperty("projectType")
+    private String projectType = null;
+
+    @JsonProperty("projectSubType")
+    private String projectSubType = null;
+
+    @JsonProperty("department")
+    private String department = null;
+
+    @JsonProperty("description")
+    private String description = null;
+
+    @JsonProperty("referenceID")
+    private String referenceID = null;
+
     @JsonProperty("projectTypeId")
-    @NotNull
     private String projectTypeId = null;
 
-    @JsonProperty("subProjectTypeId")
-    private String subProjectTypeId = null;
+    @JsonProperty("documents")
+    @Valid
+    private List<Document> documents = null;
 
     @JsonProperty("address")
-    @Valid
     private Address address = null;
 
     @JsonProperty("startDate")
@@ -56,45 +74,41 @@ public class Project {
     private Boolean isTaskEnabled = false;
 
     @JsonProperty("parent")
-    @Size(min = 2, max = 64)
     private String parent = null;
-
-    @JsonProperty("targets")
-    @Valid
-    private List < Target > targets = null;
-
-    @JsonProperty("department")
-    @Size(min = 2, max = 64)
-    private String department = null;
-
-    @JsonProperty("description")
-    @Size(min = 2)
-    private String description = null;
-
-    @JsonProperty("referenceId")
-    @Size(min = 2, max = 100)
-    private String referenceId = null;
-
-    @JsonProperty("documents")
-    @Valid
-    private List < Document > documents = null;
 
     @JsonProperty("projectHierarchy")
     private String projectHierarchy = null;
 
-    @JsonProperty("additionalFields")
+    @JsonProperty("ancestors")
+    private List<Project> ancestors = null;
+
+    @JsonProperty("descendants")
+    private List<Project> descendants = null;
+
+    @JsonProperty("targets")
     @Valid
-    private AdditionalFields additionalFields = null;
+    private List<Target> targets = null;
+
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = false;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
     @JsonProperty("auditDetails")
-    @Valid
     private AuditDetails auditDetails = null;
+
+
+    public Project addDocumentsItem(Document documentsItem) {
+        if (this.documents == null) {
+            this.documents = new ArrayList<>();
+        }
+        this.documents.add(documentsItem);
+        return this;
+    }
 
     public Project addTargetsItem(Target targetsItem) {
         if (this.targets == null) {
@@ -104,11 +118,13 @@ public class Project {
         return this;
     }
 
-    public Project addDocumentsItem(Document documentsItem) {
-        if (this.documents == null) {
-            this.documents = new ArrayList<>();
+    public Project addDescendant(Project project) {
+        if (this.descendants == null) {
+            this.descendants = new ArrayList<>();
         }
-        this.documents.add(documentsItem);
+        this.descendants.add(project);
         return this;
     }
+
 }
+
