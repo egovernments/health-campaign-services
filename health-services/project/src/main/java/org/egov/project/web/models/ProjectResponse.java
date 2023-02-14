@@ -35,6 +35,9 @@ public class ProjectResponse {
     @Valid
     private List<Project> project = new ArrayList<>();
 
+    @JsonProperty("TotalCount")
+    private Integer totalCount = 0;
+
     public ProjectResponse addProjectItem(Project projectItem) {
         this.project.add(projectItem);
         return this;

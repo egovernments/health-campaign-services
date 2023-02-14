@@ -30,18 +30,18 @@ public class ProjectRequest   {
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("Project")
+    @JsonProperty("Projects")
     @NotNull
     @Valid
     @Size(min=1)
-    private List<Project> project = new ArrayList<>();
+    private List<Project> projects = new ArrayList<>();
 
     @JsonProperty("apiOperation")
     @Valid
     private ApiOperation apiOperation = null;
 
     public ProjectRequest addProjectItem(Project projectItem) {
-        this.project.add(projectItem);
+        this.projects.add(projectItem);
         return this;
     }
 

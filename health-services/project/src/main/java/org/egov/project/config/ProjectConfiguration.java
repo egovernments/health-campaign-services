@@ -99,4 +99,30 @@ public class ProjectConfiguration {
 
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
+
+    @Value("${egov.mdms.host}")
+    private String mdmsHost;
+    @Value("${egov.mdms.search.endpoint}")
+    private String mdmsEndPoint;
+
+    @Value("${project.document.id.verification.required}")
+    private String documentIdVerificationRequired;
+
+    @Value("${project.management.system.kafka.create.topic}")
+    private String saveProjectTopic;
+
+    @Value("${project.management.system.kafka.update.topic}")
+    private String updateProjectTopic;
+
+    @Value("${egov.idgen.project.number.name}")
+    private String idgenProjectNumberName;
+
+    @Value("${project.search.max.limit}")
+    private Integer maxLimit;
+
+    @Value("${project.default.offset}")
+    private Integer defaultOffset;
+
+    @Value("${project.default.limit}")
+    private Integer defaultLimit;
 }

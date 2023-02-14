@@ -55,3 +55,17 @@ config:
       - work-dir: "core-services/dashboard-analytics"
         image-name: "dashboard-analytics"
         dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/health-services/stock"
+    build:
+      - work-dir: "health-services/stock"
+        image-name: "stock"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/stock/src/main/resources/db"
+        image-name: "stock-db"
+  - name: "builds/health-campaign-services/core-services/egov-survey-services"
+    build:
+      - work-dir: "core-services/egov-survey-services"
+        image-name: "egov-survey-services"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/egov-survey-services/src/main/resources/db"
+        image-name: "egov-survey-services-db"
