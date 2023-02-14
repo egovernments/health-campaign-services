@@ -29,7 +29,7 @@ public class ProjectAddressQueryBuilder {
             " " +
             "from project prj " +
             "left join project_address addr " +
-            "on prj.id = addr.project_id ";
+            "on prj.id = addr.projectId ";
 
     private final String paginationWrapper = "SELECT * FROM " +
             "(SELECT *, DENSE_RANK() OVER (ORDER BY project_lastModifiedTime DESC , projectId) offset_ FROM " +
