@@ -2,6 +2,7 @@ package org.egov.egovsurveyservices.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.Role;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.egovsurveyservices.service.SurveyService;
 import org.egov.egovsurveyservices.utils.ResponseInfoFactory;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.validation.Valid;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.egov.egovsurveyservices.utils.SurveyServiceConstants.CITIZEN;
 
@@ -58,6 +60,8 @@ public class SurveyController {
         Boolean isCitizen = requestInfoWrapper.getRequestInfo().getUserInfo().getType().equals(CITIZEN);
         if(isCitizen)
             criteria.setCitizenId(requestInfoWrapper.getRequestInfo().getUserInfo().getUuid());
+        criteria.setTag(requestInfoWrapper.getRequestInfo().getUserInfo().getRoles().stream()
+                .map(Role::getCode).collect(Collectors.toList()));
         List<SurveyEntity> surveys = surveyService.searchSurveys(criteria, isCitizen);
         Integer totalCount = surveyService.countTotalSurveys(criteria);
         SurveyResponse response  = SurveyResponse.builder().surveyEntities(surveys).totalCount(totalCount).build();

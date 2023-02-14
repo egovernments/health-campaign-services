@@ -49,4 +49,13 @@ public class Question {
     @JsonProperty("qorder")
     private Long qorder;
 
+    @JsonProperty("alert")
+    private String alert;
+
+    @JsonProperty("alertOnOption")
+    private String alertOnOption;
+
+    @JsonProperty("reasonOnOption")
+    private String reasonOnOption;
+
 }

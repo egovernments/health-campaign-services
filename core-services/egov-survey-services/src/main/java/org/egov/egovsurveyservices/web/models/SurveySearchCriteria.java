@@ -49,6 +49,15 @@ public class SurveySearchCriteria {
     private Boolean isCountCall = false;
 
     @JsonIgnore
+    private Boolean includeDeleted = false;
+
+    @JsonIgnore
+    private List<String> tag;
+
+    @JsonIgnore
+    private String entityType;
+
+    @JsonIgnore
     private String citizenId = null;
 
 }

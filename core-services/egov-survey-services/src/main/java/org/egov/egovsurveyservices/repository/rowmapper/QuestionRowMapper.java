@@ -41,6 +41,9 @@ public class QuestionRowMapper implements ResultSetExtractor<List<Question>>{
                         .required(rs.getBoolean("required"))
                         .options(Arrays.asList(rs.getString("options").split(",")))
                         .type(Type.fromValue(rs.getString("type")))
+                        .alert(rs.getString("alert"))
+                        .alertOnOption(rs.getString("alertOnOption"))
+                        .reasonOnOption(rs.getString("reasonOnOption"))
                         .auditDetails(auditdetails)
                         .build();
             }

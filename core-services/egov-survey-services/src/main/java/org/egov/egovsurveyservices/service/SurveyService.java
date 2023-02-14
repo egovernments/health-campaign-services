@@ -61,7 +61,7 @@ public class SurveyService {
         // Validate question types.
         surveyValidator.validateQuestions(surveyEntity);
         // Validate survey uniqueness.
-        surveyValidator.validateSurveyUniqueness(surveyEntity);
+        surveyValidator.validateSurveyUniqueness(surveyEntity, surveyRequest.getRequestInfo());
 
         // Persist survey if it passes all validations
         List<String> listOfTenantIds = new ArrayList<>(surveyEntity.getTenantIds());

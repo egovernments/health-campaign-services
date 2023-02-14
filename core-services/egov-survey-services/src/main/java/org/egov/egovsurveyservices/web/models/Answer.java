@@ -40,4 +40,7 @@ public class Answer {
     @JsonProperty("emailId")
     private String emailId;
 
+    @JsonProperty("reason")
+    private String reason;
+
 }
