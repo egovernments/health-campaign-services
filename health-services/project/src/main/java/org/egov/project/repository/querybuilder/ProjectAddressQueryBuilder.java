@@ -20,7 +20,7 @@ public class ProjectAddressQueryBuilder {
     private ProjectConfiguration config;
 
     private static final String FETCH_PROJECT_ADDRESS_QUERY = "SELECT prj.id as projectId, prj.tenantId as project_tenantId, prj.projectNumber as project_projectNumber, prj.name as project_name, prj.projectType as project_projectType, prj.projectSubType as project_projectSubtype, " +
-            " prj.department as project_department, prj.description as project_description, prj.reference_id as project_referenceId, prj.start_date as project_startDate, prj.end_date as project_endDate, " +
+            " prj.department as project_department, prj.description as project_description, prj.referenceId as project_referenceId, prj.startDate as project_startDate, prj.endDate as project_endDate, " +
             "prj.isTaskEnabled as project_isTaskEnabled, prj.parent as project_parent, prj.projectHierarchy as project_projectHierarchy, prj.additionalDetails as project_additionalDetails, prj.isDeleted as project_isDeleted, prj.rowVersion as project_rowVersion, " +
             " prj.createdBy as project_createdBy, prj.lastModifiedBy as project_lastModifiedBy, prj.createdTime as project_createdTime, prj.lastModifiedTime as project_lastModifiedTime, " +
             "addr.id as addressId, addr.tenantId as address_tenantId, addr.projectId as address_projectId, addr.doorNo as address_doorNo, addr.latitude as address_latitude, addr.longitude as address_longitude, addr.locationAccuracy as address_locationAccuracy, " +
