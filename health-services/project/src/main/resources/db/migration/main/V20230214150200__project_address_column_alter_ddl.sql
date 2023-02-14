@@ -1,1 +1,1 @@
-ALTER TABLE project_addressß RENAME COLUMN door_no to doorNo;
+ALTER TABLE project_address RENAME COLUMN door_no to doorNo;
