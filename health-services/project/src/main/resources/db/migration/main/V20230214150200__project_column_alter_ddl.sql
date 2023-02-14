@@ -1,1 +1,0 @@
-ALTER TABLE PROJECT RENAME COLUMN door_no to doorNo;
