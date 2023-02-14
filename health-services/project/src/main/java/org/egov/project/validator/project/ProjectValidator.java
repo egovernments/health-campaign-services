@@ -58,7 +58,8 @@ public class ProjectValidator {
 
         String tenantId = request.getProjects().get(0).getTenantId();
         //Verify MDMS Data
-        validateRequestMDMSData(request, tenantId, errorMap);
+        // TODO: Uncomment and fix as per HCM once we get clarity
+        // validateRequestMDMSData(request, tenantId, errorMap);
 
         //Get localities in list from all Projects in request body for validation
         List<String> locationsForValidation = getLocationForValidation(request.getProjects());
@@ -86,7 +87,8 @@ public class ProjectValidator {
         //Verify if project request have multiple tenant Ids
         validateMultipleTenantIds(project);
         //Verify MDMS Data
-        validateRequestMDMSData(project, tenantId, errorMap);
+        // TODO: Uncomment and fix as per HCM once we get clarity
+        // validateRequestMDMSData(project, tenantId, errorMap);
 
         if (!errorMap.isEmpty())
             throw new CustomException(errorMap);
@@ -114,7 +116,8 @@ public class ProjectValidator {
 
         String tenantId = request.getProjects().get(0).getTenantId();
         //Verify MDMS Data
-        validateRequestMDMSData(request, tenantId, errorMap);
+        // TODO: Uncomment and fix as per HCM once we get clarity
+        // validateRequestMDMSData(request, tenantId, errorMap);
 
         //Get localities in list from all Projects in request body for validation
         List<String> locationsForValidation = getLocationForValidation(request.getProjects());
