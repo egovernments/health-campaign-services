@@ -69,6 +69,7 @@ public interface IResponseHandler {
 
 	public static String BUCKETS = "buckets";
 	public static String KEY = "key";
+	public static String KEY_AS_STRING = "key_as_string";
 	public static String VALUE = "value";
 	
 	public final String PERCENTAGE = "percentage";

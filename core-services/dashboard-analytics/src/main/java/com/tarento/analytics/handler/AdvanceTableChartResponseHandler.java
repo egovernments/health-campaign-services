@@ -52,7 +52,19 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
         boolean isPathSpecified = chartNode.get(IResponseHandler.AGGS_PATH)!=null && chartNode.get(IResponseHandler.AGGS_PATH).isArray();
         ArrayNode aggrsPaths = isPathSpecified ? (ArrayNode) chartNode.get(IResponseHandler.AGGS_PATH) : JsonNodeFactory.instance.arrayNode();
 
-
+        Map<String, Double> divisors = new LinkedHashMap<>();
+        ArrayNode divisorFields = (ArrayNode) chartNode.get("divisorFields");
+        if(chartNode.get(ACTION).asText().equals("division")){
+            aggregationNode.forEach(node->{
+                if(node.get(CHART_SPECIFIC) != null) {
+                    divisorFields.forEach(divisor -> {
+                        if (node.get(CHART_SPECIFIC).get(divisor.asText()) != null && node.get(CHART_SPECIFIC).get(divisor.asText()).get(VALUE).asDouble() > 0.0) {
+                            divisors.put(divisor.asText(), node.get(CHART_SPECIFIC).get(divisor.asText()).get(VALUE).asDouble());
+                        }
+                    });
+                }
+            });
+        }
 
         int[] idx = { 1 };
         List<Data> dataList = new ArrayList<>();
@@ -65,7 +77,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
             buckets.forEach(bucket -> {
 
                 Map<String, Plot> plotMap = new LinkedHashMap<>();
-                String key = bucket.get(IResponseHandler.KEY).asText();
+                String key = bucket.get(IResponseHandler.KEY_AS_STRING) == null || bucket.get(IResponseHandler.KEY_AS_STRING).asText().isEmpty() ?  bucket.get(IResponseHandler.KEY).asText() : bucket.get(IResponseHandler.KEY_AS_STRING).asText();
 
                 //If aggrPath is specified.
                 if(aggrsPaths.size()>0){
@@ -81,6 +93,14 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                     sno.setLabel("" + idx[0]++);
                     Plot plotkey = new Plot(plotLabel.isEmpty() ? TABLE_KEY : plotLabel, TABLE_TEXT);
                     plotkey.setLabel(key);
+
+                    if(chartNode.get(ACTION).asText().equals("division")){
+                        divisors.keySet().forEach(divisor->{
+                            Plot div = new Plot(divisor.toString(), TABLE_TEXT);
+                            div.setValue(divisors.get(divisor));
+                            plots.put(divisor.toString(),div);
+                        });
+                    }
 
                     plots.put(SERIAL_NUMBER, sno);
                     plots.put(plotLabel.isEmpty() ? TABLE_KEY : plotLabel, plotkey);
