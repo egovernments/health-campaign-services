@@ -1,0 +1,1 @@
+ALTER TABLE STOCK ADD COLUMN waybillNumber character varying(200);

@@ -63,7 +63,7 @@ public class StockApiController {
         this.stockConfiguration = stockConfiguration;
     }
 
-    @RequestMapping(value = "/stock/reconciliation/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/reconciliation/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<StockReconciliationResponse> stockReconciliationV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockReconciliationRequest request) {
 
         StockReconciliation stockReconciliation = stockReconciliationService.create(request);
@@ -71,7 +71,7 @@ public class StockApiController {
         return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/stock/reconciliation/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/reconciliation/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<StockReconciliationResponse> stockReconciliationV1SearchPost(@ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest stock, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
@@ -80,14 +80,14 @@ public class StockApiController {
         return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/stock/reconciliation/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/reconciliation/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<StockReconciliationResponse> stockReconciliationV1UpdatePost(@ApiParam(value = "Capture details of stock transaction", required = true) @Valid @RequestBody StockReconciliationRequest request) {
         StockReconciliation stockReconciliation = stockReconciliationService.update(request);
 
         return new ResponseEntity<StockReconciliationResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
-    @RequestMapping(value = "/stock/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<StockResponse> stockV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockRequest request) {
         Stock stock = stockService.create(request);
         StockResponse response = StockResponse.builder()
@@ -99,7 +99,7 @@ public class StockApiController {
         return ResponseEntity.accepted().body(response);
     }
 
-    @RequestMapping(value = "/stock/v1/bulk/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> stockV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(stockConfiguration.getBulkCreateStockTopic(), request);
@@ -108,7 +108,7 @@ public class StockApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/stock/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<StockBulkResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest request, @NotNull
     @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
                                                            @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
@@ -120,7 +120,7 @@ public class StockApiController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @RequestMapping(value = "/stock/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<StockResponse> stockV1UpdatePost(@ApiParam(value = "Capture details of stock transaction", required = true) @Valid @RequestBody StockRequest request) {
         Stock stock = stockService.update(request);
         StockResponse response = StockResponse.builder()
@@ -132,7 +132,7 @@ public class StockApiController {
         return ResponseEntity.accepted().body(response);
     }
 
-    @RequestMapping(value = "/stock/v1/bulk/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> stockV1UpdatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(stockConfiguration.getBulkUpdateStockTopic(), request);
@@ -141,7 +141,7 @@ public class StockApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/stock/v1/_delete", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
     public ResponseEntity<StockResponse> stockV1DeletePost(@ApiParam(value = "Capture details of stock transaction", required = true) @Valid @RequestBody StockRequest request) {
         Stock stock = stockService.delete(request);
         StockResponse response = StockResponse.builder()
@@ -153,7 +153,7 @@ public class StockApiController {
         return ResponseEntity.accepted().body(response);
     }
 
-    @RequestMapping(value = "/stock/v1/bulk/_delete", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> stockV1DeletePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(stockConfiguration.getBulkDeleteStockTopic(), request);
