@@ -54,6 +54,9 @@ public class SurveyRowMapper implements ResultSetExtractor<List<SurveyEntity>>{
                         .collectCitizenInfo(rs.getBoolean("scollectCitizenInfo"))
                         .active(rs.getBoolean("sactive"))
                         .auditDetails(auditdetails)
+                        .tags(Arrays.asList(rs.getString("stags").split(",")))
+                        .entityType(rs.getString("sentitytype"))
+                        .entityId(rs.getString("sentityid"))
                         .build();
             }
             addChildrenToProperty(rs, surveyEntity);

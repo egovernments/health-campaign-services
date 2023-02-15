@@ -31,6 +31,7 @@ public class Answer {
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails;
 
+    // we are also allowing employee ids in this field
     @JsonProperty("citizenId")
     private String citizenId;
 
@@ -39,5 +40,11 @@ public class Answer {
 
     @JsonProperty("emailId")
     private String emailId;
+
+    @JsonProperty("additionalComments")
+    private String additionalComments;
+
+    @JsonProperty("entityId")
+    private String entityId;
 
 }

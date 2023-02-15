@@ -24,9 +24,9 @@ public class SurveyQueryBuilder {
     private static final String AND_QUERY = " AND ";
     private final String ORDERBY_CREATEDTIME = " ORDER BY survey.createdtime DESC ";
 
-    private static final String SURVEY_SELECT_VALUES = " survey.uuid as suuid, survey.tenantid as stenantid, survey.title as stitle, survey.description as sdescription, survey.status as sstatus, survey.startdate as sstartdate, survey.enddate as senddate, survey.collectcitizeninfo as scollectcitizeninfo, survey.active as sactive, survey.postedby as spostedby, survey.createdby as screatedby, survey.lastmodifiedby as slastmodifiedby, survey.createdtime as screatedtime, survey.lastmodifiedtime as slastmodifiedtime ";
+    private static final String SURVEY_SELECT_VALUES = " survey.uuid as suuid, survey.tenantid as stenantid, survey.title as stitle, survey.description as sdescription, survey.status as sstatus, survey.startdate as sstartdate, survey.enddate as senddate, survey.collectcitizeninfo as scollectcitizeninfo, survey.active as sactive, survey.postedby as spostedby, survey.tags as stags, survey.entitytype as sentitytype, survey.entityid as sentityid, survey.createdby as screatedby, survey.lastmodifiedby as slastmodifiedby, survey.createdtime as screatedtime, survey.lastmodifiedtime as slastmodifiedtime ";
 
-    private static final String QUESTION_SELECT_VALUES = " question.uuid as quuid, question.surveyid as qsurveyid, question.questionstatement as qstatement, question.options as qoptions, question.status as qstatus, question.type as qtype, question.required as qrequired, question.createdby as qcreatedby, question.lastmodifiedby as qlastmodifiedby, question.createdtime as qcreatedtime, question.lastmodifiedtime as qlastmodifiedtime, question.qorder as qorder";
+    private static final String QUESTION_SELECT_VALUES = " question.uuid as quuid, question.surveyid as qsurveyid, question.questionstatement as qstatement, question.options as qoptions, question.status as qstatus, question.type as qtype, question.required as qrequired, question.createdby as qcreatedby, question.lastmodifiedby as qlastmodifiedby, question.createdtime as qcreatedtime, question.lastmodifiedtime as qlastmodifiedtime, question.qorder as qorder, question.extraInfo as extraInfo";
 
     public static final String SURVEY_COUNT_WRAPPER = " SELECT COUNT(uuid) FROM ({INTERNAL_QUERY}) AS count ";
 
@@ -84,7 +84,7 @@ public class SurveyQueryBuilder {
     }
 
     public String getQuestionsBasedOnSurveyIdsQuery() {
-        return " SELECT uuid, surveyid, questionstatement, options, status, type, required, createdby, lastmodifiedby, createdtime, lastmodifiedtime FROM eg_ss_question WHERE surveyid = ? ";
+        return " SELECT uuid, surveyid, questionstatement, options, status, type, required, extrainfo, createdby, lastmodifiedby, createdtime, lastmodifiedtime FROM eg_ss_question WHERE surveyid = ? ";
     }
 
     public String getAnonymitySettingQuery() {
@@ -114,7 +114,7 @@ public class SurveyQueryBuilder {
     }
 
     public String fetchSurveyResultsQuery(SurveyResultsSearchCriteria criteria, List<Object> preparedStmtList) {
-        StringBuilder query = new StringBuilder(" SELECT uuid,questionid,surveyid,answer,createdby,lastmodifiedby,createdtime,lastmodifiedtime,citizenid,mobilenumber,emailid FROM eg_ss_answer  ");
+        StringBuilder query = new StringBuilder(" SELECT uuid,questionid,surveyid,answer,createdby,lastmodifiedby,createdtime,lastmodifiedtime,citizenid,mobilenumber,emailid,additionalComments,entityId FROM eg_ss_answer  ");
         if(!ObjectUtils.isEmpty(criteria.getSurveyId())){
             addClauseIfRequired(query, preparedStmtList);
             query.append(" surveyid = ? ");
@@ -184,9 +184,30 @@ public class SurveyQueryBuilder {
             preparedStmtList.add(criteria.getUuid());
         }
         // Fetch surveys which have NOT been soft deleted
-        addClauseIfRequired(query, preparedStmtList);
-        query.append(" survey.active = ? ");
-        preparedStmtList.add(Boolean.TRUE);
+        if (!criteria.getIncludeDeleted()) {
+            addClauseIfRequired(query, preparedStmtList);
+            query.append(" survey.active = ? ");
+            preparedStmtList.add(Boolean.TRUE);
+        }
+        if(!ObjectUtils.isEmpty(criteria.getEntityType())){
+            addClauseIfRequired(query, preparedStmtList);
+            query.append(" survey.entitytype = ? ");
+            preparedStmtList.add(criteria.getEntityType());
+        }
+        if(!CollectionUtils.isEmpty(criteria.getTags())){
+            addClauseIfRequired(query, preparedStmtList);
+            query.append(" ( ");
+            int count = 0;
+            for (String tag : criteria.getTags()) {
+                if (count != 0) {
+                    query.append(" OR ");
+                }
+                query.append(" survey.tags ILIKE ? ");
+                preparedStmtList.add("%" + tag + "%");
+                count++;
+            }
+            query.append(" ) ");
+        }
 
         // order surveys based on their createdtime in latest first manner
         query.append(ORDERBY_CREATEDTIME);
