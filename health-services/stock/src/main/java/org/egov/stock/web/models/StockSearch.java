@@ -39,6 +39,9 @@ public class StockSearch {
     @JsonProperty("referenceId")
     private String referenceId = null;
 
+    @JsonProperty("wayBillNumber")
+    private String wayBillNumber = null;
+
     @JsonProperty("referenceIdType")
     private String referenceIdType = null;
 
