@@ -51,15 +51,17 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
         List<JsonNode> aggrNodes = aggregationNode.findValues(BUCKETS);
         boolean isPathSpecified = chartNode.get(IResponseHandler.AGGS_PATH)!=null && chartNode.get(IResponseHandler.AGGS_PATH).isArray();
         ArrayNode aggrsPaths = isPathSpecified ? (ArrayNode) chartNode.get(IResponseHandler.AGGS_PATH) : JsonNodeFactory.instance.arrayNode();
+        String action = chartNode.get(ACTION).asText();
 
         Map<String, Double> divisors = new LinkedHashMap<>();
-        ArrayNode divisorFields = (ArrayNode) chartNode.get("divisorFields");
-        if(chartNode.get(ACTION).asText().equals("division")){
+        ArrayNode divisorFields = (ArrayNode) chartNode.get(DIVISOR_FIELDS);
+        if(action.equals(DIVISION)){
             aggregationNode.forEach(node->{
-                if(node.get(CHART_SPECIFIC) != null) {
+                JsonNode chartSpecificField = node.get(CHART_SPECIFIC);
+                if(chartSpecificField != null && divisorFields != null) {
                     divisorFields.forEach(divisor -> {
-                        if (node.get(CHART_SPECIFIC).get(divisor.asText()) != null && node.get(CHART_SPECIFIC).get(divisor.asText()).get(VALUE).asDouble() > 0.0) {
-                            divisors.put(divisor.asText(), node.get(CHART_SPECIFIC).get(divisor.asText()).get(VALUE).asDouble());
+                        if (chartSpecificField.get(divisor.asText()) != null && chartSpecificField.get(divisor.asText()).get(VALUE).asDouble() > 0.0) {
+                            divisors.put(divisor.asText(), chartSpecificField.get(divisor.asText()).get(VALUE).asDouble());
                         }
                     });
                 }
@@ -94,7 +96,7 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                     Plot plotkey = new Plot(plotLabel.isEmpty() ? TABLE_KEY : plotLabel, TABLE_TEXT);
                     plotkey.setLabel(key);
 
-                    if(chartNode.get(ACTION).asText().equals("division")){
+                    if(action.equals(DIVISION)){
                         divisors.keySet().forEach(divisor->{
                             Plot div = new Plot(divisor.toString(), TABLE_TEXT);
                             div.setValue(divisors.get(divisor));

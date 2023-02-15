@@ -86,6 +86,7 @@ public interface IResponseHandler {
 	public static Double BOUNDARY_VALUE = 50.0;
 
 	public static final String DIVISION = "division";
+	public static final String DIVISOR_FIELDS = "divisorFields";
 
 	/**
 	 * Translate the consolidated/aggregated response
