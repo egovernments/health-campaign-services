@@ -8,16 +8,15 @@ import org.egov.egovsurveyservices.service.SurveyService;
 import org.egov.egovsurveyservices.utils.ResponseInfoFactory;
 import org.egov.egovsurveyservices.web.models.AnswerRequest;
 import org.egov.egovsurveyservices.web.models.AnswerResponse;
-import org.egov.egovsurveyservices.web.models.RequestInfoWrapper;
 import org.egov.egovsurveyservices.web.models.SurveyEntity;
 import org.egov.egovsurveyservices.web.models.SurveyRequest;
 import org.egov.egovsurveyservices.web.models.SurveyResponse;
-import org.egov.egovsurveyservices.web.models.SurveyResultsSearchCriteria;
+import org.egov.egovsurveyservices.web.models.SurveyResultsSearchRequest;
 import org.egov.egovsurveyservices.web.models.SurveySearchCriteria;
+import org.egov.egovsurveyservices.web.models.SurveySearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -54,13 +53,13 @@ public class SurveyController {
     }
 
     @RequestMapping(value="/survey/_search", method = RequestMethod.POST)
-    public ResponseEntity<SurveyResponse> search(@Valid @RequestBody RequestInfoWrapper requestInfoWrapper,
-                                                   @Valid @ModelAttribute SurveySearchCriteria criteria) {
+    public ResponseEntity<SurveyResponse> search(@Valid @RequestBody SurveySearchRequest surveySearchRequest) {
         //log.info(criteria.toString());
-        Boolean isCitizen = requestInfoWrapper.getRequestInfo().getUserInfo().getType().equals(CITIZEN);
+        Boolean isCitizen = surveySearchRequest.getRequestInfo().getUserInfo().getType().equals(CITIZEN);
+        SurveySearchCriteria criteria = surveySearchRequest.getSurveySearchCriteria();
         if(isCitizen)
-            criteria.setCitizenId(requestInfoWrapper.getRequestInfo().getUserInfo().getUuid());
-        criteria.setTag(requestInfoWrapper.getRequestInfo().getUserInfo().getRoles().stream()
+            criteria.setCitizenId(surveySearchRequest.getRequestInfo().getUserInfo().getUuid());
+        criteria.setTags(surveySearchRequest.getRequestInfo().getUserInfo().getRoles().stream()
                 .map(Role::getCode).collect(Collectors.toList()));
         List<SurveyEntity> surveys = surveyService.searchSurveys(criteria, isCitizen);
         Integer totalCount = surveyService.countTotalSurveys(criteria);
@@ -94,10 +93,10 @@ public class SurveyController {
     }
 
     @RequestMapping(value="/survey/response/_results", method = RequestMethod.POST)
-    public ResponseEntity<AnswerResponse> responseSubmit(@Valid @RequestBody RequestInfoWrapper requestInfoWrapper,
-                                            @Valid @ModelAttribute SurveyResultsSearchCriteria criteria) {
-        ResponseInfo responseInfo = responseInfoFactory.createResponseInfoFromRequestInfo(requestInfoWrapper.getRequestInfo(), true);
-        AnswerResponse response = surveyService.fetchSurveyResults(requestInfoWrapper.getRequestInfo(), criteria);
+    public ResponseEntity<AnswerResponse> responseSubmit(@Valid @RequestBody SurveyResultsSearchRequest surveyResultsSearchRequest) {
+        ResponseInfo responseInfo = responseInfoFactory.createResponseInfoFromRequestInfo(surveyResultsSearchRequest.getRequestInfo(), true);
+        AnswerResponse response = surveyService.fetchSurveyResults(surveyResultsSearchRequest.getRequestInfo(),
+                surveyResultsSearchRequest.getSurveyResultsSearchCriteria());
         response.setResponseInfo(responseInfo);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

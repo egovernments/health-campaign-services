@@ -69,11 +69,14 @@ public class SurveyEntity {
     @JsonProperty("hasResponded")
     private Boolean hasResponded;
 
-    @JsonProperty("tag")
-    private List<String> tag;
+    @JsonProperty("tags")
+    private List<String> tags;
 
     @JsonProperty("entityType")
     private String entityType;
+
+    @JsonProperty("entityId")
+    private String entityId;
 
 
     public SurveyEntity addQuestionsItem(Question questionItem) {

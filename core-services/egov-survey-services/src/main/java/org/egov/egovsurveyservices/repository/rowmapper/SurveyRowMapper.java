@@ -9,7 +9,6 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -43,9 +42,6 @@ public class SurveyRowMapper implements ResultSetExtractor<List<SurveyEntity>>{
                         .lastModifiedTime(lastModifiedTime)
                         .build();
 
-                Array tag = rs.getArray("stag");
-                String[] tagArray = (String[])tag.getArray();
-
                 surveyEntity = SurveyEntity.builder()
                         .uuid(rs.getString("suuid"))
                         .tenantId(rs.getString("stenantid"))
@@ -58,8 +54,9 @@ public class SurveyRowMapper implements ResultSetExtractor<List<SurveyEntity>>{
                         .collectCitizenInfo(rs.getBoolean("scollectCitizenInfo"))
                         .active(rs.getBoolean("sactive"))
                         .auditDetails(auditdetails)
-                        .tag(Arrays.asList(tagArray))
+                        .tags(Arrays.asList(rs.getString("stags").split(",")))
                         .entityType(rs.getString("sentitytype"))
+                        .entityId(rs.getString("sentityid"))
                         .build();
             }
             addChildrenToProperty(rs, surveyEntity);

@@ -51,10 +51,10 @@ public class SurveySearchCriteria {
     @JsonIgnore
     private Boolean includeDeleted = false;
 
-    @JsonIgnore
-    private List<String> tag;
+    @JsonProperty("tags")
+    private List<String> tags;
 
-    @JsonIgnore
+    @JsonProperty("entityType")
     private String entityType;
 
     @JsonIgnore

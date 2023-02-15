@@ -2,7 +2,6 @@ package org.egov.egovsurveyservices.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.contract.request.Role;
 import org.egov.egovsurveyservices.service.SurveyService;
 import org.egov.egovsurveyservices.web.models.AnswerEntity;
 import org.egov.egovsurveyservices.web.models.Question;
@@ -18,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.egov.egovsurveyservices.utils.SurveyServiceConstants.CITIZEN;
 import static org.egov.egovsurveyservices.utils.SurveyServiceConstants.EMPLOYEE;
@@ -40,15 +38,15 @@ public class SurveyValidator {
             throw new CustomException("EG_SY_SUBMIT_RESPONSE_ERR", "Survey can only be answered by citizens.");
     }
 
-    public void validateSurveyUniqueness(SurveyEntity surveyEntity, RequestInfo requestInfo) {
+    public void validateSurveyUniqueness(SurveyEntity surveyEntity) {
         SurveySearchCriteria criteria = SurveySearchCriteria.builder()
                 .tenantIds(surveyEntity.getTenantIds())
                 .title(surveyEntity.getTitle())
                 .isCountCall(Boolean.FALSE)
                 .entityType(surveyEntity.getEntityType())
+                .tags(surveyEntity.getTags())
+                .includeDeleted(Boolean.FALSE)
                 .build();
-        criteria.setTag(requestInfo.getUserInfo().getRoles().stream()
-                .map(Role::getCode).collect(Collectors.toList()));
         if(!CollectionUtils.isEmpty(surveyService.searchSurveys(criteria, false)))
             throw new CustomException("EG_SY_DUPLICATE_SURVEY_ERR", "This survey entity already exists.");
     }
@@ -60,6 +58,7 @@ public class SurveyValidator {
         SurveySearchCriteria criteria = SurveySearchCriteria.builder()
                 .uuid(surveyEntity.getUuid())
                 .isCountCall(Boolean.FALSE)
+                .includeDeleted(Boolean.FALSE)
                 .build();
 
         List<SurveyEntity> surveyEntities = surveyService.searchSurveys(criteria, false);

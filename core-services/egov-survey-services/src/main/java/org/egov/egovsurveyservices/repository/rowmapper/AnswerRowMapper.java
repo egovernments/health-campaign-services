@@ -44,7 +44,8 @@ public class AnswerRowMapper implements ResultSetExtractor<List<Answer>> {
                         .citizenId(rs.getString("citizenid"))
                         .mobileNumber(rs.getString("mobilenumber"))
                         .emailId(rs.getString("emailid"))
-                        .reason(rs.getString("reason"))
+                        .additionalComments(rs.getString("additionalComments"))
+                        .entityId(rs.getString("entityId"))
                         .auditDetails(auditdetails)
                         .build();
             }

@@ -61,7 +61,7 @@ public class SurveyService {
         // Validate question types.
         surveyValidator.validateQuestions(surveyEntity);
         // Validate survey uniqueness.
-        surveyValidator.validateSurveyUniqueness(surveyEntity, surveyRequest.getRequestInfo());
+        surveyValidator.validateSurveyUniqueness(surveyEntity);
 
         // Persist survey if it passes all validations
         List<String> listOfTenantIds = new ArrayList<>(surveyEntity.getTenantIds());
@@ -74,7 +74,7 @@ public class SurveyService {
             // Enrich survey entity
             enrichmentService.enrichSurveyEntity(surveyRequest);
             log.info(surveyRequest.getSurveyEntity().toString());
-            producer.push("save-ss-survey", surveyRequest);
+            producer.push("save-ss-survey", Collections.singletonList(surveyRequest.getSurveyEntity()));
         }
 
         return surveyEntity;
@@ -207,7 +207,7 @@ public class SurveyService {
         });
 
         // Update survey if it passes all validations
-        producer.push("update-ss-survey", surveyRequest);
+        producer.push("update-ss-survey", Collections.singletonList(surveyRequest.getSurveyEntity()));
 
         return surveyEntity;
     }
