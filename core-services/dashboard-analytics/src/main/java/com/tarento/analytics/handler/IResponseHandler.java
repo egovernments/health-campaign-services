@@ -72,6 +72,7 @@ public interface IResponseHandler {
 
 	public static String BUCKETS = "buckets";
 	public static String KEY = "key";
+	public static String KEY_AS_STRING = "key_as_string";
 	public static String VALUE = "value";
 
 	public final String PERCENTAGE = "percentage";
@@ -88,6 +89,7 @@ public interface IResponseHandler {
 	public static Double BOUNDARY_VALUE = 50.0;
 
 	public static final String DIVISION = "division";
+	public static final String DIVISOR_FIELDS = "divisorFields";
 
 	/**
 	 * Translate the consolidated/aggregated response
