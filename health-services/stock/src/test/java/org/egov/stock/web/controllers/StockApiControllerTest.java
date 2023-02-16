@@ -70,7 +70,7 @@ class StockApiControllerTest {
         StockRequest request = StockRequestTestBuilder.builder().withStock().withRequestInfo().build();
         when(stockService.create(any(StockRequest.class))).thenReturn(StockTestBuilder.builder().withStock().build());
 
-        MvcResult result = mockMvc.perform(post("/stock/v1/_create").contentType(MediaType
+        MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isAccepted()).andReturn();
 
@@ -84,7 +84,7 @@ class StockApiControllerTest {
     void shouldSendStockToKafkaForBulkCreateRequest() throws Exception {
         StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStock().withRequestInfo().build();
 
-        mockMvc.perform(post("/stock/v1/bulk/_create").contentType(MediaType
+        mockMvc.perform(post("/v1/bulk/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
@@ -98,7 +98,7 @@ class StockApiControllerTest {
         StockRequest request = StockRequestTestBuilder.builder().withStock().withRequestInfo().build();
         when(stockService.update(any(StockRequest.class))).thenReturn(StockTestBuilder.builder().withStock().build());
 
-        MvcResult result = mockMvc.perform(post("/stock/v1/_update").contentType(MediaType
+        MvcResult result = mockMvc.perform(post("/v1/_update").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
@@ -112,7 +112,7 @@ class StockApiControllerTest {
     void shouldSendStockToKafkaForBulkUpdateRequest() throws Exception {
         StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStock().withRequestInfo().build();
 
-        mockMvc.perform(post("/stock/v1/bulk/_update").contentType(MediaType
+        mockMvc.perform(post("/v1/bulk/_update").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
@@ -126,7 +126,7 @@ class StockApiControllerTest {
         StockRequest request = StockRequestTestBuilder.builder().withStock().withRequestInfo().build();
         when(stockService.delete(any(StockRequest.class))).thenReturn(StockTestBuilder.builder().withStock().build());
 
-        MvcResult result = mockMvc.perform(post("/stock/v1/_delete").contentType(MediaType
+        MvcResult result = mockMvc.perform(post("/v1/_delete").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
@@ -140,7 +140,7 @@ class StockApiControllerTest {
     void shouldSendStockToKafkaForBulkDeleteRequest() throws Exception {
         StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStock().withRequestInfo().build();
 
-        mockMvc.perform(post("/stock/v1/bulk/_delete").contentType(MediaType
+        mockMvc.perform(post("/v1/bulk/_delete").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted()).andReturn();
 
