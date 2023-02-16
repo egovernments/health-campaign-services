@@ -1,5 +1,8 @@
 package org.egov.egovsurveyservices.repository.rowmapper;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.egovsurveyservices.web.models.AdditionalFields;
 import org.egov.egovsurveyservices.web.models.Answer;
 import org.egov.egovsurveyservices.web.models.AuditDetails;
 import org.springframework.dao.DataAccessException;
@@ -16,6 +19,9 @@ import java.util.Map;
 
 @Component
 public class AnswerRowMapper implements ResultSetExtractor<List<Answer>> {
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     public List<Answer> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String,Answer> answerMap = new LinkedHashMap<>();
 
@@ -37,17 +43,25 @@ public class AnswerRowMapper implements ResultSetExtractor<List<Answer>> {
                         .lastModifiedTime(lastModifiedTime)
                         .build();
 
-                answer = Answer.builder()
-                        .uuid(rs.getString("uuid"))
-                        .questionId(rs.getString("questionid"))
-                        .answer(Arrays.asList(rs.getString("answer").split(",")))
-                        .citizenId(rs.getString("citizenid"))
-                        .mobileNumber(rs.getString("mobilenumber"))
-                        .emailId(rs.getString("emailid"))
-                        .additionalComments(rs.getString("additionalComments"))
-                        .entityId(rs.getString("entityId"))
-                        .auditDetails(auditdetails)
-                        .build();
+                try {
+                    answer = Answer.builder()
+                            .uuid(rs.getString("uuid"))
+                            .questionId(rs.getString("questionid"))
+                            .answer(Arrays.asList(rs.getString("answer").split(",")))
+                            .citizenId(rs.getString("citizenid"))
+                            .mobileNumber(rs.getString("mobilenumber"))
+                            .emailId(rs.getString("emailid"))
+                            .additionalComments(rs.getString("additionalComments"))
+                            .entityId(rs.getString("entityId"))
+                            .entityType(rs.getString("entityType"))
+                            .additionalFields(rs.getString("additionalDetails") == null ? null :
+                                    objectMapper.readValue(rs.getString("additionalDetails"),
+                                            AdditionalFields.class))
+                            .auditDetails(auditdetails)
+                            .build();
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             answerMap.put(uuid, answer);

@@ -59,8 +59,10 @@ public class SurveyController {
         SurveySearchCriteria criteria = surveySearchRequest.getSurveySearchCriteria();
         if(isCitizen)
             criteria.setCitizenId(surveySearchRequest.getRequestInfo().getUserInfo().getUuid());
-        criteria.setTags(surveySearchRequest.getRequestInfo().getUserInfo().getRoles().stream()
-                .map(Role::getCode).collect(Collectors.toList()));
+        if (criteria.getTags() == null) {
+            criteria.setTags(surveySearchRequest.getRequestInfo().getUserInfo().getRoles().stream()
+                    .map(Role::getCode).collect(Collectors.toList()));
+        }
         List<SurveyEntity> surveys = surveyService.searchSurveys(criteria, isCitizen);
         Integer totalCount = surveyService.countTotalSurveys(criteria);
         SurveyResponse response  = SurveyResponse.builder().surveyEntities(surveys).totalCount(totalCount).build();

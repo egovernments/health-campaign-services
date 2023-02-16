@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import javax.validation.Valid;
 import java.util.List;
 
 @Getter
@@ -46,5 +47,12 @@ public class Answer {
 
     @JsonProperty("entityId")
     private String entityId;
+
+    @JsonProperty("entityType")
+    private String entityType;
+
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields;
 
 }
