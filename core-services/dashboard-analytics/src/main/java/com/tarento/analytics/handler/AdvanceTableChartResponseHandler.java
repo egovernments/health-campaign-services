@@ -79,7 +79,9 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
             buckets.forEach(bucket -> {
 
                 Map<String, Plot> plotMap = new LinkedHashMap<>();
-                String key = bucket.get(IResponseHandler.KEY_AS_STRING) == null || bucket.get(IResponseHandler.KEY_AS_STRING).asText().isEmpty() ?  bucket.get(IResponseHandler.KEY).asText() : bucket.get(IResponseHandler.KEY_AS_STRING).asText();
+
+                JsonNode keyAsString = bucket.get(IResponseHandler.KEY_AS_STRING);
+                String key = keyAsString == null || keyAsString.asText().isEmpty() ?  bucket.get(IResponseHandler.KEY).asText() : keyAsString.asText();
 
                 //If aggrPath is specified.
                 if(aggrsPaths.size()>0){
