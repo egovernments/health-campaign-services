@@ -114,7 +114,7 @@ public class SurveyQueryBuilder {
     }
 
     public String fetchSurveyResultsQuery(SurveyResultsSearchCriteria criteria, List<Object> preparedStmtList) {
-        StringBuilder query = new StringBuilder(" SELECT uuid,questionid,surveyid,answer,createdby,lastmodifiedby,createdtime,lastmodifiedtime,citizenid,mobilenumber,emailid,additionalComments,entityId FROM eg_ss_answer  ");
+        StringBuilder query = new StringBuilder(" SELECT uuid,questionid,surveyid,answer,createdby,lastmodifiedby,createdtime,lastmodifiedtime,citizenid,mobilenumber,emailid,additionalComments,entityId,entityType,additionalDetails FROM eg_ss_answer  ");
         if(!ObjectUtils.isEmpty(criteria.getSurveyId())){
             addClauseIfRequired(query, preparedStmtList);
             query.append(" surveyid = ? ");
@@ -209,6 +209,9 @@ public class SurveyQueryBuilder {
             query.append(" ) ");
         }
 
+//        a,b,c
+//        bb,cc,d,e
+        //
         // order surveys based on their createdtime in latest first manner
         query.append(ORDERBY_CREATEDTIME);
 
