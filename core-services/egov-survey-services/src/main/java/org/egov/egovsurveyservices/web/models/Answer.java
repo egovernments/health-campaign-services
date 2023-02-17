@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import javax.validation.Valid;
 import java.util.List;
 
 @Getter
@@ -31,6 +32,7 @@ public class Answer {
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails;
 
+    // we are also allowing employee ids in this field
     @JsonProperty("citizenId")
     private String citizenId;
 
@@ -39,5 +41,18 @@ public class Answer {
 
     @JsonProperty("emailId")
     private String emailId;
+
+    @JsonProperty("additionalComments")
+    private String additionalComments;
+
+    @JsonProperty("entityId")
+    private String entityId;
+
+    @JsonProperty("entityType")
+    private String entityType;
+
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields;
 
 }

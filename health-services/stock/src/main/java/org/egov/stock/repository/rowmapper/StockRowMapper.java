@@ -28,6 +28,7 @@ public class StockRowMapper implements RowMapper<Stock> {
                     .facilityId(resultSet.getString("facilityId"))
                     .productVariantId(resultSet.getString("productVariantId"))
                     .quantity(resultSet.getInt("quantity"))
+                    .wayBillNumber(resultSet.getString("wayBillNumber"))
                     .referenceId(resultSet.getString("referenceId"))
                     .referenceIdType(resultSet.getString("referenceIdType"))
                     .transactionType(TransactionType.fromValue(resultSet.getString("transactionType")))

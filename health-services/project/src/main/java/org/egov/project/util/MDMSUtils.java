@@ -1,6 +1,5 @@
 package org.egov.project.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
@@ -16,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -45,7 +45,7 @@ public class MDMSUtils {
         MdmsCriteriaReq mdmsCriteriaReq = getMDMSRequest(requestInfo, tenantId, request);
         Object result = null;
         try {
-            result = serviceRequestRepository.fetchResult(getMdmsSearchUrl(), mdmsCriteriaReq, JsonNode.class);
+            result = serviceRequestRepository.fetchResult(getMdmsSearchUrl(), mdmsCriteriaReq, LinkedHashMap.class);
         } catch (Exception e) {
             log.error("error while calling mdms", e);
             throw new CustomException("MDMS_ERROR", "error while calling mdms");

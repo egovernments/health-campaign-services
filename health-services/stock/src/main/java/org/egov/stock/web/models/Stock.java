@@ -71,6 +71,10 @@ public class Stock {
     @NotNull
     private String transactingPartyType = null;
 
+    @JsonProperty("wayBillNumber")
+    @Size(min = 2, max = 200)
+    private String wayBillNumber = null;
+
     @JsonProperty("additionalFields")
     @Valid
     private AdditionalFields additionalFields = null;
