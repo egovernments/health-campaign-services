@@ -51,8 +51,22 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
         List<JsonNode> aggrNodes = aggregationNode.findValues(BUCKETS);
         boolean isPathSpecified = chartNode.get(IResponseHandler.AGGS_PATH)!=null && chartNode.get(IResponseHandler.AGGS_PATH).isArray();
         ArrayNode aggrsPaths = isPathSpecified ? (ArrayNode) chartNode.get(IResponseHandler.AGGS_PATH) : JsonNodeFactory.instance.arrayNode();
+        String action = chartNode.get(ACTION).asText();
 
-
+        Map<String, Double> divisors = new LinkedHashMap<>();
+        ArrayNode divisorFields = (ArrayNode) chartNode.get(DIVISOR_FIELDS);
+        if(action.equals(DIVISION)){
+            aggregationNode.forEach(node->{
+                JsonNode chartSpecificField = node.get(CHART_SPECIFIC);
+                if(chartSpecificField != null && divisorFields != null) {
+                    divisorFields.forEach(divisor -> {
+                        if (chartSpecificField.get(divisor.asText()) != null && chartSpecificField.get(divisor.asText()).get(VALUE).asDouble() > 0.0) {
+                            divisors.put(divisor.asText(), chartSpecificField.get(divisor.asText()).get(VALUE).asDouble());
+                        }
+                    });
+                }
+            });
+        }
 
         int[] idx = { 1 };
         List<Data> dataList = new ArrayList<>();
@@ -65,7 +79,9 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
             buckets.forEach(bucket -> {
 
                 Map<String, Plot> plotMap = new LinkedHashMap<>();
-                String key = bucket.get(IResponseHandler.KEY).asText();
+
+                JsonNode keyAsString = bucket.get(IResponseHandler.KEY_AS_STRING);
+                String key = keyAsString == null || keyAsString.asText().isEmpty() ?  bucket.get(IResponseHandler.KEY).asText() : keyAsString.asText();
 
                 //If aggrPath is specified.
                 if(aggrsPaths.size()>0){
@@ -81,6 +97,14 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
                     sno.setLabel("" + idx[0]++);
                     Plot plotkey = new Plot(plotLabel.isEmpty() ? TABLE_KEY : plotLabel, TABLE_TEXT);
                     plotkey.setLabel(key);
+
+                    if(action.equals(DIVISION)){
+                        divisors.keySet().forEach(divisor->{
+                            Plot div = new Plot(divisor.toString(), TABLE_TEXT);
+                            div.setValue(divisors.get(divisor));
+                            plots.put(divisor.toString(),div);
+                        });
+                    }
 
                     plots.put(SERIAL_NUMBER, sno);
                     plots.put(plotLabel.isEmpty() ? TABLE_KEY : plotLabel, plotkey);

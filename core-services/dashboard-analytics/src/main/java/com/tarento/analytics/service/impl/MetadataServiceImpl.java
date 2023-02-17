@@ -79,6 +79,7 @@ public class MetadataServiceImpl implements MetadataService {
 			//Object roleId = roleIds.stream().filter(x -> role.get(Constants.DashBoardConfig.ROLE_ID).asLong() == (x.getId())).findAny().orElse(null);
 			if (null != roleId) {
 				ArrayNode visArray = JsonNodeFactory.instance.arrayNode();
+				ArrayNode hideFiltersArray = JsonNodeFactory.instance.arrayNode();
 				for(JsonNode db : role.get(Constants.DashBoardConfig.DASHBOARDS)){
 					ObjectNode copyDashboard = objectMapper.createObjectNode();
 
@@ -92,6 +93,13 @@ public class MetadataServiceImpl implements MetadataService {
 								logger.info("dbNode: " + dbNode);
 								name = dbNode.get(Constants.DashBoardConfig.NAME);
 								id = dbNode.get(Constants.DashBoardConfig.ID);
+
+								if(dbNode.get(Constants.DashBoardConfig.HIDEFILTERFIELDS) != null){
+									dbNode.get(Constants.DashBoardConfig.HIDEFILTERFIELDS).forEach(filter -> {
+												hideFiltersArray.add(filter);
+											}
+									);
+								}
 
 								if (catagory != null) {
 									dbNode.get(Constants.DashBoardConfig.VISUALISATIONS).forEach(visual -> {
@@ -112,6 +120,7 @@ public class MetadataServiceImpl implements MetadataService {
 							copyDashboard.set(Constants.DashBoardConfig.VISUALISATIONS, visArray);
 							copyDashboard.set("roleId", role.get("roleId"));
 							copyDashboard.set("roleName", role.get("roleName"));
+							copyDashboard.set(Constants.DashBoardConfig.HIDEFILTERFIELDS, hideFiltersArray);
 
 						}//);
 						dbArray.add(copyDashboard);

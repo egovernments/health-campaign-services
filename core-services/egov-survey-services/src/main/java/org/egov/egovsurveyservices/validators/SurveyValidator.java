@@ -43,8 +43,10 @@ public class SurveyValidator {
                 .tenantIds(surveyEntity.getTenantIds())
                 .title(surveyEntity.getTitle())
                 .isCountCall(Boolean.FALSE)
+                .entityType(surveyEntity.getEntityType())
+                .tags(surveyEntity.getTags())
+                .includeDeleted(Boolean.FALSE)
                 .build();
-
         if(!CollectionUtils.isEmpty(surveyService.searchSurveys(criteria, false)))
             throw new CustomException("EG_SY_DUPLICATE_SURVEY_ERR", "This survey entity already exists.");
     }
@@ -56,6 +58,7 @@ public class SurveyValidator {
         SurveySearchCriteria criteria = SurveySearchCriteria.builder()
                 .uuid(surveyEntity.getUuid())
                 .isCountCall(Boolean.FALSE)
+                .includeDeleted(Boolean.FALSE)
                 .build();
 
         List<SurveyEntity> surveyEntities = surveyService.searchSurveys(criteria, false);
