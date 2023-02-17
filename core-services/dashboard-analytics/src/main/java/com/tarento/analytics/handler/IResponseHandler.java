@@ -62,6 +62,7 @@ public interface IResponseHandler {
 	public final String AGGREGATIONS = "aggregations";
 	public final String PLOT_LABEL = "plotLabel";
 	public final String COMPUTED_FIELDS = "computedFields";
+	public final String PREDICTION_PATH = "predictionPath";
 	public final String EXCLUDED_COLUMNS = "excludedColumns";
 	public final String LIMIT = "limit";
 	public final String ORDER = "order";
@@ -113,6 +114,9 @@ public interface IResponseHandler {
 		aggregateDto.setData(dataList);
 		if (chartNode.has(SHOW_LABEL)) {
 			aggregateDto.setShowLabel(chartNode.get(SHOW_LABEL).asBoolean());
+		}
+		if(chartNode.has(PREDICTION_PATH)){
+			aggregateDto.setPredictionPath(chartNode.get(PREDICTION_PATH).asText());
 		}
 		if(null!=chartNode.get(FILTER_KEYS))
 			aggregateDto.setFilter((ArrayNode) chartNode.get(FILTER_KEYS));

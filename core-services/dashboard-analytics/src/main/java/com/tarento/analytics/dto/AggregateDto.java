@@ -14,7 +14,9 @@ public class AggregateDto {
 
 	private ChartType chartType;
 	
-	private String visualizationCode; 
+	private String visualizationCode;
+
+	private String predictionPath;
 	
 	private String chartFormat;
 
@@ -29,6 +31,9 @@ public class AggregateDto {
 	public void setShowLabel(Boolean showLabel) {
 		this.showLabel = showLabel;
 	}
+
+	public String getPredictionPath(){ return predictionPath;}
+	public void setPredictionPath(String predictionPath){ this.predictionPath = predictionPath;}
 
 	public String getVisualizationCode() {
 		return visualizationCode;

@@ -65,11 +65,12 @@ public class LineChartResponseHandler implements IResponseHandler {
         ArrayNode pathDataTypeMap = (ArrayNode) chartNode.get(TYPE_MAPPING);
         
         Set<String> plotKeys = new LinkedHashSet<>();
+        List<Long> plotEpochKeys = new ArrayList<>();
         boolean isCumulative = chartNode.get("isCumulative").asBoolean();
 
         JsonNode computedFields = chartNode.get(COMPUTED_FIELDS);
+        JsonNode predictionPath = chartNode.get(PREDICTION_PATH);
         boolean executeComputedFields = computedFields !=null && computedFields.isArray();
-
 
         //aggrsPaths.forEach(headerPath -> {
         for(JsonNode headerPath : aggrsPaths){
@@ -105,7 +106,7 @@ public class LineChartResponseHandler implements IResponseHandler {
                     for(JsonNode bucket : buckets){
                             String bkey = bucket.findValue(IResponseHandler.KEY).asText();
                             String key = getIntervalKey(bkey, Constants.Interval.valueOf(interval));
-
+                            plotEpochKeys.add(bucket.findValue(IResponseHandler.KEY).asLong());
                             plotKeys.add(key);
                             double previousVal = !isCumulative ? 0.0 : (totalValues.size() > 0 ? totalValues.get(totalValues.size() - 1) : 0.0);
 
@@ -171,7 +172,14 @@ public class LineChartResponseHandler implements IResponseHandler {
         }
         String action = chartNode.get(ACTION).asText();
         dataList.forEach(data -> {
-            appendMissingPlot(plotKeys, data, symbol, isCumulative);
+            if(predictionPath!=null){
+                addMissingDates(plotKeys,plotEpochKeys);
+                if(data.getHeaderName().equals(predictionPath.asText())){
+                    appendTargetPlot(plotKeys,data,symbol,isCumulative);
+                }
+            }else{
+                appendMissingPlot(plotKeys, data, symbol, isCumulative);
+            }
         });
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
             dataList = actionsHelper.divide(action, dataList, chartNode);
@@ -179,6 +187,33 @@ public class LineChartResponseHandler implements IResponseHandler {
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
     }
 
+    public void addMissingDates(Set<String> plotKeys, List<Long> plotEpochKeys){
+        Collections.sort(plotEpochKeys);
+        ListIterator<Long> iterator = plotEpochKeys.listIterator();
+        Long dif = 86400000L;
+        for(int i=0; i<plotEpochKeys.size()-1;i++){
+            if(plotEpochKeys.get(i+1)-plotEpochKeys.get(i) > dif){
+                plotEpochKeys.add(i+1,plotEpochKeys.get(i) + dif);
+            }
+        }
+        plotKeys.clear();
+        plotEpochKeys.forEach(key -> {
+            String plotKey = getIntervalKey(key.toString(), Constants.Interval.valueOf("day"));
+            plotKeys.add(plotKey);
+        });
+    }
+    private void appendTargetPlot(Set<String> plotKeys, Data data, String symbol, boolean isCumulative){
+        List<Plot> plots = new ArrayList<>();
+        double targetValue = (double) data.getHeaderValue();
+        if(isCumulative){
+            plotKeys.forEach(key -> {
+                double value = plots.size()==0 ? targetValue : plots.get(plots.size()-1).getValue() + targetValue;
+                Plot plot = new Plot(key,value,symbol);
+                plots.add(plot);
+            });
+            data.setPlots(plots);
+        }
+    }
     private double getValueOfPlotMap(JsonNode bucket, double previousVal, JsonNode chartNode) {
         String jsonStr = bucket.toString();
         JSONObject currObj = new JSONObject(jsonStr);
