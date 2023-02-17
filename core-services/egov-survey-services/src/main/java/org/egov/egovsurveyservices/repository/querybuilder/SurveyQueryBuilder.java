@@ -209,9 +209,6 @@ public class SurveyQueryBuilder {
             query.append(" ) ");
         }
 
-//        a,b,c
-//        bb,cc,d,e
-        //
         // order surveys based on their createdtime in latest first manner
         query.append(ORDERBY_CREATEDTIME);
 
