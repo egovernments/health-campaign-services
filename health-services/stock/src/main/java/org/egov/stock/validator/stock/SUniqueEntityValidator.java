@@ -29,6 +29,7 @@ public class SUniqueEntityValidator implements Validator<StockBulkRequest, Stock
         List<Stock> validEntities = request.getStock()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
+            log.info("valid entity not empty");
             Map<String, Stock> eMap = getIdToObjMap(validEntities);
             if (eMap.keySet().size() != validEntities.size()) {
                 List<String> duplicates = eMap.keySet().stream().filter(id ->
