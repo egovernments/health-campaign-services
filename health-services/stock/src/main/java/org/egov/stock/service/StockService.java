@@ -18,7 +18,6 @@ import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
 import org.egov.stock.web.models.StockRequest;
 import org.egov.stock.web.models.StockSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -35,8 +34,8 @@ import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.stock.Constants.GET_STOCK;
 import static org.egov.stock.Constants.SET_STOCK;
 import static org.egov.stock.Constants.VALIDATION_ERROR;
 
@@ -82,9 +81,10 @@ public class StockService {
     }
 
     public List<Stock> create(StockBulkRequest request, boolean isBulk) {
-        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForCreate, request,
+        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = CommonUtils.validate(validators,
+                isApplicableForCreate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
+
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validTasks = tuple.getX();
         try {
@@ -110,8 +110,8 @@ public class StockService {
     }
 
     public List<Stock> update(StockBulkRequest request, boolean isBulk) {
-        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request,
+        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = CommonUtils.validate(validators,
+                isApplicableForUpdate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validTasks = tuple.getX();
@@ -137,25 +137,9 @@ public class StockService {
         return delete(bulkRequest, false).get(0);
     }
 
-    private Tuple<List<Stock>, Map<Stock, ErrorDetails>> validate(List<Validator<StockBulkRequest, Stock>> validators,
-                                                                Predicate<Validator<StockBulkRequest, Stock>> applicableValidators,
-                                                                StockBulkRequest request, boolean isBulk) {
-        log.info("validating request");
-        Map<Stock, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
-                applicableValidators, request,
-                SET_STOCK);
-        if (!errorDetailsMap.isEmpty() && !isBulk) {
-            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-        }
-        List<Stock> validStocks = request.getStock().stream()
-                .filter(notHavingErrors()).collect(Collectors.toList());
-        return new Tuple<>(validStocks, errorDetailsMap);
-    }
-    
-
     public List<Stock> delete(StockBulkRequest request, boolean isBulk) {
-        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForDelete, request,
+        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = CommonUtils.validate(validators,
+                isApplicableForDelete, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validTasks = tuple.getX();
