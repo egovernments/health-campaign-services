@@ -10,11 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-import static org.egov.common.utils.CommonUtils.enrichForCreate;
-import static org.egov.common.utils.CommonUtils.enrichForDelete;
-import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.*;
 
 @Service
 @Slf4j
@@ -30,19 +26,36 @@ public class StockReconciliationEnrichmentService {
     }
 
     public void create(List<StockReconciliation> entities, StockReconciliationBulkRequest request) throws Exception {
+        log.info("starting create method for stock reconciliation enrichment");
+
+        log.info("generating IDs for stock reconciliation enrichment using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(entities),
                 configuration.getStockReconciliationIdFormat(), "", entities.size());
 
+        log.info("enriching stock reconciliation enrichment with generated IDs");
         enrichForCreate(entities, idList, request.getRequestInfo());
+
+        log.info("completed create method for stock reconciliation enrichment");
     }
 
     public void update(List<StockReconciliation> entities, StockReconciliationBulkRequest request) {
+        log.info("starting update method for stock reconciliation enrichment");
+
         Map<String, StockReconciliation> stockMap = getIdToObjMap(entities);
+
+        log.info("enriching stock reconciliation enrichment with generated IDs");
         enrichForUpdate(stockMap, entities, request);
+
+        log.info("completed update method for stock reconciliation enrichment");
     }
 
     public void delete(List<StockReconciliation> entities, StockReconciliationBulkRequest request) {
+        log.info("starting delete method for stock reconciliation enrichment");
+
+        log.info("enriching stock reconciliation enrichment with generated IDs");
         enrichForDelete(entities, request.getRequestInfo(), true);
+
+        log.info("completed delete method for stock reconciliation enrichment");
     }
 }
