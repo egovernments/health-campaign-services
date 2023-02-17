@@ -3,6 +3,7 @@ package org.egov.project.service;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.producer.Producer;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectRepository;
 import org.egov.project.service.enrichment.ProjectEnrichment;
@@ -25,16 +26,20 @@ public class ProjectService {
     private final ProjectValidator projectValidator;
 
     private final ProjectEnrichment projectEnrichment;
+
     private final ProjectConfiguration projectConfiguration;
+
+    private final Producer producer;
 
     @Autowired
     public ProjectService(
             ProjectRepository projectRepository,
-            ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration) {
+            ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration, Producer producer) {
         this.projectRepository = projectRepository;
         this.projectValidator = projectValidator;
         this.projectEnrichment = projectEnrichment;
         this.projectConfiguration = projectConfiguration;
+        this.producer = producer;
     }
 
     public List<String> validateProjectIds(List<String> productIds) {
@@ -54,7 +59,7 @@ public class ProjectService {
             projectValidator.validateParentAgainstDB(projectRequest.getProjects(), parentProjects);
         projectEnrichment.enrichProjectOnCreate(projectRequest, parentProjects);
         log.info("Enriched with Project Number, Ids and AuditDetails");
-        projectRepository.save(projectRequest.getProjects(), projectConfiguration.getSaveProjectTopic());
+        producer.push(projectConfiguration.getSaveProjectTopic(), projectRequest);
         log.info("Pushed to kafka");
         return projectRequest;
     }
@@ -75,7 +80,7 @@ public class ProjectService {
         projectValidator.validateUpdateAgainstDB(project.getProjects(), projectsFromDB);
         projectEnrichment.enrichProjectOnUpdate(project, projectsFromDB);
         log.info("Enriched with project Number, Ids and AuditDetails");
-        projectRepository.save(project.getProjects(), projectConfiguration.getUpdateProjectTopic());
+        producer.push(projectConfiguration.getUpdateProjectTopic(), project);
         log.info("Pushed to kafka");
 
         return project;
