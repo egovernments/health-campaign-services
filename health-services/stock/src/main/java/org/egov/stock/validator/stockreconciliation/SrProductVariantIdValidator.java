@@ -51,6 +51,7 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
     @Override
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating stock reconciliation product variant id");
         List<StockReconciliation> entities = request.getStockReconciliation().stream().filter(notHavingErrors())
                 .collect(Collectors.toList());
         if (!entities.isEmpty()) {
@@ -63,6 +64,7 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
                 productVariantIds.forEach(id -> {
                     if (!validProductVariantsIds.contains(id)) {
                         Error error = getErrorForNonExistentRelatedEntity(id);
+                        log.info("validation failed for stock reconciliation product variant id: {} with error {}", entities, error);
                         populateErrorDetails(pvMap.get(id), error, errorDetailsMap);
                     }
                 });
@@ -72,12 +74,14 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
             }
         }
 
+        log.info("stock reconciliation product variant id validation completed successfully, total errors " +errorDetailsMap.size());
         return errorDetailsMap;
     }
 
     private List<ProductVariant> checkIfProductVariantExist(Set<String> pvIds, String tenantId, RequestInfo requestInfo) {
 
         List<String> productVariantIds = new ArrayList<>(pvIds);
+        log.info("validation if stock reconciliation product variant exist");
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
                 .id(productVariantIds).build();
         ProductVariantSearchRequest request = ProductVariantSearchRequest.builder().productVariant(productVariantSearch)
@@ -92,6 +96,7 @@ public class SrProductVariantIdValidator implements Validator<StockReconciliatio
             throw new CustomException("PRODUCT_VARIANT",
                     String.format("Something went wrong: %s", e.getMessage()));
         }
+        log.info("stock reconciliation product variant exist validation completed successfully");
         return response.getProductVariant();
     }
 

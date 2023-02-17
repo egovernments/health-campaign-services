@@ -40,6 +40,7 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
     @Override
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating non existent stock reconciliation");
         List<StockReconciliation> entities = request.getStockReconciliation();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
@@ -57,6 +58,7 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
             });
         }
 
+        log.info("stock reconciliation non existent validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

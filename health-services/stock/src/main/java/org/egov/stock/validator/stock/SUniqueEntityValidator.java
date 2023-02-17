@@ -25,6 +25,7 @@ public class SUniqueEntityValidator implements Validator<StockBulkRequest, Stock
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating unique entity for stock");
         List<Stock> validEntities = request.getStock()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
@@ -40,6 +41,7 @@ public class SUniqueEntityValidator implements Validator<StockBulkRequest, Stock
                 }
             }
         }
+        log.info("stock unique entity validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

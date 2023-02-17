@@ -24,12 +24,14 @@ public class SrIsDeletedValidator implements Validator<StockReconciliationBulkRe
     @Override
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         HashMap<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating is deleted stock reconciliation");
         List<StockReconciliation> validEntities = request.getStockReconciliation()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         validEntities.stream().filter(StockReconciliation::getIsDeleted).forEach(individual -> {
             Error error = getErrorForIsDelete();
             populateErrorDetails(individual, error, errorDetailsMap);
         });
+        log.info("stock reconciliation is deleted validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

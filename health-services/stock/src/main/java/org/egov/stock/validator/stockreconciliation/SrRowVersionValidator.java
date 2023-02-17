@@ -38,6 +38,7 @@ public class SrRowVersionValidator implements Validator<StockReconciliationBulkR
     @Override
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating row version stock reconciliation");
         Method idMethod = getIdMethod(request.getStockReconciliation());
         Map<String, StockReconciliation> eMap = getIdToObjMap(request.getStockReconciliation().stream()
                 .filter(notHavingErrors())
@@ -53,6 +54,8 @@ public class SrRowVersionValidator implements Validator<StockReconciliationBulkR
                 populateErrorDetails(individual, error, errorDetailsMap);
             });
         }
+
+        log.info("stock reconciliation row version validation completed successfully, total errors: "+ errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

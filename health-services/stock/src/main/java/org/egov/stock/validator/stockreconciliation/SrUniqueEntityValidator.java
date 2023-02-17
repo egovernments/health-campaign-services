@@ -26,6 +26,7 @@ public class SrUniqueEntityValidator implements Validator<StockReconciliationBul
     
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating unique entity for stock reconciliation");
         List<StockReconciliation> validEntities = request.getStockReconciliation()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
@@ -41,6 +42,8 @@ public class SrUniqueEntityValidator implements Validator<StockReconciliationBul
                 }
             }
         }
+
+        log.info("stock reconciliation unique entity validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

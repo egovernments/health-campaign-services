@@ -41,6 +41,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
         List<Stock> entities = request.getStock();
+        log.info("validating non existent stock");
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
         Map<String, Stock> eMap = getIdToObjMap(entities
@@ -57,6 +58,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
             });
         }
 
+        log.info("stock non existent validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }
