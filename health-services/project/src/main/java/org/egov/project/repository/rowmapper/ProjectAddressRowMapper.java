@@ -98,6 +98,7 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
         String project_projectNumber = rs.getString("project_projectNumber");
         String project_name = rs.getString("project_name");
         String project_projectType = rs.getString("project_projectType");
+        String project_projectTypeId = rs.getString("project_projectTypeId");
         String project_projectSubtype = rs.getString("project_projectSubtype");
         String project_department = rs.getString("project_department");
         String project_description = rs.getString("project_description");
@@ -125,6 +126,7 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
                 .projectNumber(project_projectNumber)
                 .name(project_name)
                 .projectType(project_projectType)
+                .projectTypeId(project_projectTypeId)
                 .projectSubType(project_projectSubtype)
                 .department(project_department)
                 .description(project_description)
@@ -154,7 +156,7 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
         } catch (IOException e) {
             throw new CustomException("PARSING ERROR", "Failed to parse additionalDetail object");
         }
-        if (additionalDetails.isEmpty())
+        if (additionalDetails == null || additionalDetails.isEmpty())
             additionalDetails = null;
         return additionalDetails;
     }
