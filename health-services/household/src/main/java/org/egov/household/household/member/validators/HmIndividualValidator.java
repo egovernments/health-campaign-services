@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.household.utils.ValidatorUtil.getHouseholdMembersWithNonNullIndividuals;
 
 @Component
 @Order(7)
@@ -36,6 +37,9 @@ public class HmIndividualValidator implements Validator<HouseholdMemberBulkReque
         List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
+        log.info("starting validation of household members, total household members: " + validHouseholdMembers.size());
+        validHouseholdMembers = getHouseholdMembersWithNonNullIndividuals(errorDetailsMap, validHouseholdMembers);
+
         if(!validHouseholdMembers.isEmpty()){
             RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
             String tenantId = getTenantId(validHouseholdMembers);
@@ -45,12 +49,13 @@ public class HmIndividualValidator implements Validator<HouseholdMemberBulkReque
                     requestInfo,
                     tenantId
             );
+            log.info("individuals searched successfully, total count: " + searchResponse.getIndividual().size());
             validHouseholdMembers.forEach(householdMember -> {
                 individualService.validateIndividual(householdMember,
                         searchResponse, errorDetailsMap);
             });
         }
-
+        log.info("household member validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

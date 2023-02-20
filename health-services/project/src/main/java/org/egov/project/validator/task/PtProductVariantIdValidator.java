@@ -56,6 +56,7 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating for product variant id");
         Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
         List<Task> entities = request.getTasks().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
@@ -69,8 +70,13 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
                     if (productVariantIds.size() != validProductVariants.size()) {
                         List<String> productVariantInRequest = new ArrayList<>();
                         productVariantInRequest.addAll(productVariantIds);
-                        Error error = getErrorForNonExistentRelatedEntity(getDifference(productVariantInRequest,
-                                getIdList(validProductVariants, getIdMethod(validProductVariants))));
+                        Error error;
+                        if (validProductVariants.isEmpty()) {
+                            error = getErrorForNonExistentRelatedEntity(productVariantInRequest);
+                        } else {
+                            error = getErrorForNonExistentRelatedEntity(getDifference(productVariantInRequest,
+                                    getIdList(validProductVariants, getIdMethod(validProductVariants))));
+                        }
                         populateErrorDetails(task, error, errorDetailsMap);
                     }
                 } catch (Exception exception) {
@@ -103,3 +109,4 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
         return response.getProductVariant();
     }
 }
+

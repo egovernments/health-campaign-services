@@ -94,14 +94,17 @@ public class ProjectStaffService {
         this.validators = validators;
     }
 
-    public ProjectStaff create(ProjectStaffRequest request) throws Exception {
+    public ProjectStaff create(ProjectStaffRequest request) {
+        log.info("received request to create project staff");
         ProjectStaffBulkRequest bulkRequest = ProjectStaffBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectStaff(Collections.singletonList(request.getProjectStaff())).build();
+        log.info("creating bulk request");
         return create(bulkRequest, false).get(0);
     }
 
 
-    public List<ProjectStaff> create(ProjectStaffBulkRequest request, boolean isBulk) throws Exception {
+    public List<ProjectStaff> create(ProjectStaffBulkRequest request, boolean isBulk) {
+        log.info("received request to create bulk project staff");
         Tuple<List<ProjectStaff>, Map<ProjectStaff, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
                 isBulk);
@@ -113,9 +116,10 @@ public class ProjectStaffService {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
                 projectStaffRepository.save(validEntities, projectConfiguration.getCreateProjectStaffTopic());
+                log.info("successfully created project staff");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while creating project staff: {}", exception.getMessage());
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
         }
 
@@ -125,13 +129,16 @@ public class ProjectStaffService {
     }
 
 
-    public ProjectStaff update(ProjectStaffRequest request) throws Exception {
+    public ProjectStaff update(ProjectStaffRequest request) {
+        log.debug("received request to update project staff");
         ProjectStaffBulkRequest bulkRequest = ProjectStaffBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectStaff(Collections.singletonList(request.getProjectStaff())).build();
+        log.info("creating bulk request");
         return update(bulkRequest, false).get(0);
     }
 
     public List<ProjectStaff> update(ProjectStaffBulkRequest request, boolean isBulk) {
+        log.info("received request to update bulk project staff");
         Tuple<List<ProjectStaff>, Map<ProjectStaff, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
                 isBulk);
@@ -143,9 +150,10 @@ public class ProjectStaffService {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
                 projectStaffRepository.save(validEntities, projectConfiguration.getUpdateProjectStaffTopic());
+                log.info("successfully updated bulk project staff");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while updating project staff", exception);
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
         }
 
@@ -154,9 +162,11 @@ public class ProjectStaffService {
         return validEntities;
     }
 
-    public ProjectStaff delete(ProjectStaffRequest request) throws Exception {
+    public ProjectStaff delete(ProjectStaffRequest request) {
+        log.info("received request to delete a project staff");
         ProjectStaffBulkRequest bulkRequest = ProjectStaffBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .projectStaff(Collections.singletonList(request.getProjectStaff())).build();
+        log.info("creating bulk request");
         return delete(bulkRequest, false).get(0);
     }
 
@@ -172,9 +182,10 @@ public class ProjectStaffService {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
                 projectStaffRepository.save(validEntities, projectConfiguration.getDeleteProjectStaffTopic());
+                log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
         }
 
@@ -191,10 +202,12 @@ public class ProjectStaffService {
                 applicableValidators, request,
                 SET_STAFF);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
+            log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<ProjectStaff> validTasks = request.getProjectStaff().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
+        log.info("validation successful, found valid project staff");
         return new Tuple<>(validTasks, errorDetailsMap);
     }
 
@@ -204,15 +217,19 @@ public class ProjectStaffService {
                                      String tenantId,
                                      Long lastChangedSince,
                                      Boolean includeDeleted) throws Exception {
+        log.info("received request to search project staff");
 
         if (isSearchByIdOnly(projectStaffSearchRequest.getProjectStaff())) {
+            log.info("searching project staff by id");
             List<String> ids = projectStaffSearchRequest.getProjectStaff().getId();
+            log.info("fetching project staff with ids: {}", ids);
             return projectStaffRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
+        log.info("searching project staff using criteria");
         return projectStaffRepository.find(projectStaffSearchRequest.getProjectStaff(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }

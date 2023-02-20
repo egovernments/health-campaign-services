@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -29,6 +30,9 @@ public class Document {
     @Size(min = 2, max = 64)
     private String id = null;
 
+    @JsonIgnore
+    private String projectid = null;
+
     @JsonProperty("tenantId")
     @NotNull
     @Size(min = 2, max = 128)
@@ -47,6 +51,15 @@ public class Document {
     @JsonProperty("documentUid")
     @Size(min = 2, max = 64)
     private String documentUid = null;
+
+    @JsonProperty("fileStore")
+    private String fileStore = null;
+
+    @JsonProperty("status")
+    private String status = null;
+
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
 
     @JsonProperty("auditDetails")
     @Valid

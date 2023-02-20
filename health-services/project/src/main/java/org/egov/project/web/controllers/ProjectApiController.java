@@ -8,6 +8,7 @@ import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectBeneficiaryService;
+import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.BeneficiaryBulkRequest;
@@ -15,6 +16,7 @@ import org.egov.project.web.models.BeneficiaryBulkResponse;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
 import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.project.web.models.Project;
 import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectFacilityRequest;
 import org.egov.project.web.models.ProjectFacilityResponse;
@@ -24,7 +26,6 @@ import org.egov.project.web.models.ProjectResourceRequest;
 import org.egov.project.web.models.ProjectResourceResponse;
 import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.egov.project.web.models.ProjectResponse;
-import org.egov.project.web.models.ProjectSearchRequest;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.egov.project.web.models.ProjectStaffBulkResponse;
@@ -75,8 +76,16 @@ public class ProjectApiController {
 
     private final ProjectConfiguration projectConfiguration;
 
+    private final ProjectService projectService;
+
     @Autowired
-    public ProjectApiController(ObjectMapper objectMapper, HttpServletRequest httpServletRequest, ProjectStaffService projectStaffService, ProjectTaskService projectTaskService, ProjectBeneficiaryService projectBeneficiaryService, Producer producer, ProjectConfiguration projectConfiguration) {
+    public ProjectApiController(ObjectMapper objectMapper, HttpServletRequest httpServletRequest,
+                                ProjectStaffService projectStaffService,
+                                ProjectTaskService projectTaskService,
+                                ProjectBeneficiaryService projectBeneficiaryService,
+                                Producer producer,
+                                ProjectConfiguration projectConfiguration,
+                                ProjectService projectService) {
         this.objectMapper = objectMapper;
         this.httpServletRequest = httpServletRequest;
         this.projectStaffService = projectStaffService;
@@ -84,10 +93,11 @@ public class ProjectApiController {
         this.projectBeneficiaryService = projectBeneficiaryService;
         this.producer = producer;
         this.projectConfiguration = projectConfiguration;
+        this.projectService = projectService;
     }
 
     @RequestMapping(value = "/beneficiary/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkCreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkCreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) {
         beneficiaryRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkCreateProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -95,7 +105,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1CreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1CreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) {
 
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.create(beneficiaryRequest);
@@ -126,11 +136,11 @@ public class ProjectApiController {
                         .createResponseInfo(beneficiarySearchRequest.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(beneficiaryResponse);
+        return ResponseEntity.status(HttpStatus.OK).body(beneficiaryResponse);
     }
 
     @RequestMapping(value = "/beneficiary/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1UpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1UpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(beneficiaryRequest);
         BeneficiaryResponse response = BeneficiaryResponse.builder()
@@ -143,7 +153,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkUpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkUpdatePost(@ApiParam(value = "Project Beneficiary Registration.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
         beneficiaryRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkUpdateProjectBeneficiaryTopic(), beneficiaryRequest);
@@ -152,7 +162,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkDeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkDeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) {
         beneficiaryRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkDeleteProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
@@ -160,7 +170,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1DeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) throws Exception {
+    public ResponseEntity<BeneficiaryResponse> projectBeneficiaryV1DeletePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryRequest beneficiaryRequest) {
 
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.delete(beneficiaryRequest);
@@ -263,7 +273,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest request) throws Exception {
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest request) {
 
         ProjectStaff staff = projectStaffService.create(request);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
@@ -275,7 +285,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) {
 
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkCreateProjectStaffTopic(), request);
@@ -305,11 +315,11 @@ public class ProjectApiController {
                         .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
                 .build();
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @RequestMapping(value = "/staff/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) {
 
         ProjectStaff staff = projectStaffService.update(projectStaffUpdateRequest);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
@@ -322,7 +332,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectStaffV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) {
 
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkUpdateProjectStaffTopic(), request);
@@ -332,7 +342,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffResponse> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) throws Exception {
+    public ResponseEntity<ProjectStaffResponse> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest projectStaffUpdateRequest) {
 
         ProjectStaff staff = projectStaffService.delete(projectStaffUpdateRequest);
         ProjectStaffResponse response = ProjectStaffResponse.builder()
@@ -345,7 +355,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectStaffV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffBulkRequest request) {
 
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkDeleteProjectStaffTopic(), request);
@@ -355,7 +365,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
+    public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) {
 
         Task task = projectTaskService.create(request);
         TaskResponse response = TaskResponse.builder()
@@ -370,7 +380,7 @@ public class ProjectApiController {
 
 
     @RequestMapping(value = "/task/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectTaskBulkV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectTaskBulkV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getCreateProjectTaskBulkTopic(), request);
 
@@ -394,7 +404,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1UpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
+    public ResponseEntity<TaskResponse> projectTaskV1UpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) {
        Task task = projectTaskService.update(request);
 
         TaskResponse response = TaskResponse.builder()
@@ -408,7 +418,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectTaskV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectTaskV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getCreateProjectTaskBulkTopic(), request);
 
@@ -417,7 +427,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<TaskResponse> projectTaskV1DeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) throws Exception {
+    public ResponseEntity<TaskResponse> projectTaskV1DeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) {
         Task task = projectTaskService.delete(request);
 
         TaskResponse response = TaskResponse.builder()
@@ -431,7 +441,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectTaskV1BulkDeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) throws Exception {
+    public ResponseEntity<ResponseInfo> projectTaskV1BulkDeletePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getDeleteProjectTaskBulkTopic(), request);
 
@@ -440,48 +450,29 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResponse> projectV1CreatePost(@ApiParam(value = "Details for the new Project.", required = true) @Valid @RequestBody ProjectRequest project) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Project\" : [ {    \"parent\" : \"parent\",    \"address\" : {      \"locationAccuracy\" : 5962.133916683182,      \"pincode\" : \"pincode\",      \"city\" : \"city\",      \"latitude\" : 18.494211295267263,      \"locality\" : {        \"code\" : \"code\",        \"materializedPath\" : \"materializedPath\",        \"children\" : [ null, null ],        \"latitude\" : \"latitude\",        \"name\" : \"name\",        \"label\" : \"label\",        \"longitude\" : \"longitude\"      },      \"type\" : \"type\",      \"buildingName\" : \"buildingName\",      \"street\" : \"street\",      \"tenantId\" : \"tenantA\",      \"addressLine1\" : \"addressLine1\",      \"addressLine2\" : \"addressLine2\",      \"id\" : \"id\",      \"doorNo\" : \"doorNo\",      \"landmark\" : \"landmark\",      \"longitude\" : -127.23073270189397    },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"endDate\" : 2,    \"documents\" : [ {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    }, {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    } ],    \"description\" : \"description\",    \"targets\" : [ {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    }, {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    } ],    \"referenceId\" : \"referenceId\",    \"projectTypeId\" : { },    \"isDeleted\" : null,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"projectHierarchy\" : \"projectHierarchy\",    \"id\" : { },    \"department\" : \"department\",    \"startDate\" : 5,    \"subProjectTypeId\" : { },    \"isTaskEnabled\" : false  }, {    \"parent\" : \"parent\",    \"address\" : {      \"locationAccuracy\" : 5962.133916683182,      \"pincode\" : \"pincode\",      \"city\" : \"city\",      \"latitude\" : 18.494211295267263,      \"locality\" : {        \"code\" : \"code\",        \"materializedPath\" : \"materializedPath\",        \"children\" : [ null, null ],        \"latitude\" : \"latitude\",        \"name\" : \"name\",        \"label\" : \"label\",        \"longitude\" : \"longitude\"      },      \"type\" : \"type\",      \"buildingName\" : \"buildingName\",      \"street\" : \"street\",      \"tenantId\" : \"tenantA\",      \"addressLine1\" : \"addressLine1\",      \"addressLine2\" : \"addressLine2\",      \"id\" : \"id\",      \"doorNo\" : \"doorNo\",      \"landmark\" : \"landmark\",      \"longitude\" : -127.23073270189397    },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"endDate\" : 2,    \"documents\" : [ {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    }, {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    } ],    \"description\" : \"description\",    \"targets\" : [ {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    }, {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    } ],    \"referenceId\" : \"referenceId\",    \"projectTypeId\" : { },    \"isDeleted\" : null,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"projectHierarchy\" : \"projectHierarchy\",    \"id\" : { },    \"department\" : \"department\",    \"startDate\" : 5,    \"subProjectTypeId\" : { },    \"isTaskEnabled\" : false  } ]}", ProjectResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectResponse>(HttpStatus.NOT_IMPLEMENTED);
+    public ResponseEntity<ProjectResponse> createProject(@ApiParam(value = "Details for the new Project.", required = true) @Valid @RequestBody ProjectRequest project) {
+        ProjectRequest enrichedProjectRequest = projectService.createProject(project);
+        ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
+        ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(enrichedProjectRequest.getProjects()).build();
+        return new ResponseEntity<ProjectResponse>(projectResponse,HttpStatus.OK);
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResponse> projectV1SearchPost(@ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectSearchRequest project, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                               @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted, @ApiParam(value = "Used in project search API to specify if records past end date should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeEnded", required = false, defaultValue = "false") Boolean includeEnded, @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeAncestors", required = false, defaultValue = "false") Boolean includeAncestors, @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") Boolean includeDescendants) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Project\" : [ {    \"parent\" : \"parent\",    \"address\" : {      \"locationAccuracy\" : 5962.133916683182,      \"pincode\" : \"pincode\",      \"city\" : \"city\",      \"latitude\" : 18.494211295267263,      \"locality\" : {        \"code\" : \"code\",        \"materializedPath\" : \"materializedPath\",        \"children\" : [ null, null ],        \"latitude\" : \"latitude\",        \"name\" : \"name\",        \"label\" : \"label\",        \"longitude\" : \"longitude\"      },      \"type\" : \"type\",      \"buildingName\" : \"buildingName\",      \"street\" : \"street\",      \"tenantId\" : \"tenantA\",      \"addressLine1\" : \"addressLine1\",      \"addressLine2\" : \"addressLine2\",      \"id\" : \"id\",      \"doorNo\" : \"doorNo\",      \"landmark\" : \"landmark\",      \"longitude\" : -127.23073270189397    },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"endDate\" : 2,    \"documents\" : [ {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    }, {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    } ],    \"description\" : \"description\",    \"targets\" : [ {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    }, {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    } ],    \"referenceId\" : \"referenceId\",    \"projectTypeId\" : { },    \"isDeleted\" : null,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"projectHierarchy\" : \"projectHierarchy\",    \"id\" : { },    \"department\" : \"department\",    \"startDate\" : 5,    \"subProjectTypeId\" : { },    \"isTaskEnabled\" : false  }, {    \"parent\" : \"parent\",    \"address\" : {      \"locationAccuracy\" : 5962.133916683182,      \"pincode\" : \"pincode\",      \"city\" : \"city\",      \"latitude\" : 18.494211295267263,      \"locality\" : {        \"code\" : \"code\",        \"materializedPath\" : \"materializedPath\",        \"children\" : [ null, null ],        \"latitude\" : \"latitude\",        \"name\" : \"name\",        \"label\" : \"label\",        \"longitude\" : \"longitude\"      },      \"type\" : \"type\",      \"buildingName\" : \"buildingName\",      \"street\" : \"street\",      \"tenantId\" : \"tenantA\",      \"addressLine1\" : \"addressLine1\",      \"addressLine2\" : \"addressLine2\",      \"id\" : \"id\",      \"doorNo\" : \"doorNo\",      \"landmark\" : \"landmark\",      \"longitude\" : -127.23073270189397    },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"endDate\" : 2,    \"documents\" : [ {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    }, {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    } ],    \"description\" : \"description\",    \"targets\" : [ {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    }, {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    } ],    \"referenceId\" : \"referenceId\",    \"projectTypeId\" : { },    \"isDeleted\" : null,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"projectHierarchy\" : \"projectHierarchy\",    \"id\" : { },    \"department\" : \"department\",    \"startDate\" : 5,    \"subProjectTypeId\" : { },    \"isTaskEnabled\" : false  } ]}", ProjectResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectResponse>(HttpStatus.NOT_IMPLEMENTED);
+    public ResponseEntity<ProjectResponse> searchProject(@ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectRequest project, @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted , @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeAncestors", required = false, defaultValue = "false") Boolean includeAncestors,  @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") Boolean includeDescendants) {
+        List<Project> projects = projectService.searchProject(project, limit, offset, tenantId, lastChangedSince, includeDeleted, includeAncestors, includeDescendants);
+        ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
+        Integer count = projectService.countAllProjects(project, tenantId, lastChangedSince, includeDeleted);
+        ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(projects).totalCount(count).build();
+        return new ResponseEntity<ProjectResponse>(projectResponse, HttpStatus.OK);
     }
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResponse> projectV1UpdatePost(@ApiParam(value = "Details for the new Project.", required = true) @Valid @RequestBody ProjectRequest project) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"Project\" : [ {    \"parent\" : \"parent\",    \"address\" : {      \"locationAccuracy\" : 5962.133916683182,      \"pincode\" : \"pincode\",      \"city\" : \"city\",      \"latitude\" : 18.494211295267263,      \"locality\" : {        \"code\" : \"code\",        \"materializedPath\" : \"materializedPath\",        \"children\" : [ null, null ],        \"latitude\" : \"latitude\",        \"name\" : \"name\",        \"label\" : \"label\",        \"longitude\" : \"longitude\"      },      \"type\" : \"type\",      \"buildingName\" : \"buildingName\",      \"street\" : \"street\",      \"tenantId\" : \"tenantA\",      \"addressLine1\" : \"addressLine1\",      \"addressLine2\" : \"addressLine2\",      \"id\" : \"id\",      \"doorNo\" : \"doorNo\",      \"landmark\" : \"landmark\",      \"longitude\" : -127.23073270189397    },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"endDate\" : 2,    \"documents\" : [ {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    }, {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    } ],    \"description\" : \"description\",    \"targets\" : [ {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    }, {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    } ],    \"referenceId\" : \"referenceId\",    \"projectTypeId\" : { },    \"isDeleted\" : null,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"projectHierarchy\" : \"projectHierarchy\",    \"id\" : { },    \"department\" : \"department\",    \"startDate\" : 5,    \"subProjectTypeId\" : { },    \"isTaskEnabled\" : false  }, {    \"parent\" : \"parent\",    \"address\" : {      \"locationAccuracy\" : 5962.133916683182,      \"pincode\" : \"pincode\",      \"city\" : \"city\",      \"latitude\" : 18.494211295267263,      \"locality\" : {        \"code\" : \"code\",        \"materializedPath\" : \"materializedPath\",        \"children\" : [ null, null ],        \"latitude\" : \"latitude\",        \"name\" : \"name\",        \"label\" : \"label\",        \"longitude\" : \"longitude\"      },      \"type\" : \"type\",      \"buildingName\" : \"buildingName\",      \"street\" : \"street\",      \"tenantId\" : \"tenantA\",      \"addressLine1\" : \"addressLine1\",      \"addressLine2\" : \"addressLine2\",      \"id\" : \"id\",      \"doorNo\" : \"doorNo\",      \"landmark\" : \"landmark\",      \"longitude\" : -127.23073270189397    },    \"additionalFields\" : {      \"schema\" : \"HOUSEHOLD\",      \"fields\" : [ {        \"value\" : \"180\",        \"key\" : \"height\"      }, {        \"value\" : \"180\",        \"key\" : \"height\"      } ],      \"version\" : 2    },    \"rowVersion\" : { },    \"endDate\" : 2,    \"documents\" : [ {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    }, {      \"documentType\" : \"documentType\",      \"documentUid\" : \"documentUid\",      \"auditDetails\" : {        \"lastModifiedTime\" : 7,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 4      },      \"tenantId\" : \"tenantId\",      \"id\" : \"id\",      \"fileStoreId\" : \"fileStoreId\"    } ],    \"description\" : \"description\",    \"targets\" : [ {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    }, {      \"isDeleted\" : { },      \"beneficiaryType\" : \"ID-1\",      \"auditDetails\" : {        \"lastModifiedTime\" : 2,        \"createdBy\" : \"createdBy\",        \"lastModifiedBy\" : \"lastModifiedBy\",        \"createdTime\" : 3      },      \"id\" : \"id\",      \"baseline\" : 7,      \"target\" : 9    } ],    \"referenceId\" : \"referenceId\",    \"projectTypeId\" : { },    \"isDeleted\" : null,    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"projectHierarchy\" : \"projectHierarchy\",    \"id\" : { },    \"department\" : \"department\",    \"startDate\" : 5,    \"subProjectTypeId\" : { },    \"isTaskEnabled\" : false  } ]}", ProjectResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
+    public ResponseEntity<ProjectResponse> updateProject(@ApiParam(value = "Details for the updated Project.", required = true) @Valid @RequestBody ProjectRequest project) {
+        ProjectRequest enrichedProjectRequest = projectService.updateProject(project);
 
-        return new ResponseEntity<ProjectResponse>(HttpStatus.NOT_IMPLEMENTED);
+        ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
+        ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(enrichedProjectRequest.getProjects()).build();
+        return new ResponseEntity<ProjectResponse>(projectResponse, HttpStatus.OK);
     }
 
 }

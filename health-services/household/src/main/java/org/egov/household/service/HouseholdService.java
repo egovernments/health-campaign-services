@@ -77,25 +77,29 @@ public class HouseholdService {
         this.enrichmentService = enrichmentService;
     }
 
-    public Household create(HouseholdRequest request) throws Exception {
+    public Household create(HouseholdRequest request) {
+        log.info("received request to create household");
         HouseholdBulkRequest bulkRequest = HouseholdBulkRequest.builder()
                 .households(Collections.singletonList(request.getHousehold()))
                 .requestInfo(request.getRequestInfo()).build();
-        return create(bulkRequest, false).get(0);
+        log.info("converted request to bulk request");
+        List<Household> createdHouseholds = create(bulkRequest, false);
+        log.info("created households");
+        return createdHouseholds.get(0);
     }
 
-
-    public List<Household> create(HouseholdBulkRequest request, boolean isBulk) throws Exception {
-
+    public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
+        log.info("received request to create households: " + request);
         Map<Household, ErrorDetails> errorDetailsMap = new HashMap<>();
         List<Household> validEntities = request.getHouseholds();
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
                 householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
+                log.info("successfully created households: " + validEntities);
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while creating households", exception);
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
@@ -111,17 +115,22 @@ public class HouseholdService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdSearch)),
                     householdSearch);
-            return householdRepository.findById(ids,
-                    idFieldName, includeDeleted).stream()
+            List<Household> households = householdRepository.findById(ids,
+                            idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            log.info("households found for search by id, size: {}", households.size());
+            return households;
         }
         try {
-            return householdRepository.find(householdSearch, limit, offset,
+            List<Household> households = householdRepository.find(householdSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
+            log.info("households found for search, size: {}", households.size());
+            return households;
         } catch (QueryBuilderException e) {
+            log.error("error occurred while searching households", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
@@ -141,26 +150,33 @@ public class HouseholdService {
         List<Household> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
+                log.info("updating valid entities");
                 enrichmentService.update(validEntities, request);
                 householdRepository.save(validEntities, householdConfiguration.getUpdateTopic());
+                log.info("successfully updated households");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while updating households: " + exception.getMessage());
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
         handleErrors(isBulk, errorDetailsMap);
+        log.info("returning updated households");
         return request.getHouseholds();
     }
 
     public Household delete(HouseholdRequest request) {
+        log.info("deleting Household with id: {}", request.getHousehold().getId());
         HouseholdBulkRequest bulkRequest = HouseholdBulkRequest.builder()
                 .households(Collections.singletonList(request.getHousehold()))
                 .requestInfo(request.getRequestInfo()).build();
-        return delete(bulkRequest, false).get(0);
+        List<Household> deletedHouseholds = delete(bulkRequest, false);
+        log.info("successfully deleted Household with id: {}", request.getHousehold().getId());
+        return deletedHouseholds.get(0);
     }
 
     public List<Household> delete(HouseholdBulkRequest request, boolean isBulk) {
+        log.info("deleting households, isBulk={}", isBulk);
         Tuple<List<Household>, Map<Household, ErrorDetails>> tuple = validate(validators,
                 isApplicableForDelete, request,
                 isBulk);
@@ -169,10 +185,12 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.delete(validEntities, request);
+                log.info("households deleted successfully");
                 householdRepository.save(validEntities, householdConfiguration.getDeleteTopic());
+                log.info("Households saved to delete topic");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while deleting households: ", exception);
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
@@ -181,22 +199,29 @@ public class HouseholdService {
     }
 
     public List<Household> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
-       return householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+        log.info("finding Households by Ids: {} with columnName: {} and includeDeleted: {}",
+                houseHoldIds, columnName, includeDeleted);
+        log.info("started finding Households by Ids");
+        List<Household> households = householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+        log.info("finished finding Households by Ids. Found {} Households", households.size());
+        return households;
     }
 
     private Tuple<List<Household>, Map<Household, ErrorDetails>> validate(List<Validator<HouseholdBulkRequest, Household>> validators,
                                                                 Predicate<Validator<HouseholdBulkRequest, Household>> applicableValidators,
                                                                           HouseholdBulkRequest request, boolean isBulk) {
-        log.info("validating request");
+        log.info("validating the request for households");
         Map<Household, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
                 SET_HOUSEHOLDS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
+            log.error("validation error occurred. Error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
-        List<Household> validTasks = request.getHouseholds().stream()
+        List<Household> validHouseholds = request.getHouseholds().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        return new Tuple<>(validTasks, errorDetailsMap);
+        log.info("number of valid households after validation: {}", validHouseholds.size());
+        return new Tuple<>(validHouseholds, errorDetailsMap);
     }
 
     private static void handleErrors(boolean isBulk, Map<Household, ErrorDetails> errorDetailsMap) {

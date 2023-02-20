@@ -104,14 +104,17 @@ public class ProjectTaskService {
         this.validators = validators;
     }
 
-    public Task create(TaskRequest request) throws Exception {
+    public Task create(TaskRequest request) {
+        log.info("received request to create tasks");
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
+        log.info("creating bulk request");
         List<Task> tasks = create(bulkRequest, false);
         return tasks.get(0);
     }
 
-    public List<Task> create(TaskBulkRequest request, boolean isBulk) throws Exception {
+    public List<Task> create(TaskBulkRequest request, boolean isBulk) {
+        log.info("received request to create bulk project tasks");
         Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
                 isBulk);
@@ -122,9 +125,10 @@ public class ProjectTaskService {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
                 projectTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
+                log.info("successfully created project tasks");
             }
          } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while creating project tasks: {}", exception.getMessage());
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -133,13 +137,16 @@ public class ProjectTaskService {
         return validTasks;
     }
 
-    public Task update(TaskRequest request) throws Exception {
+    public Task update(TaskRequest request) {
+        log.info("received request to update project tasks");
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
+        log.info("creating bulk request");
         return update(bulkRequest, false).get(0);
     }
 
     public List<Task> update(TaskBulkRequest request, boolean isBulk) {
+        log.info("received request to update bulk project tasks");
         Tuple<List<Task>, Map<Task, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
                 isBulk);
@@ -150,9 +157,10 @@ public class ProjectTaskService {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
                 projectTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
+                log.info("successfully updated bulk project tasks");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while updating project tasks", exception);
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -162,8 +170,10 @@ public class ProjectTaskService {
     }
 
     public Task delete(TaskRequest request) {
+        log.info("received request to delete a project task");
         TaskBulkRequest bulkRequest = TaskBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .tasks(Collections.singletonList(request.getTask())).build();
+        log.info("creating bulk request");
         return delete(bulkRequest, false).get(0);
     }
 
@@ -180,7 +190,7 @@ public class ProjectTaskService {
                 projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -205,12 +215,16 @@ public class ProjectTaskService {
 
     public List<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
                              Long lastChangedSince, Boolean includeDeleted) {
+
+        log.info("received request to search project task");
+
         String idFieldName = getIdFieldName(taskSearch);
         if (isSearchByIdOnly(taskSearch, idFieldName)) {
+            log.info("searching project task by id");
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(taskSearch)),
                     taskSearch);
-
+            log.info("fetching project tasks with ids: {}", ids);
             return projectTaskRepository.findById(ids,
                             idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -220,9 +234,11 @@ public class ProjectTaskService {
         }
 
         try {
+            log.info("searching project beneficiaries using criteria");
             return projectTaskRepository.find(taskSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
+            log.error("error in building query", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }

@@ -21,6 +21,7 @@ public class PtNullIdValidator implements Validator<TaskBulkRequest, Task> {
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating for null id");
         return validateForNullId(request, GET_TASKS);
     }
 }

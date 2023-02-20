@@ -8,6 +8,7 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.service.ProjectBeneficiaryService;
+import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
 import org.egov.project.web.models.ProjectStaff;
@@ -67,6 +68,9 @@ class ProjectStaffApiControllerTest {
 
     @MockBean
     private ProjectConfiguration projectConfiguration;
+
+    @MockBean
+    private ProjectService projectService;
 
     @Test
     @DisplayName("should create project staff and return with 202 accepted")
@@ -173,7 +177,7 @@ class ProjectStaffApiControllerTest {
                         "/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(projectStaffSearchRequest)))
-                .andExpect(status().isAccepted())
+                .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();

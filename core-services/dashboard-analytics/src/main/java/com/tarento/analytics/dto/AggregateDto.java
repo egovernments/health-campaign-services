@@ -13,16 +13,34 @@ import com.tarento.analytics.enums.ChartType;
 public class AggregateDto {
 
 	private ChartType chartType;
-	
+
 	private String visualizationCode;
 
-	private String predictionPath;
-	
 	private String chartFormat;
 
 	private Boolean showLabel;
 
 	private String drillDownChartId;
+
+	private Boolean hideInsights;
+
+	private Boolean hideHeaderDenomination;
+
+	public Boolean getHideInsights() {
+		return hideInsights;
+	}
+
+	public void setHideInsights(Boolean hideInsights) {
+		this.hideInsights = hideInsights;
+	}
+
+	public Boolean getHideHeaderDenomination() {
+		return hideHeaderDenomination;
+	}
+
+	public void setHideHeaderDenomination(Boolean hideHeaderDenomination) {
+		this.hideHeaderDenomination = hideHeaderDenomination;
+	}
 
 	public Boolean getShowLabel() {
 		return showLabel;
@@ -31,9 +49,6 @@ public class AggregateDto {
 	public void setShowLabel(Boolean showLabel) {
 		this.showLabel = showLabel;
 	}
-
-	public String getPredictionPath(){ return predictionPath;}
-	public void setPredictionPath(String predictionPath){ this.predictionPath = predictionPath;}
 
 	public String getVisualizationCode() {
 		return visualizationCode;
@@ -52,9 +67,9 @@ public class AggregateDto {
 	}
 
 	private Map<String, Object> customData;
-	
+
 	private RequestDate dates;
-	
+
 	private Object filter;
 
 	private List<Data> data = new ArrayList<>();

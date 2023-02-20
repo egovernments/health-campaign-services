@@ -108,6 +108,7 @@ public class IndividualService {
         List<Individual> validIndividuals = tuple.getX();
         try {
             if (!validIndividuals.isEmpty()) {
+                log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 individualRepository.save(validIndividuals,
                         properties.getSaveIndividualTopic());
@@ -152,6 +153,7 @@ public class IndividualService {
 
         try {
             if (!validIndividuals.isEmpty()) {
+                log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.update(validIndividuals, request);
                 individualRepository.save(validIndividuals,
                         properties.getUpdateIndividualTopic());
@@ -213,6 +215,7 @@ public class IndividualService {
 
         try {
             if (!validIndividuals.isEmpty()) {
+                log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());

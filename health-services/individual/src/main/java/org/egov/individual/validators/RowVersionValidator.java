@@ -40,6 +40,7 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        log.info("validating for row version");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getIndividuals());
         Map<String, Individual> iMap = getIdToObjMap(request.getIndividuals().stream()

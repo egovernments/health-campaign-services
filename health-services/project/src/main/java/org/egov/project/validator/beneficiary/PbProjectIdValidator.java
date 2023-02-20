@@ -40,6 +40,7 @@ public class PbProjectIdValidator implements Validator<BeneficiaryBulkRequest, P
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
+        log.info("validating project id");
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectBeneficiary> entities = request.getProjectBeneficiaries();
         Class<?> objClass = getObjClass(entities);

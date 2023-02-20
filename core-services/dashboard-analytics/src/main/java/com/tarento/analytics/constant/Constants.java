@@ -100,6 +100,7 @@ public class Constants {
 	public interface DashBoardConfig {
 		final static String ROLES = "roles";
 		final static String ROLE_ID = "roleId";
+		final static String HIDEFILTERFIELDS = "hideFilterFields";
 		final static String DASHBOARDS = "dashboards";
 		final static String VISUALISATIONS = "visualizations";
 		final static String NAME = "name";

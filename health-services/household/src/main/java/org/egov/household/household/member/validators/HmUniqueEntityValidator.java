@@ -26,6 +26,7 @@ public class HmUniqueEntityValidator implements Validator<HouseholdMemberBulkReq
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest memberBulkRequest) {
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating unique entity for household member");
         List<HouseholdMember> householdMembers = memberBulkRequest.getHouseholdMembers()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!householdMembers.isEmpty()) {
@@ -41,6 +42,7 @@ public class HmUniqueEntityValidator implements Validator<HouseholdMemberBulkReq
                 }
             }
         }
+        log.info("household member unique entity validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

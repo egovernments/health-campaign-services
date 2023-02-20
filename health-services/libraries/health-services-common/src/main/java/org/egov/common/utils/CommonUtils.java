@@ -3,6 +3,7 @@ package org.egov.common.utils;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
 import org.egov.common.models.ApiDetails;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
@@ -590,6 +591,35 @@ public class CommonUtils {
                     requestInfo.getUserInfo().getUuid());
             ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
         });
+    }
+
+    /**
+     * Validate and return the consolidated errorDetailsMap based on all the validations.
+     *
+     * @param validators is the list of validators
+     * @param applicableValidators is a predicate defining the validators to apply
+     * @param request is the request body
+     * @param setPayloadMethodName is a setter method available on the request body
+     * @param getPayloadMethodName is a getter method available on the request body
+     * @param errorCode is error code for the exception
+     * @return a map of payload vs errorDetails object
+     * @param <T> is the type of payload
+     * @param <R> is the type of request
+     */
+    public static <T, R> Tuple<List<T>, Map<T, ErrorDetails>> validate(List<Validator<R, T>> validators,
+                                                                 Predicate<Validator<R, T>> applicableValidators,
+                                                                 R request, String setPayloadMethodName,
+                                                                 String getPayloadMethodName, String errorCode, boolean isBulk) {
+        Map<T, ErrorDetails> errorDetailsMap = validate(validators,
+                applicableValidators, request,
+                setPayloadMethodName);
+        if (!errorDetailsMap.isEmpty() && !isBulk) {
+            throw new CustomException(errorCode, errorDetailsMap.values().toString());
+        }
+        Method getEntities = getMethod(getPayloadMethodName, request.getClass());
+        List<T> validEntities = (List<T>) ReflectionUtils.invokeMethod(getEntities, request);
+        validEntities = validEntities.stream().filter(notHavingErrors()).collect(Collectors.toList());
+        return new Tuple<>(validEntities, errorDetailsMap);
     }
 
     /**

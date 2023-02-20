@@ -48,6 +48,7 @@ public class NonExistentEntityValidator implements Validator<IndividualBulkReque
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        log.info("validating for existence of entity");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> individuals = request.getIndividuals();
         Class<?> objClass = getObjClass(individuals);

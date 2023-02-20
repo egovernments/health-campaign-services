@@ -24,6 +24,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD;
 import static org.egov.household.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE;
+import static org.egov.household.utils.ValidatorUtil.getHouseholdMembersWithNonNullIndividuals;
 
 @Component
 @Order(8)
@@ -42,14 +43,18 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating unique individual for household member");
 
         List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
 
+        log.info("checking non null individuals for household member");
+        validHouseholdMembers = getHouseholdMembersWithNonNullIndividuals(errorDetailsMap, validHouseholdMembers);
+
         if(!validHouseholdMembers.isEmpty()){
             RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
             String tenantId = getTenantId(validHouseholdMembers);
-
+            log.info("searching individuals for household member");
             IndividualBulkResponse searchResponse = individualService.searchIndividualBeneficiary(
                     validHouseholdMembers,
                     requestInfo,
@@ -62,6 +67,7 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
                     householdMember.setIndividualId(individual.getId());
                     householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
 
+                    log.info("finding individuals mappings in household member");
                     List<HouseholdMember> individualSearchResult = householdMemberRepository
                             .findIndividual(individual.getId());
                     if(!individualSearchResult.isEmpty()) {
@@ -71,11 +77,13 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
                                 .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
                                         INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
                                 .build();
+                        log.info("found error in individual mapping {}", error);
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                     }
                 }
             });
         }
+        log.info("household member unique individual validation completed successfully, total errors: " + errorDetailsMap.size());
 
         return errorDetailsMap;
     }
