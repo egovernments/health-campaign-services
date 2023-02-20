@@ -44,6 +44,10 @@ public class ProjectResource   {
     @Valid
     private List<ProjectProductVariant> resources = new ArrayList<>();
 
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
+
     @JsonProperty("isDeleted")
     private Boolean isDeleted = null;
 
