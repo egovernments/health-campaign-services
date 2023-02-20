@@ -8,7 +8,12 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.service.enrichment.StockEnrichmentService;
-import org.egov.stock.validator.stock.*;
+import org.egov.stock.validator.stock.SIsDeletedValidator;
+import org.egov.stock.validator.stock.SNonExistentValidator;
+import org.egov.stock.validator.stock.SNullIdValidator;
+import org.egov.stock.validator.stock.SProductVariantIdValidator;
+import org.egov.stock.validator.stock.SRowVersionValidator;
+import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.egov.stock.web.models.Stock;
 import org.egov.stock.web.models.StockBulkRequest;
 import org.egov.stock.web.models.StockRequest;
@@ -23,7 +28,16 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.stock.Constants.GET_STOCK;
 import static org.egov.stock.Constants.SET_STOCK;
 import static org.egov.stock.Constants.VALIDATION_ERROR;
 
@@ -70,8 +84,8 @@ public class StockService {
 
     public List<Stock> create(StockBulkRequest request, boolean isBulk) {
         log.info("starting create method for stock");
-        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForCreate, request,
+        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = CommonUtils.validate(validators,
+                isApplicableForCreate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validTasks = tuple.getX();
@@ -100,8 +114,8 @@ public class StockService {
 
     public List<Stock> update(StockBulkRequest request, boolean isBulk) {
         log.info("starting update method for stock");
-        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request,
+        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = CommonUtils.validate(validators,
+                isApplicableForUpdate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validTasks = tuple.getX();
@@ -147,8 +161,8 @@ public class StockService {
 
     public List<Stock> delete(StockBulkRequest request, boolean isBulk) {
         log.info("starting delete method for stock");
-        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForDelete, request,
+        Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = CommonUtils.validate(validators,
+                isApplicableForDelete, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validTasks = tuple.getX();
