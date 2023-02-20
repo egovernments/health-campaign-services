@@ -1,5 +1,6 @@
 package org.egov.household.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -27,6 +28,7 @@ import static org.egov.household.Constants.INDIVIDUAL_NOT_FOUND_MESSAGE;
 import static org.egov.household.Constants.INTERNAL_SERVER_ERROR;
 
 @Component
+@Slf4j
 public class IndividualService {
 
     private final ServiceRequestClient serviceRequestClient;
@@ -53,11 +55,13 @@ public class IndividualService {
                     .builder()
                     .id(getIdList(householdMembers, idMethod))
                     .build();
+            log.info("searching individual beneficiary by individual Id");
         } else if (householdMembers.get(0).getIndividualClientReferenceId() != null) {
             individualSearch = IndividualSearch
                     .builder()
                     .clientReferenceId(getIdList(householdMembers, clientReferenceIdMethod))
                     .build();
+            log.info("searching individual beneficiary by individual client reference Id");
         }
 
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
@@ -70,6 +74,7 @@ public class IndividualService {
 
     private IndividualBulkResponse getIndividualResponse(String tenantId, IndividualSearchRequest individualSearchRequest) {
         try {
+            log.info("requesting the Individual bulk search");
             return serviceRequestClient.fetchResult(
                     new StringBuilder(householdMemberConfiguration.getIndividualServiceHost()
                             + householdMemberConfiguration.getIndividualServiceSearchUrl()
@@ -77,6 +82,7 @@ public class IndividualService {
                     individualSearchRequest,
                     IndividualBulkResponse.class);
         } catch (Exception e) {
+            log.error("error while fetching individuals list: {}", e.getMessage());
             throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching individuals list");
         }
     }
@@ -84,6 +90,9 @@ public class IndividualService {
     public Individual validateIndividual(HouseholdMember householdMember,
                                           IndividualBulkResponse searchResponse,
                                           Map<HouseholdMember, List<Error>> errorDetailsMap) {
+        log.info("validating individual for household member with id: {} and client reference id: {}",
+                householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
+
         List<Individual> individuals = searchResponse.getIndividual().stream().filter(individual -> {
             if (householdMember.getIndividualId() != null) {
                 return householdMember.getIndividualId().equals(individual.getId());
@@ -99,8 +108,12 @@ public class IndividualService {
                             INDIVIDUAL_NOT_FOUND_MESSAGE))
                     .build();
             populateErrorDetails(householdMember, error, errorDetailsMap);
+            log.info("individual not found for household member with id: {} and client reference id: {}",
+                    householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
             return null;
         }
+        log.info("individual found for household member with id: {} and client reference id: {}",
+                householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
         return individuals.get(0);
     }
 }

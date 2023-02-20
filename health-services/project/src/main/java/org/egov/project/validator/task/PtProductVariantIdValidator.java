@@ -56,6 +56,7 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating for product variant id");
         Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
         List<Task> entities = request.getTasks().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());

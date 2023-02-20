@@ -26,6 +26,7 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        log.info("validating address type");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> individuals = request.getIndividuals();
         if (!individuals.isEmpty()) {

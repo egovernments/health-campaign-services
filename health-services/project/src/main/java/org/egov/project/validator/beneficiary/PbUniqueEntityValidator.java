@@ -25,6 +25,7 @@ public class PbUniqueEntityValidator implements Validator<BeneficiaryBulkRequest
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
+        log.info("validating unique entity");
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectBeneficiary> validProjectBeneficiaries = request.getProjectBeneficiaries()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());

@@ -95,11 +95,15 @@ public class HouseholdMemberService {
     }
 
     public List<HouseholdMember> create(HouseholdMemberRequest householdMemberRequest) {
+        log.info("received request to create household member");
         HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder()
                 .requestInfo(householdMemberRequest.getRequestInfo())
                 .householdMembers(Collections.singletonList(householdMemberRequest.getHouseholdMember()))
                 .build();
-        return create(householdMemberBulkRequest, false);
+        log.info("creating bulk request for household member creation");
+        List<HouseholdMember> householdMembers = create(householdMemberBulkRequest, false);
+        log.info("household member created successfully");
+        return householdMembers;
     }
 
     public List<HouseholdMember> create(HouseholdMemberBulkRequest householdMemberBulkRequest, boolean isBulk) {
@@ -110,12 +114,16 @@ public class HouseholdMemberService {
 
         try {
             if (!validHouseholdMembers.isEmpty()) {
+                log.info("enriching valid household members for creation");
                 householdMemberEnrichmentService.create(validHouseholdMembers, householdMemberBulkRequest);
+
+                log.info("saving valid household members to the repository");
                 householdMemberRepository.save(validHouseholdMembers,
                         householdMemberConfiguration.getCreateTopic());
+                log.info("household members data saved successfully");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while creating household members: ", exception);
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }
@@ -133,26 +141,31 @@ public class HouseholdMemberService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdMemberSearch)),
                     householdMemberSearch);
-            return householdMemberRepository.findById(ids,
-                    idFieldName, includeDeleted).stream()
-                    .filter(lastChangedSince(lastChangedSince))
-                    .filter(havingTenantId(tenantId))
-                    .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList());
+            List<HouseholdMember> householdMembers = householdMemberRepository.findById(ids,
+                            idFieldName, includeDeleted).stream()
+                                .filter(lastChangedSince(lastChangedSince))
+                                .filter(havingTenantId(tenantId))
+                                .filter(includeDeleted(includeDeleted))
+                                .collect(Collectors.toList());
+            log.info("found {} household members for search by id", householdMembers.size());
+            return householdMembers;
         }
         try {
             return householdMemberRepository.find(householdMemberSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
+            log.error("error in building query for household member search", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
 
-    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) {
+    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) throws Exception {
+        log.info("starting update of household member for single request");
         HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder()
                 .requestInfo(householdMemberRequest.getRequestInfo())
                 .householdMembers(Collections.singletonList(householdMemberRequest.getHouseholdMember()))
                 .build();
+        log.info("finished update of household member for single request");
         return update(householdMemberBulkRequest, false);
     }
 
@@ -162,11 +175,14 @@ public class HouseholdMemberService {
         Map<HouseholdMember, ErrorDetails> errorDetailsMap = tuple.getY();
         List<HouseholdMember> validHouseholdMembers = tuple.getX();
 
+        log.info("number of valid household members to be updated: {}", validHouseholdMembers.size());
+
         try {
             if (!validHouseholdMembers.isEmpty()) {
                 householdMemberEnrichmentService.update(validHouseholdMembers, householdMemberBulkRequest);
                 householdMemberRepository.save(validHouseholdMembers,
                         householdMemberConfiguration.getUpdateTopic());
+                log.info("household member data updated successfully");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -181,6 +197,7 @@ public class HouseholdMemberService {
     public List<HouseholdMember> delete(HouseholdMemberRequest householdMemberRequest) {
         HouseholdMemberBulkRequest bulkRequest = HouseholdMemberBulkRequest.builder().requestInfo(householdMemberRequest.getRequestInfo())
                 .householdMembers(Collections.singletonList(householdMemberRequest.getHouseholdMember())).build();
+        log.info("delete household member bulk request: {}", bulkRequest);
         return delete(bulkRequest, false);
     }
 
@@ -190,14 +207,17 @@ public class HouseholdMemberService {
         Map<HouseholdMember, ErrorDetails> errorDetailsMap = tuple.getY();
         List<HouseholdMember> validHouseholdMembers = tuple.getX();
 
+        log.info("valid Household Members for delete operation: {}", validHouseholdMembers);
+
         try {
             if (!validHouseholdMembers.isEmpty()) {
                 householdMemberEnrichmentService.delete(validHouseholdMembers, householdMemberBulkRequest);
                 householdMemberRepository.save(validHouseholdMembers,
                         householdMemberConfiguration.getDeleteTopic());
+                log.info("deleted Household Members: {}", validHouseholdMembers);
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred while deleting household members", exception);
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }
@@ -209,15 +229,17 @@ public class HouseholdMemberService {
     private Tuple<List<HouseholdMember>, Map<HouseholdMember, ErrorDetails>> validate(List<Validator<HouseholdMemberBulkRequest,
             HouseholdMember>> validators, Predicate<Validator<HouseholdMemberBulkRequest,
             HouseholdMember>> isApplicable, HouseholdMemberBulkRequest request, boolean isBulk) {
-        log.info("validating request");
+        log.info("validating request for household members");
         Map<HouseholdMember, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
                 SET_HOUSEHOLD_MEMBERS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
+            log.info("errors found in the request for household members");
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<HouseholdMember> householdMembers = request.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
+        log.info("validating request for household members completed");
         return new Tuple<>(householdMembers, errorDetailsMap);
     }
 

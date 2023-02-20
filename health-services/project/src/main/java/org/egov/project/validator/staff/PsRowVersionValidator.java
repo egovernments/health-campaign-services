@@ -40,6 +40,7 @@ public class PsRowVersionValidator implements Validator<ProjectStaffBulkRequest,
 
     @Override
     public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        log.info("validating row version");
         Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getProjectStaff());
         Map<String, ProjectStaff> eMap = getIdToObjMap(request.getProjectStaff().stream()

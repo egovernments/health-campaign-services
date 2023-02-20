@@ -1,5 +1,6 @@
 package org.egov.individual.validators;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
 import org.egov.individual.web.models.Address;
@@ -19,15 +20,18 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDeleteSubEntity;
 
 @Component
 @Order(2)
+@Slf4j
 public class IsDeletedSubEntityValidator  implements Validator<IndividualBulkRequest, Individual> {
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        log.info("validating sub entities isDeleted field");
         HashMap<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = request.getIndividuals();
         for (Individual individual : validIndividuals) {
             List<Identifier> identifiers = individual.getIdentifiers();
             if (identifiers != null) {
+                log.info("validating sub entities isDeleted field for identifiers");
                 identifiers.stream().filter(Identifier::getIsDeleted)
                         .forEach(identifier -> {
                             Error error = getErrorForIsDeleteSubEntity();
@@ -37,6 +41,7 @@ public class IsDeletedSubEntityValidator  implements Validator<IndividualBulkReq
 
             List<Address> addresses = individual.getAddress();
             if (addresses != null) {
+                log.info("validating sub entities isDeleted field for address");
                 addresses.stream().filter(Address::getIsDeleted)
                         .forEach(address -> {
                             Error error = getErrorForIsDeleteSubEntity();
@@ -46,6 +51,7 @@ public class IsDeletedSubEntityValidator  implements Validator<IndividualBulkReq
 
             List<Skill> skills = individual.getSkills();
             if (skills != null) {
+                log.info("validating sub entities isDeleted field for skills");
                 skills.stream().filter(Skill::getIsDeleted)
                         .forEach(skill -> {
                             Error error = getErrorForIsDeleteSubEntity();

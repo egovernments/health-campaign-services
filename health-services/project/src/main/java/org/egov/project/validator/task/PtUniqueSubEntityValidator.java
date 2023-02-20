@@ -31,6 +31,7 @@ public class PtUniqueSubEntityValidator implements Validator<TaskBulkRequest, Ta
 
     @Override
     public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+        log.info("validating unique sub entity");
         Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
         List<Task> validEntities = request.getTasks()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
