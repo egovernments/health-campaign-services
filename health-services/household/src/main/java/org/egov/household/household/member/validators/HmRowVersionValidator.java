@@ -40,6 +40,7 @@ public class HmRowVersionValidator implements Validator<HouseholdMemberBulkReque
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating row version household member");
         List<HouseholdMember> validHouseholdMembers = request.getHouseholdMembers().stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList());
@@ -58,6 +59,7 @@ public class HmRowVersionValidator implements Validator<HouseholdMemberBulkReque
                 });
             }
         }
+        log.info("household member row version validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

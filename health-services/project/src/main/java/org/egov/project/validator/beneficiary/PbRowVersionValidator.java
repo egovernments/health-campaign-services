@@ -40,6 +40,7 @@ public class PbRowVersionValidator implements Validator<BeneficiaryBulkRequest, 
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
+        log.info("validating row version");
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getProjectBeneficiaries());
         Map<String, ProjectBeneficiary> iMap = getIdToObjMap(request.getProjectBeneficiaries().stream()

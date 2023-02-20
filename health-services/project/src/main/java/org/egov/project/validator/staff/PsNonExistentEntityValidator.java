@@ -41,6 +41,7 @@ public class PsNonExistentEntityValidator implements Validator<ProjectStaffBulkR
     
     @Override
     public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        log.info("validating for existence of entity");
         Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectStaff> entities = request.getProjectStaff();
         Class<?> objClass = getObjClass(entities);

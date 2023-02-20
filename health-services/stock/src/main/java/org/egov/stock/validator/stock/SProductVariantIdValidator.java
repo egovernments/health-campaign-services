@@ -50,6 +50,7 @@ public class SProductVariantIdValidator implements Validator<StockBulkRequest, S
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating stock product variant id");
         List<Stock> entities = request.getStock().stream().filter(notHavingErrors())
                 .collect(Collectors.toList());
         if (!entities.isEmpty()) {
@@ -62,6 +63,7 @@ public class SProductVariantIdValidator implements Validator<StockBulkRequest, S
                 productVariantIds.forEach(id -> {
                     if (!validProductVariantsIds.contains(id)) {
                         Error error = getErrorForNonExistentRelatedEntity(id);
+                        log.info("validation failed for stock product variant id: {} with error {}", entities, error);
                         populateErrorDetails(pvMap.get(id), error, errorDetailsMap);
                     }
                 });
@@ -71,12 +73,14 @@ public class SProductVariantIdValidator implements Validator<StockBulkRequest, S
             }
         }
 
+        log.info("stock product variant id validation completed successfully, total error: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 
     private List<ProductVariant> checkIfProductVariantExist(Set<String> pvIds, String tenantId, RequestInfo requestInfo) {
 
         List<String> productVariantIds = new ArrayList<>(pvIds);
+        log.info("validating if stock product variant exist");
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
                 .id(productVariantIds).build();
         ProductVariantSearchRequest request = ProductVariantSearchRequest.builder().productVariant(productVariantSearch)
@@ -91,6 +95,7 @@ public class SProductVariantIdValidator implements Validator<StockBulkRequest, S
             throw new CustomException("PRODUCT_VARIANT",
                     String.format("Something went wrong: %s", e.getMessage()));
         }
+        log.info("stock product variant exist validation completed successfully");
         return response.getProductVariant();
     }
 

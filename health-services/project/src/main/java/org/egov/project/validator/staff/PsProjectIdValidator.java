@@ -40,6 +40,7 @@ public class PsProjectIdValidator implements Validator<ProjectStaffBulkRequest, 
 
     @Override
     public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        log.info("validating project id");
         Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectStaff> entities = request.getProjectStaff();
         Class<?> objClass = getObjClass(entities);

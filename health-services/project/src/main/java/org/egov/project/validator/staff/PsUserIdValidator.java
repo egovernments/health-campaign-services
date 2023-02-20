@@ -40,6 +40,7 @@ public class PsUserIdValidator implements Validator<ProjectStaffBulkRequest, Pro
 
     @Override
     public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        log.info("validating for user id");
         List<ProjectStaff> entities = request.getProjectStaff();
         Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
 

@@ -52,40 +52,46 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
+        log.info("validating product ids");
         validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
-        log.info("Generating IDs using IdGenService");
+        log.info("generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(request.getProductVariant()),
                 "product.variant.id", "", request.getProductVariant().size());
-        log.info("IDs generated");
+        log.info("ids generated");
         enrichForCreate(request.getProductVariant(), idList, request.getRequestInfo());
         log.info("Enrichment done");
+        log.info("saving the product variants");
         productVariantRepository.save(request.getProductVariant(), productConfiguration.getCreateProductVariantTopic());
-        log.info("Pushed to kafka");
+        log.info("saved product variants");
         return request.getProductVariant();
     }
 
     public List<ProductVariant> update(ProductVariantRequest request) {
         identifyNullIds(request.getProductVariant());
+
+        log.info("validating product ids");
         validateIds(getSet(request.getProductVariant(), "getProductId"),
                 productService::validateProductId);
         Map<String, ProductVariant> pvMap = getIdToObjMap(request.getProductVariant());
 
-        log.info("Checking if already exists");
+        log.info("checking if already exists");
         List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
         List<ProductVariant> existingProductVariants = productVariantRepository
                 .findById(productVariantIds);
 
+        log.info("checking validate entities for product variants");
         validateEntities(pvMap, existingProductVariants);
 
+        log.info("checking version product variants");
         checkRowVersion(pvMap, existingProductVariants);
 
-        log.info("Updating lastModifiedTime and lastModifiedBy");
+        log.info("updating product variants lastModifiedTime and lastModifiedBy");
         enrichForUpdate(pvMap, existingProductVariants, request);
 
         productVariantRepository.save(request.getProductVariant(), productConfiguration.getUpdateProductVariantTopic());
-        log.info("Pushed to kafka");
+
         return request.getProductVariant();
     }
 
@@ -95,15 +101,19 @@ public class ProductVariantService {
                                 String tenantId,
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception {
+        log.info("received request to search product variants");
 
         if (isSearchByIdOnly(productVariantSearchRequest.getProductVariant())) {
+            log.info("searching product variants by id");
             List<String> ids = productVariantSearchRequest.getProductVariant().getId();
+            log.info("fetching product variants with ids: {}", ids);
             return productVariantRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
+        log.info("searching product variants using criteria");
         return productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }

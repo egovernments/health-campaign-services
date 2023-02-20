@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -20,13 +21,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "stock_reconciliation_log")
 public class StockReconciliationSearch {
     @JsonProperty("id")
     @Valid
     private List<String> id = null;
 
     @JsonProperty("clientReferenceId")
-    private String clientReferenceId = null;
+    private List<String> clientReferenceId = null;
 
     @JsonProperty("facilityId")
     private String facilityId = null;

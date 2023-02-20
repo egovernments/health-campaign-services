@@ -10,11 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-import static org.egov.common.utils.CommonUtils.enrichForCreate;
-import static org.egov.common.utils.CommonUtils.enrichForDelete;
-import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.*;
 
 @Service
 @Slf4j
@@ -30,19 +26,34 @@ public class StockEnrichmentService {
     }
 
     public void create(List<Stock> entities, StockBulkRequest request) throws Exception {
+        log.info("starting create method for stock enrichment");
+        log.info("generating IDs for stock enrichment using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(entities),
                 configuration.getStockIdFormat(), "", entities.size());
 
+        log.info("enriching stock enrichment with generated IDs");
         enrichForCreate(entities, idList, request.getRequestInfo());
+
+        log.info("completed create method for stock enrichment");
     }
 
     public void update(List<Stock> entities, StockBulkRequest request) {
+        log.info("starting update method for stock enrichment");
         Map<String, Stock> stockMap = getIdToObjMap(entities);
+
+        log.info("enriching stock enrichment with generated IDs");
         enrichForUpdate(stockMap, entities, request);
+
+        log.info("completed update method for stock enrichment");
     }
 
     public void delete(List<Stock> entities, StockBulkRequest request) {
+        log.info("starting delete method for stock enrichment");
+
+        log.info("enriching stock enrichment with generated IDs");
         enrichForDelete(entities, request.getRequestInfo(), true);
+
+        log.info("completed delete method for stock enrichment");
     }
 }

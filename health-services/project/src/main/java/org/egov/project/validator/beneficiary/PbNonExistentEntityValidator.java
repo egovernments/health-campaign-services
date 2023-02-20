@@ -42,6 +42,7 @@ public class PbNonExistentEntityValidator implements Validator<BeneficiaryBulkRe
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
+        log.info("validating for existence of entity");
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectBeneficiary> projectBeneficiaries = request.getProjectBeneficiaries();
         Class<?> objClass = getObjClass(projectBeneficiaries);

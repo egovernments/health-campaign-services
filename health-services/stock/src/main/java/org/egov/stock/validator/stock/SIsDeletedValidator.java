@@ -24,11 +24,14 @@ public class SIsDeletedValidator implements Validator<StockBulkRequest, Stock> {
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         HashMap<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating is deleted stock");
         List<Stock> validEntities = request.getStock().stream().filter(notHavingErrors()).collect(Collectors.toList());
         validEntities.stream().filter(Stock::getIsDeleted).forEach(individual -> {
             Error error = getErrorForIsDelete();
+            log.info("validation failed for stock is deleted: {} with error: {}", validEntities, error);
             populateErrorDetails(individual, error, errorDetailsMap);
         });
+        log.info("stock is deleted validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

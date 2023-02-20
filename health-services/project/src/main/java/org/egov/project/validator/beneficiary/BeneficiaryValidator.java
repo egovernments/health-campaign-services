@@ -83,6 +83,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest beneficiaryBulkRequest) {
+        log.info("validating the beneficiary");
         Map<ProjectBeneficiary, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectBeneficiary> validProjectBeneficiaries = beneficiaryBulkRequest.getProjectBeneficiaries()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
@@ -91,7 +92,9 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
 
             Set<String> projectIds = getSet(validProjectBeneficiaries, GET_PROJECT_ID);
 
+            log.info("fetch the projects");
             List<Project> existingProjects = projectService.findByIds(new ArrayList<>(projectIds));
+            log.info("fetch the project types");
             List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
 
             Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
@@ -102,6 +105,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                             .getProjectId()).getProjectTypeId()).getBeneficiaryType()));
 
             for (Map.Entry<String, List<ProjectBeneficiary>> entry : beneficiaryTypeMap.entrySet()) {
+                log.info("fetch the beneficiaries for type {}", entry.getKey());
                 searchBeneficiary(entry.getKey(), entry.getValue(), beneficiaryBulkRequest.getRequestInfo(),
                         tenantId, errorDetailsMap);
             }
@@ -171,7 +175,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                             + "&offset=0&tenantId=" + tenantId),
                     householdSearchRequest,
                     HouseholdBulkResponse.class);
-
+            log.info("household search returned with size {}", response.getHouseholds().size());
             if (response.getHouseholds().size() != beneficiaryList.size()) {
                 if (isBeneficiaryId) {
                     populateHouseHoldBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,
@@ -266,6 +270,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                             + "&offset=0&tenantId=" + tenantId),
                     individualSearchRequest,
                     IndividualBulkResponse.class);
+            log.info("individuals search returned with size {}", response.getIndividual().size());
             if (response.getIndividual().size() != beneficiaryList.size()) {
                 if (isBeneficiaryId) {
                     populateIndividualBeneficiaryErrorDetails(beneficiaryList, errorDetailsMap, response,

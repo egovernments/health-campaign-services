@@ -21,6 +21,7 @@ public class PbNullIdValidator implements Validator<BeneficiaryBulkRequest, Proj
 
     @Override
     public Map<ProjectBeneficiary, List<Error>> validate(BeneficiaryBulkRequest request) {
+        log.info("validating for null id");
         return validateForNullId(request, GET_PROJECT_BENEFICIARIES);
     }
 }

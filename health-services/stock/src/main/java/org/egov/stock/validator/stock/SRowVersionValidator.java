@@ -38,6 +38,7 @@ public class SRowVersionValidator implements Validator<StockBulkRequest, Stock> 
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating row version stock");
         Method idMethod = getIdMethod(request.getStock());
         Map<String, Stock> eMap = getIdToObjMap(request.getStock().stream()
                 .filter(notHavingErrors())
@@ -50,9 +51,11 @@ public class SRowVersionValidator implements Validator<StockBulkRequest, Stock> 
                     getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
             entitiesWithMismatchedRowVersion.forEach(individual -> {
                 Error error = getErrorForRowVersionMismatch();
+                log.info("validation failed for stock row version: {} with error :{}", idMethod, error);
                 populateErrorDetails(individual, error, errorDetailsMap);
             });
         }
+        log.info("stock row version validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

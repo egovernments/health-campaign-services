@@ -21,6 +21,7 @@ public class PsNullIdValidator implements Validator<ProjectStaffBulkRequest, Pro
 
     @Override
     public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        log.info("validating for null id");
         return validateForNullId(request, GET_STAFF);
     }
 }

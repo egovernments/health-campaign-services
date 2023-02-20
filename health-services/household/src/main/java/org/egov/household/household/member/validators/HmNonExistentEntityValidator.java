@@ -44,6 +44,7 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
         List<HouseholdMember> householdMembers = request.getHouseholdMembers();
+        log.info("validating non existent household member");
         Class<?> objClass = getObjClass(householdMembers);
         Method idMethod = getMethod(GET_ID, objClass);
         Map<String, HouseholdMember> iMap = getIdToObjMap(householdMembers
@@ -59,7 +60,7 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
                 populateErrorDetails(householdMember, error, errorDetailsMap);
             });
         }
-
+        log.info("household member non existent validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

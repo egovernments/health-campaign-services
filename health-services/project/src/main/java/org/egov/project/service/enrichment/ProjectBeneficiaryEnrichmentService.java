@@ -43,22 +43,26 @@ public class ProjectBeneficiaryEnrichmentService {
 
     public void create(List<ProjectBeneficiary> validProjectBeneficiaries,
                        BeneficiaryBulkRequest beneficiaryRequest) throws Exception {
+        log.info("starting the enrichment for create project beneficiaries");
+
+        log.info("get tenant id");
         String tenantId = getTenantId(validProjectBeneficiaries);
 
-        log.info("Generating IDs using IdGenService");
+        log.info("generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(beneficiaryRequest.getRequestInfo(),
                 tenantId,
                 projectConfiguration.getProjectBeneficiaryIdFormat(),
                 "",
                 validProjectBeneficiaries.size());
-        log.info("IDs generated");
+        log.info("ids generated");
 
         enrichForCreate(validProjectBeneficiaries, idList, beneficiaryRequest.getRequestInfo());
-        log.info("Enrichment done");
+        log.info("enrichment done");
     }
 
     public void update(List<ProjectBeneficiary> validProjectBeneficiaries,
                        BeneficiaryBulkRequest beneficiaryRequest) {
+        log.info("starting the enrichment for update project beneficiaries");
         Method idMethod = getIdMethod(validProjectBeneficiaries);
         Map<String, ProjectBeneficiary> projectBeneficiaryMap  = getIdToObjMap(validProjectBeneficiaries, idMethod);
         List<String> projectBeneficiaryIds = new ArrayList<>(projectBeneficiaryMap.keySet());
@@ -68,15 +72,19 @@ public class ProjectBeneficiaryEnrichmentService {
                 getIdFieldName(idMethod)
         );
 
-        log.info("Updating Ids from existing entities");
+        log.info("updating Ids from existing entities");
         enrichIdsFromExistingEntities(projectBeneficiaryMap, existingProjectBeneficiaryIds, idMethod);
 
-        log.info("Updating lastModifiedTime and lastModifiedBy");
+        log.info("updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(projectBeneficiaryMap, existingProjectBeneficiaryIds, beneficiaryRequest, idMethod);
+
+        log.info("enrichment done");
     }
 
     public void delete(List<ProjectBeneficiary> validProjectBeneficiaries,
                        BeneficiaryBulkRequest beneficiaryRequest) {
+        log.info("starting the enrichment for delete project beneficiaries");
         enrichForDelete(validProjectBeneficiaries, beneficiaryRequest.getRequestInfo(), true);
+        log.info("enrichment done");
     }
 }
