@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarento.analytics.helper.ActionsHelper;
 import com.tarento.analytics.helper.ComputedFieldFactory;
 import com.tarento.analytics.helper.IComputedField;
+import com.tarento.analytics.helper.SortingHelper;
 import com.tarento.analytics.model.ComputedFields;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -44,6 +45,8 @@ public class LineChartResponseHandler implements IResponseHandler {
     private ComputedFieldFactory computedFieldFactory;
     @Autowired
     private ActionsHelper actionsHelper;
+    @Autowired
+    private SortingHelper sortingHelper;
 
     @Override
     public AggregateDto translate(AggregateRequestDto requestDto, ObjectNode aggregations) throws IOException {
@@ -175,6 +178,10 @@ public class LineChartResponseHandler implements IResponseHandler {
         });
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
             dataList = actionsHelper.divide(action, dataList, chartNode);
+        }
+        if (executeComputedFields) {
+            String sortingKey = computedFields.get(0).has("sort") ? computedFields.get(0).get("sort").asText() : "none";
+            dataList = sortingHelper.sort(sortingKey, dataList);
         }
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
     }

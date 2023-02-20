@@ -9,6 +9,15 @@ public class ComputedFields {
     private String actionName;
     private List<String> fields = new ArrayList<>();
     private String newField;
+    private String sort;
+
+    public String getSort() {
+        return sort;
+    }
+
+    public void setSort(String sort) {
+        this.sort = sort;
+    }
 
     public String getPostAggregationTheory() {
         return postAggregationTheory;
