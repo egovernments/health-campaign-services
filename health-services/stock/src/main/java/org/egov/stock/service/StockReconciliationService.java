@@ -3,29 +3,42 @@ package org.egov.stock.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
-import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.repository.StockReconciliationRepository;
 import org.egov.stock.service.enrichment.StockReconciliationEnrichmentService;
-import org.egov.stock.validator.stockreconciliation.*;
+import org.egov.stock.validator.stockreconciliation.SrIsDeletedValidator;
+import org.egov.stock.validator.stockreconciliation.SrNonExistentValidator;
+import org.egov.stock.validator.stockreconciliation.SrNullIdValidator;
+import org.egov.stock.validator.stockreconciliation.SrProductVariantIdValidator;
+import org.egov.stock.validator.stockreconciliation.SrRowVersionValidator;
+import org.egov.stock.validator.stockreconciliation.SrUniqueEntityValidator;
 import org.egov.stock.web.models.StockReconciliation;
 import org.egov.stock.web.models.StockReconciliationBulkRequest;
 import org.egov.stock.web.models.StockReconciliationRequest;
 import org.egov.stock.web.models.StockReconciliationSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
-import static org.egov.stock.Constants.*;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.validate;
+import static org.egov.stock.Constants.GET_STOCK_RECONCILIATION;
+import static org.egov.stock.Constants.SET_STOCK_RECONCILIATION;
+import static org.egov.stock.Constants.VALIDATION_ERROR;
+
 
 @Service
 @Slf4j
@@ -72,8 +85,9 @@ public class StockReconciliationService {
 
     public List<StockReconciliation> create(StockReconciliationBulkRequest request, boolean isBulk) {
         log.info("starting create method for stock reconciliation");
+
         Tuple<List<StockReconciliation>, Map<StockReconciliation, ErrorDetails>> tuple = validate(validators,
-                isApplicableForCreate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION,
+                isApplicableForCreate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, VALIDATION_ERROR,
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -105,7 +119,7 @@ public class StockReconciliationService {
     public List<StockReconciliation> update(StockReconciliationBulkRequest request, boolean isBulk) {
         log.info("starting update method for stock reconciliation");
         Tuple<List<StockReconciliation>, Map<StockReconciliation, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION,
+                isApplicableForUpdate, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, VALIDATION_ERROR,
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -138,7 +152,7 @@ public class StockReconciliationService {
     public List<StockReconciliation> delete(StockReconciliationBulkRequest request, boolean isBulk) {
         log.info("starting delete method for stock reconciliation");
         Tuple<List<StockReconciliation>, Map<StockReconciliation, ErrorDetails>> tuple = validate(validators,
-                isApplicableForDelete, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION,
+                isApplicableForDelete, request, SET_STOCK_RECONCILIATION, GET_STOCK_RECONCILIATION, VALIDATION_ERROR,
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -180,23 +194,5 @@ public class StockReconciliationService {
         log.info("completed search method for stock reconciliation");
         return stockRepository.find(request.getStockReconciliation(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
-    }
-
-    private <T, R> Tuple<List<T>, Map<T, ErrorDetails>> validate(List<Validator<R, T>> validators,
-                                                                 Predicate<Validator<R, T>> applicableValidators,
-                                                                 R request, String setPayloadMethodName,
-                                                                 String getPayloadMethodName,boolean isBulk) {
-        log.info("validating request");
-        Map<T, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
-                applicableValidators, request,
-                setPayloadMethodName);
-        if (!errorDetailsMap.isEmpty() && !isBulk) {
-            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-        }
-        Method getEntities = getMethod(getPayloadMethodName, request.getClass());
-        List<T> validEntities = (List<T>) ReflectionUtils.invokeMethod(getEntities, request);
-        validEntities = validEntities.stream().filter(notHavingErrors()).collect(Collectors.toList());
-        log.info("completed validation for stock reconciliation");
-        return new Tuple<>(validEntities, errorDetailsMap);
     }
 }
