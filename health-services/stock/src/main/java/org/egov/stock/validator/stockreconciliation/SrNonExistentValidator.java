@@ -1,11 +1,11 @@
-package org.egov.stock.validator.stock;
+package org.egov.stock.validator.stockreconciliation;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.stock.repository.StockRepository;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
+import org.egov.stock.repository.StockReconciliationRepository;
+import org.egov.stock.web.models.StockReconciliation;
+import org.egov.stock.web.models.StockReconciliationBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -29,28 +29,28 @@ import static org.egov.stock.Constants.GET_ID;
 @Component
 @Slf4j
 @Order(2)
-public class SNonExistentValidator implements Validator<StockBulkRequest, Stock> {
+public class SrNonExistentValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
 
-    private final StockRepository stockRepository;
+    private final StockReconciliationRepository stockReconciliationRepository;
 
-    public SNonExistentValidator(StockRepository stockRepository) {
-        this.stockRepository = stockRepository;
+    public SrNonExistentValidator(StockReconciliationRepository stockReconciliationRepository) {
+        this.stockReconciliationRepository = stockReconciliationRepository;
     }
 
     @Override
-    public Map<Stock, List<Error>> validate(StockBulkRequest request) {
-        Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Stock> entities = request.getStock();
-        log.info("validating non existent stock");
+    public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
+        Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating non existent stock reconciliation");
+        List<StockReconciliation> entities = request.getStockReconciliation();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
-        Map<String, Stock> eMap = getIdToObjMap(entities
+        Map<String, StockReconciliation> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Stock> existingEntities = stockRepository.findById(entityIds,false,
+            List<StockReconciliation> existingEntities = stockReconciliationRepository.findById(entityIds,false,
                     getIdFieldName(idMethod));
-            List<Stock> nonExistentEntities = checkNonExistentEntities(eMap,
+            List<StockReconciliation> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);
             nonExistentEntities.forEach(task -> {
                 Error error = getErrorForNonExistentEntity();
@@ -58,7 +58,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
             });
         }
 
-        log.info("stock non existent validation completed successfully, total errors: "+errorDetailsMap.size());
+        log.info("stock reconciliation non existent validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

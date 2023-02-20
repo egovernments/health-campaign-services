@@ -1,10 +1,10 @@
-package org.egov.stock.validator.stock;
+package org.egov.stock.validator.stockreconciliation;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
+import org.egov.stock.web.models.StockReconciliation;
+import org.egov.stock.web.models.StockReconciliationBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -21,16 +21,16 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 @Component
 @Slf4j
 @Order(3)
-public class SUniqueEntityValidator implements Validator<StockBulkRequest, Stock> {
+public class SrUniqueEntityValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
     @Override
-    public Map<Stock, List<Error>> validate(StockBulkRequest request) {
-        Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
-        log.info("validating unique entity for stock");
-        List<Stock> validEntities = request.getStock()
+    
+    public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
+        Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating unique entity for stock reconciliation");
+        List<StockReconciliation> validEntities = request.getStockReconciliation()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
-            log.info("valid entity not empty");
-            Map<String, Stock> eMap = getIdToObjMap(validEntities);
+            Map<String, StockReconciliation> eMap = getIdToObjMap(validEntities);
             if (eMap.keySet().size() != validEntities.size()) {
                 List<String> duplicates = eMap.keySet().stream().filter(id ->
                         validEntities.stream()
@@ -42,7 +42,8 @@ public class SUniqueEntityValidator implements Validator<StockBulkRequest, Stock
                 }
             }
         }
-        log.info("stock unique entity validation completed successfully, total errors: "+errorDetailsMap.size());
+
+        log.info("stock reconciliation unique entity validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }
 }

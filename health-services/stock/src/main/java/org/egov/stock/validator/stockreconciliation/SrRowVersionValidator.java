@@ -1,11 +1,11 @@
-package org.egov.stock.validator.stock;
+package org.egov.stock.validator.stockreconciliation;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.stock.repository.StockRepository;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
+import org.egov.stock.repository.StockReconciliationRepository;
+import org.egov.stock.web.models.StockReconciliation;
+import org.egov.stock.web.models.StockReconciliationBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -27,35 +27,35 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch
 @Component
 @Slf4j
 @Order(4)
-public class SRowVersionValidator implements Validator<StockBulkRequest, Stock> {
+public class SrRowVersionValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
 
-    private final StockRepository stockRepository;
+    private final StockReconciliationRepository stockReconciliationRepository;
 
-    public SRowVersionValidator(StockRepository stockRepository) {
-        this.stockRepository = stockRepository;
+    public SrRowVersionValidator(StockReconciliationRepository stockReconciliationRepository) {
+        this.stockReconciliationRepository = stockReconciliationRepository;
     }
 
     @Override
-    public Map<Stock, List<Error>> validate(StockBulkRequest request) {
-        Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
-        log.info("validating row version stock");
-        Method idMethod = getIdMethod(request.getStock());
-        Map<String, Stock> eMap = getIdToObjMap(request.getStock().stream()
+    public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
+        Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating row version stock reconciliation");
+        Method idMethod = getIdMethod(request.getStockReconciliation());
+        Map<String, StockReconciliation> eMap = getIdToObjMap(request.getStockReconciliation().stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Stock> existingEntities = stockRepository.findById(entityIds, false,
+            List<StockReconciliation> existingEntities = stockReconciliationRepository.findById(entityIds, false,
                     getIdFieldName(idMethod));
-            List<Stock> entitiesWithMismatchedRowVersion =
+            List<StockReconciliation> entitiesWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
             entitiesWithMismatchedRowVersion.forEach(individual -> {
                 Error error = getErrorForRowVersionMismatch();
-                log.info("validation failed for stock row version: {} with error :{}", idMethod, error);
                 populateErrorDetails(individual, error, errorDetailsMap);
             });
         }
-        log.info("stock row version validation completed successfully, total errors: "+errorDetailsMap.size());
+
+        log.info("stock reconciliation row version validation completed successfully, total errors: "+ errorDetailsMap.size());
         return errorDetailsMap;
     }
 }
