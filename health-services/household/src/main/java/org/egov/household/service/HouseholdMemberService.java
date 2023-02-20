@@ -159,7 +159,7 @@ public class HouseholdMemberService {
         }
     }
 
-    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) throws Exception {
+    public List<HouseholdMember> update(HouseholdMemberRequest householdMemberRequest) {
         log.info("starting update of household member for single request");
         HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder()
                 .requestInfo(householdMemberRequest.getRequestInfo())
