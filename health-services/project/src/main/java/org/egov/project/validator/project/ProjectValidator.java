@@ -324,7 +324,7 @@ public class ProjectValidator {
         List<String> localities = new ArrayList<>();
         for (Project project: projects) {
             if (project.getAddress() != null && project.getAddress().getLocality() != null) {
-                localities.add(project.getAddress().getLocality().getName());
+                localities.add(project.getAddress().getLocality().getCode());
             }
         }
         return localities;

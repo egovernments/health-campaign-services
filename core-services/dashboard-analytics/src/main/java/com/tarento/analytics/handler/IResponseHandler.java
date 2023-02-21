@@ -58,6 +58,10 @@ public interface IResponseHandler {
 
 
 
+	public final String SORT_KEY_ASC = "sortKeyAsc";
+	public final String SORT_KEY_DESC = "sortKeyDesc";
+	public final String SORT_VALUE_ASC = "sortValueAsc";
+	public final String SORT_VALUE_DESC = "sortValueDesc";
 	public final String ASC = "asc";
 	public final String DESC = "desc";
 	public final String RANK = "Rank";
