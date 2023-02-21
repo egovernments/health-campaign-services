@@ -44,7 +44,7 @@ public class BoundaryUtil {
         if (hierarchyTypeCode != null)
             uri.append("&").append("hierarchyTypeCode=").append(hierarchyTypeCode);
 
-        uri.append("&").append("boundaryType=").append("Locality").append("&").append("codes=")
+        uri.append("&").append("boundaryType=").append("Locality").append("&").append("code=")
                 .append(StringUtils.join(locations, ','));
 
         Optional<LinkedHashMap> response = null;
