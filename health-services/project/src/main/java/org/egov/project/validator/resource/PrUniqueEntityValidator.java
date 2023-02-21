@@ -3,8 +3,8 @@ package org.egov.project.validator.resource;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.web.models.ProjectResource;
+import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -21,16 +21,16 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 @Component
 @Order(value = 2)
 @Slf4j
-public class PrUniqueEntityValidator implements Validator<TaskBulkRequest, Task> {
+public class PrUniqueEntityValidator implements Validator<ProjectResourceBulkRequest, ProjectResource> {
 //shiva
     @Override
-    public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+    public Map<ProjectResource, List<Error>> validate(ProjectResourceBulkRequest request) {
         log.info("validating unique entity");
-        Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Task> validEntities = request.getTasks()
+        Map<ProjectResource, List<Error>> errorDetailsMap = new HashMap<>();
+        List<ProjectResource> validEntities = request.getProjectResource()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
-            Map<String, Task> eMap = getIdToObjMap(validEntities);
+            Map<String, ProjectResource> eMap = getIdToObjMap(validEntities);
             if (eMap.keySet().size() != validEntities.size()) {
                 List<String> duplicates = eMap.keySet().stream().filter(id ->
                         validEntities.stream()

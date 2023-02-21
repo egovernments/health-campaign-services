@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -12,8 +13,6 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * This object defines the mapping of a resource to a project.
@@ -39,10 +38,15 @@ public class ProjectResource   {
     @Size(min=2,max=64)
     private String projectId = null;
 
-    @JsonProperty("resources")
+    @JsonProperty("productVariantId")
     @NotNull
-    @Valid
-    private List<ProjectProductVariant> resources = new ArrayList<>();
+    private String productVariantId = null;
+
+    @JsonProperty("type")
+    private String type = null;
+
+    @JsonProperty("isBaseUnitVariant")
+    private Boolean isBaseUnitVariant = null;
 
     @JsonProperty("additionalFields")
     @Valid
@@ -60,14 +64,11 @@ public class ProjectResource   {
     @JsonProperty("endDate")
     private Long endDate = null;
 
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
+
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
-
-    public ProjectResource addResourcesItem(ProjectProductVariant resourcesItem) {
-        this.resources.add(resourcesItem);
-        return this;
-    }
-
 }
 

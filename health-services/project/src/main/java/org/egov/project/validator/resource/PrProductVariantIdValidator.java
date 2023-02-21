@@ -11,8 +11,8 @@ import org.egov.project.web.models.ProductVariant;
 import org.egov.project.web.models.ProductVariantResponse;
 import org.egov.project.web.models.ProductVariantSearch;
 import org.egov.project.web.models.ProductVariantSearchRequest;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.web.models.ProjectResource;
+import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -20,26 +20,26 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getDifference;
-import static org.egov.common.utils.CommonUtils.getIdList;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
+import static org.egov.project.Constants.GET_PRODUCT_VARIANT_ID;
 
 @Component
 @Order(value = 8)
 @Slf4j
-public class PrProductVariantIdValidator implements Validator<TaskBulkRequest, Task> {
-//shiva
+public class PrProductVariantIdValidator implements Validator<ProjectResourceBulkRequest, ProjectResource> {
+    //shiva
     private final ProjectRepository projectRepository;
 
     private final ServiceRequestClient serviceRequestClient;
@@ -55,34 +55,28 @@ public class PrProductVariantIdValidator implements Validator<TaskBulkRequest, T
 
 
     @Override
-    public Map<Task, List<Error>> validate(TaskBulkRequest request) {
+    public Map<ProjectResource, List<Error>> validate(ProjectResourceBulkRequest request) {
         log.info("validating for product variant id");
-        Map<Task, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Task> entities = request.getTasks().stream()
+        Map<ProjectResource, List<Error>> errorDetailsMap = new HashMap<>();
+        List<ProjectResource> entities = request.getProjectResource().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if (!entities.isEmpty()) {
-            for (Task task : entities) {
-                Set<String> productVariantIds = new HashSet<>(getIdList(task.getResources(),
-                        getIdMethod(task.getResources(), "productVariantId")));
-                try {
-                    List<ProductVariant> validProductVariants = checkIfProductVariantExist(productVariantIds,
-                            getTenantId(task.getResources()), request.getRequestInfo());
-                    if (productVariantIds.size() != validProductVariants.size()) {
-                        List<String> productVariantInRequest = new ArrayList<>();
-                        productVariantInRequest.addAll(productVariantIds);
-                        Error error;
-                        if (validProductVariants.isEmpty()) {
-                            error = getErrorForNonExistentRelatedEntity(productVariantInRequest);
-                        } else {
-                            error = getErrorForNonExistentRelatedEntity(getDifference(productVariantInRequest,
-                                    getIdList(validProductVariants, getIdMethod(validProductVariants))));
-                        }
-                        populateErrorDetails(task, error, errorDetailsMap);
+            Set<String> productVariantIds = entities.stream().map(ProjectResource::getProductVariantId).collect(Collectors.toSet());
+            Map<String, ProjectResource> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));
+            try {
+                List<String> validProductVariantsIds = checkIfProductVariantExist(productVariantIds,
+                        getTenantId(entities),
+                        request.getRequestInfo()).stream().map(ProductVariant::getId).collect(Collectors.toList());
+                productVariantIds.forEach(id -> {
+                    if (!validProductVariantsIds.contains(id)) {
+                        Error error = getErrorForNonExistentRelatedEntity(id);
+                        log.info("validation failed for product variant id: {} with error {}", entities, error);
+                        populateErrorDetails(pvMap.get(id), error, errorDetailsMap);
                     }
-                } catch (Exception exception) {
-                    Error error = getErrorForEntityWithNetworkError();
-                    populateErrorDetails(task, error, errorDetailsMap);
-                }
+                });
+            } catch (Exception exception) {
+                Error error = getErrorForEntityWithNetworkError();
+                entities.forEach(entity -> populateErrorDetails(entity, error, errorDetailsMap));
             }
         }
 
