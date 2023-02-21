@@ -54,6 +54,12 @@ public class ProjectResource   {
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
+    @JsonProperty("startDate")
+    private Long startDate = null;
+
+    @JsonProperty("endDate")
+    private Long endDate = null;
+
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;

@@ -10,8 +10,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * ProjectResourceResponse
@@ -33,11 +31,7 @@ public class ProjectResourceResponse   {
     @JsonProperty("ProjectResource")
     @NotNull
     @Valid
-    private List<ProjectResource> projectResource = new ArrayList<>();
+    private ProjectResource projectResource = null;
 
-    public ProjectResourceResponse addProjectResourceItem(ProjectResource projectResourceItem) {
-        this.projectResource.add(projectResourceItem);
-        return this;
-    }
 }
 
