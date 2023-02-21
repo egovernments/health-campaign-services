@@ -179,7 +179,7 @@ public class LineChartResponseHandler implements IResponseHandler {
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
             dataList = actionsHelper.divide(action, dataList, chartNode);
         }
-        if (!(computedFields==null) &&(computedFields.size()!=0) && (computedFields.get(0).has("sort"))) {
+        if (computedFields != null && computedFields.size()!= 0 && computedFields.get(0).has("sort")) {
             String sortingKey = computedFields.get(0).get("sort").asText();
             dataList = sortingHelper.sort(sortingKey, dataList);
         }

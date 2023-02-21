@@ -12,7 +12,8 @@ import static com.tarento.analytics.handler.IResponseHandler.*;
 @Component
 public class SortingHelper {
     public List<Data> sort(String sortingKey, List<Data> dataList) {
-        Comparator<Plot> plotSortComparator = PlotSortComparator(sortingKey, dataList);
+        Boolean isValueSortingApplicable = dataList.size() == 1;
+        Comparator<Plot> plotSortComparator = plotSortComparator(sortingKey, isValueSortingApplicable);
         for (int i=0; i<dataList.size(); i++) {
             List<Plot> plotList = new ArrayList<Plot>(dataList.get(i).getPlots());
             plotList.sort(plotSortComparator);
@@ -21,7 +22,7 @@ public class SortingHelper {
         return dataList;
     }
 
-    private static Comparator<Plot> PlotSortComparator(String sortingKey, List<Data> dataList) {
+    private static Comparator<Plot> plotSortComparator(String sortingKey, Boolean isValueSortingApplicable) {
         return new Comparator<Plot>() {
             public int compare(Plot p1, Plot p2) {
                 String plotName1 = p1.getName().toUpperCase();
@@ -33,11 +34,11 @@ public class SortingHelper {
                     return plotName1.compareTo(plotName2);
                 } else if (sortingKey.equals(SORT_KEY_DESC)) {
                     return plotName2.compareTo(plotName1);
-                } else if (sortingKey.equals(SORT_VALUE_ASC) && dataList.size() == 1) {
+                } else if (sortingKey.equals(SORT_VALUE_ASC) && isValueSortingApplicable) {
                     if (plotValue1 < plotValue2) return -1;
                     if (plotValue1 > plotValue2) return 1;
                     return 0;
-                } else if (sortingKey.equals(SORT_VALUE_DESC) && dataList.size() == 1) {
+                } else if (sortingKey.equals(SORT_VALUE_DESC) && isValueSortingApplicable) {
                     if (plotValue1 < plotValue2) return 1;
                     if (plotValue1 > plotValue2) return -1;
                     return 0;
