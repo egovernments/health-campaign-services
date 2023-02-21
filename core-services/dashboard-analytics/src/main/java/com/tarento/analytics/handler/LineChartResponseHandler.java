@@ -1,6 +1,8 @@
 package com.tarento.analytics.handler;
 
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -70,13 +72,23 @@ public class LineChartResponseHandler implements IResponseHandler {
 
         JsonNode computedFields = chartNode.get(COMPUTED_FIELDS);
         JsonNode predictionPath = chartNode.get(PREDICTION_PATH);
+        JsonNode distributionPath = null;
+        Long startDate = null;
+        Long endDate = null;
         boolean executeComputedFields = computedFields !=null && computedFields.isArray();
 
+        if(!predictionPath.isNull() ){
+            List<JsonNode> aggrNodes = aggregationNode.findValues(CHART_SPECIFIC);
+            startDate = aggrNodes.get(0).findValues(START_DATE).get(0).findValues("key").get(0).asLong();
+            endDate = aggrNodes.get(0).findValues(END_DATE).get(0).findValues("key").get(0).asLong();
+        }
         //aggrsPaths.forEach(headerPath -> {
         for(JsonNode headerPath : aggrsPaths){
+
+            if(predictionPath!=null && aggrsPaths.size()==2 && headerPath!=predictionPath){
+                distributionPath = headerPath;
+            }
             List<JsonNode> aggrNodes = aggregationNode.findValues(headerPath.asText());
-            
-            
             
             JsonNode datatype = null;
             if(pathDataTypeMap!=null) {
@@ -171,8 +183,16 @@ public class LineChartResponseHandler implements IResponseHandler {
             // });
         }
         String action = chartNode.get(ACTION).asText();
+        Long finalEndDate = endDate;
+        Long finalStartDate = startDate;
         dataList.forEach(data -> {
             if(predictionPath!=null){
+                if(!plotEpochKeys.contains(finalEndDate)){
+                    plotEpochKeys.add(finalEndDate);
+                }
+                if(!plotEpochKeys.contains(finalStartDate)){
+                    plotEpochKeys.add(finalStartDate);
+                }
                 addMissingDates(plotKeys,plotEpochKeys);
                 if(data.getHeaderName().equals(predictionPath.asText())){
                     appendTargetPlot(plotKeys,data,symbol,isCumulative);
@@ -181,10 +201,46 @@ public class LineChartResponseHandler implements IResponseHandler {
                 appendMissingPlot(plotKeys, data, symbol, isCumulative);
             }
         });
+        if(predictionPath!=null){
+            addPredictionPlot(dataList,predictionPath,distributionPath);
+        }
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
             dataList = actionsHelper.divide(action, dataList, chartNode);
         }
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
+    }
+
+    public void addPredictionPlot(List<Data> dataList,JsonNode predictionPath, JsonNode distributionPath) {
+        Data targetPlot = dataList.stream().filter(ob -> ob.getHeaderName().equals(predictionPath.asText())).findFirst().get();
+        Double overallTarget = targetPlot.getPlots().stream().reduce((first, second) -> second).get().getValue();
+        Double targetPerDay = targetPlot.getPlots().get(0).getValue();
+
+        Data distributionPlot = dataList.stream().filter(ob -> ob.getHeaderName().equals(distributionPath.asText())).findFirst().get();
+        Double currentData = distributionPlot.getPlots().stream().reduce((first, second) -> second).get().getValue();
+        String currentDate = distributionPlot.getPlots().stream().reduce((first, second) -> second).get().getName();
+
+        Double differenceInData = overallTarget - currentData;
+        Double daysToComplete = Math.ceil(differenceInData/targetPerDay);
+
+        List<Plot> plots = new ArrayList<>();
+        SimpleDateFormat sdf = new SimpleDateFormat("dd-MMM");
+        Calendar cal = Calendar.getInstance();
+
+        String plotSymbol = distributionPlot.getPlots().get(0).getSymbol();
+
+        plots.add(new Plot(currentDate,currentData,plotSymbol));
+        for (int i = 0; i < daysToComplete; i++) {
+            try {
+                cal.setTime(sdf.parse(currentDate));
+            } catch (ParseException e) {
+                throw new RuntimeException(e);
+            }
+            cal.add(Calendar.DAY_OF_MONTH,1);
+            currentDate = sdf.format(cal.getTime());
+             currentData = currentData + ((i == daysToComplete-1) ? differenceInData%targetPerDay : targetPerDay);
+            plots.add(new Plot(currentDate,currentData,plotSymbol));
+        }
+        dataList.add(new Data("PREDICTION_".concat(distributionPlot.getHeaderName()), overallTarget,distributionPlot.getHeaderSymbol(),plots));
     }
 
     public void addMissingDates(Set<String> plotKeys, List<Long> plotEpochKeys){
@@ -329,6 +385,8 @@ public class LineChartResponseHandler implements IResponseHandler {
             return epocString;
         }
     }
+
+//    private String getEpochKey
 
     private String monthNames(int month) {
         if(month == 1)
