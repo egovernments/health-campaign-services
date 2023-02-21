@@ -386,8 +386,6 @@ public class LineChartResponseHandler implements IResponseHandler {
         }
     }
 
-//    private String getEpochKey
-
     private String monthNames(int month) {
         if(month == 1)
             return "Jan";
