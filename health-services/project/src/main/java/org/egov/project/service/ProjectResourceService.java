@@ -7,7 +7,8 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectResourceRepository;
 import org.egov.project.service.enrichment.ProjectResourceEnrichmentService;
-import org.egov.project.validator.resource.PrProductVariantIdValidator;
+import org.egov.project.validator.resource.PrIsDeletedValidator;
+import org.egov.project.validator.resource.PrNullIdValidator;
 import org.egov.project.validator.resource.PrProjectIdValidator;
 import org.egov.project.web.models.ProjectResource;
 import org.egov.project.web.models.ProjectResourceBulkRequest;
@@ -40,8 +41,11 @@ public class ProjectResourceService {
     private final ProjectResourceEnrichmentService enrichmentService;
 
     private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PrProjectIdValidator.class)
-                    || validator.getClass().equals(PrProductVariantIdValidator.class);
+            validator.getClass().equals(PrProjectIdValidator.class);
+
+    private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForDelete = validator ->
+            validator.getClass().equals(PrIsDeletedValidator.class)
+                    ||validator.getClass().equals(PrNullIdValidator.class);
 
     public ProjectResourceService(List<Validator<ProjectResourceBulkRequest, ProjectResource>> validators, ProjectResourceRepository projectResourceRepository, ProjectConfiguration projectConfiguration, ProjectResourceEnrichmentService enrichmentService) {
         this.validators = validators;
@@ -104,6 +108,25 @@ public class ProjectResourceService {
     }
 
     public List<ProjectResource> delete(ProjectResourceBulkRequest request, boolean isBulk) {
-        return null;
-    }
+        Tuple<List<ProjectResource>, Map<ProjectResource, ErrorDetails>> tuple = validate(validators,
+                isApplicableForDelete, request, SET_PROJECT_RESOURCE, GET_PROJECT_RESOURCE, VALIDATION_ERROR,
+                isBulk);
+
+        Map<ProjectResource, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<ProjectResource> validEntities = tuple.getX();
+        try {
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.delete(validEntities, request);
+                projectResourceRepository.save(validEntities, projectConfiguration.getDeleteProjectResourceTopic());
+                log.info("successfully deleted project resource");
+            }
+        } catch (Exception exception) {
+            log.error("error occurred while deleting project resource: {}", exception.getMessage());
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
+        }
+
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+
+        return validEntities;    }
 }

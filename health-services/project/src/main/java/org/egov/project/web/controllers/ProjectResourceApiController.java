@@ -92,14 +92,21 @@ public class ProjectResourceApiController {
     }
 
     @RequestMapping(value = "/resource/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResourceResponse> resourceV1DeletePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceRequest projectResource) {
-
-        return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
+    public ResponseEntity<ProjectResourceResponse> resourceV1DeletePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceRequest request) {
+        ProjectResource projectResourceResponse = projectResourceService.delete(request);
+        ProjectResourceResponse response = ProjectResourceResponse.builder()
+                .projectResource(projectResourceResponse)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/resource/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> resourceV1BulkDeletePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceBulkRequest projectResource) {
+    public ResponseEntity<ResponseInfo> resourceV1BulkDeletePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceBulkRequest request) {
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getDeleteProjectResourceTopic(), request);
 
-        return new ResponseEntity<ResponseInfo>(HttpStatus.NOT_IMPLEMENTED);
-    }
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));    }
 }

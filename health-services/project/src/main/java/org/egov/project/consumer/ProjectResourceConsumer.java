@@ -28,38 +28,38 @@ public class ProjectResourceConsumer {
     }
 
 
-    @KafkaListener(topics = "${project.staff.consumer.bulk.create.topic}")
+    @KafkaListener(topics = "${project.resource.consumer.bulk.create.topic}")
     public List<ProjectResource> bulkCreate(Map<String, Object> consumerRecord,
                                             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.create(request, true);
         } catch (Exception exception) {
-            log.error("error in project staff consumer bulk create", exception);
+            log.error("error in project resource consumer bulk create", exception);
             return Collections.emptyList();
         }
     }
 
-    @KafkaListener(topics = "${project.staff.consumer.bulk.update.topic}")
+    @KafkaListener(topics = "${project.resource.consumer.bulk.update.topic}")
     public List<ProjectResource> bulkUpdate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project staff consumer bulk update", exception);
+            log.error("error in project resource consumer bulk update", exception);
             return Collections.emptyList();
         }
     }
 
-    @KafkaListener(topics = "${project.staff.consumer.bulk.delete.topic}")
+    @KafkaListener(topics = "${project.resource.consumer.bulk.delete.topic}")
     public List<ProjectResource> bulkDelete(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project staff consumer bulk delete", exception);
+            log.error("error in project resource consumer bulk delete", exception);
             return Collections.emptyList();
         }
     }

@@ -17,7 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
 
 @Component
@@ -37,7 +42,7 @@ public class PrProjectIdValidator implements Validator<ProjectResourceBulkReques
         Map<ProjectResource, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectResource> entities = request.getProjectResource();
         Class<?> objClass = getObjClass(entities);
-        Method idMethod = getMethod("getProductResourceId", objClass);
+        Method idMethod = getMethod("getProjectId", objClass);
         Map<String, ProjectResource> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {

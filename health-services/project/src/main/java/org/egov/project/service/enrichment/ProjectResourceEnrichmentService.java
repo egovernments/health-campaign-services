@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
+import static org.egov.common.utils.CommonUtils.enrichForDelete;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 
 @Component
@@ -26,7 +27,7 @@ public class ProjectResourceEnrichmentService {
     }
 
     public void create(List<ProjectResource> entities, ProjectResourceBulkRequest request) throws Exception {
-        log.info("starting the enrichment for create project staff");
+        log.info("starting the enrichment for create project resource");
 
         log.info("generating IDs using IdGenService");
         List<String> idList = idGenService.getIdList(request.getRequestInfo(),
@@ -41,7 +42,9 @@ public class ProjectResourceEnrichmentService {
 
     }
 
-    public void delete(List<ProjectResource> validEntities, ProjectResourceBulkRequest request) {
-
+    public void delete(List<ProjectResource> entities, ProjectResourceBulkRequest request) {
+        log.info("starting the enrichment for delete project resource");
+        enrichForDelete(entities, request.getRequestInfo(), true);
+        log.info("enrichment done");
     }
 }
