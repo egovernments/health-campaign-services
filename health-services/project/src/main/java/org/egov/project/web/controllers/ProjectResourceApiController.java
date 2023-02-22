@@ -2,9 +2,16 @@ package org.egov.project.web.controllers;
 
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectResourceService;
-import org.egov.project.web.models.*;
+import org.egov.project.web.models.ProjectResource;
+import org.egov.project.web.models.ProjectResourceBulkRequest;
+import org.egov.project.web.models.ProjectResourceBulkResponse;
+import org.egov.project.web.models.ProjectResourceRequest;
+import org.egov.project.web.models.ProjectResourceResponse;
+import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -26,8 +34,20 @@ import javax.validation.constraints.NotNull;
 @Validated
 public class ProjectResourceApiController {
 
+    private final HttpServletRequest httpServletRequest;
+
+    private final Producer producer;
+
+    private final ProjectConfiguration projectConfiguration;
+
     @Autowired
     ProjectResourceService projectResourceService;
+
+    public ProjectResourceApiController(HttpServletRequest httpServletRequest, Producer producer, ProjectConfiguration projectConfiguration) {
+        this.httpServletRequest = httpServletRequest;
+        this.producer = producer;
+        this.projectConfiguration = projectConfiguration;
+    }
 
     @RequestMapping(value = "/resource/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectResourceResponse> resourceV1CreatePost(@ApiParam(value = "Capture linkage of Project and resources.", required = true) @Valid @RequestBody ProjectResourceRequest request) {
@@ -41,9 +61,12 @@ public class ProjectResourceApiController {
     }
 
     @RequestMapping(value = "/resource/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> resourceV1BulkCreatePost(@ApiParam(value = "Capture linkage of Project and resources.", required = true) @Valid @RequestBody ProjectResourceBulkRequest projectResource) {
+    public ResponseEntity<ResponseInfo> resourceV1BulkCreatePost(@ApiParam(value = "Capture linkage of Project and resources.", required = true) @Valid @RequestBody ProjectResourceBulkRequest request) {
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getCreateProjectResourceBulkTopic(), request);
 
-        return new ResponseEntity<ResponseInfo>(HttpStatus.NOT_IMPLEMENTED);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
     }
 
     @RequestMapping(value = "/resource/v1/_search", method = RequestMethod.POST)

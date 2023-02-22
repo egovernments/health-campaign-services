@@ -15,6 +15,7 @@ import org.egov.project.web.models.ProjectResourceRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -51,7 +52,7 @@ public class ProjectResourceService {
 
     public ProjectResource create(ProjectResourceRequest request) {
         ProjectResourceBulkRequest resourceBulkRequest = ProjectResourceBulkRequest.builder()
-                .projectResource(Arrays.asList(request.getProjectResource())).requestInfo(request.getRequestInfo())
+                .projectResource(Collections.singletonList(request.getProjectResource())).requestInfo(request.getRequestInfo())
                 .build();
 
         return create(resourceBulkRequest, false).get(0);
