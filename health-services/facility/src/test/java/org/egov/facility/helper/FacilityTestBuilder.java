@@ -1,6 +1,7 @@
 package org.egov.facility.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
+import org.egov.facility.web.models.Address;
 import org.egov.facility.web.models.Facility;
 
 public class FacilityTestBuilder {
@@ -30,6 +31,10 @@ public class FacilityTestBuilder {
 
     public FacilityTestBuilder withId(String id) {
         this.builder.id(id);
+        return this;
+    }
+    public FacilityTestBuilder withAddress(Address address){
+        this.builder.address(address);
         return this;
     }
 }

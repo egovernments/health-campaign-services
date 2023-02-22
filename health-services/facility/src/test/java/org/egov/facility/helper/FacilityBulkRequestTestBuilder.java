@@ -5,6 +5,7 @@ import org.egov.facility.web.models.Facility;
 import org.egov.facility.web.models.FacilityBulkRequest;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class FacilityBulkRequestTestBuilder {
     private FacilityBulkRequest.FacilityBulkRequestBuilder builder;
@@ -25,6 +26,11 @@ public class FacilityBulkRequestTestBuilder {
 
     public FacilityBulkRequestTestBuilder withFacility() {
         facilities.add(FacilityTestBuilder.builder().withFacility().build());
+        this.builder.facilities(facilities);
+        return this;
+    }
+
+    public FacilityBulkRequestTestBuilder withFacility(List<Facility> facilities) {
         this.builder.facilities(facilities);
         return this;
     }
