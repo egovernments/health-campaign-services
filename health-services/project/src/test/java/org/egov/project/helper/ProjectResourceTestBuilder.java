@@ -1,10 +1,7 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.project.web.models.ProjectProductVariant;
 import org.egov.project.web.models.ProjectResource;
-
-import java.util.Arrays;
 
 public class ProjectResourceTestBuilder {
 
@@ -26,15 +23,20 @@ public class ProjectResourceTestBuilder {
         this.builder.id("some-id")
                 .tenantId("default")
                 .projectId("project-id")
-                .resources(Arrays.asList(ProjectProductVariant.builder()
-                                .productVariantId("pv-101")
-                                .isBaseUnitVariant(Boolean.FALSE)
-                                .type("type").build()))
-                .isDeleted(false).rowVersion(0)
+                .productVariantId("pv-101")
+                .isBaseUnitVariant(Boolean.FALSE)
+                .type("type")
+                .isDeleted(false)
+                .rowVersion(0)
+                .hasErrors(false)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .endDate(100L)
-                .startDate(100L);
+                .startDate(100L).build();
         return this;
+    }
 
+    public ProjectResourceTestBuilder withId(String id) {
+        this.builder.id(id);
+        return this;
     }
 }

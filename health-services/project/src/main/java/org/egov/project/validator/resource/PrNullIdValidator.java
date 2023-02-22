@@ -3,8 +3,8 @@ package org.egov.project.validator.resource;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.web.models.ProjectResource;
+import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -12,16 +12,16 @@ import java.util.List;
 import java.util.Map;
 
 import static org.egov.common.utils.CommonUtils.validateForNullId;
-import static org.egov.project.Constants.GET_TASKS;
+import static org.egov.project.Constants.GET_PROJECT_RESOURCE;
 
 @Component
 @Order(value = 1)
 @Slf4j
-public class PrNullIdValidator implements Validator<TaskBulkRequest, Task> {
-// menka
+public class PrNullIdValidator implements Validator<ProjectResourceBulkRequest, ProjectResource> {
     @Override
-    public Map<Task, List<Error>> validate(TaskBulkRequest request) {
-        log.info("validating for null id");
-        return validateForNullId(request, GET_TASKS);
+    public Map<ProjectResource, List<Error>> validate(ProjectResourceBulkRequest request) {
+        System.out.println(request + " request");
+        System.out.println(GET_PROJECT_RESOURCE);
+        return validateForNullId(request, GET_PROJECT_RESOURCE);
     }
 }

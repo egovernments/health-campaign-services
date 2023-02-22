@@ -17,13 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.*;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.project.Constants.GET_ID;
 
@@ -31,7 +25,7 @@ import static org.egov.project.Constants.GET_ID;
 @Order(value = 4)
 @Slf4j
 public class PrNonExistentEntityValidator implements Validator<ProjectResourceBulkRequest, ProjectResource> {
-//shiva
+
     private final ProjectResourceRepository projectResourceRepository;
 
     @Autowired
@@ -41,21 +35,23 @@ public class PrNonExistentEntityValidator implements Validator<ProjectResourceBu
 
     @Override
     public Map<ProjectResource, List<Error>> validate(ProjectResourceBulkRequest request) {
-        log.info("validating for existence of entity");
+
         Map<ProjectResource, List<Error>> errorDetailsMap = new HashMap<>();
         List<ProjectResource> entities = request.getProjectResource();
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
+        System.out.println(idMethod.getName() + "id methods");
         Map<String, ProjectResource> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<ProjectResource> existingEntities = projectResourceRepository.findById(entityIds, false, getIdFieldName(idMethod));
+            List<ProjectResource> existingEntities = projectResourceRepository
+                    .findById(entityIds, false, getIdFieldName(idMethod));
             List<ProjectResource> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);
-            nonExistentEntities.forEach(task -> {
+            nonExistentEntities.forEach(projectResource -> {
                 Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(task, error, errorDetailsMap);
+                populateErrorDetails(projectResource, error, errorDetailsMap);
             });
         }
 
