@@ -38,22 +38,16 @@ public class ProjectResource   {
     @Size(min=2,max=64)
     private String projectId = null;
 
-    @JsonProperty("productVariantId")
+    @JsonProperty("resource")
     @NotNull
-    private String productVariantId = null;
-
-    @JsonProperty("type")
-    private String type = null;
-
-    @JsonProperty("isBaseUnitVariant")
-    private Boolean isBaseUnitVariant = null;
+    private ProjectProductVariant resource = null;
 
     @JsonProperty("additionalFields")
     @Valid
     private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;

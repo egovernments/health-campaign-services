@@ -19,7 +19,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +36,8 @@ public class NonExistentEntityValidatorTest {
     @Test
     @DisplayName("should add to error details map if entity not found")
     void shouldAddToErrorDetailsMapIfEntityNotFound() {
-        ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder().withProjectResourceId("some-id").withRequestInfo().build();
+        ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
+                .withProjectResourceId("some-id").withRequestInfo().build();
         when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString())).
                 thenReturn(Collections.emptyList());
 
@@ -46,9 +49,11 @@ public class NonExistentEntityValidatorTest {
     @Test
     @DisplayName("should not add to error details map if entity found")
     void shouldNotAddToErrorDetailsMapIfEntityFound() {
-        ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder().withProjectResourceId("some-id").withRequestInfo().build();
+        ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
+                .withProjectResourceId("some-id").withRequestInfo().build();
         when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString())).
-                thenReturn(Collections.singletonList(ProjectResourceTestBuilder.builder().withProjectResource().withId("some-id").build()));
+                thenReturn(Collections.singletonList(ProjectResourceTestBuilder.builder()
+                        .withProjectResource().withId("some-id").build()));
 
         Map<ProjectResource, List<Error>> erorrDetailsMap = prNonExistentEntityValidator.validate(request);
 

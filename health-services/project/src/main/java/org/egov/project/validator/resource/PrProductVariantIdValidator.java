@@ -7,16 +7,30 @@ import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectRepository;
-import org.egov.project.web.models.*;
+import org.egov.project.web.models.ProductVariant;
+import org.egov.project.web.models.ProductVariantResponse;
+import org.egov.project.web.models.ProductVariantSearch;
+import org.egov.project.web.models.ProductVariantSearchRequest;
+import org.egov.project.web.models.ProjectResource;
+import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
+import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
 import static org.egov.project.Constants.GET_PRODUCT_VARIANT_ID;
@@ -47,7 +61,7 @@ public class PrProductVariantIdValidator implements Validator<ProjectResourceBul
         List<ProjectResource> entities = request.getProjectResource().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if (!entities.isEmpty()) {
-            Set<String> productVariantIds = entities.stream().map(ProjectResource::getProductVariantId).collect(Collectors.toSet());
+            Set<String> productVariantIds = entities.stream().map(pr -> pr.getResource().getProductVariantId()).collect(Collectors.toSet());
             Map<String, ProjectResource> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));
             try {
                 List<String> validProductVariantsIds = checkIfProductVariantExist(productVariantIds,

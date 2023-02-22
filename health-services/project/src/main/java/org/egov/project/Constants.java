@@ -44,4 +44,6 @@ public interface Constants {
     String GET_PROJECT_RESOURCE = "getProjectResource";
 
     String GET_PRODUCT_VARIANT_ID = "getProductVariantId";
+
+    String SET_PROJECT_RESOURCE = "setProjectResource";
 }

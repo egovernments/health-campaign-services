@@ -30,8 +30,8 @@ public class isDeletedValidatorTest {
         request.getProjectResource().get(0).setIsDeleted(true);
 
         Map<ProjectResource, List<Error>> errorDetailsMap = prIsDeletedValidator.validate(request);
-        assertEquals(errorDetailsMap.size(), 1);
 
+        assertEquals(errorDetailsMap.size(), 1);
     }
 
     @Test
@@ -41,6 +41,7 @@ public class isDeletedValidatorTest {
                 .withProjectResource().withRequestInfo().build();
 
         Map<ProjectResource, List<Error>> errorDetailsMap = prIsDeletedValidator.validate(request);
+        
         assertEquals(errorDetailsMap.size(), 0);
     }
 }

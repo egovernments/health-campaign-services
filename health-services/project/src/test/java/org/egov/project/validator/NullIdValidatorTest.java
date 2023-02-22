@@ -30,6 +30,7 @@ public class NullIdValidatorTest {
         request.getProjectResource().get(0).setId(null);
 
         Map<ProjectResource, List<Error>> errorDetailsMap = prNullIdValidator.validate(request);
+
         assertEquals(errorDetailsMap.size(), 1);
     }
 
@@ -41,6 +42,7 @@ public class NullIdValidatorTest {
         request.getProjectResource().get(0).setId("some-id");
 
         Map<ProjectResource, List<Error>> errorDetailsMap = prNullIdValidator.validate(request);
+
         assertEquals(errorDetailsMap.size(), 0);
     }
 }

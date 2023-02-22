@@ -64,6 +64,9 @@ public class ProjectConfiguration {
     @Value("${project.staff.idgen.id.format}")
     private String projectStaffIdFormat;
 
+    @Value("${project.resource.idgen.id.format}")
+    private String projectResourceIdFormat;
+
     @Value("${egov.product.host}")
     private String productHost;
 
@@ -125,4 +128,24 @@ public class ProjectConfiguration {
 
     @Value("${project.default.limit}")
     private Integer defaultLimit;
+
+    @Value("${project.resource.kafka.create.topic}")
+    private String createProjectResourceTopic;
+
+    @Value("${project.resource.kafka.update.topic}")
+    private String updateProjectResourceTopic;
+
+    @Value("${project.resource.kafka.delete.topic}")
+    private String deleteProjectResourceTopic;
+
+    @Value("${project.resource.consumer.bulk.create.topic}")
+    private String createProjectResourceBulkTopic;
+
+    @Value("${project.resource.consumer.bulk.update.topic}")
+    private String updateProjectResourceBulkTopic;
+
+    @Value("${project.resource.consumer.bulk.delete.topic}")
+    private String deleteProjectResourceBulkTopic;
+
+
 }

@@ -2,12 +2,19 @@ package org.egov.project.validator;
 
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectResourceBulkRequestTestBuilder;
-import org.egov.project.validator.resource.PrNonExistentEntityValidator;
-import org.egov.project.web.models.*;
+import org.egov.project.validator.resource.PrProductVariantIdValidator;
+import org.egov.project.web.models.ProductVariant;
+import org.egov.project.web.models.ProductVariantResponse;
+import org.egov.project.web.models.ProductVariantSearchRequest;
+import org.egov.project.web.models.ProjectResource;
+import org.egov.project.web.models.ProjectResourceBulkRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -18,23 +25,26 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class ProductVariantIdValidatorTest {
+class ProductVariantIdValidatorTest {
     
-    @Mock
-    PrNonExistentEntityValidator prNonExistentEntityValidator;
+    @InjectMocks
+    PrProductVariantIdValidator productVariantIdValidator;
 
+    @Mock
+    ProjectConfiguration projectConfiguration;
 
     @Mock
     private ServiceRequestClient client;
 
-//    @BeforeEach
-//    void setUp() {
-//        lenient().when(stockConfiguration.getProductHost()).thenReturn("http://localhost:8080/");
-//        lenient().when(stockConfiguration.getProductVariantSearchUrl()).thenReturn("/some-url");
-//    }
+    @BeforeEach
+    void setUp() {
+        lenient().when(projectConfiguration.getProductHost()).thenReturn("http://localhost:8080/");
+        lenient().when(projectConfiguration.getProductVariantSearchUrl()).thenReturn("/some-url");
+    }
 
     @Test
     @DisplayName("should add to error details if product variant id is null")
@@ -45,7 +55,8 @@ public class ProductVariantIdValidatorTest {
                 any(ProductVariantSearchRequest.class),
                 eq(ProductVariantResponse.class))).thenReturn(emptyResponse());
 
-        Map<ProjectResource, List<Error>> errorDetailsMap = prNonExistentEntityValidator.validate(request);
+        Map<ProjectResource, List<Error>> errorDetailsMap = productVariantIdValidator.validate(request);
+
         assertEquals(1, errorDetailsMap.size());
     }
 
