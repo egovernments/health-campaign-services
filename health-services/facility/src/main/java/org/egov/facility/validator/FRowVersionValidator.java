@@ -39,21 +39,24 @@ public class FRowVersionValidator implements Validator<FacilityBulkRequest, Faci
     public Map<Facility, List<Error>> validate(FacilityBulkRequest request) {
         Map<Facility, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating row version facility");
-        Method idMethod = getIdMethod(request.getFacility());
-        Map<String, Facility> eMap = getIdToObjMap(request.getFacility().stream()
+        List<Facility> validEntities = request.getFacilities().stream()
                 .filter(notHavingErrors())
-                .collect(Collectors.toList()), idMethod);
-        if (!eMap.isEmpty()) {
-            List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Facility> existingEntities = facilityRepository.findById(entityIds, false,
-                    getIdFieldName(idMethod));
-            List<Facility> entitiesWithMismatchedRowVersion =
-                    getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
-            entitiesWithMismatchedRowVersion.forEach(facility -> {
-                Error error = getErrorForRowVersionMismatch();
-                log.info("validation failed for facility row version: {} with error :{}", idMethod, error);
-                populateErrorDetails(facility, error, errorDetailsMap);
-            });
+                .collect(Collectors.toList());
+        if (!validEntities.isEmpty()) {
+            Method idMethod = getIdMethod(validEntities);
+            Map<String, Facility> eMap = getIdToObjMap(validEntities, idMethod);
+            if (!eMap.isEmpty()) {
+                List<String> entityIds = new ArrayList<>(eMap.keySet());
+                List<Facility> existingEntities = facilityRepository.findById(entityIds, false,
+                        getIdFieldName(idMethod));
+                List<Facility> entitiesWithMismatchedRowVersion =
+                        getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
+                entitiesWithMismatchedRowVersion.forEach(facility -> {
+                    Error error = getErrorForRowVersionMismatch();
+                    log.info("validation failed for facility row version: {} with error :{}", idMethod, error);
+                    populateErrorDetails(facility, error, errorDetailsMap);
+                });
+            }
         }
         log.info("facility row version validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;

@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.egov.common.utils.CommonUtils.validateForNullId;
-import static org.egov.facility.Constants.GET_FACILITY;
+import static org.egov.facility.Constants.GET_FACILITIES;
 
 @Component
 @Slf4j
@@ -20,6 +20,6 @@ import static org.egov.facility.Constants.GET_FACILITY;
 public class FNullIdValidator implements Validator<FacilityBulkRequest, Facility> {
     @Override
     public Map<Facility, List<Error>> validate(FacilityBulkRequest request) {
-        return validateForNullId(request, GET_FACILITY);
+        return validateForNullId(request, GET_FACILITIES);
     }
 }

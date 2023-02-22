@@ -29,15 +29,15 @@ public class FacilityBulkRequest {
     @Valid
     private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-    @JsonProperty("Facility")
+    @JsonProperty("Facilities")
     @NotNull
     @Valid
     @Size(min = 1)
-    private List<Facility> facility = new ArrayList<>();
+    private List<Facility> facilities = new ArrayList<>();
 
 
     public FacilityBulkRequest addFacilityItem(Facility facilityItem) {
-        this.facility.add(facilityItem);
+        this.facilities.add(facilityItem);
         return this;
     }
 

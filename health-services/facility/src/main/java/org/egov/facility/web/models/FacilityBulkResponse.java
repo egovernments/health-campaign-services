@@ -28,16 +28,16 @@ public class FacilityBulkResponse {
     @Valid
     private org.egov.common.contract.response.ResponseInfo responseInfo = null;
 
-    @JsonProperty("Facility")
+    @JsonProperty("Facilities")
     @Valid
-    private List<Facility> facility = null;
+    private List<Facility> facilities = null;
 
 
     public FacilityBulkResponse addFacilityItem(Facility facilityItem) {
-        if (this.facility == null) {
-            this.facility = new ArrayList<>();
+        if (this.facilities == null) {
+            this.facilities = new ArrayList<>();
         }
-        this.facility.add(facilityItem);
+        this.facilities.add(facilityItem);
         return this;
     }
 

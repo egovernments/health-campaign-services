@@ -19,13 +19,13 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
 @Component
 @Slf4j
-@Order(6)
+@Order(5)
 public class FIsDeletedValidator implements Validator<FacilityBulkRequest, Facility> {
     @Override
     public Map<Facility, List<Error>> validate(FacilityBulkRequest request) {
         HashMap<Facility, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating is deleted facility");
-        List<Facility> validEntities = request.getFacility().stream()
+        List<Facility> validEntities = request.getFacilities().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         validEntities.stream().filter(Facility::getIsDeleted).forEach(facility -> {
             Error error = getErrorForIsDelete();

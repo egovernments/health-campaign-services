@@ -59,7 +59,7 @@ public class FacilityApiController {
         this.facilityConfiguration = facilityConfiguration;
     }
 
-    @RequestMapping(value = "/facility/v1/bulk/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> facilityV1BulkCreatePost(@ApiParam(value = "Capture details of Facility.", required = true) @Valid @RequestBody FacilityBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(facilityConfiguration.getBulkCreateFacilityTopic(), request);
@@ -68,7 +68,7 @@ public class FacilityApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/facility/v1/bulk/_delete", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> facilityV1BulkDeletePost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilityBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(facilityConfiguration.getBulkDeleteFacilityTopic(), request);
@@ -77,7 +77,7 @@ public class FacilityApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/facility/v1/bulk/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> facilityV1BulkUpdatePost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilityBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(facilityConfiguration.getBulkUpdateFacilityTopic(), request);
@@ -86,7 +86,7 @@ public class FacilityApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/facility/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<FacilityResponse> facilityV1CreatePost(@ApiParam(value = "Capture details of Facility.", required = true) @Valid @RequestBody FacilityRequest request) {
         Facility facility = facilityService.create(request);
         FacilityResponse response = FacilityResponse.builder()
@@ -98,7 +98,7 @@ public class FacilityApiController {
         return ResponseEntity.accepted().body(response);
     }
 
-    @RequestMapping(value = "/facility/v1/_delete", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
     public ResponseEntity<FacilityResponse> facilityV1DeletePost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilityRequest request) {
         Facility facility = facilityService.delete(request);
         FacilityResponse response = FacilityResponse.builder()
@@ -110,19 +110,19 @@ public class FacilityApiController {
         return ResponseEntity.accepted().body(response);
     }
 
-    @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<FacilityBulkResponse> facilityV1SearchPost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilitySearchRequest request, @NotNull
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
                                                                  @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
         List<Facility> facilities = facilityService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
         FacilityBulkResponse response = FacilityBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).facility(facilities).build();
+                .createResponseInfo(request.getRequestInfo(), true)).facilities(facilities).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @RequestMapping(value = "/facility/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<FacilityResponse> facilityV1UpdatePost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilityRequest request) {
         Facility facility = facilityService.update(request);
         FacilityResponse response = FacilityResponse.builder()

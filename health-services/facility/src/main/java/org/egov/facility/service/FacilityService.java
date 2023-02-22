@@ -34,8 +34,8 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
-import static org.egov.facility.Constants.GET_FACILITY;
-import static org.egov.facility.Constants.SET_FACILITY;
+import static org.egov.facility.Constants.GET_FACILITIES;
+import static org.egov.facility.Constants.SET_FACILITIES;
 import static org.egov.facility.Constants.VALIDATION_ERROR;
 
 
@@ -74,7 +74,7 @@ public class FacilityService {
 
     public Facility create(FacilityRequest request) {
         FacilityBulkRequest bulkRequest = FacilityBulkRequest.builder()
-                .facility(Collections.singletonList(request.getFacility()))
+                .facilities(Collections.singletonList(request.getFacility()))
                 .requestInfo(request.getRequestInfo()).build();
 
         return create(bulkRequest, false).get(0);
@@ -83,7 +83,7 @@ public class FacilityService {
     public List<Facility> create(FacilityBulkRequest request, boolean isBulk) {
         log.info("starting create method for facility");
         Map<Facility, ErrorDetails> errorDetailsMap = new HashMap<>();
-        List<Facility> validEntities = request.getFacility();
+        List<Facility> validEntities = request.getFacilities();
 
         try {
             if (!validEntities.isEmpty()) {
@@ -93,7 +93,7 @@ public class FacilityService {
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITY);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -103,7 +103,7 @@ public class FacilityService {
 
     public Facility update(FacilityRequest request) {
         FacilityBulkRequest bulkRequest = FacilityBulkRequest.builder()
-                .facility(Collections.singletonList(request.getFacility()))
+                .facilities(Collections.singletonList(request.getFacility()))
                 .requestInfo(request.getRequestInfo()).build();
 
         return update(bulkRequest, false).get(0);
@@ -112,7 +112,7 @@ public class FacilityService {
     public List<Facility> update(FacilityBulkRequest request, boolean isBulk) {
         log.info("starting update method for facility");
         Tuple<List<Facility>, Map<Facility, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request, SET_FACILITY, GET_FACILITY, VALIDATION_ERROR,
+                isApplicableForUpdate, request, SET_FACILITIES, GET_FACILITIES, VALIDATION_ERROR,
                 isBulk);
         Map<Facility, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Facility> validEntities = tuple.getX();
@@ -124,7 +124,7 @@ public class FacilityService {
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITY);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -134,7 +134,7 @@ public class FacilityService {
 
     public Facility delete(FacilityRequest request) {
         FacilityBulkRequest bulkRequest = FacilityBulkRequest.builder()
-                .facility(Collections.singletonList(request.getFacility()))
+                .facilities(Collections.singletonList(request.getFacility()))
                 .requestInfo(request.getRequestInfo()).build();
 
         return delete(bulkRequest, false).get(0);
@@ -143,7 +143,7 @@ public class FacilityService {
     public List<Facility> delete(FacilityBulkRequest request, boolean isBulk) {
         log.info("starting delete method for facility");
         Tuple<List<Facility>, Map<Facility, ErrorDetails>> tuple = validate(validators,
-                isApplicableForDelete, request, SET_FACILITY, GET_FACILITY, VALIDATION_ERROR,
+                isApplicableForDelete, request, SET_FACILITIES, GET_FACILITIES, VALIDATION_ERROR,
                 isBulk);
         Map<Facility, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Facility> validEntities = tuple.getX();
@@ -155,7 +155,7 @@ public class FacilityService {
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITY);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);

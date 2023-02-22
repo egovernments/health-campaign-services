@@ -40,24 +40,26 @@ public class FNonExistentValidator implements Validator<FacilityBulkRequest, Fac
     @Override
     public Map<Facility, List<Error>> validate(FacilityBulkRequest request) {
         Map<Facility, List<Error>> errorDetailsMap = new HashMap<>();
-        List<Facility> entities = request.getFacility();
+        List<Facility> validEntities = request.getFacilities().stream()
+                .filter(notHavingErrors())
+                .collect(Collectors.toList());
         log.info("validating non existent facility");
-        Class<?> objClass = getObjClass(entities);
-        Method idMethod = getMethod(GET_ID, objClass);
-        Map<String, Facility> eMap = getIdToObjMap(entities
-                .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
-        if (!eMap.isEmpty()) {
-            List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Facility> existingEntities = facilityRepository.findById(entityIds,false,
-                    getIdFieldName(idMethod));
-            List<Facility> nonExistentEntities = checkNonExistentEntities(eMap,
-                    existingEntities, idMethod);
-            nonExistentEntities.forEach(facility -> {
-                Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(facility, error, errorDetailsMap);
-            });
+        if (!validEntities.isEmpty()) {
+            Class<?> objClass = getObjClass(validEntities);
+            Method idMethod = getMethod(GET_ID, objClass);
+            Map<String, Facility> eMap = getIdToObjMap(validEntities, idMethod);
+            if (!eMap.isEmpty()) {
+                List<String> entityIds = new ArrayList<>(eMap.keySet());
+                List<Facility> existingEntities = facilityRepository.findById(entityIds,false,
+                        getIdFieldName(idMethod));
+                List<Facility> nonExistentEntities = checkNonExistentEntities(eMap,
+                        existingEntities, idMethod);
+                nonExistentEntities.forEach(facility -> {
+                    Error error = getErrorForNonExistentEntity();
+                    populateErrorDetails(facility, error, errorDetailsMap);
+                });
+            }
         }
-
         log.info("facility non existent validation completed successfully, total errors: "+errorDetailsMap.size());
         return errorDetailsMap;
     }

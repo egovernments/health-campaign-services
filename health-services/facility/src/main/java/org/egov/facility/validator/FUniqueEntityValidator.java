@@ -26,7 +26,7 @@ public class FUniqueEntityValidator implements Validator<FacilityBulkRequest, Fa
     public Map<Facility, List<Error>> validate(FacilityBulkRequest request) {
         Map<Facility, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating unique entity for facility");
-        List<Facility> validEntities = request.getFacility()
+        List<Facility> validEntities = request.getFacilities()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
             log.info("valid entity not empty");
