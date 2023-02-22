@@ -55,7 +55,7 @@ public class IndividualEnrichmentServiceTest {
     @Test
     @DisplayName("should generate address id if address id is null")
     void shouldGenerateAddressIdIfAddressIdIsNull() throws Exception {
-        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+         IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withName()
@@ -89,6 +89,27 @@ public class IndividualEnrichmentServiceTest {
         assertNotNull(request.getIndividuals().get(0)
                 .getSkills().stream().findFirst().get()
                 .getId());
+    }
+    @Test
+    @DisplayName("should generate identifier if not present")
+    void shouldGenerateIdentifierIfNotPresent() throws Exception {
+        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withTenantId()
+                        .withName()
+                        .build())
+                .build();
+
+        enrichmentService.create(request.getIndividuals(), request);
+
+        assertNotNull(request.getIndividuals().get(0)
+                .getIdentifiers().stream().findFirst().get()
+                .getIdentifierId());
+        assertEquals("SYSTEM_GENERATED",
+                request.getIndividuals().get(0)
+                        .getIdentifiers().stream().findFirst().get()
+                        .getIdentifierType());
     }
 
     @Test
@@ -155,27 +176,7 @@ public class IndividualEnrichmentServiceTest {
         assertNotNull(request.getIndividuals().get(0).getAuditDetails());
     }
 
-    @Test
-    @DisplayName("should generate identifier if not present")
-    void shouldGenerateIdentifierIfNotPresent() throws Exception {
-        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
-                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .withIndividuals(IndividualTestBuilder.builder()
-                        .withTenantId()
-                        .withName()
-                        .build())
-                .build();
 
-        enrichmentService.create(request.getIndividuals(), request);
-
-        assertNotNull(request.getIndividuals().get(0)
-                .getIdentifiers().stream().findFirst().get()
-                .getIdentifierId());
-        assertEquals("SYSTEM_GENERATED",
-                request.getIndividuals().get(0)
-                        .getIdentifiers().stream().findFirst().get()
-                        .getIdentifierType());
-    }
 
     @Test
     @DisplayName("should enrich identifier with individual id")
