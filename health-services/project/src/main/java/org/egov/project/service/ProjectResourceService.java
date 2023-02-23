@@ -8,8 +8,12 @@ import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectResourceRepository;
 import org.egov.project.service.enrichment.ProjectResourceEnrichmentService;
 import org.egov.project.validator.resource.PrIsDeletedValidator;
+import org.egov.project.validator.resource.PrNonExistentEntityValidator;
 import org.egov.project.validator.resource.PrNullIdValidator;
+import org.egov.project.validator.resource.PrProductVariantIdValidator;
 import org.egov.project.validator.resource.PrProjectIdValidator;
+import org.egov.project.validator.resource.PrRowVersionValidator;
+import org.egov.project.validator.resource.PrUniqueEntityValidator;
 import org.egov.project.web.models.ProjectResource;
 import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.egov.project.web.models.ProjectResourceRequest;
@@ -41,7 +45,17 @@ public class ProjectResourceService {
     private final ProjectResourceEnrichmentService enrichmentService;
 
     private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForCreate = validator ->
-            validator.getClass().equals(PrProjectIdValidator.class);
+            validator.getClass().equals(PrProductVariantIdValidator.class)
+                    || validator.getClass().equals(PrProjectIdValidator.class);
+
+    private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForUpdate = validator ->
+            validator.getClass().equals(PrProductVariantIdValidator.class)
+                    || validator.getClass().equals(PrProjectIdValidator.class)
+                    || validator.getClass().equals(PrNonExistentEntityValidator.class)
+                    || validator.getClass().equals(PrNullIdValidator.class)
+                    || validator.getClass().equals(PrIsDeletedValidator.class)
+                    || validator.getClass().equals(PrRowVersionValidator.class)
+                    || validator.getClass().equals(PrUniqueEntityValidator.class);
 
     private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForDelete = validator ->
             validator.getClass().equals(PrIsDeletedValidator.class)
@@ -96,7 +110,28 @@ public class ProjectResourceService {
     }
 
     public List<ProjectResource> update(ProjectResourceBulkRequest request, boolean isBulk) {
-        return null;
+        log.info("received request to update bulk project resource");
+        Tuple<List<ProjectResource>, Map<ProjectResource, ErrorDetails>> tuple = validate(validators,
+                isApplicableForUpdate, request, SET_PROJECT_RESOURCE, GET_PROJECT_RESOURCE, VALIDATION_ERROR,
+                isBulk);
+
+        Map<ProjectResource, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<ProjectResource> validEntities = tuple.getX();
+        try {
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.update(validEntities, request);
+                projectResourceRepository.save(validEntities, projectConfiguration.getUpdateProjectResourceTopic());
+                log.info("successfully created project resource");
+            }
+        } catch (Exception exception) {
+            log.error("error occurred while creating project resource: {}", exception.getMessage());
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
+        }
+
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+
+        return validEntities;
     }
 
     public ProjectResource delete(ProjectResourceRequest request) {
@@ -108,6 +143,7 @@ public class ProjectResourceService {
     }
 
     public List<ProjectResource> delete(ProjectResourceBulkRequest request, boolean isBulk) {
+        log.info("received request to delete bulk project resource");
         Tuple<List<ProjectResource>, Map<ProjectResource, ErrorDetails>> tuple = validate(validators,
                 isApplicableForDelete, request, SET_PROJECT_RESOURCE, GET_PROJECT_RESOURCE, VALIDATION_ERROR,
                 isBulk);
@@ -128,5 +164,6 @@ public class ProjectResourceService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
-        return validEntities;    }
+        return validEntities;
+    }
 }

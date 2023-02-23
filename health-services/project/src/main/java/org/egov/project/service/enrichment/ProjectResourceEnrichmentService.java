@@ -8,9 +8,12 @@ import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForDelete;
+import static org.egov.common.utils.CommonUtils.enrichForUpdate;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 
 @Component
@@ -38,8 +41,11 @@ public class ProjectResourceEnrichmentService {
         log.info("enrichment done");
     }
 
-    public void update(List<ProjectResource> validEntities, ProjectResourceBulkRequest request) {
-
+    public void update(List<ProjectResource> entities, ProjectResourceBulkRequest request) {
+        log.info("starting the enrichment for create project resource");
+        Map<String, ProjectResource> projectResourceMap = getIdToObjMap(entities);
+        enrichForUpdate(projectResourceMap, entities, request);
+        log.info("enrichment done");
     }
 
     public void delete(List<ProjectResource> entities, ProjectResourceBulkRequest request) {

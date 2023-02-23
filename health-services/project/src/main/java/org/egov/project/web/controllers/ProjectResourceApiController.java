@@ -80,15 +80,25 @@ public class ProjectResourceApiController {
     }
 
     @RequestMapping(value = "/resource/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResourceResponse> resourceV1UpdatePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceRequest projectResource) {
+    public ResponseEntity<ProjectResourceResponse> resourceV1UpdatePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceRequest request) {
 
-        return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
+        ProjectResource projectResourceResponse = projectResourceService.update(request);
+        ProjectResourceResponse response = ProjectResourceResponse.builder()
+                .projectResource(projectResourceResponse)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/resource/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> resourceV1BulkUpdatePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceBulkRequest projectResource) {
+    public ResponseEntity<ResponseInfo> resourceV1BulkUpdatePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceBulkRequest request) {
 
-        return new ResponseEntity<ResponseInfo>(HttpStatus.NOT_IMPLEMENTED);
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getCreateProjectResourceBulkTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
     }
 
     @RequestMapping(value = "/resource/v1/_delete", method = RequestMethod.POST)

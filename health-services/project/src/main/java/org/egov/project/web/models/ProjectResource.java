@@ -42,10 +42,6 @@ public class ProjectResource   {
     @NotNull
     private ProjectProductVariant resource = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
