@@ -48,4 +48,19 @@ public class RowVersionValidatorTest {
         assertEquals(1, errorDetailsMap.size());
     }
 
+    @Test
+    @DisplayName("Should not add to error details if row version is similar")
+    void shouldNotAddToErrorDetailsIfRowVersionIsSimilar() {
+        ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
+                .withProjectResourceId("some-id").withRequestInfo().build();
+        request.getProjectResource().get(0).setRowVersion(0);
+        when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString()))
+                .thenReturn(Collections.singletonList(ProjectResourceTestBuilder.builder()
+                        .withProjectResource().withId("some-id").build()));
+
+        Map<ProjectResource, List<Error>> errorDetailsMap = prRowVersionValidator.validate(request);
+
+        assertEquals(0, errorDetailsMap.size());
+    }
+
 }

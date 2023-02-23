@@ -60,6 +60,21 @@ class ProductVariantIdValidatorTest {
         assertEquals(1, errorDetailsMap.size());
     }
 
+    @Test
+    @DisplayName("should not add to error details if product variant id is not null")
+    void shouldNotAddToErrorDetailsIfProductVariantIdIsNotNUll() throws Exception {
+        ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
+                .withProjectResource().withRequestInfo().build();
+        request.getProjectResource().get(0).getResource().setProductVariantId("some-id");
+        when(client.fetchResult(any(StringBuilder.class),
+                any(ProductVariantSearchRequest.class),
+                eq(ProductVariantResponse.class))).thenReturn(someResponse());
+
+        Map<ProjectResource, List<Error>> errorDetailsMap = productVariantIdValidator.validate(request);
+
+        assertEquals(0, errorDetailsMap.size());
+    }
+
     private ProductVariantResponse someResponse() {
         return ProductVariantResponse.builder().productVariant(Collections
                 .singletonList(ProductVariant.builder().id("some-id").build())).build();
