@@ -175,7 +175,7 @@ public class FacilityService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(facilitySearchRequest.getFacility())),
                     facilitySearchRequest.getFacility());
-            return facilityRepository.findById(ids, includeDeleted, idFieldName).stream()
+            return facilityRepository.findById(ids, idFieldName, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

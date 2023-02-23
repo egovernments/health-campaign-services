@@ -36,7 +36,7 @@ class NonExistentEntityValidatorTest {
     @DisplayName("should add to error details map if entity not found")
     void shouldAddToErrorDetailsMapIfEntityNotFound() {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
         Map<Facility, List<Error>> errorDetailsMap = fNonExistentValidator.validate(request);
@@ -48,7 +48,7 @@ class NonExistentEntityValidatorTest {
     @DisplayName("should not add to error details map if entity found")
     void shouldNotAddToErrorDetailsMapIfEntityFound() {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
                 .thenReturn(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()));
 
         Map<Facility, List<Error>> errorDetailsMap = fNonExistentValidator.validate(request);
