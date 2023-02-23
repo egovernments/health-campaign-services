@@ -149,18 +149,15 @@ class IndividualServiceTest {
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.PERMANENT)
-                        .build(),
-                        Address.builder()
+                        .build(), Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)
-                        .build(),
-                        Address.builder()
+                        .build(), Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.OTHER)
-                        .build(),
-                        Address.builder()
+                        .build(), Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)
