@@ -11,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 /**
  * StockReconciliation
@@ -24,27 +25,33 @@ import javax.validation.constraints.NotNull;
 @Builder
 public class StockReconciliation {
     @JsonProperty("id")
+    @Size(min=2, max=64)
     private String id = null;
 
     @JsonProperty("clientReferenceId")
+    @Size(min=2, max=64)
     private String clientReferenceId = null;
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min=2, max=1000)
     private String tenantId = null;
 
     @JsonProperty("facilityId")
     @NotNull
+    @Size(min=2, max=64)
     private String facilityId = null;
 
     @JsonProperty("productVariantId")
     @NotNull
+    @Size(min=2, max=64)
     private String productVariantId = null;
 
     @JsonProperty("referenceId")
     private String referenceId = null;
 
     @JsonProperty("referenceIdType")
+    @Size(min=2, max=64)
     private String referenceIdType = null;
 
     @JsonProperty("physicalCount")
