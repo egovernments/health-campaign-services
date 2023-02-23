@@ -10,4 +10,6 @@ public interface Constants {
     String GET_ADDRESS = "getAddress";
     String GET_IDENTIFIER_TYPE = "getIdentifierType";
     String GET_ID = "getId";
+
+    String get();
 }
