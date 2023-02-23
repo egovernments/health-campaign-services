@@ -9,6 +9,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Size;
 import java.util.List;
 
 /**
@@ -28,12 +29,14 @@ public class StockSearch {
     private List<String> id = null;
 
     @JsonProperty("clientReferenceId")
-    private String clientReferenceId = null;
+    private List<String> clientReferenceId = null;
 
     @JsonProperty("facilityId")
+    @Size(min=2, max=64)
     private String facilityId = null;
 
     @JsonProperty("productVariantId")
+    @Size(min=2, max=64)
     private String productVariantId = null;
 
     @JsonProperty("referenceId")
@@ -43,6 +46,7 @@ public class StockSearch {
     private String wayBillNumber = null;
 
     @JsonProperty("referenceIdType")
+    @Size(min=2, max=64)
     private String referenceIdType = null;
 
     @JsonProperty("transactionType")
@@ -54,6 +58,7 @@ public class StockSearch {
     private TransactionReason transactionReason = null;
 
     @JsonProperty("transactingPartyId")
+    @Size(min=2, max=64)
     private String transactingPartyId = null;
 
     @JsonProperty("transactingPartyType")

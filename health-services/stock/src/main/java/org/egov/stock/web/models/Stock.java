@@ -34,14 +34,17 @@ public class Stock {
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min=2, max=1000)
     private String tenantId = null;
 
     @JsonProperty("facilityId")
     @NotNull
+    @Size(min=2, max=64)
     private String facilityId = null;
 
     @JsonProperty("productVariantId")
     @NotNull
+    @Size(min=2, max=64)
     private String productVariantId = null;
 
     @JsonProperty("quantity")
@@ -52,6 +55,7 @@ public class Stock {
     private String referenceId = null;
 
     @JsonProperty("referenceIdType")
+    @Size(min=2, max=64)
     private String referenceIdType = null;
 
     @JsonProperty("transactionType")
@@ -65,10 +69,12 @@ public class Stock {
 
     @JsonProperty("transactingPartyId")
     @NotNull
+    @Size(min=2, max=64)
     private String transactingPartyId = null;
 
     @JsonProperty("transactingPartyType")
     @NotNull
+    @Size(min=2, max=64)
     private String transactingPartyType = null;
 
     @JsonProperty("wayBillNumber")
