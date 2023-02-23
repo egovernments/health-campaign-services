@@ -9,6 +9,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Size;
 import java.util.List;
 
 /**
@@ -31,9 +32,11 @@ public class StockReconciliationSearch {
     private List<String> clientReferenceId = null;
 
     @JsonProperty("facilityId")
+    @Size(min=2, max=64)
     private String facilityId = null;
 
     @JsonProperty("productVariantId")
+    @Size(min=2, max=64)
     private String productVariantId = null;
 }
 
