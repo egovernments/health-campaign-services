@@ -1,6 +1,7 @@
 package com.tarento.analytics.handler;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -66,26 +67,41 @@ public class LineChartResponseHandler implements IResponseHandler {
         String symbolFromPathDataTypeMap = symbol;
         ArrayNode aggrsPaths = (ArrayNode) chartNode.get(IResponseHandler.AGGS_PATH);
         ArrayNode pathDataTypeMap = (ArrayNode) chartNode.get(TYPE_MAPPING);
-        
+
         Set<String> plotKeys = new LinkedHashSet<>();
+        List<Long> targetEpochKeys = new ArrayList<>();
+        List<Long> actualEpochKeys = new ArrayList<>();
         boolean isCumulative = chartNode.get("isCumulative").asBoolean();
 
         JsonNode computedFields = chartNode.get(COMPUTED_FIELDS);
+        JsonNode predictionPath = chartNode.get(PREDICTION_PATH);
+        JsonNode distributionPath = null;
+        Long startDate = null;
+        Long endDate = null;
         boolean executeComputedFields = computedFields !=null && computedFields.isArray();
+        boolean isPredictionEnabled = predictionPath!=null;
 
-
+        if(isPredictionEnabled ){
+            List<JsonNode> aggrNodes = aggregationNode.findValues(CHART_SPECIFIC);
+            startDate = aggrNodes.get(0).findValues(START_DATE).get(0).findValues("key").get(0).asLong();
+            endDate = aggrNodes.get(0).findValues(END_DATE).get(0).findValues("key").get(0).asLong();
+            interval=Constants.Interval.day.toString();
+            addTargetDates(startDate, endDate,targetEpochKeys);
+        }
         //aggrsPaths.forEach(headerPath -> {
         for(JsonNode headerPath : aggrsPaths){
+
+            if(isPredictionEnabled && aggrsPaths.size()==2 && !headerPath.equals(predictionPath)){
+                distributionPath = headerPath;
+            }
             List<JsonNode> aggrNodes = aggregationNode.findValues(headerPath.asText());
-            
-            
-            
+
             JsonNode datatype = null;
             if(pathDataTypeMap!=null) {
             	datatype = pathDataTypeMap.findValue(headerPath.asText());
-            	
+
             }
-            
+
             if(datatype!=null) {
             	symbolFromPathDataTypeMap=datatype.asText();
             }
@@ -106,10 +122,12 @@ public class LineChartResponseHandler implements IResponseHandler {
                 if (aggrNode.findValues(IResponseHandler.BUCKETS).size() > 0) {
                     ArrayNode buckets = (ArrayNode) aggrNode.findValues(IResponseHandler.BUCKETS).get(0);
                     for(JsonNode bucket : buckets){
-                            String bkey = bucket.findValue(IResponseHandler.KEY).asText();
-                            String key = getIntervalKey(bkey, Constants.Interval.valueOf(interval));
-
+                            JsonNode bkey = bucket.findValue(IResponseHandler.KEY);
+                            String key = getIntervalKey(bkey.asText(), Constants.Interval.valueOf(interval));
                             plotKeys.add(key);
+                            if(isPredictionEnabled && !headerPath.equals(predictionPath)){
+                                actualEpochKeys.add(bkey.asLong());
+                            }
                             double previousVal = !isCumulative ? 0.0 : (totalValues.size() > 0 ? totalValues.get(totalValues.size() - 1) : 0.0);
 
                             double value = 0.0;
@@ -173,9 +191,22 @@ public class LineChartResponseHandler implements IResponseHandler {
             // });
         }
         String action = chartNode.get(ACTION).asText();
+
+        Long finalStartDate = startDate;
         dataList.forEach(data -> {
-            appendMissingPlot(plotKeys, data, symbol, isCumulative);
+            if(isPredictionEnabled){
+                if(data.getHeaderName().equals(predictionPath.asText())) {
+                    appendTargetPlot(targetEpochKeys, data, symbol, isCumulative);
+                }else{
+                    appendActualPlot(actualEpochKeys, finalStartDate,data,symbol,isCumulative);
+                }
+            }else{
+                appendMissingPlot(plotKeys, data, symbol, isCumulative);
+            }
         });
+        if(isPredictionEnabled){
+            addPredictionPlot(dataList,predictionPath,distributionPath,actualEpochKeys);
+        }
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
             dataList = actionsHelper.divide(action, dataList, chartNode);
         }
@@ -197,6 +228,59 @@ public class LineChartResponseHandler implements IResponseHandler {
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
     }
 
+    private void appendActualPlot(List<Long> actualEpochKeys, Long finalStartDate, Data data, String symbol, boolean isCumulative) {
+        Long actualStartDate = actualEpochKeys.get(0);
+        Double differenceInDays = Math.ceil((actualStartDate - finalStartDate) / Constants.DAY_EPOCH);
+        for (int i = 0; i < differenceInDays; i++) {
+            String name = getIntervalKey(String.valueOf(finalStartDate + Constants.DAY_EPOCH*i), Constants.Interval.day);
+            data.getPlots().add(i,new Plot(name,0.0,symbol));
+        }
+    }
+
+    public void addPredictionPlot(List<Data> dataList, JsonNode predictionPath, JsonNode distributionPath, List<Long> actualEpochKeys) {
+        Data targetPlot = dataList.stream().filter(ob -> ob.getHeaderName().equals(predictionPath.asText())).findFirst().get();
+        Double overallTarget = targetPlot.getPlots().stream().reduce((first, second) -> second).get().getValue();
+        Double targetPerDay = targetPlot.getPlots().get(0).getValue();
+
+        Data distributionPlot = dataList.stream().filter(ob -> ob.getHeaderName().equals(distributionPath.asText())).findFirst().get();
+        Double cumulativeValue = distributionPlot.getPlots().stream().reduce((first, second) -> second).get().getValue();
+        Long dateToPredictFrom = actualEpochKeys.get(actualEpochKeys.size()-1);
+
+        Double differenceInData = overallTarget - cumulativeValue;
+        Double daysToComplete = Math.ceil(differenceInData/targetPerDay);
+        if(daysToComplete <= 0){
+            return;
+        }
+        List<Plot> plots = new ArrayList<>();
+        String plotSymbol = distributionPlot.getPlots().get(0).getSymbol();
+        plots.add(new Plot(getIntervalKey(String.valueOf(dateToPredictFrom), Constants.Interval.day),cumulativeValue,plotSymbol));
+        for (int i = 0; i < daysToComplete; i++) {
+            dateToPredictFrom = dateToPredictFrom + Constants.DAY_EPOCH;
+            cumulativeValue = cumulativeValue + ((i == daysToComplete - 1) ? differenceInData % targetPerDay : targetPerDay);
+            plots.add(new Plot(getIntervalKey(String.valueOf(dateToPredictFrom), Constants.Interval.day),cumulativeValue,plotSymbol));
+        }
+        dataList.add(new Data("PREDICTION_".concat(distributionPlot.getHeaderName()), overallTarget,distributionPlot.getHeaderSymbol(),plots));
+    }
+
+    public void addTargetDates(Long startDate, Long endDate, List<Long> targetEpochKeys){
+        targetEpochKeys.add(startDate);
+        ListIterator<Long> iterator = targetEpochKeys.listIterator();
+        while (targetEpochKeys.get(targetEpochKeys.size()-1) < endDate){
+            targetEpochKeys.add(targetEpochKeys.get(targetEpochKeys.size()-1) + Constants.DAY_EPOCH);
+        }
+    }
+    private void appendTargetPlot(List<Long> targetEpochKeys, Data data, String symbol, boolean isCumulative){
+        List<Plot> plots = new ArrayList<>();
+        double targetValue = data.getPlots().get(0).getValue();
+        if(isCumulative){
+            targetEpochKeys.forEach(key -> {
+                double value = plots.size()==0 ? targetValue : plots.get(plots.size()-1).getValue() + targetValue;
+                Plot plot = new Plot(getIntervalKey(String.valueOf(key), Constants.Interval.day),value,symbol);
+                plots.add(plot);
+            });
+            data.setPlots(plots);
+        }
+    }
     private double getValueOfPlotMap(JsonNode bucket, double previousVal, JsonNode chartNode) {
         String jsonStr = bucket.toString();
         JSONObject currObj = new JSONObject(jsonStr);
@@ -219,7 +303,7 @@ public class LineChartResponseHandler implements IResponseHandler {
     }
 
     private void addIterationResultsToMultiAggrMap(Map<String, Double> plotMap, Map<String, Double> multiAggrPlotMap, Boolean isCumulative) {
-    	
+
     	Map<String, Double> finalPlotMap = new LinkedHashMap<>();
 
         multiAggrPlotMap.keySet().forEach(key -> {
@@ -229,7 +313,7 @@ public class LineChartResponseHandler implements IResponseHandler {
         plotMap.keySet().forEach(key -> {
             finalPlotMap.put(key, plotMap.get(key));
         });
-    	
+
     	if(isCumulative) {
              Double previousValue = 0.0;
              for (String key : finalPlotMap.keySet()) {
@@ -238,7 +322,7 @@ public class LineChartResponseHandler implements IResponseHandler {
                  previousValue = finalPlotMap.get(key);
              }
          }
-    	
+
     	finalPlotMap.keySet().forEach(key->{
             Double previousValue = multiAggrPlotMap.get(key);
             Double currentValue = finalPlotMap.get(key);
