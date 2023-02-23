@@ -21,9 +21,9 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class FacilitySearch {
-    @JsonProperty("ids")
+    @JsonProperty("id")
     @Valid
-    private List<String> ids = null;
+    private List<String> id = null;
 
     @JsonProperty("isPermanent")
     private Boolean isPermanent = null;
