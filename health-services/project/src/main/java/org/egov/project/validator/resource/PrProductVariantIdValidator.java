@@ -25,15 +25,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.project.Constants.GET_PRODUCT_VARIANT_ID;
 
 @Component
 @Order(value = 8)
@@ -62,16 +58,20 @@ public class PrProductVariantIdValidator implements Validator<ProjectResourceBul
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if (!entities.isEmpty()) {
             Set<String> productVariantIds = entities.stream().map(pr -> pr.getResource().getProductVariantId()).collect(Collectors.toSet());
-            Map<String, ProjectResource> pvMap = getIdToObjMap(entities, getMethod(GET_PRODUCT_VARIANT_ID, getObjClass(entities)));
+            Map<String, List<ProjectResource>> prMap = getProductVariantMap(entities);
+
             try {
                 List<String> validProductVariantsIds = checkIfProductVariantExist(productVariantIds,
                         getTenantId(entities),
-                        request.getRequestInfo()).stream().map(ProductVariant::getId).collect(Collectors.toList());
+                        request.getRequestInfo())
+                        .stream().map(ProductVariant::getId).collect(Collectors.toList());
                 productVariantIds.forEach(id -> {
                     if (!validProductVariantsIds.contains(id)) {
                         Error error = getErrorForNonExistentRelatedEntity(id);
                         log.info("validation failed for product variant id: {} with error {}", entities, error);
-                        populateErrorDetails(pvMap.get(id), error, errorDetailsMap);
+                        for(ProjectResource pr : prMap.get(id)) {
+                            populateErrorDetails(pr, error, errorDetailsMap);
+                        }
                     }
                 });
             } catch (Exception exception) {
@@ -81,6 +81,22 @@ public class PrProductVariantIdValidator implements Validator<ProjectResourceBul
         }
 
         return errorDetailsMap;
+    }
+
+    private Map<String, List<ProjectResource>> getProductVariantMap(List<ProjectResource> entities) {
+       return entities.stream().collect(
+                Collectors.toMap(
+                        obj -> obj.getResource().getProductVariantId(),
+                        obj -> {
+                            List<ProjectResource> projectResources = new ArrayList<>();
+                            projectResources.add(obj);
+                            return projectResources;
+                        },
+                        (o, o2) -> {
+                            o.add(o2.get(0));
+                            return o;
+                        }
+                ));
     }
 
     private List<ProductVariant> checkIfProductVariantExist(Set<String> pvIds, String tenantId, RequestInfo requestInfo) {
