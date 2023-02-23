@@ -179,6 +179,17 @@ public class LineChartResponseHandler implements IResponseHandler {
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
             dataList = actionsHelper.divide(action, dataList, chartNode);
         }
+        if(chartNode.has(COMPUTE_MULTIPLE_PATHS) && chartNode.get(COMPUTE_MULTIPLE_PATHS).asBoolean()) {
+            List<ComputedFields> computedFieldsList = mapper.readValue(computedFields.toString(), new TypeReference<List<ComputedFields>>() {
+            });
+            for (ComputedFields cfs : computedFieldsList) {
+
+                IComputedField computedFieldObject = computedFieldFactory.getInstance(cfs.getActionName());
+                computedFieldObject.set(requestDto, cfs.getPostAggregationTheory());
+                computedFieldObject.add(dataList, cfs.getFields(), cfs.getNewField(), chartNode);
+
+            }
+        }
         if (computedFields != null && computedFields.size()!= 0 && computedFields.get(0).has("sort")) {
             String sortingKey = computedFields.get(0).get("sort").asText();
             dataList = sortingHelper.sort(sortingKey, dataList);
