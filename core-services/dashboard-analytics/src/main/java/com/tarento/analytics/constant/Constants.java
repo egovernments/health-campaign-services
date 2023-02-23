@@ -139,4 +139,6 @@ public class Constants {
 
 	public static final String TENANTID_PLACEHOLDER = "{TENANTID_PLACEHOLDER}";
 
+	public static final Long DAY_EPOCH = 86400000L;
+
 }
