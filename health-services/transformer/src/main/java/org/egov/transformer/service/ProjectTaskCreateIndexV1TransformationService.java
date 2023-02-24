@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskCreateIndexV1;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
+@Slf4j
 public class ProjectTaskCreateIndexV1TransformationService implements TransformationService<Task> {
 
     private final ProjectTaskCreateIndexV1Transformer transformer;
@@ -33,10 +35,13 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
 
     @Override
     public void transform(List<Task> payloadList) {
+        log.info("transforming for ids {}", payloadList.stream()
+                .map(Task::getId).collect(Collectors.toList()));
         List<ProjectTaskCreateIndexV1> transformedPayloadList = payloadList.stream()
                 .map(transformer::transform)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
+        log.info("transformation successful");
         producer.push(properties.getTransformerProducerBulkCreateProjectTaskIndexV1Topic(),
                 transformedPayloadList);
     }

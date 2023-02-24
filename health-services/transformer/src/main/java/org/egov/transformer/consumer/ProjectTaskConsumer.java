@@ -35,6 +35,7 @@ public class ProjectTaskConsumer {
     public void bulkCreate(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            log.info("payload(s) received on topic {}", topic);
             List<Task> payloadList = objectMapper.convertValue(consumerRecord, new TypeReference<List<Task>>(){});
             transformationHandler.handle(payloadList, Operation.CREATE);
         } catch (Exception exception) {
