@@ -53,7 +53,7 @@ public class RowVersionValidatorTest {
     void shouldNotAddToErrorDetailsIfRowVersionIsSimilar() {
         ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
                 .withProjectResourceId("some-id").withRequestInfo().build();
-        request.getProjectResource().get(0).setRowVersion(0);
+        request.getProjectResource().get(0).setRowVersion(1);
         when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(ProjectResourceTestBuilder.builder()
                         .withProjectResource().withId("some-id").build()));

@@ -30,7 +30,7 @@ public class ProjectResourceTestBuilder {
                         .type("type")
                         .build())
                 .isDeleted(false)
-                .rowVersion(0)
+                .rowVersion(1)
                 .hasErrors(false)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .endDate(100L)

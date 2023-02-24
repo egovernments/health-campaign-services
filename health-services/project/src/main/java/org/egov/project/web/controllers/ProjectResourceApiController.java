@@ -102,7 +102,7 @@ public class ProjectResourceApiController {
     public ResponseEntity<ResponseInfo> resourceV1BulkUpdatePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceBulkRequest request) {
 
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getCreateProjectResourceBulkTopic(), request);
+        producer.push(projectConfiguration.getUpdateProjectResourceBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -122,7 +122,7 @@ public class ProjectResourceApiController {
     @RequestMapping(value = "/resource/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> resourceV1BulkDeletePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getDeleteProjectResourceTopic(), request);
+        producer.push(projectConfiguration.getDeleteProjectResourceBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));    }
