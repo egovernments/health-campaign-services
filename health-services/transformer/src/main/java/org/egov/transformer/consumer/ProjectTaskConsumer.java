@@ -31,7 +31,7 @@ public class ProjectTaskConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "${enrichment.consumer.bulk.create.project.task.topic}")
+    @KafkaListener(topics = "${transformer.consumer.bulk.create.project.task.topic}")
     public void bulkCreate(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
