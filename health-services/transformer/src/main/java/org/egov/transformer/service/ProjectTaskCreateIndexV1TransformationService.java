@@ -37,7 +37,7 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
                 .map(transformer::transform)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
-        producer.push(properties.getEnrichmentProducerBulkCreateProjectTaskIndexV1Topic(),
+        producer.push(properties.getTransformerProducerBulkCreateProjectTaskIndexV1Topic(),
                 transformedPayloadList);
     }
 

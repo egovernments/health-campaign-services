@@ -14,6 +14,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class TransformerProperties {
 
-    @Value("${enrichment.producer.bulk.create.project.task.index.v1.topic}")
-    private String enrichmentProducerBulkCreateProjectTaskIndexV1Topic;
+    @Value("${transformer.producer.bulk.create.project.task.index.v1.topic}")
+    private String transformerProducerBulkCreateProjectTaskIndexV1Topic;
 }
