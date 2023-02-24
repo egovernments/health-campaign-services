@@ -1,6 +1,7 @@
 package org.egov.project.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.validator.Validator;
@@ -17,15 +18,24 @@ import org.egov.project.validator.resource.PrUniqueEntityValidator;
 import org.egov.project.web.models.ProjectResource;
 import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.egov.project.web.models.ProjectResourceRequest;
+import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ReflectionUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.project.Constants.GET_PROJECT_RESOURCE;
@@ -165,5 +175,30 @@ public class ProjectResourceService {
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validEntities;
+    }
+
+
+    public List<ProjectResource> search(ProjectResourceSearchRequest request,
+                                        Integer limit,
+                                        Integer offset,
+                                        String tenantId,
+                                        Long lastChangedSince,
+                                        Boolean includeDeleted) throws QueryBuilderException {
+        String idFieldName = getIdFieldName(request.getProjectResource());
+
+        if (isSearchByIdOnly(request.getProjectResource(), idFieldName)) {
+            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod((Collections
+                    .singletonList(request.getProjectResource()))),
+                    request.getProjectResource());
+            return projectResourceRepository.findById(ids, includeDeleted, idFieldName).stream()
+                    .filter(lastChangedSince(lastChangedSince))
+                    .filter(havingTenantId(tenantId))
+                    .filter(includeDeleted(includeDeleted))
+                    .collect(Collectors.toList());
+        }
+
+        log.info("completed search method for project resource");
+        return projectResourceRepository.find(request.getProjectResource(),
+                limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 }
