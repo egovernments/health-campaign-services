@@ -72,6 +72,7 @@ public interface IResponseHandler {
 	public final String LIMIT = "limit";
 	public final String ORDER = "order";
 	public final String ACTION = "action";
+	public final String COMPUTE_MULTIPLE_PATHS = "computeMultiPaths";
 	public final String TYPE_MAPPING = "pathDataTypeMapping";
 
 	public static String BUCKETS = "buckets";
