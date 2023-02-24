@@ -38,7 +38,7 @@ class RowVersionValidatorTest {
     void shouldAddToErrorDetailsIfRowVersionMismatchFound() {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
         request.getFacilities().get(0).setRowVersion(2);
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
                 .thenReturn(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()));
 
         Map<Facility, List<Error>> errorDetailsMap = fRowVersionValidator.validate(request);
@@ -50,7 +50,7 @@ class RowVersionValidatorTest {
     @DisplayName("should not add to error if row version is similar")
     void shouldNotAddToErrorDetailsIfRowVersionSimilar() {
         FacilityBulkRequest request = FacilityBulkRequestTestBuilder.builder().withFacilityId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(facilityRepository.findById(anyList(), anyString(), anyBoolean()))
                 .thenReturn(Collections.singletonList(FacilityTestBuilder.builder().withFacility().withId("some-id").build()));
 
         Map<Facility, List<Error>> errorDetailsMap = fRowVersionValidator.validate(request);

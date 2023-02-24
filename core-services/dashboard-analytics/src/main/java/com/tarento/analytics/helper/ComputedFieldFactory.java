@@ -13,6 +13,8 @@ public class ComputedFieldFactory {
     @Autowired
     private AdditiveComputedField additiveComputedField;
     @Autowired
+    private SumComputedField sumComputedField;
+    @Autowired
     private NoOpsComputedField noOpsComputedField;
 
     public IComputedField getInstance(String className){
@@ -26,7 +28,10 @@ public class ComputedFieldFactory {
         } else if(className.equalsIgnoreCase(additiveComputedField.getClass().getSimpleName())) {
             return additiveComputedField;
 
-        } else if(className.isEmpty()) {
+        } else if(className.equalsIgnoreCase(sumComputedField.getClass().getSimpleName())) {
+            return sumComputedField;
+
+        }else if(className.isEmpty()) {
             return noOpsComputedField;
 
         } else {

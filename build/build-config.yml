@@ -69,3 +69,10 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/egov-survey-services/src/main/resources/db"
         image-name: "egov-survey-services-db"
+  - name: "builds/health-campaign-services/health-services/facility"
+    build:
+      - work-dir: "health-services/facility"
+        image-name: "facility"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/facility/src/main/resources/db"
+        image-name: "facility-db"
