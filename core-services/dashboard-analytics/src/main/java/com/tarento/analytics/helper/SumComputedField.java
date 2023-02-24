@@ -44,11 +44,11 @@ public class SumComputedField implements IComputedField<List<Data>>{
         }
         double cumulativeValue = sumMap.values().stream().reduce(0.0, Double::sum);
         Data summedUpData = new Data(newField, cumulativeValue, chartNode.get(IResponseHandler.VALUE_TYPE).asText());
-        List<Plot> Plots = new ArrayList<>();
+        List<Plot> plots = new ArrayList<>();
         for(String k : keys) {
-            Plots.add(new Plot(k, sumMap.getOrDefault(k , 0.0), chartNode.get(IResponseHandler.VALUE_TYPE).asText()));
+            plots.add(new Plot(k, sumMap.getOrDefault(k , 0.0), chartNode.get(IResponseHandler.VALUE_TYPE).asText()));
         }
-        summedUpData.setPlots(Plots);
+        summedUpData.setPlots(plots);
         newDataList.add(summedUpData);
         dataList.clear();
         dataList.addAll(newDataList);
