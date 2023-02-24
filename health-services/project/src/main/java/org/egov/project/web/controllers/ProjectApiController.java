@@ -8,11 +8,40 @@ import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectBeneficiaryService;
+import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.service.ProjectFacilityService;
-import org.egov.project.web.models.*;
+import org.egov.project.web.models.BeneficiaryBulkRequest;
+import org.egov.project.web.models.BeneficiaryBulkResponse;
+import org.egov.project.web.models.BeneficiaryRequest;
+import org.egov.project.web.models.BeneficiaryResponse;
+import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.project.web.models.Project;
+import org.egov.project.web.models.ProjectBeneficiary;
+import org.egov.project.web.models.ProjectFacility;
+import org.egov.project.web.models.ProjectFacilityBulkRequest;
+import org.egov.project.web.models.ProjectFacilityBulkResponse;
+import org.egov.project.web.models.ProjectFacilityRequest;
+import org.egov.project.web.models.ProjectFacilityResponse;
+import org.egov.project.web.models.ProjectFacilitySearchRequest;
+import org.egov.project.web.models.ProjectRequest;
+import org.egov.project.web.models.ProjectResourceRequest;
+import org.egov.project.web.models.ProjectResourceResponse;
+import org.egov.project.web.models.ProjectResourceSearchRequest;
+import org.egov.project.web.models.ProjectResponse;
+import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
+import org.egov.project.web.models.ProjectStaffBulkResponse;
+import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.project.web.models.ProjectStaffResponse;
+import org.egov.project.web.models.ProjectStaffSearchRequest;
+import org.egov.project.web.models.Task;
+import org.egov.project.web.models.TaskBulkRequest;
+import org.egov.project.web.models.TaskBulkResponse;
+import org.egov.project.web.models.TaskRequest;
+import org.egov.project.web.models.TaskResponse;
+import org.egov.project.web.models.TaskSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -221,9 +250,8 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/facility/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectFacilityV1BulkCreatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
-
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getBulkCreateProjectStaffTopic(), request);
+        producer.push(projectConfiguration.getBulkCreateProjectFacilityTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -267,8 +295,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/facility/v1/bulk/_update", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectFacilityV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
-
+    public ResponseEntity<ResponseInfo> projectFacilityV1BulkUpdatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkUpdateProjectFacilityTopic(), request);
 
@@ -277,7 +304,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/facility/v1/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacilityUpdateRequest) {
+    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1DeletePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacilityUpdateRequest) {
 
         ProjectFacility projectFacilities = projectFacilityService.delete(projectFacilityUpdateRequest);
         ProjectFacilityResponse response = ProjectFacilityResponse.builder()
@@ -290,7 +317,7 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/facility/v1/bulk/_delete", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> projectFacilityV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
+    public ResponseEntity<ResponseInfo> projectFacilityV1BulkDeletePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
 
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(projectConfiguration.getBulkDeleteProjectFacilityTopic(), request);

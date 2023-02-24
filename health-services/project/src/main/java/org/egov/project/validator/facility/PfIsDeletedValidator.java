@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 
@@ -24,11 +26,15 @@ public class PfIsDeletedValidator implements Validator<ProjectFacilityBulkReques
     public Map<ProjectFacility, List<Error>> validate(ProjectFacilityBulkRequest request) {
         log.info("validating isDeleted field");
         HashMap<ProjectFacility, List<Error>> errorDetailsMap = new HashMap<>();
-        List<ProjectFacility> validIndividuals = request.getProjectFacilities();
-        validIndividuals.stream().filter(ProjectFacility::getIsDeleted).forEach(individual -> {
-            Error error = getErrorForIsDelete();
-            populateErrorDetails(individual, error, errorDetailsMap);
-        });
+        List<ProjectFacility> validEntities = request.getProjectFacilities().stream()
+                .filter(notHavingErrors())
+                .collect(Collectors.toList());
+        if (!validEntities.isEmpty()) {
+            validEntities.stream().filter(ProjectFacility::getIsDeleted).forEach(individual -> {
+                Error error = getErrorForIsDelete();
+                populateErrorDetails(individual, error, errorDetailsMap);
+            });
+        }
         return errorDetailsMap;
     }
 }

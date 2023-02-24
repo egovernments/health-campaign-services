@@ -118,6 +118,12 @@ public class ProjectConfiguration {
     @Value("${egov.search.individual.url}")
     private String individualServiceSearchUrl;
 
+    @Value("${egov.facility.host}")
+    private String facilityServiceHost;
+
+    @Value("${egov.search.facility.url}")
+    private String facilityServiceSearchUrl;
+
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
 

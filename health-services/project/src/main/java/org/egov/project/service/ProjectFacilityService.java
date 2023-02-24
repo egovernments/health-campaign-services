@@ -10,7 +10,13 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectFacilityRepository;
 import org.egov.project.service.enrichment.ProjectFacilityEnrichmentService;
-import org.egov.project.validator.facility.*;
+import org.egov.project.validator.facility.PfFacilityIdValidator;
+import org.egov.project.validator.facility.PfIsDeletedValidator;
+import org.egov.project.validator.facility.PfNonExistentEntityValidator;
+import org.egov.project.validator.facility.PfNullIdValidator;
+import org.egov.project.validator.facility.PfProjectIdValidator;
+import org.egov.project.validator.facility.PfRowVersionValidator;
+import org.egov.project.validator.facility.PfUniqueEntityValidator;
 import org.egov.project.web.models.ProjectFacility;
 import org.egov.project.web.models.ProjectFacilityBulkRequest;
 import org.egov.project.web.models.ProjectFacilityRequest;
@@ -25,8 +31,15 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
-import static org.egov.project.Constants.*;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.project.Constants.SET_PROJECT_FACILITIES;
+import static org.egov.project.Constants.VALIDATION_ERROR;
 
 @Service
 @Slf4j
@@ -106,7 +119,7 @@ public class ProjectFacilityService {
             }
         } catch (Exception exception) {
             log.error("error occurred while creating project facility: {}", exception.getMessage());
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -140,7 +153,7 @@ public class ProjectFacilityService {
             }
         } catch (Exception exception) {
             log.error("error occurred while updating project facility", exception);
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -172,7 +185,7 @@ public class ProjectFacilityService {
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -186,15 +199,15 @@ public class ProjectFacilityService {
         log.info("validating request");
         Map<ProjectFacility, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 applicableValidators, request,
-                SET_STAFF);
+                SET_PROJECT_FACILITIES);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
-        List<ProjectFacility> validTasks = request.getProjectFacilities().stream()
+        List<ProjectFacility> validEntities = request.getProjectFacilities().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         log.info("validation successful, found valid project facility");
-        return new Tuple<>(validTasks, errorDetailsMap);
+        return new Tuple<>(validEntities, errorDetailsMap);
     }
 
     public List<ProjectFacility> search(ProjectFacilitySearchRequest projectFacilitySearchRequest,
