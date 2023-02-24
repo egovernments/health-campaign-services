@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * This object defines the mapping of a facility to a project.
@@ -24,7 +25,7 @@ import javax.validation.constraints.Size;
 public class ProjectFacilitySearch   {
 
     @JsonProperty("id")
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("tenantId")
     private String tenantId = null;

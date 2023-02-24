@@ -22,6 +22,26 @@ ServiceMaps:
           jsonPath: $.*
           timeStampField: $.auditDetails.createdTime
 
+    - topic: save-project-facility-topic
+      configKey: INDEX
+      indexes:
+        - name: projec-facility-index-v1
+          type: projectFacility
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.createdTime
+
+    - topic: update-project-facility-topic
+      configKey: INDEX
+      indexes:
+        - name: projec-facility-index-v1
+          type: projectFacility
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.createdTime
+
     - topic: save-project-beneficiary-topic
       configKey: INDEX
       indexes:

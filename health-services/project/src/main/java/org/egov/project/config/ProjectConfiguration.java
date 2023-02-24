@@ -34,6 +34,24 @@ public class ProjectConfiguration {
     @Value("${project.staff.consumer.bulk.delete.topic}")
     private String bulkDeleteProjectStaffTopic;
 
+    @Value("${project.facility.kafka.create.topic}")
+    private String createProjectFacilityTopic;
+
+    @Value("${project.facility.consumer.bulk.create.topic}")
+    private String bulkCreateProjectFacilityTopic;
+
+    @Value("${project.facility.kafka.update.topic}")
+    private String updateProjectFacilityTopic;
+
+    @Value("${project.facility.consumer.bulk.update.topic}")
+    private String bulkUpdateProjectFacilityTopic;
+
+    @Value("${project.facility.kafka.delete.topic}")
+    private String deleteProjectFacilityTopic;
+
+    @Value("${project.facility.consumer.bulk.delete.topic}")
+    private String bulkDeleteProjectFacilityTopic;
+
     @Value("${project.beneficiary.kafka.create.topic}")
     private String createProjectBeneficiaryTopic;
 
@@ -63,6 +81,9 @@ public class ProjectConfiguration {
 
     @Value("${project.staff.idgen.id.format}")
     private String projectStaffIdFormat;
+
+    @Value("${project.facility.idgen.id.format}")
+    private String projectFacilityIdFormat;
 
     @Value("${egov.product.host}")
     private String productHost;

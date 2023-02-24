@@ -11,33 +11,8 @@ import org.egov.project.service.ProjectBeneficiaryService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.BeneficiaryBulkRequest;
-import org.egov.project.web.models.BeneficiaryBulkResponse;
-import org.egov.project.web.models.BeneficiaryRequest;
-import org.egov.project.web.models.BeneficiaryResponse;
-import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.Project;
-import org.egov.project.web.models.ProjectBeneficiary;
-import org.egov.project.web.models.ProjectFacilityRequest;
-import org.egov.project.web.models.ProjectFacilityResponse;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
-import org.egov.project.web.models.ProjectRequest;
-import org.egov.project.web.models.ProjectResourceRequest;
-import org.egov.project.web.models.ProjectResourceResponse;
-import org.egov.project.web.models.ProjectResourceSearchRequest;
-import org.egov.project.web.models.ProjectResponse;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffBulkRequest;
-import org.egov.project.web.models.ProjectStaffBulkResponse;
-import org.egov.project.web.models.ProjectStaffRequest;
-import org.egov.project.web.models.ProjectStaffResponse;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
-import org.egov.project.web.models.TaskBulkResponse;
-import org.egov.project.web.models.TaskRequest;
-import org.egov.project.web.models.TaskResponse;
-import org.egov.project.web.models.TaskSearchRequest;
+import org.egov.project.service.ProjectFacilityService;
+import org.egov.project.web.models.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -72,6 +47,8 @@ public class ProjectApiController {
 
     private final ProjectTaskService projectTaskService;
 
+    private final ProjectFacilityService projectFacilityService;
+
     private final Producer producer;
 
     private final ProjectConfiguration projectConfiguration;
@@ -83,7 +60,7 @@ public class ProjectApiController {
                                 ProjectStaffService projectStaffService,
                                 ProjectTaskService projectTaskService,
                                 ProjectBeneficiaryService projectBeneficiaryService,
-                                Producer producer,
+                                ProjectFacilityService projectFacilityService, Producer producer,
                                 ProjectConfiguration projectConfiguration,
                                 ProjectService projectService) {
         this.objectMapper = objectMapper;
@@ -91,6 +68,7 @@ public class ProjectApiController {
         this.projectStaffService = projectStaffService;
         this.projectTaskService = projectTaskService;
         this.projectBeneficiaryService = projectBeneficiaryService;
+        this.projectFacilityService = projectFacilityService;
         this.producer = producer;
         this.projectConfiguration = projectConfiguration;
         this.projectService = projectService;
@@ -182,50 +160,7 @@ public class ProjectApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
-    @RequestMapping(value = "/facility/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1CreatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacility) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectFacilityResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectFacility\" : [ {    \"facilityId\" : \"facilityId\",    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"projectId\" : \"projectId\"  }, {    \"facilityId\" : \"facilityId\",    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"projectId\" : \"projectId\"  } ]}", ProjectFacilityResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
 
-        return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.NOT_IMPLEMENTED);
-    }
-
-    @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1SearchPost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacility, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                                               @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectFacilityResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectFacility\" : [ {    \"facilityId\" : \"facilityId\",    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"projectId\" : \"projectId\"  }, {    \"facilityId\" : \"facilityId\",    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"projectId\" : \"projectId\"  } ]}", ProjectFacilityResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.NOT_IMPLEMENTED);
-    }
-
-    @RequestMapping(value = "/facility/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1UpdatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacility) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectFacilityResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectFacility\" : [ {    \"facilityId\" : \"facilityId\",    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"projectId\" : \"projectId\"  }, {    \"facilityId\" : \"facilityId\",    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"id\" : { },    \"projectId\" : \"projectId\"  } ]}", ProjectFacilityResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.NOT_IMPLEMENTED);
-    }
 
     @RequestMapping(value = "/resource/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectResourceResponse> projectResourceV1CreatePost(@ApiParam(value = "Capture linkage of Project and resources.", required = true) @Valid @RequestBody ProjectResourceRequest projectResource) {
@@ -271,6 +206,99 @@ public class ProjectApiController {
 
         return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
+
+    @RequestMapping(value = "/facility/v1/_create", method = RequestMethod.POST)
+    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1CreatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest request) {
+
+        ProjectFacility projectFacility = projectFacilityService.create(request);
+        ProjectFacilityResponse response = ProjectFacilityResponse.builder()
+                .projectFacility(projectFacility)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/facility/v1/bulk/_create", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectFacilityV1BulkCreatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkCreateProjectStaffTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
+    public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityV1SearchPost(@ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest,
+                                                                             @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
+                                                                             @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
+                                                                             @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
+                                                                             @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
+                                                                             @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
+        List<ProjectFacility> projectFacilities = projectFacilityService.search(
+                projectFacilitySearchRequest,
+                limit,
+                offset,
+                tenantId,
+                lastChangedSince,
+                includeDeleted
+        );
+        ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
+                .projectFacilities(projectFacilities)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectFacilitySearchRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @RequestMapping(value = "/facility/v1/_update", method = RequestMethod.POST)
+    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1UpdatePost(@ApiParam(value = "Capture linkage of Project and facility.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacilityUpdateRequest) {
+
+        ProjectFacility projectFacility = projectFacilityService.update(projectFacilityUpdateRequest);
+        ProjectFacilityResponse response = ProjectFacilityResponse.builder()
+                .projectFacility(projectFacility)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectFacilityUpdateRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/facility/v1/bulk/_update", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectFacilityV1UpdatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkUpdateProjectFacilityTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/facility/v1/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ProjectFacilityResponse> projectFacilityV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectFacilityRequest projectFacilityUpdateRequest) {
+
+        ProjectFacility projectFacilities = projectFacilityService.delete(projectFacilityUpdateRequest);
+        ProjectFacilityResponse response = ProjectFacilityResponse.builder()
+                .projectFacility(projectFacilities)
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(projectFacilityUpdateRequest.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    @RequestMapping(value = "/facility/v1/bulk/_delete", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> projectFacilityV1DeletePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectFacilityBulkRequest request) {
+
+        request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        producer.push(projectConfiguration.getBulkDeleteProjectFacilityTopic(), request);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
+                .createResponseInfo(request.getRequestInfo(), true));
+    }
+
 
     @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffResponse> projectStaffV1CreatePost(@ApiParam(value = "Capture linkage of Project and staff user.", required = true) @Valid @RequestBody ProjectStaffRequest request) {

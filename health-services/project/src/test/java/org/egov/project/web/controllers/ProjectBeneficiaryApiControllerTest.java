@@ -7,10 +7,7 @@ import org.egov.project.TestConfiguration;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryRequestTestBuilder;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
-import org.egov.project.service.ProjectBeneficiaryService;
-import org.egov.project.service.ProjectService;
-import org.egov.project.service.ProjectStaffService;
-import org.egov.project.service.ProjectTaskService;
+import org.egov.project.service.*;
 import org.egov.project.web.models.BeneficiaryBulkResponse;
 import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiaryResponse;
@@ -63,6 +60,9 @@ public class ProjectBeneficiaryApiControllerTest {
 
     @MockBean
     private ProjectTaskService projectTaskService;
+
+    @MockBean
+    private ProjectFacilityService projectFacilityService;
 
     @MockBean
     private Producer producer;
