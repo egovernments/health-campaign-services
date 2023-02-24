@@ -1,5 +1,6 @@
 package com.tarento.analytics.org.service;
 
+import com.tarento.analytics.constant.Constants.Interval;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
@@ -9,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.tarento.analytics.dto.*;
 import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.common.recycler.Recycler.C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -214,6 +216,9 @@ public class TarentoServiceImpl implements ClientService {
 		if(insightInterval.equals(Constants.Interval.year.toString()) && daysBetween > 366) {
 			return Boolean.FALSE;
 		}
+		if(insightInterval.equals(Interval.dateRange.toString()) && daysBetween < 2){
+			return Boolean.FALSE;
+		}
 		Calendar startCal = Calendar.getInstance();
 		Calendar endCal = Calendar.getInstance();
 		startCal.setTime(new Date(Long.parseLong(request.getRequestDate().getStartDate())));
@@ -227,7 +232,11 @@ public class TarentoServiceImpl implements ClientService {
 		} else if(insightInterval.equals(Constants.Interval.week.toString())) {
 			startCal.add(Calendar.WEEK_OF_YEAR, -1);
 			endCal.add(Calendar.WEEK_OF_YEAR, -1);
-		} else if(StringUtils.isBlank(insightInterval) || insightInterval.equals(Constants.Interval.year.toString())) {
+		}
+		else if (insightInterval.equals(Interval.dateRange.toString())) {
+			endCal.add(Calendar.DAY_OF_YEAR,-1);
+		}
+		else if(StringUtils.isBlank(insightInterval) || insightInterval.equals(Constants.Interval.year.toString())) {
 			startCal.add(Calendar.YEAR, -1);
 			endCal.add(Calendar.YEAR, -1);
 		}
