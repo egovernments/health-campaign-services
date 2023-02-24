@@ -39,7 +39,7 @@ public class ProjectTaskConsumer {
             List<Task> payloadList = objectMapper.convertValue(consumerRecord, new TypeReference<List<Task>>(){});
             transformationHandler.handle(payloadList, Operation.CREATE);
         } catch (Exception exception) {
-            log.error("error in individual consumer bulk create", exception);
+            log.error("error in project task consumer bulk create", exception);
         }
     }
 }
