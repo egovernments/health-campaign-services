@@ -72,6 +72,7 @@ public interface IResponseHandler {
 	public final String LIMIT = "limit";
 	public final String ORDER = "order";
 	public final String ACTION = "action";
+	public final String COMPUTE_MULTIPLE_PATHS = "computeMultiPaths";
 	public final String TYPE_MAPPING = "pathDataTypeMapping";
 
 	public static String BUCKETS = "buckets";
@@ -85,6 +86,9 @@ public interface IResponseHandler {
     public static final String POST_AGGREGATION_THEORY = "postAggregationTheory";
 
     public static final String CHART_SPECIFIC = "chartSpecificProperty";
+    public final String START_DATE = "startDate";
+	public final String END_DATE = "endDate";
+	public final String PREDICTION_PATH = "predictionPath";
 
 	public static final String XTABLE_COLUMN = "XtableColumnOrder";
 
@@ -121,6 +125,9 @@ public interface IResponseHandler {
 		aggregateDto.setData(dataList);
 		if (chartNode.has(SHOW_LABEL)) {
 			aggregateDto.setShowLabel(chartNode.get(SHOW_LABEL).asBoolean());
+		}
+		if(chartNode.has(PREDICTION_PATH)){
+			aggregateDto.setPredictionPath(chartNode.get(PREDICTION_PATH).asText());
 		}
 		if (chartNode.has(HIDE_INSIGHTS)) {
 			aggregateDto.setHideInsights(chartNode.get(HIDE_INSIGHTS).asBoolean());
