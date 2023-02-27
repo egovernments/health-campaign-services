@@ -6,7 +6,6 @@ import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.producer.Producer;
 import org.egov.project.repository.rowmapper.ProjectFacilityRowMapper;
 import org.egov.project.web.models.ProjectFacility;
-import org.egov.project.web.models.ProjectStaff;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
