@@ -32,11 +32,8 @@ public class ProjectFacilityResponse   {
     @JsonProperty("ProjectFacility")
     @NotNull
     @Valid
-    private List<ProjectFacility> projectFacility = new ArrayList<>();
+    private ProjectFacility projectFacility =null;
 
-    public ProjectFacilityResponse addProjectFacilityItem(ProjectFacility projectFacilityItem) {
-        this.projectFacility.add(projectFacilityItem);
-        return this;
-    }
+
 
 }

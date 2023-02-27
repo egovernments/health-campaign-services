@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -27,22 +28,13 @@ public class ProjectFacilityRequest   {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private org.egov.common.contract.request.RequestInfo requestInfo = null;
+    private RequestInfo requestInfo = null;
 
     @JsonProperty("ProjectFacility")
     @NotNull
     @Valid
-    @Size(min=1)
-    private List<ProjectFacility> projectFacility = new ArrayList<>();
+    private ProjectFacility projectFacility;
 
-    @JsonProperty("apiOperation")
-    @Valid
-    private ApiOperation apiOperation = null;
-
-    public ProjectFacilityRequest addProjectFacilityItem(ProjectFacility projectFacilityItem) {
-        this.projectFacility.add(projectFacilityItem);
-        return this;
-    }
 
 }
 

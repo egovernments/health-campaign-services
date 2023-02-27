@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -43,10 +44,17 @@ public class ProjectFacility   {
     private String projectId = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
+
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
+
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
     @Valid
