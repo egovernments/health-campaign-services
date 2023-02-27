@@ -16,7 +16,7 @@ public class ProjectTaskCreateIndexV1 {
     private String projectId;
     private Long startDate;
     private Long endDate;
-    private String productVariantId;
+    private String productVariant;
     private Long quantity;
     private String deliveredTo;
     private boolean isDelivered;
