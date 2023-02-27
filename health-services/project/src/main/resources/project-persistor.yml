@@ -208,7 +208,7 @@ serviceMaps:
 
             - jsonPath: $.Projects.*.address.street
 
-            - jsonPath: $.Projects.*.address.locality.code
+            - jsonPath: $.Projects.*.address.locality
 
 
         - query: INSERT INTO project_target(id,projectId,beneficiaryType,totalNo,targetNo,isDeleted,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?,?,?,?,?,?,?,?,?,?);
@@ -306,7 +306,7 @@ serviceMaps:
             - jsonPath: $.Projects.*.id
 
 
-        - query: UPDATE project_address SET doorNo = ?, latitude=?, longitude=?, locationAccuracy=?, type=?, addressLine1=?, addressLine2=?, landmark=?, city=?, pinCode=?, buildingName=?, street=?, locality=? WHERE id=?;
+        - query: UPDATE project_address SET door_no = ?, latitude=?, longitude=?, locationAccuracy=?, type=?, addressLine1=?, addressLine2=?, landmark=?, city=?, pinCode=?, buildingName=?, street=? WHERE id=?;
           basePath: $.Projects.*.address
           jsonMaps:
 
@@ -333,8 +333,6 @@ serviceMaps:
             - jsonPath: $.Projects.*.address.buildingName
 
             - jsonPath: $.Projects.*.address.street
-
-            - jsonPath: $.Projects.*.address.locality.code
 
             - jsonPath: $.Projects.*.address.id
 
@@ -419,6 +417,68 @@ serviceMaps:
             - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedBy
 
             - jsonPath: $.Projects.*.documents.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Saves a project resourcce
+      fromTopic: save-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO project_resource (id, tenantId, projectId, productVariantId, isBaseUnitVariant, startDate, endDate, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.productVariantId
+            - jsonPath: $.*.isBaseUnitVariant
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Update a project resourcce
+      fromTopic: update-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE project_resource SET tenantId=?, projectId=?, productVariantId=?, isBaseUnitVariant=?, startDate=?, endDate=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.productVariantId
+            - jsonPath: $.*.isBaseUnitVariant
+            - jsonPath: $.*.startDate
+            - jsonPath: $.*.endDate
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Delete a project resourcce
+      fromTopic: delete-project-resource-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE project_resource SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=?  WHERE id = ?
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
 
     - version: 1.0
       description: Saves a project facility
