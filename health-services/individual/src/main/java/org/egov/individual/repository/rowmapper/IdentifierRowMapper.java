@@ -13,6 +13,7 @@ public class IdentifierRowMapper implements RowMapper<Identifier> {
         return Identifier.builder()
                 .id(resultSet.getString("id"))
                 .individualId(resultSet.getString("individualId"))
+                .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .identifierType(resultSet.getString("identifierType"))
                 .identifierId(resultSet.getString("identifierId"))
                 .auditDetails(AuditDetails.builder().createdBy(resultSet.getString("createdBy"))

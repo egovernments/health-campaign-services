@@ -31,6 +31,10 @@ public class Address {
     @Size(min = 2, max = 64)
     private String id = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
     @JsonProperty("tenantId")
     @NotNull
     @Size(min = 2, max = 1000)

@@ -15,6 +15,7 @@ public class AddressRowMapper implements RowMapper<Address> {
         return Address.builder()
                 .id(resultSet.getString("id"))
                 .individualId(resultSet.getString("individualId"))
+                .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .tenantId(resultSet.getString("tenantId"))
                 .doorNo(resultSet.getString("doorNo"))
                 .latitude(resultSet.getDouble("latitude"))

@@ -16,6 +16,8 @@ public class AggregateDto {
 
 	private String visualizationCode;
 
+	private String predictionPath;
+
 	private String chartFormat;
 
 	private Boolean showLabel;
@@ -33,6 +35,10 @@ public class AggregateDto {
 	public void setHideInsights(Boolean hideInsights) {
 		this.hideInsights = hideInsights;
 	}
+
+	public String getPredictionPath(){ return predictionPath;}
+
+	public void setPredictionPath(String predictionPath){ this.predictionPath = predictionPath;}
 
 	public Boolean getHideHeaderDenomination() {
 		return hideHeaderDenomination;

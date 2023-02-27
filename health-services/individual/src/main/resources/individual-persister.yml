@@ -6,10 +6,11 @@ serviceMaps:
       fromTopic: save-individual-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO address(id, tenantId, doorNo, latitude, longitude, locationAccuracy, type, addressLine1, addressLine2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO address(id, clientReferenceId, tenantId, doorNo, latitude, longitude, locationAccuracy, type, addressLine1, addressLine2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.address.*
           jsonMaps:
             - jsonPath: $.*.address.*.id
+            - jsonPath: $.*.address.*.clientReferenceId
             - jsonPath: $.*.address.*.tenantId
             - jsonPath: $.*.address.*.doorNo
             - jsonPath: $.*.address.*.latitude
@@ -64,10 +65,11 @@ serviceMaps:
             - jsonPath: $.*.address.*.auditDetails.createdTime
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.address.*.isDeleted
-        - query: INSERT INTO individual_identifier(id, identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO individual_identifier(id, clientReferenceId, identifierType, identifierId, individualId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.identifiers.*
           jsonMaps:
             - jsonPath: $.*.identifiers.*.id
+            - jsonPath: $.*.clientReferenceId
             - jsonPath: $.*.identifiers.*.identifierType
             - jsonPath: $.*.identifiers.*.identifierId
             - jsonPath: $.*.identifiers.*.individualId
@@ -76,10 +78,11 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.auditDetails.createdTime
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.identifiers.*.isDeleted
-        - query: INSERT INTO individual_skill(id, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO individual_skill(id, clientReferenceId, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.skills.*
           jsonMaps:
             - jsonPath: $.*.skills.*.id
+            - jsonPath: $.*.skills.*.clientReferenceId
             - jsonPath: $.*.skills.*.individualId
             - jsonPath: $.*.skills.*.type
             - jsonPath: $.*.skills.*.level
@@ -120,10 +123,11 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.id
-        - query: INSERT INTO address(id, tenantId, doorNo, latitude, longitude, locationAccuracy, type, addressLine1, addressLine2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET doorno=?, latitude=?, longitude=?, locationaccuracy=?, type=?, addressline1=?, addressline2=?, landmark=?, city=?, pincode=?, buildingname=?, street=?, localitycode=?;
+        - query: INSERT INTO address(id, clientReferenceId, tenantId, doorNo, latitude, longitude, locationAccuracy, type, addressLine1, addressLine2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET doorno=?, latitude=?, longitude=?, locationaccuracy=?, type=?, addressline1=?, addressline2=?, landmark=?, city=?, pincode=?, buildingname=?, street=?, localitycode=?;
           basePath: $.*.address.*
           jsonMaps:
             - jsonPath: $.*.address.*.id
+            - jsonPath: $.*.address.*.clientReferenceId
             - jsonPath: $.*.address.*.tenantId
             - jsonPath: $.*.address.*.doorNo
             - jsonPath: $.*.address.*.latitude
@@ -164,10 +168,11 @@ serviceMaps:
             - jsonPath: $.*.address.*.isDeleted
             - jsonPath: $.*.address.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.address.*.auditDetails.lastModifiedTime
-        - query: INSERT INTO individual_identifier(id, individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET identifierId = ?, lastModifiedBy = ?, lastModifiedTime = ?;
+        - query: INSERT INTO individual_identifier(id, clientReferenceId, individualId, identifierType, identifierId, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET identifierId = ?, lastModifiedBy = ?, lastModifiedTime = ?;
           basePath: $.*.identifiers.*
           jsonMaps:
             - jsonPath: $.*.identifiers.*.id
+            - jsonPath: $.*.identifiers.*.clientReferenceId
             - jsonPath: $.*.identifiers.*.individualId
             - jsonPath: $.*.identifiers.*.identifierType
             - jsonPath: $.*.identifiers.*.identifierId
@@ -179,10 +184,11 @@ serviceMaps:
             - jsonPath: $.*.identifiers.*.identifierId
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.identifiers.*.auditDetails.lastModifiedTime
-        - query: INSERT INTO individual_skill(id, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET type = ?, level = ?, experience = ?, lastModifiedBy = ?, lastModifiedTime = ?;
+        - query: INSERT INTO individual_skill(id, clientReferenceId, individualId, type, level, experience, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) WHERE isDeleted=false DO UPDATE SET type = ?, level = ?, experience = ?, lastModifiedBy = ?, lastModifiedTime = ?;
           basePath: $.*.skills.*
           jsonMaps:
             - jsonPath: $.*.skills.*.id
+            - jsonPath: $.*.skills.*.clientReferenceId
             - jsonPath: $.*.skills.*.individualId
             - jsonPath: $.*.skills.*.type
             - jsonPath: $.*.skills.*.level
