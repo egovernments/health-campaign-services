@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.constraints.Size;
 import java.util.List;
 
 /**
@@ -33,11 +32,9 @@ public class ProjectFacilitySearch   {
     private String tenantId = null;
 
     @JsonProperty("facilityId")
-    @Size(min=2,max=64)
-    private String facilityId = null;
+    private List<String> facilityId = null;
 
     @JsonProperty("projectId")
-    @Size(min=2,max=64)
-    private String projectId = null;
+    private List<String> projectId = null;
 
 }
