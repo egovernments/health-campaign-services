@@ -1,4 +1,4 @@
-package org.egov.transformer.models.downstream;
+package org.egov.transformer.config;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class DownStreamModel {
-    private String modelId;
-    private String someField;
+public class SomeProperties {
+    private String publishDownStreamTopic;
+
 }
