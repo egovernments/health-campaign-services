@@ -27,10 +27,12 @@ import javax.validation.constraints.Size;
 @Builder
 public class ProjectResource   {
     @JsonProperty("id")
+    @Size(min=2, max = 64)
     private String id = null;
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min=2, max = 1000)
     private String tenantId = null;
 
     @JsonProperty("projectId")
