@@ -41,9 +41,9 @@ public interface Constants {
 
     String GET_RESOURCES = "getResources";
 
-    String GET_PROJECT_FACILITIES = "getProjectFacilites";
+    String GET_PROJECT_FACILITIES = "getProjectFacilities";
 
-    String SET_PROJECT_FACILITIES = "setProjectFacilites";
+    String SET_PROJECT_FACILITIES = "setProjectFacilities";
 
     String GET_FACILITY_ID = "getFacilityId";
 }
