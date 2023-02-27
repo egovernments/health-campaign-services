@@ -50,7 +50,7 @@ class ProjectFacilityServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
                 .thenReturn(Collections.emptyList());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
-                .id(Collections.singletonList("ID101")).facilityId("some-user-id").build();
+                .id(Collections.singletonList("ID101")).facilityId(Collections.singletonList("some-facility-id")).build();
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
                 .projectFacility(projectFacilitySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -81,7 +81,7 @@ class ProjectFacilityServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectFacilities);
         projectFacilities.add(ProjectFacilityTestBuilder.builder().withId().withId().withAuditDetails().build());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
-                .id(Collections.singletonList("ID101")).projectId("some-projectId").build();
+                .id(Collections.singletonList("ID101")).projectId(Collections.singletonList("some-projectId")).build();
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
                 .projectFacility(projectFacilitySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
