@@ -47,6 +47,7 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
                     .address(Address.builder()
                             .id(resultSet.getString(20))
                             .tenantId(resultSet.getString(21))
+                            .clientReferenceId(resultSet.getString(35))
                             .doorNo(resultSet.getString("doorNo"))
                             .latitude(resultSet.getDouble("latitude"))
                             .longitude(resultSet.getDouble("longitude"))

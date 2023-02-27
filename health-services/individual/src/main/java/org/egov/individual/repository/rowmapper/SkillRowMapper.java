@@ -13,6 +13,7 @@ public class SkillRowMapper implements RowMapper<Skill> {
         return Skill.builder()
                 .id(resultSet.getString("id"))
                 .individualId(resultSet.getString("individualId"))
+                .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .type(resultSet.getString("type"))
                 .level(resultSet.getString("level"))
                 .experience(resultSet.getString("experience"))
