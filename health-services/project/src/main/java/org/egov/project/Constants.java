@@ -40,4 +40,10 @@ public interface Constants {
     String GET_ADDRESS = "getAddress";
 
     String GET_RESOURCES = "getResources";
+
+    String GET_PROJECT_RESOURCE = "getProjectResource";
+
+    String GET_PRODUCT_VARIANT_ID = "getProductVariantId";
+
+    String SET_PROJECT_RESOURCE = "setProjectResource";
 }

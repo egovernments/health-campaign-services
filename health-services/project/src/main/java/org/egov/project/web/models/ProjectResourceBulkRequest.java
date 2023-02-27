@@ -10,6 +10,9 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
 * ProjectResourceRequest
@@ -21,7 +24,7 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectResourceRequest{
+public class ProjectResourceBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
@@ -30,6 +33,13 @@ public class ProjectResourceRequest{
     @JsonProperty("ProjectResource")
     @NotNull
     @Valid
-    private ProjectResource projectResource = null;
+    @Size(min=1)
+    private List<ProjectResource> projectResource = new ArrayList<>();
+
+    public ProjectResourceBulkRequest addProjectResourceItem(ProjectResource projectResourceItem) {
+        this.projectResource.add(projectResourceItem);
+        return this;
+    }
+
 }
 

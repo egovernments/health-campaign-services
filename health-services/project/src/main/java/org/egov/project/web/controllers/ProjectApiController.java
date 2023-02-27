@@ -22,9 +22,6 @@ import org.egov.project.web.models.ProjectFacilityRequest;
 import org.egov.project.web.models.ProjectFacilityResponse;
 import org.egov.project.web.models.ProjectFacilitySearchRequest;
 import org.egov.project.web.models.ProjectRequest;
-import org.egov.project.web.models.ProjectResourceRequest;
-import org.egov.project.web.models.ProjectResourceResponse;
-import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.egov.project.web.models.ProjectResponse;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffBulkRequest;
@@ -225,51 +222,6 @@ public class ProjectApiController {
         }
 
         return new ResponseEntity<ProjectFacilityResponse>(HttpStatus.NOT_IMPLEMENTED);
-    }
-
-    @RequestMapping(value = "/resource/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResourceResponse> projectResourceV1CreatePost(@ApiParam(value = "Capture linkage of Project and resources.", required = true) @Valid @RequestBody ProjectResourceRequest projectResource) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectResourceResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectResource\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"resources\" : [ {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    }, {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    } ],    \"id\" : { },    \"projectId\" : \"projectId\"  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"resources\" : [ {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    }, {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    } ],    \"id\" : { },    \"projectId\" : \"projectId\"  } ]}", ProjectResourceResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectResourceResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
-    }
-
-    @RequestMapping(value = "/resource/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResourceResponse> projectResourceV1SearchPost(@ApiParam(value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody ProjectResourceSearchRequest projectResource, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                                               @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectResourceResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectResource\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"resources\" : [ {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    }, {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    } ],    \"id\" : { },    \"projectId\" : \"projectId\"  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"resources\" : [ {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    }, {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    } ],    \"id\" : { },    \"projectId\" : \"projectId\"  } ]}", ProjectResourceResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectResourceResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
-    }
-
-    @RequestMapping(value = "/resource/v1/_update", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResourceResponse> projectResourceV1UpdatePost(@ApiParam(value = "Capture linkage of Project and Resource.", required = true) @Valid @RequestBody ProjectResourceRequest projectResource) {
-        String accept = httpServletRequest.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
-            try {
-                return new ResponseEntity<ProjectResourceResponse>(objectMapper.readValue("{  \"ResponseInfo\" : {    \"ver\" : \"ver\",    \"resMsgId\" : \"resMsgId\",    \"msgId\" : \"msgId\",    \"apiId\" : \"apiId\",    \"ts\" : 0,    \"status\" : \"SUCCESSFUL\"  },  \"ProjectResource\" : [ {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"resources\" : [ {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    }, {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    } ],    \"id\" : { },    \"projectId\" : \"projectId\"  }, {    \"isDeleted\" : { },    \"rowVersion\" : { },    \"auditDetails\" : {      \"lastModifiedTime\" : 2,      \"createdBy\" : \"createdBy\",      \"lastModifiedBy\" : \"lastModifiedBy\",      \"createdTime\" : 3    },    \"tenantId\" : \"tenantA\",    \"resources\" : [ {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    }, {      \"productVariantId\" : \"productVariantId\",      \"isBaseUnitVariant\" : true,      \"type\" : \"type\"    } ],    \"id\" : { },    \"projectId\" : \"projectId\"  } ]}", ProjectResourceResponse.class), HttpStatus.NOT_IMPLEMENTED);
-            } catch (IOException e) {
-                return new ResponseEntity<ProjectResourceResponse>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        return new ResponseEntity<ProjectResourceResponse>(HttpStatus.NOT_IMPLEMENTED);
     }
 
     @RequestMapping(value = "/staff/v1/_create", method = RequestMethod.POST)
