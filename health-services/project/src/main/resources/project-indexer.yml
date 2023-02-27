@@ -5,7 +5,7 @@ ServiceMaps:
     - topic: save-project-staff-topic
       configKey: INDEX
       indexes:
-        - name: projec-staff-index-v1
+        - name: projectStaffIndex-v1
           type: projectStaff
           id: $.id
           isBulk: true
@@ -15,37 +15,27 @@ ServiceMaps:
     - topic: update-project-staff-topic
       configKey: INDEX
       indexes:
-        - name: projec-staff-index-v1
-          type: projectStaff
+        - name: projectStaffUpdateIndex-v1
+          type: projectStaff-update
           id: $.id
           isBulk: true
           jsonPath: $.*
-          timeStampField: $.auditDetails.createdTime
+          timeStampField: $.auditDetails.lastModifiedTime
 
-    - topic: save-project-facility-topic
+    - topic: delete-project-staff-topic
       configKey: INDEX
       indexes:
-        - name: projec-facility-index-v1
-          type: projectFacility
+        - name: projectStaffDeleteIndex-v1
+          type: projectStaff-delete
           id: $.id
           isBulk: true
           jsonPath: $.*
-          timeStampField: $.auditDetails.createdTime
-
-    - topic: update-project-facility-topic
-      configKey: INDEX
-      indexes:
-        - name: projec-facility-index-v1
-          type: projectFacility
-          id: $.id
-          isBulk: true
-          jsonPath: $.*
-          timeStampField: $.auditDetails.createdTime
+          timeStampField: $.auditDetails.lastModifiedTime
 
     - topic: save-project-beneficiary-topic
       configKey: INDEX
       indexes:
-        - name: projec-beneficiary-index-v1
+        - name: projectBeneficiaryIndex-v1
           type: projectBeneficiary
           id: $.id
           isBulk: true
@@ -55,9 +45,49 @@ ServiceMaps:
     - topic: update-project-beneficiary-topic
       configKey: INDEX
       indexes:
-        - name: projec-beneficiary-index-v1
-          type: projectBeneficiary
+        - name: projectBeneficiaryUpdateIndex-v1
+          type: projectBeneficiary-update
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.lastModifiedTime
+
+    - topic: delete-project-beneficiary-topic
+      configKey: INDEX
+      indexes:
+        - name: projectBeneficiaryDeleteIndex-v1
+          type: projectBeneficiary-delete
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.lastModifiedTime
+
+    - topic: save-project-facility-topic
+      configKey: INDEX
+      indexes:
+        - name: projectFacilityIndex-v1
+          type: projectFacility
           id: $.id
           isBulk: true
           jsonPath: $.*
           timeStampField: $.auditDetails.createdTime
+
+    - topic: update-project-facility-topic
+      configKey: INDEX
+      indexes:
+        - name: projectFacilityUpdateIndex-v1
+          type: projectFacility-update
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.lastModifiedTime
+
+    - topic: delete-project-facility-topic
+      configKey: INDEX
+      indexes:
+        - name: projectFacilityDeleteIndex-v1
+          type: projectFacility-delete
+          id: $.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.auditDetails.lastModifiedTime
