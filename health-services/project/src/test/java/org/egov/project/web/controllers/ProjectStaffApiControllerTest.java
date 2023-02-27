@@ -7,10 +7,7 @@ import org.egov.project.TestConfiguration;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectStaffRequestTestBuilder;
 import org.egov.project.helper.ProjectStaffTestBuilder;
-import org.egov.project.service.ProjectBeneficiaryService;
-import org.egov.project.service.ProjectService;
-import org.egov.project.service.ProjectStaffService;
-import org.egov.project.service.ProjectTaskService;
+import org.egov.project.service.*;
 import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffBulkResponse;
 import org.egov.project.web.models.ProjectStaffRequest;
@@ -56,6 +53,9 @@ class ProjectStaffApiControllerTest {
 
     @MockBean
     private ProjectStaffService projectStaffService;
+
+    @MockBean
+    private ProjectFacilityService projectFacilityService;
 
     @MockBean
     private ProjectTaskService projectTaskService;

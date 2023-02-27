@@ -9,31 +9,28 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
-* ProjectFacilityResponse
-*/
+ * FacilitySearchRequest
+ */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-21T14:37:54.683+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectFacilityResponse   {
-
-    @JsonProperty("ResponseInfo")
+public class FacilitySearchRequest {
+    @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private org.egov.common.contract.response.ResponseInfo responseInfo = null;
+    private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-    @JsonProperty("ProjectFacility")
+    @JsonProperty("Facility")
     @NotNull
     @Valid
-    private ProjectFacility projectFacility =null;
-
+    private FacilitySearch facility = null;
 
 
 }
+

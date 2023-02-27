@@ -3,7 +3,6 @@ package org.egov.project.web.models;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
-import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,37 +10,44 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 /**
-* This object defines the mapping of a facility to a project.
-*/
-@ApiModel(description = "This object defines the mapping of a facility to a project.")
+ * Facility
+ */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
-
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-21T14:37:54.683+05:30")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectFacility   {
+public class Facility {
     @JsonProperty("id")
     private String id = null;
 
     @JsonProperty("tenantId")
-    @NotNull
     private String tenantId = null;
 
-    @JsonProperty("facilityId")
-    @NotNull
-    @Size(min=2,max=64)
-    private String facilityId = null;
+    @JsonProperty("isPermanent")
+    private Boolean isPermanent = true;
 
-    @JsonProperty("projectId")
-    @NotNull
-    @Size(min=2,max=64)
-    private String projectId = null;
+    @JsonProperty("name")
+    @Size(min = 2, max = 2000)
+    private String name = null;
+
+    @JsonProperty("usage")
+    private String usage = null;
+
+    @JsonProperty("storageCapacity")
+    private Integer storageCapacity = null;
+
+    @JsonProperty("address")
+    @Valid
+    private Address address = null;
+
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
@@ -49,15 +55,13 @@ public class ProjectFacility   {
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
-
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
 
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
+
+
 }
+

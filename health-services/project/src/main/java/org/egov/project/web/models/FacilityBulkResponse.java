@@ -13,27 +13,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
-* ProjectFacilityResponse
-*/
+ * FacilityResponse
+ */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-21T14:37:54.683+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProjectFacilityResponse   {
-
+public class FacilityBulkResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private org.egov.common.contract.response.ResponseInfo responseInfo = null;
 
-    @JsonProperty("ProjectFacility")
-    @NotNull
+    @JsonProperty("Facilities")
     @Valid
-    private ProjectFacility projectFacility =null;
+    private List<Facility> facilities = null;
 
 
+    public FacilityBulkResponse addFacilityItem(Facility facilityItem) {
+        if (this.facilities == null) {
+            this.facilities = new ArrayList<>();
+        }
+        this.facilities.add(facilityItem);
+        return this;
+    }
 
 }
+
