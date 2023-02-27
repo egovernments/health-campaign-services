@@ -34,6 +34,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -185,7 +186,7 @@ class ProjectFacilityApiControllerTest {
 
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest
                 .builder().projectFacility(
-                ProjectFacilitySearch.builder().projectId("12").build()
+                ProjectFacilitySearch.builder().projectId(Collections.singletonList("12")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(projectFacilityService.search(any(ProjectFacilitySearchRequest.class),
                 any(Integer.class),
