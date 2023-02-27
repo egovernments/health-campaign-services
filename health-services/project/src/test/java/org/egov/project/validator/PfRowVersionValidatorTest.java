@@ -4,7 +4,7 @@ import org.egov.common.models.Error;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
 import org.egov.project.helper.ProjectFacilityTestBuilder;
 import org.egov.project.repository.ProjectFacilityRepository;
-import org.egov.project.validator.facility.PfNonExistentEntityValidator;
+import org.egov.project.validator.facility.PfRowVersionValidator;
 import org.egov.project.web.models.ProjectFacility;
 import org.egov.project.web.models.ProjectFacilityBulkRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -25,36 +25,39 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class NonExistentEntityValidatorTest {
+class PfRowVersionValidatorTest {
 
     @InjectMocks
-    private PfNonExistentEntityValidator pfNonExistentEntityValidator;
-    
+    private PfRowVersionValidator pfRowVersionValidator;
+
     @Mock
     private ProjectFacilityRepository facilityRepository;
-    
+
+
     @Test
-    @DisplayName("should add to error details map if entity not found")
-    void shouldAddToErrorDetailsMapIfEntityNotFound() {
+    @DisplayName("should add to error if row version mismatch found")
+    void shouldAddToErrorDetailsIfRowVersionMismatchFound() {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
                 .withOneProjectFacilityHavingId("some-id").withRequestInfo().build();
+        request.getProjectFacilities().get(0).setRowVersion(2);
         when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder().withId("some-id").build()));
 
-        Map<ProjectFacility, List<Error>> errorDetailsMap = pfNonExistentEntityValidator.validate(request);
+        Map<ProjectFacility, List<Error>> errorDetailsMap = pfRowVersionValidator.validate(request);
 
         assertEquals(1, errorDetailsMap.size());
     }
 
     @Test
-    @DisplayName("should not add to error details map if entity found")
-    void shouldNotAddToErrorDetailsMapIfEntityFound() {
+    @DisplayName("should not add to error if row version is similar")
+    void shouldNotAddToErrorDetailsIfRowVersionSimilar() {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
                 .withOneProjectFacilityHavingId("some-id").withRequestInfo().build();
         when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
-                .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder().withId("some-id").build()));
+                .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder()
+                        .withId("some-id").build()));
 
-        Map<ProjectFacility, List<Error>> errorDetailsMap = pfNonExistentEntityValidator.validate(request);
+        Map<ProjectFacility, List<Error>> errorDetailsMap = pfRowVersionValidator.validate(request);
 
         assertEquals(0, errorDetailsMap.size());
     }

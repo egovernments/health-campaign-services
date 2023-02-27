@@ -17,7 +17,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(MockitoExtension.class)
-class UniqueEntityValidatorTest {
+class PfUniqueEntityValidatorTest {
 
     @InjectMocks
     private PfUniqueEntityValidator pfUniqueEntityValidator;
