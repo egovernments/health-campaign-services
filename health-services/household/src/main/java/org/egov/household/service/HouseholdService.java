@@ -89,7 +89,7 @@ public class HouseholdService {
     }
 
     public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
-        log.info("received request to create households: " + request);
+        log.info("received request to create households");
         Map<Household, ErrorDetails> errorDetailsMap = new HashMap<>();
         List<Household> validEntities = request.getHouseholds();
         try {
