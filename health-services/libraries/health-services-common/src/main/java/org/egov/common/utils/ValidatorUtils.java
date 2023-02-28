@@ -104,4 +104,12 @@ public class ValidatorUtils {
                 .build();
     }
 
+    public static Error getErrorForDuplicateMapping(String entityParent, String entityChild) {
+        return Error.builder().errorMessage(String.format("Duplicate entity %s %s", entityParent, entityChild))
+                .errorCode("DUPLICATE_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("DUPLICATE_ENTITY",
+                        String.format("Duplicate entity %s, %s", entityParent, entityChild))).build();
+    }
+
 }
