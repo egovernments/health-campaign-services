@@ -52,4 +52,8 @@ public interface Constants {
     String SET_PROJECT_FACILITIES = "setProjectFacilities";
 
     String GET_FACILITY_ID = "getFacilityId";
+
+    String PIPE = "||";
+
+    String PROJECT_ID = "projectId";
 }

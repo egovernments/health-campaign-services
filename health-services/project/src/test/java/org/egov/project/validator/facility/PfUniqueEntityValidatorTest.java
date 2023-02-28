@@ -1,8 +1,7 @@
-package org.egov.project.validator;
+package org.egov.project.validator.facility;
 
 import org.egov.common.models.Error;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
-import org.egov.project.validator.facility.PfUniqueEntityValidator;
 import org.egov.project.web.models.ProjectFacility;
 import org.egov.project.web.models.ProjectFacilityBulkRequest;
 import org.junit.jupiter.api.DisplayName;
