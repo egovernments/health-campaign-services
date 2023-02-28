@@ -28,7 +28,6 @@ public class Boundary {
     private String code = null;
 
     @JsonProperty("name")
-    @NotNull
     private String name = null;
 
     @JsonProperty("label")
