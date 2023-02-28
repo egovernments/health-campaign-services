@@ -14,6 +14,7 @@ import org.egov.project.validator.resource.PrNullIdValidator;
 import org.egov.project.validator.resource.PrProductVariantIdValidator;
 import org.egov.project.validator.resource.PrProjectIdValidator;
 import org.egov.project.validator.resource.PrRowVersionValidator;
+import org.egov.project.validator.resource.PrUniqueCombinationValidator;
 import org.egov.project.validator.resource.PrUniqueEntityValidator;
 import org.egov.project.web.models.ProjectResource;
 import org.egov.project.web.models.ProjectResourceBulkRequest;
@@ -56,7 +57,8 @@ public class ProjectResourceService {
 
     private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForCreate = validator ->
             validator.getClass().equals(PrProductVariantIdValidator.class)
-                    || validator.getClass().equals(PrProjectIdValidator.class);
+                    || validator.getClass().equals(PrProjectIdValidator.class)
+                    || validator.getClass().equals(PrUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PrProductVariantIdValidator.class)
@@ -65,7 +67,8 @@ public class ProjectResourceService {
                     || validator.getClass().equals(PrNullIdValidator.class)
                     || validator.getClass().equals(PrIsDeletedValidator.class)
                     || validator.getClass().equals(PrRowVersionValidator.class)
-                    || validator.getClass().equals(PrUniqueEntityValidator.class);
+                    || validator.getClass().equals(PrUniqueEntityValidator.class)
+                    || validator.getClass().equals(PrUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForDelete = validator ->
             validator.getClass().equals(PrIsDeletedValidator.class)
