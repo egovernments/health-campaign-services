@@ -1,8 +1,8 @@
-package org.egov.project.validator;
+package org.egov.project.validator.facility;
+
 
 import org.egov.common.models.Error;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
-import org.egov.project.validator.facility.PfNullIdValidator;
 import org.egov.project.web.models.ProjectFacility;
 import org.egov.project.web.models.ProjectFacilityBulkRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -17,29 +17,29 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(MockitoExtension.class)
-class PfNullIdValidatorTest {
+class PfIsDeletedValidatorTest {
 
     @InjectMocks
-    private PfNullIdValidator pfNullIdValidator;
+    private PfIsDeletedValidator pfIsDeletedValidator;
 
     @Test
-    @DisplayName("should add to error details if id is null")
-    void shouldAddErrorDetailsIfIdNull() {
+    @DisplayName("should add project facility to error details if is Deleted is true")
+    void shouldAddProjectFacilityToErrorDetailsIfIsDeletedIsTrue() {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
                 .withOneProjectFacility().withRequestInfo().build();
+        request.getProjectFacilities().get(0).setIsDeleted(true);
 
-        Map<ProjectFacility, List<Error>> errorDetailsMap = pfNullIdValidator.validate(request);
+        Map<ProjectFacility, List<Error>> errorDetailsMap = pfIsDeletedValidator.validate(request);
         assertEquals(errorDetailsMap.size(), 1);
     }
 
     @Test
-    @DisplayName("should not add to error details if id is not  null")
-    void shouldNotAddErrorDetailsIfIdNotNull() {
+    @DisplayName("should not add project facility to error details if is Deleted is false")
+    void shouldNotAddProjectFacilityToErrorDetailsIfIsDeletedIsFalse() {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
                 .withOneProjectFacility().withRequestInfo().build();
-        request.getProjectFacilities().get(0).setId("some-id");
 
-        Map<ProjectFacility, List<Error>> errorDetailsMap = pfNullIdValidator.validate(request);
+        Map<ProjectFacility, List<Error>> errorDetailsMap = pfIsDeletedValidator.validate(request);
         assertEquals(errorDetailsMap.size(), 0);
     }
 }

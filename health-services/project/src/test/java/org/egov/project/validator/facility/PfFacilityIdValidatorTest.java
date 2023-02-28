@@ -1,11 +1,10 @@
-package org.egov.project.validator;
+package org.egov.project.validator.facility;
 
 
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
-import org.egov.project.validator.facility.PfFacilityIdValidator;
 import org.egov.project.web.models.Facility;
 import org.egov.project.web.models.FacilityBulkResponse;
 import org.egov.project.web.models.ProjectFacility;

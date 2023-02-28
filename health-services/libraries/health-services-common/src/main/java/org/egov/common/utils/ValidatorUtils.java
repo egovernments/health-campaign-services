@@ -79,6 +79,14 @@ public class ValidatorUtils {
                 .exception(new CustomException("DUPLICATE_ENTITY", "Duplicate entity")).build();
     }
 
+    public static Error getErrorForDuplicateMapping(String entityParent, String entityChild) {
+        return Error.builder().errorMessage(String.format("Duplicate entity %s, %s", entityParent, entityChild))
+                .errorCode("DUPLICATE_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("DUPLICATE_ENTITY",
+                        String.format("Duplicate entity %s, %s", entityParent, entityChild))).build();
+    }
+
     public static Error getErrorForUniqueSubEntity() {
         return Error.builder().errorMessage("Duplicate sub entity")
                 .errorCode("DUPLICATE_SUB_ENTITY")

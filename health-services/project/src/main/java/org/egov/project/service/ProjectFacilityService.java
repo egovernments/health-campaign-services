@@ -16,6 +16,7 @@ import org.egov.project.validator.facility.PfNonExistentEntityValidator;
 import org.egov.project.validator.facility.PfNullIdValidator;
 import org.egov.project.validator.facility.PfProjectIdValidator;
 import org.egov.project.validator.facility.PfRowVersionValidator;
+import org.egov.project.validator.facility.PfUniqueCombinationValidator;
 import org.egov.project.validator.facility.PfUniqueEntityValidator;
 import org.egov.project.web.models.ProjectFacility;
 import org.egov.project.web.models.ProjectFacilityBulkRequest;
@@ -61,7 +62,8 @@ public class ProjectFacilityService {
 
     private final Predicate<Validator<ProjectFacilityBulkRequest, ProjectFacility>> isApplicableForCreate = validator ->
             validator.getClass().equals(PfFacilityIdValidator.class)
-                    || validator.getClass().equals(PfProjectIdValidator.class);
+                    || validator.getClass().equals(PfProjectIdValidator.class)
+                    || validator.getClass().equals(PfUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectFacilityBulkRequest, ProjectFacility>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PfFacilityIdValidator.class)
@@ -70,7 +72,8 @@ public class ProjectFacilityService {
                     || validator.getClass().equals(PfIsDeletedValidator.class)
                     || validator.getClass().equals(PfRowVersionValidator.class)
                     || validator.getClass().equals(PfNonExistentEntityValidator.class)
-                    || validator.getClass().equals(PfUniqueEntityValidator.class);
+                    || validator.getClass().equals(PfUniqueEntityValidator.class)
+                    || validator.getClass().equals(PfUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectFacilityBulkRequest, ProjectFacility>> isApplicableForDelete = validator ->
             validator.getClass().equals(PfNullIdValidator.class)

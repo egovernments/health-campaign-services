@@ -57,7 +57,8 @@ public class PrProductVariantIdValidator implements Validator<ProjectResourceBul
         List<ProjectResource> entities = request.getProjectResource().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if (!entities.isEmpty()) {
-            Set<String> productVariantIds = entities.stream().map(pr -> pr.getResource().getProductVariantId()).collect(Collectors.toSet());
+            Set<String> productVariantIds = entities.stream().map(pr -> pr.getResource().getProductVariantId())
+                    .collect(Collectors.toSet());
             Map<String, List<ProjectResource>> prMap = getProductVariantMap(entities);
 
             try {
