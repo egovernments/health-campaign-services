@@ -35,7 +35,7 @@ public class FacilitySearch {
     private Integer storageCapacity = null;
 
     @JsonProperty("boundaryCode")
-    private String boundaryCode = null;
+    private String localityCode = null;
 
 
 }

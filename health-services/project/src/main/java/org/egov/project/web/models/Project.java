@@ -79,6 +79,9 @@ public class Project {
     @JsonProperty("projectHierarchy")
     private String projectHierarchy = null;
 
+    @JsonProperty("natureOfWork")
+    private String natureOfWork = null;
+
     @JsonProperty("ancestors")
     private List<Project> ancestors = null;
 

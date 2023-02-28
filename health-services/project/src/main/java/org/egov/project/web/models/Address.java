@@ -34,6 +34,10 @@ public class Address {
     @JsonProperty("tenantId")
     private String tenantId = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
     @JsonProperty("doorNo")
     @Size(min = 2, max = 64)
     private String doorNo = null;

@@ -39,7 +39,6 @@ import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.project.Constants.SET_STAFF;
-import static org.egov.project.Constants.SET_TASKS;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
 @Service
@@ -120,7 +119,7 @@ public class ProjectStaffService {
             }
         } catch (Exception exception) {
             log.error("error occurred while creating project staff: {}", exception.getMessage());
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STAFF);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -154,7 +153,7 @@ public class ProjectStaffService {
             }
         } catch (Exception exception) {
             log.error("error occurred while updating project staff", exception);
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STAFF);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -186,7 +185,7 @@ public class ProjectStaffService {
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
-            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_TASKS);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STAFF);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
@@ -205,10 +204,10 @@ public class ProjectStaffService {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
-        List<ProjectStaff> validTasks = request.getProjectStaff().stream()
+        List<ProjectStaff> validEntities = request.getProjectStaff().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
         log.info("validation successful, found valid project staff");
-        return new Tuple<>(validTasks, errorDetailsMap);
+        return new Tuple<>(validEntities, errorDetailsMap);
     }
 
     public List<ProjectStaff> search(ProjectStaffSearchRequest projectStaffSearchRequest,

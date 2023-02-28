@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -12,8 +13,6 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * This object defines the mapping of a resource to a project.
@@ -28,10 +27,12 @@ import java.util.List;
 @Builder
 public class ProjectResource   {
     @JsonProperty("id")
+    @Size(min=2, max = 64)
     private String id = null;
 
     @JsonProperty("tenantId")
     @NotNull
+    @Size(min=2, max = 1000)
     private String tenantId = null;
 
     @JsonProperty("projectId")
@@ -39,25 +40,27 @@ public class ProjectResource   {
     @Size(min=2,max=64)
     private String projectId = null;
 
-    @JsonProperty("resources")
+    @JsonProperty("resource")
     @NotNull
-    @Valid
-    private List<ProjectProductVariant> resources = new ArrayList<>();
+    private ProjectProductVariant resource = null;
 
     @JsonProperty("isDeleted")
-    private Boolean isDeleted = null;
+    private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("rowVersion")
     private Integer rowVersion = null;
 
+    @JsonProperty("startDate")
+    private Long startDate = null;
+
+    @JsonProperty("endDate")
+    private Long endDate = null;
+
+    @JsonIgnore
+    private Boolean hasErrors = Boolean.FALSE;
+
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
-
-    public ProjectResource addResourcesItem(ProjectProductVariant resourcesItem) {
-        this.resources.add(resourcesItem);
-        return this;
-    }
-
 }
 
