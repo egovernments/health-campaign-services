@@ -21,15 +21,15 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 public class ServiceResponse {
-    @JsonProperty("responseInfo")
+    @JsonProperty("ResponseInfo")
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("service")
+    @JsonProperty("Services")
     @Valid
     private List<Service> service = null;
 
-    @JsonProperty("pagination")
+    @JsonProperty("Pagination")
     @Valid
     private Pagination pagination = null;
 
