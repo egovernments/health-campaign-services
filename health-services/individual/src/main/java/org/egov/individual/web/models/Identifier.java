@@ -30,6 +30,10 @@ public class Identifier {
 
     private String id = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
     @JsonProperty("individualId")
 
     @Size(min = 2, max = 64)

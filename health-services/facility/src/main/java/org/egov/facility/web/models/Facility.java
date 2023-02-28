@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 /**
@@ -23,9 +24,12 @@ import javax.validation.constraints.Size;
 @Builder
 public class Facility {
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
     @JsonProperty("tenantId")
+    @NotNull
+    @Size(min = 2, max = 1000)
     private String tenantId = null;
 
     @JsonProperty("isPermanent")

@@ -7,10 +7,7 @@ import org.egov.project.TestConfiguration;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
 import org.egov.project.helper.TaskTestBuilder;
-import org.egov.project.service.ProjectBeneficiaryService;
-import org.egov.project.service.ProjectService;
-import org.egov.project.service.ProjectStaffService;
-import org.egov.project.service.ProjectTaskService;
+import org.egov.project.service.*;
 import org.egov.project.web.models.TaskRequest;
 import org.egov.project.web.models.TaskSearch;
 import org.egov.project.web.models.TaskSearchRequest;
@@ -45,6 +42,9 @@ class ProjectTaskApiControllerTest {
 
     @MockBean
     private ProjectTaskService projectTaskService;
+
+    @MockBean
+    private ProjectFacilityService projectFacilityService;
 
     @MockBean
     private ProjectStaffService projectStaffService;

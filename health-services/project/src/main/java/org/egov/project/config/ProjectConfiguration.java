@@ -34,6 +34,24 @@ public class ProjectConfiguration {
     @Value("${project.staff.consumer.bulk.delete.topic}")
     private String bulkDeleteProjectStaffTopic;
 
+    @Value("${project.facility.kafka.create.topic}")
+    private String createProjectFacilityTopic;
+
+    @Value("${project.facility.consumer.bulk.create.topic}")
+    private String bulkCreateProjectFacilityTopic;
+
+    @Value("${project.facility.kafka.update.topic}")
+    private String updateProjectFacilityTopic;
+
+    @Value("${project.facility.consumer.bulk.update.topic}")
+    private String bulkUpdateProjectFacilityTopic;
+
+    @Value("${project.facility.kafka.delete.topic}")
+    private String deleteProjectFacilityTopic;
+
+    @Value("${project.facility.consumer.bulk.delete.topic}")
+    private String bulkDeleteProjectFacilityTopic;
+
     @Value("${project.beneficiary.kafka.create.topic}")
     private String createProjectBeneficiaryTopic;
 
@@ -63,6 +81,12 @@ public class ProjectConfiguration {
 
     @Value("${project.staff.idgen.id.format}")
     private String projectStaffIdFormat;
+
+    @Value("${project.resource.idgen.id.format}")
+    private String projectResourceIdFormat;
+
+    @Value("${project.facility.idgen.id.format}")
+    private String projectFacilityIdFormat;
 
     @Value("${egov.product.host}")
     private String productHost;
@@ -97,6 +121,12 @@ public class ProjectConfiguration {
     @Value("${egov.search.individual.url}")
     private String individualServiceSearchUrl;
 
+    @Value("${egov.facility.host}")
+    private String facilityServiceHost;
+
+    @Value("${egov.search.facility.url}")
+    private String facilityServiceSearchUrl;
+
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
 
@@ -125,4 +155,24 @@ public class ProjectConfiguration {
 
     @Value("${project.default.limit}")
     private Integer defaultLimit;
+
+    @Value("${project.resource.kafka.create.topic}")
+    private String createProjectResourceTopic;
+
+    @Value("${project.resource.kafka.update.topic}")
+    private String updateProjectResourceTopic;
+
+    @Value("${project.resource.kafka.delete.topic}")
+    private String deleteProjectResourceTopic;
+
+    @Value("${project.resource.consumer.bulk.create.topic}")
+    private String createProjectResourceBulkTopic;
+
+    @Value("${project.resource.consumer.bulk.update.topic}")
+    private String updateProjectResourceBulkTopic;
+
+    @Value("${project.resource.consumer.bulk.delete.topic}")
+    private String deleteProjectResourceBulkTopic;
+
+
 }

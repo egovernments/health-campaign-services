@@ -118,7 +118,7 @@ class StockServiceTest {
     }
 
     @Test
-    @DisplayName("should call update with isBulk false")
+    @DisplayName("should call delete with isBulk false")
     void shouldCallDeleteWithIsBulkFalse() {
         StockRequest request = StockRequestTestBuilder.builder().withStock().withRequestInfo().build();
         doReturn(Collections.singletonList(request.getStock()))
