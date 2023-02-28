@@ -1,7 +1,5 @@
 package org.egov.project.util;
 
-import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.JsonPath;
 import digit.models.coremodels.RequestInfoWrapper;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONObject;
@@ -14,10 +12,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+
+import static org.egov.project.util.ProjectConstants.CODE;
 
 
 @Component
@@ -44,7 +43,7 @@ public class BoundaryUtil {
         if (hierarchyTypeCode != null)
             uri.append("&").append("hierarchyTypeCode=").append(hierarchyTypeCode);
 
-        uri.append("&").append("boundaryType=").append("Locality").append("&").append("code=")
+        uri.append("&").append("code=")
                 .append(StringUtils.join(locations, ','));
 
         Optional<LinkedHashMap> response = null;
@@ -63,14 +62,10 @@ public class BoundaryUtil {
             String jsonString = new JSONObject(responseMap).toString();
 
             for (String location: locations) {
-                String jsonpath = "$..boundary[?(@.code==\"{}\")]";
-                jsonpath = jsonpath.replace("{}", location);
-                DocumentContext context = JsonPath.parse(jsonString);
-                Object boundaryObject = context.read(jsonpath);
-
-                if (!(boundaryObject instanceof ArrayList) || CollectionUtils.isEmpty((ArrayList) boundaryObject)) {
-                    throw new CustomException("INVALID_BOUNDARY_DATA", "The boundary data for the code "
-                            + location + " is not available");
+                int index = jsonString.indexOf(location);
+                if (index == -1 || index < 10 || !jsonString.substring(index - 7, index - 3).equals(CODE)) {
+                    log.error("The boundary data for the code " + location + " is not available");
+                    throw new CustomException("INVALID_BOUNDARY_DATA", "The boundary data for the code " + location + " is not available");
                 }
             }
         }
