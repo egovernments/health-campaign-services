@@ -20,16 +20,16 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @Builder
 public class ServiceDefinitionSearchRequest {
-    @JsonProperty("requestInfo")
+    @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("serviceDefinitionCriteria")
+    @JsonProperty("ServiceDefinitionCriteria")
     @Valid
     private ServiceDefinitionCriteria serviceDefinitionCriteria = null;
 
-    @JsonProperty("pagination")
+    @JsonProperty("Pagination")
     @Valid
     private Pagination pagination = null;
 
