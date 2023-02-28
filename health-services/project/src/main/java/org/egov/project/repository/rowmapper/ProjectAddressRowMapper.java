@@ -109,6 +109,7 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
         String project_projectHierarchy = rs.getString("project_projectHierarchy");
         String project_parent = rs.getString("project_parent");
         JsonNode project_additionalDetails = getAdditionalDetail("project_additionalDetails", rs);
+        String project_natureOfWork = rs.getString("project_natureOfWork");
         Boolean project_isDeleted = rs.getBoolean("project_isDeleted");
         Integer project_rowVersion = rs.getInt("project_rowVersion");
         String project_createdBy = rs.getString("project_createdBy");
@@ -137,6 +138,7 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
                 .parent(project_parent)
                 .projectHierarchy(project_projectHierarchy)
                 .additionalDetails(project_additionalDetails)
+                .natureOfWork(project_natureOfWork)
                 .isDeleted(project_isDeleted)
                 .rowVersion(project_rowVersion)
                 .address(address)

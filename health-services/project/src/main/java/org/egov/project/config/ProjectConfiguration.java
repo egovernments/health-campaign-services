@@ -174,5 +174,9 @@ public class ProjectConfiguration {
     @Value("${project.resource.consumer.bulk.delete.topic}")
     private String deleteProjectResourceBulkTopic;
 
+    @Value(("${project.mdms.module}"))
+    private String mdmsModule;
 
+    @Value(("${egov.location.hierarchy.type}"))
+    private String locationHierarchyType;
 }
