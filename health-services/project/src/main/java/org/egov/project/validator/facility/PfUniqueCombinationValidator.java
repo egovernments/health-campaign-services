@@ -44,7 +44,9 @@ public class PfUniqueCombinationValidator implements Validator<ProjectFacilityBu
             validEntities = request.getProjectFacilities().stream()
                     .filter(notHavingErrors())
                     .collect(Collectors.toList());
-            validateProjectFacilityMappingFromDb(validEntities, errorDetailsMap);
+            if (!validEntities.isEmpty()) {
+                validateProjectFacilityMappingFromDb(validEntities, errorDetailsMap);
+            }
         }
 
         return errorDetailsMap;
