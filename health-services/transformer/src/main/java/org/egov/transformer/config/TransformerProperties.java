@@ -16,4 +16,13 @@ public class TransformerProperties {
 
     @Value("${transformer.producer.bulk.create.project.task.index.v1.topic}")
     private String transformerProducerBulkCreateProjectTaskIndexV1Topic;
+
+    @Value("${egov.project.host}")
+    private String projectHost;
+
+    @Value("${egov.search.project.url}")
+    private String projectSearchUrl;
+
+    @Value("${search.api.limit:100}")
+    private String searchApiLimit;
 }
