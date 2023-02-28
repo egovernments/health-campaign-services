@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskCreateIndexV1;
+import org.egov.transformer.models.upstream.Project;
 import org.egov.transformer.models.upstream.Task;
 import org.egov.transformer.producer.Producer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,10 +55,18 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
     @Component
     static class ProjectTaskCreateIndexV1Transformer implements
             Transformer<Task, ProjectTaskCreateIndexV1> {
+        private final ProjectService projectService;
+
+        @Autowired
+        ProjectTaskCreateIndexV1Transformer(ProjectService projectService) {
+            this.projectService = projectService;
+        }
 
         @Override
         public List<ProjectTaskCreateIndexV1> transform(Task task) {
-            return task.getResources().stream().map(r -> ProjectTaskCreateIndexV1.builder()
+            return task.getResources().stream().map(r -> {
+                Project project = projectService.getProject(task.getProjectId(), task.getTenantId());
+                ProjectTaskCreateIndexV1 projectTaskCreateIndexV1 = ProjectTaskCreateIndexV1.builder()
                     .id(task.getId())
                     .taskType("DELIVERY")
                     .userId(task.getAuditDetails().getCreatedBy())
@@ -73,7 +82,9 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
                     .latitude(task.getAddress().getLatitude())
                     .longitude(task.getAddress().getLongitude())
                     .createdTime(task.getAuditDetails().getCreatedTime())
-                    .build()).collect(Collectors.toList());
+                    .build();
+                return projectTaskCreateIndexV1;
+            }).collect(Collectors.toList());
         }
     }
 }

@@ -1,4 +1,4 @@
-package org.egov.project.web.models;
+package org.egov.transformer.models.upstream;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
