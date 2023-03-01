@@ -65,7 +65,6 @@ public class ServiceControllerTest {
     @Test
     @DisplayName("should return service response for create")
     void shouldReturnServiceResponseForCreate() throws Exception {
-        System.out.println("heree");
         ServiceRequest request= ServiceRequestTestBuilder.builder().withServices().withRequestInfo().build();
         when(serviceRequestService.createService(any(ServiceRequest.class))).
                 thenReturn(ServiceTestBuilder.builder().withService().build());
@@ -76,6 +75,7 @@ public class ServiceControllerTest {
         assertNotNull(response.getService());
         verify(serviceRequestService,times(1)).createService(any(ServiceRequest.class));
     }
+
 
 
 }
