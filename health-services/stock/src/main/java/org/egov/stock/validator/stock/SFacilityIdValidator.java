@@ -1,0 +1,69 @@
+package org.egov.stock.validator.stock;
+
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.Error;
+import org.egov.common.validator.Validator;
+import org.egov.stock.service.FacilityService;
+import org.egov.stock.web.models.Stock;
+import org.egov.stock.web.models.StockBulkRequest;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
+import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
+import static org.egov.stock.Constants.GET_FACILITY_ID;
+
+@Component
+@Order(value = 7)
+@Slf4j
+public class SFacilityIdValidator implements Validator<StockBulkRequest, Stock> {
+
+    private final FacilityService facilityService;
+
+    public SFacilityIdValidator(FacilityService facilityService) {
+        this.facilityService = facilityService;
+    }
+
+    @Override
+    public Map<Stock, List<Error>> validate(StockBulkRequest request) {
+        log.info("validating for facility id");
+        Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+
+        List<Stock> validEntities = request.getStock().stream()
+                .filter(notHavingErrors())
+                .collect(Collectors.toList());
+        if (!validEntities.isEmpty()) {
+            String tenantId = getTenantId(validEntities);
+            Class<?> objClass = getObjClass(validEntities);
+            Method idMethod = getMethod(GET_FACILITY_ID, objClass);
+            Map<String, Stock> eMap = getIdToObjMap(validEntities, idMethod);
+
+            if (!eMap.isEmpty()) {
+                List<String> entityIds = new ArrayList<>(eMap.keySet());
+                List<String> existingFacilityIds = facilityService.validateFacilityIds(entityIds, validEntities,
+                        tenantId, errorDetailsMap, request.getRequestInfo());
+                List<Stock> invalidEntities = validEntities.stream().filter(notHavingErrors()).filter(entity ->
+                                !existingFacilityIds.contains(entity.getFacilityId()))
+                        .collect(Collectors.toList());
+                invalidEntities.forEach(stock -> {
+                    Error error = getErrorForNonExistentRelatedEntity(stock.getFacilityId());
+                    populateErrorDetails(stock, error, errorDetailsMap);
+                });
+            }
+        }
+
+        return errorDetailsMap;
+    }
+}
