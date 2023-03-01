@@ -30,7 +30,7 @@ public class ProjectResourceBulkResponse {
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("ProjectResource")
+    @JsonProperty("ProjectResources")
     @NotNull
     @Valid
     private List<ProjectResource> projectResource = new ArrayList<>();

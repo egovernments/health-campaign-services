@@ -30,7 +30,7 @@ public class ProjectResourceBulkRequest {
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("ProjectResource")
+    @JsonProperty("ProjectResources")
     @NotNull
     @Valid
     @Size(min=1)

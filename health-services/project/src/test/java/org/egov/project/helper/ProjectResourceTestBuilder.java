@@ -17,7 +17,7 @@ public class ProjectResourceTestBuilder {
     }
 
     public ProjectResource build() {
-        return this.builder.build();
+        return this.builder.hasErrors(false).build();
     }
 
     public ProjectResourceTestBuilder withProjectResource() {
@@ -40,6 +40,20 @@ public class ProjectResourceTestBuilder {
 
     public ProjectResourceTestBuilder withId(String id) {
         this.builder.id(id);
+        return this;
+    }
+
+    public ProjectResourceTestBuilder withProjectId(String id) {
+        this.builder.projectId(id);
+        return this;
+    }
+
+    public ProjectResourceTestBuilder withProductVariantId(String id) {
+        this.builder.resource(ProjectProductVariant.builder()
+                .productVariantId(id)
+                .isBaseUnitVariant(Boolean.FALSE)
+                .type("type")
+                .build());
         return this;
     }
 }

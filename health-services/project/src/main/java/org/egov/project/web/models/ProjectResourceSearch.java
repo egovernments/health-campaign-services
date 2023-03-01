@@ -10,6 +10,7 @@ import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * This object defines the mapping of a resource to a project.
@@ -26,7 +27,7 @@ import javax.validation.constraints.Size;
 public class ProjectResourceSearch {
 
     @JsonProperty("id")
-    private String id = null;
+    private List<String> id = null;
 
     @JsonProperty("projectId")
     @Size(min=2,max=64)
