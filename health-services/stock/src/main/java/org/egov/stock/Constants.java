@@ -17,4 +17,8 @@ public class Constants {
     public static String VALIDATION_ERROR = "VALIDATION_ERROR";
 
     public static String GET_FACILITY_ID = "getFacilityId";
+
+    public static String FACILITY = "FACILITY";
+
+    public static String GET_REFERENCE_ID = "getReferenceId";
 }

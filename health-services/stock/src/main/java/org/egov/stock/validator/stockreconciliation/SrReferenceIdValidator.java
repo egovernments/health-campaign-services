@@ -15,17 +15,18 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.stock.Constants.GET_FACILITY_ID;
+import static org.egov.stock.Constants.FACILITY;
+import static org.egov.stock.Constants.GET_REFERENCE_ID;
 import static org.egov.stock.util.ValidatorUtil.getStockReconciliationListMap;
 
 @Component
-@Order(value = 7)
+@Order(value = 8)
 @Slf4j
-public class SrFacilityIdValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
+public class SrReferenceIdValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
 
     private final FacilityService facilityService;
 
-    public SrFacilityIdValidator(FacilityService facilityService) {
+    public SrReferenceIdValidator(FacilityService facilityService) {
         this.facilityService = facilityService;
     }
 
@@ -36,9 +37,8 @@ public class SrFacilityIdValidator implements Validator<StockReconciliationBulkR
 
         List<StockReconciliation> validEntities = request.getStockReconciliation().stream()
                 .filter(notHavingErrors())
+                .filter(entity -> FACILITY.equals(entity.getReferenceIdType()))
                 .collect(Collectors.toList());
-        return getStockReconciliationListMap(request, errorDetailsMap, validEntities, GET_FACILITY_ID, facilityService);
+        return getStockReconciliationListMap(request, errorDetailsMap, validEntities, GET_REFERENCE_ID, facilityService);
     }
-
-
 }
