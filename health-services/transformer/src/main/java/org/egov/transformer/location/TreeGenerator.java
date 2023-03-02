@@ -25,11 +25,15 @@ public class TreeGenerator {
         if (code.equals(boundaryTree.getBoundaryNode().getCode())) {
             return true;
         }
+        boolean found = false;
         if (boundaryTree.getBoundaryTrees() != null && !boundaryTree.getBoundaryTrees().isEmpty()) {
             for (BoundaryTree child : boundaryTree.getBoundaryTrees()) {
-                return search(child, code);
+                found = search(child, code);
+                if (found) {
+                    break;
+                }
             }
         }
-        return false;
+        return found;
     }
 }
