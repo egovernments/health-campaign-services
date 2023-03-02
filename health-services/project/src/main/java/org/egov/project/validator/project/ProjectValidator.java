@@ -60,10 +60,10 @@ public class ProjectValidator {
         // TODO: Uncomment and fix as per HCM once we get clarity
         // validateRequestMDMSData(request, tenantId, errorMap);
 
-        //Get localities in list from all Projects in request body for validation
-        List<String> locationsForValidation = getLocationForValidation(request.getProjects());
-        validateLocation(locationsForValidation, tenantId, requestInfo, errorMap);
-        log.info("Localities in request validated with Location Service");
+        //Get boundaries in list from all Projects in request body for validation
+        Map<String, List<String>> boundariesForValidation = getBoundaryForValidation(request.getProjects());
+        validateBoundary(boundariesForValidation, tenantId, requestInfo, errorMap);
+        log.info("Boundaries in request validated with Location Service");
 
         // Verify provided documentIds are valid.
         validateDocumentIds(request);
@@ -118,10 +118,10 @@ public class ProjectValidator {
         // TODO: Uncomment and fix as per HCM once we get clarity
         // validateRequestMDMSData(request, tenantId, errorMap);
 
-        //Get localities in list from all Projects in request body for validation
-        List<String> locationsForValidation = getLocationForValidation(request.getProjects());
-        validateLocation(locationsForValidation, tenantId, requestInfo, errorMap);
-        log.info("Localities in request validated with Location Service");
+        //Get boundaries in list from all Projects in request body for validation
+        Map<String, List<String>> boundariesForValidation = getBoundaryForValidation(request.getProjects());
+        validateBoundary(boundariesForValidation, tenantId, requestInfo, errorMap);
+        log.info("Boundaries in request validated with Location Service");
 
         // Verify provided documentIds are valid.
         validateDocumentIds(request);
@@ -171,10 +171,11 @@ public class ProjectValidator {
                 log.error("Start date should be less than end date");
                 errorMap.put("INVALID_DATE", "Start date should be less than end date");
             }
+            if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary()) && StringUtils.isBlank(project.getAddress().getBoundaryType()) ) {
+                log.error("Boundary Type is mandatory if boundary is present  in Project request body");
+                errorMap.put("BOUNDARY", "Boundary Type is mandatory if boundary is present in Project request body");
+            }
         }
-
-        if (!errorMap.isEmpty())
-            throw new CustomException(errorMap);
     }
 
     /* Validates Search Project Request body */
@@ -295,21 +296,33 @@ public class ProjectValidator {
         log.info("Request data validated with MDMS");
     }
 
-    /* Returns localities in list for all Projects in request body */
-    private List<String> getLocationForValidation(List<Project> projects) {
-        List<String> localities = new ArrayList<>();
+    /* Returns boundaries map for all Projects in request body with key boundaryType and value as list of all boundaries corresponding to boundaryType*/
+    private Map<String, List<String>> getBoundaryForValidation(List<Project> projects) {
+        Map<String, List<String>> boundariesMap = new HashMap<>();
         for (Project project: projects) {
-            if (project.getAddress() != null && project.getAddress().getLocality() != null) {
-                localities.add(project.getAddress().getLocality().getCode());
+            if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary())) {
+                String boundaryType = project.getAddress().getBoundaryType();
+                String boundary = project.getAddress().getBoundary();
+
+                // If the boundary type already exists in the map, add the boundary to the existing list
+                if (boundariesMap.containsKey(boundaryType)) {
+                    boundariesMap.get(boundaryType).add(boundary);
+                }
+                // If the boundary type does not exist in the map, create a new list and add the boundary to it
+                else {
+                    List<String> boundaries = new ArrayList<>();
+                    boundaries.add(boundary);
+                    boundariesMap.put(boundaryType, boundaries);
+                }
             }
         }
-        return localities;
+        return boundariesMap;
     }
 
-    /* Validates Locality data with location service */
-    private void validateLocation(List<String> locations, String tenantId, RequestInfo requestInfo, Map<String, String> errorMap) {
-        if (locations.size() > 0) {
-            boundaryUtil.validateBoundaryDetails(locations, tenantId, requestInfo, config.getLocationHierarchyType());
+    /* Validates Boundary data with location service */
+    private void validateBoundary(Map<String, List<String>> boundaries, String tenantId, RequestInfo requestInfo, Map<String, String> errorMap) {
+        if (boundaries.size() > 0) {
+            boundaryUtil.validateBoundaryDetails(boundaries, tenantId, requestInfo, config.getLocationHierarchyType());
         }
     }
 
