@@ -19,6 +19,7 @@ import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.enrichId;
 import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 
 @Service
@@ -39,11 +40,10 @@ public class ProjectTaskEnrichmentService {
         log.info("starting the enrichment for tasks");
 
         log.info("generating id for tasks");
-        /*List<String> taskIdList = idGenService.getIdList(request.getRequestInfo(),
+        List<String> taskIdList = idGenService.getIdList(request.getRequestInfo(),
                 getTenantId(request.getTasks()),
                 projectConfiguration.getProjectTaskIdFormat(),
-                "", request.getTasks().size());*/
-        List<String> taskIdList = uuidSupplier().apply(validTasks.size());
+                "", request.getTasks().size());
         log.info("enriching tasks");
         enrichForCreate(validTasks, taskIdList, request.getRequestInfo());
         enrichAddressesForCreate(validTasks);
