@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.tracer.model.CustomException;
+import org.egov.transformer.boundary.BoundaryNode;
+import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.upstream.Boundary;
 import org.egov.transformer.models.upstream.Project;
 import org.egov.transformer.models.upstream.ProjectRequest;
 import org.egov.transformer.models.upstream.ProjectResponse;
@@ -18,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -29,14 +33,17 @@ public class ProjectService {
 
     private final ObjectMapper objectMapper;
 
+    private final BoundaryService boundaryService;
+
     private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
+        this.boundaryService = boundaryService;
     }
 
     @KafkaListener(topics = "${transformer.consumer.update.project.topic}")
@@ -61,6 +68,18 @@ public class ProjectService {
             projectMap.put(projectId, project);
         }
         return project;
+    }
+
+    public Map<String, String> getBoundaryLabelToNameMap(String projectId, String tenantId) {
+        Project project = getProject(projectId, tenantId);
+        String locationCode = project.getAddress().getLocality().getCode();
+        List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
+                project.getTenantId());
+        BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
+        BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
+        List<BoundaryNode> parentNodes = locationTree.getParentNodes();
+        return parentNodes.stream().collect(Collectors
+                .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
     }
 
     private List<Project> searchProject(String projectId, String tenantId) {

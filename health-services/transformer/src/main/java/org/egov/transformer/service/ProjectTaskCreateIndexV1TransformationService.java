@@ -1,13 +1,9 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.transformer.boundary.BoundaryNode;
-import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskCreateIndexV1;
-import org.egov.transformer.models.upstream.Boundary;
-import org.egov.transformer.models.upstream.Project;
 import org.egov.transformer.models.upstream.Task;
 import org.egov.transformer.producer.Producer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,26 +57,15 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
             Transformer<Task, ProjectTaskCreateIndexV1> {
         private final ProjectService projectService;
 
-        private final BoundaryService boundaryService;
-
         @Autowired
-        ProjectTaskCreateIndexV1Transformer(ProjectService projectService,
-                                            BoundaryService boundaryService) {
+        ProjectTaskCreateIndexV1Transformer(ProjectService projectService) {
             this.projectService = projectService;
-            this.boundaryService = boundaryService;
         }
 
         @Override
         public List<ProjectTaskCreateIndexV1> transform(Task task) {
-            Project project = projectService.getProject(task.getProjectId(), task.getTenantId());
-            String locationCode = project.getAddress().getLocality().getCode();
-            List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
-                    project.getTenantId());
-            BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
-            BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
-            List<BoundaryNode> parentNodes = locationTree.getParentNodes();
-            Map<String, String> labelNameMap = parentNodes.stream()
-                    .collect(Collectors.toMap(BoundaryNode::getLabel, BoundaryNode::getName));
+            Map<String, String> boundaryLabelToNameMap = projectService
+                    .getBoundaryLabelToNameMap(task.getProjectId(), task.getTenantId());
             return task.getResources().stream().map(r ->
                     ProjectTaskCreateIndexV1.builder()
                             .id(task.getId())
@@ -94,11 +79,11 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
                             .quantity(r.getQuantity())
                             .deliveredTo("HOUSEHOLD")
                             .deliveryComments(r.getDeliveryComment())
-                            .province(labelNameMap.get("Province"))
-                            .district(labelNameMap.get("District"))
-                            .administrativeProvince(labelNameMap.get("AdministrativeProvince"))
-                            .locality(labelNameMap.get("Locality"))
-                            .village(labelNameMap.get("Village"))
+                            .province(boundaryLabelToNameMap.get("Province"))
+                            .district(boundaryLabelToNameMap.get("District"))
+                            .administrativeProvince(boundaryLabelToNameMap.get("AdministrativeProvince"))
+                            .locality(boundaryLabelToNameMap.get("Locality"))
+                            .village(boundaryLabelToNameMap.get("Village"))
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
                             .createdTime(task.getAuditDetails().getCreatedTime())
