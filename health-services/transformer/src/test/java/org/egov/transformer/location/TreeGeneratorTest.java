@@ -9,6 +9,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 @Slf4j
 class TreeGeneratorTest {
 
@@ -27,7 +31,9 @@ class TreeGeneratorTest {
                         .name("Tete")
                         .label("Province")
                 .build());
-        log.info(treeGenerator.generateTree(boundaryList.get(0)).toString());
+        BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
+        assertEquals("LC00001", boundaryTree.getBoundaryNode().getCode());
+        assertNull(boundaryTree.getBoundaryTrees());
     }
 
     @Test
@@ -43,7 +49,9 @@ class TreeGeneratorTest {
                                 .label("District")
                                 .build()))
                 .build());
-        log.info(treeGenerator.generateTree(boundaryList.get(0)).toString());
+        BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
+        assertTrue(boundaryTree.getBoundaryTrees().stream()
+                .anyMatch(b -> b.getBoundaryNode().getCode().equals("LC00002")));
     }
 
     @Test
@@ -69,7 +77,10 @@ class TreeGeneratorTest {
                                         .build()))
                         .build()))
                 .build());
-        log.info(treeGenerator.generateTree(boundaryList.get(0)).toString());
+        BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
+        assertTrue(boundaryTree.getBoundaryTrees().stream()
+                .filter(b -> b.getBoundaryNode().getCode().equals("LC00002")).findFirst()
+                .filter(b -> b.getBoundaryTrees().stream().findAny().isPresent()).isPresent());
     }
 
     @Test
@@ -106,6 +117,11 @@ class TreeGeneratorTest {
                                         .build()))
                         .build()))
                 .build());
-        log.info(treeGenerator.generateTree(boundaryList.get(0)).toString());
+        BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
+        assertTrue(boundaryTree.getBoundaryTrees().stream()
+                .filter(b -> b.getBoundaryNode().getCode().equals("LC00002"))
+                .map(b -> b.getBoundaryTrees().stream()
+                        .filter(b2 -> b2.getBoundaryNode().getCode().equals("LC00003"))
+                        .map(b3 -> b3.getBoundaryTrees().size() == 2)).findAny().isPresent());
     }
 }
