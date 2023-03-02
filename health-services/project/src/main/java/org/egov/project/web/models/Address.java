@@ -89,6 +89,12 @@ public class Address {
     @Size(min = 2, max = 256)
     private String street = null;
 
+    @JsonProperty("boundaryType")
+    private String boundaryType = null;
+
+    @JsonProperty("boundary")
+    private String boundary = null;
+
     @JsonProperty("locality")
     @Valid
     private Boundary locality = null;

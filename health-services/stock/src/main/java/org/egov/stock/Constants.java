@@ -15,4 +15,20 @@ public class Constants {
     public static String GET_ID = "getId";
 
     public static String VALIDATION_ERROR = "VALIDATION_ERROR";
+
+    public static String GET_FACILITY_ID = "getFacilityId";
+
+    public static String GET_REFERENCE_ID = "getReferenceId";
+
+    public static String GET_TRANSACTING_PARTY_ID = "getTransactingPartyId";
+
+    public static String WAREHOUSE = "WAREHOUSE";
+
+    public static String PROJECT = "PROJECT";
+
+    public static String PIPE = "||";
+
+    public static String GET_REQUEST_INFO = "getRequestInfo";
+
+    public static String NO_PROJECT_FACILITY_MAPPING_EXISTS = "NO_PROJECT_FACILITY_MAPPING_EXISTS";
 }
