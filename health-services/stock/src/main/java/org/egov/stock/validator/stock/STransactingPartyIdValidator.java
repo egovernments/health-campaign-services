@@ -15,28 +15,31 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.stock.Constants.GET_FACILITY_ID;
+import static org.egov.stock.Constants.GET_TRANSACTING_PARTY_ID;
+import static org.egov.stock.Constants.WAREHOUSE;
 import static org.egov.stock.util.ValidatorUtil.validateFacilityIds;
 
 @Component
-@Order(value = 7)
+@Order(value = 9)
 @Slf4j
-public class SFacilityIdValidator implements Validator<StockBulkRequest, Stock> {
+public class STransactingPartyIdValidator implements Validator<StockBulkRequest, Stock> {
 
     private final FacilityService facilityService;
 
-    public SFacilityIdValidator(FacilityService facilityService) {
+    public STransactingPartyIdValidator(FacilityService facilityService) {
         this.facilityService = facilityService;
     }
 
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
-        log.info("validating for facility id");
+        log.info("validating for reference id");
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
 
-        List<Stock> validEntities = request.getStock().stream()
+        List<Stock> validFacilityTransactingPartyIdEntities = request.getStock().stream()
                 .filter(notHavingErrors())
+                .filter(entity -> WAREHOUSE.equals(entity.getTransactingPartyType()))
                 .collect(Collectors.toList());
-        return validateFacilityIds(request, errorDetailsMap, validEntities, GET_FACILITY_ID, facilityService);
+        return validateFacilityIds(request, errorDetailsMap, validFacilityTransactingPartyIdEntities,
+                GET_TRANSACTING_PARTY_ID, facilityService);
     }
 }

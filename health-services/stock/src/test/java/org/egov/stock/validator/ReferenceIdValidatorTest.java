@@ -40,19 +40,17 @@ class ReferenceIdValidatorTest {
     private FacilityService facilityService;
 
     private void mockEmptyResponse() {
-        when(facilityService.validateFacilityIds(any(List.class),
-                any(List.class),
+        when(facilityService.validateProjectFacilityMappings(any(List.class),
                 any(String.class),
                 any(Map.class),
                 any(RequestInfo.class))).thenReturn(Collections.emptyList());
     }
 
     private void mockSomeResponse() {
-        when(facilityService.validateFacilityIds(any(List.class),
-                any(List.class),
+        when(facilityService.validateProjectFacilityMappings(any(List.class),
                 any(String.class),
                 any(Map.class),
-                any(RequestInfo.class))).thenReturn(Collections.singletonList("reference-id"));
+                any(RequestInfo.class))).thenReturn(Collections.singletonList("facility-id||reference-id"));
     }
 
     @Test

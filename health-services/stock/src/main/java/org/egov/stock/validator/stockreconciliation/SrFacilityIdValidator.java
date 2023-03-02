@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.stock.Constants.GET_FACILITY_ID;
-import static org.egov.stock.util.ValidatorUtil.getStockReconciliationListMap;
+import static org.egov.stock.util.ValidatorUtil.validateFacilityIds;
 
 @Component
 @Order(value = 7)
@@ -37,7 +37,7 @@ public class SrFacilityIdValidator implements Validator<StockReconciliationBulkR
         List<StockReconciliation> validEntities = request.getStockReconciliation().stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList());
-        return getStockReconciliationListMap(request, errorDetailsMap, validEntities, GET_FACILITY_ID, facilityService);
+        return validateFacilityIds(request, errorDetailsMap, validEntities, GET_FACILITY_ID, facilityService);
     }
 
 

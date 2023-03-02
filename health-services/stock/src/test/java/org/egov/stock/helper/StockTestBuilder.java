@@ -23,9 +23,9 @@ public class StockTestBuilder {
 
     public StockTestBuilder withStock() {
         this.builder.facilityId("facility-id").productVariantId("pv-id").quantity(0).referenceId("reference-id")
-                .referenceIdType("FACILITY").rowVersion(1).tenantId("default").transactingPartyId("transaction-party-id")
+                .referenceIdType("PROJECT").rowVersion(1).tenantId("default").transactingPartyId("transaction-party-id")
                 .transactionType(TransactionType.DISPATCHED).transactionReason(TransactionReason.RECEIVED)
-                .transactingPartyType("party-type").hasErrors(false).isDeleted(Boolean.FALSE)
+                .transactingPartyType("WAREHOUSE").hasErrors(false).isDeleted(Boolean.FALSE)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;
     }

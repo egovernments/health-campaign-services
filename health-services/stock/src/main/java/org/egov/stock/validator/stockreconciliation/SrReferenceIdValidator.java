@@ -15,9 +15,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.stock.Constants.FACILITY;
 import static org.egov.stock.Constants.GET_REFERENCE_ID;
-import static org.egov.stock.util.ValidatorUtil.getStockReconciliationListMap;
+import static org.egov.stock.Constants.PROJECT;
+import static org.egov.stock.util.ValidatorUtil.validateProjectFacilityMappings;
 
 @Component
 @Order(value = 8)
@@ -32,13 +32,14 @@ public class SrReferenceIdValidator implements Validator<StockReconciliationBulk
 
     @Override
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
-        log.info("validating for facility id");
+        log.info("validating for reference id");
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
 
         List<StockReconciliation> validEntities = request.getStockReconciliation().stream()
                 .filter(notHavingErrors())
-                .filter(entity -> FACILITY.equals(entity.getReferenceIdType()))
+                .filter(entity -> PROJECT.equals(entity.getReferenceIdType()))
                 .collect(Collectors.toList());
-        return getStockReconciliationListMap(request, errorDetailsMap, validEntities, GET_REFERENCE_ID, facilityService);
+        return validateProjectFacilityMappings(request, errorDetailsMap, validEntities,
+                GET_REFERENCE_ID, facilityService);
     }
 }
