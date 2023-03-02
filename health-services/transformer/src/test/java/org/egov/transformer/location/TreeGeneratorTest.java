@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -135,5 +136,12 @@ class TreeGeneratorTest {
         List<Boundary> boundaryList = getTestBoundaryList();
         BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
         assertTrue(treeGenerator.search(boundaryTree, "LC00004"));
+    }
+
+    @Test
+    void shouldReturnFalseIfAGivenBoundaryNodeDoesNotExistInTheTree() {
+        List<Boundary> boundaryList = getTestBoundaryList();
+        BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
+        assertFalse(treeGenerator.search(boundaryTree, "LC00005"));
     }
 }
