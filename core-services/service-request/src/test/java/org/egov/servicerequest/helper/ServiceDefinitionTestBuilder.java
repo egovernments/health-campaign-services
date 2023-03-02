@@ -2,8 +2,6 @@ package org.egov.servicerequest.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.servicerequest.web.models.AttributeDefinition;
-import org.egov.servicerequest.web.models.AttributeValue;
-import org.egov.servicerequest.web.models.Service;
 import org.egov.servicerequest.web.models.ServiceDefinition;
 
 import java.util.Arrays;
@@ -35,7 +33,7 @@ public class ServiceDefinitionTestBuilder {
                         .code("code")
                         .values(Arrays.asList("value"))
                         .isActive(true)
-                        .dataType(AttributeDefinition.DataTypeEnum.STRING)
+                        .dataType(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST)
                         .required(true)
                         .regex("regex")
                         .order("order")

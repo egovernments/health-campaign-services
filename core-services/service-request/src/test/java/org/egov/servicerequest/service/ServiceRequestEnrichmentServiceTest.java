@@ -12,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,18 +70,34 @@ public class ServiceRequestEnrichmentServiceTest {
     }
 
     @Test
+    @DisplayName("should not set attribute definition values back to native state")
+    void shouldNotSetAttributeDefinitionValuesBackToNativeState() {
+        ServiceDefinitionRequest serviceDefinitionRequest = ServiceDefinitionRequestTestBuilder.builder()
+                .withServiceDefinition()
+                .withRequestInfo()
+                .build();
+        List<String> values = serviceDefinitionRequest.getServiceDefinition().getAttributes().get(0).getValues();
+
+        serviceRequestEnrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinitionRequest
+                .getServiceDefinition());
+
+        assertEquals(values,serviceDefinitionRequest.getServiceDefinition().getAttributes().get(0).getValues());
+
+    }
+
+    @Test
     @DisplayName("should set attribute definition values back to native state")
     void shouldSetAttributeDefinitionValuesBackToNativeState() {
         ServiceDefinitionRequest serviceDefinitionRequest = ServiceDefinitionRequestTestBuilder.builder()
                 .withServiceDefinition()
                 .withRequestInfo()
                 .build();
+        serviceDefinitionRequest.getServiceDefinition().getAttributes().get(0).setValues(null);
 
         serviceRequestEnrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinitionRequest
                 .getServiceDefinition());
-        Object dummyValue=null;
 
-        assertEquals(dummyValue,serviceDefinitionRequest.getServiceDefinition().getAttributes().get(0).getValues());
+        assertEquals(null, serviceDefinitionRequest.getServiceDefinition().getAttributes().get(0).getValues());
 
     }
 
