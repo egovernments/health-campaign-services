@@ -7,10 +7,12 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.repository.StockReconciliationRepository;
 import org.egov.stock.service.enrichment.StockReconciliationEnrichmentService;
+import org.egov.stock.validator.stockreconciliation.SrFacilityIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrIsDeletedValidator;
 import org.egov.stock.validator.stockreconciliation.SrNonExistentValidator;
 import org.egov.stock.validator.stockreconciliation.SrNullIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrProductVariantIdValidator;
+import org.egov.stock.validator.stockreconciliation.SrReferenceIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrRowVersionValidator;
 import org.egov.stock.validator.stockreconciliation.SrUniqueEntityValidator;
 import org.egov.stock.web.models.StockReconciliation;
@@ -53,7 +55,9 @@ public class StockReconciliationService {
     private final StockReconciliationEnrichmentService enrichmentService;
 
     private final Predicate<Validator<StockReconciliationBulkRequest, StockReconciliation>> isApplicableForCreate =
-            validator -> validator.getClass().equals(SrProductVariantIdValidator.class);
+            validator -> validator.getClass().equals(SrProductVariantIdValidator.class)
+                    || validator.getClass().equals(SrFacilityIdValidator.class)
+                    || validator.getClass().equals(SrReferenceIdValidator.class);
 
     private final Predicate<Validator<StockReconciliationBulkRequest, StockReconciliation>> isApplicableForUpdate =
             validator -> validator.getClass().equals(SrProductVariantIdValidator.class)
@@ -61,7 +65,9 @@ public class StockReconciliationService {
                     || validator.getClass().equals(SrNonExistentValidator.class)
                     || validator.getClass().equals(SrNullIdValidator.class)
                     || validator.getClass().equals(SrRowVersionValidator.class)
-                    || validator.getClass().equals(SrUniqueEntityValidator.class);
+                    || validator.getClass().equals(SrUniqueEntityValidator.class)
+                    || validator.getClass().equals(SrFacilityIdValidator.class)
+                    || validator.getClass().equals(SrReferenceIdValidator.class);
 
     private final Predicate<Validator<StockReconciliationBulkRequest, StockReconciliation>> isApplicableForDelete =
             validator -> validator.getClass().equals(SrNonExistentValidator.class)
