@@ -10,33 +10,32 @@ public class TreeGenerator {
 
     public BoundaryTree generateTree(Boundary boundary) {
             BoundaryTree boundaryTree = new BoundaryTree();
-            BoundaryNode current = BoundaryMapper.from(boundary);
-            boundaryTree.setBoundaryNode(current);
+            boundaryTree.setBoundaryNode(BoundaryMapper.from(boundary));
             if (boundary.getChildren() != null && !boundary.getChildren().isEmpty()) {
                 List<BoundaryTree> boundaryTrees = new ArrayList<>();
                 boundaryTree.setBoundaryTrees(boundaryTrees);
                 for (Boundary child : boundary.getChildren()) {
                     BoundaryTree resultTree = generateTree(child);
-                    resultTree.setParent(current);
+                    resultTree.setParent(boundaryTree);
                     boundaryTrees.add(resultTree);
                 }
             }
         return boundaryTree;
     }
 
-    public BoundaryNode search(BoundaryTree boundaryTree, String code) {
+    public BoundaryTree search(BoundaryTree boundaryTree, String code) {
         if (code.equals(boundaryTree.getBoundaryNode().getCode())) {
-            return boundaryTree.getBoundaryNode();
+            return boundaryTree;
         }
-        BoundaryNode boundaryNode = null;
+        BoundaryTree bt = null;
         if (boundaryTree.getBoundaryTrees() != null && !boundaryTree.getBoundaryTrees().isEmpty()) {
             for (BoundaryTree child : boundaryTree.getBoundaryTrees()) {
-                boundaryNode = search(child, code);
-                if (boundaryNode != null) {
+                bt = search(child, code);
+                if (bt != null) {
                     break;
                 }
             }
         }
-        return boundaryNode;
+        return bt;
     }
 }

@@ -91,7 +91,7 @@ class TreeGeneratorTest {
         assertTrue(boundaryTree.getBoundaryTrees().stream()
                 .anyMatch(b -> b.getBoundaryNode().getCode().equals("LC00002")));
         assertEquals("LC00001", boundaryTree.getBoundaryTrees()
-                .stream().findFirst().get().getParent().getCode());
+                .stream().findFirst().get().getParent().getBoundaryNode().getCode());
     }
 
     @Test
@@ -126,7 +126,7 @@ class TreeGeneratorTest {
                 .flatMap(b -> b.getBoundaryTrees().stream()
                         .filter(b2 -> b2.getBoundaryNode().getCode().equals("LC000010")))
                 .findFirst()
-                .get().getParent().getCode());
+                .get().getParent().getBoundaryNode().getCode());
     }
 
     @Test
@@ -152,5 +152,15 @@ class TreeGeneratorTest {
         List<Boundary> boundaryList = getTestBoundaryList();
         BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
         assertNull(treeGenerator.search(boundaryTree, "LC00005"));
+    }
+
+    @Test
+    void shouldReturnAFlattenedListOfAllTheParentNodesOfABoundaryNode() {
+        List<Boundary> boundaryList = getTestBoundaryList();
+        BoundaryTree root = treeGenerator.generateTree(boundaryList.get(0));
+        BoundaryTree found = treeGenerator.search(root, "LC00004");
+        List<BoundaryNode> parentNodes = found.getParentNodes();
+        assertEquals(3, parentNodes.size());
+        log.info(parentNodes.toString());
     }
 }
