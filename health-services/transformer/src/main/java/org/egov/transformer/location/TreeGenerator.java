@@ -20,4 +20,16 @@ public class TreeGenerator {
             }
         return boundaryTree;
     }
+
+    public boolean search(BoundaryTree boundaryTree, String code) {
+        if (code.equals(boundaryTree.getBoundaryNode().getCode())) {
+            return true;
+        }
+        if (boundaryTree.getBoundaryTrees() != null && !boundaryTree.getBoundaryTrees().isEmpty()) {
+            for (BoundaryTree child : boundaryTree.getBoundaryTrees()) {
+                return search(child, code);
+            }
+        }
+        return false;
+    }
 }
