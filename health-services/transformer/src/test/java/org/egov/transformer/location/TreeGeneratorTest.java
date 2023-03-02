@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -70,6 +70,7 @@ class TreeGeneratorTest {
                 .build());
         BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
         assertEquals("LC00001", boundaryTree.getBoundaryNode().getCode());
+        assertNull(boundaryTree.getParent());
         assertNull(boundaryTree.getBoundaryTrees());
     }
 
@@ -89,6 +90,8 @@ class TreeGeneratorTest {
         BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
         assertTrue(boundaryTree.getBoundaryTrees().stream()
                 .anyMatch(b -> b.getBoundaryNode().getCode().equals("LC00002")));
+        assertEquals("LC00001", boundaryTree.getBoundaryTrees()
+                .stream().findFirst().get().getParent().getCode());
     }
 
     @Test
@@ -118,6 +121,12 @@ class TreeGeneratorTest {
         assertTrue(boundaryTree.getBoundaryTrees().stream()
                 .filter(b -> b.getBoundaryNode().getCode().equals("LC00002")).findFirst()
                 .filter(b -> b.getBoundaryTrees().stream().findAny().isPresent()).isPresent());
+        assertEquals("LC00002", boundaryTree.getBoundaryTrees().stream()
+                .filter(b -> b.getBoundaryNode().getCode().equals("LC00002"))
+                .flatMap(b -> b.getBoundaryTrees().stream()
+                        .filter(b2 -> b2.getBoundaryNode().getCode().equals("LC000010")))
+                .findFirst()
+                .get().getParent().getCode());
     }
 
     @Test
@@ -135,13 +144,13 @@ class TreeGeneratorTest {
     void shouldReturnTrueIfAGivenBoundaryNodeExistsInTheTree() {
         List<Boundary> boundaryList = getTestBoundaryList();
         BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
-        assertTrue(treeGenerator.search(boundaryTree, "LC00004"));
+        assertNotNull(treeGenerator.search(boundaryTree, "LC00004"));
     }
 
     @Test
     void shouldReturnFalseIfAGivenBoundaryNodeDoesNotExistInTheTree() {
         List<Boundary> boundaryList = getTestBoundaryList();
         BoundaryTree boundaryTree = treeGenerator.generateTree(boundaryList.get(0));
-        assertFalse(treeGenerator.search(boundaryTree, "LC00005"));
+        assertNull(treeGenerator.search(boundaryTree, "LC00005"));
     }
 }

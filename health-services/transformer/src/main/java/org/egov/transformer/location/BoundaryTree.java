@@ -13,5 +13,6 @@ import java.util.List;
 @Builder
 public class BoundaryTree {
     private BoundaryNode boundaryNode;
+    private BoundaryNode parent;
     private List<BoundaryTree> boundaryTrees;
 }
