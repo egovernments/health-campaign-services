@@ -42,5 +42,17 @@ public class StockConfiguration {
 
     @Value("${stock.idgen.id.format}")
     private String stockIdFormat;
+
+    @Value("${egov.facility.host}")
+    private String facilityServiceHost;
+
+    @Value("${egov.search.facility.url}")
+    private String facilityServiceSearchUrl;
+
+    @Value("${egov.project.facility.host}")
+    private String projectFacilityServiceHost;
+
+    @Value("${egov.search.project.facility.url}")
+    private String projectFacilityServiceSearchUrl;
     
 }
