@@ -55,7 +55,6 @@ import static org.egov.project.Constants.BENEFICIARY_ID;
 import static org.egov.project.Constants.GET_CLIENT_REFERENCE_ID;
 import static org.egov.project.Constants.GET_ID;
 import static org.egov.project.Constants.GET_PROJECT_ID;
-import static org.egov.project.Constants.HCM_PROJECT_TYPES;
 import static org.egov.project.Constants.INTERNAL_SERVER_ERROR;
 import static org.egov.project.Constants.MDMS_RESPONSE;
 import static org.egov.project.Constants.PROJECT_TYPES;
@@ -290,7 +289,8 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
     }
 
     private List<ProjectType> getProjectTypes(String tenantId, RequestInfo requestInfo) {
-        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, HCM_PROJECT_TYPES);
+        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                projectConfiguration.getMdmsModule());
         return convertToProjectTypeList(response);
     }
 
@@ -305,7 +305,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
     }
 
     private List<ProjectType> convertToProjectTypeList(JsonNode jsonNode) {
-        JsonNode projectTypesNode = jsonNode.get(HCM_PROJECT_TYPES).withArray(PROJECT_TYPES);
+        JsonNode projectTypesNode = jsonNode.get(projectConfiguration.getMdmsModule()).withArray(PROJECT_TYPES);
         return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<ProjectType>>() {
         });
     }
