@@ -1,0 +1,98 @@
+@startuml Dependent Data Scenario With Cache - Offline/Online - Happy Path
+!theme vibrant
+title Dependent Data Scenario With Cache - Offline/Online - Happy Path
+participant Client as c
+participant IndividualRegistry as ir
+participant RedisCache as rc
+participant ProjectService as ps
+participant HouseholdRegistry as hr
+participant IDGenService as idgen
+database Database as db
+queue Kafka as k
+c -> ir : /individual/v1/_create
+activate ir
+ir -> ir: Validate request
+ir -> idgen: /v1/generate
+activate idgen
+idgen -> ir: Generated ID
+deactivate idgen
+ir -> ir: Update Generated ID
+ir -> k: Send Individual Data to /persist_topic
+activate k
+deactivate k
+ir -> rc: Put Individual Data in cache \nUse key as **clientReferenceId** if present \nOtherwise use **generatedId**
+activate rc
+deactivate rc
+ir -> c: 202 ACCEPTED
+deactivate ir
+|||
+c -> hr: /household/v1/_create
+activate hr
+hr -> hr: Validate request
+hr -> rc: Check if Individual Data exists \nUse **individualClientReferenceId** if present \nOtherwise use **individualId**
+activate rc
+deactivate rc
+hr -> idgen: /v1/generate
+activate idgen
+idgen -> hr: Generated ID
+deactivate idgen
+hr -> hr: Update Generated ID
+hr -> k: Send Household Data to /persist_topic
+activate k
+deactivate k
+hr -> rc: Put Household Data in cache \nUse key as **clientReferenceId** if present \nOtherwise use **generatedId**
+activate rc
+deactivate rc
+hr -> c: 202 ACCEPTED
+deactivate hr
+|||
+c -> ps: /project/beneficiary/v1/_create
+activate ps
+ps -> ps: Validate request
+ps -> db: Get project details using projectId
+activate db
+db -> ps: 1 row
+deactivate db
+ps -> ps: Extract beneficiaryType from project details
+ps -> rc: Check if beneficiary(Household) exists \nUse **beneficiaryClientReferenceId** if present \nOtherwise use **beneficiaryId**
+activate rc
+deactivate rc
+note left
+The collection to check will be determined
+using beneficiaryType and beneficiaryClientReferenceId
+would be (beneficiaryType)clientReferenceId
+end note
+ps -> idgen: /v1/generate
+activate idgen
+idgen -> ps: Generated ID
+deactivate idgen
+ps -> ps: Update Generated ID
+ps -> k: Send Project Beneficiary Data to /persist_topic
+activate k
+deactivate k
+ps -> rc: Put Project Beneficiary Data in cache \nUse key as **clientReferenceId** if present \nOtherwise use **generatedId**
+activate rc
+deactivate rc
+ps -> c: 202 ACCEPTED
+deactivate ps
+|||
+c -> ps: /project/task/v1/_create
+activate ps
+ps -> ps: Validate request
+ps -> rc: Check if Project Beneficiary Data exists \nUse **projectBeneficiaryClientReferenceId** if present \nOtherwise use **projectBeneficiaryId**
+activate rc
+deactivate rc
+ps -> idgen: /v1/generate
+activate idgen
+idgen -> ps: Generated ID
+deactivate idgen
+ps -> ps: Update Generated ID
+ps -> k: Send Task Data to /persist_topic
+activate k
+deactivate k
+ps -> rc: Put Task Data in cache \nUse key as **clientReferenceId** if present \nOtherwise use **generatedId**
+activate rc
+deactivate rc
+ps -> c: 202 ACCEPTED
+deactivate ps
+@enduml

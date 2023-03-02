@@ -1,0 +1,18 @@
+@startuml successive login
+Actor ->client: onInit (check for token if  present push the  Auth Page)
+client -> Page:  Client Pushes Language selection Screen 
+
+Page -> Bloc : Check for local sync completed or Not. 
+Bloc --> Page : Return boolean value of local sync.
+alt localSync true
+Bloc --> Page :  Home Page 
+    end
+alt localSync  false
+note right
+
+
+fetch  service  registry from MDMS service and make the api call's similar
+done in login sequence.  
+
+end note
+@enduml

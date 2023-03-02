@@ -1,0 +1,301 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Sync Service
+  description: >
+    This module facilitates syncing of health campaign data for offline applications.
+schemes:
+  - https
+basePath: /sync
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  #########################################
+  /file/v1/_create:
+    post:
+      summary: Upload File For Sync.
+      parameters:
+        - name: uploadFileForSync
+          in: "body"
+          description: Details of the file and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/FileSyncRequest'
+      responses:
+        '200':
+          description: Sync Request created successfully.
+          schema:
+            $ref: '#/definitions/SyncStatuResponseeWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - File Sync
+
+  /file/status/v1/_search:
+    post:
+      summary: Sync Status Check.
+      parameters:
+        - name: syncStatusRequest
+          in: "body"
+          description: Sync Status Request.
+          required: true
+          schema:
+            $ref: '#/definitions/SyncStatusRequest'
+      responses:
+        '200':
+          description: Fetched Sync Status.
+          schema:
+            $ref: '#/definitions/SyncStatuResponseeWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - File Sync
+
+  /forms/v1/_search:
+    post:
+      summary: Sync Forms.
+      description: Latest Forms are fetched.
+      parameters:
+        - name: formSyncRequest
+          in: "body"
+          description: Details of the Forms and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/FormSyncRequest'
+      responses:
+        '200':
+          description: Forms Fetched successfully.
+          schema:
+            $ref: '#/definitions/FormSyncnResponseeWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Forms
+#########################################
+definitions:
+
+  FormValidations:
+    type: object
+    properties:
+      name:
+        type: string
+        example: 'max'
+      attribute:
+        type: string
+        example: 20
+
+  FormElement:
+    type: object
+    properties:
+      type:
+        type: string
+        example: 'dataElement'
+      name:
+        type: string
+        example: 'First Name'
+      key:
+        type: string
+        example: 'firstName'
+      dataType:
+        type: string
+        example: 'text'
+      uiElementType:
+        type: string
+        example: 'text'
+      value:
+        type: string
+        example: 'null'
+      hint:
+        type: string
+        example: 'Enter First name'
+      validations:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/FormValidations'
+
+  FormsRequest:
+    type: object
+    properties:
+      schemaId:
+        type: string
+        example: "householdDetails"
+      version:
+        type: string
+        example: "1"
+
+  FormSyncRequest:
+    description: >-
+      The request object, containing all necessary information for form sync and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      sync:
+        type: object
+        properties:
+          campaignId:
+            type: string
+            example: 'CAMP-ID'
+          tenantId:
+            type: string
+            example: 'tenantA'
+          syncAll:
+            type: boolean
+            example: true
+          forms:
+            type: array
+            items:
+              type: object
+              $ref: '#/definitions/FormsRequest'
+    required:
+      - sync
+
+  FileSyncRequest:
+    description: >-
+      The request object, containing all necessary information for file sync and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      sync:
+        type: object
+        properties:
+          campaignId:
+            type: string
+            example: 'CAMP-ID'
+          tenantId:
+            type: string
+            example: 'tenantA'
+          file:
+            type: string
+            example: "https://fileserver-url.com/id"
+          auditDetails:
+            type: object
+
+    required:
+      - sync
+
+
+  FormSyncResponse:
+    type: array
+    items:
+      type: object
+      properties:
+        campaignId:
+          type: string
+          example: 'CAMP-1'
+        tenantId:
+          type: string
+          example: 'tenantA'
+        version:
+          type: string
+          example: 2
+        submitButtonText:
+          type: string
+          example: 'SUBMIT_FORM'
+        nextPageRoute:
+          type: string
+          example: "/home"
+        submitPath:
+          type: string
+          example: '/egov-rn-service/registration/v1/_create'
+        schema:
+          type: string
+          example: "householdDetails"
+        elements:
+          type: array
+          items:
+            $ref: '#/definitions/FormElement'
+
+  FormSyncnResponseeWithResponseInfo:
+    description: >-
+      The request object, containing all necessary information for creating an submission and the request body metadata
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      forms:
+        $ref: '#/definitions/FormSyncResponse'
+
+  SyncStatuResponseeWithResponseInfo:
+    description: >-
+      The request object, containing all necessary information for creating an submission and the request body metadata
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      sync:
+        type: object
+        properties:
+          createdAt:
+            type: integer
+            example: 1663646897
+          modifiedAt:
+            type: integer
+            example: 1663646897
+          campaignId:
+            type: string
+            example: 'CAMP-ID'
+          tenantId:
+            type: string
+            example: 'tenantA'
+          syncId:
+            type: string
+            example: "GUID"
+          status:
+            type: string
+            example: "COMPLETED"
+          file:
+            type: string
+            example: "https://fileserver-url.com/id"
+          createdBy:
+            type: string
+            example: "guid"
+          modifiedBy:
+            type: string
+            example: "guid"
+
+  SyncStatusRequest:
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      sync:
+        type: object
+        properties:
+          campaignId:
+            type: string
+            example: 'CAMP-ID'
+          tenantId:
+            type: string
+            example: 'tenantA'
+          syncId:
+            type: string
+            example: "GUID"
+    required:
+      - sync

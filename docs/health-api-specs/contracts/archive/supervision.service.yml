@@ -1,0 +1,154 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Campaign Supervision Service
+  description: >
+    This module facilitates Supervision of a campaign by enabling supervisors to submit checklists.
+
+schemes:
+  - https
+basePath: /supervision
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  #########################################
+  /checklist/submission/v1/_create:
+    post:
+      summary: Submit a Checklist.
+      description: Submits a checklist Ok response is returned.
+      parameters:
+        - name: submitChecklistRequest
+          in: "body"
+          description: Details of the Checklist and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CreateSubmissionRequest'
+      responses:
+        '200':
+          description: Checklist Request created successfully.
+          schema:
+            $ref: '#/definitions/ChecklistSubmissionResponseeWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Checklist
+
+  /checklist/v1/_search:
+    post:
+      summary: Search Checklist.
+      description: Search Checklist Ok response is returned.
+      parameters:
+        - name: checklistSearchCriteria
+          in: "body"
+          description: Search Criteria for Checklist and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/SubmissionSearchCriteriaRequest'
+      responses:
+        '200':
+          description: Fetched Search Checklist.
+          schema:
+            $ref: '#/definitions/SubmissionSearchResponse'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Checklist
+
+#########################################
+definitions:
+
+  CreateSubmissionRequest:
+    description: >-
+      The request object, containing all necessary information for creating an submission and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      submission:
+        $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/ChecklistSubmission'
+    required:
+      - submission
+
+  ChecklistSubmissionResponse:
+    allOf:
+      - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/ChecklistSubmission'
+      - type: object
+        properties:
+          submissionId:
+            type: string
+            example: "UUID"
+
+  ChecklistSubmissionResponseeWithResponseInfo:
+    description: >-
+      The request object, containing all necessary information for creating an submission and the request body metadata
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      submission:
+        $ref: '#/definitions/ChecklistSubmissionResponse'
+
+  SubmissionSearchCriteriaRequest:
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      submissionSearchCriteria:
+        type: object
+        properties:
+          campaignId:
+            type: string
+            example: "UUID"
+          submissionId:
+            type: string
+            example: "ID"
+          submittedAt:
+            type: integer
+            format: int64
+            example: 1663218161
+          clientReferenceId:
+            type: string
+            example: "GUID"
+          administrativeUnit:
+            type: string
+            example: "SOLIMBO"
+          limit:
+            type: integer
+            example: 0
+          offset:
+            type: integer
+            example: 0
+
+  SubmissionSearchResponse:
+    description: >-
+      The search response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      totalCount:
+        type: integer
+        example: 0
+      submissions:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/ChecklistSubmissionResponse'
+    required:
+      - deliveries

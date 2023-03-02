@@ -1,0 +1,34 @@
+@startuml Delivery
+!function $my_code($fgcolor, $bgcolor)
+!return "<color:"+$fgcolor+"><back:"+$bgcolor+"><size:14><b><font:monospaced>"
+!endfunction
+actor Actor
+participant Application as client
+participant "Delivery Page" as delivery
+participant Bloc
+participant Repository as repository
+participant Delivery as delivery_service
+participant Project as project_service
+participant Household as household_service
+participant Individual as individual_service
+
+Actor -> client: onInit
+group  Added New Individual
+    autoactivate on
+
+    client -> delivery: Client Pushes View Delivery Page with household id (or) individual id  as path params.
+    hnote over Bloc : Registration Bloc.
+    delivery -> Bloc: Oninit() trigger a function to fetch additional fields + project details and .
+    Bloc -> client :  get the stored schema data (Additional Fields) + Project details.
+    client -->delivery: Additional Fields + Project details + household id (or) individual id.
+    delivery -> Bloc: Enter all the required field details and submit.
+    Bloc -> repository : passing the tenant id and fields + household id (or) individual id
+    hnote over repository : Delivery Repository.
+    repository -> project_service : (/project/task/v1/_create)  create a task against the beneficiary.
+    project_service --> repository : task details as response.
+    repository --> Bloc :  task details.
+    Bloc --> delivery : navigate the user to Beneficiary view Screen after showing a toast message.
+
+    autoactivate off
+end
+@enduml

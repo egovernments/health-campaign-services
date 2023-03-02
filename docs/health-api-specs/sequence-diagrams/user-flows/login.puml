@@ -1,0 +1,48 @@
+@startuml
+!theme vibrant
+title Login
+actor "Field Worker" as a
+participant Client as c
+participant NetworkManager as nm
+
+a -> c: Enter credentials and tap 'Login' button
+activate c
+alt network unavailable
+  c -> nm: login
+  activate nm
+  nm --> c: Network unavailable
+  c -> a: Show "Check internet connectivity" error message and prompt to retry
+end
+alt incorrect credentials
+  c -> nm: login
+  nm --> c: Invalid credentials
+  c -> a: Show "Invalid credentials" error message and prompt to retry
+end
+group credentials validated
+  nm --> c: Valid credentials
+  c -> c: Update local store with response (token, user id, roles etc)
+  c -> nm: Project Staff search with user id
+  alt no projects linked to staff
+    nm --> c: no projects linked
+    c -> c: clear credential local store
+    c -> a: show "No projects linked. Contact admin." error message and take back to login page.
+  end
+  nm --> c: 1-n projects linked
+  c -> nm: Project search for linked projectId(s)
+  alt projects from different hierarchies linked to user
+    nm --> c: projects with different hierarchies
+    c -> a: show Project Hierarchy selection screen with root project name for each hierarchy
+    a -> c: select 1 root project
+  end
+  c -> nm: start sync down based on assigned projects within selected project hierarchy
+  alt error during sync down
+    nm --> c: error during sync down
+    c -> a: Show error message and prompt to retry
+  end
+  nm --> c: Successful sync down
+  deactivate nm
+  c -> a: Show home screen
+  deactivate c
+end
+
+@enduml
