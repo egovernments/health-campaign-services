@@ -1,9 +1,12 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.transformer.boundary.BoundaryNode;
+import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskCreateIndexV1;
+import org.egov.transformer.models.upstream.Boundary;
 import org.egov.transformer.models.upstream.Project;
 import org.egov.transformer.models.upstream.Task;
 import org.egov.transformer.producer.Producer;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -57,34 +61,49 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
             Transformer<Task, ProjectTaskCreateIndexV1> {
         private final ProjectService projectService;
 
+        private final BoundaryService boundaryService;
+
         @Autowired
-        ProjectTaskCreateIndexV1Transformer(ProjectService projectService) {
+        ProjectTaskCreateIndexV1Transformer(ProjectService projectService,
+                                            BoundaryService boundaryService) {
             this.projectService = projectService;
+            this.boundaryService = boundaryService;
         }
 
         @Override
         public List<ProjectTaskCreateIndexV1> transform(Task task) {
-            return task.getResources().stream().map(r -> {
-                Project project = projectService.getProject(task.getProjectId(), task.getTenantId());
-                ProjectTaskCreateIndexV1 projectTaskCreateIndexV1 = ProjectTaskCreateIndexV1.builder()
-                    .id(task.getId())
-                    .taskType("DELIVERY")
-                    .userId(task.getAuditDetails().getCreatedBy())
-                    .projectId(task.getProjectId())
-                    .startDate(task.getActualStartDate())
-                    .endDate(task.getActualEndDate())
-                    .productVariant(r.getProductVariantId())
-                    .isDelivered(r.getIsDelivered())
-                    .quantity(r.getQuantity())
-                    .deliveredTo("HOUSEHOLD")
-                    .deliveryComments(r.getDeliveryComment())
-                    .locality(task.getAddress().getLocality().getCode())
-                    .latitude(task.getAddress().getLatitude())
-                    .longitude(task.getAddress().getLongitude())
-                    .createdTime(task.getAuditDetails().getCreatedTime())
-                    .build();
-                return projectTaskCreateIndexV1;
-            }).collect(Collectors.toList());
+            Project project = projectService.getProject(task.getProjectId(), task.getTenantId());
+            String locationCode = project.getAddress().getLocality().getCode();
+            List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
+                    project.getTenantId());
+            BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
+            BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
+            List<BoundaryNode> parentNodes = locationTree.getParentNodes();
+            Map<String, String> labelNameMap = parentNodes.stream()
+                    .collect(Collectors.toMap(BoundaryNode::getLabel, BoundaryNode::getName));
+            return task.getResources().stream().map(r ->
+                    ProjectTaskCreateIndexV1.builder()
+                            .id(task.getId())
+                            .taskType("DELIVERY")
+                            .userId(task.getAuditDetails().getCreatedBy())
+                            .projectId(task.getProjectId())
+                            .startDate(task.getActualStartDate())
+                            .endDate(task.getActualEndDate())
+                            .productVariant(r.getProductVariantId())
+                            .isDelivered(r.getIsDelivered())
+                            .quantity(r.getQuantity())
+                            .deliveredTo("HOUSEHOLD")
+                            .deliveryComments(r.getDeliveryComment())
+                            .province(labelNameMap.get("Province"))
+                            .district(labelNameMap.get("District"))
+                            .administrativeProvince(labelNameMap.get("AdministrativeProvince"))
+                            .locality(labelNameMap.get("Locality"))
+                            .village(labelNameMap.get("Village"))
+                            .latitude(task.getAddress().getLatitude())
+                            .longitude(task.getAddress().getLongitude())
+                            .createdTime(task.getAuditDetails().getCreatedTime())
+                            .build()
+            ).collect(Collectors.toList());
         }
     }
 }

@@ -1,4 +1,4 @@
-package org.egov.transformer.location;
+package org.egov.transformer.boundary;
 
 import org.egov.transformer.models.upstream.Boundary;
 

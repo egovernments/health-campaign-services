@@ -23,6 +23,12 @@ public class TransformerProperties {
     @Value("${egov.search.project.url}")
     private String projectSearchUrl;
 
+    @Value("${egov.location.host}")
+    private String locationHost;
+
+    @Value("${egov.location.endpoint}")
+    private String locationSearchUrl;
+
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
 }

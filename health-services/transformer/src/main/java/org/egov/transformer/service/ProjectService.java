@@ -29,7 +29,7 @@ public class ProjectService {
 
     private final ObjectMapper objectMapper;
 
-    private static Map<String, Project> projectMap = new ConcurrentHashMap<>();
+    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
@@ -63,7 +63,7 @@ public class ProjectService {
         return project;
     }
 
-    public List<Project> searchProject(String projectId, String tenantId) {
+    private List<Project> searchProject(String projectId, String tenantId) {
 
         ProjectRequest request = ProjectRequest.builder()
                 .projects(Collections.singletonList(Project.builder().id(projectId).tenantId(tenantId).build()))
@@ -71,17 +71,19 @@ public class ProjectService {
 
         ProjectResponse response;
         try {
-            response = serviceRequestClient.fetchResult(
-                    new StringBuilder(transformerProperties.getProjectHost()
-                            + transformerProperties.getProjectSearchUrl()
-                            + "?limit=" + transformerProperties.getSearchApiLimit()
-                            + "&offset=0&tenantId=" + tenantId),
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
             log.error("error while fetching facility list", e);
             throw new CustomException("PROJECT_FETCH_ERROR",
-                    "Error while fetching project details for id: " + projectId);
+                    "error while fetching project details for id: " + projectId);
         }
         return response.getProject();
     }

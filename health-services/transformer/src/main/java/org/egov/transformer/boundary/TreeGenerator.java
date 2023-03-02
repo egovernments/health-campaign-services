@@ -1,10 +1,12 @@
-package org.egov.transformer.location;
+package org.egov.transformer.boundary;
 
 import org.egov.transformer.models.upstream.Boundary;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Component
 public class TreeGenerator {
 
 
