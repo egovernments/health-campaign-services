@@ -1,11 +1,11 @@
-package org.egov.project.validator.resource;
+package org.egov.project.validator.staff;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.project.repository.ProjectResourceRepository;
-import org.egov.project.web.models.ProjectResource;
-import org.egov.project.web.models.ProjectResourceBulkRequest;
+import org.egov.project.repository.ProjectStaffRepository;
+import org.egov.project.web.models.ProjectStaff;
+import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -20,72 +20,72 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForDuplicateMapping;
 import static org.egov.project.Constants.PIPE;
 import static org.egov.project.Constants.PROJECT_ID;
 
-
 @Component
 @Order(value = 5)
 @Slf4j
-public class PrUniqueCombinationValidator implements Validator<ProjectResourceBulkRequest, ProjectResource> {
+public class PsUniqueCombinationValidator implements Validator<ProjectStaffBulkRequest, ProjectStaff> {
 
-    private ProjectResourceRepository projectResourceRepository;
+    private ProjectStaffRepository projectStaffRepository;
 
-    public PrUniqueCombinationValidator(ProjectResourceRepository projectResourceRepository) {
-        this.projectResourceRepository = projectResourceRepository;
+    public PsUniqueCombinationValidator(ProjectStaffRepository projectStaffRepository) {
+        this.projectStaffRepository = projectStaffRepository;
     }
 
-    private Map<String, ProjectResource> getMap(List<ProjectResource> validEntities) {
-        Map<String, ProjectResource> map = new HashMap<>();
+    private Map<String, ProjectStaff> getMap(List<ProjectStaff> validEntities) {
+        Map<String, ProjectStaff> map = new HashMap<>();
         validEntities.forEach(entity -> {
-            map.put(entity.getResource().getProductVariantId() + PIPE + entity.getProjectId(),entity);
+            map.put(entity.getUserId() + PIPE + entity.getProjectId(),entity);
         });
         return map;
     }
 
-    private void validateProductVariantMappingFromRequest(List<ProjectResource> validEntities,
-                                                           Map<ProjectResource, List<Error>> errorDetailsMap) {
+    private void validateProductVariantMappingFromRequest(List<ProjectStaff> validEntities,
+                                                          Map<ProjectStaff, List<Error>> errorDetailsMap) {
         log.info("validating mapping from request");
         log.info("validating {} valid entities", validEntities.size());
-        Map<String, ProjectResource> map = getMap(validEntities);
+        Map<String, ProjectStaff> map = getMap(validEntities);
         if (map.keySet().size() != validEntities.size()) {
             List<String> duplicates = map.keySet().stream().filter(id ->
                     validEntities.stream().filter(entity -> {
-                        String combinationId = entity.getResource().getProductVariantId() + PIPE + entity.getProjectId();
+                        String combinationId = entity.getUserId() + PIPE + entity.getProjectId();
                         return combinationId.equals(id);
                     }).count() > 1).collect(Collectors.toList());
+            log.info("found {} duplicates in request", duplicates.size());
             for (String key : duplicates) {
-                ProjectResource projectResource = map.get(key);
-                Error error = getErrorForDuplicateMapping(projectResource.getProjectId(),
-                        projectResource.getResource().getProductVariantId());
-                populateErrorDetails(projectResource, error, errorDetailsMap);
+                ProjectStaff projectStaff = map.get(key);
+                Error error = getErrorForDuplicateMapping(projectStaff.getProjectId(),
+                        projectStaff.getUserId());
+                populateErrorDetails(projectStaff, error, errorDetailsMap);
             }
         }
     }
 
-    private void validateProductVariantMappingFromDb(List<ProjectResource> validEntities,
-                                                     Map<ProjectResource, List<Error>> errorDetailsMap) {
+    private void validateProductVariantMappingFromDb(List<ProjectStaff> validEntities,
+                                                     Map<ProjectStaff, List<Error>> errorDetailsMap) {
 
         log.info("validating mapping from db");
         log.info("validating {} valid entities", validEntities.size());
-        List<String> projectIds = validEntities.stream().map(ProjectResource::getProjectId)
+        List<String> projectIds = validEntities.stream().map(ProjectStaff::getProjectId)
                 .collect(Collectors.toList());
-        List<ProjectResource> existingProjectResources = projectResourceRepository.findById(projectIds,
+        List<ProjectStaff> existingProjectResources = projectStaffRepository.findById(projectIds,
                 false,  PROJECT_ID);
 
-        Map<String, ProjectResource> existingIdMap = getMap(existingProjectResources);
+        Map<String, ProjectStaff> existingIdMap = getMap(existingProjectResources);
         validEntities.stream().filter(entity -> {
-            String combinationId = entity.getResource().getProductVariantId() + PIPE + entity.getProjectId();
+            String combinationId = entity.getUserId() + PIPE + entity.getProjectId();
             return existingIdMap.containsKey(combinationId)
                     && (entity.getId() == null || !entity.getId().equals(existingIdMap.get(combinationId).getId()));
         }).forEach(entity -> {
             Error error = getErrorForDuplicateMapping(entity.getProjectId(),
-                    entity.getResource().getProductVariantId());
+                    entity.getUserId());
             populateErrorDetails(entity, error, errorDetailsMap);
         });
     }
 
     @Override
-    public Map<ProjectResource, List<Error>> validate(ProjectResourceBulkRequest request) {
-        Map<ProjectResource, List<Error>> errorDetailsMap = new HashMap<>();
-        List<ProjectResource> validEntities = request.getProjectResource()
+    public Map<ProjectStaff, List<Error>> validate(ProjectStaffBulkRequest request) {
+        Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
+        List<ProjectStaff> validEntities = request.getProjectStaff()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
 
         if (!validEntities.isEmpty()) {
