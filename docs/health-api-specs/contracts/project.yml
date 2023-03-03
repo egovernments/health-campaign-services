@@ -1655,6 +1655,14 @@ definitions:
       #        description: Unique productVariantId defined in Product service
       #        minLength: 2
       #        maxLength: 64
+      startDate:
+        type: integer
+        format: int64
+        description: Projectresource start date
+      endDate:
+        type: integer
+        format: int64
+        description: Projectresource end date
       isDeleted:
         $ref: '#/definitions/isDeleted'
       rowVersion:
