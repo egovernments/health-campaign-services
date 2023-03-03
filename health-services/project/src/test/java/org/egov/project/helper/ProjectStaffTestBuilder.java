@@ -17,7 +17,7 @@ public class ProjectStaffTestBuilder {
     }
 
     public ProjectStaff build() {
-        return this.builder.build();
+        return this.builder.hasErrors(Boolean.FALSE).build();
     }
 
     public ProjectStaffTestBuilder withIdNull() {
@@ -41,6 +41,16 @@ public class ProjectStaffTestBuilder {
 
     public ProjectStaffTestBuilder withBadTenantId() {
         this.builder.tenantId(null);
+        return this;
+    }
+
+    public ProjectStaffTestBuilder withProjectId(String id) {
+        this.builder.projectId(id);
+        return this;
+    }
+
+    public ProjectStaffTestBuilder withUserId(String userId) {
+        this.builder.userId(userId);
         return this;
     }
 

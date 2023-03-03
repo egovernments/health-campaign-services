@@ -71,7 +71,7 @@ public class ProjectResourceService {
                     || validator.getClass().equals(PrUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectResourceBulkRequest, ProjectResource>> isApplicableForDelete = validator ->
-            validator.getClass().equals(PrIsDeletedValidator.class)
+            validator.getClass().equals(PrNonExistentEntityValidator.class)
                     ||validator.getClass().equals(PrNullIdValidator.class);
 
     public ProjectResourceService(List<Validator<ProjectResourceBulkRequest, ProjectResource>> validators, ProjectResourceRepository projectResourceRepository, ProjectConfiguration projectConfiguration, ProjectResourceEnrichmentService enrichmentService) {
