@@ -2098,9 +2098,9 @@ definitions:
         minItems: 1
         items:
           $ref: '#/definitions/ProjectResource'
-      required:
-        - RequestInfo
-        - ProjectResource
+    required:
+      - RequestInfo
+      - ProjectResource
   ProjectResourceSearchRequest:
     type: object
     properties:
