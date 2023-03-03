@@ -59,6 +59,7 @@ public class ProjectService {
 
     public Project getProject(String projectId, String tenantId) {
         if (projectMap.containsKey(projectId)) {
+            log.info("getting project {} from cache", projectId);
             return projectMap.get(projectId);
         }
         List<Project> projects = searchProject(projectId, tenantId);

@@ -66,6 +66,7 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
         public List<ProjectTaskCreateIndexV1> transform(Task task) {
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMap(task.getProjectId(), task.getTenantId());
+            log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             return task.getResources().stream().map(r ->
                     ProjectTaskCreateIndexV1.builder()
                             .id(task.getId())

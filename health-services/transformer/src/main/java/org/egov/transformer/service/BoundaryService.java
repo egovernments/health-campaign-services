@@ -45,6 +45,7 @@ public class BoundaryService {
 
     public List<Boundary> getBoundary(String code, String hierarchyTypeCode, String tenantId) {
         if (boundaryListMap.containsKey(code)) {
+            log.info("getting boudary data for code {} from cache", code);
             return boundaryListMap.get(code);
         }
         List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
@@ -86,13 +87,16 @@ public class BoundaryService {
             throw new CustomException("BOUNDARY_ERROR", "error while calling boundary service");
         }
         if (response != null) {
-            if (CollectionUtils.isEmpty(response))
+            if (CollectionUtils.isEmpty(response)) {
+                log.error("empty response received from boundary service");
                 throw new CustomException("BOUNDARY_ERROR", "the response from location service is empty or null");
+            }
             JsonNode jsonNode = objectMapper.convertValue(response, JsonNode.class);
             JsonNode boundaryListNode = jsonNode.path("$.TenantBoundary[?(@.hierarchyType.code == 'ADMIN')].boundary");
             if (boundaryListNode != null) {
                 return objectMapper.convertValue(boundaryListNode, new TypeReference<List<Boundary>>() {});
             }
+            log.warn("boundary list is empty");
         }
         return Collections.emptyList();
     }
