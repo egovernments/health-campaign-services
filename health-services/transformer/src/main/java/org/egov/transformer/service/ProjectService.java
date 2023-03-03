@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.boundary.BoundaryNode;
 import org.egov.transformer.boundary.BoundaryTree;
@@ -86,6 +87,7 @@ public class ProjectService {
     private List<Project> searchProject(String projectId, String tenantId) {
 
         ProjectRequest request = ProjectRequest.builder()
+                .requestInfo(RequestInfo.builder().build())
                 .projects(Collections.singletonList(Project.builder().id(projectId).tenantId(tenantId).build()))
                 .build();
 
@@ -101,7 +103,7 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching facility list", e);
+            log.error("error while fetching project list", e);
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for id: " + projectId);
         }
