@@ -55,6 +55,8 @@ paths:
       responses:
         '202':
           description: Stock Transaction request has been accepted.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
         '400':
           description: Invalid Input body.
           schema:
@@ -105,6 +107,8 @@ paths:
       responses:
         '202':
           description: Stock Transaction request has been accepted.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
         '400':
           description: Invalid Input body.
           schema:
@@ -155,6 +159,8 @@ paths:
       responses:
         '202':
           description: Stock Transaction delete request has been accepted.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
         '400':
           description: Invalid Input body.
           schema:
@@ -788,3 +794,12 @@ definitions:
     required:
       - ResponseInfo
       - StockReconciliation
+
+  BulkAcceptedResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+    required:
+      - ResponseInfo

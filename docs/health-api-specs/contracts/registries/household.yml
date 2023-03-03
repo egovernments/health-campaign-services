@@ -64,7 +64,7 @@ paths:
         '202':
           description: Accepted
           schema:
-            $ref: '#/definitions/HouseholdResponse'
+            $ref: '#/definitions/BulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -126,6 +126,8 @@ paths:
       responses:
         '202':
           description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -188,6 +190,8 @@ paths:
       responses:
         '202':
           description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -223,7 +227,7 @@ paths:
         '200':
           description: Ok
           schema:
-            $ref: '#/definitions/HouseholdResponse'
+            $ref: '#/definitions/HouseholdBulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -286,6 +290,8 @@ paths:
       responses:
         '202':
           description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -348,6 +354,8 @@ paths:
       responses:
         '202':
           description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -403,13 +411,15 @@ paths:
           description: Details for the Household.
           required: true
           schema:
-            $ref: '#/definitions/HouseholdBulkRequest'
+            $ref: '#/definitions/HouseholdMemberBulkRequest'
         - $ref: '#/parameters/echoResource'
       tags:
         - Household Member
       responses:
         '202':
           description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -445,7 +455,7 @@ paths:
         '200':
           description: Ok
           schema:
-            $ref: '#/definitions/HouseholdMemberResponse'
+            $ref: '#/definitions/HouseholdMemberBulkResponse'
         '400':
           description: Bad Request
           schema:
@@ -657,7 +667,7 @@ definitions:
       RequestInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Household:
+      Households:
         type: array
         minItems: 1
         items:
@@ -690,6 +700,19 @@ definitions:
     required:
       - ResponseInfo
 
+  HouseholdBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Households:
+        type: array
+        items:
+          $ref: '#/definitions/Household'
+    required:
+      - ResponseInfo
+
   HouseholdMemberRequest:
     type: object
     properties:
@@ -708,7 +731,7 @@ definitions:
       RequestInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      HouseholdMember:
+      HouseholdMembers:
         type: array
         minItems: 1
         items:
@@ -716,6 +739,14 @@ definitions:
     required:
       - RequestInfo
 
+  BulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+    required:
+      - ResponseInfo
 
   HouseholdMemberSearchRequest:
     type: object
@@ -738,5 +769,18 @@ definitions:
       HouseholdMember:
         type: object
         $ref: '#/definitions/HouseholdMember'
+    required:
+      - ResponseInfo
+
+  HouseholdMemberBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      HouseholdMembers:
+        type: array
+        items:
+          $ref: '#/definitions/HouseholdMember'
     required:
       - ResponseInfo
