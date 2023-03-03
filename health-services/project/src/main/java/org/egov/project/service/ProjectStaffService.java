@@ -15,6 +15,7 @@ import org.egov.project.validator.staff.PsNonExistentEntityValidator;
 import org.egov.project.validator.staff.PsNullIdValidator;
 import org.egov.project.validator.staff.PsProjectIdValidator;
 import org.egov.project.validator.staff.PsRowVersionValidator;
+import org.egov.project.validator.staff.PsUniqueCombinationValidator;
 import org.egov.project.validator.staff.PsUniqueEntityValidator;
 import org.egov.project.validator.staff.PsUserIdValidator;
 import org.egov.project.web.models.ProjectStaff;
@@ -61,7 +62,8 @@ public class ProjectStaffService {
 
     private final Predicate<Validator<ProjectStaffBulkRequest, ProjectStaff>> isApplicableForCreate = validator ->
             validator.getClass().equals(PsUserIdValidator.class)
-                    || validator.getClass().equals(PsProjectIdValidator.class);
+                    || validator.getClass().equals(PsProjectIdValidator.class)
+                    || validator.getClass().equals(PsUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectStaffBulkRequest, ProjectStaff>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PsUserIdValidator.class)
@@ -70,7 +72,8 @@ public class ProjectStaffService {
                     || validator.getClass().equals(PsIsDeletedValidator.class)
                     || validator.getClass().equals(PsRowVersionValidator.class)
                     || validator.getClass().equals(PsNonExistentEntityValidator.class)
-                    || validator.getClass().equals(PsUniqueEntityValidator.class);
+                    || validator.getClass().equals(PsUniqueEntityValidator.class)
+                    || validator.getClass().equals(PsUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectStaffBulkRequest, ProjectStaff>> isApplicableForDelete = validator ->
             validator.getClass().equals(PsNullIdValidator.class)
