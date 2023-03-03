@@ -2037,7 +2037,6 @@ definitions:
     required:
       - RequestInfo
       - ProjectFacility
-      -
   ProjectFacilitySearchRequest:
     type: object
     properties:
@@ -2100,9 +2099,8 @@ definitions:
         items:
           $ref: '#/definitions/ProjectResource'
       required:
-      - RequestInfo
-      - ProjectResource
-
+        - RequestInfo
+        - ProjectResource
   ProjectResourceSearchRequest:
     type: object
     properties:
