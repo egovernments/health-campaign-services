@@ -38,7 +38,7 @@ public class ProjectTaskConsumer {
             List<Task> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Task[].class));
-            transformationHandler.handle(payloadList, Operation.CREATE);
+            transformationHandler.handle(payloadList, Operation.TASK);
         } catch (Exception exception) {
             log.error("error in project task consumer bulk create", exception);
         }

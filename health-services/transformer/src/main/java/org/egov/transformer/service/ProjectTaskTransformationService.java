@@ -3,9 +3,10 @@ package org.egov.transformer.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
-import org.egov.transformer.models.downstream.ProjectTaskCreateIndexV1;
+import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
 import org.egov.transformer.models.upstream.Task;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -14,21 +15,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Component
 @Slf4j
-public class ProjectTaskCreateIndexV1TransformationService implements TransformationService<Task> {
+public abstract class ProjectTaskTransformationService implements TransformationService<Task> {
+    protected final ProjectTaskIndexV1Transformer transformer;
 
-    private final ProjectTaskCreateIndexV1Transformer transformer;
+    protected final Producer producer;
 
-    private final Producer producer;
-
-    private final TransformerProperties properties;
-
-
+    protected final TransformerProperties properties;
 
     @Autowired
-    public ProjectTaskCreateIndexV1TransformationService(ProjectTaskCreateIndexV1Transformer transformer,
-                                                         Producer producer, TransformerProperties properties) {
+    protected ProjectTaskTransformationService(ProjectTaskIndexV1Transformer transformer,
+                                               Producer producer, TransformerProperties properties) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
@@ -38,37 +35,39 @@ public class ProjectTaskCreateIndexV1TransformationService implements Transforma
     public void transform(List<Task> payloadList) {
         log.info("transforming for ids {}", payloadList.stream()
                 .map(Task::getId).collect(Collectors.toList()));
-        List<ProjectTaskCreateIndexV1> transformedPayloadList = payloadList.stream()
+        List<ProjectTaskIndexV1> transformedPayloadList = payloadList.stream()
                 .map(transformer::transform)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
         log.info("transformation successful");
-        producer.push(properties.getTransformerProducerBulkCreateProjectTaskIndexV1Topic(),
+        producer.push(getTopic(),
                 transformedPayloadList);
     }
 
+    public abstract String getTopic();
+
     @Override
     public Operation getOperation() {
-        return Operation.CREATE;
+        return Operation.TASK;
     }
 
     @Component
-    static class ProjectTaskCreateIndexV1Transformer implements
-            Transformer<Task, ProjectTaskCreateIndexV1> {
+    static class ProjectTaskIndexV1Transformer implements
+            Transformer<Task, ProjectTaskIndexV1> {
         private final ProjectService projectService;
 
         @Autowired
-        ProjectTaskCreateIndexV1Transformer(ProjectService projectService) {
+        ProjectTaskIndexV1Transformer(ProjectService projectService) {
             this.projectService = projectService;
         }
 
         @Override
-        public List<ProjectTaskCreateIndexV1> transform(Task task) {
+        public List<ProjectTaskIndexV1> transform(Task task) {
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMap(task.getProjectId(), task.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             return task.getResources().stream().map(r ->
-                    ProjectTaskCreateIndexV1.builder()
+                    ProjectTaskIndexV1.builder()
                             .id(task.getId())
                             .taskType("DELIVERY")
                             .userId(task.getAuditDetails().getCreatedBy())
