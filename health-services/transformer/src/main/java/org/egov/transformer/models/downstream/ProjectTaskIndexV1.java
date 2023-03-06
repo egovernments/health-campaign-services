@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ProjectTaskCreateIndexV1 {
+public class ProjectTaskIndexV1 {
     @JsonProperty("id")
     private String id;
     @JsonProperty("taskType")

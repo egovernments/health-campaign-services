@@ -14,8 +14,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class TransformerProperties {
 
-    @Value("${transformer.producer.bulk.create.project.task.index.v1.topic}")
-    private String transformerProducerBulkCreateProjectTaskIndexV1Topic;
+    @Value("${transformer.producer.bulk.project.task.index.v1.topic}")
+    private String transformerProducerBulkProjectTaskIndexV1Topic;
 
     @Value("${egov.project.host}")
     private String projectHost;

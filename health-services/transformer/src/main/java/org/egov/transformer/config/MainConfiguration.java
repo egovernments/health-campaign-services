@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.config.TracerConfiguration;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.upstream.Task;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 @Import({TracerConfiguration.class})
 @Configuration
 @ComponentScan(basePackages = {"org.egov"})
+@Slf4j
 public class MainConfiguration {
 
     @Value("${app.timezone}")
@@ -71,8 +73,10 @@ public class MainConfiguration {
     @Qualifier("taskTransformationServiceMap")
     public Map<Operation, List<TransformationService<Task>>> getOperationTransformationServiceMapForTask(
             List<TransformationService<Task>> transformationServices) {
-        return transformationServices
+        Map<Operation, List<TransformationService<Task>>> map =  transformationServices
                 .stream()
                 .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
     }
 }
