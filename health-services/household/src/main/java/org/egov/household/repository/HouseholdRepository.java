@@ -69,6 +69,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "h.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "h.clientReferenceId IN (:clientReferenceId)");
 
         query = query + " and h.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {

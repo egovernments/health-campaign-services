@@ -144,7 +144,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Separates preceding project ids from project hierarchy, adds them in list and fetches data using those project ids */
     private List<Project> getProjectAncestors(List<Project> projects) {
         List<String> ancestorIds = new ArrayList<>();
-        List<Project> ancestors = null;
+        List<Project> ancestors = new ArrayList<>();
 
         // Get project Id of ancestor projects from project Hierarchy
         for (Project project: projects) {
@@ -188,6 +188,8 @@ public class ProjectRepository extends GenericRepository<Project> {
             if (ancestors != null && StringUtils.isNotBlank(project.getParent())) {
                 log.info("Adding ancestors to project " + project.getId());
                 addAncestorsToProjectSearchResult(project, ancestors, targets, documents);
+            } else {
+                project.setAncestors(ancestors);
             }
             if (descendants != null) {
                 log.info("Adding descendants to project " + project.getId());
