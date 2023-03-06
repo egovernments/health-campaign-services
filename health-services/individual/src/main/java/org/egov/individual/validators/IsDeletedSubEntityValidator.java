@@ -3,11 +3,7 @@ package org.egov.individual.validators;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.Identifier;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.individual.web.models.Skill;
+import org.egov.individual.web.models.*;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +17,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDeleteSubEntity;
 @Component
 @Order(2)
 @Slf4j
-public class IsDeletedSubEntityValidator  implements Validator<IndividualBulkRequest, Individual> {
+public class IsDeletedSubEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {

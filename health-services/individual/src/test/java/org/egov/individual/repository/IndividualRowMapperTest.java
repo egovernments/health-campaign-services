@@ -35,28 +35,29 @@ public class IndividualRowMapperTest {
     void shouldBeAbleToMapIdRowOfAddress() throws SQLException {
         ResultSet resultSet = mock(ResultSet.class);
         lenient().when(resultSet.getString("id")).thenReturn("some-Id");
-        assertEquals(addressRowMapper.mapRow(resultSet,1).getId(),"some-Id");
+        assertEquals(addressRowMapper.mapRow(resultSet, 1).getId(), "some-Id");
     }
+
     @Test
     void shouldBeAbleToMapIdRowOfIdentifier() throws SQLException {
-        ResultSet resultSet=mock(ResultSet.class);
+        ResultSet resultSet = mock(ResultSet.class);
         lenient().when(resultSet.getString("id")).thenReturn("some-id");
-        assertEquals(identifierRowMapper.mapRow(resultSet,1).getId(),"some-id");
+        assertEquals(identifierRowMapper.mapRow(resultSet, 1).getId(), "some-id");
     }
 
     @Test
     void shouldBeAbleToMapIdRowOfSkill() throws SQLException {
-        ResultSet resultSet=mock(ResultSet.class);
+        ResultSet resultSet = mock(ResultSet.class);
         lenient().when(resultSet.getString("id")).thenReturn("some-id");
-        assertEquals(skillRowMapper.mapRow(resultSet,1).getId(),"some-id");
+        assertEquals(skillRowMapper.mapRow(resultSet, 1).getId(), "some-id");
 
     }
 
     @Test
     void shouldBeAbleToMapIdRowOfIndividual() throws SQLException {
-        ResultSet resultSet=mock(ResultSet.class);
+        ResultSet resultSet = mock(ResultSet.class);
         lenient().when(resultSet.getString("id")).thenReturn("some-id");
-        assertEquals(individualRowMapper.mapRow(resultSet,1).getId(),"some-id");
+        assertEquals(individualRowMapper.mapRow(resultSet, 1).getId(), "some-id");
 
     }
 }

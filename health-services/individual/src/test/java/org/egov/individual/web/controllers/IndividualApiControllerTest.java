@@ -4,12 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.producer.Producer;
 import org.egov.individual.TestConfiguration;
 import org.egov.individual.config.IndividualProperties;
+import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.*;
 import org.egov.tracer.model.ErrorRes;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +27,7 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -51,6 +53,13 @@ class IndividualApiControllerTest {
 
     @MockBean
     private IndividualProperties individualProperties;
+
+    @BeforeEach
+    void setup() {
+        when(individualProperties.getBulkSaveIndividualTopic()).thenReturn("individual-consumer-bulk-create-topic");
+        when(individualProperties.getBulkUpdateIndividualTopic()).thenReturn("individual-consumer-bulk-update-topic");
+        when(individualProperties.getBulkDeleteIndividualTopic()).thenReturn("individual-consumer-bulk-delete-topic");
+    }
 
     @Test
     @DisplayName("should create an individual and return 202 accepted when api operation is create")
@@ -251,6 +260,7 @@ class IndividualApiControllerTest {
         String responseaStr = result.getResponse().getContentAsString();
         ErrorRes response = objectMapper.readValue(responseaStr, ErrorRes.class);
         assertEquals(2, response.getErrors().size());
+//        assertEquals("NotNull",response.getErrors().get(0).getCode().);
 
     }
 
@@ -286,4 +296,66 @@ class IndividualApiControllerTest {
         assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
+    @Test
+    @DisplayName("Should sent individual bulk create request to kafka")
+    void shouldSendIndividualBulkCreateRequestToKafka() throws Exception {
+        Individual individual = IndividualTestBuilder.builder()
+                .withName()
+                .withTenantId()
+                .build();
+        IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
+                .withIndividuals(individual)
+                .withRequestInfo()
+                .build();
+        mockMvc.perform(post("/v1/bulk/_create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(individualBulkRequest)))
+                .andExpect(status().isAccepted())
+                .andReturn();
+        verify(producer, times(1))
+                .push(eq("individual-consumer-bulk-create-topic"), any(IndividualBulkRequest.class));
+        verify(individualProperties, times(1)).getBulkSaveIndividualTopic();
+    }
+
+    @Test
+    @DisplayName("Should send individual bulk update request to kafka")
+    void shouldSendIndividualBulkUpdateRequestToKafka() throws Exception {
+        Individual individual = IndividualTestBuilder.builder()
+                .withName()
+                .withTenantId()
+                .build();
+        IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
+                .withIndividuals(individual)
+                .withRequestInfo()
+                .build();
+        mockMvc.perform(post("/v1/bulk/_update")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(individualBulkRequest)))
+                .andExpect(status().isAccepted())
+                .andReturn();
+        verify(producer, times(1))
+                .push(eq("individual-consumer-bulk-update-topic"), any(IndividualBulkRequest.class));
+        verify(individualProperties, times(1)).getBulkUpdateIndividualTopic();
+    }
+
+    @Test
+    @DisplayName("Should send individual bulk delete request to kafka")
+    void shouldSendIndividualBulkDeleteRequestToKafka() throws Exception {
+        Individual individual = IndividualTestBuilder.builder()
+                .withName()
+                .withTenantId()
+                .build();
+        IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
+                .withIndividuals(individual)
+                .withRequestInfo()
+                .build();
+        mockMvc.perform(post("/v1/bulk/_delete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(individualBulkRequest)))
+                .andExpect(status().isAccepted())
+                .andReturn();
+        verify(producer, times(1))
+                .push(eq("individual-consumer-bulk-delete-topic"), any(IndividualBulkRequest.class));
+        verify(individualProperties, times(1)).getBulkDeleteIndividualTopic();
+    }
 }

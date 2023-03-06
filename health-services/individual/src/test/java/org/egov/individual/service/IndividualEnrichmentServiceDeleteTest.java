@@ -5,8 +5,7 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
+import org.egov.individual.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,9 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 public class IndividualEnrichmentServiceDeleteTest {
@@ -42,7 +39,7 @@ public class IndividualEnrichmentServiceDeleteTest {
 
     @Test
     @DisplayName("should delete the individual and related entities")
-    void shouldDeleteTheIndividualAndRelatedEntities() throws Exception{
+    void shouldDeleteTheIndividualAndRelatedEntities() throws Exception {
         Individual requestIndividual = IndividualTestBuilder.builder()
                 .withId()
                 .withClientReferenceId()
@@ -78,5 +75,43 @@ public class IndividualEnrichmentServiceDeleteTest {
         assertTrue(request.getIndividuals().get(0).getIdentifiers().stream().findFirst().get().getIsDeleted());
         assertTrue(request.getIndividuals().get(0).getSkills().stream().findFirst().get().getIsDeleted());
         assertEquals(2, request.getIndividuals().get(0).getRowVersion());
+    }
+
+    @Test
+    void shouldDeleteIndividualWhenRelatedEntitiesAreDeleted() throws Exception {
+        Address address = Address.builder()
+                .id("some-Id")
+                .city("some-city")
+                .tenantId("some-tenant-id")
+                .type(AddressType.PERMANENT)
+                .isDeleted(true)
+                .build();
+        Identifier identifier = Identifier.builder()
+                .identifierType("SYSTEM_GENERATED")
+                .identifierId("some-identifier-id")
+                .isDeleted(true)
+                .build();
+        Skill skill = Skill.builder().id("some-id").type("type").experience("exp").level("lvl").isDeleted(true).build();
+        Individual requestIndividual = IndividualTestBuilder.builder()
+                .withId()
+                .withClientReferenceId()
+                .withRowVersion()
+                .withIdentifiers(identifier)
+                .withAddress(address)
+                .withSkills(skill)
+                .withIsDeleted(false)
+                .withAuditDetails()
+                .build();
+        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .withIndividuals(requestIndividual)
+                .build();
+        List<Individual> individualsInDb = new ArrayList<>();
+        individualsInDb.add(requestIndividual);
+        enrichmentService.delete(request.getIndividuals(), request);
+
+        assertEquals(2, request.getIndividuals().get(0).getRowVersion());
+
+
     }
 }

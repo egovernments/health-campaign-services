@@ -1,6 +1,7 @@
 package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.Error;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
@@ -12,9 +13,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
@@ -50,5 +52,23 @@ public class RowVersionValidatorTest {
         lenient().when(individualRepository.findById(anyList(), anyString(), eq(false))).thenReturn(existingIndividuals);
         assertTrue(rowVersionValidator.validate(individualBulkRequest).isEmpty());
 
+    }
+
+    @Test
+    void shouldGiveError_WhenRowVersionDoesNotMatch() {
+        IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withId("some-id")
+                        .build())
+                .build();
+        individualBulkRequest.getIndividuals().get(0).setRowVersion(2);
+        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+                .thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
+                        .withId("some-id")
+                        .build()));
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        errorDetailsMap = rowVersionValidator.validate(individualBulkRequest);
+        List<Error> errorList = errorDetailsMap.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        assertEquals("MISMATCHED_ROW_VERSION", errorList.get(0).getErrorCode());
     }
 }

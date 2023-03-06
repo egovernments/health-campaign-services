@@ -1,6 +1,7 @@
 package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.Error;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
@@ -10,7 +11,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,7 +43,11 @@ public class IsDeletedSubEntityValidatorTest {
                 .build();
         Individual individual = IndividualTestBuilder.builder().withIdentifiers(identifier).build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
-        assertFalse(isDeletedSubEntityValidator.validate(individualBulkRequest).isEmpty());
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        errorDetailsMap = isDeletedSubEntityValidator.validate(individualBulkRequest);
+        List<Error> errorList = errorDetailsMap.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        assertEquals("IS_DELETED_TRUE_SUB_ENTITY", errorList.get(0).getErrorCode());
+
 
     }
 
@@ -57,7 +68,10 @@ public class IsDeletedSubEntityValidatorTest {
                 .build();
         Individual individual = IndividualTestBuilder.builder().withAddress(address).build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
-        assertFalse(isDeletedSubEntityValidator.validate(individualBulkRequest).isEmpty());
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        errorDetailsMap = isDeletedSubEntityValidator.validate(individualBulkRequest);
+        List<Error> errorList = errorDetailsMap.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        assertEquals("IS_DELETED_TRUE_SUB_ENTITY", errorList.get(0).getErrorCode());
 
     }
 
@@ -74,6 +88,10 @@ public class IsDeletedSubEntityValidatorTest {
         Skill skill = Skill.builder().type("type").experience("exp").level("lvl").isDeleted(true).build();
         Individual individual = IndividualTestBuilder.builder().withSkills(skill).build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
-        assertFalse(isDeletedSubEntityValidator.validate(individualBulkRequest).isEmpty());
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        errorDetailsMap = isDeletedSubEntityValidator.validate(individualBulkRequest);
+        List<Error> errorList = errorDetailsMap.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        assertEquals("IS_DELETED_TRUE_SUB_ENTITY", errorList.get(0).getErrorCode());
+
     }
 }
