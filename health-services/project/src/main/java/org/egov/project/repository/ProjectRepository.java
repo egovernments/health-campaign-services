@@ -24,7 +24,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -190,7 +189,7 @@ public class ProjectRepository extends GenericRepository<Project> {
                 log.info("Adding ancestors to project " + project.getId());
                 addAncestorsToProjectSearchResult(project, ancestors, targets, documents);
             } else {
-                project.setAncestors(Collections.emptyList());
+                project.setAncestors(ancestors);
             }
             if (descendants != null) {
                 log.info("Adding descendants to project " + project.getId());
