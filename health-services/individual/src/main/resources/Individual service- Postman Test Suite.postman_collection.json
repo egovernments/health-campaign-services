@@ -1,0 +1,1578 @@
+{
+	"info": {
+		"_postman_id": "2355f259-007c-42f1-b510-c4df978f7de0",
+		"name": "Individual service- Postman Test Suite",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Individual",
+			"item": [
+				{
+					"name": "Individual Create-success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Individual is required\",function(){",
+									"    var req=JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual).to.not.be.undefined;",
+									"    pm.expect(req.Individual).to.not.be.null;",
+									"});",
+									"pm.test(\"TenantId is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual.tenantId).to.be.not.undefined;",
+									"    pm.expect(req.Individual.tenantId).to.be.not.null;",
+									"    pm.expect(req.Individual.tenantId).to.not.eql(\"\");",
+									"});",
+									"",
+									"pm.test(\"Name is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var name = req.Individual.name;",
+									"    pm.expect(name).to.not.be.undefined;",
+									"});",
+									"",
+									"pm.test(\"Given name and family name size must be between 2 and 64\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var name = req.Individual.name;",
+									"    pm.expect(name.givenName.length).to.not.be.below(2).above(64);",
+									"});",
+									"",
+									"pm.test(\"Address is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var individual = req.Individual;",
+									"    pm.expect(individual.address[0].tenantId).to.not.be.eql(\"\");",
+									"});",
+									"",
+									"pm.test(\"Address type is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var individual = req.Individual;",
+									"    pm.expect(individual.address[0].type).to.not.be.null;",
+									"    pm.expect(individual.address[0].type).to.not.be.undefined;",
+									"    pm.expect(individual.address[0].type).to.not.be.eql(\"\");",
+									"});",
+									"",
+									"pm.test(\"Identifier type is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var individual = req.Individual;",
+									"    pm.expect(individual.identifiers[0].identifierType).to.not.be.undefined;",
+									"    pm.expect(individual.identifiers[0].identifierType).to.not.be.eql(\"\");",
+									"    pm.expect(individual.identifiers[0].identifierType).to.not.be.null;",
+									"});",
+									"",
+									"pm.test(\"Identifier id is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var individual = req.Individual;",
+									"    pm.expect(individual.identifiers[0].identifierId).to.not.be.undefined;",
+									"    pm.expect(individual.identifiers[0].identifierId).to.not.be.eql(\"\");",
+									"    pm.expect(individual.identifiers[0].identifierId).to.not.be.null;",
+									"});",
+									"",
+									"pm.test(\"skills type is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var individual = req.Individual;",
+									"    pm.expect(individual.skills[0].type).to.not.be.undefined;",
+									"    pm.expect(individual.skills[0].type).to.not.be.null;",
+									"});",
+									"",
+									"pm.test(\"skills size must be between 2 and 64\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    var individual = req.Individual;",
+									"    pm.expect(individual.skills[0].type.length).to.not.be.below(2).above(64);",
+									"    pm.expect(individual.skills[0].level.length).to.not.be.below(2).above(64);",
+									"    pm.expect(individual.skills[0].experience.length).to.not.be.below(2).above(64);",
+									"",
+									"});",
+									"",
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(202)));",
+									"",
+									"pm.test(\"Individual Id is enriched\", function () {",
+									"    var res = pm.response.json();",
+									"    var individualId = res.Individual.id;",
+									"    pm.expect(individualId.substring(0, 3)).to.eql(\"IND\");",
+									"});",
+									"",
+									"pm.test(\"isDeleted is set to false\", function () {",
+									"    var res = pm.response.json();",
+									"    var isDeleted = res.Individual.isDeleted;",
+									"    pm.expect(isDeleted).to.be.false;",
+									"});",
+									"",
+									"let responseData = pm.response.json();",
+									"pm.collectionVariables.set(\"individualId\",responseData.Individual.id);",
+									"pm.collectionVariables.set(\"clientReferenceId\",responseData.Individual.clientReferenceId);",
+									"pm.collectionVariables.set(\"identifierId\",responseData.Individual.identifiers[0].identifierId);",
+									"pm.collectionVariables.set(\"identifierType\",responseData.Individual.identifiers[0].identifierType);",
+									"pm.collectionVariables.set(\"givenName\",responseData.Individual.name.givenName);",
+									"pm.collectionVariables.set(\"familyName\",responseData.Individual.name.familyName);",
+									"pm.collectionVariables.set(\"addressId\",responseData.Individual.address[0].id);",
+									"pm.collectionVariables.set(\"skillId\",responseData.Individual.skills[0].id);",
+									"pm.collectionVariables.set(\"identifiersId\",responseData.Individual.identifiers[0].id);",
+									"pm.collectionVariables.set(\"dob\",responseData.Individual.dateOfBirth);",
+									"pm.collectionVariables.set(\"gender\",responseData.Individual.gender);",
+									"",
+									"",
+									"",
+									"",
+									"",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.collectionVariables.set(\"tenantId\", \"pg\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{beneficiaryClientReferenceId}}\",\n        \"name\": {\n            \"givenName\": \"{{individualGivenName}}\",\n            \"familyName\": \"{{individualFamilyName}}\",\n            \"otherNames\": \"{{individualOtherName}}\"\n        },\n        \"dateOfBirth\": \"{{individualDateOfBirth}}\",\n        \"gender\": \"{{individualGenderType}}\",\n        \"bloodGroup\": \"{{individualBloodGroup}}\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": []\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"identifierType\": \"{{individualIdentifierType}}\",\n                \"identifierId\": \"{{individualIdentifierId}}\"\n            }\n        ],\n        \"skills\": [\n            {\n                \"type\": \"{{individualSkillType}}\",\n                \"level\": \"{{individualSkillLevel}}\",\n                \"experience\": \"{{individualSkillExperience}}\"\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"rowVersion\": 1\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Create- Validation error- skills type not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"skills\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"}",
+									");",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{beneficiaryClientReferenceId}}\",\n        \"name\": {\n            \"givenName\": \"{{individualGivenName}}\",\n            \"familyName\": \"{{individualFamilyName}}\",\n            \"otherNames\": \"{{individualOtherName}}\"\n        },\n        \"dateOfBirth\": \"{{individualDateOfBirth}}\",\n        \"gender\": \"{{individualGenderType}}\",\n        \"bloodGroup\": \"{{individualBloodGroup}}\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": []\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"identifierType\": \"{{individualIdentifierType}}\",\n                \"identifierId\": \"{{individualIdentifierId}}\"\n            }\n        ],\n        \"skills\": [\n            {\n                \"level\": \"{{individualSkillLevel}}\",\n                \"experience\": \"{{individualSkillExperience}}\"\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"rowVersion\": 1\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Create- Validation error- name is not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"name\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"}",
+									");",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{beneficiaryClientReferenceId}}\",\n        \"dateOfBirth\": \"{{individualDateOfBirth}}\",\n        \"gender\": \"{{individualGenderType}}\",\n        \"bloodGroup\": \"{{individualBloodGroup}}\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": []\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"identifierType\": \"{{individualIdentifierType}}\",\n                \"identifierId\": \"{{individualIdentifierId}}\"\n            }\n        ],\n        \"skills\": [\n            {\n                \"type\": \"{{individualSkillType}}\",\n                \"level\": \"{{individualSkillLevel}}\",\n                \"experience\": \"{{individualSkillExperience}}\"\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"rowVersion\": 1\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Create- Validation error- tenantId not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"tenantId\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"clientReferenceId\": \"{{beneficiaryClientReferenceId}}\",\n        \"name\": {\n            \"givenName\": \"{{individualGivenName}}\",\n            \"familyName\": \"{{individualFamilyName}}\",\n            \"otherNames\": \"{{individualOtherName}}\"\n        },\n        \"dateOfBirth\": \"{{individualDateOfBirth}}\",\n        \"gender\": \"{{individualGenderType}}\",\n        \"bloodGroup\": \"{{individualBloodGroup}}\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": []\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"identifierType\": \"{{individualIdentifierType}}\",\n                \"identifierId\": \"{{individualIdentifierId}}\"\n            }\n        ],\n        \"skills\": [\n            {\n                \"type\": \"{{individualSkillType}}\",\n                \"level\": \"{{individualSkillLevel}}\",\n                \"experience\": \"{{individualSkillExperience}}\"\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"rowVersion\": 1\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Create- Validation error- address not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"address\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{beneficiaryClientReferenceId}}\",\n        \"name\": {\n            \"givenName\": \"{{individualGivenName}}\",\n            \"familyName\": \"{{individualFamilyName}}\",\n            \"otherNames\": \"{{individualOtherName}}\"\n        },\n        \"dateOfBirth\": \"{{individualDateOfBirth}}\",\n        \"gender\": \"{{individualGenderType}}\",\n        \"bloodGroup\": \"{{individualBloodGroup}}\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {}\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"identifierType\": \"{{individualIdentifierType}}\",\n                \"identifierId\": \"{{individualIdentifierId}}\"\n            }\n        ],\n        \"skills\": [\n            {\n                \"type\": \"{{individualSkillType}}\",\n                \"level\": \"{{individualSkillLevel}}\",\n                \"experience\": \"{{individualSkillExperience}}\"\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"rowVersion\": 1\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Create- Validation error- identifier type not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"identifierType\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{beneficiaryClientReferenceId}}\",\n        \"name\": {\n            \"givenName\": \"{{individualGivenName}}\",\n            \"familyName\": \"{{individualFamilyName}}\",\n            \"otherNames\": \"{{individualOtherName}}\"\n        },\n        \"dateOfBirth\": \"{{individualDateOfBirth}}\",\n        \"gender\": \"{{individualGenderType}}\",\n        \"bloodGroup\": \"{{individualBloodGroup}}\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": []\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"identifierId\": \"{{individualIdentifierId}}\"\n            }\n        ],\n        \"skills\": [\n            {\n                \"type\": \"{{individualSkillType}}\",\n                \"level\": \"{{individualSkillLevel}}\",\n                \"experience\": \"{{individualSkillExperience}}\"\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"rowVersion\": 1\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Create- Validation error- identifier id not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"identifierId\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"tenantId\":\"{{tenantId}}\",\n        \"clientReferenceId\": \"{{beneficiaryClientReferenceId}}\",\n        \"name\": {\n            \"givenName\": \"{{individualGivenName}}\",\n            \"familyName\": \"{{individualFamilyName}}\",\n            \"otherNames\": \"{{individualOtherName}}\"\n        },\n        \"dateOfBirth\": \"{{individualDateOfBirth}}\",\n        \"gender\": \"{{individualGenderType}}\",\n        \"bloodGroup\": \"{{individualBloodGroup}}\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": []\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"identifierType\": \"{{individualIdentifierType}}\"\n            }\n        ],\n        \"skills\": [\n            {\n                \"type\": \"{{individualSkillType}}\",\n                \"level\": \"{{individualSkillLevel}}\",\n                \"experience\": \"{{individualSkillExperience}}\"\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"rowVersion\": 1\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Create - Validation Error-Individual not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"NotNull\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									"",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Bulk Create-success",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"var individualArray = []",
+									"var uuid = require('uuid')",
+									"var identifierTypes = [\"SYSTEM_GENERATED\", \"AADHAAR\", \"PAN\", \"VOTER ID CARD\", \"PASSPORT\", \"DRIVING LICENSE\"]",
+									"var skillTypes = [\"Type Writing\", \"Computer\", \"Science\", \"Singing\", \"Dancing\", \"Event Organizer\"]",
+									"var skillLevels = [\"Novice\", \"Learner\", \"Proficient\", \"Expert\"]",
+									"var skillExperiences = [\"1 Year\", \"2 Years\", \"3 Years\", \"4 Years\", \"5 Years\", \"6 Years\", \"7 Years\", \"8 Years\", \"9 Years\", \"10 Years\", \"10+ Years\"]",
+									"var bloodGroups = [\"A+\", \"B+\", \"O+\", \"AB+\", \"A-\", \"B-\", \"AB-\", \"O-\"]",
+									"var genderTypes = [ \"MALE\", \"FEMALE\", \"OTHER\" ]",
+									"var address = [",
+									"            {",
+									"                \"tenantId\": \"pg\",",
+									"                \"doorNo\": \"123\",",
+									"                \"latitude\": 40.82,",
+									"                \"longitude\": 35.06,",
+									"                \"locationAccuracy\": 14.27,",
+									"                \"type\": \"PERMANENT\",",
+									"                \"addressLine1\": \"Apartment\",",
+									"                \"addressLine2\": \"2nd Floor\",",
+									"                \"landmark\": \"Near Juhu Beach\",",
+									"                \"city\": \"Mumbai\",",
+									"                \"pincode\": \"123456\",",
+									"                \"buildingName\": \"Apartment\",",
+									"                \"street\": \"Necklace Road\",",
+									"                \"locality\": {",
+									"                    \"code\": \"test_9b31746b933d\",",
+									"                    \"name\": \"test_58630a388978\",",
+									"                    \"label\": \"test_7b7f928dcab8\",",
+									"                    \"latitude\": \"test_15d4a90d15a6\",",
+									"                    \"longitude\": \"test_e8854daed039\",",
+									"                    \"children\": []",
+									"                }",
+									"            }",
+									"        ]",
+									"var additionalFields = {",
+									"      \"schema\": \"HOUSEHOLD\",",
+									"      \"version\": 2,",
+									"      \"fields\": [",
+									"        {",
+									"          \"key\": \"height\",",
+									"          \"value\": \"180\"",
+									"        }",
+									"      ]",
+									"    }",
+									"for(let i = 0; i<= 99; i++){",
+									"    var individualArrayItem = {}",
+									"    var dt = String(Math.floor((Math.random() * (9 - 10+ 1)) + 10))",
+									"    individualArrayItem.tenantId = \"pg\"",
+									"    individualArrayItem.clientReferenceId = uuid.v4()",
+									"    individualArrayItem.name = {}",
+									"    individualArrayItem.name.givenName = \"Sourav\"+ Math.random().toString(36).slice(-10)",
+									"    individualArrayItem.name.familyName = \"Ganguly\"+ Math.random().toString(36).slice(-10)",
+									"    individualArrayItem.name.otherNames = \"Dada\"+ Math.random().toString(36).slice(-10)",
+									"    individualArrayItem.dateOfBirth = new Date(new Date() - Math.random()*(1e+12)).toLocaleDateString('en-GB')",
+									"    individualArrayItem.gender = genderTypes[Math.floor(Math.random() * genderTypes.length)]",
+									"    individualArrayItem.bloodGroup = bloodGroups[Math.floor(Math.random() * bloodGroups.length)]",
+									"    individualArrayItem.mobileNumber = Math.floor(Math.random() * 10000000000)",
+									"    individualArrayItem.altContactNumber = Math.floor(Math.random() * 10000000000)",
+									"    individualArrayItem.email = \"abc@test.com\"",
+									"    individualArrayItem.address = address",
+									"    individualArrayItem.address[0].addressLine1 = individualArrayItem.address[0].addressLine1 + dt",
+									"    individualArrayItem.address[0].addressLine2 = individualArrayItem.address[0].addressLine2 + dt",
+									"    individualArrayItem.address[0].landmark = individualArrayItem.address[0].landmark + dt",
+									"    individualArrayItem.address[0].buildingName = individualArrayItem.address[0].buildingName + dt",
+									"    individualArrayItem.address[0].street = individualArrayItem.address[0].street + dt",
+									"    individualArrayItem.address[0].locality.code = String(new Date().getTime())",
+									"    individualArrayItem.fatherName = \"test_\" + Math.floor(Math.random() * 1000000)",
+									"    if(individualArrayItem.gender == \"FEMALE\")",
+									"        individualArrayItem.husbandName = \"Husband Name\"",
+									"    else",
+									"        individualArrayItem.husbandName = null",
+									"",
+									"    individualArrayItem.identifiers = []",
+									"    var identifierElem = {}",
+									"    identifierElem.identifierType = identifierTypes[Math.floor(Math.random() * identifierTypes.length)]",
+									"    identifierElem.identifierId = Math.floor((Math.random() * (999999999999 - 100000000000 + 1)) + 100000000000)",
+									"    individualArrayItem.identifiers.push(identifierElem)",
+									"",
+									"    individualArrayItem.skills = []",
+									"    var skillElem = {}",
+									"    skillElem.type =  skillTypes[Math.floor(Math.random() * skillTypes.length)]",
+									"    skillElem.level = skillLevels[Math.floor(Math.random() * skillLevels.length)]",
+									"    skillElem.experience = skillExperiences[Math.floor(Math.random() * skillExperiences.length)]",
+									"    individualArrayItem.skills.push(skillElem)",
+									"",
+									"    individualArrayItem.photo = dt",
+									"    individualArrayItem.additionalFields = additionalFields",
+									"    individualArrayItem.rowVersion = 1",
+									"",
+									"    individualArray.push(individualArrayItem)",
+									"}",
+									"pm.environment.set(\"individualArray\", JSON.stringify(individualArray))"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(202)));",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individuals\": {{individualArray2}}\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/bulk/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"bulk",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Bulk Create- Error - individuals not provided",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"individuals\");",
+									"    pm.expect(message).to.eql(\"size must be between 1 and 2147483647\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individuals\": []\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/bulk/_create",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"bulk",
+								"_create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Search- success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(200)));",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": [\n            \"{{individualId}}\"\n        ]\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_search?limit=100&offset=0&tenantId={{tenantId}}",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_search"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "100"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Search- Validation error- No search parameters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.eql(\"NotNull.individualSearchRequest.individual\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_search?limit=100&offset=0&tenantId={{tenantId}}",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_search"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "100"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "tenantId",
+									"value": "{{tenantId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Update-success",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Individual is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual).to.not.be.undefined;",
+									"    pm.expect(req.Individual).to.not.be.null;",
+									"});",
+									"pm.test(\"IndividualId is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual.id).to.be.not.undefined;",
+									"    pm.expect(req.Individual.id).to.not.be.null;",
+									"});",
+									"pm.test(\"TenantId is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual.tenantId).to.be.not.undefined;",
+									"    pm.expect(req.Individual.tenantId).to.be.not.null;",
+									"    pm.expect(req.Individual.tenantId).to.not.eql(\"\");",
+									"});",
+									"pm.test(\"Address is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual.address).to.be.not.undefined;",
+									"    pm.expect(req.Individual.address).to.not.be.null;",
+									"",
+									"});",
+									"pm.test(\"Identifier is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual.identifiers).to.be.not.undefined;",
+									"    pm.expect(req.Individual.identifiers).to.not.be.null;",
+									"});",
+									"pm.test(\"Skills is required\", function () {",
+									"    var req = JSON.parse(pm.request.body.raw);",
+									"    pm.expect(req.Individual.skills).to.be.not.undefined;",
+									"    pm.expect(req.Individual.skills).to.not.be.null;",
+									"",
+									"});",
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(202)));",
+									"",
+									"pm.test(\"Row version is updated\", function () {",
+									"    var res = pm.response.json();",
+									"    var rowVersion = res.Individual.rowVersion;",
+									"    pm.expect(rowVersion).to.eql(2);",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": \"{{individualId}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravxqnkndol19\",\n            \"familyName\": \"Gangulynqei8z6r48\",\n            \"otherNames\": \"Dada6smv4t1a2d\"\n        },\n        \"dateOfBirth\": \"30/12/2022\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"B+\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"{{identifierType}}\",\n                \"identifierId\": \"{{identifierId}}\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"skills\": [\n            {\n               \"id\": \"{{skillId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Type Writing\",\n                \"level\": \"Learner\",\n                \"experience\": \"3 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                } \n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": false,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"createdTime\": 1677778734236,\n            \"lastModifiedTime\": 1677778734236\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Update- Validation Error - Individual id not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.eql(\"VALIDATION_ERROR\");",
+									"    pm.expect(message).to.contain(\"NULL_ID\");",
+									"    }",
+									");",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravxqnkndol19\",\n            \"familyName\": \"Gangulynqei8z6r48\",\n            \"otherNames\": \"Dada6smv4t1a2d\"\n        },\n        \"dateOfBirth\": \"30/12/2022\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"B+\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"{{identifierType}}\",\n                \"identifierId\": \"{{identifierId}}\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"skills\": [\n            {\n               \"id\": \"{{skillId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Type Writing\",\n                \"level\": \"Learner\",\n                \"experience\": \"3 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                } \n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": false,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"createdTime\": 1677778734236,\n            \"lastModifiedTime\": 1677778734236\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Update- Validation Error - tenantId not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"tenantId\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\":\"{{individualId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravxqnkndol19\",\n            \"familyName\": \"Gangulynqei8z6r48\",\n            \"otherNames\": \"Dada6smv4t1a2d\"\n        },\n        \"dateOfBirth\": \"30/12/2022\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"B+\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"{{identifierType}}\",\n                \"identifierId\": \"{{identifierId}}\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"skills\": [\n            {\n               \"id\": \"{{skillId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Type Writing\",\n                \"level\": \"Learner\",\n                \"experience\": \"3 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                } \n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": false,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"createdTime\": 1677778734236,\n            \"lastModifiedTime\": 1677778734236\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Update- Validation Error - skills not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"skills\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": \"{{individualId}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravxqnkndol19\",\n            \"familyName\": \"Gangulynqei8z6r48\",\n            \"otherNames\": \"Dada6smv4t1a2d\"\n        },\n        \"dateOfBirth\": \"30/12/2022\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"B+\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"{{identifierType}}\",\n                \"identifierId\": \"{{identifierId}}\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"skills\": [\n            {}\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": false,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"createdTime\": 1677778734236,\n            \"lastModifiedTime\": 1677778734236\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Update- Validation Error - identifier not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received for identifier type\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": \"{{individualId}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravxqnkndol19\",\n            \"familyName\": \"Gangulynqei8z6r48\",\n            \"otherNames\": \"Dada6smv4t1a2d\"\n        },\n        \"dateOfBirth\": \"30/12/2022\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"B+\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {}\n        ],\n        \"skills\": [\n            {\n                \"id\": \"{{skillId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Type Writing\",\n                \"level\": \"Learner\",\n                \"experience\": \"3 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": false,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"createdTime\": 1677778734236,\n            \"lastModifiedTime\": 1677778734236\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Update- Validation Error - address not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"address[0].type\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\":\"{{individualId}}\",\n        \"tenantId\":\"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravxqnkndol19\",\n            \"familyName\": \"Gangulynqei8z6r48\",\n            \"otherNames\": \"Dada6smv4t1a2d\"\n        },\n        \"dateOfBirth\": \"30/12/2022\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"B+\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"{{identifierType}}\",\n                \"identifierId\": \"{{identifierId}}\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                }\n            }\n        ],\n        \"skills\": [\n            {\n               \"id\": \"{{skillId}}\",\n                \"clientReferenceId\": null,\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Type Writing\",\n                \"level\": \"Learner\",\n                \"experience\": \"3 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n                    \"createdTime\": 1677778734237,\n                    \"lastModifiedTime\": 1677778734237\n                } \n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": false,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"lastModifiedBy\": \"528d81aa-9543-4100-b851-5ae758c21f62\",\n            \"createdTime\": 1677778734236,\n            \"lastModifiedTime\": 1677778734236\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Bulk Update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(202)));",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individuals\": [\n        {\n            \"id\": \"IND-2023-02-06-000205\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"clientReferenceId\": \"3013133c-966f-4de2-af9a-ba2a5e66a756\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Souravl93fgms4q8\",\n                \"familyName\": \"Gangulykzwicdg5on\",\n                \"otherNames\": \"Daday4m3nnl7qw\"\n            },\n            \"dateOfBirth\": \"13/09/2018\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"O-\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada1@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"c678b3d0-40e8-41c9-ab7a-b9924c488876\",\n                    \"individualId\": \"IND-2023-02-06-000205\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163794,\n                        \"lastModifiedTime\": 1675687163794\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"1ebfe8f4-7ad8-49b1-a66e-082261739936\",\n                    \"individualId\": \"IND-2023-02-06-000205\",\n                    \"identifierType\": \"PAN\",\n                    \"identifierId\": \"276270724117\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163795,\n                        \"lastModifiedTime\": 1675687163795\n                    }\n                },\n                {\n                    \"identifierType\": \"TEST\",\n                    \"identifierId\": \"2762707hgfjg24117\"\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"4c023fbf-a4c9-4760-968f-eb12f6375edf\",\n                    \"individualId\": \"IND-2023-02-06-000205\",\n                    \"type\": \"Computer\",\n                    \"level\": \"Novice\",\n                    \"experience\": \"3 Years\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163797,\n                        \"lastModifiedTime\": 1675687163797\n                    }\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": false,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675687163793,\n                \"lastModifiedTime\": 1675687163793\n            }\n        },\n        {\n            \"id\": \"IND-2023-02-06-000206\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"clientReferenceId\": \"de20471f-5b04-4b3f-977b-03852a7184f3\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Sourav6kluywgfr4\",\n                \"familyName\": \"Gangulyvg2ixcv6o7\",\n                \"otherNames\": \"Dadayleygwz15n\"\n            },\n            \"dateOfBirth\": \"16/06/2013\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"O-\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada2@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"18090d6b-fdc0-4b14-8211-467d65ddbbc5\",\n                    \"individualId\": \"IND-2023-02-06-000206\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163794,\n                        \"lastModifiedTime\": 1675687163794\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"b74bea7d-d1e0-4d44-ada4-54f48dfe9fcd\",\n                    \"individualId\": \"IND-2023-02-06-000206\",\n                    \"identifierType\": \"PAN\",\n                    \"identifierId\": \"test_112569275563\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163795,\n                        \"lastModifiedTime\": 1675687163795\n                    }\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"365ce16b-3e2d-40f6-857d-f67ae8d6105c\",\n                    \"individualId\": \"IND-2023-02-06-000206\",\n                    \"type\": \"Computer\",\n                    \"level\": \"Novice\",\n                    \"experience\": \"3 Years\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163797,\n                        \"lastModifiedTime\": 1675687163797\n                    }\n                },\n                {\n                    \"type\": \"Typing\",\n                    \"level\": \"Professional\",\n                    \"experience\": \"3 Years\"\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": false,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675687163793,\n                \"lastModifiedTime\": 1675687163793\n            }\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/bulk/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"bulk",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Bulk Update - Error - Individuals not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(400)));",
+									"    ",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"individuals\");",
+									"    pm.expect(message).to.eql(\"size must be between 1 and 2147483647\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individuals\": [\n       \n    ]\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/bulk/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"bulk",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Bulk Update - Error - tenantId not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"NotNull\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individuals\": [\n        {\n            \"id\": \"IND-2023-02-06-000205\",\n            \"clientReferenceId\": \"3013133c-966f-4de2-af9a-ba2a5e66a756\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Souravl93fgms4q8\",\n                \"familyName\": \"Gangulykzwicdg5on\",\n                \"otherNames\": \"Daday4m3nnl7qw\"\n            },\n            \"dateOfBirth\": \"13/09/2018\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"O-\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada1@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"c678b3d0-40e8-41c9-ab7a-b9924c488876\",\n                    \"individualId\": \"IND-2023-02-06-000205\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163794,\n                        \"lastModifiedTime\": 1675687163794\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"1ebfe8f4-7ad8-49b1-a66e-082261739936\",\n                    \"individualId\": \"IND-2023-02-06-000205\",\n                    \"identifierType\": \"PAN\",\n                    \"identifierId\": \"276270724117\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163795,\n                        \"lastModifiedTime\": 1675687163795\n                    }\n                },\n                {\n                    \"identifierType\": \"TEST\",\n                    \"identifierId\": \"2762707hgfjg24117\"\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"4c023fbf-a4c9-4760-968f-eb12f6375edf\",\n                    \"individualId\": \"IND-2023-02-06-000205\",\n                    \"type\": \"Computer\",\n                    \"level\": \"Novice\",\n                    \"experience\": \"3 Years\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163797,\n                        \"lastModifiedTime\": 1675687163797\n                    }\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": false,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675687163793,\n                \"lastModifiedTime\": 1675687163793\n            }\n        },\n        {\n            \"id\": \"IND-2023-02-06-000206\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"clientReferenceId\": \"de20471f-5b04-4b3f-977b-03852a7184f3\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Sourav6kluywgfr4\",\n                \"familyName\": \"Gangulyvg2ixcv6o7\",\n                \"otherNames\": \"Dadayleygwz15n\"\n            },\n            \"dateOfBirth\": \"16/06/2013\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"O-\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada2@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"18090d6b-fdc0-4b14-8211-467d65ddbbc5\",\n                    \"individualId\": \"IND-2023-02-06-000206\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163794,\n                        \"lastModifiedTime\": 1675687163794\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"b74bea7d-d1e0-4d44-ada4-54f48dfe9fcd\",\n                    \"individualId\": \"IND-2023-02-06-000206\",\n                    \"identifierType\": \"PAN\",\n                    \"identifierId\": \"test_112569275563\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163795,\n                        \"lastModifiedTime\": 1675687163795\n                    }\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"365ce16b-3e2d-40f6-857d-f67ae8d6105c\",\n                    \"individualId\": \"IND-2023-02-06-000206\",\n                    \"type\": \"Computer\",\n                    \"level\": \"Novice\",\n                    \"experience\": \"3 Years\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675687163797,\n                        \"lastModifiedTime\": 1675687163797\n                    }\n                },\n                {\n                    \"type\": \"Typing\",\n                    \"level\": \"Professional\",\n                    \"experience\": \"3 Years\"\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": false,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675687163793,\n                \"lastModifiedTime\": 1675687163793\n            }\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/bulk/_update",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"bulk",
+								"_update"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Delete -success",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": \"{{individualId}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravzdpfce6xcr\",\n            \"familyName\": \"Ganguly9r2x5j3t09\",\n            \"otherNames\": \"Dadaa1hdol6b26\"\n        },\n        \"dateOfBirth\": \"22/12/2010\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"AB-\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782727,\n                    \"lastModifiedTime\": 1675741782727\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"AADHAAR\",\n                \"identifierId\": \"663463366872\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782728,\n                    \"lastModifiedTime\": 1675741782728\n                }\n            }\n        ],\n        \"skills\": [\n            {\n                \"id\": \"{{skillId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Dancing\",\n                \"level\": \"Novice\",\n                \"experience\": \"6 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782729,\n                    \"lastModifiedTime\": 1675741782729\n                }\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": false,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"createdTime\": 1675741782726,\n            \"lastModifiedTime\": 1675741782726\n        }\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_delete",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Delete - Error- skills not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"skills\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": \"{{individualId}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravzdpfce6xcr\",\n            \"familyName\": \"Ganguly9r2x5j3t09\",\n            \"otherNames\": \"Dadaa1hdol6b26\"\n        },\n        \"dateOfBirth\": \"22/12/2010\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"AB-\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782727,\n                    \"lastModifiedTime\": 1675741782727\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"AADHAAR\",\n                \"identifierId\": \"663463366872\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782728,\n                    \"lastModifiedTime\": 1675741782728\n                }\n            }\n        ],\n        \"skills\": [\n            {}\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": true,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"createdTime\": 1675741782726,\n            \"lastModifiedTime\": 1675741782726\n        }\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_delete",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Delete - Error - Identifiers not present",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": \"{{individualId}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravzdpfce6xcr\",\n            \"familyName\": \"Ganguly9r2x5j3t09\",\n            \"otherNames\": \"Dadaa1hdol6b26\"\n        },\n        \"dateOfBirth\": \"22/12/2010\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"AB-\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {\n                \"id\": \"{{addressId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"123\",\n                \"latitude\": 40.82,\n                \"longitude\": 35.06,\n                \"locationAccuracy\": 14.27,\n                \"type\": \"PERMANENT\",\n                \"addressLine1\": \"Apartment\",\n                \"addressLine2\": \"2nd Floor\",\n                \"landmark\": \"Near Juhu Beach\",\n                \"city\": \"Mumbai\",\n                \"pincode\": \"123456\",\n                \"buildingName\": \"Apartment\",\n                \"street\": \"Necklace Road\",\n                \"locality\": {\n                    \"code\": \"test_9b31746b933d\",\n                    \"name\": \"test_58630a388978\",\n                    \"label\": \"test_7b7f928dcab8\",\n                    \"latitude\": \"test_15d4a90d15a6\",\n                    \"longitude\": \"test_e8854daed039\",\n                    \"children\": [],\n                    \"materializedPath\": null\n                },\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782727,\n                    \"lastModifiedTime\": 1675741782727\n                }\n            }\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {}\n        ],\n        \"skills\": [\n            {\n                \"id\": \"{{skillId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Dancing\",\n                \"level\": \"Novice\",\n                \"experience\": \"6 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782729,\n                    \"lastModifiedTime\": 1675741782729\n                }\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": true,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"createdTime\": 1675741782726,\n            \"lastModifiedTime\": 1675741782726\n        }\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_delete",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Delete - Error- Address not present",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () => ",
+									"   pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"address[0].type\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individual\": {\n        \"id\": \"{{individualId}}\",\n        \"tenantId\": \"{{tenantId}}\",\n        \"clientReferenceId\": \"{{clientReferenceId}}\",\n        \"userId\": null,\n        \"name\": {\n            \"givenName\": \"Souravzdpfce6xcr\",\n            \"familyName\": \"Ganguly9r2x5j3t09\",\n            \"otherNames\": \"Dadaa1hdol6b26\"\n        },\n        \"dateOfBirth\": \"22/12/2010\",\n        \"gender\": \"FEMALE\",\n        \"bloodGroup\": \"AB-\",\n        \"mobileNumber\": \"9876543210\",\n        \"altContactNumber\": \"8765432109\",\n        \"email\": \"souravganguly_dada@gmail.com\",\n        \"address\": [\n            {}\n        ],\n        \"fatherName\": \"Ganguly Sr\",\n        \"husbandName\": null,\n        \"identifiers\": [\n            {\n                \"id\": \"{{identifiersId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"identifierType\": \"AADHAAR\",\n                \"identifierId\": \"663463366872\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782728,\n                    \"lastModifiedTime\": 1675741782728\n                }\n            }\n        ],\n        \"skills\": [\n            {\n                \"id\": \"{{skillId}}\",\n                \"individualId\": \"{{individualId}}\",\n                \"type\": \"Dancing\",\n                \"level\": \"Novice\",\n                \"experience\": \"6 Years\",\n                \"isDeleted\": false,\n                \"auditDetails\": {\n                    \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                    \"createdTime\": 1675741782729,\n                    \"lastModifiedTime\": 1675741782729\n                }\n            }\n        ],\n        \"photo\": \"test_35bd4e8545d8\",\n        \"additionalFields\": {\n            \"schema\": \"test_f76b4cca6bff\",\n            \"version\": 23,\n            \"fields\": [\n                {\n                    \"key\": \"test_80f7fb8d8a45\",\n                    \"value\": \"test_38bfd0dc223b\"\n                }\n            ]\n        },\n        \"isDeleted\": true,\n        \"rowVersion\": 1,\n        \"auditDetails\": {\n            \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n            \"createdTime\": 1675741782726,\n            \"lastModifiedTime\": 1675741782726\n        }\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/_delete",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"_delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Bulk Delete",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(202)));"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individuals\": [\n        {\n            \"id\": \"IND-2023-03-03-001245\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"clientReferenceId\": \"270189f1-2e28-4f28-bc02-c69d9e09a489\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Souravllccl9e5gn\",\n                \"familyName\": \"Gangulyje5yr7ira4\",\n                \"otherNames\": \"Dadaba9v9b4yii\"\n            },\n            \"dateOfBirth\": \"13/12/2019\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"A+\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"ce67eb3e-5ac5-4b37-ab93-7129e46c9907\",\n                    \"individualId\": \"IND-2023-02-07-000209\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"00c2944f-6f64-4828-ab6a-0469a24960bf\",\n                    \"individualId\": \"IND-2023-02-07-000209\",\n                    \"identifierType\": \"VOTER ID CARD\",\n                    \"identifierId\": \"186995723310\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"c1659ffe-b4f1-453f-a5ef-ed43a0cf10dd\",\n                    \"individualId\": \"IND-2023-02-07-000209\",\n                    \"type\": \"Science\",\n                    \"level\": \"Expert\",\n                    \"experience\": \"1 Year\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551623,\n                        \"lastModifiedTime\": 1675742551623\n                    }\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": true,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675742551621,\n                \"lastModifiedTime\": 1675742551621\n            }\n        },\n        {\n            \"id\": \"IND-2023-02-07-000210\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"clientReferenceId\": \"d054434b-50f1-4eb3-997d-cfd11aae0a56\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Souravr1fek6rjtm\",\n                \"familyName\": \"Ganguly2aj3wuwmmn\",\n                \"otherNames\": \"Dada6zp25apntl\"\n            },\n            \"dateOfBirth\": \"10/01/2006\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"A+\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"1c4d7b0e-4cbf-4fe0-a003-6fbbd64fbd20\",\n                    \"individualId\": \"IND-2023-02-07-000210\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"6926efd0-16e3-449c-aa12-d0da4c922927\",\n                    \"individualId\": \"IND-2023-02-07-000210\",\n                    \"identifierType\": \"VOTER ID CARD\",\n                    \"identifierId\": \"test_727723688195\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"20ab125d-85a0-493c-9abd-6e8e05913df2\",\n                    \"individualId\": \"IND-2023-02-07-000210\",\n                    \"type\": \"Science\",\n                    \"level\": \"Expert\",\n                    \"experience\": \"1 Year\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551623,\n                        \"lastModifiedTime\": 1675742551623\n                    }\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": true,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675742551621,\n                \"lastModifiedTime\": 1675742551621\n            }\n        }\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/bulk/_delete",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"bulk",
+								"_delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Individual Bulk Delete - Error- tenantId not provided",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is successful\", () =>",
+									"    pm.expect(pm.response.to.have.status(400)));",
+									"",
+									"pm.test(\"Correct Error with message and code is received\", function () {",
+									"    var res = pm.response.json();",
+									"    var code = res.Errors[0].code;",
+									"    var message = res.Errors[0].message;",
+									"    pm.expect(code).to.contain(\"NotNull\");",
+									"    pm.expect(message).to.eql(\"must not be null\");",
+									"    }",
+									");",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"authToken\": \"{{authToken}}\"\n    },\n    \"Individuals\": [\n        {\n            \"id\": \"IND-2023-03-03-001245\",\n            \"clientReferenceId\": \"270189f1-2e28-4f28-bc02-c69d9e09a489\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Souravllccl9e5gn\",\n                \"familyName\": \"Gangulyje5yr7ira4\",\n                \"otherNames\": \"Dadaba9v9b4yii\"\n            },\n            \"dateOfBirth\": \"13/12/2019\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"A+\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"ce67eb3e-5ac5-4b37-ab93-7129e46c9907\",\n                    \"individualId\": \"IND-2023-02-07-000209\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"00c2944f-6f64-4828-ab6a-0469a24960bf\",\n                    \"individualId\": \"IND-2023-02-07-000209\",\n                    \"identifierType\": \"VOTER ID CARD\",\n                    \"identifierId\": \"186995723310\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"c1659ffe-b4f1-453f-a5ef-ed43a0cf10dd\",\n                    \"individualId\": \"IND-2023-02-07-000209\",\n                    \"type\": \"Science\",\n                    \"level\": \"Expert\",\n                    \"experience\": \"1 Year\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551623,\n                        \"lastModifiedTime\": 1675742551623\n                    }\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": true,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675742551621,\n                \"lastModifiedTime\": 1675742551621\n            }\n        },\n        {\n            \"id\": \"IND-2023-02-07-000210\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"clientReferenceId\": \"d054434b-50f1-4eb3-997d-cfd11aae0a56\",\n            \"userId\": null,\n            \"name\": {\n                \"givenName\": \"Souravr1fek6rjtm\",\n                \"familyName\": \"Ganguly2aj3wuwmmn\",\n                \"otherNames\": \"Dada6zp25apntl\"\n            },\n            \"dateOfBirth\": \"10/01/2006\",\n            \"gender\": \"FEMALE\",\n            \"bloodGroup\": \"A+\",\n            \"mobileNumber\": \"9876543210\",\n            \"altContactNumber\": \"8765432109\",\n            \"email\": \"souravganguly_dada@gmail.com\",\n            \"address\": [\n                {\n                    \"id\": \"1c4d7b0e-4cbf-4fe0-a003-6fbbd64fbd20\",\n                    \"individualId\": \"IND-2023-02-07-000210\",\n                    \"tenantId\": \"{{tenantId}}\",\n                    \"doorNo\": \"123\",\n                    \"latitude\": 40.82,\n                    \"longitude\": 35.06,\n                    \"locationAccuracy\": 14.27,\n                    \"type\": \"PERMANENT\",\n                    \"addressLine1\": \"Apartment\",\n                    \"addressLine2\": \"2nd Floor\",\n                    \"landmark\": \"Near Juhu Beach\",\n                    \"city\": \"Mumbai\",\n                    \"pincode\": \"123456\",\n                    \"buildingName\": \"Apartment\",\n                    \"street\": \"Necklace Road\",\n                    \"locality\": {\n                        \"code\": \"test_9b31746b933d\",\n                        \"name\": \"test_58630a388978\",\n                        \"label\": \"test_7b7f928dcab8\",\n                        \"latitude\": \"test_15d4a90d15a6\",\n                        \"longitude\": \"test_e8854daed039\",\n                        \"children\": [],\n                        \"materializedPath\": null\n                    },\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"fatherName\": \"Ganguly Sr\",\n            \"husbandName\": null,\n            \"identifiers\": [\n                {\n                    \"id\": \"6926efd0-16e3-449c-aa12-d0da4c922927\",\n                    \"individualId\": \"IND-2023-02-07-000210\",\n                    \"identifierType\": \"VOTER ID CARD\",\n                    \"identifierId\": \"test_727723688195\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551622,\n                        \"lastModifiedTime\": 1675742551622\n                    }\n                }\n            ],\n            \"skills\": [\n                {\n                    \"id\": \"20ab125d-85a0-493c-9abd-6e8e05913df2\",\n                    \"individualId\": \"IND-2023-02-07-000210\",\n                    \"type\": \"Science\",\n                    \"level\": \"Expert\",\n                    \"experience\": \"1 Year\",\n                    \"isDeleted\": false,\n                    \"auditDetails\": {\n                        \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                        \"createdTime\": 1675742551623,\n                        \"lastModifiedTime\": 1675742551623\n                    }\n                }\n            ],\n            \"photo\": \"test_35bd4e8545d8\",\n            \"additionalFields\": {\n                \"schema\": \"test_f76b4cca6bff\",\n                \"version\": 23,\n                \"fields\": [\n                    {\n                        \"key\": \"test_80f7fb8d8a45\",\n                        \"value\": \"test_38bfd0dc223b\"\n                    }\n                ]\n            },\n            \"isDeleted\": true,\n            \"rowVersion\": 1,\n            \"auditDetails\": {\n                \"createdBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"lastModifiedBy\": \"6af8acab-cb2f-472b-8def-aab27864ad16\",\n                \"createdTime\": 1675742551621,\n                \"lastModifiedTime\": 1675742551621\n            }\n        }\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{dev}}/individual/v1/bulk/_delete",
+							"host": [
+								"{{dev}}"
+							],
+							"path": [
+								"individual",
+								"v1",
+								"bulk",
+								"_delete"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
