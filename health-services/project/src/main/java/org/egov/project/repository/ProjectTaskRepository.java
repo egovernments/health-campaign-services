@@ -48,6 +48,7 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
                 QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "pt.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "pt.clientReferenceId IN (:clientReferenceId)");
 
         query = query + " and pt.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {
