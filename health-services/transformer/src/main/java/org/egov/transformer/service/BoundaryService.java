@@ -1,10 +1,15 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.RequestInfoWrapper;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import lombok.extern.slf4j.Slf4j;
+import net.minidev.json.JSONArray;
+import net.minidev.json.JSONObject;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.boundary.TreeGenerator;
@@ -14,6 +19,7 @@ import org.egov.transformer.models.upstream.Boundary;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,7 +86,7 @@ public class BoundaryService {
             }
             uri.append("&code=").append(code);
             response = serviceRequestClient.fetchResult(uri,
-                    RequestInfoWrapper.builder().build(),
+                    RequestInfo.builder().build(),
                     LinkedHashMap.class);
         } catch (Exception e) {
             log.error("error while calling boundary service", e);
@@ -91,10 +97,20 @@ public class BoundaryService {
                 log.error("empty response received from boundary service");
                 throw new CustomException("BOUNDARY_ERROR", "the response from location service is empty or null");
             }
-            JsonNode jsonNode = objectMapper.convertValue(response, JsonNode.class);
-            JsonNode boundaryListNode = jsonNode.path("$.TenantBoundary[?(@.hierarchyType.code == 'ADMIN')].boundary");
-            if (boundaryListNode != null) {
-                return objectMapper.convertValue(boundaryListNode, new TypeReference<List<Boundary>>() {});
+            Configuration cf = Configuration.builder().options(Option.ALWAYS_RETURN_LIST).build();
+            String jsonString = new JSONObject(response).toString();
+            DocumentContext context = JsonPath.using(cf).parse(jsonString);
+            JSONArray jsonArray = context.read("$.TenantBoundary[?(@.hierarchyType.code == 'ADMIN')].boundary");
+            if (jsonArray != null) {
+                String str = jsonArray.get(0).toString();
+                try {
+                    return Arrays.asList(objectMapper
+                            .readValue(str,
+                                    Boundary[].class));
+                } catch (JsonProcessingException e) {
+                    log.error("error in paring json", e);
+                    throw new CustomException("JSON_ERROR", "error in parsing json");
+                }
             }
             log.warn("boundary list is empty");
         }

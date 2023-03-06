@@ -81,8 +81,10 @@ public class ProjectService {
         BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
         BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
         List<BoundaryNode> parentNodes = locationTree.getParentNodes();
-        return parentNodes.stream().collect(Collectors
+        Map<String, String> resultMap = parentNodes.stream().collect(Collectors
                 .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
+        resultMap.put(locationTree.getBoundaryNode().getLabel(), locationTree.getBoundaryNode().getName());
+        return resultMap;
     }
 
     private List<Project> searchProject(String projectId, String tenantId) {
