@@ -75,7 +75,7 @@ public class ProjectService {
 
     public Map<String, String> getBoundaryLabelToNameMap(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
-        String locationCode = project.getAddress().getLocality().getCode();
+        String locationCode = project.getAddress().getBoundary();
         List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
                 project.getTenantId());
         BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
