@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.boundary.BoundaryNode;
 import org.egov.transformer.boundary.BoundaryTree;
@@ -87,7 +88,11 @@ public class ProjectService {
     private List<Project> searchProject(String projectId, String tenantId) {
 
         ProjectRequest request = ProjectRequest.builder()
-                .requestInfo(RequestInfo.builder().build())
+                .requestInfo(RequestInfo.builder().
+                userInfo(User.builder()
+                        .uuid("transformer-uuid")
+                        .build())
+                .build())
                 .projects(Collections.singletonList(Project.builder().id(projectId).tenantId(tenantId).build()))
                 .build();
 
