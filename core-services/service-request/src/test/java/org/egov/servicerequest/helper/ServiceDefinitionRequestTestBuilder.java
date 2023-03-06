@@ -1,9 +1,6 @@
 package org.egov.servicerequest.helper;
 
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.servicerequest.web.models.Service;
-import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinitionRequest;
 
 public class ServiceDefinitionRequestTestBuilder {

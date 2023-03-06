@@ -92,8 +92,8 @@ public class ServiceRequestEnrichmentServiceTest {
                 .withServiceDefinition()
                 .withRequestInfo()
                 .build();
-        serviceDefinitionRequest.getServiceDefinition().getAttributes().get(0).setValues(null);
 
+        serviceDefinitionRequest.getServiceDefinition().getAttributes().get(0).setValues(null);
         serviceRequestEnrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinitionRequest
                 .getServiceDefinition());
 
@@ -108,9 +108,10 @@ public class ServiceRequestEnrichmentServiceTest {
                 .withServices()
                 .withRequestInfo()
                 .build();
-        Map<String, Object> attributeCodeVsValueMap = serviceRequestEnrichmentService.enrichServiceRequest(serviceRequest);
 
+        Map<String, Object> attributeCodeVsValueMap = serviceRequestEnrichmentService.enrichServiceRequest(serviceRequest);
         serviceRequestEnrichmentService.setAttributeValuesBackToNativeState(serviceRequest,attributeCodeVsValueMap);
+
         assertNotNull(serviceRequest.getService().getAttributes().get(0).getValue());
     }
 }

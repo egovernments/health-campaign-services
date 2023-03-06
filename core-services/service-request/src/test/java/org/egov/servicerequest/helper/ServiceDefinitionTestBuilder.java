@@ -1,6 +1,5 @@
 package org.egov.servicerequest.helper;
 
-import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.servicerequest.web.models.AttributeDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinition;
 

@@ -1,10 +1,11 @@
 package org.egov.servicerequest.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.common.producer.Producer;
+import org.egov.servicerequest.TestConfiguration;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.helper.ServiceRequestTestBuilder;
 import org.egov.servicerequest.helper.ServiceTestBuilder;
+import org.egov.servicerequest.kafka.Producer;
 import org.egov.servicerequest.service.ServiceRequestService;
 import org.egov.servicerequest.util.ResponseInfoFactory;
 import org.egov.servicerequest.web.models.ServiceRequest;
@@ -19,7 +20,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.egov.servicerequest.TestConfiguration;
 
 import static org.hibernate.validator.internal.util.Contracts.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -68,10 +68,12 @@ public class ServiceControllerTest {
         ServiceRequest request= ServiceRequestTestBuilder.builder().withServices().withRequestInfo().build();
         when(serviceRequestService.createService(any(ServiceRequest.class))).
                 thenReturn(ServiceTestBuilder.builder().withService().build());
+
         MvcResult result=mockMvc.perform(post("/service/v1/_create").contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk()).andReturn();
         ServiceResponse response=objectMapper.readValue(result.getResponse().getContentAsString(),ServiceResponse.class);
+
         assertNotNull(response.getService());
         verify(serviceRequestService,times(1)).createService(any(ServiceRequest.class));
     }

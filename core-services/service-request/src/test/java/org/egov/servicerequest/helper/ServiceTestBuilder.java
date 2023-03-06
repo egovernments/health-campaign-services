@@ -1,12 +1,9 @@
 package org.egov.servicerequest.helper;
 
-import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.servicerequest.web.models.AttributeValue;
 import org.egov.servicerequest.web.models.Service;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 public class ServiceTestBuilder {
 
