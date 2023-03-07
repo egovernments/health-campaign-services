@@ -41,7 +41,7 @@ public interface InsightsHandler {
 	public static final String INSIGHT_NUMBER_DIFFERENCE = "differenceOfNumbers" ; 
 	public static final String INSIGHT_PERCENTAGE_DIFFERENCE = "differenceOfPercentage" ;
 	
-	AggregateDto  getInsights(AggregateDto aggregateDto, String visualizationCode, String moduleLevel, InsightsConfiguration insightsConfig, ResponseRecorder responseRecorder);
+	AggregateDto getInsights(AggregateDto aggregateDto, String visualizationCode, String moduleLevel, InsightsConfiguration insightsConfig, ResponseRecorder responseRecorder);
 	
 	default AggregateDto getAggregatedDto(List<Data> dataList, String visualizationCode) {
 		AggregateDto aggregateDto = new AggregateDto();
