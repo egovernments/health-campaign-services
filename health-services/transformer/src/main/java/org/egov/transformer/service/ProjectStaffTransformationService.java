@@ -49,7 +49,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
 
     @Override
     public Operation getOperation() {
-        return Operation.TASK;
+        return Operation.PROJECT_STAFF;
     }
 
     @Component
