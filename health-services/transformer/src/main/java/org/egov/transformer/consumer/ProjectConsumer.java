@@ -38,7 +38,7 @@ public class ProjectConsumer {
                             ProjectRequest.class);
             transformationHandler.handle(request.getProjects(), Operation.PROJECT);
         } catch (Exception exception) {
-            log.error("error in project project consumer bulk create", exception);
+            log.error("error in project consumer bulk create", exception);
         }
     }
 }
