@@ -26,7 +26,7 @@ public class ProjectTaskIndexV1TransformationService extends ProjectTaskTransfor
 
     @Override
     public String getTopic() {
-        return properties.getTransformerProducerBulkProjectStaffIndexV1Topic();
+        return properties.getTransformerProducerBulkProjectTaskIndexV1Topic();
     }
 
 
