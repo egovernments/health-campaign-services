@@ -70,7 +70,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     ProjectTaskIndexV1.builder()
                             .id(task.getId())
                             .taskType("DELIVERY")
-                            .userId(task.getAuditDetails().getCreatedBy())
                             .projectId(task.getProjectId())
                             .startDate(task.getActualStartDate())
                             .endDate(task.getActualEndDate())
@@ -87,6 +86,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
                             .createdTime(task.getAuditDetails().getCreatedTime())
+                            .createdBy(task.getAuditDetails().getCreatedBy())
+                            .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
+                            .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
                             .build()
             ).collect(Collectors.toList());
         }
