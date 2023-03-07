@@ -10,6 +10,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.config.TracerConfiguration;
 import org.egov.transformer.enums.Operation;
+import org.egov.transformer.models.upstream.ProjectStaff;
+import org.egov.transformer.models.upstream.Project;
 import org.egov.transformer.models.upstream.Task;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +76,30 @@ public class MainConfiguration {
     public Map<Operation, List<TransformationService<Task>>> getOperationTransformationServiceMapForTask(
             List<TransformationService<Task>> transformationServices) {
         Map<Operation, List<TransformationService<Task>>> map =  transformationServices
+                .stream()
+                .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
+    }
+
+    @Bean
+    @Autowired
+    @Qualifier("projectStaffTransformationServiceMap")
+    public Map<Operation, List<TransformationService<ProjectStaff>>> getOperationTransformationServiceMapForProjectStaff(
+            List<TransformationService<ProjectStaff>> transformationServices) {
+        Map<Operation, List<TransformationService<ProjectStaff>>> map =  transformationServices
+                .stream()
+                .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
+    }
+
+    @Bean
+    @Autowired
+    @Qualifier("projectTransformationServiceMap")
+    public Map<Operation, List<TransformationService<Project>>> getOperationTransformationServiceMapForProject(
+            List<TransformationService<Project>> transformationServices) {
+        Map<Operation, List<TransformationService<Project>>> map =  transformationServices
                 .stream()
                 .collect(Collectors.groupingBy(TransformationService::getOperation));
         log.info(map.toString());

@@ -49,7 +49,7 @@ public class ProjectService {
     }
 
     @KafkaListener(topics = "${transformer.consumer.update.project.topic}")
-    public void bulkCreate(ConsumerRecord<String, Object> payload,
+    public void bulkUpdate(ConsumerRecord<String, Object> payload,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             ProjectRequest projectRequest = objectMapper.readValue((String) payload.value(), ProjectRequest.class);
@@ -76,6 +76,10 @@ public class ProjectService {
     public Map<String, String> getBoundaryLabelToNameMap(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
+        return getBoundaryLabelToNameMap(project, locationCode);
+    }
+
+    public Map<String, String> getBoundaryLabelToNameMap(Project project, String locationCode) {
         List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
                 project.getTenantId());
         BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
