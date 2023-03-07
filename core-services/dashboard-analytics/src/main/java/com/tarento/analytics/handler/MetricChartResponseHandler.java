@@ -71,7 +71,7 @@ public class MetricChartResponseHandler implements IResponseHandler{
 
 					// campaignStartDate expected in millis from frontend
 
-					long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getRequestDate().getCampaignStartDate()));
+					long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
 
 					long currentDateTimeInMillis = Calendar.getInstance().getTimeInMillis();
 

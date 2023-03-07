@@ -5,7 +5,6 @@ public class RequestDate {
 	private String startDate;
 	private String endDate;
 	private String interval;
-	private String campaignStartDate;
 	public String getInterval() {
 		return interval;
 	}
@@ -29,13 +28,5 @@ public class RequestDate {
 	}
 	public void setEndDate(String endDate) {
 		this.endDate = endDate;
-	}
-
-	public String getCampaignStartDate() {
-		return campaignStartDate;
-	}
-
-	public void setCampaignStartDate(String campaignStartDate) {
-		this.campaignStartDate = campaignStartDate;
 	}
 }
