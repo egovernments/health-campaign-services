@@ -15,8 +15,6 @@ public class ProjectTaskIndexV1 {
     private String id;
     @JsonProperty("taskType")
     private String taskType;
-    @JsonProperty("userId")
-    private String userId;
     @JsonProperty("projectId")
     private String projectId;
     @JsonProperty("startDate")
@@ -47,6 +45,12 @@ public class ProjectTaskIndexV1 {
     private Double latitude;
     @JsonProperty("longitude")
     private Double longitude;
+    @JsonProperty("createdBy")
+    private String createdBy;
+    @JsonProperty("lastModifiedBy")
+    private String lastModifiedBy;
     @JsonProperty("createdTime")
     private Long createdTime;
+    @JsonProperty("lastModifiedTime")
+    private Long lastModifiedTime;
 }
