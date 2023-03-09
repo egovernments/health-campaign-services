@@ -37,4 +37,7 @@ public class TransformerProperties {
 
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
+
+    @Value("${project.mdms.module}")
+    private String mdmsModule;
 }
