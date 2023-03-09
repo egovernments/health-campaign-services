@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum Operation {
     TASK("TASK"),
     PROJECT_STAFF("PROJECT_STAFF"),
-    PROJECT("PROJECT");
+    PROJECT("PROJECT"),
+    STOCK("STOCK");
 
     private String value;
 
