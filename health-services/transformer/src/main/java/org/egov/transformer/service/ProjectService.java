@@ -2,7 +2,6 @@ package org.egov.transformer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -14,9 +13,6 @@ import org.egov.transformer.models.upstream.Boundary;
 import org.egov.transformer.models.upstream.Project;
 import org.egov.transformer.models.upstream.ProjectRequest;
 import org.egov.transformer.models.upstream.ProjectResponse;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -48,15 +44,9 @@ public class ProjectService {
         this.boundaryService = boundaryService;
     }
 
-    @KafkaListener(topics = "${transformer.consumer.update.project.topic}")
-    public void bulkUpdate(ConsumerRecord<String, Object> payload,
-                           @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        try {
-            ProjectRequest projectRequest = objectMapper.readValue((String) payload.value(), ProjectRequest.class);
-            projectRequest.getProjects().forEach(project -> projectMap.put(project.getId(), project));
-        } catch (Exception exception) {
-            log.error("error in project update consumer", exception);
-        }
+
+    public void updateProjectsInCache(ProjectRequest projectRequest) {
+        projectRequest.getProjects().forEach(project -> projectMap.put(project.getId(), project));
     }
 
     public Project getProject(String projectId, String tenantId) {
