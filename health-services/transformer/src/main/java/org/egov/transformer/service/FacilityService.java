@@ -31,7 +31,7 @@ public class FacilityService {
         this.serviceRequestClient = serviceRequestClient;
     }
 
-    public void updateFacilityInCache(FacilityBulkRequest facilityRequest) {
+    public void updateFacilitiesInCache(FacilityBulkRequest facilityRequest) {
         facilityRequest.getFacilities().forEach(facility -> facilityMap.put(facility.getId(), facility));
     }
 
