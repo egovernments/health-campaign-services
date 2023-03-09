@@ -33,7 +33,7 @@ public class ProjectTaskConsumer {
 
     @KafkaListener(topics = { "${transformer.consumer.bulk.create.project.task.topic}",
             "${transformer.consumer.bulk.update.project.task.topic}"})
-    public void bulkCreate(ConsumerRecord<String, Object> payload,
+    public void consumeTask(ConsumerRecord<String, Object> payload,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             List<Task> payloadList = Arrays.asList(objectMapper
@@ -41,7 +41,7 @@ public class ProjectTaskConsumer {
                             Task[].class));
             transformationHandler.handle(payloadList, Operation.TASK);
         } catch (Exception exception) {
-            log.error("error in project task consumer bulk create", exception);
+            log.error("error in project task bulk consumer", exception);
         }
     }
 }

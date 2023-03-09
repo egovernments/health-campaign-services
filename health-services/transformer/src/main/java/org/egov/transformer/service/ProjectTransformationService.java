@@ -72,7 +72,7 @@ public abstract class ProjectTransformationService implements TransformationServ
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
             }
-            return project.getTargets().stream().map(r -> {
+            return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
                         Long endDate = project.getEndDate();
                         Integer targetNo = r.getTargetNo();

@@ -36,6 +36,7 @@ public interface InsightsHandler {
 			{ "week", "last week" },
 			{ "month", "last month" },
 			{ "year", "last year" },
+			{ "dateRange", "yesterday" },
 	}).collect(Collectors.toMap(data -> data[0], data -> data[1]));
 	public static final String INSIGHT_NUMBER_DIFFERENCE = "differenceOfNumbers" ; 
 	public static final String INSIGHT_PERCENTAGE_DIFFERENCE = "differenceOfPercentage" ;
