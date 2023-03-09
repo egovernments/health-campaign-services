@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.transformer.models.upstream.TransactionType;
 
 @Data
 @AllArgsConstructor
@@ -25,7 +26,7 @@ public class StockIndexV1 {
     private Integer physicalCount;
 
     @JsonProperty("eventType")
-    private String eventType;
+    private TransactionType eventType;
 
     @JsonProperty("eventTimeStamp")
     private Long eventTimeStamp;
@@ -50,4 +51,16 @@ public class StockIndexV1 {
 
     @JsonProperty("longitude")
     private Double longitude;
+
+    @JsonProperty("createdBy")
+    private String createdBy;
+
+    @JsonProperty("lastModifiedBy")
+    private String lastModifiedBy;
+
+    @JsonProperty("createdTime")
+    private Long createdTime;
+
+    @JsonProperty("lastModifiedTime")
+    private Long lastModifiedTime;
 }
