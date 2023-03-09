@@ -1,6 +1,5 @@
 package com.tarento.analytics.handler;
 
-import com.tarento.analytics.dto.RequestDate;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
