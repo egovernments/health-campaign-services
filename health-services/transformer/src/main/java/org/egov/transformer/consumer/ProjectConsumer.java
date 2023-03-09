@@ -44,7 +44,7 @@ public class ProjectConsumer {
             projectService.updateProjectsInCache(request);
             transformationHandler.handle(request.getProjects(), Operation.PROJECT);
         } catch (Exception exception) {
-            log.error("error in project consumer bulk create", exception);
+            log.error("error in project consumer", exception);
         }
     }
 }
