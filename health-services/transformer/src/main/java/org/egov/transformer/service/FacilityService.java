@@ -6,11 +6,16 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.models.upstream.Facility;
+import org.egov.transformer.models.upstream.FacilityBulkRequest;
 import org.egov.transformer.models.upstream.FacilitySearch;
 import org.egov.transformer.models.upstream.FacilitySearchRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Service
 @Slf4j
 public class FacilityService {
@@ -19,9 +24,15 @@ public class FacilityService {
 
     private final ServiceRequestClient serviceRequestClient;
 
+    private static final Map<String, Facility> facilityMap = new ConcurrentHashMap<>();
+
     public FacilityService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
+    }
+
+    public void updateFacilityInCache(FacilityBulkRequest facilityRequest) {
+        facilityRequest.getFacilities().forEach(facility -> facilityMap.put(facility.getId(), facility));
     }
 
     public JsonNode findFacilityById(String facilityId, String tenantId) {
