@@ -86,6 +86,13 @@ public abstract class ProjectTransformationService implements TransformationServ
                             }
                         }
 
+                        List<String> productVariants = projectService.getProducts(project.getTenantId(),
+                                project.getProjectTypeId());
+                        String productVariant = null;
+                        if (productVariants != null && !productVariants.isEmpty()) {
+                            productVariant = String.join(",", productVariants);
+                        }
+
                         return ProjectIndexV1.builder()
                                 .id(project.getId())
                                 .overallTarget(targetNo)
@@ -93,7 +100,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .campaignDurationInDays(campaignDurationInDays)
                                 .startDate(project.getStartDate())
                                 .endDate(project.getEndDate())
-                                .productVariant(null) // might not be requried
+                                .productVariant(productVariant)
                                 .targetType(r.getBeneficiaryType())
                                 .province(boundaryLabelToNameMap.get("Province"))
                                 .district(boundaryLabelToNameMap.get("District"))
