@@ -23,6 +23,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.project.index.v1.topic}")
     private String transformerProducerBulkProjectIndexV1Topic;
 
+    @Value("${transformer.producer.bulk.stock.index.v1.topic}")
+    private String transformerProducerBulkStockIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
@@ -34,6 +37,12 @@ public class TransformerProperties {
 
     @Value("${egov.location.endpoint}")
     private String locationSearchUrl;
+
+    @Value("${egov.facility.host}")
+    private String facilityHost;
+
+    @Value("${egov.search.facility.url}")
+    private String facilitySearchUrl;
 
     @Value("${search.api.limit:100}")
     private String searchApiLimit;

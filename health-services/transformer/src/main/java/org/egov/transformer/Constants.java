@@ -6,4 +6,6 @@ public interface Constants {
     String MDMS_RESPONSE = "MdmsRes";
 
     String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
+
+    String PROJECT = "PROJECT";
 }
