@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.transformer.models.upstream.TransactionReason;
 import org.egov.transformer.models.upstream.TransactionType;
 
 @Data
@@ -27,6 +28,9 @@ public class StockIndexV1 {
 
     @JsonProperty("eventType")
     private TransactionType eventType;
+
+    @JsonProperty("reason")
+    private TransactionReason reason;
 
     @JsonProperty("eventTimeStamp")
     private Long eventTimeStamp;
