@@ -4,11 +4,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Operation {
-    CREATE("CREATE"),
-
-    UPDATE("UPDATE"),
-
-    DELETE("DELETE");
+    TASK("TASK"),
+    PROJECT_STAFF("PROJECT_STAFF"),
+    PROJECT("PROJECT"),
+    STOCK("STOCK");
 
     private String value;
 

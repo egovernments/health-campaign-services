@@ -10,29 +10,23 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ProjectTaskCreateIndexV1 {
+public class ProjectIndexV1 {
     @JsonProperty("id")
     private String id;
-    @JsonProperty("taskType")
-    private String taskType;
-    @JsonProperty("userId")
-    private String userId;
-    @JsonProperty("projectId")
-    private String projectId;
+    @JsonProperty("overallTarget")
+    private Integer overallTarget;
+    @JsonProperty("targetPerDay")
+    private Integer targetPerDay;
+    @JsonProperty("campaignDurationInDays")
+    private Integer campaignDurationInDays;
     @JsonProperty("startDate")
     private Long startDate;
     @JsonProperty("endDate")
     private Long endDate;
     @JsonProperty("productVariant")
     private String productVariant;
-    @JsonProperty("quantity")
-    private Long quantity;
-    @JsonProperty("deliveredTo")
-    private String deliveredTo;
-    @JsonProperty("isDelivered")
-    private boolean isDelivered;
-    @JsonProperty("deliveryComments")
-    private String deliveryComments;
+    @JsonProperty("targetType")
+    private String targetType;
     @JsonProperty("province")
     private String province;
     @JsonProperty("district")
@@ -43,10 +37,12 @@ public class ProjectTaskCreateIndexV1 {
     private String locality;
     @JsonProperty("village")
     private String village;
-    @JsonProperty("latitude")
-    private Double latitude;
-    @JsonProperty("longitude")
-    private Double longitude;
+    @JsonProperty("createdBy")
+    private String createdBy = null;
+    @JsonProperty("lastModifiedBy")
+    private String lastModifiedBy = null;
     @JsonProperty("createdTime")
-    private Long createdTime;
+    private Long createdTime = null;
+    @JsonProperty("lastModifiedTime")
+    private Long lastModifiedTime = null;
 }

@@ -1,25 +1,29 @@
 package org.egov.transformer.handler;
 
 import org.egov.transformer.enums.Operation;
-import org.egov.transformer.models.upstream.UpStreamModel;
+import org.egov.transformer.models.upstream.Project;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-public class UpStreamModelTransformationHandler implements TransformationHandler<UpStreamModel> {
+@Component
+public class ProjectTransformationHandler implements TransformationHandler<Project> {
 
-    private final Map<Operation, List<TransformationService<UpStreamModel>>> operationTransformationServiceMap;
+    private final Map<Operation, List<TransformationService<Project>>> operationTransformationServiceMap;
 
     @Autowired
-    public UpStreamModelTransformationHandler(Map<Operation, List<TransformationService<UpStreamModel>>> operationTransformationServiceMap) {
+    public ProjectTransformationHandler(@Qualifier("projectTransformationServiceMap")
+                                     Map<Operation, List<TransformationService<Project>>> operationTransformationServiceMap) {
         this.operationTransformationServiceMap = operationTransformationServiceMap;
     }
 
     @Override
-    public void handle(List<UpStreamModel> payloadList, Operation operation) {
+    public void handle(List<Project> payloadList, Operation operation) {
         operationTransformationServiceMap.entrySet().stream()
                 .filter(e -> e.getKey().equals(operation))
                 .map(Map.Entry::getValue)
