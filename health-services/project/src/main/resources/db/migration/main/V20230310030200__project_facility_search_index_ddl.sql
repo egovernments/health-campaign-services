@@ -1,0 +1,1 @@
+CREATE INDEX idx_id_tenantId_facilityId_projectId ON PROJECT_FACILITY (id, tenantId, facilityId, projectId);
