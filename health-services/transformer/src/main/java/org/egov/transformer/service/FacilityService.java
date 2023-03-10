@@ -8,7 +8,6 @@ import org.egov.common.contract.request.User;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.upstream.Facility;
-import org.egov.transformer.models.upstream.FacilityBulkRequest;
 import org.egov.transformer.models.upstream.FacilitySearch;
 import org.egov.transformer.models.upstream.FacilitySearchRequest;
 import org.springframework.stereotype.Service;
@@ -37,8 +36,8 @@ public class FacilityService {
         this.objectMapper = objectMapper;
     }
 
-    public void updateFacilitiesInCache(FacilityBulkRequest facilityRequest) {
-        facilityRequest.getFacilities().forEach(facility -> facilityMap.put(facility.getId(), facility));
+    public void updateFacilitiesInCache(List<Facility> facilities) {
+        facilities.forEach(facility -> facilityMap.put(facility.getId(), facility));
     }
 
     public Facility findFacilityById(String facilityId, String tenantId) {
@@ -61,7 +60,7 @@ public class FacilityService {
                     facilitySearchRequest,
                     JsonNode.class);
             List<Facility> facilities = Arrays.asList(objectMapper.convertValue(response.get("Facilities"), Facility[].class));
-            facilities.forEach(facility -> facilityMap.put(facility.getId(), facility));
+            updateFacilitiesInCache(facilities);
             return facilities.isEmpty() ? null : facilities.get(0);
         } catch (Exception e) {
             log.error("error while fetching facility", e);
