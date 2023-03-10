@@ -53,8 +53,6 @@ public class NonExistentEntityValidatorTest {
         List<Individual> existingIndividuals = new ArrayList<>();
         existingIndividuals.add(individual);
         lenient().when(individualRepository.findById(anyList(), anyString(), eq(false))).thenReturn(existingIndividuals);
-        Constants constants = mock(Constants.class);
-        lenient().when(constants.get()).thenReturn("getMethodName");
         assertTrue(nonExistentEntityValidator.validate(individualBulkRequest).isEmpty());
 
     }
