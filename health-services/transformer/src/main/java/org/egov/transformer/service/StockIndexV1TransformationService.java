@@ -26,6 +26,6 @@ public class StockIndexV1TransformationService extends StockTransformationServic
 
     @Override
     public String getTopic() {
-        return properties.getTransformerProducerBulkProjectTaskIndexV1Topic();
+        return properties.getTransformerProducerBulkStockIndexV1Topic();
     }
 }

@@ -5,6 +5,7 @@ import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.StockIndexV1;
+import org.egov.transformer.models.upstream.Facility;
 import org.egov.transformer.models.upstream.Stock;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
@@ -58,8 +59,11 @@ public abstract class StockTransformationService implements TransformationServic
 
         private final ProjectService projectService;
 
-        StockIndexV1Transformer(ProjectService projectService) {
+        private final FacilityService facilityService;
+
+        StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService) {
             this.projectService = projectService;
+            this.facilityService = facilityService;
         }
 
         @Override
@@ -69,6 +73,8 @@ public abstract class StockTransformationService implements TransformationServic
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(stock.getReferenceId(), stock.getTenantId());
             }
+            Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());;
+
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
                     .productVariant(stock.getProductVariantId())
@@ -76,15 +82,12 @@ public abstract class StockTransformationService implements TransformationServic
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .eventTimeStamp(stock.getAuditDetails().getLastModifiedTime())
-                    //audit details
                     .createdTime(stock.getAuditDetails().getCreatedTime())
                     .createdBy(stock.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())
-                    //longitude latitude details
-                    .longitude(null)
-                    .latitude(null)
-                    //boundary details
+                    .longitude(facility.getAddress() != null ? facility.getAddress().getLongitude() : null )
+                    .latitude(facility.getAddress() != null ? facility.getAddress().getLatitude() : null)
                     .province(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get("Province") : null)
                     .district(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get("District") : null)
                     .administrativeProvince(boundaryLabelToNameMap != null ?
