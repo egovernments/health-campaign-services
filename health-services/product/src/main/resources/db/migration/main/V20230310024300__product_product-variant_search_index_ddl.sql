@@ -1,0 +1,1 @@
+CREATE INDEX idx_id_productId_sku_variation ON PRODUCT_VARIANT (id, productId, sku, variation);
