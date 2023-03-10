@@ -1,7 +1,6 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.StockIndexV1;
@@ -16,6 +15,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.egov.transformer.Constants.PROJECT;
 
 @Slf4j
 public abstract class StockTransformationService implements TransformationService<Stock>{
@@ -69,7 +70,7 @@ public abstract class StockTransformationService implements TransformationServic
         @Override
         public List<StockIndexV1> transform(Stock stock) {
             Map<String, String> boundaryLabelToNameMap = null;
-            if (stock.getReferenceIdType().equals(Constants.PROJECT)) {
+            if (stock.getReferenceIdType().equals(PROJECT)) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(stock.getReferenceId(), stock.getTenantId());
             }
