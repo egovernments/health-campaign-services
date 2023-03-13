@@ -1298,7 +1298,7 @@ definitions:
         type: array
         description: Reference to physical documents that have been attached via file upload
         items:
-          $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/components/schemas/Document'
+          $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/definitions/Document'
       natureOfWork:
         type: string
         description: Specifies nature of work for Project
