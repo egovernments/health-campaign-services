@@ -64,7 +64,7 @@ public class StockReconciliation {
     private String commentsOnReconciliation = null;
 
     @JsonProperty("dateOfReconciliation")
-    private Integer dateOfReconciliation = null;
+    private Long dateOfReconciliation = null;
 
     @JsonProperty("additionalFields")
     @Valid
