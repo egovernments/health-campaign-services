@@ -1,6 +1,10 @@
 package org.egov.stock.validator;
 
 import org.egov.common.models.Error;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationTestBuilder;
@@ -9,10 +13,6 @@ import org.egov.stock.repository.StockReconciliationRepository;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.validator.stock.SRowVersionValidator;
 import org.egov.stock.validator.stockreconciliation.SrRowVersionValidator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
-import org.egov.stock.web.models.StockReconciliation;
-import org.egov.stock.web.models.StockReconciliationBulkRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,9 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)

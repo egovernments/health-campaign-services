@@ -1,10 +1,10 @@
 package org.egov.stock.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.stock.config.StockConfiguration;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

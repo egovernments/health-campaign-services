@@ -3,23 +3,15 @@ package org.egov.stock.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockRequest;
+import org.egov.common.models.stock.StockSearchRequest;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.service.enrichment.StockEnrichmentService;
-import org.egov.stock.validator.stock.SFacilityIdValidator;
-import org.egov.stock.validator.stock.SIsDeletedValidator;
-import org.egov.stock.validator.stock.SNonExistentValidator;
-import org.egov.stock.validator.stock.SNullIdValidator;
-import org.egov.stock.validator.stock.SProductVariantIdValidator;
-import org.egov.stock.validator.stock.SReferenceIdValidator;
-import org.egov.stock.validator.stock.SRowVersionValidator;
-import org.egov.stock.validator.stock.STransactingPartyIdValidator;
-import org.egov.stock.validator.stock.SUniqueEntityValidator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
-import org.egov.stock.web.models.StockRequest;
-import org.egov.stock.web.models.StockSearchRequest;
+import org.egov.stock.validator.stock.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -29,18 +21,8 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.CommonUtils.validate;
-import static org.egov.stock.Constants.GET_STOCK;
-import static org.egov.stock.Constants.SET_STOCK;
-import static org.egov.stock.Constants.VALIDATION_ERROR;
+import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.stock.Constants.*;
 
 @Service
 @Slf4j

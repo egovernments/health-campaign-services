@@ -1,7 +1,8 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.stock.web.models.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliation;
+
 
 public class StockReconciliationTestBuilder {
 

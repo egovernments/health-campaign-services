@@ -3,10 +3,10 @@ package org.egov.stock.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.stock.web.models.AdditionalFields;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.TransactionReason;
-import org.egov.stock.web.models.TransactionType;
+import org.egov.common.models.stock.AdditionalFields;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.TransactionReason;
+import org.egov.common.models.stock.TransactionType;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
