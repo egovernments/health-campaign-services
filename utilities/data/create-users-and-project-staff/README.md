@@ -91,3 +91,7 @@ Run the script using the following command: python3 csv_to_api.py
 ```
 
 The script will create users and project staff based on the data in the CSV file.
+
+## Important Note
+
+- In case there are changes in project staff or user models, we will need to update the script as well
