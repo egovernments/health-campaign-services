@@ -93,7 +93,7 @@ def getUser(userRow):
         cr_date = datetime.datetime.strptime(userRow['DATE_OF_BIRTH'], "%d/%m/%Y")
         dateOfBirth = cr_date.strftime("%d/%m/%Y")
     return  {
-        "userName":userRow.get('USERNAME',uuid.uuid4()),#str(uuid.uuid4()),#userRow['USERNAME'],
+        "userName":userRow.get('USERNAME',uuid.uuid4()),
         "name":userRow.get('NAME',DEFAULT_VALUES.get("name")) or DEFAULT_VALUES.get("name"),
         "mobileNumber":userRow.get('MOBILE_NO',DEFAULT_VALUES.get("mobile_number")) or DEFAULT_VALUES.get("mobile_number"),
         "type": "EMPLOYEE",
@@ -181,7 +181,7 @@ def createProjectStaff(row, df, index):
     # Create a dictionary with request information and user details to be sent in API call
     payload = json.dumps({
       "RequestInfo": {
-        "authToken": "052c8e95-35c1-4f97-b366-c5f23e23ce05"#accessToken(),
+        "authToken": accessToken(),
       },
       "ProjectStaff": {
         "tenantId": tenantId,
