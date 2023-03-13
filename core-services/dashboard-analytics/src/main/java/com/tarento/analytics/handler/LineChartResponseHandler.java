@@ -80,6 +80,8 @@ public class LineChartResponseHandler implements IResponseHandler {
         Long endDate = null;
         boolean executeComputedFields = computedFields !=null && computedFields.isArray();
         boolean isPredictionEnabled = predictionPath!=null;
+        String action = chartNode.get(ACTION).asText();
+        Double divisorValues = 1.0;
 
         if(isPredictionEnabled ){
             List<JsonNode> aggrNodes = aggregationNode.findValues(CHART_SPECIFIC);
@@ -170,6 +172,9 @@ public class LineChartResponseHandler implements IResponseHandler {
                             plotMap.put(key, new Double("0") + value);
                             totalValues.add(value);
                         }
+                }else if(action.equals("divisionByConstant")){
+                    divisorValues = (aggrNode.findValues("value") != null && aggrNode.findValues("value").size() == 1) ? aggrNode.findValues("value").get(0).asDouble() : 1.0;
+
                 }
                 addIterationResultsToMultiAggrMap(plotMap, multiAggrPlotMap, isCumulative);
                 plotMap.clear();
@@ -190,7 +195,7 @@ public class LineChartResponseHandler implements IResponseHandler {
             }
             // });
         }
-        String action = chartNode.get(ACTION).asText();
+
 
         Long finalStartDate = startDate;
         dataList.forEach(data -> {
@@ -207,6 +212,10 @@ public class LineChartResponseHandler implements IResponseHandler {
         if(isPredictionEnabled){
             addPredictionPlot(dataList,predictionPath,distributionPath,actualEpochKeys);
         }
+        if (action.equals("divisionByConstant"))  {
+            dataList = actionsHelper.divisionByConstant(action, dataList, chartNode,divisorValues);
+        }
+
         if (action.equals(PERCENTAGE) || action.equals(DIVISION))  {
             dataList = actionsHelper.divide(action, dataList, chartNode);
         }
