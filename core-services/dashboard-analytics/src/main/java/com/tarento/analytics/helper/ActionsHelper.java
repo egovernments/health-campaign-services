@@ -57,7 +57,7 @@ public class ActionsHelper {
         Data data = dataList.get(0);
         data.getPlots().forEach((plot) -> {
             double v = plot.getValue() / divisorValue * 100;
-            Plot dividedPlot = new Plot(plot.getName(), v, "percentage");
+            Plot dividedPlot = new Plot(plot.getName(), v, IResponseHandler.PERCENTAGE);
             updatedPlots.add(dividedPlot);
         });
         dataList.get(0).setPlots(updatedPlots);

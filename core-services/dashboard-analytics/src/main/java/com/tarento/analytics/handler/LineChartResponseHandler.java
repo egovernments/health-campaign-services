@@ -172,8 +172,8 @@ public class LineChartResponseHandler implements IResponseHandler {
                             plotMap.put(key, new Double("0") + value);
                             totalValues.add(value);
                         }
-                }else if(action.equals("divisionByConstant")){
-                    divisorValues = (aggrNode.findValues("value") != null && aggrNode.findValues("value").size() == 1) ? aggrNode.findValues("value").get(0).asDouble() : 1.0;
+                }else if(action.equals(IResponseHandler.DIVISIONBYCONSTANT)){
+                    divisorValues = (aggrNode.findValues(IResponseHandler.VALUE) != null && aggrNode.findValues(IResponseHandler.VALUE).size() == 1) ? aggrNode.findValues(IResponseHandler.VALUE).get(0).asDouble() : 1.0;
 
                 }
                 addIterationResultsToMultiAggrMap(plotMap, multiAggrPlotMap, isCumulative);
@@ -212,7 +212,7 @@ public class LineChartResponseHandler implements IResponseHandler {
         if(isPredictionEnabled){
             addPredictionPlot(dataList,predictionPath,distributionPath,actualEpochKeys);
         }
-        if (action.equals("divisionByConstant"))  {
+        if (action.equals(IResponseHandler.DIVISIONBYCONSTANT))  {
             dataList = actionsHelper.divisionByConstant(action, dataList, chartNode,divisorValues);
         }
 
