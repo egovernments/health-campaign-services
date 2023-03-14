@@ -17,9 +17,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -341,7 +343,8 @@ public class ProjectValidator {
                 throw new CustomException("INVALID_PROJECT_MODIFY", "The project id " + project.getId() + " that you are trying to update does not exists for the project");
             }
 
-            Set<String> targetIdsFromDB = projectFromDB.getTargets().stream().map(Target:: getId).collect(Collectors.toSet());
+            Set<String> targetIdsFromDB = Optional.ofNullable(projectFromDB.getTargets()).orElse(Collections.emptyList())
+                    .stream().map(Target:: getId).collect(Collectors.toSet());
             if (project.getTargets() != null) {
                 for (Target target: project.getTargets()) {
                     if (StringUtils.isNotBlank(target.getId()) && !targetIdsFromDB.contains(target.getId())) {
@@ -351,7 +354,8 @@ public class ProjectValidator {
                 }
             }
 
-            Set<String> documentIdsFromDB = projectFromDB.getDocuments().stream().map(Document:: getId).collect(Collectors.toSet());
+            Set<String> documentIdsFromDB = Optional.ofNullable(projectFromDB.getDocuments()).orElse(Collections.emptyList())
+                    .stream().map(Document:: getId).collect(Collectors.toSet());
             if (project.getDocuments() != null) {
                 for (Document document: project.getDocuments()) {
                     if (StringUtils.isNotBlank(document.getId()) && !documentIdsFromDB.contains(document.getId())) {
