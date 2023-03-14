@@ -1,12 +1,12 @@
 package org.egov.product.service;
 
+import org.egov.common.models.product.Product;
+import org.egov.common.models.product.ProductRequest;
 import org.egov.common.producer.Producer;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.helper.ProductRequestTestBuilder;
 import org.egov.product.helper.ProductTestBuilder;
 import org.egov.product.repository.ProductRepository;
-import org.egov.product.web.models.Product;
-import org.egov.product.web.models.ProductRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

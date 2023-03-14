@@ -1,5 +1,6 @@
-package org.egov.product.web.models;
+package org.egov.common.models.product;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
@@ -13,8 +14,8 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
 /**
-* Product
-*/
+ * ProductVariant
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
@@ -22,9 +23,11 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Product {
-
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ProductVariant {
     @JsonProperty("id")
+
+
     private String id = null;
 
     @JsonProperty("tenantId")
@@ -32,32 +35,53 @@ public class Product {
     @Size(min=2,max=1000)
     private String tenantId = null;
 
-    @JsonProperty("type")
+    @JsonProperty("productId")
     @NotNull
-    @Size(min = 2, max = 100)
-    private String type = null;
 
-    @JsonProperty("name")
-    @NotNull
-    @Size(min = 2, max = 1000)
-    private String name = null;
 
-    @JsonProperty("manufacturer")
+    @Size(min = 2, max = 64)
+
+    private String productId = null;
+
+    @JsonProperty("sku")
+
+
     @Size(min = 0, max = 1000)
-    private String manufacturer = null;
+
+    private String sku = null;
+
+    @JsonProperty("variation")
+    @NotNull
+
+
+    @Size(min = 0, max = 1000)
+
+    private String variation = null;
 
     @JsonProperty("additionalFields")
+
     @Valid
+
+
     private AdditionalFields additionalFields = null;
 
     @JsonProperty("isDeleted")
+
+
     private Boolean isDeleted = null;
 
     @JsonProperty("rowVersion")
+
+
     private Integer rowVersion = null;
 
     @JsonProperty("auditDetails")
+
     @Valid
+
+
     private AuditDetails auditDetails = null;
+
+
 }
 
