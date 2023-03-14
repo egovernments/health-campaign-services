@@ -1,9 +1,9 @@
 package org.egov.facility.validator;
 
 import org.egov.common.models.Error;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilityBulkRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

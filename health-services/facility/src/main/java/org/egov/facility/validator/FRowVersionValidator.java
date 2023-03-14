@@ -2,10 +2,10 @@ package org.egov.facility.validator;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.facility.repository.FacilityRepository;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilityBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 

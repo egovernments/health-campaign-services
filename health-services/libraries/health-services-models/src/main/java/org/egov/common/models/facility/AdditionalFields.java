@@ -1,5 +1,6 @@
-package org.egov.facility.web.models;
+package org.egov.common.models.facility;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +24,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AdditionalFields {
     @JsonProperty("schema")
     @Size(min = 2, max = 64)

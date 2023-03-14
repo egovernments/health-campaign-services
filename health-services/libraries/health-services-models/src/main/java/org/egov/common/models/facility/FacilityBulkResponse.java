@@ -1,5 +1,6 @@
-package org.egov.facility.web.models;
+package org.egov.common.models.facility;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +10,8 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * FacilityResponse
@@ -20,14 +23,25 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FacilityResponse {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class FacilityBulkResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private org.egov.common.contract.response.ResponseInfo responseInfo = null;
 
-    @JsonProperty("Facility")
+    @JsonProperty("Facilities")
     @Valid
-    private Facility facility = null;
+    private List<Facility> facilities = null;
+
+
+    public FacilityBulkResponse addFacilityItem(Facility facilityItem) {
+        if (this.facilities == null) {
+            this.facilities = new ArrayList<>();
+        }
+        this.facilities.add(facilityItem);
+        return this;
+    }
+
 }
 

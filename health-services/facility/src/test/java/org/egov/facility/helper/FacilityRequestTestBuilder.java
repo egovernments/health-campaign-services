@@ -1,7 +1,8 @@
 package org.egov.facility.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.facility.web.models.FacilityRequest;
+import org.egov.common.models.facility.FacilityRequest;
+
 
 public class FacilityRequestTestBuilder {
     private FacilityRequest.FacilityRequestBuilder builder;

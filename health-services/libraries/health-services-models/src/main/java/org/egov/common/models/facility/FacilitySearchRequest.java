@@ -1,7 +1,7 @@
-package org.egov.facility.web.models;
+package org.egov.common.models.facility;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,9 +9,10 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 
 /**
- * FacilityRequest
+ * FacilitySearchRequest
  */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-21T14:37:54.683+05:30")
@@ -20,7 +21,8 @@ import javax.validation.Valid;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FacilityRequest {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class FacilitySearchRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
@@ -29,7 +31,7 @@ public class FacilityRequest {
     @JsonProperty("Facility")
     @NotNull
     @Valid
-    private Facility facility = null;
+    private FacilitySearch facility = null;
 
 
 }

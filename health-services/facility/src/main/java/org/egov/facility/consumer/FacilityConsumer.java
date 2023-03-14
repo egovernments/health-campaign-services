@@ -2,9 +2,9 @@ package org.egov.facility.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.facility.service.FacilityService;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilityBulkRequest;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -28,7 +28,7 @@ public class FacilityConsumer {
 
     @KafkaListener(topics = "${facility.consumer.bulk.create.topic}")
     public List<Facility> bulkCreate(Map<String, Object> consumerRecord,
-                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+                                     @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             FacilityBulkRequest request = objectMapper.convertValue(consumerRecord, FacilityBulkRequest.class);
             return service.create(request, true);
