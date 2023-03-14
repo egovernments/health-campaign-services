@@ -27,4 +27,16 @@ public class ApiDetails {
     private Map<String, Object> requestHeaders;
     @JsonProperty("additionalDetails")
     private Object additionalDetails;
+
+    public org.egov.tracer.model.ApiDetails getTracerModel() {
+        return org.egov.tracer.model.ApiDetails.builder()
+                .id(id)
+                .url(url)
+                .requestBody(requestBody)
+                .methodType(methodType)
+                .contentType(contentType)
+                .requestHeaders(requestHeaders)
+                .additionalDetails(additionalDetails)
+                .build();
+    }
 }

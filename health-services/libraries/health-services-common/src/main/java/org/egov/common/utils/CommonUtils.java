@@ -1,6 +1,5 @@
 package org.egov.common.utils;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
@@ -791,14 +790,9 @@ public class CommonUtils {
             log.error("{} errors collected", errorDetailsMap.size());
             try {
                 if (isBulk) {
-
-                    String json = objectMapper.writeValueAsString(errorDetailsMap.values());
-                    if (json != null) {
-                        List<ErrorDetail> errorDetailList = objectMapper
-                                .readValue(json, new TypeReference<List<ErrorDetail>>() {
-                                });
+                    List<ErrorDetail> errorDetailList = errorDetailsMap.values()
+                            .stream().map(ErrorDetails::getTracerModel).collect(Collectors.toList());
                         ErrorHandler.exceptionAdviseInstance.exceptionHandler(errorDetailList);
-                    }
                 } else {
                     throw new CustomException(errorCode, objectMapper
                             .writeValueAsString(errorDetailsMap.values()));
@@ -820,6 +814,7 @@ public class CommonUtils {
      * @param <T> is the type of payload
      */
     public static <R,T> HashMap<T, List<Error>> validateForNullId(R request, String getPayloadMethodName) {
+        log.info("validating for null id");
         HashMap<T, List<Error>> errorDetailsMap = new HashMap<>();
         List<T> validPayloads = ((List<T>)ReflectionUtils.invokeMethod(getMethod(getPayloadMethodName,
                 request.getClass()), request)).stream().filter(notHavingErrors()).collect(Collectors.toList());
@@ -831,6 +826,7 @@ public class CommonUtils {
                 Error error = getErrorForNullId();
                 populateErrorDetails(payload, error, errorDetailsMap);
             });
+            log.info("null id validation completed successfully, total errors: {}", payloadWithNullIds.size());
         }
         return errorDetailsMap;
     }

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.tracer.model.ErrorEntity;
 
 
 @Data
@@ -23,7 +24,18 @@ public class Error {
     @JsonProperty("additionalDetails")
     private Object additionalDetails;
 
+    public ErrorEntity getTracerModel() {
+        return ErrorEntity.builder()
+                .exception(exception)
+                .errorCode(errorCode)
+                .errorMessage(errorMessage)
+                .errorType(org.egov.tracer.model.ErrorType.NON_RECOVERABLE.valueOf(type.name()))
+                .additionalDetails(additionalDetails)
+                .build();
+    }
+
     public enum ErrorType {
+
         RECOVERABLE,
         NON_RECOVERABLE
     }
