@@ -1,2 +1,0 @@
-CREATE INDEX IF NOT EXISTS idx_id_tenantId_projectId_beneficiaryId_clientReferenceId_dateOfRegistration
-    ON PROJECT_BENEFICIARY (id, tenantId, projectId, beneficiaryId, clientReferenceId, dateOfRegistration);

@@ -1,1 +1,0 @@
-CREATE INDEX idx_id_projectId ON project_resource (id, projectId);
