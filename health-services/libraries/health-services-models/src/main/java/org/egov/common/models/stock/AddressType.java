@@ -1,8 +1,9 @@
 package org.egov.common.models.stock;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonValue;
-
+@JsonIgnoreProperties(ignoreUnknown = true)
 public enum AddressType {
     PERMANENT("PERMANENT"),
 

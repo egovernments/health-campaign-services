@@ -9,7 +9,12 @@ import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockRequestTestBuilder;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.service.enrichment.StockEnrichmentService;
-import org.egov.stock.validator.stock.*;
+import org.egov.stock.validator.stock.SIsDeletedValidator;
+import org.egov.stock.validator.stock.SNonExistentValidator;
+import org.egov.stock.validator.stock.SNullIdValidator;
+import org.egov.stock.validator.stock.SProductVariantIdValidator;
+import org.egov.stock.validator.stock.SRowVersionValidator;
+import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,8 +31,16 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
 
 @ExtendWith(MockitoExtension.class)
 class StockServiceTest {

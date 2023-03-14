@@ -4,7 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
-import org.egov.common.models.stock.*;
+import org.egov.common.models.stock.Facility;
+import org.egov.common.models.stock.FacilityBulkResponse;
+import org.egov.common.models.stock.FacilitySearch;
+import org.egov.common.models.stock.FacilitySearchRequest;
+import org.egov.common.models.stock.ProjectFacilityBulkResponse;
+import org.egov.common.models.stock.ProjectFacilitySearch;
+import org.egov.common.models.stock.ProjectFacilitySearchRequest;
 import org.egov.stock.config.StockConfiguration;
 import org.springframework.stereotype.Service;
 
@@ -13,9 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.common.utils.CommonUtils.getIdList;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForEntityWithNetworkError;
-import static org.egov.stock.Constants.*;
+import static org.egov.stock.Constants.GET_FACILITY_ID;
+import static org.egov.stock.Constants.GET_REFERENCE_ID;
+import static org.egov.stock.Constants.PIPE;
 
 @Service
 @Slf4j

@@ -11,7 +11,15 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.service.enrichment.StockEnrichmentService;
-import org.egov.stock.validator.stock.*;
+import org.egov.stock.validator.stock.SFacilityIdValidator;
+import org.egov.stock.validator.stock.SIsDeletedValidator;
+import org.egov.stock.validator.stock.SNonExistentValidator;
+import org.egov.stock.validator.stock.SNullIdValidator;
+import org.egov.stock.validator.stock.SProductVariantIdValidator;
+import org.egov.stock.validator.stock.SReferenceIdValidator;
+import org.egov.stock.validator.stock.SRowVersionValidator;
+import org.egov.stock.validator.stock.STransactingPartyIdValidator;
+import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -21,8 +29,19 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
-import static org.egov.stock.Constants.*;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.validate;
+import static org.egov.stock.Constants.GET_STOCK;
+import static org.egov.stock.Constants.SET_STOCK;
+import static org.egov.stock.Constants.VALIDATION_ERROR;
+
 
 @Service
 @Slf4j
@@ -40,7 +59,7 @@ public class StockService {
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
                     || validator.getClass().equals(SFacilityIdValidator.class)
                     || validator.getClass().equals(SReferenceIdValidator.class)
-                    || validator.getClass().equals(STransactingPartyIdValidator .class);
+                    || validator.getClass().equals(STransactingPartyIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
