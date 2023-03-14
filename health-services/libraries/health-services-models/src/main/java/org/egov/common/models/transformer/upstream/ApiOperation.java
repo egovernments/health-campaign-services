@@ -1,11 +1,13 @@
-package org.egov.transformer.models.upstream;
+package org.egov.common.models.transformer.upstream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
  * Specify the type of operation being performed i.e. CREATE, UPDATE or DELETE
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public enum ApiOperation {
   
   CREATE("CREATE"),

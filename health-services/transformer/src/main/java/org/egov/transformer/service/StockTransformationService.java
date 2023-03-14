@@ -1,11 +1,11 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.transformer.upstream.Facility;
+import org.egov.common.models.transformer.upstream.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.StockIndexV1;
-import org.egov.transformer.models.upstream.Facility;
-import org.egov.transformer.models.upstream.Stock;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.stereotype.Component;

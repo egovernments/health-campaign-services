@@ -1,5 +1,6 @@
-package org.egov.transformer.models.upstream;
+package org.egov.common.models.transformer.upstream;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
@@ -22,6 +23,7 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TaskResource   {
     @JsonProperty("id")
     @Size(min=2,max=64)
