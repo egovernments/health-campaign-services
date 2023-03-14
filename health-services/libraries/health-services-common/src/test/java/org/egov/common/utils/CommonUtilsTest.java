@@ -1,25 +1,35 @@
 package org.egov.common.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.Builder;
 import lombok.Data;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.error.handler.ErrorHandler;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.helpers.OtherObject;
 import org.egov.common.helpers.SomeObject;
 import org.egov.common.helpers.SomeObjectWithClientRefId;
 import org.egov.common.helpers.SomeValidator;
+import org.egov.common.models.ApiDetails;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.validator.Validator;
+import org.egov.tracer.ExceptionAdvise;
 import org.egov.tracer.model.CustomException;
+import org.egov.tracer.model.ErrorDetail;
+import org.egov.tracer.model.ErrorEntity;
+import org.egov.tracer.model.ErrorType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.platform.commons.util.ReflectionUtils;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Method;
@@ -742,6 +752,56 @@ class CommonUtilsTest {
 
         assertEquals(errorDetailsMap.size(), 1);
         assertEquals(errorDetailsMap.get(otherObject).getErrors().get(0).getType(), Error.ErrorType.NON_RECOVERABLE);
+    }
+
+    @Test
+    @DisplayName("should call exceptionHandler with correct model")
+    void shouldCallExceptionHandlerWithCorrectModel() throws JsonProcessingException {
+        Map<SomeRequest, ErrorDetails> errorDetailsMap = new HashMap<>();
+        Exception ex = new Exception();
+        SomeRequest someRequest = SomeRequest.builder()
+                .requestInfo(RequestInfo.builder()
+                        .authToken("some-token")
+                        .build())
+                .apiOperation(SomeEnum.CREATE)
+                .build();
+        errorDetailsMap.put(someRequest, ErrorDetails.builder()
+                        .apiDetails(ApiDetails.builder()
+                                .url("some-url")
+                                .contentType("application/json")
+                                .requestBody(new ObjectMapper().writeValueAsString(someRequest))
+                                .build())
+                        .errors(Arrays.asList(Error.builder()
+                                        .exception(ex)
+                                        .type(Error.ErrorType.RECOVERABLE)
+                                        .errorCode("some-error-code")
+                                        .errorMessage("some-error-message")
+                                .build()))
+                .build());
+        List<ErrorDetail> expected = new ArrayList<>();
+                expected.add(ErrorDetail.builder()
+                        .errors(Arrays.asList(ErrorEntity.builder()
+                                        .exception(ex)
+                                        .errorType(ErrorType.RECOVERABLE)
+                                        .errorCode("some-error-code")
+                                        .errorMessage("some-error-message")
+                                .build()))
+                        .apiDetails(org.egov.tracer.model.ApiDetails.builder()
+                                .url("some-url")
+                                .contentType("application/json")
+                                .requestBody(new ObjectMapper().writeValueAsString(someRequest))
+                                .build())
+                .build());
+        ErrorHandler.exceptionAdviseInstance = Mockito.mock(ExceptionAdvise.class);
+
+        CommonUtils.handleErrors(errorDetailsMap, true, "some-error-code");
+
+        ArgumentCaptor<List<ErrorDetail>> argument = ArgumentCaptor.forClass(List.class);
+        verify(ErrorHandler.exceptionAdviseInstance, times(1))
+                .exceptionHandler(argument.capture());
+        List<ErrorDetail> actual = argument.getValue();
+        assertEquals(expected.toString(), actual.toString());
+
     }
 
     @Data
