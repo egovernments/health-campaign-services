@@ -44,4 +44,26 @@ public class ActionsHelper {
         plotList.get(0).setHeaderValue(cumulativeValue);
         return plotList;
     }
+    public List<Data> divisionByConstant(String action, List<Data> dataList, JsonNode chartNode, Double divisorValue) {
+        if (dataList.size() != 2 ) {
+            throw new RuntimeException("Data is not eligible for division by constant");
+        }
+        if(divisorValue == 1){
+            return dataList;
+        }
+        List<Plot> plotList = new ArrayList<>();
+
+        List<Plot> updatedPlots = new ArrayList<>();
+        Data data = dataList.get(0);
+        data.getPlots().forEach((plot) -> {
+            double v = plot.getValue() / divisorValue * 100;
+            Plot dividedPlot = new Plot(plot.getName(), v, IResponseHandler.PERCENTAGE);
+            updatedPlots.add(dividedPlot);
+        });
+        dataList.get(0).setPlots(updatedPlots);
+        dataList.remove(1);
+
+        return dataList;
+
+    }
 }
