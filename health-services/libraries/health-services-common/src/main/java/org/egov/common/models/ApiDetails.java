@@ -1,5 +1,6 @@
 package org.egov.common.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,11 +13,18 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 public class ApiDetails {
+    @JsonProperty("id")
     private String id;
+    @JsonProperty("url")
     private String url;
-    private Object requestBody;
+    @JsonProperty("requestBody")
+    private String requestBody;
+    @JsonProperty("methodType")
     private String methodType;
+    @JsonProperty("contentType")
     private String contentType;
+    @JsonProperty("requestHeaders")
     private Map<String, Object> requestHeaders;
-    private String additionalDetails;
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails;
 }

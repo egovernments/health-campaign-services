@@ -1,5 +1,6 @@
 package org.egov.common.models;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,11 +12,16 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class Error {
+    @JsonProperty("exception")
     private Exception exception;
+    @JsonProperty("errorCode")
     private String errorCode;
+    @JsonProperty("errorMessage")
     private String errorMessage;
+    @JsonProperty("type")
     private ErrorType type;
-    private String additionalDetails;
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails;
 
     public enum ErrorType {
         RECOVERABLE,
