@@ -73,15 +73,16 @@ paths:
           description: Details for the project.
           required: true
           schema:
-            $ref: '#/definitions/ProjectSearchRequest'
+            $ref: '#/definitions/ProjectRequest'
         - $ref: '#/parameters/limit'
         - $ref: '#/parameters/offset'
         - $ref: '#/parameters/tenantId'
         - $ref: '#/parameters/lastChangedSince'
         - $ref: '#/parameters/includeDeleted'
-        - $ref: '#/parameters/includeEnded'
         - $ref: '#/parameters/includeAncestors'
         - $ref: '#/parameters/includeDescendants'
+        - $ref: '#/parameters/createdFrom'
+        - $ref: '#/parameters/createdTo'
       tags:
         - Project
       responses:
@@ -1113,6 +1114,24 @@ parameters:
     default: false
     required: false
 
+  createdFrom:
+    name: createdFrom
+    description: |
+      Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  createdTo:
+    name: createdTo
+    description: |
+      Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
 definitions:
   boundaryCode:
     $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
@@ -1229,18 +1248,69 @@ definitions:
   Project:
     description: The purpose of this object to define the Project for a geography and period
     type: object
-    required:
-      - tenantId
-      - projectTypeId
     properties:
       id:
-        $ref: '#/definitions/id'
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: True
       tenantId:
-        $ref: '#/definitions/tenantId'
-      projectTypeId:
-        $ref: '#/definitions/projectTypeId'
-      subProjectTypeId:
-        $ref: '#/definitions/subProjectTypeId'
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      name:
+        type: string
+        description: Name of project
+        minLength: 2
+      projectNumber:
+        type: string
+        description: 'The unique identifier of the project number the custom formatting.'
+        example: 'PR/2022-23/010'
+        readOnly: true
+      projectType:
+        type: string
+        description: Unique ID of project type from master data
+        minLength: 2
+        maxLength: 64
+      projectSubType:
+        type: string
+        description: Unique ID of subproject type from master data
+        minLength: 2
+        maxLength: 64
+      department:
+        type: string
+        description: Unique department ID as defined in master data
+        minLength: 2
+        maxLength: 64
+      description:
+        type: string
+        description: Description of project
+        minLength: 2
+      referenceID:
+        type: string
+        description: Reference number to a physical file or docket or some other artifact of which this project is representative of.
+        minLength: 2
+        maxLength: 100
+      #documents:
+      #  type: array
+      #  description: Reference to physical documents that have been attached via file upload
+      #  items:
+      #    $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/definitions/Document'
+      natureOfWork:
+        type: string
+        description: Specifies nature of work for Project
+        minLength: 2
+        maxLength: 64
+      projectHierarchy:
+        type: "string"
+        description: "Materialized Path of the hierarchy that this project element belongs to"
+        readOnly: true
+      ancestors:
+        $ref: '#/definitions/Project'
+        description: "Materialized Path of the hierarchy that this project element belongs to"
       address:
         $ref: '#/definitions/Address'
       startDate:
@@ -1264,31 +1334,9 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/Target'
-      department:
-        type: string
-        description: Unique department ID as defined in master data
-        minLength: 2
-        maxLength: 64
-      description:
-        type: string
-        description: Description of project
-        minLength: 2
-      referenceId:
-        type: string
-        description: Reference number to a physical file or docket or some other artifact of which this project is representative of.
-        minLength: 2
-        maxLength: 100
-      documents:
-        type: array
-        description: Reference to physical documents that have been attached via file upload
-        items:
-          $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/worfklow-2.0.yml#/definitions/Document'
-      projectHierarchy:
-        type: "string"
-        description: "Materialized Path of the hierarchy that this project element belongs to"
-        readOnly: true
-      additionalFields:
-        $ref: '#/definitions/additionalFields'
+      additionalDetails:
+        type: object
+        description: Any additional details of the register
       isDeleted:
         $ref: '#/definitions/isDeleted'
       rowVersion:
