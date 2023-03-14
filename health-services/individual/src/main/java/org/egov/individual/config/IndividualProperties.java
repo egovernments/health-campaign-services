@@ -34,4 +34,17 @@ public class IndividualProperties {
 
     @Value("${idgen.individual.id.format}")
     private String individualId;
+
+    @Value("${aadhaar.pattern}")
+    private String aadhaarPattern;
+
+    @Value("${mobile.pattern}")
+    private String mobilePattern;
+
+    @Value("${public.key}")
+    private String publicKey;
+
+    @Value("${private.key}")
+    private String privateKey;
+
 }

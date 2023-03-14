@@ -11,6 +11,8 @@ import org.egov.common.data.query.annotations.Exclude;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -29,6 +31,9 @@ public class IndividualSearch   {
     @JsonProperty("id")
     private List<String> id = null;
 
+    @JsonProperty("individualId")
+    private String individualId = null;
+
     @JsonProperty("clientReferenceId")
     private List<String> clientReferenceId = null;
 
@@ -43,6 +48,25 @@ public class IndividualSearch   {
     @JsonProperty("gender")
     @Valid
     private Gender gender = null;
+
+    @JsonProperty("mobileNumber")
+    private String mobileNumber = null;
+
+    @JsonProperty("socialCategory")
+    @Exclude
+    private String socialCategory = null;
+
+    @JsonProperty("wardCode")
+    @Exclude
+    private String wardCode = null;
+
+    @JsonProperty("createdFrom")
+    @Exclude
+    private BigDecimal createdFrom = null;
+
+    @JsonProperty("createdTo")
+    @Exclude
+    private BigDecimal createdTo = null;
 
     @JsonProperty("identifier")
     @Valid

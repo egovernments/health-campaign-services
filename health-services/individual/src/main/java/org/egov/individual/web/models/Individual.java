@@ -35,6 +35,10 @@ public class Individual {
     @Size(min = 2, max = 64)
     private String id = null;
 
+    @JsonProperty("individualId")
+    @Size(min = 2, max = 64)
+    private String individualId = null;
+
     @JsonProperty("tenantId")
     @NotNull
     @Size(min = 2, max = 1000)
@@ -88,6 +92,10 @@ public class Individual {
     @JsonProperty("husbandName")
     @Size(max = 100)
     private String husbandName = null;
+
+    @JsonProperty("relationship")
+    @Size(max = 100)
+    private String relationship = null;
 
     @JsonProperty("identifiers")
     @Valid

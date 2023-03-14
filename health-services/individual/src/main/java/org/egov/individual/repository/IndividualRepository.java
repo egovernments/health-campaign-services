@@ -15,13 +15,16 @@ import org.egov.individual.web.models.Identifier;
 import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.individual.web.models.Skill;
+import org.egov.tracer.model.CustomException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.sql.Date;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -136,6 +139,25 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (searchObject.getDateOfBirth() != null) {
             query = query + "AND dateOfBirth =:dateOfBirth ";
             paramsMap.put("dateOfBirth", Date.valueOf(searchObject.getDateOfBirth()));
+        }
+        if (searchObject.getSocialCategory() != null) {
+            query = query + "AND additionaldetails->'fields' @> '[{\"key\": \"SOCIAL_CATEGORY\", \"value\":" + "\"" + searchObject.getSocialCategory() + "\"}]' ";
+        }
+        if (searchObject.getCreatedFrom() != null) {
+
+            //If user does not specify toDate, take today's date as toDate by default.
+            if (searchObject.getCreatedTo() == null) {
+                searchObject.setCreatedTo(new BigDecimal(Instant.now().toEpochMilli()));
+            }
+            query = query + "AND createdTime BETWEEN :createdFrom AND :createdTo ";
+            paramsMap.put("createdFrom", searchObject.getCreatedFrom());
+            paramsMap.put("createdTo", searchObject.getCreatedTo());
+
+        } else {
+            //if only toDate is provided as parameter without fromDate parameter, throw an exception.
+            if (searchObject.getCreatedTo() != null) {
+                throw new CustomException("INVALID_SEARCH_PARAM", "Cannot specify createdToDate without a createdFromDate");
+            }
         }
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "AND isDeleted=:isDeleted ";

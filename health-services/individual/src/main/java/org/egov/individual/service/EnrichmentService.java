@@ -14,12 +14,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
@@ -28,6 +30,7 @@ import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 import static org.egov.individual.Constants.GET_ID;
@@ -52,13 +55,19 @@ public class EnrichmentService {
         log.info("starting the enrichment for create individuals");
 
         log.info("extracting tenantId");
-        final String tenantId = getTenantId(validIndividuals);
+        //fetch the root tenantId if it is in state.city format
+        final String tenantId = getTenantId(validIndividuals).split("\\.")[0];
         log.info("generating id for individuals");
         List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
                 tenantId, properties.getIndividualId(),
                 null, validIndividuals.size());
         log.info("enriching individuals");
-        enrichForCreate(validIndividuals, indIdList, request.getRequestInfo());
+
+        //individual.id is uuid and individual.individualId is idgen generated formatted value
+        List<String> idList = uuidSupplier().apply(validIndividuals.size());
+        enrichForCreate(validIndividuals, idList, request.getRequestInfo());
+        enrichIndividualIdOnCreate(validIndividuals,indIdList);
+
         enrichAddressesForCreate(request, validIndividuals);
         enrichIdentifiersForCreate(request, validIndividuals);
         enrichSkillsForCreate(request, validIndividuals);
@@ -159,6 +168,18 @@ public class EnrichmentService {
             enrichForCreate(addresses, addressIdList, request.getRequestInfo(), false);
             enrichIndividualIdInAddress(validIndividuals);
         }
+    }
+
+    /**
+     * Enriches individualId - formatted idGen generated value on create
+     */
+    private static void enrichIndividualIdOnCreate(List<Individual> individuals, List<String> idGenList) {
+        Class<?> objClass = getObjClass(individuals);
+        Method setIdMethod = getMethod("setIndividualId", objClass);
+        IntStream.range(0, individuals.size()).forEach((i) -> {
+            Object obj = individuals.get(i);
+            ReflectionUtils.invokeMethod(setIdMethod, obj, new Object[]{idGenList.get(i)});
+        });
     }
 
     private static void enrichSkillsForCreate(IndividualBulkRequest request, List<Individual> validIndividuals) {
