@@ -2,11 +2,11 @@ package org.egov.project.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.project.BeneficiarySearchRequest;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectBeneficiary;
-import org.egov.project.web.models.ProjectBeneficiarySearch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

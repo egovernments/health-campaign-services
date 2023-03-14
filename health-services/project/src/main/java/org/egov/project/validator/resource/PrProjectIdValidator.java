@@ -2,10 +2,10 @@ package org.egov.project.validator.resource;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.project.ProjectResource;
+import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectRepository;
-import org.egov.project.web.models.ProjectResource;
-import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

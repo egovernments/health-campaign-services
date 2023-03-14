@@ -2,11 +2,11 @@ package org.egov.project.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskSearch;
+import org.egov.common.models.project.TaskSearchRequest;
 import org.egov.project.helper.TaskTestBuilder;
 import org.egov.project.repository.ProjectTaskRepository;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskSearch;
-import org.egov.project.web.models.TaskSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

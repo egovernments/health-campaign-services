@@ -1,8 +1,9 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.project.web.models.AdditionalFields;
-import org.egov.project.web.models.ProjectStaff;
+import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.project.ProjectStaff;
+
 
 public class ProjectStaffTestBuilder {
 

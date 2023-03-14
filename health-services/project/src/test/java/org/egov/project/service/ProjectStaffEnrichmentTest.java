@@ -1,12 +1,12 @@
 package org.egov.project.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectStaffBulkRequestTestBuilder;
 import org.egov.project.service.enrichment.ProjectStaffEnrichmentService;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
