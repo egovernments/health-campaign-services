@@ -2,11 +2,11 @@ package org.egov.household.service;
 
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.Address;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.household.config.HouseholdConfiguration;
-import org.egov.household.web.models.Address;
-import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdBulkRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

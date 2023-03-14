@@ -3,11 +3,11 @@ package org.egov.household.household.member.validators;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberBulkRequest;
+import org.egov.common.models.household.IndividualBulkResponse;
 import org.egov.common.validator.Validator;
 import org.egov.household.service.IndividualService;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.HouseholdMemberBulkRequest;
-import org.egov.household.web.models.IndividualBulkResponse;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 

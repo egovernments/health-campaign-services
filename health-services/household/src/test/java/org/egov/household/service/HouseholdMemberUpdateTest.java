@@ -1,6 +1,12 @@
 package org.egov.household.service;
 
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberBulkRequest;
+import org.egov.common.models.household.HouseholdMemberRequest;
+import org.egov.common.models.household.Individual;
+import org.egov.common.models.household.IndividualBulkResponse;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.helper.HouseholdMemberRequestTestBuilder;
@@ -13,12 +19,6 @@ import org.egov.household.household.member.validators.HmNullIdValidator;
 import org.egov.household.household.member.validators.HmRowVersionValidator;
 import org.egov.household.household.member.validators.HmUniqueEntityValidator;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.HouseholdMemberBulkRequest;
-import org.egov.household.web.models.HouseholdMemberRequest;
-import org.egov.household.web.models.Individual;
-import org.egov.household.web.models.IndividualBulkResponse;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;

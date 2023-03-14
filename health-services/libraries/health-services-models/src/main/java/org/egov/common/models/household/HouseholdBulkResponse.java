@@ -1,5 +1,6 @@
-package org.egov.household.web.models;
+package org.egov.common.models.household;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,33 +15,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * IndividualResponse
- */
+* HouseholdResponse
+*/
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-27T11:47:19.561+05:30")
+@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class IndividualBulkResponse {
-
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class HouseholdBulkResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("Individual")
+    @JsonProperty("Households")
     @Valid
-    private List<Individual> individual = null;
+    private List<Household> households = null;
 
-    public IndividualBulkResponse addIndividualItem(Individual individualItem) {
-        if (this.individual == null) {
-            this.individual = new ArrayList<>();
+
+    public HouseholdBulkResponse addHouseholdItem(Household householdItem) {
+        if (this.households == null) {
+            this.households = new ArrayList<>();
         }
-        this.individual.add(individualItem);
+        this.households.add(householdItem);
         return this;
     }
-
 }
 

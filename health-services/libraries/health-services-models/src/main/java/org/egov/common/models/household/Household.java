@@ -1,6 +1,7 @@
-package org.egov.household.web.models;
+package org.egov.common.models.household;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
@@ -26,6 +27,7 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+    @JsonIgnoreProperties(ignoreUnknown = true)
 public class Household {
 
     @JsonProperty("id")

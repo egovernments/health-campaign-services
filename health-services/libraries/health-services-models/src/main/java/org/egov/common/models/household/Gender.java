@@ -1,11 +1,13 @@
-package org.egov.household.web.models;
+package org.egov.common.models.household;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
  * Gets or Sets gender
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public enum Gender {
   
   MALE("MALE"),

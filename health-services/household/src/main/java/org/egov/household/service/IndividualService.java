@@ -4,12 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.Individual;
+import org.egov.common.models.household.IndividualBulkResponse;
+import org.egov.common.models.household.IndividualSearch;
+import org.egov.common.models.household.IndividualSearchRequest;
 import org.egov.household.config.HouseholdMemberConfiguration;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.Individual;
-import org.egov.household.web.models.IndividualBulkResponse;
-import org.egov.household.web.models.IndividualSearch;
-import org.egov.household.web.models.IndividualSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 

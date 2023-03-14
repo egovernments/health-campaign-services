@@ -1,5 +1,6 @@
-package org.egov.household.web.models;
+package org.egov.common.models.household;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +10,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 /**
  * HouseholdMemberRequest
@@ -21,6 +21,7 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class HouseholdMemberRequest {
     @JsonProperty("RequestInfo")
     @NotNull

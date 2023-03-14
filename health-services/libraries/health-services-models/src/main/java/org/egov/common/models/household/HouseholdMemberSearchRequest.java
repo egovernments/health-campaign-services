@@ -1,18 +1,18 @@
-package org.egov.household.web.models;
+package org.egov.common.models.household;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 /**
-* HouseholdResponse
+* HouseholdMemberSearchRequest
 */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
@@ -21,14 +21,19 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HouseholdResponse   {
-    @JsonProperty("ResponseInfo")
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class HouseholdMemberSearchRequest   {
+
+    @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private ResponseInfo responseInfo = null;
+    private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-    @JsonProperty("Household")
+    @JsonProperty("HouseholdMember")
+    @NotNull
     @Valid
-    private Household household = null;
+    private HouseholdMemberSearch householdMemberSearch = null;
+
+
 }
 

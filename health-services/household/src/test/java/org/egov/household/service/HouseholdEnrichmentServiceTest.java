@@ -1,13 +1,13 @@
 package org.egov.household.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.helper.HouseholdBulkRequestTestBuilder;
 import org.egov.household.helper.HouseholdTestBuilder;
-import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdBulkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

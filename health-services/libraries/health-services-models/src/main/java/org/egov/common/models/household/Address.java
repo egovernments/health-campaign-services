@@ -1,5 +1,6 @@
-package org.egov.household.web.models;
+package org.egov.common.models.household;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
@@ -25,6 +26,7 @@ import javax.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+    @JsonIgnoreProperties(ignoreUnknown = true)
 public class Address {
 
     @JsonProperty("id")

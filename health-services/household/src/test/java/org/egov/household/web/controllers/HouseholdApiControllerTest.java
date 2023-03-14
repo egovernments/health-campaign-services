@@ -2,14 +2,14 @@ package org.egov.household.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.household.HouseholdSearch;
+import org.egov.common.models.household.HouseholdSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.household.TestConfiguration;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
-import org.egov.household.web.models.HouseholdSearch;
-import org.egov.household.web.models.HouseholdSearchRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
