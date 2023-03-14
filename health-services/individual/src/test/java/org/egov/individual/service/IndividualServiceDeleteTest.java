@@ -29,9 +29,7 @@ import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceDeleteTest {
@@ -69,9 +67,9 @@ class IndividualServiceDeleteTest {
         ReflectionTestUtils.setField(individualService, "validators", validators);
         ReflectionTestUtils.setField(individualService, "isApplicableForDelete",
                 (Predicate<Validator<IndividualBulkRequest, Individual>>) validator ->
-                validator.getClass().equals(NullIdValidator.class)
-                        || validator.getClass().equals(NonExistentEntityValidator.class));
-        when(properties.getDeleteIndividualTopic()).thenReturn("delete-topic");
+                        validator.getClass().equals(NullIdValidator.class)
+                                || validator.getClass().equals(NonExistentEntityValidator.class));
+        lenient().when(properties.getDeleteIndividualTopic()).thenReturn("delete-topic");
     }
 
     @Test
@@ -104,4 +102,30 @@ class IndividualServiceDeleteTest {
         individualService.delete(request);
         verify(individualRepository, times(1)).save(anyList(), anyString());
     }
+
+    @Test
+    @DisplayName("should give error while deleting invalid individual")
+    void should() {
+        Individual individual = IndividualTestBuilder.builder().build();
+        individual.setHasErrors(true);
+        IndividualRequest request = IndividualRequestTestBuilder.builder()
+                .withIndividuals(individual)
+                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .build();
+        List<Individual> individualsInDb = new ArrayList<>();
+        individualsInDb.add(IndividualTestBuilder.builder()
+                .withClientReferenceId()
+                .withId()
+                .withName()
+                .withTenantId()
+                .withAddressHavingAuditDetails()
+                .withIdentifiersHavingAuditDetails()
+                .withRowVersion()
+                .withAuditDetails()
+                .build());
+
+        individualService.delete(request);
+        verify(individualRepository, times(0)).save(anyList(), anyString());
+    }
+
 }

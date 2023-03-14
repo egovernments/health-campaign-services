@@ -10,11 +10,7 @@ import org.egov.individual.web.models.IndividualBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForAddressType;
@@ -46,11 +42,12 @@ public class AddressTypeValidator implements Validator<IndividualBulkRequest, In
             if (individual.getAddress() == null) {
                 continue;
             }
+
             for (Address address : individual.getAddress()) {
                 addressTypeCountMap.merge(address.getType(), 1, Integer::sum);
             }
-            addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1)
-                    .forEach(e -> individuals.add(individual));
+
+            addressTypeCountMap.entrySet().stream().filter(e -> e.getValue() > 1).forEach(e -> individuals.add(individual));
         }
         return individuals;
     }
