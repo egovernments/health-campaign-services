@@ -1294,11 +1294,11 @@ definitions:
         description: Reference number to a physical file or docket or some other artifact of which this project is representative of.
         minLength: 2
         maxLength: 100
-      documents:
-        type: array
-        description: Reference to physical documents that have been attached via file upload
-        items:
-          $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/definitions/Document'
+      #documents:
+      #  type: array
+      #  description: Reference to physical documents that have been attached via file upload
+      #  items:
+      #    $ref: 'https://raw.githubusercontent.com/egovernments/DIGIT-OSS/master/core-services/docs/common-contract.yml#/definitions/Document'
       natureOfWork:
         type: string
         description: Specifies nature of work for Project
