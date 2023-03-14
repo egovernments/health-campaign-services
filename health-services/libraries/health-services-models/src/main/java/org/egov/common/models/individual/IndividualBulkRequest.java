@@ -1,15 +1,20 @@
-package org.egov.individual.web.models;
+package org.egov.common.models.individual;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.ApiDetails;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
 * IndividualRequest
@@ -21,15 +26,26 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class IndividualRequest {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class IndividualBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("Individual")
+    @JsonProperty("Individuals")
     @NotNull
     @Valid
-    private Individual individual = null;
+    @Size(min = 1)
+    private List<Individual> individuals = new ArrayList<>();
+
+
+    private ApiDetails apiDetails = null;
+
+    public IndividualBulkRequest addIndividualItem(Individual individualItem) {
+        this.individuals.add(individualItem);
+        return this;
+    }
+
 }
 

@@ -1,5 +1,6 @@
-package org.egov.individual.web.models;
+package org.egov.common.models.individual;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,8 +11,6 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * IndividualResponse
@@ -23,7 +22,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class IndividualBulkResponse {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class IndividualResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
@@ -32,15 +32,6 @@ public class IndividualBulkResponse {
 
     @JsonProperty("Individual")
     @Valid
-    private List<Individual> individual = null;
-
-    public IndividualBulkResponse addIndividualItem(Individual individualItem) {
-        if (this.individual == null) {
-            this.individual = new ArrayList<>();
-        }
-        this.individual.add(individualItem);
-        return this;
-    }
-
+    private Individual individual = null;
 }
 

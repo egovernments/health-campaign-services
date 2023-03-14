@@ -2,11 +2,11 @@ package org.egov.individual.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.AddressType;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.validator.Validator;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.AddressType;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
