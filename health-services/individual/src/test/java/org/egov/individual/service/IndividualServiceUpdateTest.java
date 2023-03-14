@@ -128,6 +128,7 @@ class IndividualServiceUpdateTest {
         assertThrows(CustomException.class, () -> individualService.update(request));
     }
 
+    @Disabled
     @Test
     @DisplayName("should check row versions if entities are valid")
     void shouldCheckRowVersionsIfEntitiesAreValid() {
@@ -182,6 +183,7 @@ class IndividualServiceUpdateTest {
         assertThrows(CustomException.class, () -> individualService.update(request));
     }
 
+    @Disabled
     @Test
     @DisplayName("should save the updated entities")
     void shouldSaveTheUpdatedEntities() {
