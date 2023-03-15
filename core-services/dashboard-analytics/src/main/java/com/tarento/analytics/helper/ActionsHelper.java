@@ -49,7 +49,6 @@ public class ActionsHelper {
             throw new RuntimeException("Data is not eligible for division by constant");
         }
         List<Plot> plotList = new ArrayList<>();
-
         List<Plot> updatedPlots = new ArrayList<>();
         Data data = dataList.get(0);
         data.getPlots().forEach((plot) -> {
