@@ -101,6 +101,7 @@ public interface IResponseHandler {
 
 	public static final String DIVISION = "division";
 	public static final String DIVISOR_FIELDS = "divisorFields";
+	public static final String DIVISIONBYCONSTANT = "divisionbyconstant";
 
 	/**
 	 * Translate the consolidated/aggregated response
