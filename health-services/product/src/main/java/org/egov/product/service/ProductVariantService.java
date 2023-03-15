@@ -3,10 +3,10 @@ package org.egov.product.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
-import org.egov.common.models.product.ProductVariantSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductVariantRepository;
+import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

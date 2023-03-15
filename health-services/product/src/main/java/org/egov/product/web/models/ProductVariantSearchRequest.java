@@ -1,4 +1,4 @@
-package org.egov.common.models.product;
+package org.egov.product.web.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -6,13 +6,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.List;
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 
 /**
-* ProductSearch
-*/
+ * ProductVariantSearchRequest
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
@@ -21,18 +23,16 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductSearch {
+public class ProductVariantSearchRequest {
 
-    @JsonProperty("id")
-    private List<String> id = null;
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
+    private RequestInfo requestInfo = null;
 
-    @JsonProperty("type")
-    private String type = null;
-
-    @JsonProperty("name")
-    private String name = null;
-
-    @JsonProperty("manufacturer")
-    private String manufacturer = null;
+    @JsonProperty("ProductVariant")
+    @NotNull
+    @Valid
+    private ProductVariantSearch productVariant = null;
 }
 
