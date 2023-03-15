@@ -1,4 +1,4 @@
-package org.egov.common.models.household;
+package org.egov.household.web.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
+@Table(name = "household h")
 public class HouseholdSearch {
 
     @JsonProperty("id")

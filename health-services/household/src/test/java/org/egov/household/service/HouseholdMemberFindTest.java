@@ -2,9 +2,9 @@ package org.egov.household.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.household.HouseholdMemberSearch;
-import org.egov.common.models.household.HouseholdMemberSearchRequest;
 import org.egov.household.repository.HouseholdMemberRepository;
+import org.egov.household.web.models.HouseholdMemberSearch;
+import org.egov.household.web.models.HouseholdMemberSearchRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
