@@ -27,7 +27,7 @@ public class StockReconciliationRowMapper implements RowMapper<StockReconciliati
                     .id(resultSet.getString("id"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .tenantId(resultSet.getString("tenantId"))
-                    .dateOfReconciliation(resultSet.getInt("dateOfReconciliation"))
+                    .dateOfReconciliation(resultSet.getLong("dateOfReconciliation"))
                     .facilityId(resultSet.getString("facilityId"))
                     .calculatedCount(resultSet.getInt("calculatedCount"))
                     .commentsOnReconciliation(resultSet.getString("commentsOnReconciliation"))

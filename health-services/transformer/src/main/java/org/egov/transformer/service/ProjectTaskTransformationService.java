@@ -1,7 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.transformer.upstream.Task;
+import org.egov.common.models.project.Task;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;

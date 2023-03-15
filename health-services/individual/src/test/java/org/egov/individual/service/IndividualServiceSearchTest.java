@@ -1,10 +1,10 @@
 package org.egov.individual.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
-import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualSearchTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.web.models.IndividualSearch;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

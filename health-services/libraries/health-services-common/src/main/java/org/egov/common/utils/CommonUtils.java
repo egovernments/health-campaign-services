@@ -1,14 +1,18 @@
 package org.egov.common.utils;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.error.handler.ErrorHandler;
 import org.egov.common.models.ApiDetails;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
+import org.egov.tracer.model.ErrorDetail;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.util.ReflectionUtils;
@@ -23,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -39,7 +44,12 @@ public class CommonUtils {
 
     private static final Map<Class<?>, Map<String, Method>> methodCache = new HashMap<>();
 
-    private CommonUtils() {}
+    private static ObjectMapper objectMapper = new ObjectMapper();
+
+    private CommonUtils() {
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .setTimeZone(TimeZone.getTimeZone("UTC"));
+    }
 
 
     public static boolean isForUpdate(Object obj) {
@@ -679,7 +689,7 @@ public class CommonUtils {
                             .methodType(HttpMethod.POST.name())
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .url(requestInfo.getApiId()).build();
-                    apiDetails.setRequestBody(newRequest);
+                    apiDetails.setRequestBody(objectMapper.writeValueAsString(newRequest));
                     ErrorDetails errorDetails = ErrorDetails.builder()
                             .errors(entry.getValue())
                             .apiDetails(apiDetails)
@@ -778,9 +788,17 @@ public class CommonUtils {
     public static <T> void handleErrors(Map<T, ErrorDetails> errorDetailsMap, boolean isBulk, String errorCode) {
         if (!errorDetailsMap.isEmpty()) {
             log.error("{} errors collected", errorDetailsMap.size());
-            if (isBulk) {
-                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
-            } else {
+            try {
+                if (isBulk) {
+                    List<ErrorDetail> errorDetailList = errorDetailsMap.values()
+                            .stream().map(ErrorDetails::getTracerModel).collect(Collectors.toList());
+                        ErrorHandler.exceptionAdviseInstance.exceptionHandler(errorDetailList);
+                } else {
+                    throw new CustomException(errorCode, objectMapper
+                            .writeValueAsString(errorDetailsMap.values()));
+                }
+            } catch (Exception e) {
+                log.error("error in handling errors", e);
                 throw new CustomException(errorCode, errorDetailsMap.values().toString());
             }
         }
@@ -796,6 +814,7 @@ public class CommonUtils {
      * @param <T> is the type of payload
      */
     public static <R,T> HashMap<T, List<Error>> validateForNullId(R request, String getPayloadMethodName) {
+        log.info("validating for null id");
         HashMap<T, List<Error>> errorDetailsMap = new HashMap<>();
         List<T> validPayloads = ((List<T>)ReflectionUtils.invokeMethod(getMethod(getPayloadMethodName,
                 request.getClass()), request)).stream().filter(notHavingErrors()).collect(Collectors.toList());
@@ -807,6 +826,7 @@ public class CommonUtils {
                 Error error = getErrorForNullId();
                 populateErrorDetails(payload, error, errorDetailsMap);
             });
+            log.info("null id validation completed successfully, total errors: {}", payloadWithNullIds.size());
         }
         return errorDetailsMap;
     }

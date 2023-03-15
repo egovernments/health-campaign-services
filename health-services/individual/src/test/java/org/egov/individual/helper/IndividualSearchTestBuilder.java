@@ -3,8 +3,8 @@ package org.egov.individual.helper;
 
 import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.Name;
+import org.egov.individual.web.models.IndividualSearch;
 
 import java.time.LocalDate;
 import java.util.ArrayList;

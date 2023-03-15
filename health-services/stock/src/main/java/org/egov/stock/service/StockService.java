@@ -6,7 +6,6 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockRequest;
-import org.egov.common.models.stock.StockSearchRequest;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
@@ -20,6 +19,7 @@ import org.egov.stock.validator.stock.SReferenceIdValidator;
 import org.egov.stock.validator.stock.SRowVersionValidator;
 import org.egov.stock.validator.stock.STransactingPartyIdValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
+import org.egov.stock.web.models.StockSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 

@@ -6,8 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.models.transformer.upstream.TransactionReason;
-import org.egov.common.models.transformer.upstream.TransactionType;
+import org.egov.common.models.stock.TransactionReason;
+import org.egov.common.models.stock.TransactionType;
 
 
 @Data

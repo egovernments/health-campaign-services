@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.tarento.analytics.handler.IResponseHandler.HIDE_HEADER_DENOMINATION;
+
 @Component
 public class AdditiveComputedField implements IComputedField<Data> {
 
@@ -33,14 +35,16 @@ public class AdditiveComputedField implements IComputedField<Data> {
 
     @Override
     public void add(Data data, List<String> fields, String newField,JsonNode chartNode ) {
-        String dataType = "amount";
+        String dataType = chartNode.get(HIDE_HEADER_DENOMINATION).asBoolean() ? "number" : "amount";
         try {
             Map<String, Plot> plotMap = data.getPlots().stream().collect(Collectors.toMap(Plot::getName, Function.identity()));
 
             double total = 0.0;
             for (String field: fields){
-                dataType = plotMap.get(field).getSymbol();
-                total = total+ plotMap.get(field).getValue();
+                if(plotMap.containsKey(field)){
+                    dataType = plotMap.get(field).getSymbol();
+                    total = total+ plotMap.get(field).getValue();
+                }
             }
             if(postAggrTheoryName != null && !postAggrTheoryName.isEmpty()) {
                 ComputeHelper computeHelper = computeHelperFactory.getInstance(postAggrTheoryName);

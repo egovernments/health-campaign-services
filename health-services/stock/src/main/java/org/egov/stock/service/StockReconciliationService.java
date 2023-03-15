@@ -6,7 +6,6 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.models.stock.StockReconciliationRequest;
-import org.egov.common.models.stock.StockReconciliationSearchRequest;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.repository.StockReconciliationRepository;
@@ -19,6 +18,7 @@ import org.egov.stock.validator.stockreconciliation.SrProductVariantIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrReferenceIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrRowVersionValidator;
 import org.egov.stock.validator.stockreconciliation.SrUniqueEntityValidator;
+import org.egov.stock.web.models.StockReconciliationSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 

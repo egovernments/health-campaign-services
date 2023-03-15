@@ -2,9 +2,9 @@ package org.egov.project.validator;
 
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
-import org.egov.common.models.project.ProductVariant;
-import org.egov.common.models.project.ProductVariantResponse;
-import org.egov.common.models.project.ProductVariantSearchRequest;
+import org.egov.common.models.product.ProductVariant;
+import org.egov.common.models.product.ProductVariantResponse;
+import org.egov.common.models.product.ProductVariantSearchRequest;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.project.config.ProjectConfiguration;
