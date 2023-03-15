@@ -1,0 +1,129 @@
+@startuml
+title Household Member - Bulk Create
+!theme vibrant
+participant Client as c
+participant HouseholdRegistry as s
+participant IndividualRegistry as s2
+participant RedisCache as rc
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+participant HandleErrorMethod as he
+c -> s : /household/member/v1/bulk/_create
+activate s
+s -> c: HttpStatus: 202 accepted
+s -> s: Validate request body
+
+alt request validation fails
+    s -> s: Request validation failed
+    s -> he: call handleError HandleErrorMethod
+    activate he
+    deactivate he
+    note left
+        This will be marked as unrecoverable right away
+        and require manual intervention
+    end note
+end
+
+s -> s: Request validation successful
+loop for each household member
+alt household member record already exists
+    alt record found in cache
+      s -> rc: Check using household clientReferenceId/serverGeneratedId
+      activate rc
+      rc -> s: 1 row
+      deactivate rc
+      s ->  he: call handleError HandleErrorMethod
+      note left
+          Error Code: RECORD_ALREADY_EXISTS
+      end note
+    end
+    else
+    s -> rc: Check using household clientReferenceId/serverGeneratedId
+    activate rc
+    rc -> s: 0 rows
+    deactivate rc
+    s -> db: Check if record already exists
+    activate db
+    db -> s: 1 row
+    deactivate db
+    s -> rc: Put data in cache using household clientReferenceId/serverGeneratedId
+    activate rc
+    deactivate rc
+    s ->  he: call handleError HandleErrorMethod
+    note left
+        Error Code: RECORD_ALREADY_EXISTS
+    end note
+end
+
+alt individual doesn't exist
+    s -> s2: /individual/v1/_search
+    activate s2
+    s2 -> s: 0 rows
+    deactivate s2
+    s -> he: call handleError HandleErrorMethod
+    note left
+        This will be marked as recoverable and will be
+        retried later
+        Error Code: DEPENDENCY_ERROR
+    end note
+
+end
+s -> db: Get Individual/Household mapping using individual clientReferenceId/serverGeneratedId
+activate db
+alt record found
+  db -> s: 1 row
+  s -> he:  call handleError HandleErrorMethod
+  note left
+        Ensures that the individual is not already linked to a household
+  end note
+end
+db -> s: 0 rows
+deactivate db
+s -> s: Check if isHeadOfHousehold is true in request
+alt request isHeadOfHousehold true
+  s -> db: Get Individual/Household mapping using household clientReferenceId/serverGeneratedId
+  activate db
+  db -> s: 1-n row(s)
+  deactivate db
+  alt record with isHeadOfHousehold true found
+    s -> s: Check if there is already a record with isHeadOfHousehold true
+    s -> he: call handleError HandleErrorMethod
+    note left
+        Error Code: BAD_REQUEST
+    end note
+  end
+end
+
+s -> k: Household Member Data /persist_topic
+activate k
+s -> rc: Invalidate household cache using clientReferenceId/serverGeneratedId
+note left
+  The request does not have all the data required to update
+  the household cache for which this member is being added
+  and hence is being invalidated.
+end note
+activate rc
+deactivate rc
+
+deactivate s
+group async
+    prs -> k: Consume Household Member Data
+    activate prs
+    idx -> k: Consume Household Member Data
+    activate idx
+    idx -> el: Store Household Member Data
+    activate el
+    deactivate el
+    deactivate idx
+    prs -> db: Persist Household Member Data
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+end
+@enduml

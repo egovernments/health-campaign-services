@@ -1,0 +1,581 @@
+//// -- LEVEL 1
+//// -- Schemas, Tables and References
+
+// Creating tables
+// You can define the tables with full schema names
+
+//Do we need to maintain audit related columns in each table?
+
+Table individual {
+  id varchar [pk]
+  userId varchar(64)
+  clientReferenceId varchar(64)
+  tenantId varchar
+  givenName varchar(200)
+  familyName varchar(200)
+  otherNames varchar(200)
+  dateOfBirth bigint //YYYYMMDD. Do not store time and timezone in this field.
+  gender varchar(10)
+  bloodGroup varchar(10)
+  latitude double
+  longitude double
+  mobileNumber varchar(20)
+  altContactNumber varchar(20)
+  email varchar(200)
+  fatherName varchar(100)
+  husbandName varchar(100)
+  photo varchar
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table individual_identifier {
+  id varchar [pk]
+  individualId varchar [ref: > individual.id]
+  identifierType varchar(64)
+  identifierId varchar(64)
+  // status varchar(64) // ACTIVE, EXPIRED etc
+  // validityStart bigint
+  // validityEnd bigint
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table individual_address {
+  individualId varchar [ref: > individual.id]
+  addressId varchar [ref: > address.id]
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table individual_skill {
+  id varchar [pk]
+  individualId varchar [ref: > individual.id]
+  type varchar(64)
+  level varchar(64)
+  experience varchar(64)
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table address {
+  id varchar [pk]
+  tenantId varchar
+  doorNo varchar(64)
+  latitude double
+  longitude double
+  locationAccuracy int
+  type varchar(64)
+  addressLine1 varchar(256)
+  addressLine2 varchar(256)
+  landmark varchar(256)
+  city varchar(256)
+  pincode varchar(64)
+  buildingName varchar(256)
+  street varchar(256)
+  additionalDetails json
+  localityCode varchar //Reference to master data
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+
+Table household {
+  id varchar [pk]
+  tenantId varchar
+  clientReferenceId varchar(64)
+  numberOfMembers int
+  addressId varchar [ref: > address.id]
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table household_individual_mapping {
+  individualId varchar [ref: > individual.id]
+  householdId varchar [ref: > household.id]
+  isHeadOfHousehold bool
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+// Table campaign_resource { // moved to MDMS
+//   id varchar [pk]
+//   campaignId varchar [ref: > campaign.id]
+//   resourceId varchar //refer to MDMS
+//   quantityProcured bigint
+//   quantityProcuredUnit varchar // MDMS
+//   additionalDetails json
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   tenantId varchar
+// }
+
+Table facility {
+  id varchar [pk]
+  tenantId varchar
+  clientReferenceId varchar(64)
+  isPermanent bool
+  usage varchar(200)
+  storageCapacity bigint
+  addressId varchar [ref: > address.id]
+  additionalDetails longtext
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table product {
+  id varchar [pk]
+  tenantId varchar
+  clientReferenceId varchar(64)
+  type varchar(200)
+  name varchar(1000)
+  manufacturer varchar(1000)
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table product_variant {
+  id varchar [pk]
+  clientReferenceId varchar(64)
+  productId varchar(64) [ref: > product.id]
+  sku varchar(1000)
+  variation varchar(1000)
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table stock {
+  id varchar [pk]
+  clientReferenceId varchar(64)
+  tenantId varchar(1000)
+  facilityId varchar(64) //[ref: > facility.id]
+  productVariantId varchar(64) //[ref: > product_variant.id]
+  quantity bigint
+  waybillNUmber varchar(200)
+  referenceId varchar(200)
+  referenceIdType varchar(100)
+  transactionType varchar(100)
+  transactionReason varchar(100)
+  transactingPartyId varchar(64)
+  transactingPartyType varchar(100)
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table stock_reconciliation_log {
+   id varchar [pk]
+   clientReferenceId varchar //store id provided by frontend
+   tenantId varchar(1000)
+   productVariantId varchar(64)  [ref: > product_variant.id]
+   facilityId varchar(64) //[ref: > facility.id]
+   referenceId varchar(64)
+   referenceIdType varchar(64)
+   dateOfReconciliation bigint
+   calculatedCount int
+   physicalRecordedCount int
+   commentsOnReconciliation varchar
+   createdAt bigint
+   modifiedAt bigint
+   createdBy varchar
+   modifiedBy varchar
+   additionalFields json
+   tenantId varchar
+   isDeleted bool
+}
+
+Table project {
+  id varchar [pk]
+  tenantId varchar(1000)
+  projectTypeId varchar(64)
+  addressId varchar(64)
+  startDate bigint
+  endDate bigint
+  isTaskEnabled bool
+  parent varchar(64)
+  projectHierarchy varchar
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table project_target {
+  id varchar [pk]
+  tenantId varchar(1000)
+  projectId varchar(64) [ref: > project.id]
+  beneficiaryType varchar
+  totalNumber bigint
+  targetNumber bigint
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table project_beneficiary {
+  id varchar [pk]
+  clientReferenceId varchar(64)
+  tenantId varchar(1000)
+  projectId varchar(64) [ref: > project.id]
+  beneficiaryId varchar(64)
+  beneficiaryClientReferenceId varchar(64)
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table project_task {
+  id varchar [pk]
+  tenantId varchar(1000)
+  projectId varchar(64) [ref: > project.id]
+  projectBeneficiaryId varchar(64)
+  projectBeneficiaryClientReferenceId varchar(64)
+  plannedStartDate bigint
+  plannedEndDate bigint
+  actualStartDate bigint
+  actualEndDate bigint
+  addressId varchar
+  additionalDetails json
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table task_resources {
+  id varchar [pk]
+  tenantId varchar(1000)
+  productVariantId varchar(64)  [ref: > product_variant.id]
+  taskId varchar(64)
+  quantity bigint
+  isDelivered bool
+  reasonIfNotDelivered varchar(1000)
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table project_staff {
+  id varchar [pk]
+  tenantId varchar(1000)
+  projectId varchar(64) [ref: > project.id]
+  staffId varchar(64)
+  startDate bigint
+  endDate bigint
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table project_facility {
+  id varchar [pk]
+  tenantId varchar(1000)
+  projectId varchar(64) [ref: > project.id]
+  facilityId varchar(64) //[ref: > facility.id]
+  startDate bigint
+  endDate bigint
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+Table project_resource {
+  id varchar [pk]
+  tenantId varchar(1000)
+  projectId varchar(64) [ref: > project.id]
+  productVariantId varchar(64) //[ref: > product_variant.id]
+  isBaseUnitVariant bool
+  startDate bigint
+  endDate bigint
+  createdBy varchar(64)
+  createdTime bigint
+  lastModifiedBy varchar(64)
+  lastModifiedTime bigint
+  rowVersion bigint
+  isDeleted bool
+}
+
+// // // // // //
+// Table campaign {
+//   id varchar [pk]
+//   name varchar
+//   type varchar // ref to MDMS
+//   beneficiaryType varchar // ref to MDMS
+//   eligibilityCriteria varchar
+//   isRegistrationAndDeliveryCombined bool // ref to MDMS
+//   deliveryStrategy varchar // ref to MDMS (FIXED / MOBILE)
+//   deliveryProcedure varchar
+//   //DERIVED FROM campaign_geography
+//     // desiredTeamTarget bigint
+//     // desiredCoverageTarget bigint
+//     // desiredPopulationTarget bigint
+//     // status varchar
+//   disease varchar
+//   additionalDetails json
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table campaign_schedule {
+//   id varchar [pk]
+//   campaignId varchar [ref: > public.campaign.id]
+//   startDate bigint
+//   endDate bigint
+//   isMultiRound bool
+//   rounds int
+//   durationBetweenRounds int // In DAYS
+//   isRecurring bool
+//   recurringFrequency int // count
+//   durationAndFrequencyUnit varchar // default: DAYS
+//   additionalDetails longtext
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table campaign_round {
+//   id varchar [pk]
+//   campaignId varchar [ref: > campaign.id]
+//   startDate bigint
+//   endDate bigint
+//   desiredTargets json //desiredTeamTarget, desiredCoverageTarget, desiredPopulationTarget
+//   achievedTargets json //achievedTeamTarget, achievedCoverageTarget, achievedPopulationTarget
+//   status varchar //MDMS
+//   boundaryId varchar // refer to Boundary config
+//   additionalDetails json
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+
+// Table campaign_registration {
+//   id varchar [pk]
+//   campaignId varchar [ref: > campaign.id]
+//   clientReferenceId varchar //store id provided by frontend
+//   beneficiaryType varchar //MDMS config
+//   beneficiaryId varchar
+//   boundaryId varchar
+//   registeredAt bigint // event datetime on offline device
+//   createdAt bigint // event creation time on server (after sync)
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   additionalFields json
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table campaign_delivery {
+//   id varchar [pk]
+//   campaignId varchar [ref: > campaign.id]
+//   registrationId varchar [ref: > campaign_registration.id]
+//   campaignRoundId varchar [ref: > campaign_round.id] //needed to support multiple rounds in the same geography
+//   clientReferenceId varchar //store id provided by frontend
+//   status varchar  // DELIVERED, PARTIAL, UNDELIVERED
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   additionalFields json
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table campaign_delivery_resource {
+//   id varchar [pk]
+//   campaignDeliveryId varchar [ref: > campaign_delivery.id]
+//   clientReferenceId varchar //store id provided by frontend
+//   resourceId varchar // refer MDMS resource id
+//   quantityToBeDelivered int
+//   quantityDelivered int
+//   reasonIfNotDelivered varchar
+//   isDelivered bool
+//   deliveryDate bigint
+//   deliveredBy varchar
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   additionalFields json
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table inventory_log {
+//   id varchar [pk]
+//   clientReferenceId varchar //store id provided by frontend
+//   campaignId varchar [ref: > campaign.id]
+//   // recievedFrom varchar
+//   // dispatchedTo varchar
+//   warehouseId varchar //warehouse will be mapped to a boundaryId
+//   resourceId varchar
+//   resourceType varchar
+//   resourceName varchar
+//   quantity int
+//   quantityUnit varchar
+//   transactionPartyId varchar // uuid of warehouse or field team
+//   transactionPartyType varchar // WAREHOUSE / FIELDTEAM
+//   transactionType varchar // RECEIVED / DISPATCHED
+//   transactionReason varchar // RETURNED / RECEIVED
+//   transactionDate varchar
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   additionalFields json
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table inventory_reconciliation_log {
+//   id varchar [pk]
+//   clientReferenceId varchar //store id provided by frontend
+//   campaignId varchar  [ref: > campaign.id]
+//   warehouseId varchar //warehouse will be mapped to a boundaryId
+//   dateOfReconciliation bigint
+//   resourceId varchar // refer MDMS resource id
+//   calculatedCount int
+//   physicalRecordedCount int
+//   comment varchar
+//   createdAt bigint
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   additionalFields json
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table campaign_supervision_log {
+//   id varchar [pk]
+//   campaignId varchar [ref: > campaign.id]
+//   boundaryId varchar
+//   clientReferenceId varchar //store id provided by frontend
+//   schemaId varchar // ref MDMS
+//   responses json
+//   performedAt bigint // event datetime on offline device
+//   createdAt bigint // event creation time on server (after sync)
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   additionalFields json
+//   tenantId varchar
+//   isDeleted bool
+// }
+
+// Table sync_log {
+//   id varchar [pk]
+//   referenceId varchar // campaignId
+//   referenceIdType varchar // CAMPAIGN
+//   fileStoreId varchar
+//   requestId varchar // correlation-id
+//   checksum varchar
+//   status varchar // complete, partially-complete, failed
+//   totalCount int
+//   errorCount int
+//   successCount int
+//   comment varchar
+//   createdAt bigint // event creation time on server (after sync)
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   tenantId varchar
+// }
+
+// Table sync_error_details_log  {
+//   id varchar [pk]
+//   sync_log_id varchar [ref: > sync_log.id]
+//   recordId varchar // uuid of the record not synced
+//   recordType varchar // registration, delivery
+//   errorCodes varchar // string of error code(s)
+//   errorMessages varchar // string of errorMessages
+//   createdAt bigint // event creation time on server (after sync)
+//   modifiedAt bigint
+//   createdBy varchar
+//   modifiedBy varchar
+//   tenantId varchar
+// }
+
+// Ref: public.campaign.id > public.campaign_schedule.campaignId

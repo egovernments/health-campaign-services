@@ -1,0 +1,80 @@
+@startuml
+title Individual - Bulk Create
+!theme vibrant
+participant Client as c
+participant IndividualRegistry as s
+participant RedisCache as rc
+participant IDGenService as idgen
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+participant HandleErrorMethod as he
+database Database as db
+c -> s : /individual/v1/bulk/_create
+
+activate s
+s -> c: HttpStatus: 202 accepted
+s -> s: Validate request body
+alt request validation fails
+    s -> s: Request validation failed
+    s -> he: call handleError HandleErrorMethod
+    activate he
+    deactivate he
+    note left
+        This will be marked as unrecoverable right away 
+        and require manual intervention
+    end note
+end
+s -> s: Request validation successful
+
+alt id generation fails
+
+    s -> idgen: /id/_generate
+    activate idgen
+    idgen -> s: HttpStatus: 400
+    deactivate idgen
+
+    s -> he: call handleError HandleErrorMethod
+    activate he
+    deactivate he
+
+    note left
+        This will be marked as recoverable and 
+        will be retried later
+    note left
+      Error Code: ID_GENERATION_FAILED
+    end note
+else id generation successful
+group idgen
+
+    s -> idgen: Generate ID
+    activate idgen
+    idgen -> s: Generated ID
+    deactivate idgen
+    s -> s: Update generated ID in Individual Data
+    s -> k: Individual Data /persist_topic
+    activate k
+    s -> rc: Put Individual Data against serverGeneratedId in cache
+    activate rc
+    deactivate rc
+end
+deactivate s
+group async
+    prs -> k: Consume Individual Data
+    activate prs
+    idx -> k: Consume Individual Data
+    activate idx
+    idx -> el: Store Individual Data
+    activate el
+    deactivate el
+    deactivate idx
+    prs -> db: Persist Individual Data
+    activate db
+    deactivate db
+    deactivate prs
+end
+end
+deactivate k
+@enduml

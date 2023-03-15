@@ -1,0 +1,606 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Campaign Service
+  description: >
+    This module facilitates campaign management.
+
+schemes:
+  - https
+basePath: /campaigns
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  #########################################
+  /v1/_create:
+    post:
+      summary: Create a campaign.
+      description: Create's a campaign. On successful campaign creation, Ok response is returned.
+      parameters:
+        - name: campaignRequest
+          in: "body"
+          description: Details of the campaign and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignRequest'
+      responses:
+        '200':
+          description: Campaign created successfully.
+          schema:
+            $ref: '#/definitions/CampaignResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Creation
+  /v1/_update:
+    post:
+      summary: Update A Campaign.
+      description: Update A Campaign, Ok response is returned.
+      parameters:
+        - name: campaignUpdateRequest
+          in: "body"
+          description: Details of the campaign and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignUpdateRequest'
+
+      responses:
+        '200':
+          description: Updated campaign successfully.
+          schema:
+            $ref: '#/definitions/CampaignResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Creation
+  /v1/_search:
+    post:
+      summary: Search Campaigns.
+      description: Search Campaigns Ok response is returned.
+      parameters:
+        - name: campaignSearchRequest
+          in: "body"
+          description: Search Criteria for campaign and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignSearchRequest'
+      responses:
+        '200':
+          description: Fetched Search Campaigns.
+          schema:
+            $ref: '#/definitions/CampaignSearchResponse'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Creation
+
+  #########################################
+  /schedule/v1/_create:
+    post:
+      summary: Create a campaign schedule.
+      description: Create's a campaign schedule. On successful campaign schedule creation, Ok response is returned.
+      parameters:
+        - name: campaignScheduleRequest
+          in: "body"
+          description: Details of the campaign schedule and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignScheduleRequest'
+      responses:
+        '200':
+          description: Campaign schedule created successfully.
+          schema:
+            $ref: '#/definitions/CampaignScheduleResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Schedule
+  /schedule/v1/_update:
+    post:
+      summary: Update A Campaign schedule.
+      description: Update A Campaign, schedule Ok response is returned.
+      parameters:
+        - name: campaignScheduleUpdateRequest
+          in: "body"
+          description: Details of the campaign schedule and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignScheduleUpdateRequest'
+
+      responses:
+        '200':
+          description: Updated campaign schedule successfully.
+          schema:
+            $ref: '#/definitions/CampaignScheduleResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Schedule
+  /schedule/v1/_search:
+    post:
+      summary: Search Campaigns.
+      description: Search Campaigns schedule Ok response is returned.
+      parameters:
+        - name: campaignSearchRequest
+          in: "body"
+          description: Search Criteria for campaign schedule and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignScheduleSearchRequest'
+      responses:
+        '200':
+          description: Fetched Search Campaign schedule.
+          schema:
+            $ref: '#/definitions/CampaignScheduleSearchResponse'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Schedule
+
+  #########################################
+  /rounds/v1/_create:
+    post:
+      summary: Create a campaign rounds.
+      description: Create's a campaign round. On successful campaign round creation, Ok response is returned.
+      parameters:
+        - name: campaignRoundRequest
+          in: "body"
+          description: Details of the campaign round and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignRoundRequest'
+      responses:
+        '200':
+          description: Campaign round created successfully.
+          schema:
+            $ref: '#/definitions/CampaignRoundResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Rounds
+  /rounds/v1/_update:
+    post:
+      summary: Update A Campaign rounds.
+      description: Update A Campaign round Ok response is returned.
+      parameters:
+        - name: campaignRoundUpdateRequest
+          in: "body"
+          description: Details of the campaign round and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignRoundUpdateRequest'
+
+      responses:
+        '200':
+          description: Updated campaign round successfully.
+          schema:
+            $ref: '#/definitions/CampaignRoundResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Rounds
+  /rounds/v1/_search:
+    post:
+      summary: Search Campaign rounds.
+      description: Search Campaign rounds schedule Ok response is returned.
+      parameters:
+        - name: campaignSearchRequest
+          in: "body"
+          description: Search Criteria for campaign rounds and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignRoundSearchRequest'
+      responses:
+        '200':
+          description: Fetched Search Campaign rounds.
+          schema:
+            $ref: '#/definitions/CampaignRoundSearchResponse'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Campaign Rounds
+
+#########################################
+definitions:
+
+  CampaignResponse:
+    type: object
+    allOf:
+      - type: object
+        properties:
+          id:
+            type: string
+            example: 'CAMPAIGN-ID-1'
+      - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/Campaign'
+      - type: object
+        properties:
+          campaignSchedules:
+            type: array
+            items:
+              type: object
+              allOf:
+                - type: object
+                  properties:
+                    campaignScheduleId:
+                      type: string
+                      example: 'CAMPAIGN-SCHEDULE-ID-1'
+                - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignSchedule'
+      - type: object
+        properties:
+          campaignRounds:
+            type: array
+            items:
+              type: object
+              allOf:
+                - type: object
+                  properties:
+                    campaignRoundId:
+                      type: string
+                      example: 'CAMPAIGN-ROUND-ID-1'
+                - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignRound'
+
+  #########################################
+  CampaignRequest:
+    description: >-
+      The request object, containing all necessary information for creating an campaign and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaign:
+        $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/Campaign'
+    required:
+      - Campaign
+
+  CampaignUpdateRequest:
+    description: >-
+      The request object, containing all necessary information for updating an campaign and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaign:
+        type: object
+        allOf:
+          - type: object
+            properties:
+              id:
+                type: string
+                example: 'CAMPAIGN-ID'
+          - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/Campaign'
+    required:
+      - campaign
+
+  CampaignSearchRequest:
+    description: >-
+      The request object, containing all necessary information for updating an campaign and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaignSearchCriteria:
+        type: object
+        properties:
+          id:
+            type: string
+            example: 'CAMPAIGN-ID'
+          name:
+            type: string
+            example: 'LLIN 2022'
+          type:
+            type: string
+            example: 'LLIN'
+          status:
+            type: string
+            example: 'CREATED'
+          limit:
+            type: number
+            example: 0
+          offset:
+            type: number
+            example: 0
+    required:
+      - campaignSearchCriteria
+  RequestInfoWrapper:
+    description: >-
+      Wrapper for Request Info
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+
+
+  CampaignSearchResponse:
+    description: >-
+      The campaign response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      totalCount:
+        type: number
+        example: 1
+      campaigns:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/CampaignResponse'
+
+  CampaignResponseWithResponseInfo:
+    description: >-
+      The campaign response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      campaign:
+        $ref: '#/definitions/CampaignResponse'
+
+  #########################################
+
+
+
+  CampaignRoundRequest:
+    description: >-
+      The request object, containing all necessary information for creating an campaign round and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaignRound:
+        $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignRound'
+    required:
+      - campaignRound
+
+  CampaignRoundUpdateRequest:
+    description: >-
+      The request object, containing all necessary information for creating an campaign round and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaignRound:
+        allOf:
+          - type: object
+            properties:
+              campaignRoundId:
+                type: string
+                example: 'CAMPAIGN-ROUND-ID-1'
+          - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignRound'
+    required:
+      - campaignRound
+
+  CampaignRoundResponseWithResponseInfo:
+    description: >-
+      The campaign response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      campaignRound:
+        $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignRoundResponse'
+
+  CampaignRoundSearchRequest:
+    description: >-
+      The request object, containing all necessary information for updating an campaign and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaignSearchCriteria:
+        type: object
+        properties:
+          campaignId:
+            type: string
+            example: 'CAMPAIGN-ID'
+          campaignRoundId:
+            type: string
+            example: 'round-id'
+          startDate:
+            type: integer
+            format: int64
+            example: 'EPOCH'
+          endDate:
+            type: integer
+            format: int64
+            example: 'EPOCH'
+          status:
+            type: string
+            example: 'INPROGRESS'
+          boundaryId:
+            type: string
+            example: 'boundary-id'
+          limit:
+            type: number
+            example: 0
+          offset:
+            type: number
+            example: 0
+    required:
+      - campaignSearchCriteria
+
+  CampaignRoundSearchResponse:
+    description: >-
+      The campaign round response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      totalCount:
+        type: number
+        example: 1
+      campaignRounds:
+        type: array
+        items:
+          type: object
+          allOf:
+            - type: object
+              properties:
+                campaignRoundId:
+                  type: string
+                  example: 'CAMPAIGN-ROUND-ID-1'
+            - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignRound'
+
+  #########################################
+
+
+  CampaignScheduleRequest:
+    description: >-
+      The request object, containing all necessary information for creating an campaign round and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaignSchedule:
+        $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignSchedule'
+    required:
+      - campaignSchedule
+
+  CampaignScheduleUpdateRequest:
+    description: >-
+      The request object, containing all necessary information for creating an campaign round and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaignSchedule:
+        allOf:
+          - type: object
+            properties:
+              campaignScheduleId:
+                type: string
+                example: 'CAMPAIGN-SCHEDULE-ID-1'
+          - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignSchedule'
+    required:
+      - campaignSchedule
+
+  CampaignScheduleResponseWithResponseInfo:
+    description: >-
+      The campaign response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      campaignRound:
+        $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignScheduleResponse'
+
+  CampaignScheduleSearchRequest:
+    description: >-
+      The request object, containing all necessary information for updating an campaign and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      campaignScheduleSearchCriteria:
+        type: object
+        properties:
+          campaignId:
+            type: string
+            example: 'CAMPAIGN-ID'
+          campaignScheduleId:
+            type: string
+            example: 'schedule-id'
+          startDate:
+            type: integer
+            format: int64
+            example: 'EPOCH'
+          endDate:
+            type: integer
+            format: int64
+            example: 'EPOCH'
+          limit:
+            type: number
+            example: 0
+          offset:
+            type: number
+            example: 0
+    required:
+      - campaignScheduleSearchCriteria
+
+  CampaignScheduleSearchResponse:
+    description: >-
+      The campaign round response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      totalCount:
+        type: number
+        example: 1
+      campaignRounds:
+        type: array
+        items:
+          type: object
+          $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/CampaignScheduleResponse'
