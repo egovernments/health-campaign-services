@@ -1,7 +1,7 @@
 package org.egov.transformer.handler;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.transformer.upstream.Stock;
+import org.egov.common.models.stock.Stock;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;

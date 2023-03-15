@@ -5,7 +5,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
-import org.egov.common.models.household.IndividualBulkResponse;
+import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.validator.Validator;
 import org.egov.household.service.IndividualService;
 import org.springframework.core.annotation.Order;

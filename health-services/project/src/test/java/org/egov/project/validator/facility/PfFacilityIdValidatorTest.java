@@ -3,8 +3,8 @@ package org.egov.project.validator.facility;
 
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
-import org.egov.common.models.project.Facility;
-import org.egov.common.models.project.FacilityBulkResponse;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkResponse;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.project.config.ProjectConfiguration;

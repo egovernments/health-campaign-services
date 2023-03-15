@@ -2,9 +2,9 @@ package org.egov.stock.validator;
 
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
-import org.egov.common.models.stock.ProductVariant;
-import org.egov.common.models.stock.ProductVariantResponse;
-import org.egov.common.models.stock.ProductVariantSearchRequest;
+import org.egov.common.models.product.ProductVariant;
+import org.egov.common.models.product.ProductVariantResponse;
+import org.egov.common.models.product.ProductVariantSearchRequest;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockReconciliation;
