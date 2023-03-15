@@ -1,4 +1,4 @@
-package org.egov.common.models.stock;
+package org.egov.stock.web.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -9,11 +9,10 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
-import javax.validation.constraints.Size;
-import java.util.List;
+import javax.validation.constraints.NotNull;
 
 /**
- * StockReconciliationSearch
+ * StockReconciliationSearchRequest
  */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
@@ -23,20 +22,17 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StockReconciliationSearch {
-    @JsonProperty("id")
+public class StockReconciliationSearchRequest {
+    @JsonProperty("RequestInfo")
+    @NotNull
     @Valid
-    private List<String> id = null;
+    private org.egov.common.contract.request.RequestInfo requestInfo = null;
 
-    @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId = null;
+    @JsonProperty("StockReconciliation")
+    @NotNull
+    @Valid
+    private StockReconciliationSearch stockReconciliation = null;
 
-    @JsonProperty("facilityId")
-    @Size(min=2, max=64)
-    private String facilityId = null;
 
-    @JsonProperty("productVariantId")
-    @Size(min=2, max=64)
-    private String productVariantId = null;
 }
 

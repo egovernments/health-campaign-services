@@ -1,4 +1,4 @@
-package org.egov.common.models.stock;
+package org.egov.stock.web.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -13,7 +14,7 @@ import javax.validation.constraints.Size;
 import java.util.List;
 
 /**
- * StockSearch
+ * StockReconciliationSearch
  */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
@@ -23,9 +24,10 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StockSearch {
-
+@Table(name = "stock_reconciliation_log")
+public class StockReconciliationSearch {
     @JsonProperty("id")
+    @Valid
     private List<String> id = null;
 
     @JsonProperty("clientReferenceId")
@@ -38,30 +40,5 @@ public class StockSearch {
     @JsonProperty("productVariantId")
     @Size(min=2, max=64)
     private String productVariantId = null;
-
-    @JsonProperty("referenceId")
-    private String referenceId = null;
-
-    @JsonProperty("wayBillNumber")
-    private String wayBillNumber = null;
-
-    @JsonProperty("referenceIdType")
-    @Size(min=2, max=64)
-    private String referenceIdType = null;
-
-    @JsonProperty("transactionType")
-    @Valid
-    private TransactionType transactionType = null;
-
-    @JsonProperty("transactionReason")
-    @Valid
-    private TransactionReason transactionReason = null;
-
-    @JsonProperty("transactingPartyId")
-    @Size(min=2, max=64)
-    private String transactingPartyId = null;
-
-    @JsonProperty("transactingPartyType")
-    private String transactingPartyType = null;
 }
 
