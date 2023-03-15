@@ -1,11 +1,11 @@
 package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.product.ProductVariant;
+import org.egov.common.models.product.ProductVariantRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductVariantRepository;
-import org.egov.product.web.models.ProductVariant;
-import org.egov.product.web.models.ProductVariantRequest;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -96,11 +96,11 @@ public class ProductVariantService {
     }
 
     public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
-                                Integer limit,
-                                Integer offset,
-                                String tenantId,
-                                Long lastChangedSince,
-                                Boolean includeDeleted) throws Exception {
+                                       Integer limit,
+                                       Integer offset,
+                                       String tenantId,
+                                       Long lastChangedSince,
+                                       Boolean includeDeleted) throws Exception {
         log.info("received request to search product variants");
 
         if (isSearchByIdOnly(productVariantSearchRequest.getProductVariant())) {

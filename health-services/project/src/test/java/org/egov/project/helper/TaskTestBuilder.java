@@ -1,8 +1,8 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskResource;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskResource;
 
 import java.util.Arrays;
 

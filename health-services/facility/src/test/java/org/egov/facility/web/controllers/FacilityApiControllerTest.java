@@ -1,6 +1,9 @@
 package org.egov.facility.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.facility.FacilityBulkRequest;
+import org.egov.common.models.facility.FacilityRequest;
+import org.egov.common.models.facility.FacilityResponse;
 import org.egov.common.producer.Producer;
 import org.egov.facility.TestConfiguration;
 import org.egov.facility.config.FacilityConfiguration;
@@ -8,9 +11,6 @@ import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
 import org.egov.facility.helper.FacilityRequestTestBuilder;
 import org.egov.facility.helper.FacilityTestBuilder;
 import org.egov.facility.service.FacilityService;
-import org.egov.facility.web.models.FacilityBulkRequest;
-import org.egov.facility.web.models.FacilityRequest;
-import org.egov.facility.web.models.FacilityResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

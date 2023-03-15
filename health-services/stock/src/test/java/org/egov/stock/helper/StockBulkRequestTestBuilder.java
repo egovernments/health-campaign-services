@@ -1,8 +1,8 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
 
 import java.util.ArrayList;
 

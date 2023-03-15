@@ -1,9 +1,10 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.TransactionReason;
-import org.egov.stock.web.models.TransactionType;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.TransactionReason;
+import org.egov.common.models.stock.TransactionType;
+
 
 public class StockTestBuilder {
 

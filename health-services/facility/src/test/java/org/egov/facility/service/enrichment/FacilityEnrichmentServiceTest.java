@@ -2,12 +2,12 @@ package org.egov.facility.service.enrichment;
 
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
 import org.egov.facility.helper.FacilityTestBuilder;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilityBulkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,12 +20,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -33,7 +32,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class FacilityEnrichmentServiceTest {

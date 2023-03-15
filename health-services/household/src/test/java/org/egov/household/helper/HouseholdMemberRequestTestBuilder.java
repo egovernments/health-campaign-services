@@ -1,12 +1,8 @@
 package org.egov.household.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.household.web.models.ApiOperation;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.HouseholdMemberRequest;
-
-import java.util.Arrays;
-import java.util.List;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberRequest;
 
 public class HouseholdMemberRequestTestBuilder {
     private HouseholdMemberRequest.HouseholdMemberRequestBuilder builder;

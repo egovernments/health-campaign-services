@@ -2,6 +2,7 @@ package org.egov.household.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.household.HouseholdMemberRequest;
 import org.egov.common.producer.Producer;
 import org.egov.household.TestConfiguration;
 import org.egov.household.config.HouseholdConfiguration;
@@ -9,10 +10,8 @@ import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.helper.HouseholdMemberRequestTestBuilder;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
-import org.egov.household.web.models.HouseholdMemberRequest;
 import org.egov.household.web.models.HouseholdMemberSearch;
 import org.egov.household.web.models.HouseholdMemberSearchRequest;
-import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,11 +20,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;

@@ -1,7 +1,7 @@
 package org.egov.transformer.handler;
 
+import org.egov.common.models.project.Task;
 import org.egov.transformer.enums.Operation;
-import org.egov.transformer.models.upstream.Task;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

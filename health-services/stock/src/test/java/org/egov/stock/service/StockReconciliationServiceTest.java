@@ -1,5 +1,9 @@
 package org.egov.stock.service;
 
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
+import org.egov.common.models.stock.StockReconciliationRequest;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
@@ -13,10 +17,6 @@ import org.egov.stock.validator.stockreconciliation.SrNullIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrProductVariantIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrRowVersionValidator;
 import org.egov.stock.validator.stockreconciliation.SrUniqueEntityValidator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockReconciliation;
-import org.egov.stock.web.models.StockReconciliationBulkRequest;
-import org.egov.stock.web.models.StockReconciliationRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,6 +42,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
 
 @ExtendWith(MockitoExtension.class)
 class StockReconciliationServiceTest {

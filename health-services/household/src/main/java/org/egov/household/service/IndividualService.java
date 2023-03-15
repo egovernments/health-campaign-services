@@ -4,12 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkResponse;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.household.config.HouseholdMemberConfiguration;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.Individual;
-import org.egov.household.web.models.IndividualBulkResponse;
-import org.egov.household.web.models.IndividualSearch;
-import org.egov.household.web.models.IndividualSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
@@ -88,8 +88,8 @@ public class IndividualService {
     }
 
     public Individual validateIndividual(HouseholdMember householdMember,
-                                          IndividualBulkResponse searchResponse,
-                                          Map<HouseholdMember, List<Error>> errorDetailsMap) {
+                                         IndividualBulkResponse searchResponse,
+                                         Map<HouseholdMember, List<Error>> errorDetailsMap) {
         log.info("validating individual for household member with id: {} and client reference id: {}",
                 householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
 

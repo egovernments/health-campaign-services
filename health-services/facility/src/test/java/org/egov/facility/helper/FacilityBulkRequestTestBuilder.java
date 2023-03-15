@@ -1,8 +1,8 @@
 package org.egov.facility.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilityBulkRequest;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkRequest;
 
 import java.util.ArrayList;
 import java.util.List;

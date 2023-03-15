@@ -1,8 +1,8 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.project.web.models.ProjectFacility;
-import org.egov.project.web.models.ProjectFacilityRequest;
+import org.egov.common.models.project.ProjectFacility;
+import org.egov.common.models.project.ProjectFacilityRequest;
 
 import java.util.ArrayList;
 import java.util.List;

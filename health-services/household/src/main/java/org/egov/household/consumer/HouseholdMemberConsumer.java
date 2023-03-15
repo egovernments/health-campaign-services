@@ -2,9 +2,9 @@ package org.egov.household.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.household.service.HouseholdMemberService;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;

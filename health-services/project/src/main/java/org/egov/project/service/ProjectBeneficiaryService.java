@@ -3,6 +3,9 @@ package org.egov.project.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.project.BeneficiaryBulkRequest;
+import org.egov.common.models.project.BeneficiaryRequest;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
@@ -16,10 +19,7 @@ import org.egov.project.validator.beneficiary.PbNullIdValidator;
 import org.egov.project.validator.beneficiary.PbProjectIdValidator;
 import org.egov.project.validator.beneficiary.PbRowVersionValidator;
 import org.egov.project.validator.beneficiary.PbUniqueEntityValidator;
-import org.egov.project.web.models.BeneficiaryBulkRequest;
-import org.egov.project.web.models.BeneficiaryRequest;
 import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -160,11 +160,11 @@ public class ProjectBeneficiaryService {
     }
 
     public List<ProjectBeneficiary> search(BeneficiarySearchRequest beneficiarySearchRequest,
-                                     Integer limit,
-                                     Integer offset,
-                                     String tenantId,
-                                     Long lastChangedSince,
-                                     Boolean includeDeleted) throws Exception {
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted) throws Exception {
         log.info("received request to search project beneficiaries");
         String idFieldName = getIdFieldName(beneficiarySearchRequest.getProjectBeneficiary());
         if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary(), idFieldName)) {

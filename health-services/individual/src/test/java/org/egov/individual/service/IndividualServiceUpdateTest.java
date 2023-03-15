@@ -1,6 +1,9 @@
 package org.egov.individual.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
@@ -15,9 +18,6 @@ import org.egov.individual.validators.NullIdValidator;
 import org.egov.individual.validators.RowVersionValidator;
 import org.egov.individual.validators.UniqueEntityValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.individual.web.models.IndividualRequest;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;

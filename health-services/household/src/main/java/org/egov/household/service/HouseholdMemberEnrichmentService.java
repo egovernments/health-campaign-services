@@ -1,11 +1,11 @@
 package org.egov.household.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Method;

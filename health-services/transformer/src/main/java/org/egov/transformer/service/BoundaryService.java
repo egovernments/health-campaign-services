@@ -10,12 +10,12 @@ import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.transformer.upstream.Boundary;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.boundary.TreeGenerator;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
-import org.egov.transformer.models.upstream.Boundary;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 

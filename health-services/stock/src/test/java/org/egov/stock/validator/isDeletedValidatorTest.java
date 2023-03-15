@@ -2,14 +2,14 @@ package org.egov.stock.validator;
 
 
 import org.egov.common.models.Error;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
 import org.egov.stock.validator.stock.SIsDeletedValidator;
 import org.egov.stock.validator.stockreconciliation.SrIsDeletedValidator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
-import org.egov.stock.web.models.StockReconciliation;
-import org.egov.stock.web.models.StockReconciliationBulkRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

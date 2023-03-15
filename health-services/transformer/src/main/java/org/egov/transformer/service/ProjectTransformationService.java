@@ -1,11 +1,11 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.Target;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
-import org.egov.transformer.models.upstream.Project;
-import org.egov.transformer.models.upstream.Target;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;

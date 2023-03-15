@@ -1,13 +1,13 @@
 package org.egov.individual.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.AddressType;
-import org.egov.individual.web.models.Gender;
-import org.egov.individual.web.models.Identifier;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.Name;
-import org.egov.individual.web.models.Skill;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.AddressType;
+import org.egov.common.models.individual.Gender;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.Name;
+import org.egov.common.models.individual.Skill;
 
 import java.util.Arrays;
 

@@ -1,13 +1,13 @@
 package org.egov.project.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskBulkRequest;
+import org.egov.common.models.project.TaskRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.TaskRequestTestBuilder;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
-import org.egov.project.web.models.TaskRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

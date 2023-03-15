@@ -3,6 +3,9 @@ package org.egov.stock.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockRequest;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
@@ -16,9 +19,6 @@ import org.egov.stock.validator.stock.SReferenceIdValidator;
 import org.egov.stock.validator.stock.SRowVersionValidator;
 import org.egov.stock.validator.stock.STransactingPartyIdValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
-import org.egov.stock.web.models.StockRequest;
 import org.egov.stock.web.models.StockSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -42,6 +42,7 @@ import static org.egov.stock.Constants.GET_STOCK;
 import static org.egov.stock.Constants.SET_STOCK;
 import static org.egov.stock.Constants.VALIDATION_ERROR;
 
+
 @Service
 @Slf4j
 public class StockService {
@@ -58,7 +59,7 @@ public class StockService {
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
                     || validator.getClass().equals(SFacilityIdValidator.class)
                     || validator.getClass().equals(SReferenceIdValidator.class)
-                    || validator.getClass().equals(STransactingPartyIdValidator .class);
+                    || validator.getClass().equals(STransactingPartyIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)

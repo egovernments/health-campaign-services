@@ -1,7 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.Target;
+import org.egov.common.models.project.Target;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;

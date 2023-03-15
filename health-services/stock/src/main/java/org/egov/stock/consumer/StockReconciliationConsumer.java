@@ -2,9 +2,9 @@ package org.egov.stock.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.stock.service.StockReconciliationService;
-import org.egov.stock.web.models.StockReconciliation;
-import org.egov.stock.web.models.StockReconciliationBulkRequest;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -28,7 +28,7 @@ public class StockReconciliationConsumer {
 
     @KafkaListener(topics = "${stock.reconciliation.consumer.bulk.create.topic}")
     public List<StockReconciliation> bulkCreate(Map<String, Object> consumerRecord,
-                                  @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+                                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             StockReconciliationBulkRequest request = objectMapper.convertValue(consumerRecord, StockReconciliationBulkRequest.class);
             return service.create(request, true);
