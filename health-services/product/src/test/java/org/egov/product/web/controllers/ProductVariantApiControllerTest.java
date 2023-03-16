@@ -2,14 +2,14 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.product.ProductVariant;
+import org.egov.common.models.product.ProductVariantRequest;
+import org.egov.common.models.product.ProductVariantResponse;
 import org.egov.product.TestConfiguration;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
 import org.egov.product.helper.ProductVariantTestBuilder;
 import org.egov.product.service.ProductService;
 import org.egov.product.service.ProductVariantService;
-import org.egov.product.web.models.ProductVariant;
-import org.egov.product.web.models.ProductVariantRequest;
-import org.egov.product.web.models.ProductVariantResponse;
 import org.egov.product.web.models.ProductVariantSearch;
 import org.egov.product.web.models.ProductVariantSearchRequest;
 import org.egov.tracer.model.CustomException;

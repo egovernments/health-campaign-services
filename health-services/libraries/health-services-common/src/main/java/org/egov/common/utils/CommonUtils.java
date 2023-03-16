@@ -1,13 +1,18 @@
 package org.egov.common.utils;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
+import org.egov.common.error.handler.ErrorHandler;
 import org.egov.common.models.ApiDetails;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
+import org.egov.tracer.model.ErrorDetail;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.util.ReflectionUtils;
@@ -22,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -38,7 +44,12 @@ public class CommonUtils {
 
     private static final Map<Class<?>, Map<String, Method>> methodCache = new HashMap<>();
 
-    private CommonUtils() {}
+    private static ObjectMapper objectMapper = new ObjectMapper();
+
+    private CommonUtils() {
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .setTimeZone(TimeZone.getTimeZone("UTC"));
+    }
 
 
     public static boolean isForUpdate(Object obj) {
@@ -599,6 +610,35 @@ public class CommonUtils {
      * @param applicableValidators is a predicate defining the validators to apply
      * @param request is the request body
      * @param setPayloadMethodName is a setter method available on the request body
+     * @param getPayloadMethodName is a getter method available on the request body
+     * @param errorCode is error code for the exception
+     * @return a map of payload vs errorDetails object
+     * @param <T> is the type of payload
+     * @param <R> is the type of request
+     */
+    public static <T, R> Tuple<List<T>, Map<T, ErrorDetails>> validate(List<Validator<R, T>> validators,
+                                                                 Predicate<Validator<R, T>> applicableValidators,
+                                                                 R request, String setPayloadMethodName,
+                                                                 String getPayloadMethodName, String errorCode, boolean isBulk) {
+        Map<T, ErrorDetails> errorDetailsMap = validate(validators,
+                applicableValidators, request,
+                setPayloadMethodName);
+        if (!errorDetailsMap.isEmpty() && !isBulk) {
+            throw new CustomException(errorCode, errorDetailsMap.values().toString());
+        }
+        Method getEntities = getMethod(getPayloadMethodName, request.getClass());
+        List<T> validEntities = (List<T>) ReflectionUtils.invokeMethod(getEntities, request);
+        validEntities = validEntities.stream().filter(notHavingErrors()).collect(Collectors.toList());
+        return new Tuple<>(validEntities, errorDetailsMap);
+    }
+
+    /**
+     * Validate and return the consolidated errorDetailsMap based on all the validations.
+     *
+     * @param validators is the list of validators
+     * @param applicableValidators is a predicate defining the validators to apply
+     * @param request is the request body
+     * @param setPayloadMethodName is a setter method available on the request body
      * @return a map of payload vs errorDetails object
      * @param <T> is the type of payload
      * @param <R> is the type of request
@@ -649,7 +689,7 @@ public class CommonUtils {
                             .methodType(HttpMethod.POST.name())
                             .contentType(MediaType.APPLICATION_JSON_VALUE)
                             .url(requestInfo.getApiId()).build();
-                    apiDetails.setRequestBody(newRequest);
+                    apiDetails.setRequestBody(objectMapper.writeValueAsString(newRequest));
                     ErrorDetails errorDetails = ErrorDetails.builder()
                             .errors(entry.getValue())
                             .apiDetails(apiDetails)
@@ -738,6 +778,33 @@ public class CommonUtils {
     }
 
     /**
+     * Handle errors after validators & enrichment layer.
+     *
+     *
+     * @param errorDetailsMap is a map of payload vs errorList
+     * @param isBulk is to indicate whether we are using bulk api or not
+     * @param errorCode error code
+     */
+    public static <T> void handleErrors(Map<T, ErrorDetails> errorDetailsMap, boolean isBulk, String errorCode) {
+        if (!errorDetailsMap.isEmpty()) {
+            log.error("{} errors collected", errorDetailsMap.size());
+            try {
+                if (isBulk) {
+                    List<ErrorDetail> errorDetailList = errorDetailsMap.values()
+                            .stream().map(ErrorDetails::getTracerModel).collect(Collectors.toList());
+                        ErrorHandler.exceptionAdviseInstance.exceptionHandler(errorDetailList);
+                } else {
+                    throw new CustomException(errorCode, objectMapper
+                            .writeValueAsString(errorDetailsMap.values()));
+                }
+            } catch (Exception e) {
+                log.error("error in handling errors", e);
+                throw new CustomException(errorCode, errorDetailsMap.values().toString());
+            }
+        }
+    }
+
+    /**
      * Validate for null ids
      *
      * @param request is the request body
@@ -747,6 +814,7 @@ public class CommonUtils {
      * @param <T> is the type of payload
      */
     public static <R,T> HashMap<T, List<Error>> validateForNullId(R request, String getPayloadMethodName) {
+        log.info("validating for null id");
         HashMap<T, List<Error>> errorDetailsMap = new HashMap<>();
         List<T> validPayloads = ((List<T>)ReflectionUtils.invokeMethod(getMethod(getPayloadMethodName,
                 request.getClass()), request)).stream().filter(notHavingErrors()).collect(Collectors.toList());
@@ -758,6 +826,7 @@ public class CommonUtils {
                 Error error = getErrorForNullId();
                 populateErrorDetails(payload, error, errorDetailsMap);
             });
+            log.info("null id validation completed successfully, total errors: {}", payloadWithNullIds.size());
         }
         return errorDetailsMap;
     }

@@ -3,13 +3,13 @@ package org.egov.individual.service;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.Skill;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.config.IndividualProperties;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.Identifier;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.individual.web.models.Skill;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -49,6 +49,8 @@ public class EnrichmentService {
     }
 
     public void create(List<Individual> validIndividuals, IndividualBulkRequest request) throws Exception {
+        log.info("starting the enrichment for create individuals");
+
         log.info("extracting tenantId");
         final String tenantId = getTenantId(validIndividuals);
         log.info("generating id for individuals");
@@ -60,9 +62,12 @@ public class EnrichmentService {
         enrichAddressesForCreate(request, validIndividuals);
         enrichIdentifiersForCreate(request, validIndividuals);
         enrichSkillsForCreate(request, validIndividuals);
+
+        log.info("completed the enrichment for create individuals");
     }
 
     public void update(List<Individual> validIndividuals, IndividualBulkRequest request) throws Exception {
+        log.info("starting the enrichment for update individuals");
         validIndividuals.forEach(
                 individual -> {
                     enrichAddressForUpdate(request, individual);
@@ -71,11 +76,13 @@ public class EnrichmentService {
                 }
         );
         Map<String, Individual> iMap = getIdToObjMap(validIndividuals);
-        log.info("enriching individuals");
+        log.info("enriching individuals for update");
         enrichForUpdate(iMap, request);
+        log.info("completed the enrichment for update individuals");
     }
 
     public void delete(List<Individual> validIndividuals, IndividualBulkRequest request) throws Exception {
+        log.info("starting the enrichment for delete individuals");
         enrichIndividualIdInAddress(validIndividuals);
         validIndividuals = validIndividuals.stream()
                 .map(EnrichmentService::enrichIndividualIdInIdentifiers)
@@ -83,19 +90,24 @@ public class EnrichmentService {
         validIndividuals.forEach(individual -> {
             RequestInfo requestInfo = request.getRequestInfo();
             if (individual.getIsDeleted()) {
+                log.info("enriching individuals for delete");
                 enrichForDelete(Collections.singletonList(individual), requestInfo, true);
                 if (individual.getAddress() != null && !individual.getAddress().isEmpty()) {
+                    log.info("enriching all addresses for delete");
                     enrichForDelete(individual.getAddress(), requestInfo, false);
                 }
                 if (individual.getIdentifiers() != null && !individual.getIdentifiers().isEmpty()) {
+                    log.info("enriching all identifiers for delete");
                     enrichForDelete(individual.getIdentifiers(), requestInfo, false);
                 }
                 if (individual.getSkills() != null && !individual.getSkills().isEmpty()) {
+                    log.info("enriching all skills for delete");
                     enrichForDelete(individual.getSkills(), requestInfo, false);
                 }
             } else {
                 Integer previousRowVersion = individual.getRowVersion();
                 if (individual.getIdentifiers() != null) {
+                    log.info("enriching identifiers for delete");
                     individual.getIdentifiers().stream().filter(Identifier::getIsDeleted)
                             .forEach(identifier -> {
                                 AuditDetails existingAuditDetails = identifier.getAuditDetails();
@@ -108,6 +120,7 @@ public class EnrichmentService {
                 }
 
                 if (individual.getAddress() != null) {
+                    log.info("enriching addresses for delete");
                     individual.getAddress().stream().filter(Address::getIsDeleted)
                             .forEach(address -> {
                                 AuditDetails existingAuditDetails = address.getAuditDetails();
@@ -120,6 +133,7 @@ public class EnrichmentService {
                 }
 
                 if (individual.getSkills() != null) {
+                    log.info("enriching skills for delete");
                     individual.getSkills().stream().filter(Skill::getIsDeleted)
                             .forEach(skill -> {
                                 AuditDetails existingAuditDetails = skill.getAuditDetails();
@@ -132,13 +146,15 @@ public class EnrichmentService {
                 }
             }
         });
+
+        log.info("completed the enrichment for delete individuals");
     }
 
     private static void enrichAddressesForCreate(IndividualBulkRequest request, List<Individual> validIndividuals) {
         List<Address> addresses = collectFromList(validIndividuals,
                 Individual::getAddress);
         if (!addresses.isEmpty()) {
-            log.info("enriching addresses");
+            log.info("enriching addresses for create individuals");
             List<String> addressIdList = uuidSupplier().apply(addresses.size());
             enrichForCreate(addresses, addressIdList, request.getRequestInfo(), false);
             enrichIndividualIdInAddress(validIndividuals);
@@ -146,7 +162,7 @@ public class EnrichmentService {
     }
 
     private static void enrichSkillsForCreate(IndividualBulkRequest request, List<Individual> validIndividuals) {
-        log.info("enriching skills");
+        log.info("enriching skills for create individuals");
         List<Skill> skills = collectFromList(validIndividuals,
                 Individual::getSkills);
         if (!skills.isEmpty()) {
@@ -157,7 +173,7 @@ public class EnrichmentService {
     }
 
     private static void enrichIdentifiersForCreate(IndividualBulkRequest request, List<Individual> validIndividuals) {
-        log.info("enriching identifiers");
+        log.info("enriching identifiers for create individuals");
         request.setIndividuals(validIndividuals.stream()
                 .map(EnrichmentService::enrichWithSystemGeneratedIdentifier)
                 .map(EnrichmentService::enrichIndividualIdInIdentifiers)
@@ -169,6 +185,7 @@ public class EnrichmentService {
     }
 
     private static Individual enrichIndividualIdInIdentifiers(Individual individual) {
+        log.info("enriching individual id in identifiers");
         List<Identifier> identifiers = individual.getIdentifiers();
         if (identifiers != null) {
             identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
@@ -178,12 +195,14 @@ public class EnrichmentService {
     }
 
     private static void enrichIndividualIdInAddress(List<Individual> individuals) {
+        log.info("enriching individual id in addresses");
         individuals.stream().filter(individual -> individual.getAddress() != null)
                 .forEach(individual -> individual.getAddress()
                         .forEach(address -> address.setIndividualId(individual.getId())));
     }
 
     private static void enrichIndividualIdInSkill(List<Individual> individuals) {
+        log.info("enriching individual id in skills");
         individuals.stream().filter(individual -> individual.getSkills() != null)
                 .forEach(individual -> individual.getSkills()
                         .forEach(skill -> skill.setIndividualId(individual.getId())));
@@ -191,6 +210,7 @@ public class EnrichmentService {
 
     private static Individual enrichWithSystemGeneratedIdentifier(Individual individual) {
         if (individual.getIdentifiers() == null || individual.getIdentifiers().isEmpty()) {
+            log.info("enriching individual with system generated identifier");
             List<Identifier> identifiers = new ArrayList<>();
             identifiers.add(Identifier.builder()
                     .identifierType(SYSTEM_GENERATED)
@@ -244,12 +264,14 @@ public class EnrichmentService {
                     .collect(Collectors.toList());
 
             if (!identifiersToCreate.isEmpty()) {
+                log.info("enriching identifiers to create");
                 List<String> identifierIdList = uuidSupplier().apply(identifiersToCreate.size());
                 enrichForCreate(identifiersToCreate, identifierIdList, request.getRequestInfo(), false);
                 identifiersToCreate.forEach(identifier -> identifier.setIndividualId(individual.getId()));
             }
 
             if (!identifiersToUpdate.isEmpty()) {
+                log.info("enriching identifiers to update");
                 identifiersToUpdate.forEach(identifier -> {
                     identifier.setIndividualId(individual.getId());
                     AuditDetails existingAuditDetails = identifier.getAuditDetails();
@@ -270,6 +292,7 @@ public class EnrichmentService {
             List<Skill> skillsToCreate = individual.getSkills().stream().filter(havingNullId())
                     .collect(Collectors.toList());
             if (!skillsToCreate.isEmpty()) {
+                log.info("enriching skills to create");
                 List<String> skillIdList = uuidSupplier().apply(skillsToCreate.size());
                 enrichForCreate(skillsToCreate, skillIdList, request.getRequestInfo(), false);
                 skillsToCreate.forEach(skill -> skill.setIndividualId(individual.getId()));
@@ -279,6 +302,7 @@ public class EnrichmentService {
                     .filter(notHavingNullId())
                     .collect(Collectors.toList());
             if (!skillsToUpdate.isEmpty()) {
+                log.info("enriching skills to update");
                 skillsToUpdate.forEach(skill -> {
                     skill.setIndividualId(individual.getId());
                     AuditDetails existingAuditDetails = skill.getAuditDetails();

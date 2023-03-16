@@ -3,11 +3,11 @@ package org.egov.household.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.household.web.models.AdditionalFields;
-import org.egov.household.web.models.Address;
-import org.egov.household.web.models.AddressType;
-import org.egov.household.web.models.Boundary;
-import org.egov.household.web.models.Household;
+import org.egov.common.models.household.AdditionalFields;
+import org.egov.common.models.household.Address;
+import org.egov.common.models.household.AddressType;
+import org.egov.common.models.household.Boundary;
+import org.egov.common.models.household.Household;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -34,9 +34,11 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                             .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                             .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
                             .build())
-                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
+                            .getString("additionalDetails"), AdditionalFields.class))
                     .address(Address.builder()
                             .id(resultSet.getString(13))
+                            .clientReferenceId(resultSet.getString(28))
                             .tenantId(resultSet.getString(14))
                             .doorNo(resultSet.getString("doorNo"))
                             .latitude(resultSet.getDouble("latitude"))

@@ -2,9 +2,9 @@ package org.egov.individual.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.validator.Validator;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +25,7 @@ public class UniqueEntityValidator implements Validator<IndividualBulkRequest, I
 
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest individualBulkRequest) {
+        log.info("validating for unique entity");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> validIndividuals = individualBulkRequest.getIndividuals()
                         .stream().filter(notHavingErrors()).collect(Collectors.toList());

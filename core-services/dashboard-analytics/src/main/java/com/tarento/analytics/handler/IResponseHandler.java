@@ -31,15 +31,21 @@ public interface IResponseHandler {
 
 	public static final String CHART_NAME = "chartName";
 	public static final String CHART_TYPE = "chartType";
+
+	public static  final String IS_CAPPED_TILL_TODAY ="isCappedTillToday";
 	public static final String DRILL_CHART = "drillChart";
+	public static final String SHOW_LABEL = "showLabel";
 	public static final String VALUE_TYPE = "valueType";
 	public static final String FILTER_KEYS = "filterKeys";
-	
+	public final static String HIDE_INSIGHTS = "hideInsights";
+	public final static String HIDE_HEADER_DENOMINATION = "hideHeaderDenomination";
+	public final static String SHOW_FOOTER = "showFooter";
+
 	// Table Chart Keys
 	public static final String SERIAL_NUMBER = "S.N.";
-	public static final String TABLE_TEXT = "text" ; 
-	public static final String TABLE_KEY = "Key"; 
-	
+	public static final String TABLE_TEXT = "text" ;
+	public static final String TABLE_KEY = "Key";
+
 
     // TODO remove the specific column names.
     public static final String TOTAL_COLLECTION = "Total Collection";
@@ -53,8 +59,12 @@ public interface IResponseHandler {
     public static final String TL_BOUNDARY = "licenseIssuedBoundaryRevenue";
     public static final String TL_BOUNDARY_DRILL = "licenseIssuedBoundaryDrillDown";
 
-	
 
+
+	public final String SORT_KEY_ASC = "sortKeyAsc";
+	public final String SORT_KEY_DESC = "sortKeyDesc";
+	public final String SORT_VALUE_ASC = "sortValueAsc";
+	public final String SORT_VALUE_DESC = "sortValueDesc";
 	public final String ASC = "asc";
 	public final String DESC = "desc";
 	public final String RANK = "Rank";
@@ -65,19 +75,24 @@ public interface IResponseHandler {
 	public final String LIMIT = "limit";
 	public final String ORDER = "order";
 	public final String ACTION = "action";
+	public final String COMPUTE_MULTIPLE_PATHS = "computeMultiPaths";
 	public final String TYPE_MAPPING = "pathDataTypeMapping";
 
 	public static String BUCKETS = "buckets";
 	public static String KEY = "key";
+	public static String KEY_AS_STRING = "key_as_string";
 	public static String VALUE = "value";
-	
+
 	public final String PERCENTAGE = "percentage";
-    public final String DOC_COUNT = "doc_count"; 
-    
+    public final String DOC_COUNT = "doc_count";
+
     public static final String POST_AGGREGATION_THEORY = "postAggregationTheory";
-    
+
     public static final String CHART_SPECIFIC = "chartSpecificProperty";
-	
+    public final String START_DATE = "startDate";
+	public final String END_DATE = "endDate";
+	public final String PREDICTION_PATH = "predictionPath";
+
 	public static final String XTABLE_COLUMN = "XtableColumnOrder";
 
 	public static final String IS_ROUND_OFF = "isRoundOff";
@@ -85,6 +100,8 @@ public interface IResponseHandler {
 	public static Double BOUNDARY_VALUE = 50.0;
 
 	public static final String DIVISION = "division";
+	public static final String DIVISOR_FIELDS = "divisorFields";
+	public static final String DIVISIONBYCONSTANT = "divisionbyconstant";
 
 	/**
 	 * Translate the consolidated/aggregated response
@@ -110,6 +127,21 @@ public interface IResponseHandler {
 		ChartType chartType = ChartType.fromValue(chartNode.get(CHART_TYPE).asText());
 		aggregateDto.setChartType(chartType);
 		aggregateDto.setData(dataList);
+		if (chartNode.has(SHOW_LABEL)) {
+			aggregateDto.setShowLabel(chartNode.get(SHOW_LABEL).asBoolean());
+		}
+		if(chartNode.has(PREDICTION_PATH)){
+			aggregateDto.setPredictionPath(chartNode.get(PREDICTION_PATH).asText());
+		}
+		if (chartNode.has(HIDE_INSIGHTS)) {
+			aggregateDto.setHideInsights(chartNode.get(HIDE_INSIGHTS).asBoolean());
+		}
+		if (chartNode.has(HIDE_HEADER_DENOMINATION)) {
+			aggregateDto.setHideHeaderDenomination(chartNode.get(HIDE_HEADER_DENOMINATION).asBoolean());
+		}
+		if (chartNode.has(SHOW_FOOTER)){
+			aggregateDto.setShowFooter(chartNode.get(SHOW_FOOTER).asBoolean());
+		}
 		if(null!=chartNode.get(FILTER_KEYS))
 			aggregateDto.setFilter((ArrayNode) chartNode.get(FILTER_KEYS));
 		return aggregateDto;

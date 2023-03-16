@@ -6,12 +6,12 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskResource;
+import org.egov.common.models.project.TaskSearch;
 import org.egov.common.producer.Producer;
 import org.egov.project.repository.rowmapper.ProjectTaskRowMapper;
 import org.egov.project.repository.rowmapper.TaskResourceRowMapper;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskResource;
-import org.egov.project.web.models.TaskSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -47,7 +47,8 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-        query = query.replace("id=:id", "pt.id=:id");
+        query = query.replace("id IN (:id)", "pt.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "pt.clientReferenceId IN (:clientReferenceId)");
 
         query = query + " and pt.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {

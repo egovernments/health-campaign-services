@@ -4,15 +4,15 @@ package org.egov.individual.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.IndividualBulkResponse;
+import org.egov.common.models.individual.IndividualRequest;
+import org.egov.common.models.individual.IndividualResponse;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
-import org.egov.individual.web.models.IndividualBulkResponse;
-import org.egov.individual.web.models.IndividualRequest;
-import org.egov.individual.web.models.IndividualResponse;
 import org.egov.individual.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -61,7 +61,7 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<IndividualResponse> individualV1CreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<IndividualResponse> individualV1CreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
         List<Individual> individuals = individualService.create(request);
         IndividualResponse response = IndividualResponse.builder()
@@ -75,7 +75,7 @@ public class IndividualApiController {
     }
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
-    public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) throws Exception {
+    public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         producer.push(individualProperties.getBulkSaveIndividualTopic(), request);
 

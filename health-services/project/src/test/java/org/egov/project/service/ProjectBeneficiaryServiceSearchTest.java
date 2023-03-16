@@ -2,10 +2,10 @@ package org.egov.project.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectBeneficiary;
 import org.egov.project.web.models.ProjectBeneficiarySearch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -85,7 +86,7 @@ class ProjectBeneficiaryServiceSearchTest {
         BeneficiarySearchRequest projectStaffSearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(projectBeneficiaryRepository.findById(anyList(), anyBoolean())).thenReturn(projectBeneficiary);
+        when(projectBeneficiaryRepository.findById(anyList(), anyBoolean(), anyString())).thenReturn(projectBeneficiary);
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(projectStaffSearchRequest,
                 10, 0, null, null, true);

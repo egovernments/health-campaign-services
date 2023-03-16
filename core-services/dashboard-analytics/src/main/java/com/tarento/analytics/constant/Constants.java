@@ -83,12 +83,13 @@ public class Constants {
 		final static String INSIGHT = "insight";
 		final static String DAYS = "days";
 		final static String TRANSLATE_CODE = "translateTenantCode";
+		final static String FILTER_FOR_CURRENT_DAY = "filterForCurrentDay";
 
 	}
-	
+
 	public interface Filters {
-		final static String MODULE = "module"; 
-		final static String FILTER_ALL = "*"; 
+		final static String MODULE = "module";
+		final static String FILTER_ALL = "*";
 	}
 
 	public interface Catagory {
@@ -99,6 +100,7 @@ public class Constants {
 	public interface DashBoardConfig {
 		final static String ROLES = "roles";
 		final static String ROLE_ID = "roleId";
+		final static String HIDEFILTERFIELDS = "hideFilterFields";
 		final static String DASHBOARDS = "dashboards";
 		final static String VISUALISATIONS = "visualizations";
 		final static String NAME = "name";
@@ -117,7 +119,7 @@ public class Constants {
 	}
 
 	public enum  Interval {
-		week, month, year, day
+		week, month, year, day, dateRange
 	}
 	public interface PostAggregationTheories { 
 		final static String RESPONSE_DIFF_DATES = "repsonseToDifferenceOfDates"; 
@@ -136,5 +138,7 @@ public class Constants {
 	public static final String MDMS_REQUESTINFO = "{\"RequestInfo\":{\"authToken\":\"\"},\"MdmsCriteria\":{\"tenantId\":\"{TENANTID_PLACEHOLDER}\",\"moduleDetails\":[{\"moduleName\":\"tenant\",\"masterDetails\":[{\"name\":\"tenants\"}]}]}}";
 
 	public static final String TENANTID_PLACEHOLDER = "{TENANTID_PLACEHOLDER}";
+
+	public static final Long DAY_EPOCH = 86400000L;
 
 }

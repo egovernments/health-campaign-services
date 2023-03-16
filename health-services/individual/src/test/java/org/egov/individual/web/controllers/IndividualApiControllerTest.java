@@ -1,6 +1,10 @@
 package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkResponse;
+import org.egov.common.models.individual.IndividualRequest;
+import org.egov.common.models.individual.IndividualResponse;
 import org.egov.common.producer.Producer;
 import org.egov.individual.TestConfiguration;
 import org.egov.individual.config.IndividualProperties;
@@ -8,10 +12,6 @@ import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.service.IndividualService;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkResponse;
-import org.egov.individual.web.models.IndividualRequest;
-import org.egov.individual.web.models.IndividualResponse;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.individual.web.models.IndividualSearchRequest;
 import org.egov.tracer.model.ErrorRes;

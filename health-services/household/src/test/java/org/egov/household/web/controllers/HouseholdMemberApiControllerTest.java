@@ -2,16 +2,16 @@ package org.egov.household.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.household.HouseholdMemberRequest;
 import org.egov.common.producer.Producer;
 import org.egov.household.TestConfiguration;
 import org.egov.household.config.HouseholdConfiguration;
+import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.helper.HouseholdMemberRequestTestBuilder;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
-import org.egov.household.web.models.HouseholdMemberRequest;
 import org.egov.household.web.models.HouseholdMemberSearch;
 import org.egov.household.web.models.HouseholdMemberSearchRequest;
-import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,11 +20,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -59,33 +57,24 @@ class HouseholdMemberApiControllerTest {
     @MockBean
     private HouseholdConfiguration householdConfiguration;
 
+    @MockBean
+    private HouseholdMemberConfiguration householdMemberConfiguration;
+
     @Test
-    @DisplayName("should household member create request pass if API Operation is create")
+    @DisplayName("should household member create request pass")
     void householdMemberV1CreatePostSuccess() throws Exception {
         HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationCreate().build();
+                .build();
+
+        when(householdMemberService.create(any(HouseholdMemberRequest.class))).thenReturn(
+                Collections.singletonList(householdMemberRequest.getHouseholdMember())
+        );
 
         mockMvc.perform(post("/member/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdMemberRequest)))
                 .andExpect(status().isAccepted());
     }
 
-    @Test
-    @DisplayName("should household member create request fail if API Operation is not create")
-    void householdMemberV1CreatePostFailure() throws Exception {
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationDelete().build();
-
-        MvcResult result = mockMvc.perform(post("/member/v1/_create").contentType(MediaType
-        .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdMemberRequest)))
-        .andExpect(status().isBadRequest()).andReturn();
-
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-        assertEquals(1, response.getErrors().size());
-        assertEquals("INVALID_API_OPERATION" ,response.getErrors().get(0).getCode());
-    }
 
     @Test
     @DisplayName("should household member search request pass if all the required query parameters are present")
@@ -115,36 +104,33 @@ class HouseholdMemberApiControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+
     @Test
-    @DisplayName("household member update request should pass if API Operation is update")
+    @DisplayName("household member update request should pass")
     void shouldHouseholdMemberUpdateRequestPassForUpdateOperation() throws Exception {
         HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationUpdate().build();
-
+                .build();
+        when(householdMemberService.update(any(HouseholdMemberRequest.class))).thenReturn(
+                Collections.singletonList(householdMemberRequest.getHouseholdMember())
+        );
         mockMvc.perform(post("/member/v1/_update").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdMemberRequest)))
                 .andExpect(status().isAccepted());
     }
 
     @Test
-    @DisplayName("household member update request should pass if API Operation is delete")
+    @DisplayName("household member delete request should pass")
     void shouldHouseholdMemberUpdateRequestPassForDeleteOperation() throws Exception {
         HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationDelete().build();
+                .build();
 
-        mockMvc.perform(post("/member/v1/_update").contentType(MediaType
+        when(householdMemberService.delete(any(HouseholdMemberRequest.class))).thenReturn(
+                Collections.singletonList(householdMemberRequest.getHouseholdMember())
+        );
+
+        mockMvc.perform(post("/member/v1/_delete").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdMemberRequest)))
                 .andExpect(status().isAccepted());
     }
 
-    @Test
-    @DisplayName("household member update request should pass if API Operation is create")
-    void shouldFailHouseholdMemberUpdateRequestPassForCreateOperation() throws Exception {
-        HouseholdMemberRequest householdMemberRequest = HouseholdMemberRequestTestBuilder.builder().withHouseholdMember().withRequestInfo()
-                .withApiOperationCreate().build();
-
-        mockMvc.perform(post("/member/v1/_update").contentType(MediaType
-                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdMemberRequest)))
-                .andExpect(status().isBadRequest());
-    }
 }

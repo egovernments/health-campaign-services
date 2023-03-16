@@ -1,15 +1,16 @@
 package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.project.BeneficiaryBulkRequest;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.service.IdGenService;
 import org.egov.common.validator.Validator;
-import org.egov.project.beneficiary.validators.PbNonExistentEntityValidator;
-import org.egov.project.beneficiary.validators.PbNullIdValidator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.BeneficiaryBulkRequestTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.BeneficiaryBulkRequest;
-import org.egov.project.web.models.ProjectBeneficiary;
+import org.egov.project.service.enrichment.ProjectBeneficiaryEnrichmentService;
+import org.egov.project.validator.beneficiary.PbNonExistentEntityValidator;
+import org.egov.project.validator.beneficiary.PbNullIdValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

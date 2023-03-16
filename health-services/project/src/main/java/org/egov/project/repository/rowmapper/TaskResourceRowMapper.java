@@ -1,7 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.TaskResource;
+import org.egov.common.models.project.TaskResource;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +22,7 @@ public class TaskResourceRowMapper implements RowMapper<TaskResource> {
                 .quantity(resultSet.getLong("quantity"))
                 .isDelivered(resultSet.getBoolean("isDelivered"))
                 .deliveryComment(resultSet.getString("isDelivered"))
+                .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .auditDetails(AuditDetails.builder()
                         .createdBy(resultSet.getString("createdBy"))
                         .createdTime(resultSet.getLong("createdTime"))

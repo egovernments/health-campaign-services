@@ -1,11 +1,11 @@
 package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.product.Product;
+import org.egov.common.models.product.ProductRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductRepository;
-import org.egov.product.web.models.Product;
-import org.egov.product.web.models.ProductRequest;
 import org.egov.product.web.models.ProductSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -51,10 +51,16 @@ public class ProductService {
 
     public List<Product> create(ProductRequest productRequest) throws Exception {
         log.info("Enrichment products started");
+
+        log.info("generating ids for products");
         List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(),
                 getTenantId(productRequest.getProduct()),
                 "product.id", "", productRequest.getProduct().size());
+
+        log.info("enriching products");
         enrichForCreate(productRequest.getProduct(), idList, productRequest.getRequestInfo());
+
+        log.info("saving products");
         productRepository.save(productRequest.getProduct(), productConfiguration.getCreateProductTopic());
         return productRequest.getProduct();
     }
@@ -63,17 +69,20 @@ public class ProductService {
         identifyNullIds(productRequest.getProduct());
         Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
 
-        log.info("Checking if already exists");
+        log.info("checking if product already exists");
         List<String> productIds = new ArrayList<>(pMap.keySet());
         List<Product> existingProducts = productRepository.findById(productIds);
 
+        log.info("validate entities for products");
         validateEntities(pMap, existingProducts);
 
+        log.info("checking row version for products");
         checkRowVersion(pMap, existingProducts);
 
-        log.info("Updating lastModifiedTime and lastModifiedBy");
+        log.info("updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(pMap, existingProducts, productRequest);
 
+        log.info("saving updated products");
         productRepository.save(productRequest.getProduct(), productConfiguration.getUpdateProductTopic());
         return productRequest.getProduct();
     }
@@ -84,14 +93,20 @@ public class ProductService {
                                 String tenantId,
                                 Long lastChangedSince,
                                 Boolean includeDeleted) throws Exception {
+
+        log.info("received request to search product");
+
         if (isSearchByIdOnly(productSearchRequest.getProduct())) {
+            log.info("searching product by id");
             List<String> ids = productSearchRequest.getProduct().getId();
+            log.info("fetching product with ids: {}", ids);
             return productRepository.findById(ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
+        log.info("searching product using criteria");
         return productRepository.find(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
     }

@@ -6,10 +6,10 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.producer.Producer;
 import org.egov.household.repository.rowmapper.HouseholdRowMapper;
-import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -69,6 +69,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "h.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "h.clientReferenceId IN (:clientReferenceId)");
 
         query = query + " and h.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {

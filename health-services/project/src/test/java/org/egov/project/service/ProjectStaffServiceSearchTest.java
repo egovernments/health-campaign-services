@@ -1,9 +1,9 @@
 package org.egov.project.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.project.ProjectStaff;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.repository.ProjectStaffRepository;
-import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffSearch;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +50,7 @@ class ProjectStaffServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
                 .thenReturn(Collections.emptyList());
         ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
-                .id(Collections.singletonList("ID101")).userId("some-user-id").build();
+                .id(Collections.singletonList("ID101")).staffId("some-user-id").build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();

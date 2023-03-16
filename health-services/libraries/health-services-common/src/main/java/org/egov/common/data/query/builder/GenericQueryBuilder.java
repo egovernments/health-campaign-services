@@ -30,8 +30,8 @@ public interface GenericQueryBuilder {
 
     static String generateClause(String clauseName, String seperator, List<String> queryParameters){
         StringBuilder clauseBuilder = new StringBuilder();
-        if(queryParameters.size() == 0){
-            return "";
+        if (queryParameters.isEmpty()) {
+            return " WHERE 1=1 ";
         }
         clauseBuilder.append(String.format(" %s ", clauseName));
         clauseBuilder.append(String.format(queryParameters.get(0)));

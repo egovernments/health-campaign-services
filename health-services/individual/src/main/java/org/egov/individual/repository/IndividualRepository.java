@@ -5,16 +5,16 @@ import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.Skill;
 import org.egov.common.producer.Producer;
 import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
 import org.egov.individual.repository.rowmapper.SkillRowMapper;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.Identifier;
-import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualSearch;
-import org.egov.individual.web.models.Skill;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -98,12 +98,24 @@ public class IndividualRepository extends GenericRepository<Individual> {
                         individual.setIdentifiers(identifiers);
                         List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
                         individual.setAddress(addresses);
+                        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
+                        indServerGenIdParamMap.put("individualId", individual.getId());
+                        indServerGenIdParamMap.put("isDeleted", includeDeleted);
+                        enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                     });
                 }
                 return individuals;
             }
             return Collections.emptyList();
         }
+    }
+
+    private void enrichSkills(Boolean includeDeleted, Individual individual, Map<String, Object> indServerGenIdParamMap) {
+        String individualSkillQuery = getQuery("SELECT * FROM individual_skill WHERE individualId =:individualId",
+                includeDeleted);
+        List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, indServerGenIdParamMap,
+                new SkillRowMapper());
+        individual.setSkills(skills);
     }
 
     private String getQueryForIndividual(IndividualSearch searchObject, Integer limit, Integer offset,
@@ -169,11 +181,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 List<Identifier> identifiers = this.namedParameterJdbcTemplate
                         .query(individualIdentifierQuery, indServerGenIdParamMap,
                                 new IdentifierRowMapper());
-                String individualSkillQuery = getQuery("SELECT * FROM individual_skill WHERE individualId =:individualId",
-                        includeDeleted);
-                List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, indServerGenIdParamMap,
-                        new SkillRowMapper());
-                individual.setSkills(skills);
+                enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                 individual.setAddress(addresses);
                 individual.setIdentifiers(identifiers);
             });

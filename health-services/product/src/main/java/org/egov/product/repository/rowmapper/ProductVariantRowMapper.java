@@ -3,8 +3,8 @@ package org.egov.product.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.product.web.models.AdditionalFields;
-import org.egov.product.web.models.ProductVariant;
+import org.egov.common.models.product.AdditionalFields;
+import org.egov.common.models.product.ProductVariant;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -33,7 +33,8 @@ public class ProductVariantRowMapper implements RowMapper<ProductVariant> {
                             .lastModifiedBy(resultSet.getString("lastmodifiedby"))
                             .lastModifiedTime(resultSet.getLong("lastmodifiedtime"))
                             .build())
-                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
+                            .getString("additionalDetails"), AdditionalFields.class))
                     .build();
         } catch (JsonProcessingException e) {
             throw new SQLException(e);

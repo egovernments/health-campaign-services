@@ -2,9 +2,9 @@ package org.egov.product.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.product.Product;
 import org.egov.product.helper.ProductTestBuilder;
 import org.egov.product.repository.ProductRepository;
-import org.egov.product.web.models.Product;
 import org.egov.product.web.models.ProductSearch;
 import org.egov.product.web.models.ProductSearchRequest;
 import org.junit.jupiter.api.BeforeEach;

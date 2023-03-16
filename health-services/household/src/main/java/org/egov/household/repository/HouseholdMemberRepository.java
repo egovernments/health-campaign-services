@@ -3,9 +3,9 @@ package org.egov.household.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.producer.Producer;
 import org.egov.household.repository.rowmapper.HouseholdMemberRowMapper;
-import org.egov.household.web.models.HouseholdMember;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -43,6 +43,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
             if (ids.isEmpty()) {
+                log.info("all objects were found in the cache, returning objects");
                 return objFound;
             }
         }
@@ -56,19 +57,22 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
+        log.info("returning objects from the database");
         return objFound;
     }
 
     public List<HouseholdMember> findIndividual(String individualId) {
+        log.info("searching for HouseholdMember with individualId: {}", individualId);
         String query = "SELECT * FROM household_member where individualId = :individualId AND isDeleted = false";
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("individualId", individualId);
-
         return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
     }
 
-    public List<HouseholdMember> findIndividualByHousehold(String householdId) {
-        String query = "SELECT * FROM household_member where householdId = :householdId AND isDeleted = false";
+    public List<HouseholdMember> findIndividualByHousehold(String householdId, String columnName) {
+        log.info("searching for HouseholdMembers with householdId: {}", householdId);
+        String query = String.format("SELECT * FROM household_member where %s = :householdId AND isDeleted = false",
+                columnName);
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("householdId", householdId);
         return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);

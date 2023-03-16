@@ -61,7 +61,6 @@ class HouseholdMemberFindTest {
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
-        System.out.println(householdMemberSearchRequest);
         householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), 10, 0,
                 "", 0L, false);
 

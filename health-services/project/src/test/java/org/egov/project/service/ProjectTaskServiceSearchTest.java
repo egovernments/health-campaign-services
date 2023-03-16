@@ -2,11 +2,11 @@ package org.egov.project.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskSearch;
+import org.egov.common.models.project.TaskSearchRequest;
 import org.egov.project.helper.TaskTestBuilder;
 import org.egov.project.repository.ProjectTaskRepository;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskSearch;
-import org.egov.project.web.models.TaskSearchRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,7 +53,7 @@ public class ProjectTaskServiceSearchTest {
     void shouldOnlySearchByIdIfOnlyIdIsPresent() {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).build()).build();
         when(projectTaskRepository.findById(anyList(), eq("id"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
@@ -69,7 +69,7 @@ public class ProjectTaskServiceSearchTest {
     void shouldOnlySearchByClientReferenceIdIfOnlyClientReferenceIdIsPresent() {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().clientReferenceId("some-id").build()).build();
+                .task(TaskSearch.builder().clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(projectTaskRepository.findById(anyList(), eq("clientReferenceId"), anyBoolean()))
                 .thenReturn(Collections.emptyList());
 
@@ -85,7 +85,7 @@ public class ProjectTaskServiceSearchTest {
     void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id("someid").clientReferenceId("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(projectTaskRepository.find(any(TaskSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
@@ -101,7 +101,7 @@ public class ProjectTaskServiceSearchTest {
     void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id("someid").clientReferenceId("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(projectTaskRepository.find(any(TaskSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
@@ -120,7 +120,7 @@ public class ProjectTaskServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id("someid").clientReferenceId("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("someid")).clientReferenceId(Collections.singletonList("some-id")).build()).build();
 
         assertDoesNotThrow(() -> projectTaskService.search(taskSearchRequest.getTask(), 10, 0, "default", 
                 null, false));
@@ -133,7 +133,7 @@ public class ProjectTaskServiceSearchTest {
         when(projectTaskRepository.findById(anyList(), anyString(), anyBoolean())).thenReturn(Collections.emptyList());
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).build()).build();
 
         assertDoesNotThrow(() -> projectTaskService.search(taskSearchRequest.getTask(), 10, 0, 
                 "default", null, false));
@@ -147,7 +147,7 @@ public class ProjectTaskServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectTasks);
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id("some-id").projectId("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).projectId("some-id").build()).build();
 
         List<Task> projectTasks = projectTaskService.search(taskSearchRequest.getTask(), 10, 0, 
                 "default", null, false);
@@ -162,7 +162,7 @@ public class ProjectTaskServiceSearchTest {
         when(projectTaskRepository.findById(anyList(), anyString(), anyBoolean())).thenReturn(projectTasks);
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).build()).build();
 
         List<Task> projectTasks = projectTaskService.search(taskSearchRequest.getTask(), 10, 0,
                 "default", null, false);

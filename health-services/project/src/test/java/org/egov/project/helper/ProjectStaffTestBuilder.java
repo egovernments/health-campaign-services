@@ -1,8 +1,9 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.project.web.models.AdditionalFields;
-import org.egov.project.web.models.ProjectStaff;
+import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.project.ProjectStaff;
+
 
 public class ProjectStaffTestBuilder {
 
@@ -17,7 +18,7 @@ public class ProjectStaffTestBuilder {
     }
 
     public ProjectStaff build() {
-        return this.builder.build();
+        return this.builder.hasErrors(Boolean.FALSE).build();
     }
 
     public ProjectStaffTestBuilder withIdNull() {
@@ -41,6 +42,16 @@ public class ProjectStaffTestBuilder {
 
     public ProjectStaffTestBuilder withBadTenantId() {
         this.builder.tenantId(null);
+        return this;
+    }
+
+    public ProjectStaffTestBuilder withProjectId(String id) {
+        this.builder.projectId(id);
+        return this;
+    }
+
+    public ProjectStaffTestBuilder withUserId(String userId) {
+        this.builder.userId(userId);
         return this;
     }
 

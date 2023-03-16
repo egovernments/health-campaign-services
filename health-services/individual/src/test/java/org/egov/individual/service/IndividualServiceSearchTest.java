@@ -46,6 +46,20 @@ class IndividualServiceSearchTest {
     }
 
     @Test
+    @DisplayName("should not throw exception in case the array is null")
+    void shouldNotThrowExceptionIfArrayIsNull() throws QueryBuilderException {
+        IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
+                .byNullId()
+                .build();
+
+        individualService.search(individualSearch, 0, 10,
+                "default", null, false);
+
+        verify(individualRepository, times(0)).findById(anyList(),
+                eq("id"), anyBoolean());
+    }
+
+    @Test
     @DisplayName("should search only clientReferenceId if only clientReferenceId is present")
     void shouldSearchByOnlyClientReferenceIdIfOnlyClientReferenceIdIsPresent() throws QueryBuilderException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()

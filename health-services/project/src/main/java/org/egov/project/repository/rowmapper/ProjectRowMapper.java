@@ -1,8 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.Project;
+import org.egov.common.models.project.Project;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -11,8 +10,6 @@ import java.sql.SQLException;
 
 @Component
 public class ProjectRowMapper implements RowMapper<Project> {
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public Project mapRow(ResultSet resultSet, int i) throws SQLException {

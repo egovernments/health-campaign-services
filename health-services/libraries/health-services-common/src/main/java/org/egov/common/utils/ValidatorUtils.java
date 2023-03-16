@@ -1,10 +1,12 @@
 package org.egov.common.utils;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.tracer.model.CustomException;
 
 import java.util.List;
 
+@Slf4j
 public class ValidatorUtils {
 
     private ValidatorUtils() {}
@@ -77,6 +79,14 @@ public class ValidatorUtils {
                 .exception(new CustomException("DUPLICATE_ENTITY", "Duplicate entity")).build();
     }
 
+    public static Error getErrorForDuplicateMapping(String entityParent, String entityChild) {
+        return Error.builder().errorMessage(String.format("Duplicate entity %s, %s", entityParent, entityChild))
+                .errorCode("DUPLICATE_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("DUPLICATE_ENTITY",
+                        String.format("Duplicate entity %s, %s", entityParent, entityChild))).build();
+    }
+
     public static Error getErrorForUniqueSubEntity() {
         return Error.builder().errorMessage("Duplicate sub entity")
                 .errorCode("DUPLICATE_SUB_ENTITY")
@@ -101,4 +111,5 @@ public class ValidatorUtils {
                 .exception(new CustomException("IS_DELETED_TRUE_SUB_ENTITY", "isDeleted cannot be true for sub entity"))
                 .build();
     }
+
 }

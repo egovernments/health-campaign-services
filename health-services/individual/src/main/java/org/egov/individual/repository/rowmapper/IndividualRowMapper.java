@@ -3,11 +3,11 @@ package org.egov.individual.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.individual.web.models.AdditionalFields;
-import org.egov.individual.web.models.BloodGroup;
-import org.egov.individual.web.models.Gender;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.Name;
+import org.egov.common.models.individual.AdditionalFields;
+import org.egov.common.models.individual.BloodGroup;
+import org.egov.common.models.individual.Gender;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.Name;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -29,8 +29,9 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .name(Name.builder().givenName(resultSet.getString("givenName"))
                             .familyName(resultSet.getString("familyName"))
                             .otherNames(resultSet.getString("otherNames")).build())
-                    .dateOfBirth(resultSet.getDate("dateOfBirth").toLocalDate())
-                    .gender(Gender.valueOf(resultSet.getString("gender")))
+                    .dateOfBirth(resultSet.getDate("dateOfBirth") != null ?
+                            resultSet.getDate("dateOfBirth").toLocalDate() : null)
+                    .gender(Gender.fromValue(resultSet.getString("gender")))
                     .bloodGroup(BloodGroup.fromValue(resultSet.getString("bloodGroup")))
                     .mobileNumber(resultSet.getString("mobileNumber"))
                     .altContactNumber(resultSet.getString("altContactNumber"))

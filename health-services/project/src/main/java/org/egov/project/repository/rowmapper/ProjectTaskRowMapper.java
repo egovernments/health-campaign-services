@@ -3,11 +3,11 @@ package org.egov.project.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.AdditionalFields;
-import org.egov.project.web.models.Address;
-import org.egov.project.web.models.AddressType;
-import org.egov.project.web.models.Boundary;
-import org.egov.project.web.models.Task;
+import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.project.Address;
+import org.egov.common.models.project.AddressType;
+import org.egov.common.models.project.Boundary;
+import org.egov.common.models.project.Task;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -47,6 +47,7 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
                     .address(Address.builder()
                             .id(resultSet.getString(20))
                             .tenantId(resultSet.getString(21))
+                            .clientReferenceId(resultSet.getString(35))
                             .doorNo(resultSet.getString("doorNo"))
                             .latitude(resultSet.getDouble("latitude"))
                             .longitude(resultSet.getDouble("longitude"))

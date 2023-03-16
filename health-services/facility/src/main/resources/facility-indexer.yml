@@ -1,0 +1,13 @@
+ServiceMaps:
+  serviceName: facility
+  version: 1.0.0
+  mappings:
+    - topic: save-facility-topic
+      configKey: INDEX
+      indexes:
+        - name: facilityIndex-v1
+          type: facility
+          id: $.*.id
+          isBulk: true
+          jsonPath: $.*
+          timeStampField: $.*.auditDetails.createdTime
