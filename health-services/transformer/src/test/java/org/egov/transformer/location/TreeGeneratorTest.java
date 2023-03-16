@@ -1,10 +1,10 @@
 package org.egov.transformer.location;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.transformer.upstream.Boundary;
 import org.egov.transformer.boundary.BoundaryNode;
 import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.boundary.TreeGenerator;
-import org.egov.transformer.models.upstream.Boundary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

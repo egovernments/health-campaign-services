@@ -1,8 +1,8 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffRequest;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffRequest;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,8 +1,8 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.stock.web.models.StockReconciliation;
-import org.egov.stock.web.models.StockReconciliationBulkRequest;
+import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
 
 import java.util.ArrayList;
 

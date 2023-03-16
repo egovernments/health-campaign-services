@@ -5,11 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilitySearch;
+import org.egov.common.models.facility.FacilitySearchRequest;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
-import org.egov.transformer.models.upstream.Facility;
-import org.egov.transformer.models.upstream.FacilitySearch;
-import org.egov.transformer.models.upstream.FacilitySearchRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;

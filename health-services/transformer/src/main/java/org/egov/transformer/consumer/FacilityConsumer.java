@@ -3,7 +3,7 @@ package org.egov.transformer.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.egov.transformer.models.upstream.Facility;
+import org.egov.common.models.facility.Facility;
 import org.egov.transformer.service.FacilityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

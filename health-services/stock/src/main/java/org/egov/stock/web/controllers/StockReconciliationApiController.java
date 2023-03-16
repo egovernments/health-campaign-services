@@ -3,15 +3,15 @@ package org.egov.stock.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
+import org.egov.common.models.stock.StockReconciliationBulkResponse;
+import org.egov.common.models.stock.StockReconciliationRequest;
+import org.egov.common.models.stock.StockReconciliationResponse;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.stock.config.StockReconciliationConfiguration;
 import org.egov.stock.service.StockReconciliationService;
-import org.egov.stock.web.models.StockReconciliation;
-import org.egov.stock.web.models.StockReconciliationBulkRequest;
-import org.egov.stock.web.models.StockReconciliationBulkResponse;
-import org.egov.stock.web.models.StockReconciliationRequest;
-import org.egov.stock.web.models.StockReconciliationResponse;
 import org.egov.stock.web.models.StockReconciliationSearchRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,7 +52,7 @@ public class StockReconciliationApiController {
     }
 
     @RequestMapping(value = "/reconciliation/v1/_create", method = RequestMethod.POST)
-    public ResponseEntity<StockReconciliationResponse> stockReconciliationV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @Valid @RequestBody StockReconciliationRequest request) {
+    public ResponseEntity<StockReconciliationResponse> stockReconciliationV1CreatePost(@ApiParam(value = "Capture details of stock transaction.", required = true) @RequestBody StockReconciliationRequest request) {
         StockReconciliation stock = stockReconciliationService.create(request);
         StockReconciliationResponse response = StockReconciliationResponse.builder()
                 .stockReconciliation(stock)

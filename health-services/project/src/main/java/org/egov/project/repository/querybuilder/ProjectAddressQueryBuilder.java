@@ -2,8 +2,8 @@ package org.egov.project.repository.querybuilder;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.egov.common.models.project.Project;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.web.models.Project;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

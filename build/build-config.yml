@@ -88,3 +88,7 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
         image-name: "service-request-db"
+  - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
+    build:
+      - work-dir: "health-services/libraries/health-services-models"
+        image-name: "health-services-models"

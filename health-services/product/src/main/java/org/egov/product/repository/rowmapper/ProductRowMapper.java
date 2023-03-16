@@ -3,8 +3,8 @@ package org.egov.product.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.product.web.models.AdditionalFields;
-import org.egov.product.web.models.Product;
+import org.egov.common.models.product.AdditionalFields;
+import org.egov.common.models.product.Product;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 

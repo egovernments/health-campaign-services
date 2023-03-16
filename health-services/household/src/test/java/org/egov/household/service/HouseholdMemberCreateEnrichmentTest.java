@@ -1,9 +1,9 @@
 package org.egov.household.service;
 
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.household.helper.HouseholdMemberBulkRequestTestBuilder;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdMemberBulkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

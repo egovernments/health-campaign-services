@@ -2,15 +2,15 @@ package org.egov.project.web.controllers;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.project.ProjectResourceBulkRequest;
+import org.egov.common.models.project.ProjectResourceRequest;
+import org.egov.common.models.project.ProjectResourceResponse;
 import org.egov.common.producer.Producer;
 import org.egov.project.TestConfiguration;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectResourceBulkRequestTestBuilder;
 import org.egov.project.helper.ProjectResourceRequestTestBuilder;
 import org.egov.project.service.ProjectResourceService;
-import org.egov.project.web.models.ProjectResourceBulkRequest;
-import org.egov.project.web.models.ProjectResourceRequest;
-import org.egov.project.web.models.ProjectResourceResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
