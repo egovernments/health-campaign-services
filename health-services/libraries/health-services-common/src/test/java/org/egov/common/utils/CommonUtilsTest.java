@@ -804,6 +804,39 @@ class CommonUtilsTest {
 
     }
 
+    @Test
+    @DisplayName("should throw custom exception when isBulk flag is true")
+    void shouldCallCustomExceptionWhenIsBulkFlagIsTrue() throws JsonProcessingException {
+        Map<SomeRequest, ErrorDetails> errorDetailsMap = new HashMap<>();
+        Exception ex = new Exception();
+        SomeRequest someRequest = SomeRequest.builder()
+                .requestInfo(RequestInfo.builder()
+                        .authToken("some-token")
+                        .build())
+                .apiOperation(SomeEnum.CREATE)
+                .build();
+        errorDetailsMap.put(someRequest, ErrorDetails.builder()
+                .apiDetails(ApiDetails.builder()
+                        .url("some-url")
+                        .contentType("application/json")
+                        .requestBody(new ObjectMapper().writeValueAsString(someRequest))
+                        .build())
+                .errors(Arrays.asList(Error.builder()
+                        .exception(ex)
+                        .type(Error.ErrorType.RECOVERABLE)
+                        .errorCode("some-error-code")
+                        .errorMessage("some-error-message")
+                        .build()))
+                .build());
+
+        try {
+            CommonUtils.handleErrors(errorDetailsMap, false, "some-error-code");
+        } catch (CustomException e) {
+            assertEquals(e.getErrors().get("some-error-code"), "some-error-message");
+        }
+
+    }
+
     @Data
     @Builder
     public static class SomeRequest {
