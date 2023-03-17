@@ -13,6 +13,7 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorDetail;
+import org.egov.tracer.model.ErrorEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.util.ReflectionUtils;
@@ -788,20 +789,20 @@ public class CommonUtils {
     public static <T> void handleErrors(Map<T, ErrorDetails> errorDetailsMap, boolean isBulk, String errorCode) {
         if (!errorDetailsMap.isEmpty()) {
             log.error("{} errors collected", errorDetailsMap.size());
-            try {
-                if (isBulk) {
-                    List<ErrorDetail> errorDetailList = errorDetailsMap.values()
-                            .stream().map(ErrorDetails::getTracerModel).collect(Collectors.toList());
-                        ErrorHandler.exceptionAdviseInstance.exceptionHandler(errorDetailList);
-                } else {
-                    throw new CustomException(errorCode, objectMapper
-                            .writeValueAsString(errorDetailsMap.values()));
-                }
-            } catch (Exception e) {
-                log.error("error in handling errors", e);
-                throw new CustomException(errorCode, errorDetailsMap.values().toString());
+            List<ErrorDetail> errorDetailList = errorDetailsMap.values()
+                    .stream().map(ErrorDetails::getTracerModel).collect(Collectors.toList());
+            if (isBulk) {
+                ErrorHandler.exceptionAdviseInstance.exceptionHandler(errorDetailList);
+            } else {
+                throw new CustomException(getErrorMap(errorDetailList));
             }
         }
+    }
+
+    private static Map<String, String> getErrorMap(List<ErrorDetail> errorDetailList) {
+        return errorDetailList.stream()
+                .flatMap(errorDetail -> errorDetail.getErrors().stream())
+                .collect(Collectors.toMap(ErrorEntity::getErrorCode, ErrorEntity::getErrorMessage));
     }
 
     /**
