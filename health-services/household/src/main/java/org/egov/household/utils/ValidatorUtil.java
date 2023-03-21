@@ -1,7 +1,7 @@
 package org.egov.household.utils;
 
 import org.egov.common.models.Error;
-import org.egov.household.web.models.HouseholdMember;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.tracer.model.CustomException;
 
 import java.util.HashMap;

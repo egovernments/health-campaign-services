@@ -6,9 +6,9 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.household.Household;
 import org.egov.common.producer.Producer;
 import org.egov.household.repository.rowmapper.HouseholdRowMapper;
-import org.egov.household.web.models.Household;
 import org.egov.household.web.models.HouseholdSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -39,8 +39,9 @@ public class HouseholdRepository extends GenericRepository<Household> {
     }
 
     public List<Household> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Household> objFound;
-        objFound = findInCache(ids);
+        List<Household> objFound = findInCache(ids).stream()
+                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
+                .collect(Collectors.toList());
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()

@@ -1,9 +1,9 @@
 package org.egov.project.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.project.ProjectStaff;
 import org.egov.project.helper.ProjectStaffTestBuilder;
 import org.egov.project.repository.ProjectStaffRepository;
-import org.egov.project.web.models.ProjectStaff;
 import org.egov.project.web.models.ProjectStaffSearch;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.junit.jupiter.api.BeforeEach;

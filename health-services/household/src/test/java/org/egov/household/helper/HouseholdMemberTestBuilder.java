@@ -1,8 +1,9 @@
 package org.egov.household.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.household.web.models.AdditionalFields;
-import org.egov.household.web.models.HouseholdMember;
+import org.egov.common.models.household.AdditionalFields;
+import org.egov.common.models.household.HouseholdMember;
+
 
 public class HouseholdMemberTestBuilder {
 

@@ -3,8 +3,8 @@ package org.egov.household.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.household.web.models.AdditionalFields;
-import org.egov.household.web.models.HouseholdMember;
+import org.egov.common.models.household.AdditionalFields;
+import org.egov.common.models.household.HouseholdMember;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +26,8 @@ public class HouseholdMemberRowMapper implements RowMapper<HouseholdMember> {
                     .individualId(resultSet.getString("individualId"))
                     .tenantId(resultSet.getString("tenantId"))
                     .isHeadOfHousehold(resultSet.getBoolean("isHeadOfHousehold"))
-                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
+                            .getString("additionalDetails"), AdditionalFields.class))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .auditDetails(AuditDetails.builder()

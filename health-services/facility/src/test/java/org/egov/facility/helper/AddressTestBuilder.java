@@ -1,8 +1,8 @@
 package org.egov.facility.helper;
 
 
-import org.egov.facility.web.models.Address;
-import org.egov.facility.web.models.AddressType;
+import org.egov.common.models.facility.Address;
+import org.egov.common.models.facility.AddressType;
 
 public class AddressTestBuilder {
     private Address.AddressBuilder builder;

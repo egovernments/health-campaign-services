@@ -2,12 +2,12 @@ package org.egov.project.service.enrichment;
 
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.Address;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskBulkRequest;
+import org.egov.common.models.project.TaskResource;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.web.models.Address;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
-import org.egov.project.web.models.TaskResource;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

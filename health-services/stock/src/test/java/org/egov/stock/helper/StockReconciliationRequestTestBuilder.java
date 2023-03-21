@@ -1,7 +1,8 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.stock.web.models.StockReconciliationRequest;
+import org.egov.common.models.stock.StockReconciliationRequest;
+
 
 public class StockReconciliationRequestTestBuilder {
     private StockReconciliationRequest.StockReconciliationRequestBuilder builder;

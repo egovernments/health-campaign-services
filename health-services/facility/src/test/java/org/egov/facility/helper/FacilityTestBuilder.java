@@ -1,8 +1,9 @@
 package org.egov.facility.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.facility.web.models.Address;
-import org.egov.facility.web.models.Facility;
+import org.egov.common.models.facility.Address;
+import org.egov.common.models.facility.Facility;
+
 
 public class FacilityTestBuilder {
 

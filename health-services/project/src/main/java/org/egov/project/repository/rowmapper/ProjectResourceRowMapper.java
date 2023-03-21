@@ -2,8 +2,8 @@ package org.egov.project.repository.rowmapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.ProjectProductVariant;
-import org.egov.project.web.models.ProjectResource;
+import org.egov.common.models.project.ProjectProductVariant;
+import org.egov.common.models.project.ProjectResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;

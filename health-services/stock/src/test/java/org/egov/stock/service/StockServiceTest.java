@@ -1,5 +1,8 @@
 package org.egov.stock.service;
 
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockRequest;
 import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
@@ -12,9 +15,6 @@ import org.egov.stock.validator.stock.SNullIdValidator;
 import org.egov.stock.validator.stock.SProductVariantIdValidator;
 import org.egov.stock.validator.stock.SRowVersionValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
-import org.egov.stock.web.models.StockRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +40,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+
 
 @ExtendWith(MockitoExtension.class)
 class StockServiceTest {

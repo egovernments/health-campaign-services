@@ -1,7 +1,8 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.project.web.models.ProjectResourceRequest;
+import org.egov.common.models.project.ProjectResourceRequest;
+
 
 public class ProjectResourceRequestTestBuilder {
 

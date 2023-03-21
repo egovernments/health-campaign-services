@@ -135,8 +135,8 @@ class GenericRepositoryFindTest {
     @DisplayName("should validate id using column name")
     void shouldReturnValidIdsFromDBOrCache() {
         when(hashOperations.multiGet(anyString(), anyList())).thenReturn(
-                Arrays.asList(SomeObject.builder().id("id1").build(),SomeObject.builder().id("id2").build())
-        );
+                Arrays.asList(SomeObject.builder().id("id1").isDeleted(Boolean.FALSE).build()
+                        ,SomeObject.builder().isDeleted(Boolean.FALSE).id("id2").build()));
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(SomeRowMapper.class)))
                 .thenReturn(someObjects);
         List<String> idsToValidate = new ArrayList<>();

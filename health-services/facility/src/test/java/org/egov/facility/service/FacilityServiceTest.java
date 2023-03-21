@@ -1,5 +1,8 @@
 package org.egov.facility.service;
 
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkRequest;
+import org.egov.common.models.facility.FacilityRequest;
 import org.egov.common.validator.Validator;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.helper.FacilityBulkRequestTestBuilder;
@@ -11,9 +14,6 @@ import org.egov.facility.validator.FNonExistentValidator;
 import org.egov.facility.validator.FNullIdValidator;
 import org.egov.facility.validator.FRowVersionValidator;
 import org.egov.facility.validator.FUniqueEntityValidator;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilityBulkRequest;
-import org.egov.facility.web.models.FacilityRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

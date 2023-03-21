@@ -1,11 +1,11 @@
 package org.egov.facility.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.facility.Address;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.facility.config.FacilityConfiguration;
-import org.egov.facility.web.models.Address;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilityBulkRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

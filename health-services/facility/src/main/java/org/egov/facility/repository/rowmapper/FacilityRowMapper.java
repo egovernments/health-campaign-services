@@ -3,11 +3,11 @@ package org.egov.facility.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.facility.web.models.AdditionalFields;
-import org.egov.facility.web.models.Address;
-import org.egov.facility.web.models.AddressType;
-import org.egov.facility.web.models.Boundary;
-import org.egov.facility.web.models.Facility;
+import org.egov.common.models.facility.AdditionalFields;
+import org.egov.common.models.facility.Address;
+import org.egov.common.models.facility.AddressType;
+import org.egov.common.models.facility.Boundary;
+import org.egov.common.models.facility.Facility;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 

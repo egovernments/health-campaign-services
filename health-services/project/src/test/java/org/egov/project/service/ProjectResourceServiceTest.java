@@ -1,5 +1,8 @@
 package org.egov.project.service;
 
+import org.egov.common.models.project.ProjectResource;
+import org.egov.common.models.project.ProjectResourceBulkRequest;
+import org.egov.common.models.project.ProjectResourceRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectResourceBulkRequestTestBuilder;
@@ -13,9 +16,6 @@ import org.egov.project.validator.resource.PrProductVariantIdValidator;
 import org.egov.project.validator.resource.PrProjectIdValidator;
 import org.egov.project.validator.resource.PrRowVersionValidator;
 import org.egov.project.validator.resource.PrUniqueEntityValidator;
-import org.egov.project.web.models.ProjectResource;
-import org.egov.project.web.models.ProjectResourceBulkRequest;
-import org.egov.project.web.models.ProjectResourceRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

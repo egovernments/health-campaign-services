@@ -1,0 +1,119 @@
+@startuml
+title Product - Create
+!theme vibrant
+participant Client as c
+participant ProductService as s
+participant RedisCache as rc
+participant IDGenService as idgen
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+c -> s : /product/v1/_create
+activate s
+s -> s: Validate request body
+alt request validation fails
+    s -> s: Request validation failed
+    s -> k: Product Data /error_topic
+    note left
+        This will be marked as unrecoverable right away 
+        and require manual intervention
+    end note
+    activate k
+    group async
+        es -> k: Consume Product Data
+        activate es
+        deactivate k
+        es -> db: Persist Product Data /error_table
+        activate db
+        deactivate db
+        deactivate es
+    end
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+s -> s: Request validation successful
+alt record already exists
+    alt record found in cache
+      s -> rc: Check using clientReferenceId/serverGeneratedId
+      activate rc
+      rc -> s: 1 row
+      deactivate rc
+      s -> c: HttpStatus: 400 with appropriate error code
+      note left
+          Error Code: RECORD_ALREADY_EXISTS
+      end note
+    end
+    s -> rc: Check using clientReferenceId/serverGeneratedId
+    activate rc
+    rc -> s: 0 rows
+    deactivate rc
+    s -> db: Check if record already exists
+    activate db
+    db -> s: 1 row
+    deactivate db
+    s -> rc: Put data in cache using clientReferenceId/serverGeneratedId
+    activate rc
+    deactivate rc
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+        Error Code: RECORD_ALREADY_EXISTS
+    end note
+end
+alt id generation fails
+    s -> idgen: /id/_generate
+    activate idgen
+    idgen -> s: HttpStatus: 400
+    deactivate idgen
+    s -> k: Product Data /error_topic
+    note left
+        This will be marked as recoverable and 
+        will be retried later
+    end note
+    activate k
+    group async
+        es -> k: Consume Product Data
+        activate es
+        deactivate k
+        es -> db: Persist Product Data /error_table
+        activate db
+        deactivate db
+        deactivate es
+    end
+    s -> c: HttpStatus: 500 with appropriate error code
+    note left
+      Error Code: ID_GENERATION_FAILED
+    end note
+end
+s -> idgen: Generate ID
+activate idgen
+idgen -> s: Generated ID
+deactivate idgen
+s -> s: Update generated ID in Product Data
+s -> k: Product Data /persist_topic
+activate k
+s -> rc: Put Product Data against clientReferenceId/serverGeneratedId in cache
+activate rc
+deactivate rc
+s -> c: HttpStatus: 202 ACCEPTED
+deactivate s
+group async
+    prs -> k: Consume Product Data
+    activate prs
+    idx -> k: Consume Product Data
+    activate idx
+    idx -> el: Store Product Data
+    activate el
+    deactivate el
+    deactivate idx
+    prs -> db: Persist Product Data
+    activate db
+    deactivate db
+    deactivate prs
+end
+deactivate k
+@enduml

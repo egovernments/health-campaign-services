@@ -2,9 +2,9 @@ package org.egov.project.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskBulkRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;

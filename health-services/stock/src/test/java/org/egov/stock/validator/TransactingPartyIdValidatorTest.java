@@ -3,11 +3,11 @@ package org.egov.stock.validator;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.Error;
+import org.egov.common.models.stock.Stock;
+import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.service.FacilityService;
 import org.egov.stock.validator.stock.STransactingPartyIdValidator;
-import org.egov.stock.web.models.Stock;
-import org.egov.stock.web.models.StockBulkRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

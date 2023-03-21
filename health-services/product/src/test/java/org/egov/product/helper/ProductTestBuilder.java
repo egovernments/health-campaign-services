@@ -1,8 +1,9 @@
 package org.egov.product.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.product.web.models.AdditionalFields;
-import org.egov.product.web.models.Product;
+import org.egov.common.models.product.AdditionalFields;
+import org.egov.common.models.product.Product;
+
 
 public class ProductTestBuilder {
     private Product.ProductBuilder builder;

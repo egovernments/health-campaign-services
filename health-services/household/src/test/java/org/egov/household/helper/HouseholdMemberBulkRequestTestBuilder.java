@@ -1,8 +1,8 @@
 package org.egov.household.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.household.web.models.HouseholdMember;
-import org.egov.household.web.models.HouseholdMemberBulkRequest;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberBulkRequest;
 
 import java.util.Collections;
 

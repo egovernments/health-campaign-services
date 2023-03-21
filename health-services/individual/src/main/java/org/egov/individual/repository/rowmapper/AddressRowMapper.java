@@ -1,9 +1,9 @@
 package org.egov.individual.repository.rowmapper;
 
 import digit.models.coremodels.AuditDetails;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.AddressType;
-import org.egov.individual.web.models.Boundary;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.AddressType;
+import org.egov.common.models.individual.Boundary;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
