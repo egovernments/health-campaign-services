@@ -1,0 +1,1 @@
+ALTER TABLE project_address RENAME COLUMN door_no to doorNo;

@@ -1,25 +1,29 @@
 package org.egov.product.repository;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.product.web.models.Product;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.product.Product;
+import org.egov.common.producer.Producer;
+import org.egov.product.repository.rowmapper.ProductRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.HashMap;
-import java.util.Hashtable;
+import java.util.Optional;
 
 @Repository
 @Slf4j
-public class ProductRepository {
+public class ProductRepository extends GenericRepository<Product> {
 
-//    @Autowired
-//    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-//
-//    public Product getProductById(String id){
-//        String query = "SELECT * FROM PRODUCT WHERE id:=id";
-//        Hashtable paramsMap = new Hashtable();
-//        paramsMap.put("id", id);
-//        return namedParameterJdbcTemplate.queryForObject(query, paramsMap, Product.class);
-//    }
+    @Autowired
+    public ProductRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+                             RedisTemplate<String, Object> redisTemplate,
+                             SelectQueryBuilder selectQueryBuilder, ProductRowMapper productRowMapper) {
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
+                productRowMapper, Optional.of("product"));
+    }
+
 }
+

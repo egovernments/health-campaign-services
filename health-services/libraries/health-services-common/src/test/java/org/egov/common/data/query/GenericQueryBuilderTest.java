@@ -12,7 +12,11 @@ import org.egov.common.data.query.exception.QueryBuilderException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GenericQueryBuilderTest {
@@ -26,6 +30,79 @@ class GenericQueryBuilderTest {
                 .build();
         String expectedQuery = "SELECT * FROM dummyData WHERE " +
                 "dummyString=:dummyString AND dummyInt=:dummyInt";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should build select queries for the arraylist of string")
+    void shouldBuildSelectQueriesForTheArrayListOfString() throws QueryBuilderException {
+        ArrayList<String> strings = new ArrayList<>();
+        strings.add("value1");
+        strings.add("value2");
+        DummyData data = DummyData.builder()
+                .dummyStringList(strings)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+                "dummyStringList IN (:dummyStringList)";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+        Map<String, Object> paramMap = queryBuilder.getParamsMap();
+
+        assertEquals(expectedQuery, actualQuery);
+        assertEquals(strings, paramMap.get("dummyStringList"));
+    }
+
+    @Test
+    @DisplayName("should build select queries only for arraylist of type string")
+    void shouldBuildSelectQueriesForArrayListOfTypeString() throws QueryBuilderException {
+        ArrayList<String> strings = new ArrayList<>();
+        strings.add("value1");
+        strings.add("value2");
+        ArrayList<Integer> ints = new ArrayList<>();
+        ints.add(12);
+        DummyData data = DummyData.builder()
+                .dummyStringList(strings)
+                .dummyIntegerList(ints)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE " +
+                "dummyStringList IN (:dummyStringList)";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+        Map<String, Object> paramMap = queryBuilder.getParamsMap();
+
+        assertEquals(expectedQuery, actualQuery);
+        assertEquals(strings, paramMap.get("dummyStringList"));
+        assertNull(paramMap.get("dummyIntegerList"));
+    }
+
+    @Test
+    @DisplayName("should build select query for an empty ArrayList of String")
+    void shouldBuildSelectQueryForAnEmptyArrayListOfString() throws QueryBuilderException {
+        ArrayList<String> strings = new ArrayList<>();
+        DummyData data = DummyData.builder()
+                .dummyStringList(strings)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE 1=1 ";
+        SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
+
+        String actualQuery = queryBuilder.build(data);
+
+        assertEquals(expectedQuery, actualQuery);
+    }
+
+    @Test
+    @DisplayName("should handle null arraylist of string while building select query")
+    void shouldHandleNullArrayListOfStringWhileBuildingSelectQuery() throws QueryBuilderException {
+        DummyData data = DummyData.builder()
+                .dummyStringList(null)
+                .build();
+        String expectedQuery = "SELECT * FROM dummyData WHERE 1=1 ";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -58,7 +135,7 @@ class GenericQueryBuilderTest {
     void shouldNotUseWhereClauseWhenPropertiesAreSetToNullSelectQuery() throws QueryBuilderException {
         DummyData data = DummyData.builder()
                 .build();
-        String expectedQuery = "SELECT * FROM dummyData";
+        String expectedQuery = "SELECT * FROM dummyData WHERE 1=1 ";
         SelectQueryBuilder queryBuilder = new SelectQueryBuilder();
 
         String actualQuery = queryBuilder.build(data);
@@ -152,7 +229,8 @@ class GenericQueryBuilderTest {
         private Boolean dummyBoolean;
         private Float dummyFloat;
         private Double dummyDouble;
-
+        private ArrayList<String> dummyStringList;
+        private ArrayList<Integer> dummyIntegerList;
         private int dummyPrimitiveInt;
         private boolean dummyPrimitiveBoolean;
         private float dummyPrimitiveFloat;

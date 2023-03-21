@@ -1,5 +1,6 @@
 package org.egov.product.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,23 +22,17 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ProductSearchRequest {
+
     @JsonProperty("RequestInfo")
     @NotNull
-
     @Valid
-
-
     private RequestInfo requestInfo = null;
 
     @JsonProperty("Product")
     @NotNull
-
     @Valid
-
-
     private ProductSearch product = null;
-
-
 }
 

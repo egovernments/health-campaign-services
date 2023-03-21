@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,23 +22,18 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ProjectStaffSearchRequest   {
-        @JsonProperty("RequestInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("RequestInfo")
+    @NotNull
+    @Valid
     private RequestInfo requestInfo = null;
 
-        @JsonProperty("ProjectStaff")
-      @NotNull
-
-  @Valid
-
-
+    @JsonProperty("ProjectStaff")
+    @NotNull
+    @Valid
     private ProjectStaffSearch projectStaff = null;
-
 
 }
 

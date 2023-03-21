@@ -1,17 +1,16 @@
 package org.egov.project.web.models;
 
-import java.util.Objects;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
+import org.springframework.validation.annotation.Validated;
+
+import java.util.List;
 
 /**
 * This object defines the mapping of a facility to a project.
@@ -24,33 +23,20 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+    @JsonIgnoreProperties(ignoreUnknown = true)
+@Table(name="project_facility")
 public class ProjectFacilitySearch   {
-        @JsonProperty("id")
-    
 
+    @JsonProperty("id")
+    private List<String> id = null;
 
-    private String id = null;
-
-        @JsonProperty("tenantId")
-    
-
-
+    @JsonProperty("tenantId")
     private String tenantId = null;
 
-        @JsonProperty("facilityId")
-    
+    @JsonProperty("facilityId")
+    private List<String> facilityId = null;
 
-    @Size(min=2,max=64) 
-
-    private String facilityId = null;
-
-        @JsonProperty("projectId")
-    
-
-    @Size(min=2,max=64) 
-
-    private String projectId = null;
-
+    @JsonProperty("projectId")
+    private List<String> projectId = null;
 
 }
-

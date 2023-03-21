@@ -1,17 +1,17 @@
 package org.egov.project.web.models;
 
-import java.util.Objects;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
-import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.constraints.Size;
+import java.util.List;
 
 /**
 * This object defines the mapping of a system staff user to a project for a certain period.
@@ -24,43 +24,30 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+    @JsonIgnoreProperties(ignoreUnknown = true)
+@Table(name="project_staff")
 public class ProjectStaffSearch   {
-        @JsonProperty("id")
-    
 
 
-    private String id = null;
+    @JsonProperty("id")
+    private List<String> id = null;
 
-        @JsonProperty("tenantId")
-    
-
-
+    @JsonProperty("tenantId")
+    @Size(min=2,max=1000)
     private String tenantId = null;
 
-        @JsonProperty("userId")
-    
-
+    @JsonProperty("staffId")
     @Size(min=2,max=64) 
+    private String staffId = null;
 
-    private String userId = null;
-
-        @JsonProperty("projectId")
-    
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("projectId")
+    @Size(min=2,max=64)
     private String projectId = null;
 
-        @JsonProperty("startDate")
-    
-
-
+    @JsonProperty("startDate")
     private Long startDate = null;
 
-        @JsonProperty("endDate")
-    
-
-
+    @JsonProperty("endDate")
     private Long endDate = null;
 
 
