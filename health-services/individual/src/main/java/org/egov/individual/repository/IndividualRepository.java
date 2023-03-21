@@ -15,6 +15,7 @@ import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
 import org.egov.individual.repository.rowmapper.SkillRowMapper;
 import org.egov.individual.web.models.IndividualSearch;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -35,7 +36,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 @Slf4j
 public class IndividualRepository extends GenericRepository<Individual> {
 
-    protected IndividualRepository(Producer producer,
+    protected IndividualRepository(@Qualifier("individualProducer") Producer producer,
                                    NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                    RedisTemplate<String, Object> redisTemplate,
                                    SelectQueryBuilder selectQueryBuilder,
