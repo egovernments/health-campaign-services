@@ -1,0 +1,37 @@
+@startuml
+title Household Member - Search
+!theme vibrant
+participant Client as c
+participant HouseholdRegistry as s
+database Database as db
+c -> s : /household/member/v1/_search
+activate s
+s -> s: Validate request body
+alt request validation fails
+    s -> s: Request validation failed
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+s -> s: Request validation successful
+alt search mapping table
+    alt no matching records
+        s -> db: Search mapping table by individual/household clientReferenceId/serverGeneratedId
+        activate db
+        db -> s: 0 rows
+        deactivate db
+        s -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: RECORD_NOT_FOUND
+        end note
+    end
+end
+
+s -> db: search mapping table by individual/household clientReferenceId/serverGeneratedId
+activate db
+db -> s: 1-n rows
+deactivate db
+s -> c: HttpStatus: 200 OK with found record(s)
+deactivate s
+@enduml

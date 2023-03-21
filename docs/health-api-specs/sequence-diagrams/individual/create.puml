@@ -1,0 +1,67 @@
+@startuml
+title Individual - Create
+!theme vibrant
+participant Client as c
+participant IndividualRegistry as s
+participant RedisCache as rc
+participant IDGenService as idgen
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+c -> s : /individual/v1/_create
+activate s
+s -> s: Validate request body
+alt request validation fails
+    s -> s: Request validation failed
+    s -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+s -> s: Request validation successful
+
+alt id generation fails
+    s -> idgen: /id/_generate
+    activate idgen
+    idgen -> s: HttpStatus: 400
+    deactivate idgen
+    s -> c: HttpStatus: 500 with appropriate error code
+    note left
+      Error Code: ID_GENERATION_FAILED
+    end note
+else id gen successful
+    s -> idgen: Generate ID
+    activate idgen
+    idgen -> s: Generated ID
+    deactivate idgen
+    s -> c: HttpStatus: 202 ACCEPTED
+    group async
+        s -> s: Update generated ID in Individual Data
+        s -> k: Individual Data /persist_topic
+        activate k
+        s -> rc: Put Individual Data against clientReferenceId/serverGeneratedId in cache
+        activate rc
+        deactivate rc
+
+        deactivate s
+        group async
+            prs -> k: Consume Individual Data
+            activate prs
+            idx -> k: Consume Individual Data
+            activate idx
+            idx -> el: Store Individual Data
+            activate el
+            deactivate el
+            deactivate idx
+            prs -> db: Persist Individual Data
+            activate db
+            deactivate db
+            deactivate prs
+        end
+    end
+    deactivate k
+end
+@enduml
