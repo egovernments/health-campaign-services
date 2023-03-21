@@ -423,7 +423,7 @@ public class ProjectApiController {
     @RequestMapping(value = "/task/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectTaskV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getCreateProjectTaskBulkTopic(), request);
+        producer.push(projectConfiguration.getUpdateProjectTaskBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

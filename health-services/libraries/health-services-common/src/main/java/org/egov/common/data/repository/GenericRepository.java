@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 
 @Slf4j
 public abstract class GenericRepository<T> {
@@ -78,8 +80,13 @@ public abstract class GenericRepository<T> {
 
     public List<T> findById(List<String> ids, Boolean includeDeleted, String columnName) {
         List<T> objFound = findInCache(ids);
+
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
+            Method isDeleted = getMethod("getIsDeleted", getObjClass(objFound));
+            objFound = objFound.stream()
+                    .filter(entity -> Objects.equals(ReflectionUtils.invokeMethod(isDeleted, entity), includeDeleted))
+                    .collect(Collectors.toList());
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));

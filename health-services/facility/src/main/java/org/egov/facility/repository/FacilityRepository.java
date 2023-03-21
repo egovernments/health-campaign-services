@@ -35,8 +35,9 @@ public class FacilityRepository extends GenericRepository<Facility> {
     }
 
     public List<Facility> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Facility> objFound;
-        objFound = findInCache(ids);
+        List<Facility> objFound = findInCache(ids).stream()
+                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
+                .collect(Collectors.toList());
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
