@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -170,7 +171,7 @@ public class FacilityService {
                                  Long lastChangedSince,
                                  Boolean includeDeleted) throws Exception  {
         log.info("starting search method for facility");
-        String idFieldName = "id";
+        String idFieldName = getIdFieldName(facilitySearchRequest.getFacility());
         if (isSearchByIdOnly(facilitySearchRequest.getFacility(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(facilitySearchRequest.getFacility())),
