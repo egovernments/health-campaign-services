@@ -14,6 +14,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -43,7 +44,7 @@ public class IndividualSearch   {
 
     @JsonProperty("dateOfBirth")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private LocalDate dateOfBirth = null;
+    private Date dateOfBirth = null;
 
     @JsonProperty("gender")
     @Valid

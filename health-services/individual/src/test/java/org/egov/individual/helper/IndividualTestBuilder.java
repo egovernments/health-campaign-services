@@ -11,9 +11,6 @@ import org.egov.individual.web.models.Skill;
 
 import java.util.Arrays;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
-
 public class IndividualTestBuilder {
     private Individual.IndividualBuilder builder;
 

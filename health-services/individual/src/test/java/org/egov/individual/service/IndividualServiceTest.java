@@ -8,6 +8,7 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.individual.web.models.Address;
@@ -16,7 +17,6 @@ import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualBulkRequest;
 import org.egov.individual.web.models.IndividualRequest;
 import org.egov.tracer.model.CustomException;
-import org.junit.Ignore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -27,7 +27,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -65,6 +67,9 @@ class IndividualServiceTest {
     @Mock
     private EnrichmentService enrichmentService;
 
+    @Mock
+    private EncryptionDecryptionUtil encryptionDecryptionUtil;
+
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
     @BeforeEach
@@ -82,10 +87,9 @@ class IndividualServiceTest {
                 .thenReturn(Collections.singletonList(o));
     }
 
-    //@Ignore
-    //@Test
-    //@DisplayName("should save individuals")
-    /*void shouldSaveIndividuals() throws Exception {
+    @Test
+    @DisplayName("should save individuals")
+    void shouldSaveIndividuals() throws Exception {
         IndividualRequest request = IndividualRequestTestBuilder.builder()
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
@@ -93,11 +97,12 @@ class IndividualServiceTest {
                         .withName()
                         .build())
                 .build();
+        when(encryptionDecryptionUtil.encryptObject(any(Object.class), any(String.class), any(Class.class))).thenReturn(request.getIndividual());
         individualService.create(request);
 
         verify(individualRepository, times(1))
                 .save(anyList(), anyString());
-    }*/
+    }
 
     @Test
     @DisplayName("should validate if only permanent address is present when addresses are not null")
@@ -148,15 +153,18 @@ class IndividualServiceTest {
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.PERMANENT)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.OTHER)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)

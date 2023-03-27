@@ -31,7 +31,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                             .familyName(resultSet.getString("familyName"))
                             .otherNames(resultSet.getString("otherNames")).build())
                     .dateOfBirth(resultSet.getDate("dateOfBirth") != null ?
-                            resultSet.getDate("dateOfBirth").toLocalDate() : null)
+                            resultSet.getDate("dateOfBirth"): null)
                     .gender(Gender.fromValue(resultSet.getString("gender")))
                     .bloodGroup(BloodGroup.fromValue(resultSet.getString("bloodGroup")))
                     .mobileNumber(resultSet.getString("mobileNumber"))

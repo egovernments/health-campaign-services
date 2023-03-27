@@ -55,7 +55,7 @@ public class IndividualEnrichmentServiceTest {
     @Test
     @DisplayName("should generate address id if address id is null")
     void shouldGenerateAddressIdIfAddressIdIsNull() throws Exception {
-        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+         IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withName()
@@ -89,6 +89,27 @@ public class IndividualEnrichmentServiceTest {
         assertNotNull(request.getIndividuals().get(0)
                 .getSkills().stream().findFirst().get()
                 .getId());
+    }
+    @Test
+    @DisplayName("should generate identifier if not present")
+    void shouldGenerateIdentifierIfNotPresent() throws Exception {
+        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
+                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
+                .withIndividuals(IndividualTestBuilder.builder()
+                        .withTenantId()
+                        .withName()
+                        .build())
+                .build();
+
+        enrichmentService.create(request.getIndividuals(), request);
+
+        assertNotNull(request.getIndividuals().get(0)
+                .getIdentifiers().stream().findFirst().get()
+                .getIdentifierId());
+        assertEquals("SYSTEM_GENERATED",
+                request.getIndividuals().get(0)
+                        .getIdentifiers().stream().findFirst().get()
+                        .getIdentifierType());
     }
 
     @Test
@@ -129,9 +150,8 @@ public class IndividualEnrichmentServiceTest {
 
         enrichmentService.create(request.getIndividuals(), request);
 
-        /*assertEquals("some-individual-id",
-                request.getIndividuals().get(0)
-                        .getId());*/
+        assertNotNull(request.getIndividuals().get(0)
+                        .getId());
     }
 
     @Test
@@ -147,35 +167,14 @@ public class IndividualEnrichmentServiceTest {
 
         enrichmentService.create(request.getIndividuals(), request);
 
-       /* assertEquals("some-individual-id",
-                request.getIndividuals().get(0)
-                        .getId());*/
+        assertNotNull(request.getIndividuals().get(0)
+                        .getId());
         assertEquals(1, request.getIndividuals().get(0).getRowVersion());
         assertFalse(request.getIndividuals().get(0).getIsDeleted());
         assertNotNull(request.getIndividuals().get(0).getAuditDetails());
     }
 
-    @Test
-    @DisplayName("should generate identifier if not present")
-    void shouldGenerateIdentifierIfNotPresent() throws Exception {
-        IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
-                .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .withIndividuals(IndividualTestBuilder.builder()
-                        .withTenantId()
-                        .withName()
-                        .build())
-                .build();
 
-        enrichmentService.create(request.getIndividuals(), request);
-
-        assertNotNull(request.getIndividuals().get(0)
-                .getIdentifiers().stream().findFirst().get()
-                .getIdentifierId());
-        assertEquals("SYSTEM_GENERATED",
-                request.getIndividuals().get(0)
-                        .getIdentifiers().stream().findFirst().get()
-                        .getIdentifierType());
-    }
 
     @Test
     @DisplayName("should enrich identifier with individual id")
@@ -197,10 +196,9 @@ public class IndividualEnrichmentServiceTest {
                 request.getIndividuals().get(0)
                         .getIdentifiers().stream().findFirst().get()
                         .getIdentifierType());
-        /*assertEquals("some-individual-id",
-                request.getIndividuals().get(0)
+        assertNotNull(request.getIndividuals().get(0)
                         .getIdentifiers().stream().findFirst().get()
-                        .getIndividualId());*/
+                        .getIndividualId());
     }
 
     @Test
@@ -227,10 +225,9 @@ public class IndividualEnrichmentServiceTest {
                 request.getIndividuals().get(0)
                         .getIdentifiers().stream().findFirst().get()
                         .getId());
-        /*assertEquals("some-individual-id",
-                request.getIndividuals().get(0)
+        assertNotNull(request.getIndividuals().get(0)
                         .getIdentifiers().stream().findFirst().get()
-                        .getIdentifierId());*/
+                        .getIdentifierId());
         assertNotNull(request.getIndividuals().get(0)
                 .getIdentifiers().stream().findFirst().get()
                 .getAuditDetails());

@@ -7,14 +7,12 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.egov.encryption.producer.Producer;
 import org.egov.tracer.config.TracerConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.*;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
@@ -25,10 +23,11 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 
 import javax.annotation.PostConstruct;
 import java.util.TimeZone;
-@Import({TracerConfiguration.class})
-@Configuration
-@ComponentScan(basePackages = {"org.egov"})
-public class MainConfiguration {
+    @Import({TracerConfiguration.class})
+    @Configuration
+    @ComponentScan(basePackages = {"org.egov.individual", "org.egov.encryption", "org.egov.common"},
+            excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = {".*\\.Producer.*"}))
+    public class MainConfiguration {
 
     @Value("${app.timezone}")
     private String timeZone;

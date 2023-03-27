@@ -2,17 +2,17 @@ package org.egov.individual.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.kafka.common.protocol.types.Field;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.util.EncrptionDecryptionUtil;
+import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.validators.*;
 import org.egov.individual.web.models.*;
 import org.egov.tracer.model.CustomException;
@@ -26,14 +26,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.*;
 import static org.egov.individual.Constants.SET_INDIVIDUALS;
 import static org.egov.individual.Constants.VALIDATION_ERROR;
 
@@ -53,6 +46,8 @@ public class IndividualService {
 
     private final EnrichmentService enrichmentService;
 
+    private final EncryptionDecryptionUtil encryptionDecryptionUtil;
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IsDeletedValidator.class)
@@ -61,7 +56,8 @@ public class IndividualService {
                     || validator.getClass().equals(AddressTypeValidator.class)
                     || validator.getClass().equals(RowVersionValidator.class)
                     || validator.getClass().equals(UniqueEntityValidator.class)
-                    || validator.getClass().equals(UniqueSubEntityValidator.class);
+                    || validator.getClass().equals(UniqueSubEntityValidator.class)
+                    || validator.getClass().equals(AadharMobileNumberValidator.class);
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
             validator.getClass().equals(AddressTypeValidator.class)
@@ -78,13 +74,15 @@ public class IndividualService {
                              List<Validator<IndividualBulkRequest, Individual>> validators,
                              @Qualifier("objectMapper") ObjectMapper objectMapper,
                              IndividualProperties properties,
-                             EnrichmentService enrichmentService) {
+                             EnrichmentService enrichmentService,
+                             EncryptionDecryptionUtil encryptionDecryptionUtil) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.enrichmentService = enrichmentService;
+        this.encryptionDecryptionUtil = encryptionDecryptionUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -100,12 +98,13 @@ public class IndividualService {
                 isBulk);
         Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
+        List<Individual> encryptedIndividualList = null;
         try {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
-                //encrypts aadhaar number
-                List<Individual> encryptedIndividualList = encryptedIndividuals(validIndividuals);
+                //encrypt PII data
+                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt");
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
             }
@@ -115,8 +114,8 @@ public class IndividualService {
         }
 
         handleErrors(isBulk, errorDetailsMap);
-        //decrypt aadhaar number
-        return decryptedIndividuals(validIndividuals);
+        //decrypt
+        return decryptIndividuals(encryptedIndividualList, request.getRequestInfo());
     }
 
     private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
@@ -146,12 +145,15 @@ public class IndividualService {
                 isBulk);
         Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
+        List<Individual> encryptedIndividualList = null;
 
         try {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.update(validIndividuals, request);
-                individualRepository.save(validIndividuals,
+                //encrypt PII data
+                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt");
+                individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
             }
         } catch (Exception exception) {
@@ -160,8 +162,8 @@ public class IndividualService {
         }
 
         handleErrors(isBulk, errorDetailsMap);
-        //decrypt aadhaar number
-        return decryptedIndividuals(validIndividuals);
+        //decrypt
+        return decryptIndividuals(encryptedIndividualList, request.getRequestInfo());
     }
 
     public List<Individual> search(IndividualSearch individualSearch,
@@ -169,28 +171,31 @@ public class IndividualService {
                                    Integer offset,
                                    String tenantId,
                                    Long lastChangedSince,
-                                   Boolean includeDeleted) {
+                                   Boolean includeDeleted,
+                                   RequestInfo requestInfo) {
         String idFieldName = getIdFieldName(individualSearch);
-        List<Individual> individuals = null;
+        List<Individual> encryptedIndividualList = null;
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(individualSearch)),
                     individualSearch);
 
-            individuals =  individualRepository.findById(ids, idFieldName, includeDeleted)
+            encryptedIndividualList =  individualRepository.findById(ids, idFieldName, includeDeleted)
                     .stream().filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-            //decrypt aadhaar number
-            return decryptedIndividuals(individuals);
+            //decrypt
+            return (!encryptedIndividualList.isEmpty()) ? decryptIndividuals(encryptedIndividualList, requestInfo): encryptedIndividualList;
         }
-        individuals = individualRepository.find(individualSearch, limit, offset, tenantId,
+        //encrypt search criteria
+        IndividualSearch encryptedIndividualSearch = (IndividualSearch) encryptIndividuals(null,individualSearch,"IndividualSearchEncrypt");
+        encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                         lastChangedSince, includeDeleted).stream()
                 .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                 .collect(Collectors.toList());
-        //decrypt aadhaar number
-        return decryptedIndividuals(individuals);
+        //decrypt
+        return (!encryptedIndividualList.isEmpty()) ? decryptIndividuals(encryptedIndividualList, requestInfo): encryptedIndividualList;
 
     }
 
@@ -251,64 +256,105 @@ public class IndividualService {
         }
     }
 
-    private List<Individual> encryptedIndividuals(List<Individual> individuals) {
-         byte[] publicKey = Base64.getDecoder().decode(properties.getPublicKey());
-         List<Individual> encryptedIndividualList = new ArrayList<>();
-         for (Individual individual : individuals) {
-             Individual encryptedIndividual = individual;
-                 try {
-                    /* if (StringUtils.isNotBlank(individual.getMobileNumber())) {
-                         encryptedIndividual.setMobileNumber(EncrptionDecryptionUtil.encrypt(individual.getMobileNumber(),publicKey));
-                     }*/
-                     if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
-                         Identifier identifier = individual.getIdentifiers().stream()
-                                 .filter(id -> id.getIdentifierType().contains("AADHAAR"))
-                                 .findFirst().orElse(null);
-                         if (identifier != null) {
-                             identifier.setIdentifierId(EncrptionDecryptionUtil.encrypt(identifier.getIdentifierId(),publicKey));
-                             encryptedIndividual.setIdentifiers(Collections.singletonList(identifier));
-                         }
+    /**
+     * Encrypts the PII data of the individual
+     * @param validIndividuals
+     * @return
+     */
+    private Object encryptIndividuals(List<Individual> validIndividuals, IndividualSearch individualSearch, String key) {
+        //encrypt
+        Class classType;
+        Object objectToEncrypt;
+        List<Individual> encryptedIndividualList = new ArrayList<>();
 
-                     }
-                     encryptedIndividualList.add(encryptedIndividual);
-                 } catch (Exception exception) {
-                     log.error("IndividualService::encryptedIndividuals::Exception in encryption "+exception);
-                 }
+        if (individualSearch != null) {
+            classType = IndividualSearch.class;
+            objectToEncrypt = individualSearch;
+        } else if (validIndividuals.size() > 1) {
+            classType = Individual.class;
+            objectToEncrypt = validIndividuals;
+        } else {
+            classType = Individual.class;
+            objectToEncrypt = validIndividuals.get(0);
+        }
+        objectToEncrypt = encryptionDecryptionUtil.encryptObject(objectToEncrypt, key, classType);
 
-         }
-         return encryptedIndividualList;
+        if (objectToEncrypt instanceof List) {
+            encryptedIndividualList.addAll((List<Individual>)objectToEncrypt);
+        } else if (objectToEncrypt instanceof Individual) {
+            encryptedIndividualList.add((Individual)objectToEncrypt);
+        } else if (objectToEncrypt instanceof  IndividualSearch) {
+           return (IndividualSearch) objectToEncrypt;
+        }
+
+        // check if the aadhaar already exists
+        validateAadhaarUniqueness(encryptedIndividualList);
+
+        return encryptedIndividualList;
     }
 
-    private List<Individual> decryptedIndividuals(List<Individual> individuals) {
-        byte[] privateKey = Base64.getDecoder().decode(properties.getPrivateKey());
+    /**
+     * Decrypts the data for
+     * @param encryptedIndividuals
+     * @return
+     */
+    private List<Individual> decryptIndividuals(List<Individual> encryptedIndividuals, RequestInfo requestInfo) {
+        //decrypt
+        Class classType;
+        Object objectToDecrypt;
         List<Individual> decryptedIndividualList = new ArrayList<>();
-        for (Individual individual : individuals) {
-            Individual decryptedIndividual = individual;
-            try {
-                /*if (StringUtils.isNotBlank(individual.getMobileNumber())) {
-                    decryptedIndividual.setMobileNumber(EncrptionDecryptionUtil.decrypt(individual.getMobileNumber(),privateKey));
-                }*/
+
+        if (encryptedIndividuals.size() > 1) {
+            classType = Individual.class;
+            objectToDecrypt = encryptedIndividuals;
+        } else {
+            classType = Individual.class;
+            objectToDecrypt = encryptedIndividuals.get(0);
+        }
+        objectToDecrypt = encryptionDecryptionUtil.decryptObject(objectToDecrypt, "IndividualDecrypt", classType, requestInfo);
+
+        if (objectToDecrypt instanceof List) {
+            decryptedIndividualList.addAll((List<Individual>)objectToDecrypt);
+        } else if (objectToDecrypt instanceof Individual) {
+            decryptedIndividualList.add((Individual)objectToDecrypt);
+        }
+
+        return decryptedIndividualList;
+    }
+
+    /**
+     * validate if aadhar already exists
+     * @param individuals
+     */
+    private void validateAadhaarUniqueness (List<Individual> individuals) {
+
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        String tenantId = getTenantId(individuals);
+
+        if (!individuals.isEmpty()) {
+            for (Individual individual : individuals) {
                 if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
                     Identifier identifier = individual.getIdentifiers().stream()
                             .filter(id -> id.getIdentifierType().contains("AADHAAR"))
                             .findFirst().orElse(null);
-                    if (identifier != null) {
-                        String decryptedValue = EncrptionDecryptionUtil.decrypt(identifier.getIdentifierId(),privateKey);
-                        //Mask first 8 digits of aadhaar number
-                        char[] charArray = decryptedValue.toCharArray();
-                        Arrays.fill(charArray, 0, charArray.length - 4, 'X');
-                        decryptedValue = new String(charArray);
-                        identifier.setIdentifierId(decryptedValue);
-                        decryptedIndividual.setIdentifiers(Collections.singletonList(identifier));
+                    if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
+                        Identifier identifierSearch = Identifier.builder().identifierType(identifier.getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
+                        IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
+                        List<Individual> individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
+                        if (!CollectionUtils.isEmpty(individualsList)) {
+                            Error error = Error.builder().errorMessage("Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId()).errorCode("DUPLICATE_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("DUPLICATE_AADHAAR", "Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId())).build();
+                            populateErrorDetails(individual, error, errorDetailsMap);
+                        }
                     }
 
                 }
-                decryptedIndividualList.add(decryptedIndividual);
-            } catch (Exception exception) {
-                log.error("IndividualService::encryptedIndividuals::Exception in decryption "+exception);
             }
-
         }
-        return decryptedIndividualList;
+
+        if (!errorDetailsMap.isEmpty()) {
+            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+        }
+
     }
+
 }

@@ -47,16 +47,16 @@ public class AadharMobileNumberValidator implements Validator<IndividualBulkRequ
         log.info("AadharMobileNumberValidator::validate::Validating aadharNumber and mobileNumber");
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         List<Individual> individuals = request.getIndividuals();
-        String tenantId = getTenantId(individuals);
+
         if (!individuals.isEmpty()) {
             for (Individual individual : individuals) {
-                //Validate mobile number has all numbers , if present
+                //check mobile number has all numbers , if present
                 if (StringUtils.isNotBlank(individual.getMobileNumber()) && !isValid(individual.getMobileNumber(),properties.getMobilePattern())) {
                     Error error = Error.builder().errorMessage("Invalid MobileNumber").errorCode("INVALID_MOBILENUMBER").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("INVALID_MOBILENUMBER", "Invalid MobileNumber")).build();
                     populateErrorDetails(individual, error, errorDetailsMap);
                 }
 
-               //Validate aadhar number has 12 digits, if present
+               //check aadhar number has 12 digits, if present
                if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
                    Identifier identifier = individual.getIdentifiers().stream()
                            .filter(id -> id.getIdentifierType().contains("AADHAAR"))
@@ -66,16 +66,6 @@ public class AadharMobileNumberValidator implements Validator<IndividualBulkRequ
                        Error error = Error.builder().errorMessage("Invalid Aadhaar").errorCode("INVALID_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("INVALID_AADHAAR", "Invalid Aadhaar")).build();
                        populateErrorDetails(individual, error, errorDetailsMap);
                    }
-                   //validate if aadhar already exists
-                   /*if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
-                       Identifier identifierSearch = Identifier.builder().identifierType(identifier.getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
-                       IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
-                       List<Individual> individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
-                       if (!CollectionUtils.isEmpty(individualsList)) {
-                           Error error = Error.builder().errorMessage("Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId()).errorCode("DUPLICATE_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("DUPLICATE_AADHAAR", "Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId())).build();
-                           populateErrorDetails(individual, error, errorDetailsMap);
-                       }
-                   }*/
                }
             }
 

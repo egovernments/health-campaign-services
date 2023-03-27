@@ -41,10 +41,7 @@ public class IndividualProperties {
     @Value("${mobile.pattern}")
     private String mobilePattern;
 
-    @Value("${public.key}")
-    private String publicKey;
-
-    @Value("${private.key}")
-    private String privateKey;
+    @Value(("${state.level.tenant.id}"))
+    private String stateLevelTenantId;
 
 }
