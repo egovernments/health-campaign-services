@@ -98,6 +98,7 @@ public class TarentoServiceImpl implements ClientService {
 			setDateRangeFilterForCurrentDay(request);
 		}
 
+
 		if (isCappedTillToday(chartNode)){
 			long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
 			long currentDateTimeInMillis = Calendar.getInstance().getTimeInMillis();

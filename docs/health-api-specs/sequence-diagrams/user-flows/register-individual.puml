@@ -1,0 +1,37 @@
+@startuml Individual Create
+!function $my_code($fgcolor, $bgcolor)
+!return "<color:"+$fgcolor+"><back:"+$bgcolor+"><size:14><b><font:monospaced>"
+!endfunction
+actor Actor
+participant Application as client
+participant "Individual Page" as individual
+participant Bloc
+participant Repository as repository
+participant Individual as individual_service
+participant Project as project_service
+participant Household as household_service
+
+Actor -> client: onInit
+group  Added New Individual
+    autoactivate on
+
+    client -> individual: Client Pushes View Individual Page with household id as path params.
+    hnote over Bloc : Registration Bloc.
+    individual -> Bloc: Oninit() trigger a function to fetch additional fields.
+    Bloc -> client :  get the stored schema data (Additional Fields) + Project details.
+    client --> individual: Additional Fields + Project details + household id.
+    individual -> Bloc: Enter all the required field details and submit.
+    Bloc -> repository : passing the tenant id and fields + household id
+    hnote over repository : Individual Repository.
+    repository -> individual_service : (/individual/v1/_create) by passing all the field details.
+    individual_service -->repository : Details of individual.
+    repository -[#red]>  project_service :  $my_code(red,white) (/project/beneficiary/v1/_create) create project beneficiary (if project type is for individual)
+project_service -[#red]-> repository :$my_code(red,white) Project beneficiary details as response.
+    repository -> household : (/household/member/v1/_create) add individual to household as member.
+    household -->repository :return household member as response.
+repository --> Bloc : individual details.
+Bloc --> individual : navigate the user to Delivery Screen.
+
+    autoactivate off
+end
+@enduml

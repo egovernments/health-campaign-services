@@ -1,0 +1,225 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Campaign Delivery Service
+  description: >
+    This module facilitates Delivery of campaign resources to registered beneficiaries.
+schemes:
+  - https
+basePath: /delivery
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  #########################################
+  /v1/_create:
+    post:
+      summary: Create a Delivery.
+      description: Creates Delivery On successful Delivery Ok response is returned.
+      parameters:
+        - name: createDeliveryRequest
+          in: "body"
+          description: Details of the Delivery and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CreateDeliveryRequest'
+      responses:
+        '200':
+          description: Delivery Request created successfully.
+          schema:
+            $ref: '#/definitions/DeliveryResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Delivery
+  /v1/_update:
+    post:
+      summary: Update A Delivery.
+      description: Update Delivery, Ok response is returned.
+      parameters:
+        - name: DeliveryUpdateRequest
+          in: "body"
+          description: Details of the Delivery and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/DeliveryUpdateRequestWithRequestInfo'
+      responses:
+        '200':
+          description: Updated Delivery successfully.
+          schema:
+            $ref: '#/definitions/DeliveryResponseWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Delivery
+  /v1/_search:
+    post:
+      summary: Search Delivery.
+      description: Search Delivery Ok response is returned.
+      parameters:
+        - name: deliverySearchCriteria
+          in: "body"
+          description: Search Criteria for Delivery and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/DeliverySearchCriteriaRequest'
+      responses:
+        '200':
+          description: Fetched Search Delivery.
+          schema:
+            $ref: '#/definitions/DeliverySearchResponse'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Delivery
+
+#########################################
+definitions:
+
+  CreateDeliveryRequest:
+    description: >-
+      The request object, containing all necessary information for creating an delivery and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      delivery:
+        $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/Delivery'
+    required:
+      - delivery
+
+  DeliveryResponse:
+    allOf:
+      - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/Delivery'
+      - type: object
+        properties:
+          deliveryId:
+            type: string
+            example: "UUID"
+
+  DeliveryResponseWithResponseInfo:
+    description: >-
+      The request object, containing all necessary information for creating an campaign and the request body metadata
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      delivery:
+        $ref: '#/definitions/DeliveryResponse'
+  DeliveryUpdateRequest:
+    allOf:
+      - $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/commons.yml#/definitions/Delivery'
+      - type: object
+        properties:
+          deliveryId:
+            type: string
+            example: "UUID"
+
+  Resource:
+    type: object
+    properties:
+      resourceId:
+        type: string
+        example: 'ID-1'
+      type:
+        type: string
+        example: 'BEDNET'
+      name:
+        type: string
+        example: 'LLIN'
+      quantityToBeDelivered:
+        type: integer
+        example: 100
+      quantityDelivered:
+        type: integer
+        example: 100
+      reasonIfNotDelivered:
+        type: string
+        example: ''
+      status:
+        type: string
+        example: 'DELIVERED'
+        enum:
+          - DELIVERED
+          - NOT_DELIVERED
+
+  DeliveryUpdateRequestWithRequestInfo:
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      delivery:
+        $ref: '#/definitions/DeliveryUpdateRequest'
+
+
+  DeliverySearchCriteriaRequest:
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      deliverySearchCriteria:
+        type: object
+        properties:
+          campaignId:
+            type: string
+            example: "UUID"
+          registrationId:
+            type: string
+            example: "ID"
+          deliveryDate:
+            type: integer
+            format: int64
+            example: 1663218161
+          clientReferenceId:
+            type: string
+            example: "GUID"
+          limit:
+            type: integer
+            example: 0
+          offset:
+            type: integer
+            example: 0
+
+  DeliverySearchResponse:
+    description: >-
+      The search response object.
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      totalCount:
+        type: integer
+        example: 0
+      deliveries:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/DeliveryResponse'
+    required:
+      - deliveries
+
+
+

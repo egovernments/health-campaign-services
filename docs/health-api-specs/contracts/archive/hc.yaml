@@ -1,0 +1,281 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Health Campaign Management System
+  contact:
+    name: Digit Health Campaign
+    email: info@egovernments.org
+host: phoenix-qa.egovernments.org
+
+schemes:
+  - https
+
+paths:
+
+
+
+
+  /project/supervision/v1/_create:
+    post:
+      summary: >-
+        Record a supervision activity performed against a campaign
+      description: >-
+        Record a supervision activity performed against a campaign
+      parameters:
+        - name: CampaignSupervision
+          in: body
+          description: Capture campaign supervision.
+          required: true
+          schema:
+            $ref: '#/definitions/CampaignSupervisionRequest'
+      tags:
+        - Campaign
+      responses:
+        '202':
+          description: Campaign Supervision has been accepted.
+          schema:
+            $ref: '#/definitions/CampaignSupervisionResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+
+parameters:
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  echoEntityInResponse:
+    name: echoEntityInResponse
+    in: query
+    type: boolean
+    required: false
+    default: true
+    description: Client can specify if the request body needs to be sent back in the response. Being used to limit amount of data that needs to flow back from the server in low bandwidth scenarios.
+  limit:
+    name: limit
+    description: Pagination - limit records in response
+    in: query
+    type: integer
+    required: false
+
+  offset:
+    name: offset
+    description: Pagination - offset from which records should be returned in response
+    in: query
+    type: integer
+    required: false
+
+definitions:
+
+  additionalFields:
+    type: object
+    properties:
+      schema:
+        type: string
+        example: 'HOUSEHOLD'
+      version:
+        type: integer
+        example: 2
+      fields:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/Field'
+  apiOperation:
+    type: string
+    description: Specify the type of operation being performed i.e. CREATE, UPDATE or DELETE
+    example: 'CREATE'
+    enum:
+      - CREATE
+      - UPDATE
+      - DELETE
+  Field:
+    type: object
+    properties:
+      key:
+        type: string
+        example: height
+      value:
+        type: string
+        example: 180
+
+  Resource:
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      type:
+        type: string
+        description: Define the type of resource
+        example: Bednets|Tablet
+      name:
+        type: string
+        description: Capture name of the resource
+        example: Paracetamol
+      unit:
+        type: string
+        example: 'BALE'
+        enum:
+          - BALE
+          - CARTONS
+          - VIALS
+
+
+  Address:
+    type: object
+    description: |
+      Representation of a address. Indiavidual APIs may choose to extend from this using allOf if more details needed to be added in their case.
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      doorNo:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: House number or door number
+      latitude:
+        type: number
+        format: double
+        description: latitude of the address
+      longitude:
+        type: number
+        format: double
+        description: longitude of the address
+      type:
+        type: string
+        description: Type of address.
+        items:
+          type: string
+          enum:
+            - PERMANENT
+            - CORRESPONDENCE
+      addressLine1:
+        description: Apartment, Block, Street of the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      addressLine2:
+        description: Locality, Area, Zone, Ward of the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      landmark:
+        description: additional landmark to help locate the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      city:
+        description: City of the address. Can be represented by the tenantid itself
+        type: string
+      pincode:
+        type: string
+        description: PIN code of the address. Indian pincodes will usually be all numbers.
+      buildingName:
+        type: string
+        description: Name of the building
+        maxLength: 64
+        minLength: 2
+      street:
+        type: string
+        description: Street Name
+        maxLength: 64
+        minLength: 2
+      locality: #TODO does this need to be an array since an entity could be associated with different hierarchies
+        $ref: 'https://raw.githubusercontent.com/egovernments/egov-services/master/docs/egov-location/contracts/v11-0-0.yml#/definitions/Boundary'
+  CampaignSupervision:
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      clientReferenceId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique client generated GUID
+      campaignBoundaryId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique ID from Campaign Boundary
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  #########################################
+
+  CampaignSupervisionRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      CampaignSupervision:
+        type: array
+        items:
+          $ref: '#/definitions/CampaignSupervision'
+      apiOperation:
+        type: string
+        $ref: '#/definitions/apiOperation'
+    required:
+      - RequestInfo
+      - CampaignSupervision
+
+  CampaignSupervisionResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      CampaignSupervision:
+        type: array
+        items:
+          $ref: '#/definitions/CampaignSupervision'
+    required:
+      - ResponseInfo
+
+  #########################################
+
+
+

@@ -1,0 +1,167 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Campaign Planning Service
+  description: >
+    This module facilitates Planning.
+schemes:
+  - https
+basePath: /planning
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  #########################################
+  /v1/_create:
+    post:
+      summary: Submit a Campaign Plan.
+      description: Submits a Planning Request Ok response is returned.
+      parameters:
+        - name: submitPlanRequest
+          in: "body"
+          description: Details of the Planning and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CreatePlanningRequest'
+      responses:
+        '200':
+          description: Plan created successfully.
+          schema:
+            $ref: '#/definitions/PlanSubmissionResponseeWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Planning
+
+  /template/v1/_create:
+    post:
+      summary: Create Campaign Plan Template.
+      description: Search Template Ok response is returned.
+      parameters:
+        - name: createTemplateRequest
+          in: "body"
+          description: Create Template for Planning and RequestInfo meta data.
+          required: true
+          schema:
+            $ref: '#/definitions/CreatePlanningTemplateRequest'
+      responses:
+        '200':
+          description: Template Created.
+          schema:
+            $ref: '#/definitions/PlanTemplateResponseeWithResponseInfo'
+        '400':
+          description: Bad request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+        '500':
+          description: Internal server error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ErrorRes
+      tags:
+        - Template
+
+#########################################
+definitions:
+  PlanningRequest:
+    type: object
+    properties:
+      tenantId:
+        type: string
+        description: tenantid for the tenant
+      url:
+        type: string
+        example: "https://fileserver.com/uuid"
+      level:
+        type: string
+        example: "province"
+      value:
+        type: string
+        example: "SOLIMBO"
+
+  CreatePlanningRequest:
+    description: >-
+      The request object, containing all necessary information for creating an planning request and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      planning:
+        $ref: '#/definitions/PlanningRequest'
+    required:
+      - planning
+
+  PlanSubmissionResponseeWithResponseInfo:
+    description: >-
+      The request object, containing all necessary information for creating an planning request and the request body metadata
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      planning:
+        type: object
+        properties:
+          tenantId:
+            type: string
+            description: tenantid for the tenant
+          completed:
+            type: integer
+            example: 12
+          failed:
+            type: integer
+            example: 1
+          errorRowsURL:
+            type: string
+            example: "https://fileserver.com/uuid"
+
+  PlanningTemplateRequest:
+    type: object
+    properties:
+      tenantId:
+        type: string
+        description: tenantid for the tenant
+      level:
+        type: string
+        example: "province"
+      value:
+        type: string
+        example: "SOLIMBO"
+
+  CreatePlanningTemplateRequest:
+    description: >-
+      The request object, containing all necessary information for creating an planning template request and the request body metadata
+    properties:
+      requestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/RequestInfo
+      planning:
+        $ref: '#/definitions/PlanningTemplateRequest'
+    required:
+      - planning
+
+  PlanTemplateResponseeWithResponseInfo:
+    description: >-
+      The request object, containing all necessary information for creating an planning template request and the request body metadata
+    properties:
+      responseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml#/definitions/ResponseInfo
+      planning:
+        type: object
+        properties:
+          tenantId:
+            type: string
+            description: tenantid for the tenant
+          templateUrl:
+            type: string
+            example: "https://fileserver.com/uuid"
+
+
