@@ -104,7 +104,7 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 //encrypt PII data
-                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt");
+                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt",isBulk);
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
             }
@@ -152,7 +152,7 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.update(validIndividuals, request);
                 //encrypt PII data
-                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt");
+                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt", isBulk);
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
             }
@@ -189,7 +189,7 @@ public class IndividualService {
             return (!encryptedIndividualList.isEmpty()) ? decryptIndividuals(encryptedIndividualList, requestInfo): encryptedIndividualList;
         }
         //encrypt search criteria
-        IndividualSearch encryptedIndividualSearch = (IndividualSearch) encryptIndividuals(null,individualSearch,"IndividualSearchEncrypt");
+        IndividualSearch encryptedIndividualSearch = (IndividualSearch) encryptIndividuals(null,individualSearch,"IndividualSearchEncrypt",false);
         encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                         lastChangedSince, includeDeleted).stream()
                 .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
@@ -261,7 +261,7 @@ public class IndividualService {
      * @param validIndividuals
      * @return
      */
-    private Object encryptIndividuals(List<Individual> validIndividuals, IndividualSearch individualSearch, String key) {
+    private Object encryptIndividuals(List<Individual> validIndividuals, IndividualSearch individualSearch, String key, boolean isBulk) {
         //encrypt
         Class classType;
         Object objectToEncrypt;
@@ -287,8 +287,8 @@ public class IndividualService {
            return (IndividualSearch) objectToEncrypt;
         }
 
-        // check if the aadhaar already exists
-        validateAadhaarUniqueness(encryptedIndividualList);
+        // check if the aadhaar already exists for create and update
+        validateAadhaarUniqueness(encryptedIndividualList,isBulk);
 
         return encryptedIndividualList;
     }
@@ -326,7 +326,7 @@ public class IndividualService {
      * validate if aadhar already exists
      * @param individuals
      */
-    private void validateAadhaarUniqueness (List<Individual> individuals) {
+    private void validateAadhaarUniqueness (List<Individual> individuals, boolean isBulk) {
 
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         String tenantId = getTenantId(individuals);
@@ -342,8 +342,12 @@ public class IndividualService {
                         IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
                         List<Individual> individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
                         if (!CollectionUtils.isEmpty(individualsList)) {
-                            Error error = Error.builder().errorMessage("Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId()).errorCode("DUPLICATE_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("DUPLICATE_AADHAAR", "Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId())).build();
-                            populateErrorDetails(individual, error, errorDetailsMap);
+                            boolean isSelfIdentifier = individualsList.stream()
+                                    .anyMatch(ind -> ind.getId().equalsIgnoreCase(individual.getId()));
+                            if (!isSelfIdentifier) {
+                                Error error = Error.builder().errorMessage("Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId()).errorCode("DUPLICATE_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("DUPLICATE_AADHAAR", "Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId())).build();
+                                populateErrorDetails(individual, error, errorDetailsMap);
+                            }
                         }
                     }
 
@@ -352,9 +356,11 @@ public class IndividualService {
         }
 
         if (!errorDetailsMap.isEmpty()) {
-            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+            log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
+            if (!isBulk) {
+                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+            }
         }
-
     }
 
 }
