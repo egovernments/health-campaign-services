@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 public class ProjectTaskIndexV1 {
     @JsonProperty("id")
     private String id;
+    @JsonProperty("taskId")
+    private String taskId;
     @JsonProperty("taskType")
     private String taskType;
     @JsonProperty("projectId")

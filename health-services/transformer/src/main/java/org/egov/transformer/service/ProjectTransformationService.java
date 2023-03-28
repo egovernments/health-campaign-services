@@ -94,7 +94,8 @@ public abstract class ProjectTransformationService implements TransformationServ
                         }
 
                         return ProjectIndexV1.builder()
-                                .id(project.getId())
+                                .id(r.getId())
+                                .projectId(project.getId())
                                 .overallTarget(targetNo)
                                 .targetPerDay(targetPerDay)
                                 .campaignDurationInDays(campaignDurationInDays)
