@@ -65,19 +65,6 @@ public class MetricChartResponseHandler implements IResponseHandler{
         JsonNode aggregationNode = aggregations.get(AGGREGATIONS);
         JsonNode chartNode = null;
 
-				// modifying the request dates if date range sent is other than campaign startDate and today's endDate
-				if(request.getChartNode().get(IS_CAPPED_TILL_TODAY)!=null && request.getChartNode().get(IS_CAPPED_TILL_TODAY).asBoolean()) {
-
-					// campaignStartDate expected in millis from frontend
-
-					long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
-
-					long currentDateTimeInMillis = Calendar.getInstance().getTimeInMillis();
-
-					request.getRequestDate().setStartDate(String.valueOf(campaignStartDateInMillis));
-					request.getRequestDate().setEndDate(String.valueOf(currentDateTimeInMillis));
-				}
-
         // Fetches the chart config
         if(request.getVisualizationCode().charAt(0) == insightPrefix) { 
         	String internalChartId = request.getVisualizationCode().substring(1);
