@@ -153,6 +153,8 @@ public class IndividualService {
                 enrichmentService.update(validIndividuals, request);
                 //encrypt PII data
                 encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt", isBulk);
+                //fetch identifier details if not present
+                fetchIdentifier(encryptedIndividualList);
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
             }
@@ -359,6 +361,26 @@ public class IndividualService {
             log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
             if (!isBulk) {
                 throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+            }
+        }
+    }
+
+    /**
+     * Fetch identifier for update
+     * @param individuals
+     */
+    private void fetchIdentifier(List<Individual> individuals) {
+        String tenantId = getTenantId(individuals);
+        if (!individuals.isEmpty()) {
+            for (Individual individual : individuals) {
+                if (individual.getIdentifiers() == null || individual.getIdentifiers().isEmpty()) {
+                    Identifier identifierSearch = Identifier.builder().individualId(individual.getId()).build();
+                    IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
+                    List<Individual> individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
+                    if (!individualsList.isEmpty()) {
+                        individual.setIdentifiers(individualsList.get(0).getIdentifiers());
+                    }
+                }
             }
         }
     }
