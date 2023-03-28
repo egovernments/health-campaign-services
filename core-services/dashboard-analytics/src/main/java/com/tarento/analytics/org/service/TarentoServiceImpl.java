@@ -1,5 +1,6 @@
 package com.tarento.analytics.org.service;
 
+import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_TILL_TODAY;
 import com.tarento.analytics.constant.Constants.Interval;
 import java.io.IOException;
 import java.util.Calendar;
@@ -97,6 +98,13 @@ public class TarentoServiceImpl implements ClientService {
 			setDateRangeFilterForCurrentDay(request);
 		}
 
+		if (isCappedTillToday(request)){
+			long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
+			long currentDateTimeInMillis = Calendar.getInstance().getTimeInMillis();
+			request.getRequestDate().setStartDate(String.valueOf(campaignStartDateInMillis));
+			request.getRequestDate().setEndDate(String.valueOf(currentDateTimeInMillis));
+		}
+
 		executeConfiguredQueries(chartNode, aggrObjectNode, nodes, request, interval);
 		request.setChartNode(chartNode);
 		ResponseRecorder responseRecorder = new ResponseRecorder();
@@ -130,6 +138,12 @@ public class TarentoServiceImpl implements ClientService {
 		}
 
 		return aggregateDto;
+	}
+
+
+	private boolean isCappedTillToday(AggregateRequestDto request){
+		return request.getChartNode().get(IS_CAPPED_TILL_TODAY) != null && request.getChartNode()
+				.get(IS_CAPPED_TILL_TODAY).asBoolean();
 	}
 
 	/**
