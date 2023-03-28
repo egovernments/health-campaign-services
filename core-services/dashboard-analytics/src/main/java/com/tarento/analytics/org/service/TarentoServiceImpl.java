@@ -98,7 +98,8 @@ public class TarentoServiceImpl implements ClientService {
 			setDateRangeFilterForCurrentDay(request);
 		}
 
-		if (isCappedTillToday(request)){
+
+		if (isCappedTillToday(chartNode)){
 			long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
 			long currentDateTimeInMillis = Calendar.getInstance().getTimeInMillis();
 			request.getRequestDate().setStartDate(String.valueOf(campaignStartDateInMillis));
@@ -141,9 +142,9 @@ public class TarentoServiceImpl implements ClientService {
 	}
 
 
-	private boolean isCappedTillToday(AggregateRequestDto request){
-		return request.getChartNode().get(IS_CAPPED_TILL_TODAY) != null && request.getChartNode()
-				.get(IS_CAPPED_TILL_TODAY).asBoolean();
+	private boolean isCappedTillToday(ObjectNode chartNode) {
+		return chartNode.has(IS_CAPPED_TILL_TODAY)
+				&& chartNode.get(IS_CAPPED_TILL_TODAY).asBoolean();
 	}
 
 	/**
