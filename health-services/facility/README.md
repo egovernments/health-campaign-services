@@ -5,9 +5,9 @@ Facility registry is a Health Campaign Service that facilitate warehouse on the 
 
 ### DB UML Diagram
 
-[//]: # (<img src="/Users/menkagorakhapuriya/Documents/Health campaign/health-campaign-services/health-services/facility/facility-uml-diagram.png"/>)
+##<img width="541" alt="Screenshot 2023-03-29 at 2 23 24 PM" src="https://user-images.githubusercontent.com/123379163/228481126-e55c4d15-196c-4991-83cf-dffd10d1edc2.png">
 
-### Service Dependencies
+# Service Dependencies
 - Idgen Service
 
 ### Swagger API Contract
