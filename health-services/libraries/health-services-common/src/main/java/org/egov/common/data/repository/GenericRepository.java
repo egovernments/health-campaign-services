@@ -64,12 +64,15 @@ public abstract class GenericRepository<T> {
         ArrayList<T> objFound = new ArrayList<>();
         Collection<Object> collection = ids.stream().filter(Objects::nonNull)
                 .collect(Collectors.toList());
+        log.info("Searching in cache");
         List<Object> objFromCache = redisTemplate.opsForHash()
                 .multiGet(tableName, collection).stream().filter(Objects::nonNull).collect(Collectors.toList());
         if (!objFromCache.isEmpty()) {
             log.info("Cache hit");
             objFound = (ArrayList<T>) objFromCache.stream().map(Object.class::cast)
                     .collect(Collectors.toList());
+        } else {
+            log.info("Cache miss");
         }
         return objFound;
     }
@@ -112,6 +115,7 @@ public abstract class GenericRepository<T> {
         producer.push(topic, objects);
         log.info("Pushed to kafka");
         putInCache(objects);
+        log.info("Saved to cache");
         return objects;
     }
 
@@ -119,6 +123,7 @@ public abstract class GenericRepository<T> {
         producer.push(topic, objects);
         log.info("Pushed to kafka");
         putInCache(objects, cacheKey);
+        log.info("Saved to cache");
         return objects;
     }
 
@@ -128,7 +133,12 @@ public abstract class GenericRepository<T> {
             if (ReflectionUtils.invokeMethod(getIdMethod, objects.stream().findAny().get()) != null) {
                 Map<String, T> objMap = objects.stream()
                         .collect(Collectors
-                                .toMap(obj -> (String) ReflectionUtils.invokeMethod(getIdMethod, obj),
+                                .toMap(obj -> {
+                                            String str =  (String) ReflectionUtils.invokeMethod(getIdMethod, obj);
+                                            log.info("Caching the {}: {}", getIdMethod.getName(), str);
+                                            return str;
+                                        }
+                                        ,
                                         obj -> obj,
                                         // in case of duplicates pick the latter
                                         (obj1, obj2) -> obj2));
@@ -145,8 +155,8 @@ public abstract class GenericRepository<T> {
             return;
         }
 
-        cacheByKey(objects, "id");
         cacheByKey(objects, "clientReferenceId");
+        // cacheByKey(objects, "id");
     }
 
     public void putInCache(List<T> objects, String key) {
