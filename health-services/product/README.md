@@ -5,7 +5,8 @@ Product registry is a Health Campaign Service that facilitates maintenance of a 
 
 ### DB UML Diagram
 
-[//]: # (<img src="/Users/menkagorakhapuriya/Documents/Health campaign/health-campaign-services/health-services/product/product-uml-diagram.png"/>)
+<img width="552" alt="Screenshot 2023-03-29 at 2 43 14 PM" src="https://user-images.githubusercontent.com/123379163/228486455-cfa9ebf0-defe-4f47-a568-4db6fe0684c7.png">
+
 
 ### Service Dependencies
 - Idgen Service
