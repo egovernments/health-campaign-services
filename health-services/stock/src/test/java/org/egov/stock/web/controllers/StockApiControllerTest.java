@@ -1,6 +1,9 @@
 package org.egov.stock.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.stock.StockBulkRequest;
+import org.egov.common.models.stock.StockRequest;
+import org.egov.common.models.stock.StockResponse;
 import org.egov.common.producer.Producer;
 import org.egov.stock.TestConfiguration;
 import org.egov.stock.config.StockConfiguration;
@@ -9,9 +12,6 @@ import org.egov.stock.helper.StockRequestTestBuilder;
 import org.egov.stock.helper.StockTestBuilder;
 import org.egov.stock.service.StockReconciliationService;
 import org.egov.stock.service.StockService;
-import org.egov.stock.web.models.StockBulkRequest;
-import org.egov.stock.web.models.StockRequest;
-import org.egov.stock.web.models.StockResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

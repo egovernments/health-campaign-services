@@ -1,0 +1,786 @@
+swagger: '2.0'
+info:
+  version: 1.0.1
+  title: Household Registry
+  description: >
+    This module facilitates maintenance of a household registry.
+  contact:
+    name: Digit
+    email: info@egovernments.org
+schemes:
+  - https
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  /household/v1/_create:
+    post:
+      summary: >-
+        Create/Add a new household
+      description: >-
+        Create a new household
+      parameters:
+        - name: Household
+          in: body
+          description: Capture details of Household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/HouseholdResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/v1/bulk/_create:
+    post:
+      summary: >-
+        Create/Add new households in bulk
+      description: >-
+        Create a new household in bulk
+      parameters:
+        - name: Household
+          in: body
+          description: Capture details of Household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /household/v1/_update:
+    post:
+      summary: >-
+        Update the details of a existing household
+      description: >-
+        Update the details of a existing household
+      parameters:
+        - name: Household
+          in: body
+          description: Details for existing household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/HouseholdResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/v1/bulk/_update:
+    post:
+      summary: >-
+        Update the details of a existing household in bulk
+      description: >-
+        Update the details of a existing household in bulk
+      parameters:
+        - name: Household
+          in: body
+          description: Details for existing household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/v1/_delete:
+    post:
+      summary: >-
+        Soft delete the details of a existing household
+      description: >-
+        Soft delete the details of a existing household
+      parameters:
+        - name: Household
+          in: body
+          description: Details for the household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/HouseholdRequest'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete the details of an existing households in bulk
+      description: >-
+        Soft delete the details of an existing households in bulk
+      parameters:
+        - name: Household
+          in: body
+          description: Details for the Household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/v1/_search:
+    post:
+      summary: >-
+        Search existing household
+      description: >-
+        Search existing household
+      parameters:
+        - name: Household
+          in: body
+          description: Details for existing household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Household
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/HouseholdBulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/member/v1/_create:
+    post:
+      summary: >-
+        Add a new household member
+      description: >-
+        Add a new member to household
+      parameters:
+        - name: HouseholdMember
+          in: body
+          description: Capture linkage of Household to Member.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdMemberRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household Member
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/HouseholdMemberResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/member/v1/bulk/_create:
+    post:
+      summary: >-
+        Add new household members in bulk
+      description: >-
+        Add new members to household in bulk
+      parameters:
+        - name: HouseholdMember
+          in: body
+          description: Capture linkage of Household to Member.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdMemberBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household Member
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/member/v1/_update:
+    post:
+      summary: >-
+        Update the linkage details of an existing household member
+      description: >-
+        Update the linkage details of an existing household member
+      parameters:
+        - name: HouseholdMember
+          in: body
+          description: Linkage details for existing household member.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdMemberRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household Member
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/HouseholdResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/member/v1/bulk/_update:
+    post:
+      summary: >-
+        Update the linkage details of an existing household members in bulk
+      description: >-
+        Update the linkage details of an existing household members in bulk
+      parameters:
+        - name: HouseholdMember
+          in: body
+          description: Linkage details for existing household members.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdMemberBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household Member
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/member/v1/_delete:
+    post:
+      summary: >-
+        Soft delete the linking of existing household member household
+      description: >-
+        Soft delete the linking of an existing household member from a household
+      parameters:
+        - name: HouseholdMember
+          in: body
+          description: Details for the household member.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdMemberRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household Member
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/HouseholdMemberResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/member/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete the linking of existing household members in bulk from a household
+      description: >-
+        Soft delete the linking of an existing households in bulk from a household
+      parameters:
+        - name: Household
+          in: body
+          description: Details for the Household.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdMemberBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Household Member
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/BulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /household/member/v1/_search:
+    post:
+      summary: >-
+        Search existing household member
+      description: >-
+        Search existing household member
+      parameters:
+        - name: HouseholdMember
+          in: body
+          description: Details for existing household member.
+          required: true
+          schema:
+            $ref: '#/definitions/HouseholdMemberSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Household Member
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/HouseholdMemberBulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+
+parameters:
+  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  echoResource:
+    name: echoResource
+    in: query
+    type: boolean
+    required: false
+    default: true
+    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
+
+  serverHandlesErrors:
+    name: serverHandlesErrors
+    in: query
+    type: boolean
+    required: false
+    default: false
+    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
+
+  limit:
+    name: limit
+    description: Pagination - limit records in response
+    in: query
+    type: integer
+    minimum: 0
+    maximum: 1000 #TODO review
+    required: true
+
+  offset:
+    name: offset
+    description: Pagination - offset from which records should be returned in response
+    in: query
+    type: integer
+    minimum: 0
+    required: true
+
+  includeDeleted:
+    name: includeDeleted
+    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+definitions:
+  boundaryCode:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
+  id:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
+  idForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
+  clientReferenceId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceId'
+  clientReferenceIdForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceIdForSearch'
+  tenantId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
+  eventTimestamp:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
+  isDeleted:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
+  rowVersion:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
+  additionalFields:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
+  Address:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
+
+  memberCount:
+    type: integer
+    example: 4
+    minimum: 0
+    maximum: 1000
+    description: Total no of individuals in a household. Could be different from the count of members as all members may not be enumerated individually.
+
+  Household:
+    description: A representation of Household.
+    type: object
+    required:
+      - memberCount
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      memberCount:
+        $ref: '#/definitions/memberCount'
+      address:
+        $ref: '#/definitions/Address'
+      #      members:
+      #        type: array
+      #        items:
+      #          $ref: '#/definitions/HouseholdMember'
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: 'https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails'
+
+  HouseholdSearch:
+    description: A representation of Household.
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      boundaryCode:
+        $ref: '#/definitions/boundaryCode'
+
+  HouseholdMember:
+    description: A representation of a household member (already registered as an individual)
+    type: object
+    required:
+      - householdId
+      - individualId
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      householdId:
+        $ref: '#/definitions/id'
+      householdClientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      individualId:
+        $ref: '#/definitions/id'
+      individualClientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      isHeadOfHousehold:
+        type: boolean
+        default: false
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  HouseholdMemberSearch:
+    description: Search model for household member
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      householdId:
+        $ref: '#/definitions/id'
+      householdClientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      individualId:
+        $ref: '#/definitions/id'
+      individualClientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      isHeadOfHousehold:
+        type: boolean
+
+  HouseholdRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Household:
+        type: object
+        $ref: '#/definitions/Household'
+    required:
+      - RequestInfo
+      - Household
+
+  HouseholdBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Households:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/Household'
+    required:
+      - RequestInfo
+      - Household
+
+  HouseholdSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Household:
+        $ref: '#/definitions/HouseholdSearch'
+    required:
+      - RequestInfo
+      - Household
+
+  HouseholdResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Household:
+        type: object
+        $ref: '#/definitions/Household'
+    required:
+      - ResponseInfo
+
+  HouseholdBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Households:
+        type: array
+        items:
+          $ref: '#/definitions/Household'
+    required:
+      - ResponseInfo
+
+  HouseholdMemberRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      HouseholdMember:
+        type: object
+        $ref: '#/definitions/HouseholdMember'
+    required:
+      - RequestInfo
+
+  HouseholdMemberBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      HouseholdMembers:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/HouseholdMember'
+    required:
+      - RequestInfo
+
+  BulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+    required:
+      - ResponseInfo
+
+  HouseholdMemberSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      HouseholdMember:
+        $ref: '#/definitions/HouseholdMemberSearch'
+    required:
+      - RequestInfo
+      - HouseholdMember
+
+  HouseholdMemberResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      HouseholdMember:
+        type: object
+        $ref: '#/definitions/HouseholdMember'
+    required:
+      - ResponseInfo
+
+  HouseholdMemberBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      HouseholdMembers:
+        type: array
+        items:
+          $ref: '#/definitions/HouseholdMember'
+    required:
+      - ResponseInfo

@@ -2,13 +2,13 @@ package org.egov.individual.repository;
 
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.Individual;
 import org.egov.individual.helper.IndividualSearchTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
-import org.egov.individual.web.models.Identifier;
-import org.egov.individual.web.models.Individual;
 import org.egov.individual.web.models.IndividualSearch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

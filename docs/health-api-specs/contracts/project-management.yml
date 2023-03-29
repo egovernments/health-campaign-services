@@ -1,0 +1,29 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Project Management System
+  contact:
+    name: egovernments foundation
+    email: info@egovernments.org
+schemes:
+  - https
+#Specs have been separated per service
+#Individual
+#https://editor.swagger.io/?url=https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/registries/individual.yml
+#
+#Household
+#https://editor.swagger.io/?url=https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/registries/household.yml
+#
+#Product
+#https://editor.swagger.io/?url=https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/registries/product.yml
+#
+#Facility
+#https://editor.swagger.io/?url=https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/registries/facility.yml
+#
+#Project
+#https://editor.swagger.io/?url=https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/project.yml
+#
+#Stock
+#https://editor.swagger.io/?url=https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/stock.yml
+paths:
+  

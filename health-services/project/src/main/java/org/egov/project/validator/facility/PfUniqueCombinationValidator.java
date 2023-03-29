@@ -2,10 +2,10 @@ package org.egov.project.validator.facility;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.project.ProjectFacility;
+import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectFacilityRepository;
-import org.egov.project.web.models.ProjectFacility;
-import org.egov.project.web.models.ProjectFacilityBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -54,6 +54,8 @@ public class PfUniqueCombinationValidator implements Validator<ProjectFacilityBu
 
     private void validateProjectFacilityMappingFromDb(List<ProjectFacility> validEntities,
                                                       Map<ProjectFacility, List<Error>> errorDetailsMap) {
+        log.info("validating mapping from db");
+        log.info("validating {} valid entities", validEntities.size());
         List<String> projectIds = validEntities.stream().map(ProjectFacility::getProjectId)
                 .collect(Collectors.toList());
 
@@ -75,6 +77,8 @@ public class PfUniqueCombinationValidator implements Validator<ProjectFacilityBu
 
     private void validateProjectFacilityMappingFromRequest(List<ProjectFacility> validEntities,
                                                            Map<ProjectFacility, List<Error>> errorDetailsMap) {
+        log.info("validating mapping from request");
+        log.info("validating {} valid entities", validEntities.size());
         Map<String, ProjectFacility> map = getMap(validEntities);
         if (map.keySet().size() != validEntities.size()) {
             List<String> duplicates = map.keySet().stream().filter(id ->

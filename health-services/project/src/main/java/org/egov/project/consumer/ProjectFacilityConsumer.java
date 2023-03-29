@@ -2,9 +2,9 @@ package org.egov.project.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.ProjectFacility;
+import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.project.service.ProjectFacilityService;
-import org.egov.project.web.models.ProjectFacility;
-import org.egov.project.web.models.ProjectFacilityBulkRequest;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -53,7 +53,7 @@ public class ProjectFacilityConsumer {
 
     @KafkaListener(topics = "${project.facility.consumer.bulk.delete.topic}")
     public List<ProjectFacility> bulkDelete(Map<String, Object> consumerRecord,
-                                               @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+                                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             ProjectFacilityBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectFacilityBulkRequest.class);
             return service.delete(request, true);

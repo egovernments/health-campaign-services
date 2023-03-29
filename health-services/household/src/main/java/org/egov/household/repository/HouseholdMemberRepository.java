@@ -3,9 +3,9 @@ package org.egov.household.repository;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.producer.Producer;
 import org.egov.household.repository.rowmapper.HouseholdMemberRowMapper;
-import org.egov.household.web.models.HouseholdMember;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -35,8 +35,9 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
     }
 
     public List<HouseholdMember> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<HouseholdMember> objFound;
-        objFound = findInCache(ids);
+        List<HouseholdMember> objFound = findInCache(ids).stream()
+                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
+                .collect(Collectors.toList());
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()

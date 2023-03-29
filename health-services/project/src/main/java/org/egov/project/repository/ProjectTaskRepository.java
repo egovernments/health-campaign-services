@@ -6,17 +6,19 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskResource;
+import org.egov.common.models.project.TaskSearch;
 import org.egov.common.producer.Producer;
 import org.egov.project.repository.rowmapper.ProjectTaskRowMapper;
 import org.egov.project.repository.rowmapper.TaskResourceRowMapper;
-import org.egov.project.web.models.Task;
-import org.egov.project.web.models.TaskResource;
-import org.egov.project.web.models.TaskSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdList;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
@@ -48,6 +51,7 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
                 QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "pt.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "pt.clientReferenceId IN (:clientReferenceId)");
 
         query = query + " and pt.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {
@@ -94,14 +98,17 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
     }
 
     public List<Task> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Task> objFound;
-        Map<Object, Object> redisMap = this.redisTemplate.opsForHash().entries(tableName);
-        List<String> foundInCache = ids.stream().filter(redisMap::containsKey).collect(Collectors.toList());
-        objFound = foundInCache.stream().map(id -> (Task)redisMap.get(id)).collect(Collectors.toList());
-        log.info("Cache hit: {}", !objFound.isEmpty());
-        ids.removeAll(foundInCache);
-        if (ids.isEmpty()) {
-            return objFound;
+        List<Task> objFound = findInCache(ids).stream()
+                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
+                .collect(Collectors.toList());
+        if (!objFound.isEmpty()) {
+            Method idMethod = getIdMethod(objFound, columnName);
+            ids.removeAll(objFound.stream()
+                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+                    .collect(Collectors.toList()));
+            if (ids.isEmpty()) {
+                return objFound;
+            }
         }
 
         String query = String.format("SELECT * FROM project_task pt LEFT JOIN address a ON pt.addressid = a.id WHERE pt.%s IN (:ids) AND isDeleted = false", columnName);

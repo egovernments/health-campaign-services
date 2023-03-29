@@ -3,9 +3,9 @@ package org.egov.project.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.ProjectResource;
+import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.project.service.ProjectResourceService;
-import org.egov.project.web.models.ProjectResource;
-import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;

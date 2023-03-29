@@ -2,10 +2,10 @@ package org.egov.individual.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -32,6 +32,7 @@ import static org.egov.individual.Constants.GET_ADDRESS;
 import static org.egov.individual.Constants.GET_ID;
 import static org.egov.individual.Constants.GET_IDENTIFIERS;
 import static org.egov.individual.Constants.GET_SKILLS;
+
 
 @Component
 @Order(value = 4)

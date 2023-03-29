@@ -1,6 +1,9 @@
 package org.egov.stock.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
+import org.egov.common.models.stock.StockReconciliationRequest;
+import org.egov.common.models.stock.StockReconciliationResponse;
 import org.egov.common.producer.Producer;
 import org.egov.stock.TestConfiguration;
 import org.egov.stock.config.StockReconciliationConfiguration;
@@ -8,9 +11,6 @@ import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationTestBuilder;
 import org.egov.stock.service.StockReconciliationService;
-import org.egov.stock.web.models.StockReconciliationBulkRequest;
-import org.egov.stock.web.models.StockReconciliationRequest;
-import org.egov.stock.web.models.StockReconciliationResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

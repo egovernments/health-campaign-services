@@ -1,7 +1,7 @@
 package org.egov.project.repository.rowmapper;
 
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.Project;
+import org.egov.common.models.project.Project;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 

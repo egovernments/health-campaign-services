@@ -1,8 +1,9 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.project.web.models.ProjectProductVariant;
-import org.egov.project.web.models.ProjectResource;
+import org.egov.common.models.project.ProjectProductVariant;
+import org.egov.common.models.project.ProjectResource;
+
 
 public class ProjectResourceTestBuilder {
 

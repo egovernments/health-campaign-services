@@ -1,5 +1,6 @@
 package org.egov.project.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+    @JsonIgnoreProperties(ignoreUnknown = true)
 @Table(name="project_beneficiary")
 public class ProjectBeneficiarySearch {
 

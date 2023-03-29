@@ -3,8 +3,8 @@ package org.egov.stock.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.stock.web.models.AdditionalFields;
-import org.egov.stock.web.models.StockReconciliation;
+import org.egov.common.models.stock.AdditionalFields;
+import org.egov.common.models.stock.StockReconciliation;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +27,7 @@ public class StockReconciliationRowMapper implements RowMapper<StockReconciliati
                     .id(resultSet.getString("id"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .tenantId(resultSet.getString("tenantId"))
-                    .dateOfReconciliation(resultSet.getInt("dateOfReconciliation"))
+                    .dateOfReconciliation(resultSet.getLong("dateOfReconciliation"))
                     .facilityId(resultSet.getString("facilityId"))
                     .calculatedCount(resultSet.getInt("calculatedCount"))
                     .commentsOnReconciliation(resultSet.getString("commentsOnReconciliation"))

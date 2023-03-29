@@ -4,6 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.project.Document;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectRequest;
+import org.egov.common.models.project.Target;
 import org.egov.common.producer.Producer;
 import org.egov.project.repository.querybuilder.DocumentQueryBuilder;
 import org.egov.project.repository.querybuilder.ProjectAddressQueryBuilder;
@@ -12,10 +16,6 @@ import org.egov.project.repository.rowmapper.DocumentRowMapper;
 import org.egov.project.repository.rowmapper.ProjectAddressRowMapper;
 import org.egov.project.repository.rowmapper.ProjectRowMapper;
 import org.egov.project.repository.rowmapper.TargetRowMapper;
-import org.egov.project.web.models.Document;
-import org.egov.project.web.models.Project;
-import org.egov.project.web.models.ProjectRequest;
-import org.egov.project.web.models.Target;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -144,7 +144,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Separates preceding project ids from project hierarchy, adds them in list and fetches data using those project ids */
     private List<Project> getProjectAncestors(List<Project> projects) {
         List<String> ancestorIds = new ArrayList<>();
-        List<Project> ancestors = null;
+        List<Project> ancestors = new ArrayList<>();
 
         // Get project Id of ancestor projects from project Hierarchy
         for (Project project: projects) {
@@ -188,6 +188,8 @@ public class ProjectRepository extends GenericRepository<Project> {
             if (ancestors != null && StringUtils.isNotBlank(project.getParent())) {
                 log.info("Adding ancestors to project " + project.getId());
                 addAncestorsToProjectSearchResult(project, ancestors, targets, documents);
+            } else {
+                project.setAncestors(ancestors);
             }
             if (descendants != null) {
                 log.info("Adding descendants to project " + project.getId());

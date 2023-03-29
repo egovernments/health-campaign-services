@@ -1,9 +1,9 @@
 package org.egov.project.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.project.ProjectFacility;
 import org.egov.project.helper.ProjectFacilityTestBuilder;
 import org.egov.project.repository.ProjectFacilityRepository;
-import org.egov.project.web.models.ProjectFacility;
 import org.egov.project.web.models.ProjectFacilitySearch;
 import org.egov.project.web.models.ProjectFacilitySearchRequest;
 import org.junit.jupiter.api.BeforeEach;

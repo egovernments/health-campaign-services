@@ -1,0 +1,805 @@
+swagger: '2.0'
+info:
+  version: 1.0.1
+  title: Stock Service
+  description: >
+    This module facilitates operations on Stock.
+  contact:
+    name: Digit
+    email: info@egovernments.org
+schemes:
+  - https
+
+paths:
+  /stock/v1/_create:
+    post:
+      summary: >-
+        Create/Add a new record for transfer of product variant stock
+      description: >-
+        Create/Add a new record for transfer of product variant stock
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of stock transaction.
+          required: true
+          schema:
+            $ref: '#/definitions/StockRequest'
+      tags:
+        - Stock
+      responses:
+        '202':
+          description: Stock Transaction request has been accepted.
+          schema:
+            $ref: '#/definitions/StockResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/v1/bulk/_create:
+    post:
+      summary: >-
+        Create/Add a new record for transfer of product variant stock in bulk
+      description: >-
+        Create/Add a new record for transfer of product variant stock in bulk
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of stock transaction.
+          required: true
+          schema:
+            $ref: '#/definitions/StockBulkRequest'
+      tags:
+        - Stock
+      responses:
+        '202':
+          description: Stock Transaction request has been accepted.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/v1/_update:
+    post:
+      summary: >-
+        Update record for transfer of a stock transaction
+      description: >-
+        Update record for transfer of a stock transaction
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockRequest'
+      tags:
+        - Stock
+      responses:
+        '202':
+          description: Stock Transaction request has been accepted.
+          schema:
+            $ref: '#/definitions/StockResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/v1/bulk/_update:
+    post:
+      summary: >-
+        Update records for transfer of a stock transaction in bulk
+      description: >-
+        Update records for transfer of a stock transaction in bulk
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockBulkRequest'
+      tags:
+        - Stock
+      responses:
+        '202':
+          description: Stock Transaction request has been accepted.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/v1/_delete:
+    post:
+      summary: >-
+        Soft delete record for transfer of a stock transaction
+      description: >-
+        Soft delete record for transfer of a stock transaction
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockRequest'
+      tags:
+        - Stock
+      responses:
+        '202':
+          description: Stock Transaction delete request has been accepted.
+          schema:
+            $ref: '#/definitions/StockResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete records for transfer of a stock transaction
+      description: >-
+        Soft delete records for transfer of a stock transaction
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockBulkRequest'
+      tags:
+        - Stock
+      responses:
+        '202':
+          description: Stock Transaction delete request has been accepted.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/v1/_search:
+    post:
+      summary: >-
+        Search for stock transaction
+      description: >-
+        Search for stock transaction
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of Stock Transfer.
+          required: true
+          schema:
+            $ref: '#/definitions/StockSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Stock
+      responses:
+        '200':
+          description: Stock transfer.
+          schema:
+            $ref: '#/definitions/StockBulkResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/reconciliation/v1/_create:
+    post:
+      summary: >-
+        Create/Add a new stock reconciliation record for a product variant
+      description: >-
+        Create/Add a new stock reconciliation record for a product variant
+      parameters:
+        - name: StockReconciliation
+          in: body
+          description: Capture details of stock transaction.
+          required: true
+          schema:
+            $ref: '#/definitions/StockReconciliationRequest'
+      tags:
+        - Stock Reconciliation
+      responses:
+        '202':
+          description: Accepted.
+          schema:
+            $ref: '#/definitions/StockReconciliationResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /stock/reconciliation/v1/bulk/_create:
+    post:
+      summary: >-
+        Create/Add a new stock reconciliation record for a product variant in bulk
+      description: >-
+        Create/Add a new stock reconciliation record for a product variant in bulk
+      parameters:
+        - name: StockReconciliation
+          in: body
+          description: Capture details of stock transaction.
+          required: true
+          schema:
+            $ref: '#/definitions/StockReconciliationBulkRequest'
+      tags:
+        - Stock Reconciliation
+      responses:
+        '202':
+          description: Accepted.
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/reconciliation/v1/_update:
+    post:
+      summary: >-
+        Update stock reconciliation record
+      description: >-
+        Update stock reconciliation record
+      parameters:
+        - name: StockReconciliation
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockReconciliationRequest'
+      tags:
+        - Stock Reconciliation
+      responses:
+        '202':
+          description: Stock Reconciliation request has been accepted.
+          schema:
+            $ref: '#/definitions/StockReconciliationResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/reconciliation/v1/bulk/_update:
+    post:
+      summary: >-
+        Update stock reconciliation records
+      description: >-
+        Update stock reconciliation records
+      parameters:
+        - name: StockReconciliation
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockReconciliationBulkRequest'
+      tags:
+        - Stock Reconciliation
+      responses:
+        '202':
+          description: Stock Reconciliation request has been accepted.
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/reconciliation/v1/_delete:
+    post:
+      summary: >-
+        Soft delete stock reconciliation record
+      description: >-
+        Soft delete stock reconciliation record
+      parameters:
+        - name: StockReconciliation
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockReconciliationRequest'
+      tags:
+        - Stock Reconciliation
+      responses:
+        '202':
+          description: Stock Reconciliation delete request has been accepted.
+          schema:
+            $ref: '#/definitions/StockReconciliationResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /stock/reconciliation/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete stock reconciliation records
+      description: >-
+        Soft delete stock reconciliation records
+      parameters:
+        - name: StockReconciliation
+          in: body
+          description: Capture details of stock transaction
+          required: true
+          schema:
+            $ref: '#/definitions/StockReconciliationBulkRequest'
+      tags:
+        - Stock Reconciliation
+      responses:
+        '202':
+          description: Stock Reconciliation delete request has been accepted.
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /stock/reconciliation/v1/_search:
+    post:
+      summary: >-
+        Search for stock reconciliation record
+      description: >-
+        Search for stock reconciliation record
+      parameters:
+        - name: Stock
+          in: body
+          description: Capture details of Stock Reconciliation.
+          required: true
+          schema:
+            $ref: '#/definitions/StockReconciliationSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Stock Reconciliation
+      responses:
+        '200':
+          description: Stock reconciliations.
+          schema:
+            $ref: '#/definitions/StockReconciliationBulkResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+parameters:
+  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  echoResource:
+    name: echoResource
+    in: query
+    type: boolean
+    required: false
+    default: true
+    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
+
+  serverHandlesErrors:
+    name: serverHandlesErrors
+    in: query
+    type: boolean
+    required: false
+    default: false
+    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
+
+  limit:
+    name: limit
+    description: Pagination - limit records in response
+    in: query
+    type: integer
+    minimum: 0
+    maximum: 1000 #TODO review
+    required: true
+
+  offset:
+    name: offset
+    description: Pagination - offset from which records should be returned in response
+    in: query
+    type: integer
+    minimum: 0
+    required: true
+
+  includeDeleted:
+    name: includeDeleted
+    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+definitions:
+  id:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
+  idForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
+  clientReferenceId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceId'
+  clientReferenceIdForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceIdForSearch'
+  boundaryCode:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
+  tenantId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
+  eventTimestamp:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
+  isDeleted:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
+  rowVersion:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
+  additionalFields:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
+  Address:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
+
+  facilityId:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Id of the facility where stock of the product variant are being transferred
+    example: 'FacilityA'
+  productVariantId:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Product variant that is being transferred
+  quantity:
+    type: integer
+    format: int64
+    description: Number/Quantity/Count of units of the product variant that are being transacted
+  referenceId:
+    type: string
+    example: "C-1"
+    description: Reference entity for which the stock transfer is occuring
+  referenceIdType:
+    type: string
+    example: "PROJECT"
+    minLength: 2
+    maxLength: 64
+    description: Entity type that referenceId refers to
+  transactionType:
+    type: string
+    minLength: 2
+    maxLength: 64
+    enum:
+      - RECEIVED
+      - DISPATCHED
+  transactionReason:
+    type: string
+    minLength: 2
+    maxLength: 64
+    enum:
+      - RECEIVED
+      - RETURNED
+      - LOST_IN_STORAGE
+      - LOST_IN_TRANSIT
+      - DAMAGED_IN_STORAGE
+      - DAMAGED_IN_TRANSIT
+  wayBillNumber:
+    type: string
+    minLength: 2
+    maxLength: 200
+    description: Receipt number of the bill
+  transactingPartyId:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Id of the party from/to which the product variant stock is being transferred
+  transactingPartyType:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Type of entity that transactingPartyId refers to
+    example: 'WAREHOUSE'
+  physicalCount:
+    type: integer
+    format: int64
+    description: Count of units of the product variant as a result of a physical count
+  calculatedCount:
+    type: integer
+    format: int64
+    description: Count of units of the product variant calculated from stock movements
+
+
+
+  Stock:
+    type: object
+    required:
+      - tenantId
+      - facilityId
+      - productVariantId
+      - quantity
+      - transactionType
+      - transactingPartyId
+      - transactingPartyType
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      facilityId:
+        $ref: '#/definitions/facilityId'
+      productVariantId:
+        $ref: '#/definitions/productVariantId'
+      quantity:
+        $ref: '#/definitions/quantity'
+      wayBillNumber:
+        $ref: '#/definitions/wayBillNumber'
+      referenceId:
+        $ref: '#/definitions/referenceId'
+      referenceIdType:
+        $ref: '#/definitions/referenceIdType'
+      transactionType:
+        $ref: '#/definitions/transactionType'
+      transactionReason:
+        $ref: '#/definitions/transactionReason'
+      transactingPartyId:
+        $ref: '#/definitions/transactingPartyId'
+      transactingPartyType:
+        $ref: '#/definitions/transactingPartyType'
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  StockSearch:
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      facilityId:
+        $ref: '#/definitions/facilityId'
+      productVariantId:
+        $ref: '#/definitions/productVariantId'
+      referenceId:
+        $ref: '#/definitions/referenceId'
+      referenceIdType:
+        $ref: '#/definitions/referenceIdType'
+      transactionType:
+        $ref: '#/definitions/transactionType'
+      transactionReason:
+        $ref: '#/definitions/transactionReason'
+      transactingPartyId:
+        $ref: '#/definitions/transactingPartyId'
+      transactingPartyType:
+        $ref: '#/definitions/transactingPartyType'
+      wayBillNumber:
+        $ref: '#/definitions/wayBillNumber'
+
+  StockReconciliation:
+    type: object
+    required:
+      - tenantId
+      - facilityId
+      - productVariantId
+      - quantity
+      - transactionType
+      - transactingPartyId
+      - transactingPartyType
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      facilityId:
+        $ref: '#/definitions/facilityId'
+      productVariantId:
+        $ref: '#/definitions/productVariantId'
+      referenceId:
+        $ref: '#/definitions/referenceId'
+      referenceIdType:
+        $ref: '#/definitions/referenceIdType'
+      physicalCount:
+        $ref: '#/definitions/physicalCount'
+      calculatedCount:
+        $ref: '#/definitions/calculatedCount'
+      commentsOnReconciliation:
+        type: string
+        description: Comments regarding reconciliation
+      dateOfReconciliation:
+        $ref: '#/definitions/eventTimestamp'
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  StockReconciliationSearch:
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      facilityId:
+        $ref: '#/definitions/facilityId'
+      productVariantId:
+        $ref: '#/definitions/productVariantId'
+
+
+  StockRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Stock:
+        type: object
+        $ref: '#/definitions/Stock'
+    required:
+      - RequestInfo
+      - Stock
+
+  StockBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Stock:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/Stock'
+    required:
+      - RequestInfo
+      - Stock
+
+  StockSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Stock:
+        $ref: '#/definitions/StockSearch'
+    required:
+      - RequestInfo
+      - Stock
+
+  StockResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Stock:
+        type: object
+        $ref: '#/definitions/Stock'
+    required:
+      - ResponseInfo
+      - Stock
+
+  StockBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Stock:
+        type: array
+        items:
+          $ref: '#/definitions/Stock'
+    required:
+      - ResponseInfo
+      - Stock
+
+  StockReconciliationRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      StockReconciliation:
+        type: object
+        $ref: '#/definitions/StockReconciliation'
+    required:
+      - RequestInfo
+      - StockReconciliation
+
+  StockReconciliationBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      StockReconciliation:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/StockReconciliation'
+    required:
+      - RequestInfo
+      - StockReconciliation
+
+  StockReconciliationSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      StockReconciliation:
+        $ref: '#/definitions/StockReconciliationSearch'
+    required:
+      - RequestInfo
+      - StockReconciliation
+
+  StockReconciliationResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      StockReconciliation:
+        type: object
+        $ref: '#/definitions/StockReconciliation'
+    required:
+      - ResponseInfo
+      - StockReconciliation
+
+  StockReconciliationBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      StockReconciliation:
+        type: array
+        items:
+          $ref: '#/definitions/StockReconciliation'
+    required:
+      - ResponseInfo
+      - StockReconciliation
+
+  BulkAcceptedResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+    required:
+      - ResponseInfo

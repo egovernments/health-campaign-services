@@ -2,10 +2,10 @@ package org.egov.project.validator.resource;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.project.ProjectResource;
+import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectResourceRepository;
-import org.egov.project.web.models.ProjectResource;
-import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -42,6 +42,8 @@ public class PrUniqueCombinationValidator implements Validator<ProjectResourceBu
 
     private void validateProductVariantMappingFromRequest(List<ProjectResource> validEntities,
                                                            Map<ProjectResource, List<Error>> errorDetailsMap) {
+        log.info("validating mapping from request");
+        log.info("validating {} valid entities", validEntities.size());
         Map<String, ProjectResource> map = getMap(validEntities);
         if (map.keySet().size() != validEntities.size()) {
             List<String> duplicates = map.keySet().stream().filter(id ->
@@ -61,6 +63,8 @@ public class PrUniqueCombinationValidator implements Validator<ProjectResourceBu
     private void validateProductVariantMappingFromDb(List<ProjectResource> validEntities,
                                                      Map<ProjectResource, List<Error>> errorDetailsMap) {
 
+        log.info("validating mapping from db");
+        log.info("validating {} valid entities", validEntities.size());
         List<String> projectIds = validEntities.stream().map(ProjectResource::getProjectId)
                 .collect(Collectors.toList());
         List<ProjectResource> existingProjectResources = projectResourceRepository.findById(projectIds,

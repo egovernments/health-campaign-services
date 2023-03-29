@@ -1,12 +1,12 @@
 package org.egov.project.validator;
 
 import org.egov.common.models.Error;
+import org.egov.common.models.project.ProjectResource;
+import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.project.helper.ProjectResourceBulkRequestTestBuilder;
 import org.egov.project.helper.ProjectResourceTestBuilder;
 import org.egov.project.repository.ProjectResourceRepository;
 import org.egov.project.validator.resource.PrNonExistentEntityValidator;
-import org.egov.project.web.models.ProjectResource;
-import org.egov.project.web.models.ProjectResourceBulkRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

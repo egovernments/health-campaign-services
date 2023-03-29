@@ -1,5 +1,7 @@
 package com.tarento.analytics.org.service;
 
+import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_TILL_TODAY;
+import com.tarento.analytics.constant.Constants.Interval;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
@@ -96,6 +98,14 @@ public class TarentoServiceImpl implements ClientService {
 			setDateRangeFilterForCurrentDay(request);
 		}
 
+
+		if (isCappedTillToday(chartNode)){
+			long campaignStartDateInMillis = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
+			long currentDateTimeInMillis = Calendar.getInstance().getTimeInMillis();
+			request.getRequestDate().setStartDate(String.valueOf(campaignStartDateInMillis));
+			request.getRequestDate().setEndDate(String.valueOf(currentDateTimeInMillis));
+		}
+
 		executeConfiguredQueries(chartNode, aggrObjectNode, nodes, request, interval);
 		request.setChartNode(chartNode);
 		ResponseRecorder responseRecorder = new ResponseRecorder();
@@ -129,6 +139,12 @@ public class TarentoServiceImpl implements ClientService {
 		}
 
 		return aggregateDto;
+	}
+
+
+	private boolean isCappedTillToday(ObjectNode chartNode) {
+		return chartNode.has(IS_CAPPED_TILL_TODAY)
+				&& chartNode.get(IS_CAPPED_TILL_TODAY).asBoolean();
 	}
 
 	/**
@@ -214,6 +230,9 @@ public class TarentoServiceImpl implements ClientService {
 		if(insightInterval.equals(Constants.Interval.year.toString()) && daysBetween > 366) {
 			return Boolean.FALSE;
 		}
+		if(insightInterval.equals(Interval.dateRange.toString()) && daysBetween < 2){
+			return Boolean.FALSE;
+		}
 		Calendar startCal = Calendar.getInstance();
 		Calendar endCal = Calendar.getInstance();
 		startCal.setTime(new Date(Long.parseLong(request.getRequestDate().getStartDate())));
@@ -227,7 +246,11 @@ public class TarentoServiceImpl implements ClientService {
 		} else if(insightInterval.equals(Constants.Interval.week.toString())) {
 			startCal.add(Calendar.WEEK_OF_YEAR, -1);
 			endCal.add(Calendar.WEEK_OF_YEAR, -1);
-		} else if(StringUtils.isBlank(insightInterval) || insightInterval.equals(Constants.Interval.year.toString())) {
+		}
+		else if (insightInterval.equals(Interval.dateRange.toString())) {
+			endCal.add(Calendar.DAY_OF_YEAR,-1);
+		}
+		else if(StringUtils.isBlank(insightInterval) || insightInterval.equals(Constants.Interval.year.toString())) {
 			startCal.add(Calendar.YEAR, -1);
 			endCal.add(Calendar.YEAR, -1);
 		}

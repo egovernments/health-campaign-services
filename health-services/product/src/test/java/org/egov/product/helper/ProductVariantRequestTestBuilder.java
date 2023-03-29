@@ -1,9 +1,9 @@
 package org.egov.product.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.product.web.models.ApiOperation;
-import org.egov.product.web.models.ProductVariant;
-import org.egov.product.web.models.ProductVariantRequest;
+import org.egov.common.models.product.ApiOperation;
+import org.egov.common.models.product.ProductVariant;
+import org.egov.common.models.product.ProductVariantRequest;
 
 import java.util.ArrayList;
 import java.util.List;

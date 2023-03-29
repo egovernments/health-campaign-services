@@ -1,7 +1,8 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.stock.web.models.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliation;
+
 
 public class StockReconciliationTestBuilder {
 
@@ -22,7 +23,7 @@ public class StockReconciliationTestBuilder {
     public StockReconciliationTestBuilder withStock() {
         this.builder.facilityId("facility-id").productVariantId("pv-id").physicalCount(10)
                 .calculatedCount(100).referenceId("reference-id")
-                .referenceIdType("reference-id-type").rowVersion(1).tenantId("default").hasErrors(false).isDeleted(Boolean.FALSE)
+                .referenceIdType("PROJECT").rowVersion(1).tenantId("default").hasErrors(false).isDeleted(Boolean.FALSE)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;
     }

@@ -4,6 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdBulkRequest;
+import org.egov.common.models.household.HouseholdRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
@@ -14,9 +17,6 @@ import org.egov.household.validators.household.HNonExsistentEntityValidator;
 import org.egov.household.validators.household.HNullIdValidator;
 import org.egov.household.validators.household.HRowVersionValidator;
 import org.egov.household.validators.household.HUniqueEntityValidator;
-import org.egov.household.web.models.Household;
-import org.egov.household.web.models.HouseholdBulkRequest;
-import org.egov.household.web.models.HouseholdRequest;
 import org.egov.household.web.models.HouseholdSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
@@ -103,7 +104,7 @@ public class HouseholdService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         return request.getHouseholds();
     }
 
@@ -160,7 +161,7 @@ public class HouseholdService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("returning updated households");
         return request.getHouseholds();
     }
@@ -194,7 +195,7 @@ public class HouseholdService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         return request.getHouseholds();
     }
 
@@ -222,17 +223,6 @@ public class HouseholdService {
                 .filter(notHavingErrors()).collect(Collectors.toList());
         log.info("number of valid households after validation: {}", validHouseholds.size());
         return new Tuple<>(validHouseholds, errorDetailsMap);
-    }
-
-    private static void handleErrors(boolean isBulk, Map<Household, ErrorDetails> errorDetailsMap) {
-        if (!errorDetailsMap.isEmpty()) {
-            log.error("{} errors collected", errorDetailsMap.size());
-            if (isBulk) {
-                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
-            } else {
-                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-            }
-        }
     }
 
 }

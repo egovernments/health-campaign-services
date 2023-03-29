@@ -29,5 +29,4 @@ public class RequestDate {
 	public void setEndDate(String endDate) {
 		this.endDate = endDate;
 	}
-
 }

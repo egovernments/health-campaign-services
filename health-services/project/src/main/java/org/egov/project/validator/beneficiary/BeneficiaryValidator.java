@@ -11,22 +11,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdBulkResponse;
+import org.egov.common.models.household.HouseholdSearch;
+import org.egov.common.models.household.HouseholdSearchRequest;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkResponse;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
+import org.egov.common.models.project.BeneficiaryBulkRequest;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.common.models.project.ProjectType;
 import org.egov.common.service.MdmsService;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectService;
-import org.egov.project.web.models.BeneficiaryBulkRequest;
-import org.egov.project.web.models.Household;
-import org.egov.project.web.models.HouseholdBulkResponse;
-import org.egov.project.web.models.HouseholdSearch;
-import org.egov.project.web.models.HouseholdSearchRequest;
-import org.egov.project.web.models.Individual;
-import org.egov.project.web.models.IndividualBulkResponse;
-import org.egov.project.web.models.IndividualSearch;
-import org.egov.project.web.models.IndividualSearchRequest;
-import org.egov.project.web.models.Project;
-import org.egov.project.web.models.ProjectBeneficiary;
-import org.egov.project.web.models.ProjectType;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -55,7 +55,6 @@ import static org.egov.project.Constants.BENEFICIARY_ID;
 import static org.egov.project.Constants.GET_CLIENT_REFERENCE_ID;
 import static org.egov.project.Constants.GET_ID;
 import static org.egov.project.Constants.GET_PROJECT_ID;
-import static org.egov.project.Constants.HCM_PROJECT_TYPES;
 import static org.egov.project.Constants.INTERNAL_SERVER_ERROR;
 import static org.egov.project.Constants.MDMS_RESPONSE;
 import static org.egov.project.Constants.PROJECT_TYPES;
@@ -290,7 +289,8 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
     }
 
     private List<ProjectType> getProjectTypes(String tenantId, RequestInfo requestInfo) {
-        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, HCM_PROJECT_TYPES);
+        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                projectConfiguration.getMdmsModule());
         return convertToProjectTypeList(response);
     }
 
@@ -305,7 +305,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
     }
 
     private List<ProjectType> convertToProjectTypeList(JsonNode jsonNode) {
-        JsonNode projectTypesNode = jsonNode.get(HCM_PROJECT_TYPES).withArray(PROJECT_TYPES);
+        JsonNode projectTypesNode = jsonNode.get(projectConfiguration.getMdmsModule()).withArray(PROJECT_TYPES);
         return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<ProjectType>>() {
         });
     }

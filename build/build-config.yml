@@ -50,6 +50,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
         image-name: "individual-db"
+  - name: "builds/health-campaign-services/health-services/household"
+    build:
+      - work-dir: "health-services/household"
+        image-name: "household"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/household/src/main/resources/db"
+        image-name: "household-db"
   - name: "builds/health-campaign-services/core-services/dashboard-analytics"
     build:
       - work-dir: "core-services/dashboard-analytics"
@@ -76,6 +83,11 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/facility/src/main/resources/db"
         image-name: "facility-db"
+  - name: "builds/health-campaign-services/health-services/transformer"
+    build:
+      - work-dir: "health-services/transformer"
+        image-name: "transformer"
+        dockerfile: "build/maven/Dockerfile"
   - name: "builds/health-campaign-services/core-services/service-request"
     build:
       - work-dir: "core-services/service-request"
@@ -83,3 +95,8 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
         image-name: "service-request-db"
+  - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
+    build:
+      - work-dir: "health-services/libraries/health-services-models"
+        image-name: "health-services-models"
+        image-name: "health-services-models"

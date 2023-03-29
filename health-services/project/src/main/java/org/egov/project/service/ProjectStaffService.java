@@ -3,6 +3,9 @@ package org.egov.project.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkRequest;
+import org.egov.common.models.project.ProjectStaffRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
 import org.egov.common.utils.CommonUtils;
@@ -15,11 +18,9 @@ import org.egov.project.validator.staff.PsNonExistentEntityValidator;
 import org.egov.project.validator.staff.PsNullIdValidator;
 import org.egov.project.validator.staff.PsProjectIdValidator;
 import org.egov.project.validator.staff.PsRowVersionValidator;
+import org.egov.project.validator.staff.PsUniqueCombinationValidator;
 import org.egov.project.validator.staff.PsUniqueEntityValidator;
 import org.egov.project.validator.staff.PsUserIdValidator;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffBulkRequest;
-import org.egov.project.web.models.ProjectStaffRequest;
 import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,7 +62,8 @@ public class ProjectStaffService {
 
     private final Predicate<Validator<ProjectStaffBulkRequest, ProjectStaff>> isApplicableForCreate = validator ->
             validator.getClass().equals(PsUserIdValidator.class)
-                    || validator.getClass().equals(PsProjectIdValidator.class);
+                    || validator.getClass().equals(PsProjectIdValidator.class)
+                    || validator.getClass().equals(PsUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectStaffBulkRequest, ProjectStaff>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PsUserIdValidator.class)
@@ -70,7 +72,8 @@ public class ProjectStaffService {
                     || validator.getClass().equals(PsIsDeletedValidator.class)
                     || validator.getClass().equals(PsRowVersionValidator.class)
                     || validator.getClass().equals(PsNonExistentEntityValidator.class)
-                    || validator.getClass().equals(PsUniqueEntityValidator.class);
+                    || validator.getClass().equals(PsUniqueEntityValidator.class)
+                    || validator.getClass().equals(PsUniqueCombinationValidator.class);
 
     private final Predicate<Validator<ProjectStaffBulkRequest, ProjectStaff>> isApplicableForDelete = validator ->
             validator.getClass().equals(PsNullIdValidator.class)

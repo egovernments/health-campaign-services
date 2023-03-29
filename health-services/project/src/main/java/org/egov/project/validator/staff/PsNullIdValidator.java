@@ -2,9 +2,9 @@ package org.egov.project.validator.staff;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.validator.Validator;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 

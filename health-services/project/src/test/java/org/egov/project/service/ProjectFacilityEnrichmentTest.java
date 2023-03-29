@@ -1,12 +1,12 @@
 package org.egov.project.service;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.project.ProjectFacility;
+import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
 import org.egov.project.service.enrichment.ProjectFacilityEnrichmentService;
-import org.egov.project.web.models.ProjectFacility;
-import org.egov.project.web.models.ProjectFacilityBulkRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

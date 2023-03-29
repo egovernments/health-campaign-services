@@ -3,6 +3,7 @@ package com.tarento.analytics.handler;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 
 import org.egov.tracer.model.CustomException;
@@ -62,7 +63,7 @@ public class MetricChartResponseHandler implements IResponseHandler{
         String visualizationCode = request.getVisualizationCode();
 
         JsonNode aggregationNode = aggregations.get(AGGREGATIONS);
-        JsonNode chartNode = null; 
+        JsonNode chartNode = null;
 
         // Fetches the chart config
         if(request.getVisualizationCode().charAt(0) == insightPrefix) { 

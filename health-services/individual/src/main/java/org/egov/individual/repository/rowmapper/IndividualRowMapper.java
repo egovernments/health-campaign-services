@@ -3,11 +3,11 @@ package org.egov.individual.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.individual.web.models.AdditionalFields;
-import org.egov.individual.web.models.BloodGroup;
-import org.egov.individual.web.models.Gender;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.Name;
+import org.egov.common.models.individual.AdditionalFields;
+import org.egov.common.models.individual.BloodGroup;
+import org.egov.common.models.individual.Gender;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.Name;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 

@@ -1,0 +1,149 @@
+@startuml
+!theme vibrant
+title Sync Down
+actor "Field Worker" as a
+participant Client as c
+participant NetworkManager as nm
+participant LocalStore as l
+participant RemoteStore as r
+
+activate c
+a -> c: User login OR user triggered sync
+c -> nm: Sync down
+nm -> r: Fetch field-app-configuration MDMS config
+note left
+  Fetch field app config every sync without any conditions so any changes take effect immediately
+end note
+note right
+  For any calls to remote store, network manager
+  will refresh user token if required
+end note
+r --> nm: field-app-configuration response
+nm -> l: Update field-app-configuration MDMS in local store
+nm -> l: Read PERSISTENCE_MODE from field-app-configuration
+alt PERSISTENCE_MODE is ONLINE
+  l --> nm: PERSISTENCE_MODE is ONLINE
+  nm -> c: Success. No sync required.
+end
+l --> nm: PERSISTENCE_MODE is OFFLINE_FIRST
+nm -> r: Fetch service-registry MDMS configs
+note left
+  Fetch service-registry config
+  so any changes to endpoints reflect in this sync
+end note
+r --> nm: service-registry MDMS config
+nm -> l: Update service-registry MDMS in local store
+nm -> r: Fetch role, actions MDMS configs
+note left
+  Fetch role, actions config so access to APIs can be determined
+  (during sync and in other user flows)
+end note
+r --> nm: MDMS response
+nm -> l: Update MDMS configs in local store
+group metadata download
+  nm -> r: Fetch project-types, additional-field-schemas MDMS configs
+  note left
+    1. Get following configs from field-app-configuration->BACKEND_INTERFACE
+        MDMS_MODULES
+        LOCALIZATION_MODULES
+        METADATA_SERVICES
+    2. Determine fetch/search endpoints for each of the above
+    3. Check which endpoints logged in user's roles have access to (based on role action mapping)
+    4. Call the endpoints if local store has metadata older than localStoreTTL configuration
+    5. Resultant calls will look something like this
+  end note
+  r --> nm: MDMS response
+  nm -> l: Update MDMS configs in local store
+  nm -> r: fetch login and non login modules from LOCALIZATION service for all supported locales
+  r --> nm: LOCALIZATION response
+  nm -> l: Update login and non login modules in local store
+  nm -> r: Project Staff search with user id
+  r --> nm: Project Staff response
+  nm -> l: Update Project Staff in local store
+  nm -> l: Read Project Staff from local store
+  alt Project staff linkage has changed
+    alt no projects linked to user any more
+      l --> nm: No projects linked
+      nm -> c: no projects linked error
+      c -> a: show error and log user out
+    end
+    alt projects exist but are do not include the hierarchy that user had previously selected
+      l --> nm: project list
+      nm -> c: project hierarchy selection required
+      c -> a: show project hierarchy selection screen
+    end
+    alt projects exist and include the hierarchy that user had previously selected
+      l --> nm: project list
+      nm -> nm: continue sync down
+    end
+  end
+  nm -> r: Project search with project id(s)
+  r --> nm: Projects
+  nm -> l: Update Project local store
+  nm -> r: Project resources search with project id(s)
+  r --> nm: Project Resources
+  nm -> l: Update Project resources local store
+  nm -> r: Product variant search with product variant id(s)
+  r --> nm: Product Variants
+  nm -> l: Update Product variant local store
+  nm -> r: Product search with product id(s)
+  r --> nm: Products
+  nm -> l: Update Product local store
+  nm -> r: Project facility search with project id(s)
+  r --> nm: Project facilities
+  nm -> l: Update Project facility local store
+  nm -> r: Facility search with boundary codes of project facilities and lastModifiedSince > last facility sync
+  r --> nm: Facilities
+  nm -> l: Update facilities local store
+end
+alt data sync down is enabled
+  nm -> r: Project Beneficiary Search (boundaryCode(s), lastModifiedSince)
+  note left
+    1. Get following configs from field-app-configuration->BACKEND_INTERFACE
+        DATA_SERVICES
+    2. Determine fetch/search endpoints for each of the above
+    3. Check which endpoints logged in user's roles have access to (based on role action mapping)
+    4. Call the endpoints with boundaryCode(s) and lastModifiedSince for each entity (based on last sync)
+    5. Resultant calls will look something like this
+  end note
+  r --> nm: Project Beneficiaries
+  nm -> l: Update Project Beneficiaries local store
+  nm -> r: Household Search (boundaryCode(s), lastModifiedSince)
+  r --> nm: Households
+  nm -> l: Update Households local store
+  nm -> r: Household Member Search (boundaryCode(s), lastModifiedSince)
+  r --> nm: Household Members
+  nm -> l: Update Household Members local store
+  nm -> r: Individual Search (boundaryCode(s), lastModifiedSince)
+  r --> nm: Individuals
+  nm -> l: Update Individuals local store
+'    alt project beneficiary type is household
+'      nm -> r: Household search with beneficiary id(s) and (boundaryCode, lastModifiedSince)
+'      nm -> r: Household Member search with household id and (boundaryCode, lastModifiedSince)
+'      nm -> r: Individual search (boundaryCode, lastModifiedSince)
+'    end
+'    alt project beneficiary type is individual
+'      nm -> r: Individual Search
+'      nm -> r: Household Member search with individual id
+'      nm -> r: Household search with household id
+'      nm -> r: Household member search with household id
+'    end
+  nm -> r: Project Task search with beneficiary id(s)
+  r --> nm: Project Tasks
+  nm -> l: Update Project Tasks local store
+  nm -> r: Stock search
+  r --> nm: Stock
+  nm -> l: Update Stock local store
+  'Stock reconciliation required?
+  nm -> r: Stock reconciliation search
+  r --> nm: Stock reconciliation
+  nm -> l: Update Stock reconciliation local store
+end
+alt error in any of the calls
+  r -> nm: error in call
+  nm -> c: Error while performing sync.
+  c -> a: Error while performing sync. Please retry.
+end
+nm -> c: Sync complete
+c -> a: Display home screen
+@enduml

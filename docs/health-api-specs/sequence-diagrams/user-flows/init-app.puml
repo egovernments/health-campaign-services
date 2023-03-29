@@ -1,0 +1,30 @@
+@startuml
+!theme vibrant
+title Init App
+actor "Field Worker" as a
+participant Client as c
+participant NetworkManager as nm
+
+a -> c: Launch app
+activate c
+alt credential available in local secure store
+  c -> c: credential is present
+  c -> a: Show home page
+end
+group init calls
+  c -> nm: Fetch field-app-configuration, service-registry MDMS configs
+  activate nm
+  nm --> c: field-app-configuration, service-registry MDMS configs
+  c -> c: Update MDMS configs in local store
+  c -> nm: Fetch pre-login module localization for all supported locales
+  nm --> c: pre-login module localizations
+  deactivate nm
+  alt error during init
+    c -> c: error during init
+    c -> a: Show error message and prompt to retry
+  end
+end
+c -> a: Show language selection screen
+deactivate c
+
+@enduml

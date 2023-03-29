@@ -1,11 +1,11 @@
 package org.egov.project.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.BeneficiaryBulkRequest;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.BeneficiaryBulkRequest;
-import org.egov.project.web.models.ProjectBeneficiary;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Method;

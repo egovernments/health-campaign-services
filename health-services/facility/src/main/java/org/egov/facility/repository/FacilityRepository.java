@@ -5,10 +5,10 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.producer.Producer;
 import org.egov.facility.repository.rowmapper.FacilityRowMapper;
-import org.egov.facility.web.models.Facility;
-import org.egov.facility.web.models.FacilitySearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -35,8 +35,9 @@ public class FacilityRepository extends GenericRepository<Facility> {
     }
 
     public List<Facility> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Facility> objFound;
-        objFound = findInCache(ids);
+        List<Facility> objFound = findInCache(ids).stream()
+                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
+                .collect(Collectors.toList());
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()

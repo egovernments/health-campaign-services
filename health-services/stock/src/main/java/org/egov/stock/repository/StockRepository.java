@@ -2,9 +2,9 @@ package org.egov.stock.repository;
 
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.stock.Stock;
 import org.egov.common.producer.Producer;
 import org.egov.stock.repository.rowmapper.StockRowMapper;
-import org.egov.stock.web.models.Stock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;

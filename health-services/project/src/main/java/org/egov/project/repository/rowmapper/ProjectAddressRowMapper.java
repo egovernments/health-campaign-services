@@ -3,10 +3,9 @@ package org.egov.project.repository.rowmapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.project.web.models.Address;
-import org.egov.project.web.models.AddressType;
-import org.egov.project.web.models.Boundary;
-import org.egov.project.web.models.Project;
+import org.egov.common.models.project.Address;
+import org.egov.common.models.project.AddressType;
+import org.egov.common.models.project.Project;
 import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,7 +65,8 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
         String address_pinCode = rs.getString("address_pinCode");
         String address_buildingName = rs.getString("address_buildingName");
         String address_street = rs.getString("address_street");
-        String address_locality = rs.getString("address_locality");
+        String address_boundaryType = rs.getString("address_boundaryType");
+        String address_boundary = rs.getString("address_boundary");
 
         Address address = Address.builder()
                 .id(address_id)
@@ -83,9 +83,8 @@ public class ProjectAddressRowMapper implements ResultSetExtractor<List<Project>
                 .pincode(address_pinCode)
                 .buildingName(address_buildingName)
                 .street(address_street)
-                .locality(Boundary.builder()
-                        .name(address_locality)
-                .build())
+                .boundaryType(address_boundaryType)
+                .boundary(address_boundary)
                 .build();
 
         return address;

@@ -1,0 +1,674 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Project Management System
+  contact:
+    name:  egovernments foundation
+    email: info@egovernments.org
+schemes:
+  - https
+
+paths:
+  /project/v1/_create:
+    post:
+      summary: >-
+        Create a new Project
+      description: >-
+        Create a new Project
+      parameters:
+        - name: Project
+          in: body
+          description: Details for the new Project.
+          required: true
+          schema:
+            $ref: '#/definitions/ProjectRequest'
+      tags:
+        - Project
+      responses:
+        '202':
+          description: Project request accepted for creation.
+          schema:
+            $ref: '#/definitions/ProjectResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /project/v1/_update:
+    post:
+      summary: >-
+        Update the details of a existing Project
+      description: >-
+        Update the details of a existing Project
+      parameters:
+        - name: Project
+          in: body
+          description: Details for the new Project.
+          required: true
+          schema:
+            $ref: '#/definitions/ProjectRequest'
+      tags:
+        - Project
+      responses:
+        '202':
+          description: Employee request accepted for creation.
+          schema:
+            $ref: '#/definitions/ProjectResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /project/beneficiary/v1/_create:
+    post:
+      summary: >-
+        Add beneficiary for project
+      description: >-
+        Add beneficiary for project
+      parameters:
+        - name: Beneficiary
+          in: body
+          description: Capture details of benificiary type.
+          required: true
+          schema:
+            $ref: '#/definitions/BeneficiaryRequest'
+      tags:
+        - Project
+      responses:
+        '202':
+          description:  add beneficiary request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/BeneficiaryResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+  /project/task/v1/_create:
+    post:
+      summary: >-
+        Create task for the project
+      description: >-
+        Create task for the project
+      parameters:
+        - name: Task
+          in: body
+          description: Capture details of Task
+          required: true
+          schema:
+            $ref: '#/definitions/TaskRequest'
+      tags:
+        - Project
+      responses:
+        '202':
+          description:  Create task request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/TaskResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /project/task/v1/_update:
+    post:
+      summary: >-
+        Task Request
+      description: >-
+        Task Request
+      parameters:
+        - name: Task
+          in: body
+          description: Capture details of Existing task
+          required: true
+          schema:
+            $ref: '#/definitions/TaskRequest'
+      tags:
+        - Project
+      responses:
+        '202':
+          description:  update task request has been accepted for update.
+          schema:
+            $ref: '#/definitions/TaskResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+#####################################################################
+
+
+
+
+
+
+parameters:
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+
+definitions:
+
+
+
+  ProjectBeneficiary:
+    description: A representation of Individual Registration to a Project.
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        example: 'tenantA'
+      projectId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique ID form Project
+      beneficiaryid:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique ID form Project registration
+      dateOfRegistration:
+        type: integer
+        format: int64
+        example: 1663218161
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+  
+  
+  
+
+  additionalFields:
+    type: object
+    properties:
+      schema:
+        type: string
+        example: 'HOUSEHOLD'
+      version:
+        type: integer
+        example: 2
+      fields:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/Field'
+
+  Field:
+    type: object
+    properties:
+      key:
+        type: string
+        example: height
+      value:
+        type: string
+        example: 180
+
+  Resource:
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+
+      type:
+        type: string
+        description: Define the type of resource
+        example: Bednets|Tablet
+      name:
+        type: string
+        description: Capture name of the resource
+        example: Paracetamol
+      unit:
+        type: string
+        example: 'BALE'
+        enum:
+          - BALE
+          - CARTONS
+          - VIALS
+
+
+  Target:
+    type: object
+    properties:
+      beneficiaryType:
+        type: string
+        minLength: 2
+        maxLength: 64
+        example: 'ID-1'
+      totalNo:
+        type: integer
+      targetNo:
+        type: integer
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+  
+
+  TaskResource:
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      resourceId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        example: 'ID-1'
+      reasonIfNotDelivered:
+        type: string
+      isDelivered:
+        type: boolean
+        example: true
+      quantity:
+        type: string
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+  
+
+  Address:
+    type: object
+    description: |
+      Representation of a address. Indiavidual APIs may choose to extend from this using allOf if more details needed to be added in their case.
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      doorNo:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: House number or door number
+      latitude:
+        type: number
+        format: double
+        description: latitude of the address
+      longitude:
+        type: number
+        format: double
+        description: longitude of the address
+      type:
+        type: string
+        description: Type of address.
+        items:
+          type: string
+          enum:
+            - PERMANENT
+            - CORRESPONDENCE
+      addressLine1:
+        description: Apartment, Block, Street of the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      addressLine2:
+        description: Locality, Area, Zone, Ward of the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      landmark:
+        description: additional landmark to help locate the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      city:
+        description: City of the address. Can be represented by the tenantid itself
+        type: string
+      pincode:
+        type: string
+        description: PIN code of the address. Indian pincodes will usually be all numbers.
+      buildingName:
+        type: string
+        description: Name of the building
+        maxLength: 64
+        minLength: 2
+      street:
+        type: string
+        description: Street Name
+        maxLength: 64
+        minLength: 2
+      locality:
+        $ref: 'https://raw.githubusercontent.com/egovernments/egov-services/master/docs/egov-location/contracts/v11-0-0.yml#/definitions/Boundary'
+
+
+  ProjectType:
+    description: This is the master data to capture the metadata of Project
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      name:
+        type: string
+        description: Name of Project type
+        minLength: 2
+        maxLength: 64
+        example: 'LLIN 2022'
+      code:
+        type: string
+        description: Unique code of Project type
+        example: 'LLIN'
+        minLength: 2
+        maxLength: 64
+      group:
+        type: string
+        minLength: 2
+        maxLength: 64
+        example: 'MALARIA'
+      beneficiaryType:
+        type: string
+        description: beneficiary type
+        enum:
+          - HOUSEHOLD
+          - INDIVIDUAL
+          - STRUCTURE
+      eligibilityCriteria:
+        type: array
+        items:
+          type: string
+        maxItems: 10
+        description: Capture intructions for eligibility criteria
+        example: 'INSTRUCTIONS'
+        #  isRegistrationAndDeliveryCombined:
+        #   type: boolean
+        #   example: true
+        #  deliveryStrategy:
+        #   type: string
+        #  enum:
+        #   - FIXED
+        #  - MOBILE
+        # example: 'FIXED'
+      taskProcedure:
+        type: array
+        items:
+          type: string
+        maxItems: 10
+        description: Capture instructions for Task
+        example: Delivery instruction for health usecase
+        #  isRecurring:
+        #   type: boolean
+        #  default: false
+        #  noOfRounds:
+        #   type: integer
+        #    default: 1
+        #   description: Applicable only if isRecurring is true
+        #  durationBetweenRounds:
+        #   type: integer
+        #  default: 0
+        # description: Applicable only if isRecurring is true the defalut unit is days
+      resources:
+        type: array
+        items:
+          $ref: '#/definitions/Resource'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+
+  Project:
+    description: The purpose of this object to define the Project for a geography and period
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: True
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      projectTypeID:
+        type: string
+        description: Unique id of Project type master data
+        minLength: 2
+        maxLength: 64
+      address:
+        $ref: '#/definitions/Address'
+      startDate:
+        type: integer
+        format: int64
+        description: Project start date
+      endDate:
+        type: integer
+        format: int64
+        description: Project end date
+      isTaskEnabled:
+        type: boolean
+        default: false
+        description: Task can be created if this is 'True'
+      parent:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Parent Project id
+      targets:
+        type: array
+        items:
+          $ref: '#/definitions/Target'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  Task:
+    type: object
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique tenant of the system
+        example: 'tenantA'
+      projectId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique ProjectId
+      projectBeneficiaryId:
+        type: string
+        example: "R-ID-1"
+      resources:
+        type: array
+        items:
+          $ref: '#/definitions/TaskResource'
+      startDate:
+        type: integer
+        format: int64
+        description: Task start date
+      endDate:
+        type: integer
+        format: int64
+        description: Task end date
+      createdBy:
+        type: string
+        example: "UUID"
+      createdDate:
+        type: integer
+        format: int64
+        example: 1663218161
+      address:
+        $ref: '#/definitions/Address'
+        #roundNo:
+        # type: integer
+        #description: Increse the count with each sucessfull delivery if it is multi round Project
+        #  example: 1
+        # default: 1
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+      status:
+        type: string
+        description: It is a master data from mdms
+        example: 'DELIVERED'
+
+
+
+  #########################################
+
+  ProjectRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Project:
+        type: array
+        items:
+          $ref: '#/definitions/Project'
+    required:
+      - RequestInfo
+      - Project
+  ProjectResponse:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Project:
+        type: array
+        items:
+          $ref: '#/definitions/Project'
+    required:
+      - RequestInfo
+      - Project
+
+
+      ###############################################################
+
+
+  BeneficiaryRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      ProjectBeneficiary:
+        type: array
+        items:
+          $ref: '#/definitions/ProjectBeneficiary'
+    required:
+      - RequestInfo
+      - Beneficiary
+  BeneficiaryResponse:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      ProjectBeneficiary:
+        type: array
+        items:
+          $ref: '#/definitions/ProjectBeneficiary'
+    required:
+      - RequestInfo
+      - Beneficiary
+
+  ###################################################################
+  TaskRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Task:
+        type: array
+        items:
+          $ref: '#/definitions/Task'
+    required:
+      - RequestInfo
+      - Task
+  TaskResponse:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Task:
+        type: array
+        items:
+          $ref: '#/definitions/Task'
+    required:
+      - RequestInfo
+      - Task
+
+
+
+
+
+
+
+  #########################################
+
+
+

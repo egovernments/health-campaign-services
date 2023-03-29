@@ -1,7 +1,7 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.project.web.models.BeneficiaryRequest;
+import org.egov.common.models.project.BeneficiaryRequest;
 
 import java.util.ArrayList;
 

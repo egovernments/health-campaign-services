@@ -1,7 +1,8 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.stock.web.models.StockRequest;
+import org.egov.common.models.stock.StockRequest;
+
 
 public class StockRequestTestBuilder {
     private StockRequest.StockRequestBuilder builder;

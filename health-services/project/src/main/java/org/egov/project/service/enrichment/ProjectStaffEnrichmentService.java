@@ -1,10 +1,10 @@
 package org.egov.project.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.web.models.ProjectStaff;
-import org.egov.project.web.models.ProjectStaffBulkRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

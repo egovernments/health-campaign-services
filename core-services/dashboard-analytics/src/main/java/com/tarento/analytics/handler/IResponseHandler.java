@@ -31,6 +31,8 @@ public interface IResponseHandler {
 
 	public static final String CHART_NAME = "chartName";
 	public static final String CHART_TYPE = "chartType";
+
+	public static  final String IS_CAPPED_TILL_TODAY ="isCappedTillToday";
 	public static final String DRILL_CHART = "drillChart";
 	public static final String SHOW_LABEL = "showLabel";
 	public static final String VALUE_TYPE = "valueType";
@@ -99,6 +101,7 @@ public interface IResponseHandler {
 
 	public static final String DIVISION = "division";
 	public static final String DIVISOR_FIELDS = "divisorFields";
+	public static final String DIVISIONBYCONSTANT = "divisionbyconstant";
 
 	/**
 	 * Translate the consolidated/aggregated response
