@@ -2,13 +2,13 @@ package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.AddressType;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.web.models.Address;
-import org.egov.individual.web.models.AddressType;
-import org.egov.individual.web.models.Individual;
-import org.egov.individual.web.models.IndividualBulkRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

@@ -1,9 +1,9 @@
 package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.validators.NullIdValidator;
-import org.egov.individual.web.models.IndividualBulkRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
