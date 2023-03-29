@@ -4,7 +4,8 @@
 Household registry is a Health Campaign Service that facilitates maintenance of a household registry. The functionality is exposed via REST API.
 
 ### DB UML Diagram
-<img src="/Users/menkagorakhapuriya/Documents/Health campaign/health-campaign-services/health-services/Household/Household-uml-diagram.png"/>
+
+<img width="607" alt="Screenshot 2023-03-29 at 2 37 44 PM" src="https://user-images.githubusercontent.com/123379163/228484993-30fb0910-0f53-47b7-b373-5e8ced21c7c7.png">
 
 ### Service Dependencies
 - Idgen Service
