@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 public class ProjectIndexV1 {
     @JsonProperty("id")
     private String id;
+    @JsonProperty("projectId")
+    private String projectId;
     @JsonProperty("overallTarget")
     private Integer overallTarget;
     @JsonProperty("targetPerDay")
