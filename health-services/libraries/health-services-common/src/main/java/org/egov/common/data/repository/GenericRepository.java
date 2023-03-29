@@ -68,9 +68,13 @@ public abstract class GenericRepository<T> {
         List<Object> objFromCache = redisTemplate.opsForHash()
                 .multiGet(tableName, collection).stream().filter(Objects::nonNull).collect(Collectors.toList());
         if (!objFromCache.isEmpty()) {
-            log.info("Cache hit");
-            objFound = (ArrayList<T>) objFromCache.stream().map(Object.class::cast)
-                    .collect(Collectors.toList());
+            if (objFromCache.size() == 1 && objFromCache.contains(null)) {
+                log.info("Cache miss");
+            } else {
+                log.info("Cache hit, {} items found", objFromCache.size());
+                objFound = (ArrayList<T>) objFromCache.stream().map(Object.class::cast)
+                        .collect(Collectors.toList());
+            }
         } else {
             log.info("Cache miss");
         }
