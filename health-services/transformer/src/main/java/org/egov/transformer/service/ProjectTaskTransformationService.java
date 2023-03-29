@@ -68,7 +68,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
-                            .id(task.getId())
+                            .id(r.getId())
+                            .taskId(task.getId())
                             .taskType("DELIVERY")
                             .projectId(task.getProjectId())
                             .startDate(task.getActualStartDate())

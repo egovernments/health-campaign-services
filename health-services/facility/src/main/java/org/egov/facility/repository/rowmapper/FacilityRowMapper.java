@@ -24,6 +24,7 @@ public class FacilityRowMapper implements RowMapper<Facility> {
         try {
             return Facility.builder()
                     .id(resultSet.getString("id"))
+                    .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .tenantId(resultSet.getString("tenantId"))
                     .isPermanent(resultSet.getBoolean("isPermanent"))
                     .name(resultSet.getString("name"))

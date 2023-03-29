@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
@@ -43,7 +44,7 @@ public class CommonUtils {
 
     public static final String GET_API_OPERATION = "getApiOperation";
 
-    private static final Map<Class<?>, Map<String, Method>> methodCache = new HashMap<>();
+    private static final Map<Class<?>, Map<String, Method>> methodCache = new ConcurrentHashMap<>();
 
     private static ObjectMapper objectMapper = new ObjectMapper();
 
@@ -567,7 +568,7 @@ public class CommonUtils {
             }
         } else {
             Method method = findMethod(methodName, clazz);
-            Map<String, Method> methodMap = new HashMap<>();
+            Map<String, Method> methodMap = new ConcurrentHashMap<>();
             methodMap.put(methodName, method);
             methodCache.put(clazz, methodMap);
             return method;
