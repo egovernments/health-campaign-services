@@ -5,7 +5,8 @@ Project registry is a Health Campaign Service that facilitate management of proj
 
 ### DB UML Diagram
 
-[//]: # (<img src="/Users/menkagorakhapuriya/Documents/Health campaign/health-campaign-services/health-services/Project/Project-uml-diagram.png"/>)
+<img width="586" alt="Screenshot 2023-03-29 at 2 45 35 PM" src="https://user-images.githubusercontent.com/123379163/228487047-bd14b481-dc81-44b2-826d-975d212e7f36.png">
+
 
 ### Service Dependencies
 - Idgen Service
