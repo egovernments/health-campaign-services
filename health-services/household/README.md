@@ -9,7 +9,7 @@ Household registry is a Health Campaign Service that facilitates maintenance of 
 
 ### Service Dependencies
 - Idgen Service
-- 
+
 [//]: # (- confirm it)
 
 ### Swagger API Contract
