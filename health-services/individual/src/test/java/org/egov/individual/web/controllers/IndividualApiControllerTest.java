@@ -2,6 +2,7 @@ package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.individual.*;
 import org.egov.common.producer.Producer;
 import org.egov.individual.TestConfiguration;
 import org.egov.individual.config.IndividualProperties;
@@ -11,6 +12,8 @@ import org.egov.individual.helper.IndividualSearchRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.service.IndividualService;
 import org.egov.individual.web.models.*;
+import org.egov.individual.web.models.IndividualSearch;
+import org.egov.individual.web.models.IndividualSearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

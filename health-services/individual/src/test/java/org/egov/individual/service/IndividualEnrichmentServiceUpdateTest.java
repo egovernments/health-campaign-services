@@ -1,6 +1,7 @@
 package org.egov.individual.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.individual.*;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
