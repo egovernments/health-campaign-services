@@ -5,7 +5,7 @@ Stock registry is a Health Campaign Service that facilitates operations for Stoc
 
 ### DB UML Diagram
 
-[//]: # (<img src="/Users/menkagorakhapuriya/Documents/Health campaign/health-campaign-services/health-services/stock/stock-uml-diagram.png"/>)
+<img width="319" alt="Screenshot 2023-03-29 at 2 47 13 PM" src="https://user-images.githubusercontent.com/123379163/228487504-7da08d7f-9240-4c62-a255-c03e6efabe33.png">
 
 ### Service Dependencies
 - Idgen Service
