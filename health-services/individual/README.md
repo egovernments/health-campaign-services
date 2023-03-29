@@ -5,7 +5,8 @@ Individual registry is a Health Campaign Service that facilitates maintenance of
 
 ### DB UML Diagram
 
-[//]: # (<img src="/Users/menkagorakhapuriya/Documents/Health campaign/health-campaign-services/health-services/individual/individual-uml-diagram.png"/>)
+<img width="668" alt="Screenshot 2023-03-29 at 2 41 00 PM" src="https://user-images.githubusercontent.com/123379163/228485868-e8b34236-8188-42ae-a24f-b97ec195a3aa.png">
+
 
 ### Service Dependencies
 - Idgen Service
