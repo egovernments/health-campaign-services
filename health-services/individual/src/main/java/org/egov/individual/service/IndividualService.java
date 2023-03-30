@@ -109,6 +109,7 @@ public class IndividualService {
         List<Individual> validIndividuals = tuple.getX();
         try {
             if (!validIndividuals.isEmpty()) {
+                individualRepository.putInCache(validIndividuals, "clientReferenceId");
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 individualRepository.save(validIndividuals,
