@@ -25,33 +25,33 @@ BasePath `/stock/v1`
 
 Stock service APIs - contains create, update, delete and search end point
 
-a) POST `/stock/v1/_create` - Create Stock, This API is internally call from stock controller to Create/Add a new record for transfer of product variant stock.
+* POST `/stock/v1/_create` - Create Stock, This API is used to Create/Add a new record for transfer of product variant stock.
 
-b) POST `/stock/v1/bulk/_create` - Create bulk Stock, This API is internally call from stock controller to Create/Add a new record for transfer of product variant stock in bulk.
+* POST `/stock/v1/bulk/_create` - Create bulk Stock, This API is used to Create/Add a new record for transfer of product variant stock in bulk.
 
-c) POST `/stock/v1/_update` - Update Stock, This API is internally call from stock controller to Update record for transfer of a stock transaction.
+* POST `/stock/v1/_update` - Update Stock, This API is used to Update record for transfer of a stock transaction.
 
-d) POST `/stock/v1/bulk/_update` - Update bulk Stock, This API is internally call from stock controller to Update records for transfer of a stock transaction in bulk.
+* POST `/stock/v1/bulk/_update` - Update bulk Stock, This API is used to Update records for transfer of a stock transaction in bulk.
 
-e) POST `/stock/v1/_delete` - Delete Stock, This API is internally call from stock controller to Soft delete record for transfer of a stock transaction.
+* POST `/stock/v1/_delete` - Delete Stock, This API is used to Soft delete record for transfer of a stock transaction.
 
-f) POST `/stock/v1/bulk/_delete` - Delete bulk Stock, This API is internally call from stock controller to Soft delete records for transfer of a stock transaction.
+* POST `/stock/v1/bulk/_delete` - Delete bulk Stock, This API is used to Soft delete records for transfer of a stock transaction.
 
-g) POST `/stock/v1/_search` - Search Stock, This API is internally call from stock controller to Search for stock transaction.
+* POST `/stock/v1/_search` - Search Stock, This API is used to Search for stock transaction.
 
-h) POST `/stock/reconciliation/v1/_create` - Create Stock reconciliation, This API is internally call from stock controller to Create/Add a new stock reconciliation record for a product variant.
+* POST `/stock/reconciliation/v1/_create` - Create Stock reconciliation, This API is used to Create/Add a new stock reconciliation record for a product variant.
 
-i) POST `/stock/reconciliation/v1/bulk/_create` - Create bulk Stock reconciliation, This API is internally call from stock controller to Create/Add a new stock reconciliation record for a product variant in bulk.
+* POST `/stock/reconciliation/v1/bulk/_create` - Create bulk Stock reconciliation, This API is used to Create/Add a new stock reconciliation record for a product variant in bulk.
 
-j) POST `/stock/reconciliation/v1/_update` - Update Stock reconciliation, This API is internally call from stock controller to Update stock reconciliation record.
+* POST `/stock/reconciliation/v1/_update` - Update Stock reconciliation, This API is used to Update stock reconciliation record.
 
-k) POST `/stock/reconciliation/v1/bulk/_update` - Update bulk Stock reconciliation, This API is internally call from stock controller to Update stock reconciliation records.
+* POST `/stock/reconciliation/v1/bulk/_update` - Update bulk Stock reconciliation, This API is used to Update stock reconciliation records.
 
-l) POST `/stock/reconciliation/v1/_delete` - Delete Stock reconciliation, This API is internally call from stock controller to Soft delete stock reconciliation record.
+* POST `/stock/reconciliation/v1/_delete` - Delete Stock reconciliation, This API is used to Soft delete stock reconciliation record.
 
-m) POST `/stock/reconciliation/v1/bulk/_delete` - Delete bulk Stock reconciliation, This API is internally call from stock controller to Soft delete stock reconciliation records.
+* POST `/stock/reconciliation/v1/bulk/_delete` - Delete bulk Stock reconciliation, This API is used to Soft delete stock reconciliation records.
 
-n) POST `/stock/reconciliation/v1/_search` - Search Stock reconciliation, This API is internally call from stock controller to Search for stock reconciliation record.
+* POST `/stock/reconciliation/v1/_search` - Search Stock reconciliation, This API is used to Search for stock reconciliation record.
 
 
 ### Kafka Consumers

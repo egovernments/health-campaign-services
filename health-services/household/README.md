@@ -9,8 +9,13 @@ Household registry is a Health Campaign Service that facilitates maintenance of 
 
 ### Service Dependencies
 - Idgen Service
+<<<<<<< Updated upstream
 
 [//]: # (- confirm it)
+=======
+- 
+[//]: # (- confirm *
+>>>>>>> Stashed changes
 
 ### Swagger API Contract
 Link to the swagger API contract yaml and editor link like below
@@ -24,33 +29,33 @@ BasePath `/Household`
 
 Household service APIs - contains create, update, delete and search end point
 
-a) POST `/member/v1/_create` - Create Household member, This API is internally call from Household controller to create/add a new Household member.
+* POST `/member/v1/_create` - Create Household member, This API is used to create/add a new Household member.
 
-b) POST `/member/v1/bulk/_create` - Create bulk Household member, This API is internally call from Household controller to create/add new household member in bulk.
+* POST `/member/v1/bulk/_create` - Create bulk Household member, This API is used to create/add new household member in bulk.
 
-c) POST `/member/v1/_update` - Update Household member, This API is internally call from Household controller to update the details of a existing Household member.
+* POST `/member/v1/_update` - Update Household member, This API is used to update the details of a existing Household member.
 
-d) POST `/member/v1/bulk/_update` - Update bulk Household member, This API is internally call from Household controller to update the details of existing household member in bulk.
+* POST `/member/v1/bulk/_update` - Update bulk Household member, This API is used to update the details of existing household member in bulk.
 
-e) POST `/member/v1/_delete` - Delete Household member, This API is internally call from Household controller to soft delete details of an existing Household member.
+* POST `/member/v1/_delete` - Delete Household member, This API is used to soft delete details of an existing Household member.
 
-f) POST `/member/v1/bulk/_delete` - Delete bulk Household member, This API is internally call from Household controller to soft delete details of an existing Household member in bulk.
+* POST `/member/v1/bulk/_delete` - Delete bulk Household member, This API is used to soft delete details of an existing Household member in bulk.
 
-g) POST `/member/v1/_search` - Search Household member, This API is internally call from Household controller to search existing Household member.
+* POST `/member/v1/_search` - Search Household member, This API is used to search existing Household member.
 
-h) POST `/v1/_create` - Create Household, This API is internally call from Household controller to create/add a new Household.
+* POST `/v1/_create` - Create Household, This API is used to create/add a new Household.
 
-i) POST `/v1/bulk/_create` - Create bulk Household, This API is internally call from Household controller to create/add new household in bulk.
+* POST `/v1/bulk/_create` - Create bulk Household, This API is used to create/add new household in bulk.
 
-j) POST `/v1/_update` - Update Household, This API is internally call from Household controller to update the details of a existing Household.
+* POST `/v1/_update` - Update Household, This API is used to update the details of a existing Household.
 
-k) POST `/v1/bulk/_update` - Update bulk Household, This API is internally call from Household controller to update the details of existing household in bulk.
+* POST `/v1/bulk/_update` - Update bulk Household, This API is used to update the details of existing household in bulk.
 
-l) POST `/v1/_delete` - Delete Household, This API is internally call from Household controller to soft delete details of an existing Household.
+* POST `/v1/_delete` - Delete Household, This API is used to soft delete details of an existing Household.
 
-m) POST `/v1/bulk/_delete` - Delete bulk Household, This API is internally call from Household controller to soft delete details of an existing Household in bulk.
+* POST `/v1/bulk/_delete` - Delete bulk Household, This API is used to soft delete details of an existing Household in bulk.
 
-n) POST `/v1/_search` - Search Household, This API is internally call from Household controller to search existing Household.
+* POST `/v1/_search` - Search Household, This API is used to search existing Household.
 
 
 ### Kafka Consumers

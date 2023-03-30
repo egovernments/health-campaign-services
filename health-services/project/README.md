@@ -26,86 +26,86 @@ BasePath `/project`
 
 Project service APIs - contains create, update, delete and search end point
 
-a) POST `/project/v1/_create` - Create Project, This API is internally call from Project controller to create/add a new Project.
+* POST `/project/v1/_create` - Create Project, This API is used to create/add a new Project.
 
-b) POST `/project/v1/_update` - Update Project, This API is internally call from Project controller to update the details of an existing Project.
+* POST `/project/v1/_update` - Update Project, This API is used to update the details of an existing Project.
 
-c) POST `/project/v1/_search` - Search Project, This API is internally call from Project controller to search details of an existing Project.
-
-
-d) POST `/project/beneficiary/v1/_create` - Create Project Beneficiary, This API is internally call from Project controller to create/add a new beneficiary for Project.
-
-e) POST `/project/beneficiary/v1/_update` - Update Project Beneficiary, This API is internally call from Project controller to update beneficiary registration for Project.
-
-f) POST `/project/beneficiary/v1/_search` - Search Project Beneficiary, This API is internally call from Project controller to search beneficiary registration for Project.
-
-g) POST `/project/beneficiary/v1/_delete` - Delete Project Beneficiary, This API is internally call from Project controller to soft delete beneficiary registration for project.
-
-h) POST `/project/beneficiary/v1/bulk/_create` - Create Project Beneficiaries, This API is internally call from Project controller to create/add a new beneficiaries for Project.
-
-i) POST `/project/beneficiary/v1/bulk/_update` - Update Project Beneficiaries, This API is internally call from Project controller to update beneficiaries registration for project.
-
-j) POST `/project/beneficiary/v1/bulk/_delete` - Delete Project Beneficiaries, This API is internally call from Project controller to soft delete beneficiaries registration for project.
+* POST `/project/v1/_search` - Search Project, This API is used to search details of an existing Project.
 
 
-k) POST `/project/task/v1/_create` - Create Project Task, This API is internally call from Project controller to create task for the project .
+* POST `/project/beneficiary/v1/_create` - Create Project Beneficiary, This API is used to create/add a new beneficiary for Project.
 
-l) POST `/project/task/v1/_update` - Update Project Task, This API is internally call from Project controller to update task request for Project.
+* POST `/project/beneficiary/v1/_update` - Update Project Beneficiary, This API is used to update beneficiary registration for Project.
 
-m) POST `/project/task/v1/_search` - Search Project Task, This API is internally call from Project controller to search task for Project.
+* POST `/project/beneficiary/v1/_search` - Search Project Beneficiary, This API is used to search beneficiary registration for Project.
 
-n) POST `/project/task/v1/_delete` - Delete Project Task, This API is internally call from Project controller to soft delete task for project.
+* POST `/project/beneficiary/v1/_delete` - Delete Project Beneficiary, This API is used to soft delete beneficiary registration for project.
 
-o) POST `/project/task/v1/bulk/_create` - Create Project Tasks, This API is internally call from Project controller to create tasks for the project in bulk.
+* POST `/project/beneficiary/v1/bulk/_create` - Create Project Beneficiaries, This API is used to create/add a new beneficiaries for Project.
 
-p) POST `/project/task/v1/bulk/_update` - Update Project Tasks, This API is internally call from Project controller to update task Request in bulk for a project.
+* POST `/project/beneficiary/v1/bulk/_update` - Update Project Beneficiaries, This API is used to update beneficiaries registration for project.
 
-q) POST `/project/task/v1/bulk/_delete` - Delete Project Tasks, This API is internally call from Project controller to Soft delete tasks for a project.
-
-
-r) POST `/project/staff/v1/_create` - Create Project Staff, This API is internally call from Project controller to Link Staff users to Project for a certain time period .
-
-s) POST `/project/staff/v1/_update` - Update Project Staff, This API is internally call from Project controller to update Project Staff users.
-
-t) POST `/project/staff/v1/_search` - Search Project Staff, This API is internally call from Project controller to search Project Staff users.
-
-u) POST `/project/staff/v1/_delete` - Delete Project Staff, This API is internally call from Project controller to soft delete linkage of Project Staff users with project.
-
-v) POST `/project/staff/v1/bulk/_create` - Create Project Staff in bulk, This API is internally call from Project controller to Link bulk Staff users to Project for a certain time period .
-
-w) POST `/project/staff/v1/bulk/_update` - Update Project Staff in bulk, This API is internally call from Project controller to update Project Staff users using bulk payload .
-
-x) POST `/project/staff/v1/bulk/_delete` - Delete Project Staff in bulk, This API is internally call from Project controller to soft delete linkage of Project Staff users with project in bulk.
+* POST `/project/beneficiary/v1/bulk/_delete` - Delete Project Beneficiaries, This API is used to soft delete beneficiaries registration for project.
 
 
-r) POST `/project/facility/v1/_create` - Create Project Facility, This API is internally call from Project controller to Link Facility to Project.
+* POST `/project/task/v1/_create` - Create Project Task, This API is used to create task for the project .
 
-s) POST `/project/facility/v1/_update` - Update Project Facility, This API is internally call from Project controller to update Project Facilities.
+* POST `/project/task/v1/_update` - Update Project Task, This API is used to update task request for Project.
 
-t) POST `/project/facility/v1/_search` - Search Project Facility, This API is internally call from Project controller to search Project Facilities.
+* POST `/project/task/v1/_search` - Search Project Task, This API is used to search task for Project.
 
-u) POST `/project/facility/v1/_delete` - Delete Project Facility, This API is internally call from Project controller to soft delete Project Facility.
+* POST `/project/task/v1/_delete` - Delete Project Task, This API is used to soft delete task for project.
 
-v) POST `/project/facility/v1/bulk/_create` - Create Project Facilities, This API is internally call from Project controller to link Facilities to Project.
+* POST `/project/task/v1/bulk/_create` - Create Project Tasks, This API is used to create tasks for the project in bulk.
 
-w) POST `/project/facility/v1/bulk/_update` - Update Project Facilities, This API is internally call from Project controller to update Project Facilities.
+* POST `/project/task/v1/bulk/_update` - Update Project Tasks, This API is used to update task Request in bulk for a project.
 
-x) POST `/project/facility/v1/bulk/_delete` - Delete Project Facilities, This API is internally call from Project controller to soft delete Project Facilities in bulk .
+* POST `/project/task/v1/bulk/_delete` - Delete Project Tasks, This API is used to Soft delete tasks for a project.
 
 
-y) POST `/project/resource/v1/_create` - Create Project Resource, This API is internally call from Project controller to Link Resources to Project.
+* POST `/project/staff/v1/_create` - Create Project Staff, This API is used to Link Staff users to Project for a certain time period .
 
-z) POST `/project/resource/v1/_update` - Update Project Resource, This API is internally call from Project controller to update Project Resource linkage.
+* POST `/project/staff/v1/_update` - Update Project Staff, This API is used to update Project Staff users.
 
-aa) POST `/project/resource/v1/_search` - Search Project Resource, This API is internally call from Project controller to search Project Resources.
+* POST `/project/staff/v1/_search` - Search Project Staff, This API is used to search Project Staff users.
 
-ab) POST `/project/resource/v1/_delete` - Delete Project Resource, This API is internally call from Project controller to delete Project Resource linkage.
+* POST `/project/staff/v1/_delete` - Delete Project Staff, This API is used to soft delete linkage of Project Staff users with project.
 
-ac) POST `/project/resource/v1/bulk/_create` - Create Project Resources, This API is internally call from Project controller to link Resources to Project.
+* POST `/project/staff/v1/bulk/_create` - Create Project Staff in bulk, This API is used to Link bulk Staff users to Project for a certain time period .
 
-ad) POST `/project/resource/v1/bulk/_update` - Update Project Resources, This API is internally call from Project controller to update Project Resource linkage in bulk.
+* POST `/project/staff/v1/bulk/_update` - Update Project Staff in bulk, This API is used to update Project Staff users using bulk payload .
 
-ae) POST `/project/resource/v1/bulk/_delete` - Delete Project Resources, This API is internally call from Project controller to delete Project Resource linkage in bulk.
+* POST `/project/staff/v1/bulk/_delete` - Delete Project Staff in bulk, This API is used to soft delete linkage of Project Staff users with project in bulk.
+
+
+* POST `/project/facility/v1/_create` - Create Project Facility, This API is used to Link Facility to Project.
+
+* POST `/project/facility/v1/_update` - Update Project Facility, This API is used to update Project Facilities.
+
+* POST `/project/facility/v1/_search` - Search Project Facility, This API is used to search Project Facilities.
+
+* POST `/project/facility/v1/_delete` - Delete Project Facility, This API is used to soft delete Project Facility.
+
+* POST `/project/facility/v1/bulk/_create` - Create Project Facilities, This API is used to link Facilities to Project.
+
+* POST `/project/facility/v1/bulk/_update` - Update Project Facilities, This API is used to update Project Facilities.
+
+* POST `/project/facility/v1/bulk/_delete` - Delete Project Facilities, This API is used to soft delete Project Facilities in bulk .
+
+
+* POST `/project/resource/v1/_create` - Create Project Resource, This API is used to Link Resources to Project.
+
+* POST `/project/resource/v1/_update` - Update Project Resource, This API is used to update Project Resource linkage.
+
+* POST `/project/resource/v1/_search` - Search Project Resource, This API is used to search Project Resources.
+
+* POST `/project/resource/v1/_delete` - Delete Project Resource, This API is used to delete Project Resource linkage.
+
+* POST `/project/resource/v1/bulk/_create` - Create Project Resources, This API is used to link Resources to Project.
+
+* POST `/project/resource/v1/bulk/_update` - Update Project Resources, This API is used to update Project Resource linkage in bulk.
+
+* POST `/project/resource/v1/bulk/_delete` - Delete Project Resources, This API is used to delete Project Resource linkage in bulk.
 
 
 ### Kafka Consumers

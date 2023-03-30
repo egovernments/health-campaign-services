@@ -23,17 +23,17 @@ BasePath `/product`
 
 Product service APIs - contains create, update, delete and search end point
 
-a) POST `/v1/_create` - Create Product, This API is internally call from product controller to create/add a new product.
+* POST `/v1/_create` - Create Product, This API is used to create/add a new product.
 
-b) POST `/v1/_update` - Update Product, This API is internally call from product controller to update the details of an existing product.
+* POST `/v1/_update` - Update Product, This API is used to update the details of an existing product.
 
-c) POST `/v1/_search` - Search Product, This API is internally call from product controller to search existing product.
+* POST `/v1/_search` - Search Product, This API is used to search existing product.
 
-d) POST `/variant/v1/_create` - Create Product variant, This API is internally call from product controller to create/add a new product variant.
+* POST `/variant/v1/_create` - Create Product variant, This API is used to create/add a new product variant.
 
-e) POST `/variant/v1/_update` - Update Product variant, This API is internally call from product controller to update the details of an existing product variant.
+* POST `/variant/v1/_update` - Update Product variant, This API is used to update the details of an existing product variant.
 
-f) POST `/variant/v1/_search` - Search Product variant, This API is internally call from product controller to search existing product variant.
+* POST `/variant/v1/_search` - Search Product variant, This API is used to search existing product variant.
 
 ### Kafka Producers
 

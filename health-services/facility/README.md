@@ -22,23 +22,19 @@ BasePath `/facility/v1`
 
 Facility service APIs - contains create, update, delete and search end point
 
-a) POST `/facility/v1/_create` - Create Facility, This API is internally call from facility controller to create/add a new facility.
+* POST `/facility/v1/_create` - Create Facility, This API is used to create/add a new facility.
 
-b) POST `/facility/v1/bulk/_create` - Create bulk Facility, This API is internally call from facility controller to create/add new facilities in bulk.
+* POST `/facility/v1/bulk/_create` - Create bulk Facility, This API is used to create/add new facilities in bulk.
 
-c) POST `/facility/v1/_update` - Update Facility, This API is internally call from facility controller to update the details of an existing facility.
+* POST `/facility/v1/_update` - Update Facility, This API is used to update the details of an existing facility.
 
-d) POST `/facility/v1/bulk/_update` - Update bulk Facility, This API is internally call from facility controller to update the details of existing facilities in bulk.
+* POST `/facility/v1/bulk/_update` - Update bulk Facility, This API is used to update the details of existing facilities in bulk.
 
-e) POST `/facility/v1/_delete` - Delete Facility, This API is internally call from facility controller to soft delete details of an existing facility.
+* POST `/facility/v1/_delete` - Delete Facility, This API is used to soft delete details of an existing facility.
 
-f) POST `/facility/v1/bulk/_delete` - Delete bulk Facility, This API is internally call from facility controller to soft delete details of an existing facility in bulk.
+* POST `/facility/v1/bulk/_delete` - Delete bulk Facility, This API is used to soft delete details of an existing facilities in bulk.
 
-g) POST `/facility/v1/_search` - Search Facility, This API is internally call from facility controller to search existing facility.
-
-### Property Dependencies
-
-Below properties define the Facility Configuration
+* POST `/facility/v1/_search` - Search Facility, This API is used to search existing facilities.
 
 ### Kafka Consumers
 
