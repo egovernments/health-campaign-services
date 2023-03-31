@@ -28,6 +28,15 @@ public class AggregateDto {
 	private Boolean hideInsights;
 
 	private Boolean hideHeaderDenomination;
+	private String linePlotLabel;
+
+	public String getLinePlotLabel() {
+		return linePlotLabel;
+	}
+
+	public void setLinePlotLabel(String linePlotLabel) {
+		this.linePlotLabel = linePlotLabel;
+	}
 
 	public Boolean getHideInsights() {
 		return hideInsights;
