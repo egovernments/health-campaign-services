@@ -140,8 +140,8 @@ public interface IResponseHandler {
 		if (chartNode.has(HIDE_HEADER_DENOMINATION)) {
 			aggregateDto.setHideHeaderDenomination(chartNode.get(HIDE_HEADER_DENOMINATION).asBoolean());
 		}
-		if (chartNode.has(LINE_PLOT_LABEL)) {
-			aggregateDto.setLinePlotLabel(chartNode.get(LINE_PLOT_LABEL).asText());
+		if (chartNode.has(PLOT_LABEL)) {
+			aggregateDto.setPlotLabel(chartNode.get(PLOT_LABEL).asText());
 		}
 		if (chartNode.has(SHOW_FOOTER)){
 			aggregateDto.setShowFooter(chartNode.get(SHOW_FOOTER).asBoolean());
