@@ -97,7 +97,7 @@ public class HouseholdService {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
                 householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
-                log.info("successfully created households: " + validEntities);
+                log.info("successfully created {} households", validEntities.size());
             }
         } catch (Exception exception) {
             log.error("error occurred while creating households", exception);
