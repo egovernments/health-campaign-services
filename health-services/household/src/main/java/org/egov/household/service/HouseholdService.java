@@ -208,6 +208,12 @@ public class HouseholdService {
         return households;
     }
 
+    public void putInCache(List<Household> households) {
+        log.info("putting {} households in cache", households.size());
+        householdRepository.putInCache(households);
+        log.info("successfully put households in cache");
+    }
+
     private Tuple<List<Household>, Map<Household, ErrorDetails>> validate(List<Validator<HouseholdBulkRequest, Household>> validators,
                                                                 Predicate<Validator<HouseholdBulkRequest, Household>> applicableValidators,
                                                                           HouseholdBulkRequest request, boolean isBulk) {

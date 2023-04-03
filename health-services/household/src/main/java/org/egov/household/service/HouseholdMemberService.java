@@ -227,6 +227,12 @@ public class HouseholdMemberService {
         return validHouseholdMembers;
     }
 
+    public void putInCache(List<HouseholdMember> householdMembers) {
+        log.info("putting {} household members in cache", householdMembers.size());
+        householdMemberRepository.putInCache(householdMembers);
+        log.info("successfully put household members in cache");
+    }
+
     private Tuple<List<HouseholdMember>, Map<HouseholdMember, ErrorDetails>> validate(List<Validator<HouseholdMemberBulkRequest,
             HouseholdMember>> validators, Predicate<Validator<HouseholdMemberBulkRequest,
             HouseholdMember>> isApplicable, HouseholdMemberBulkRequest request, boolean isBulk) {

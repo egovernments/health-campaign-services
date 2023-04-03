@@ -216,6 +216,12 @@ public class ProjectBeneficiaryService {
         return validProjectBeneficiaries;
     }
 
+    public void putInCache(List<ProjectBeneficiary> projectBeneficiaries) {
+        log.info("putting {} project beneficiaries in cache", projectBeneficiaries.size());
+        projectBeneficiaryRepository.putInCache(projectBeneficiaries);
+        log.info("successfully put project beneficiaries in cache");
+    }
+
     private Tuple<List<ProjectBeneficiary>, Map<ProjectBeneficiary, ErrorDetails>> validate(List<Validator<BeneficiaryBulkRequest,
             ProjectBeneficiary>> validators,
             Predicate<Validator<BeneficiaryBulkRequest,
