@@ -868,7 +868,7 @@ public class CommonUtils {
      * @param regexPattern
      * @return
      */
-    private static boolean isValidPattern(String value, String regexPattern) {
+    public static boolean isValidPattern(String value, String regexPattern) {
 
         Pattern pattern = Pattern.compile(regexPattern);
         Matcher matcher = pattern.matcher(value);
