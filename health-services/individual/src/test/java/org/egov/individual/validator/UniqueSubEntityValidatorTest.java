@@ -29,7 +29,7 @@ public class UniqueSubEntityValidatorTest {
     private UniqueSubEntityValidator uniqueSubEntityValidator;
 
     @Test
-    void shouldGiveError_WhenAddressIsDuplicate() {
+    void shouldGiveErrorWhenAddressIsDuplicate() {
         Address firstAddress = Address.builder()
                 .id("some-Id")
                 .city("some-city")
@@ -53,7 +53,7 @@ public class UniqueSubEntityValidatorTest {
     }
 
     @Test
-    void shouldNotGiveError_WhenAddressIsUnique() {
+    void shouldNotGiveErrorWhenAddressIsUnique() {
         Address firstAddress = Address.builder().id("some-Id").city("some-city").tenantId("some-tenant-id").type(AddressType.PERMANENT).isDeleted(false).build();
         Address secondAddress = Address.builder().id("some-other-Id").city("some-city").tenantId("some-tenant-id").type(AddressType.PERMANENT).isDeleted(false).build();
         Individual individual = IndividualTestBuilder.builder().withAddress(firstAddress, secondAddress).build();
@@ -62,7 +62,7 @@ public class UniqueSubEntityValidatorTest {
     }
 
     @Test
-    void shouldGiveError_IfIdentifierTypeIsDuplicate() {
+    void shouldGiveErrorIfIdentifierTypeIsDuplicate() {
         Identifier firstIdentifier = Identifier.builder()
                 .identifierType("SYSTEM_GENERATED")
                 .identifierId("some-identifier-id")
@@ -83,7 +83,7 @@ public class UniqueSubEntityValidatorTest {
     }
 
     @Test
-    void shouldNotGiveError_IfIdentifierTypeIsUnique() {
+    void shouldNotGiveErrorIfIdentifierTypeIsUnique() {
         Identifier firstIdentifier = Identifier.builder()
                 .identifierType("SYSTEM_GENERATED")
                 .identifierId("some-identifier-id")
@@ -100,7 +100,7 @@ public class UniqueSubEntityValidatorTest {
     }
 
     @Test
-    void shouldGiveError_WhenSkillIsDuplicate() {
+    void shouldGiveErrorWhenSkillIsDuplicate() {
         Skill skill = Skill.builder().id("some-id").type("type").experience("exp").level("lvl").build();
         Skill anotherSkill = Skill.builder().id("some-id").type("type").experience("exp").level("lvl").build();
         Individual individual = IndividualTestBuilder.builder().withSkills(skill, anotherSkill).build();
@@ -112,7 +112,7 @@ public class UniqueSubEntityValidatorTest {
     }
 
     @Test
-    void shouldNotGiveError_WhenSkillIsUnique() {
+    void shouldNotGiveErrorWhenSkillIsUnique() {
         Skill skill = Skill.builder().id("some-id").type("type-one").experience("exp").level("lvl").build();
         Skill anotherSkill = Skill.builder().id("some-other-id").type("type-two").experience("exp").level("lvl").build();
         Individual individual = IndividualTestBuilder.builder().withSkills(skill, anotherSkill).build();

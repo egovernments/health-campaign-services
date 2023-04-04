@@ -17,8 +17,16 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.EncryptionDecryptionUtil;
-import org.egov.individual.validators.*;
-import org.egov.individual.web.models.*;
+import org.egov.individual.validators.AadharMobileNumberValidator;
+import org.egov.individual.validators.AddressTypeValidator;
+import org.egov.individual.validators.IsDeletedSubEntityValidator;
+import org.egov.individual.validators.IsDeletedValidator;
+import org.egov.individual.validators.NonExistentEntityValidator;
+import org.egov.individual.validators.NullIdValidator;
+import org.egov.individual.validators.RowVersionValidator;
+import org.egov.individual.validators.UniqueEntityValidator;
+import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -26,11 +34,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.individual.Constants.SET_INDIVIDUALS;
 import static org.egov.individual.Constants.VALIDATION_ERROR;
 
@@ -117,7 +138,7 @@ public class IndividualService {
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
         return decryptIndividuals(encryptedIndividualList, request.getRequestInfo());
     }
@@ -167,7 +188,7 @@ public class IndividualService {
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
         return decryptIndividuals(encryptedIndividualList, request.getRequestInfo());
     }
@@ -246,20 +267,9 @@ public class IndividualService {
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
-        handleErrors(isBulk, errorDetailsMap);
+        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validIndividuals;
-    }
-
-    private static void handleErrors(boolean isBulk, Map<Individual, ErrorDetails> errorDetailsMap) {
-        if (!errorDetailsMap.isEmpty()) {
-            log.error("{} errors collected", errorDetailsMap.size());
-            if (isBulk) {
-                log.info("call tracer.handleErrors(), {}", errorDetailsMap.values());
-            } else {
-                throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
-            }
-        }
     }
 
     /**
@@ -380,7 +390,7 @@ public class IndividualService {
                 if (individual.getIdentifiers() == null || individual.getIdentifiers().isEmpty()) {
                     Identifier identifierSearch = Identifier.builder().individualId(individual.getId()).build();
                     IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
-                    List<Individual> individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
+                    List<Individual> individualsList = individualRepository.find(individualSearch, null, null, tenantId, null, false);
                     if (!individualsList.isEmpty()) {
                         individual.setIdentifiers(individualsList.get(0).getIdentifiers());
                     }

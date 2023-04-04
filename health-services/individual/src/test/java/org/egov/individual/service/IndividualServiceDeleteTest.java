@@ -104,8 +104,8 @@ class IndividualServiceDeleteTest {
     }
 
     @Test
-    @DisplayName("should give error while deleting invalid individual")
-    void should() {
+    @DisplayName("should not delete individual when individual has error")
+    void shouldNotDeleteIndividualWhenIndiviudalHasError() {
         Individual individual = IndividualTestBuilder.builder().build();
         individual.setHasErrors(true);
         IndividualRequest request = IndividualRequestTestBuilder.builder()

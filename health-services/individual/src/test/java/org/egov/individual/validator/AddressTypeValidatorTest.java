@@ -31,7 +31,7 @@ public class AddressTypeValidatorTest {
     private AddressTypeValidator addressTypeValidator;
 
     @Test
-    void shouldNotGiveError_WhenAddressTypeIsValid() {
+    void shouldNotGiveErrorWhenAddressTypeIsValid() {
         Address address = Address.builder()
                 .id("some-Id")
                 .city("some-city")
@@ -45,7 +45,7 @@ public class AddressTypeValidatorTest {
     }
 
     @Test
-    void shouldGiveError_WhenAddressIsInvalid() {
+    void shouldGiveErrorWhenAddressIsInvalid() {
         Address address = Address.builder().id("some-Id").tenantId("some-tenant-Id").type(AddressType.PERMANENT).build();
         Address address1 = Address.builder().id("some-Id").tenantId("some-tenant-Id").type(AddressType.PERMANENT).build();
         Individual individual = IndividualTestBuilder.builder().withAddress(address, address1).build();

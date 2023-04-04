@@ -10,14 +10,16 @@ import org.egov.encryption.audit.AuditService;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 
 @Slf4j
 @Component
@@ -71,7 +73,7 @@ public class EncryptionDecryptionUtil {
                 objectToDecryptNotList = true;
                 objectToDecrypt = Collections.singletonList(objectToDecrypt);
             }
-            final User encrichedUserInfo = getEncrichedandCopiedUserInfo(requestInfo.getUserInfo());
+            final User encrichedUserInfo = getEncrichedAndCopiedUserInfo(requestInfo.getUserInfo());
             requestInfo.setUserInfo(encrichedUserInfo);
 
             //Map<String,String> keyPurposeMap = getKeyToDecrypt(objectToDecrypt, encrichedUserInfo);
@@ -98,60 +100,7 @@ public class EncryptionDecryptionUtil {
         }
     }
 
-    /*public boolean isUserDecryptingForSelf(Object objectToDecrypt, User userInfo) {
-        org.egov.user.domain.model.User userToDecrypt = null;
-        if (objectToDecrypt instanceof List) {
-            if (((List) objectToDecrypt).isEmpty())
-                return false;
-            if (((List) objectToDecrypt).size() > 1)
-                return false;
-            userToDecrypt = (org.egov.user.domain.model.User) ((List) objectToDecrypt).get(0);
-        } else {
-            throw new CustomException("DECRYPTION_NOTLIST_ERROR", objectToDecrypt + " is not of type List of User");
-        }
-
-        if ((userToDecrypt.getUuid() != null) && userToDecrypt.getUuid().equalsIgnoreCase(userInfo.getUuid()))
-            return true;
-        else
-            return false;
-    }*/
-
-    /*private boolean isDecryptionForIndividualUser(Object objectToDecrypt) {
-        if (((List) objectToDecrypt).size() == 1)
-            return true;
-        else
-            return false;
-    }*/
-
-    /*public Map<String,String> getKeyToDecrypt(Object objectToDecrypt, User userInfo) {
-        Map<String,String> keyPurposeMap = new HashMap<>();
-
-        if (!abacEnabled){
-            keyPurposeMap.put("key","UserSelf");
-            keyPurposeMap.put("purpose","AbacDisabled");
-        }
-
-
-        else if (isUserDecryptingForSelf(objectToDecrypt, userInfo)){
-            keyPurposeMap.put("key","UserSelf");
-            keyPurposeMap.put("purpose","Self");
-        }
-
-
-        else if (isDecryptionForIndividualUser(objectToDecrypt)){
-            keyPurposeMap.put("key","User");
-            keyPurposeMap.put("purpose","SingleSearchResult");
-        }
-
-        else{
-            keyPurposeMap.put("key","User");
-            keyPurposeMap.put("purpose","BulkSearchResult");
-        }
-
-        return keyPurposeMap;
-    }*/
-
-    private User getEncrichedandCopiedUserInfo(User userInfo) {
+    private User getEncrichedAndCopiedUserInfo(User userInfo) {
         List<Role> newRoleList = new ArrayList<>();
         if (userInfo.getRoles() != null) {
             for (Role role : userInfo.getRoles()) {

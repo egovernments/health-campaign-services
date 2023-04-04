@@ -29,14 +29,14 @@ public class IsDeletedSubEntityValidatorTest {
     IsDeletedSubEntityValidator isDeletedSubEntityValidator;
 
     @Test
-    void shouldNotGiveError_WhenSubEntityIdentifierIsNotDeleted() {
+    void shouldNotGiveErrorWhenSubEntityIdentifierIsNotDeleted() {
         Individual individual = IndividualTestBuilder.builder().withIdentifiers().build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
         assertTrue(isDeletedSubEntityValidator.validate(individualBulkRequest).isEmpty());
     }
 
     @Test
-    void shouldGiveError_WhenSubEntityIdentifierIsDeleted() {
+    void shouldGiveErrorWhenSubEntityIdentifierIsDeleted() {
         Identifier identifier = Identifier.builder()
                 .identifierType("SYSTEM_GENERATED")
                 .identifierId("some-identifier-id")
@@ -53,14 +53,14 @@ public class IsDeletedSubEntityValidatorTest {
     }
 
     @Test
-    void shouldNotGiveError_WhenSubEntityAddressIsNotDeleted() {
+    void shouldNotGiveErrorWhenSubEntityAddressIsNotDeleted() {
         Individual individual = IndividualTestBuilder.builder().withAddress().build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
         assertTrue(isDeletedSubEntityValidator.validate(individualBulkRequest).isEmpty());
     }
 
     @Test
-    void shouldGiveError_WhenSubEntityAddressIsDeleted() {
+    void shouldGiveErrorWhenSubEntityAddressIsDeleted() {
         Address address = Address.builder()
                 .city("some-city")
                 .tenantId("some-tenant-id")
@@ -77,7 +77,7 @@ public class IsDeletedSubEntityValidatorTest {
     }
 
     @Test
-    void shouldNotGiveError_WhenSubEntitySkillsIsNotDeleted() {
+    void shouldNotGiveErrorWhenSubEntitySkillsIsNotDeleted() {
         Skill skill = Skill.builder().type("type").experience("exp").level("lvl").isDeleted(false).build();
         Individual individual = IndividualTestBuilder.builder().withSkills(skill).build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
@@ -85,7 +85,7 @@ public class IsDeletedSubEntityValidatorTest {
     }
 
     @Test
-    void shouldGiveError_WhenSubEntitySkillsIsDeleted() {
+    void shouldGiveErrorWhenSubEntitySkillsIsDeleted() {
         Skill skill = Skill.builder().type("type").experience("exp").level("lvl").isDeleted(true).build();
         Individual individual = IndividualTestBuilder.builder().withSkills(skill).build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();

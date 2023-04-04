@@ -19,7 +19,7 @@ public class NullIdValidatorTest {
     private NullIdValidator nullIdValidator;
 
     @Test
-    void shouldNotThrowError_IfIdIsNotNull() {
+    void shouldNotThrowErrorIfIdIsNotNull() {
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals().build();
         assertDoesNotThrow(() -> nullIdValidator.validate(individualBulkRequest));
     }

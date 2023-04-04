@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,7 +29,6 @@ import static org.egov.common.utils.CommonUtils.enrichForUpdate;
 import static org.egov.common.utils.CommonUtils.getAuditDetailsForUpdate;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
 import static org.egov.individual.Constants.GET_ID;
@@ -174,11 +172,8 @@ public class EnrichmentService {
      * Enriches individualId - formatted idGen generated value on create
      */
     private static void enrichIndividualIdOnCreate(List<Individual> individuals, List<String> idGenList) {
-        Class<?> objClass = getObjClass(individuals);
-        Method setIdMethod = getMethod("setIndividualId", objClass);
         IntStream.range(0, individuals.size()).forEach((i) -> {
-            Object obj = individuals.get(i);
-            ReflectionUtils.invokeMethod(setIdMethod, obj, new Object[]{idGenList.get(i)});
+            individuals.get(i).setIndividualId(idGenList.get(i));
         });
     }
 

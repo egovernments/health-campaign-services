@@ -9,7 +9,6 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
@@ -17,14 +16,11 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.isValidPattern;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 @Component
@@ -51,7 +47,7 @@ public class AadharMobileNumberValidator implements Validator<IndividualBulkRequ
         if (!individuals.isEmpty()) {
             for (Individual individual : individuals) {
                 //check mobile number has all numbers , if present
-                if (StringUtils.isNotBlank(individual.getMobileNumber()) && !isValid(individual.getMobileNumber(),properties.getMobilePattern())) {
+                if (StringUtils.isNotBlank(individual.getMobileNumber()) && !isValidPattern(individual.getMobileNumber(),properties.getMobilePattern())) {
                     Error error = Error.builder().errorMessage("Invalid MobileNumber").errorCode("INVALID_MOBILENUMBER").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("INVALID_MOBILENUMBER", "Invalid MobileNumber")).build();
                     populateErrorDetails(individual, error, errorDetailsMap);
                 }
@@ -62,7 +58,7 @@ public class AadharMobileNumberValidator implements Validator<IndividualBulkRequ
                            .filter(id -> id.getIdentifierType().contains("AADHAAR"))
                            .findFirst().orElse(null);
                    if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())
-                               && !isValid(identifier.getIdentifierId(),properties.getAadhaarPattern())) {
+                               && !isValidPattern(identifier.getIdentifierId(),properties.getAadhaarPattern())) {
                        Error error = Error.builder().errorMessage("Invalid Aadhaar").errorCode("INVALID_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("INVALID_AADHAAR", "Invalid Aadhaar")).build();
                        populateErrorDetails(individual, error, errorDetailsMap);
                    }
@@ -73,11 +69,5 @@ public class AadharMobileNumberValidator implements Validator<IndividualBulkRequ
         return errorDetailsMap;
     }
 
-    private boolean isValid(String value, String PATTERN) {
-
-        Pattern pattern = Pattern.compile(PATTERN);
-        Matcher matcher = pattern.matcher(value);
-        return matcher.matches();
-    }
 
 }

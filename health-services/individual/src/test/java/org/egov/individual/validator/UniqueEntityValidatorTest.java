@@ -29,7 +29,7 @@ public class UniqueEntityValidatorTest {
     private UniqueEntityValidator uniqueEntityValidator;
 
     @Test
-    void shouldGiveError_WhenIndividualsWithDuplicateIdsPresent() {
+    void shouldGiveErrorWhenIndividualsWithDuplicateIdsPresent() {
         Individual firstIndividual = IndividualTestBuilder.builder().withId("some-ID").build();
         Individual secondIndividual = IndividualTestBuilder.builder().withId("some-ID").build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(firstIndividual, secondIndividual).build();
@@ -41,7 +41,7 @@ public class UniqueEntityValidatorTest {
     }
 
     @Test
-    void shouldNotGiveError_WhenIndividualsWithUniqueIdsPresent() {
+    void shouldNotGiveErrorWhenIndividualsWithUniqueIdsPresent() {
         Individual firstIndividual = IndividualTestBuilder.builder().withId("some-ID").build();
         Individual secondIndividual = IndividualTestBuilder.builder().withId("some-other-ID").build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(firstIndividual, secondIndividual).build();

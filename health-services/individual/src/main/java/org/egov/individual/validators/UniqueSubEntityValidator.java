@@ -22,7 +22,9 @@ import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueSubEntity;
-import static org.egov.individual.Constants.*;
+import static org.egov.individual.Constants.GET_IDENTIFIER_TYPE;
+import static org.egov.individual.Constants.GET_TYPE;
+
 
 @Component
 @Order(value = 3)

@@ -32,7 +32,7 @@ public class RowVersionValidatorTest {
     private IndividualRepository individualRepository;
 
     @Test
-    void shouldNotGiveError_WhenRowVersionMatches() {
+    void shouldNotGiveErrorWhenRowVersionMatches() {
         Address address = Address.builder()
                 .id("some-Id")
                 .city("some-city")
@@ -56,7 +56,7 @@ public class RowVersionValidatorTest {
     }
 
     @Test
-    void shouldGiveError_WhenRowVersionDoesNotMatch() {
+    void shouldGiveErrorWhenRowVersionDoesNotMatch() {
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withId("some-id")

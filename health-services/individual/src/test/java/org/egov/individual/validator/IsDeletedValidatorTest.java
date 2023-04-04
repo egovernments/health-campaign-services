@@ -29,14 +29,14 @@ public class IsDeletedValidatorTest {
     private IsDeletedValidator isDeletedValidator;
 
     @Test
-    void shouldNotGiveError_WhenIndividualIsNotDeleted() {
+    void shouldNotGiveErrorWhenIndividualIsNotDeleted() {
         Individual individual = IndividualTestBuilder.builder().withIsDeleted(false).build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
         assertTrue(isDeletedValidator.validate(individualBulkRequest).isEmpty());
     }
 
     @Test
-    void shouldGiveError_WhenIndividualIsDeleted() {
+    void shouldGiveErrorWhenIndividualIsDeleted() {
         Individual individual = IndividualTestBuilder.builder().withIsDeleted(true).build();
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();

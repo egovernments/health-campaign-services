@@ -34,7 +34,7 @@ public class NonExistentEntityValidatorTest {
     private IndividualRepository individualRepository;
 
     @Test
-    void shouldNotGiveError_WhenEntityExists() {
+    void shouldNotGiveErrorWhenEntityExists() {
         Address address = Address.builder()
                 .id("some-Id")
                 .city("some-city")
@@ -59,7 +59,7 @@ public class NonExistentEntityValidatorTest {
     }
 
     @Test
-    void shouldGiveError_WhenEntityDoesNotExist() {
+    void shouldGiveErrorWhenEntityDoesNotExist() {
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withId("some-id")
