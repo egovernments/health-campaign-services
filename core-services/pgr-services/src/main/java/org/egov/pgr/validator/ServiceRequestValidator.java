@@ -12,6 +12,7 @@ import org.egov.pgr.web.models.ServiceWrapper;
 import org.egov.pgr.web.models.User;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -36,6 +37,9 @@ public class ServiceRequestValidator {
     private PGRRepository repository;
 
     private HRMSUtil hrmsUtil;
+
+    @Value("${enable.state.level.search:true}")
+    private Boolean enableStateLevelSearch;
 
     @Autowired
     public ServiceRequestValidator(PGRConfiguration config, PGRRepository repository, HRMSUtil hrmsUtil) {
@@ -239,7 +243,9 @@ public class ServiceRequestValidator {
         if(requestInfo.getUserInfo().getType().equalsIgnoreCase("EMPLOYEE" ) && criteria.isEmpty())
             throw new CustomException("INVALID_SEARCH","Search without params is not allowed");
 
-        if(requestInfo.getUserInfo().getType().equalsIgnoreCase("EMPLOYEE") && criteria.getTenantId().split("\\.").length == 1){
+        if(requestInfo.getUserInfo().getType().equalsIgnoreCase("EMPLOYEE")
+                && criteria.getTenantId().split("\\.").length == 1
+                && !enableStateLevelSearch){
             throw new CustomException("INVALID_SEARCH", "Employees cannot perform state level searches.");
         }
 
