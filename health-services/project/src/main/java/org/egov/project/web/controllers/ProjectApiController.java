@@ -102,6 +102,7 @@ public class ProjectApiController {
     @RequestMapping(value = "/beneficiary/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectBeneficiaryV1BulkCreatePost(@ApiParam(value = "Capture details of benificiary type.", required = true) @Valid @RequestBody BeneficiaryBulkRequest beneficiaryRequest) {
         beneficiaryRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        projectBeneficiaryService.putInCache(beneficiaryRequest.getProjectBeneficiaries());
         producer.push(projectConfiguration.getBulkCreateProjectBeneficiaryTopic(), beneficiaryRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(beneficiaryRequest.getRequestInfo(), true));
@@ -385,6 +386,7 @@ public class ProjectApiController {
     @RequestMapping(value = "/task/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectTaskBulkV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        projectTaskService.putInCache(request.getTasks());
         producer.push(projectConfiguration.getCreateProjectTaskBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory

@@ -242,4 +242,10 @@ public class ProjectTaskService {
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
+
+    public void putInCache(List<Task> tasks) {
+        log.info("putting {} project tasks in cache", tasks.size());
+        projectTaskRepository.putInCache(tasks);
+        log.info("successfully put project tasks in cache");
+    }
 }

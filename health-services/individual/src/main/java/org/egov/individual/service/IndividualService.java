@@ -399,4 +399,9 @@ public class IndividualService {
         }
     }
 
+    public void putInCache(List<Individual> individuals) {
+        log.info("putting {} individuals in cache", individuals.size());
+        individualRepository.putInCache(individuals);
+        log.info("successfully put individuals in cache");
+    }
 }
