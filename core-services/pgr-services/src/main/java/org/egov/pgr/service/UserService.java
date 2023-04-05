@@ -47,10 +47,20 @@ public class UserService {
      */
     public void callUserService(ServiceRequest request){
 
-        if(!StringUtils.isEmpty(request.getService().getAccountId()))
+        if(!StringUtils.isEmpty(request.getService().getAccountId())) {
             enrichUser(request);
-        else if(request.getService().getCitizen()!=null)
+        }
+        else if(request.getService().getCitizen()!=null) {
             upsertUser(request);
+        }
+
+        if(!StringUtils.isEmpty(request.getService().getSupervisorId())) {
+            enrichSupervisor(request);
+        }
+        else if(request.getService().getSupervisor()!=null) {
+            upsertSupervisor(request);
+        }
+
 
     }
 
@@ -103,6 +113,34 @@ public class UserService {
         request.getService().setAccountId(userServiceResponse.getUuid());
     }
 
+    /**
+     * Creates or updates the user based on if the user exists. The user existance is searched based on userName = mobileNumber
+     * If the there is already a user with that mobileNumber, the existing user is updated
+     * @param request
+     */
+    private void upsertSupervisor(ServiceRequest request){
+
+        User user = request.getService().getSupervisor();
+        String tenantId = request.getService().getTenantId();
+        User userServiceResponse = null;
+
+        // Search on mobile number as user name
+        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),null, user.getMobileNumber());
+        if (!userDetailResponse.getUser().isEmpty()) {
+            User userFromSearch = userDetailResponse.getUser().get(0);
+            if(!user.getName().equalsIgnoreCase(userFromSearch.getName())){
+                userServiceResponse = updateUser(request.getRequestInfo(),user,userFromSearch);
+            }
+            else userServiceResponse = userDetailResponse.getUser().get(0);
+        }
+        else {
+            userServiceResponse = createUser(request.getRequestInfo(),tenantId,user);
+        }
+
+        // Enrich the accountId
+        request.getService().setSupervisorId(userServiceResponse.getUuid());
+    }
+
 
     /**
      * Calls user search to fetch a user and enriches it in request
@@ -120,6 +158,25 @@ public class UserService {
             throw new CustomException("INVALID_ACCOUNTID","No user exist for the given accountId");
 
         else request.getService().setCitizen(userDetailResponse.getUser().get(0));
+
+    }
+
+    /**
+     * Calls user search to fetch a user and enriches it in request
+     * @param request
+     */
+    private void enrichSupervisor(ServiceRequest request){
+
+        RequestInfo requestInfo = request.getRequestInfo();
+        String supervisorId = request.getService().getSupervisorId();
+        String tenantId = request.getService().getTenantId();
+
+        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),supervisorId,null);
+
+        if(userDetailResponse.getUser().isEmpty())
+            throw new CustomException("INVALID_SUPERVISORID","No user exist for the given supervisorId");
+
+        else request.getService().setSupervisor(userDetailResponse.getUser().get(0));
 
     }
 
