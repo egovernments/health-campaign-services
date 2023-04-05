@@ -133,6 +133,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE ");
         }
+        if (searchObject.getIndividualName() != null) {
+            query = query + "AND givenname LIKE :individualName ";
+            paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
+        }
         if (searchObject.getGender() != null) {
             query = query + "AND gender =:gender ";
             paramsMap.put("gender", searchObject.getGender().name());

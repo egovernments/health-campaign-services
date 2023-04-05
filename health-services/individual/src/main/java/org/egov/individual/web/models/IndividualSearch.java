@@ -66,6 +66,10 @@ public class IndividualSearch   {
     @Exclude
     private String wardCode = null;
 
+    @JsonProperty("individualName")
+    @Exclude
+    private String individualName = null;
+
     @JsonProperty("createdFrom")
     @Exclude
     private BigDecimal createdFrom = null;
