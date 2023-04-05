@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 
 public class AddressRowMapper implements RowMapper<Address> {
     @Override
@@ -30,6 +31,7 @@ public class AddressRowMapper implements RowMapper<Address> {
                 .buildingName(resultSet.getString("buildingName"))
                 .street(resultSet.getString("street"))
                 .locality(Boundary.builder().code(resultSet.getString("localityCode")).build())
+                .ward(Boundary.builder().code(resultSet.getString("wardCode")).build())
                 .auditDetails(AuditDetails.builder().createdBy(resultSet.getString("createdBy"))
                         .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                         .createdTime(resultSet.getLong("createdTime"))

@@ -13,6 +13,7 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
@@ -66,6 +67,9 @@ class IndividualServiceTest {
     @Mock
     private EnrichmentService enrichmentService;
 
+    @Mock
+    private EncryptionDecryptionUtil encryptionDecryptionUtil;
+
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
     @BeforeEach
@@ -93,7 +97,7 @@ class IndividualServiceTest {
                         .withName()
                         .build())
                 .build();
-
+        when(encryptionDecryptionUtil.encryptObject(any(Object.class), any(String.class), any(Class.class))).thenReturn(request.getIndividual());
         individualService.create(request);
 
         verify(individualRepository, times(1))
@@ -149,15 +153,18 @@ class IndividualServiceTest {
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.PERMANENT)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.OTHER)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)

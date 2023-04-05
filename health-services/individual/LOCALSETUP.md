@@ -26,6 +26,6 @@ cd path/to/docker-compose.yml file
 docker-compose up -d
 ```
 
-To run it locally this service require port forwarding for idgen service.
+To run it locally this service requires port forwarding of idgen service, MDMS service and enc service.
 
 Directly run the application.
