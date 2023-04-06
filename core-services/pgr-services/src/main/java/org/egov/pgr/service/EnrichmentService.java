@@ -80,8 +80,6 @@ public class EnrichmentService {
         List<String> customIds = getIdList(requestInfo,tenantId,config.getServiceRequestIdGenName(),config.getServiceRequestIdGenFormat(),1);
 
         service.setServiceRequestId(customIds.get(0));
-
-
     }
 
 

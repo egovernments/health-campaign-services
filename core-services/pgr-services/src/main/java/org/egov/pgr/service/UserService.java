@@ -25,7 +25,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.egov.pgr.util.PGRConstants.EMPLOYEE;
 import static org.egov.pgr.util.PGRConstants.USERTYPE_CITIZEN;
+import static org.egov.pgr.util.PGRConstants.USERTYPE_EMPLOYEE;
 
 @org.springframework.stereotype.Service
 public class UserService {
@@ -97,7 +99,8 @@ public class UserService {
         User userServiceResponse = null;
 
         // Search on mobile number as user name
-        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),null, user.getMobileNumber());
+        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),null,
+                user.getMobileNumber(), USERTYPE_CITIZEN);
         if (!userDetailResponse.getUser().isEmpty()) {
             User userFromSearch = userDetailResponse.getUser().get(0);
             if(!user.getName().equalsIgnoreCase(userFromSearch.getName())){
@@ -106,7 +109,7 @@ public class UserService {
             else userServiceResponse = userDetailResponse.getUser().get(0);
         }
         else {
-            userServiceResponse = createUser(request.getRequestInfo(),tenantId,user);
+            userServiceResponse = createUser(request.getRequestInfo(),tenantId,user, USERTYPE_CITIZEN);
         }
 
         // Enrich the accountId
@@ -125,7 +128,8 @@ public class UserService {
         User userServiceResponse = null;
 
         // Search on mobile number as user name
-        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),null, user.getMobileNumber());
+        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),null,
+                user.getMobileNumber(), USERTYPE_EMPLOYEE);
         if (!userDetailResponse.getUser().isEmpty()) {
             User userFromSearch = userDetailResponse.getUser().get(0);
             if(!user.getName().equalsIgnoreCase(userFromSearch.getName())){
@@ -134,7 +138,7 @@ public class UserService {
             else userServiceResponse = userDetailResponse.getUser().get(0);
         }
         else {
-            userServiceResponse = createUser(request.getRequestInfo(),tenantId,user);
+            userServiceResponse = createUser(request.getRequestInfo(),tenantId,user, USERTYPE_EMPLOYEE);
         }
 
         // Enrich the accountId
@@ -152,7 +156,8 @@ public class UserService {
         String accountId = request.getService().getAccountId();
         String tenantId = request.getService().getTenantId();
 
-        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),accountId,null);
+        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),accountId,
+                null, USERTYPE_CITIZEN);
 
         if(userDetailResponse.getUser().isEmpty())
             throw new CustomException("INVALID_ACCOUNTID","No user exist for the given accountId");
@@ -171,7 +176,8 @@ public class UserService {
         String supervisorId = request.getService().getSupervisorId();
         String tenantId = request.getService().getTenantId();
 
-        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),supervisorId,null);
+        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),supervisorId,
+                null, EMPLOYEE);
 
         if(userDetailResponse.getUser().isEmpty())
             throw new CustomException("INVALID_SUPERVISORID","No user exist for the given supervisorId");
@@ -187,9 +193,9 @@ public class UserService {
      * @param userInfo
      * @return
      */
-    private User createUser(RequestInfo requestInfo,String tenantId, User userInfo) {
+    private User createUser(RequestInfo requestInfo,String tenantId, User userInfo, String userType) {
 
-        userUtils.addUserDefaultFields(userInfo.getMobileNumber(),tenantId, userInfo);
+        userUtils.addUserDefaultFields(userInfo.getMobileNumber(),tenantId, userInfo, userType);
         StringBuilder uri = new StringBuilder(config.getUserHost())
                 .append(config.getUserContextPath())
                 .append(config.getUserCreateEndpoint());
@@ -198,7 +204,6 @@ public class UserService {
         UserDetailResponse userDetailResponse = userUtils.userCall(new CreateUserRequest(requestInfo, userInfo), uri);
 
         return userDetailResponse.getUser().get(0);
-
     }
 
     /**
@@ -229,13 +234,14 @@ public class UserService {
      * @param stateLevelTenant
      * @param accountId
      * @param userName
+     * @param userType
      * @return
      */
-    private UserDetailResponse searchUser(String stateLevelTenant, String accountId, String userName){
+    private UserDetailResponse searchUser(String stateLevelTenant, String accountId, String userName, String userType){
 
         UserSearchRequest userSearchRequest =new UserSearchRequest();
         userSearchRequest.setActive(true);
-        userSearchRequest.setUserType(USERTYPE_CITIZEN);
+        userSearchRequest.setUserType(userType);
         userSearchRequest.setTenantId(stateLevelTenant);
 
         if(StringUtils.isEmpty(accountId) && StringUtils.isEmpty(userName))
@@ -249,7 +255,6 @@ public class UserService {
 
         StringBuilder uri = new StringBuilder(config.getUserHost()).append(config.getUserSearchEndpoint());
         return userUtils.userCall(userSearchRequest,uri);
-
     }
 
     /**
@@ -302,13 +307,5 @@ public class UserService {
         Set<String> userIds = users.stream().map(User::getUuid).collect(Collectors.toSet());
         criteria.setUserIds(userIds);
     }
-
-
-
-
-
-
-
-
 
 }
