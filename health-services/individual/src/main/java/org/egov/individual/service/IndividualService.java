@@ -11,6 +11,7 @@ import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualRequest;
+import org.egov.common.models.user.UserRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
@@ -73,6 +74,8 @@ public class IndividualService {
 
     private final EncryptionDecryptionUtil encryptionDecryptionUtil;
 
+    private final UserIntegrationService userIntegrationService;
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IsDeletedValidator.class)
@@ -100,7 +103,8 @@ public class IndividualService {
                              @Qualifier("objectMapper") ObjectMapper objectMapper,
                              IndividualProperties properties,
                              EnrichmentService enrichmentService,
-                             EncryptionDecryptionUtil encryptionDecryptionUtil) {
+                             EncryptionDecryptionUtil encryptionDecryptionUtil,
+                             UserIntegrationService userIntegrationService) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
         this.validators = validators;
@@ -108,6 +112,7 @@ public class IndividualService {
         this.properties = properties;
         this.enrichmentService = enrichmentService;
         this.encryptionDecryptionUtil = encryptionDecryptionUtil;
+        this.userIntegrationService = userIntegrationService;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -123,15 +128,18 @@ public class IndividualService {
                 isBulk);
         Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
-        List<Individual> encryptedIndividualList = null;
+        List<Individual> encryptedIndividualList = Collections.emptyList();
         try {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 //encrypt PII data
-                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt",isBulk);
+                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,
+                        null,"IndividualEncrypt",isBulk);
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
+                // integrate with user service create call
+                createUser(request, encryptedIndividualList);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -170,7 +178,7 @@ public class IndividualService {
                 isBulk);
         Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
-        List<Individual> encryptedIndividualList = null;
+        List<Individual> encryptedIndividualList = Collections.emptyList();
 
         try {
             if (!validIndividuals.isEmpty()) {
@@ -403,5 +411,23 @@ public class IndividualService {
         log.info("putting {} individuals in cache", individuals.size());
         individualRepository.putInCache(individuals);
         log.info("successfully put individuals in cache");
+    }
+
+    private void createUser(IndividualBulkRequest request, List<Individual> encryptedIndividualList) {
+        if (properties.isUserSyncEnabled()) {
+            try {
+                Long userId = userIntegrationService.createUser(encryptedIndividualList,
+                        request.getRequestInfo()).map(UserRequest::getId).orElse(null);
+                encryptedIndividualList.forEach(individual ->
+                        individual.setUserId(userId != null ?
+                                userId.toString() : null));
+                individualRepository.save(encryptedIndividualList,
+                        properties.getUpdateIndividualTopic());
+                log.info("successfully created user for {} individuals",
+                        encryptedIndividualList.size());
+            } catch (Exception exception) {
+                log.error("error occurred while creating user", exception);
+            }
+        }
     }
 }

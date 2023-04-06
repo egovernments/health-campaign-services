@@ -15,7 +15,6 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -152,6 +151,5 @@ public class Individual {
         this.skills.add(skillItem);
         return this;
     }
-
 }
 
