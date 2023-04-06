@@ -1,0 +1,1 @@
+ALTER TABLE FACILITY ADD COLUMN clientReferenceId character varying(64) UNIQUE;

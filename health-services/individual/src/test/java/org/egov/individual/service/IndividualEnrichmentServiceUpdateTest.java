@@ -1,12 +1,12 @@
 package org.egov.individual.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.*;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
+import org.egov.individual.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,12 +39,27 @@ public class IndividualEnrichmentServiceUpdateTest {
 
     @Test
     @DisplayName("should enrich for update")
-    void shouldEnrichForUpdate() throws Exception{
+    void shouldEnrichForUpdate() throws Exception {
+        Address address = Address.builder()
+                .id("some-Id")
+                .city("some-city")
+                .tenantId("some-tenant-id")
+                .type(AddressType.PERMANENT)
+                .isDeleted(false)
+                .build();
+        Identifier identifier = Identifier.builder()
+                .identifierType("SYSTEM_GENERATED")
+                .identifierId("some-identifier-id")
+                .isDeleted(false)
+                .build();
+        Skill skill = Skill.builder().id("some-id").type("type").experience("exp").level("lvl").isDeleted(false).build();
         Individual requestIndividual = IndividualTestBuilder.builder()
                 .withClientReferenceId()
                 .withName("some-new-family-name", "some-new-given-name")
                 .withTenantId()
-                .withAddress()
+                .withAddress(address)
+                .withIdentifiers(identifier)
+                .withSkills(skill)
                 .withRowVersion()
                 .build();
         IndividualBulkRequest request = IndividualBulkRequestTestBuilder.builder()
@@ -68,4 +83,5 @@ public class IndividualEnrichmentServiceUpdateTest {
                 request.getIndividuals().get(0).getRowVersion());
         assertNotNull(request.getIndividuals().get(0).getAuditDetails());
     }
+
 }

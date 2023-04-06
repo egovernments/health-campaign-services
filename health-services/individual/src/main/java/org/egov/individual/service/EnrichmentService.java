@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.egov.common.utils.CommonUtils.collectFromList;
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
@@ -52,13 +53,19 @@ public class EnrichmentService {
         log.info("starting the enrichment for create individuals");
 
         log.info("extracting tenantId");
-        final String tenantId = getTenantId(validIndividuals);
+        //fetch the root tenantId if it is in state.city format
+        final String tenantId = getTenantId(validIndividuals).split("\\.")[0];
         log.info("generating id for individuals");
         List<String> indIdList = idGenService.getIdList(request.getRequestInfo(),
                 tenantId, properties.getIndividualId(),
                 null, validIndividuals.size());
         log.info("enriching individuals");
-        enrichForCreate(validIndividuals, indIdList, request.getRequestInfo());
+
+        //individual.id is uuid and individual.individualId is idgen generated formatted value
+        List<String> idList = uuidSupplier().apply(validIndividuals.size());
+        enrichForCreate(validIndividuals, idList, request.getRequestInfo());
+        enrichIndividualIdOnCreate(validIndividuals,indIdList);
+
         enrichAddressesForCreate(request, validIndividuals);
         enrichIdentifiersForCreate(request, validIndividuals);
         enrichSkillsForCreate(request, validIndividuals);
@@ -159,6 +166,15 @@ public class EnrichmentService {
             enrichForCreate(addresses, addressIdList, request.getRequestInfo(), false);
             enrichIndividualIdInAddress(validIndividuals);
         }
+    }
+
+    /**
+     * Enriches individualId - formatted idGen generated value on create
+     */
+    private static void enrichIndividualIdOnCreate(List<Individual> individuals, List<String> idGenList) {
+        IntStream.range(0, individuals.size()).forEach((i) -> {
+            individuals.get(i).setIndividualId(idGenList.get(i));
+        });
     }
 
     private static void enrichSkillsForCreate(IndividualBulkRequest request, List<Individual> validIndividuals) {

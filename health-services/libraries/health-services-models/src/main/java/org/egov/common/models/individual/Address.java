@@ -141,6 +141,13 @@ public class Address   {
 
     private Boundary locality = null;
 
+    @JsonProperty("ward")
+
+    @Valid
+
+
+    private Boundary ward = null;
+
     @JsonProperty("isDeleted")
 
 

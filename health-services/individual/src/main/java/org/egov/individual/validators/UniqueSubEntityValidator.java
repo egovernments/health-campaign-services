@@ -22,8 +22,9 @@ import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueSubEntity;
-import static org.egov.individual.Constants.GET_ID;
 import static org.egov.individual.Constants.GET_IDENTIFIER_TYPE;
+import static org.egov.individual.Constants.GET_TYPE;
+
 
 @Component
 @Order(value = 3)
@@ -79,12 +80,12 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                 List<Skill> skills = individual.getSkills();
                 if (skills != null && !skills.isEmpty()) {
                     log.info("validating for unique sub entity for skills");
-                    Method idMethod = getMethod(GET_ID, Skill.class);
+                    Method idMethod = getMethod(GET_TYPE, Skill.class);
                     Map<String, Skill> skillMap = getIdToObjMap(skills, idMethod);
                     if (skillMap.keySet().size() != skills.size()) {
                         List<String> duplicates = skillMap.keySet().stream().filter(id ->
                                 skills.stream()
-                                        .filter(idt -> idt.getId().equals(id)).count() > 1
+                                        .filter(idt -> idt.getType().equals(id)).count() > 1
                         ).collect(Collectors.toList());
                         duplicates.forEach(duplicate -> {
                             Error error = getErrorForUniqueSubEntity();

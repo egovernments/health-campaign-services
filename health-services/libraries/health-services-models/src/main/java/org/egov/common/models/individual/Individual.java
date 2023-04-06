@@ -17,6 +17,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -37,6 +38,10 @@ public class Individual {
     @Size(min = 2, max = 64)
     private String id = null;
 
+    @JsonProperty("individualId")
+    @Size(min = 2, max = 64)
+    private String individualId = null;
+
     @JsonProperty("tenantId")
     @NotNull
     @Size(min = 2, max = 1000)
@@ -56,7 +61,7 @@ public class Individual {
 
     @JsonProperty("dateOfBirth")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private LocalDate dateOfBirth = null;
+    private Date dateOfBirth = null;
 
     @JsonProperty("gender")
     @Valid
@@ -90,6 +95,10 @@ public class Individual {
     @JsonProperty("husbandName")
     @Size(max = 100)
     private String husbandName = null;
+
+    @JsonProperty("relationship")
+    @Size(max = 100)
+    private String relationship = null;
 
     @JsonProperty("identifiers")
     @Valid

@@ -39,6 +39,7 @@ public interface IResponseHandler {
 	public static final String FILTER_KEYS = "filterKeys";
 	public final static String HIDE_INSIGHTS = "hideInsights";
 	public final static String HIDE_HEADER_DENOMINATION = "hideHeaderDenomination";
+	public final static String LINE_PLOT_LABEL = "linePlotLabel";
 	public final static String SHOW_FOOTER = "showFooter";
 
 	// Table Chart Keys
@@ -138,6 +139,9 @@ public interface IResponseHandler {
 		}
 		if (chartNode.has(HIDE_HEADER_DENOMINATION)) {
 			aggregateDto.setHideHeaderDenomination(chartNode.get(HIDE_HEADER_DENOMINATION).asBoolean());
+		}
+		if (chartNode.has(PLOT_LABEL)) {
+			aggregateDto.setPlotLabel(chartNode.get(PLOT_LABEL).asText());
 		}
 		if (chartNode.has(SHOW_FOOTER)){
 			aggregateDto.setShowFooter(chartNode.get(SHOW_FOOTER).asBoolean());

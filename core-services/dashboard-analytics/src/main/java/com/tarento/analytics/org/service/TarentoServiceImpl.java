@@ -248,6 +248,7 @@ public class TarentoServiceImpl implements ClientService {
 			endCal.add(Calendar.WEEK_OF_YEAR, -1);
 		}
 		else if (insightInterval.equals(Interval.dateRange.toString())) {
+			endCal.set(endCal.get(Calendar.YEAR),endCal.get(Calendar.MONTH),endCal.get(Calendar.DATE),23,59,59);
 			endCal.add(Calendar.DAY_OF_YEAR,-1);
 		}
 		else if(StringUtils.isBlank(insightInterval) || insightInterval.equals(Constants.Interval.year.toString())) {
