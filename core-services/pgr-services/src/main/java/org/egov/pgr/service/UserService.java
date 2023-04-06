@@ -5,6 +5,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.util.UserUtils;
 import org.egov.pgr.web.models.RequestSearchCriteria;
+import org.egov.pgr.web.models.Service;
 import org.egov.pgr.web.models.ServiceRequest;
 import org.egov.pgr.web.models.ServiceWrapper;
 import org.egov.pgr.web.models.User;
@@ -73,15 +74,19 @@ public class UserService {
     public void enrichUsers(List<ServiceWrapper> serviceWrappers){
 
         Set<String> uuids = new HashSet<>();
-
+        Set<String> supervisorUuid = new HashSet<>();
         serviceWrappers.forEach(serviceWrapper -> {
             uuids.add(serviceWrapper.getService().getAccountId());
+            supervisorUuid.add(serviceWrapper.getService().getSupervisorId());
         });
 
         Map<String, User> idToUserMap = searchBulkUser(new LinkedList<>(uuids));
+        Map<String, User> idToSupervisorMap = searchBulkUser(new LinkedList<>(supervisorUuid));
 
         serviceWrappers.forEach(serviceWrapper -> {
-            serviceWrapper.getService().setCitizen(idToUserMap.get(serviceWrapper.getService().getAccountId()));
+            Service service = serviceWrapper.getService();
+            service.setSupervisor(idToSupervisorMap.get(serviceWrapper.getService().getSupervisorId()));
+            service.setCitizen(idToUserMap.get(serviceWrapper.getService().getAccountId()));
         });
 
     }

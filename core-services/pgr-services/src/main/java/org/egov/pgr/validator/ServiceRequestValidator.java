@@ -76,7 +76,7 @@ public class ServiceRequestValidator {
         validateSource(request.getService().getSource());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
-        validateReOpen(request);
+        //validateReOpen(request);
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().ids(Collections.singleton(id)).build();
         criteria.setIsPlainSearch(false);
         List<ServiceWrapper> serviceWrappers = repository.getServiceWrappers(criteria);
@@ -108,14 +108,22 @@ public class ServiceRequestValidator {
             errorMap.put("INVALID_ACCOUNTID","The accountId is different from the user logged in");
         }*/
 
-        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE)){
+        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE) ||
+            requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN)
+        ){
             User citizen = request.getService().getCitizen();
+            User supervisor = request.getService().getSupervisor();
+
             if(citizen == null)
                 errorMap.put("INVALID_REQUEST","Citizen object cannot be null");
             else if(citizen.getMobileNumber()==null || citizen.getName()==null)
                 errorMap.put("INVALID_REQUEST","Name and Mobile Number is mandatory in citizen object");
-        }
 
+            if(supervisor == null)
+                errorMap.put("INVALID_REQUEST","Supervisor object cannot be null");
+            else if(supervisor.getMobileNumber()==null || supervisor.getName()==null)
+                errorMap.put("INVALID_REQUEST","Name and Mobile Number is mandatory in supervisor object");
+        }
     }
 
 
