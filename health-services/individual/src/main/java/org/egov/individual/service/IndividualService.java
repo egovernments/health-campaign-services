@@ -458,7 +458,7 @@ public class IndividualService {
                             individual.setUserId(userId != null ?
                                     userId.toString() : null));
                     individualRepository.save(encryptedIndividualList,
-                            properties.getSaveIndividualTopic());
+                            properties.getUpdateIndividualTopic());
                     log.info("successfully created user for {} individuals",
                             encryptedIndividualList.size());
                 } else {
