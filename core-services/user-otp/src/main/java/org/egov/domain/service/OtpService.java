@@ -42,7 +42,7 @@ public class OtpService {
     }
 
     private void sendOtpForUserRegistration(OtpRequest otpRequest) {
-        final User matchingUser = userRepository.fetchUser(otpRequest.getMobileNumber(), otpRequest.getTenantId(),
+        final User matchingUser = userRepository.fetchUser(otpRequest.getUserName(), otpRequest.getTenantId(),
                 otpRequest.getUserType());
 
         if (otpRequest.isRegistrationRequestType() && null != matchingUser)
@@ -51,11 +51,11 @@ public class OtpService {
             throw new UserNotExistingInSystemException();
 
         final String otpNumber = otpRepository.fetchOtp(otpRequest);
-        otpEmailRepository.send(matchingUser.getEmail(), otpNumber);
+        otpEmailRepository.send(otpRequest.getEmail(), otpNumber, otpRequest.getType().toString());
     }
 
     private void sendOtpForPasswordReset(OtpRequest otpRequest) {
-        final User matchingUser = userRepository.fetchUser(otpRequest.getMobileNumber(), otpRequest.getTenantId(),
+        final User matchingUser = userRepository.fetchUser(otpRequest.getUserName(), otpRequest.getTenantId(),
                 otpRequest.getUserType());
         if (null == matchingUser) {
             throw new UserNotFoundException();
@@ -64,12 +64,9 @@ public class OtpService {
             throw new UserMobileNumberNotFoundException();
         try {
             final String otpNumber = otpRepository.fetchOtp(otpRequest);
-            otpRequest.setMobileNumber(matchingUser.getMobileNumber());
-            //otpSMSSender.send(otpRequest, otpNumber);
-            otpEmailRepository.send(matchingUser.getEmail(), otpNumber);
+            otpEmailRepository.send(matchingUser.getEmail(), otpNumber, otpRequest.getType().toString());
         } catch (Exception e) {
             log.error("Exception while fetching otp: ", e);
         }
     }
-
 }

@@ -27,7 +27,7 @@ public class OtpEmailRepositoryTest {
 
 	@Test
 	public void test_should_not_send_email_when_email_address_is_not_present() {
-		repository.send(null, "otpNumber");
+		repository.send(null, "otpNumber", "reset");
 
 		verify(kakfaTemplate, never()).send(any(), any());
 	}
@@ -35,13 +35,13 @@ public class OtpEmailRepositoryTest {
 	@Test
 	public void test_should_send_email_message() {
 		final EmailMessage expectedEmailMessage = EmailMessage.builder()
-				.subject("Password Reset")
-				.body("Your OTP for recovering password is otpNumber.")
+				.subject("reset")
+				.body("Your OTP for reset is otpNumber.")
 				.sender("")
 				.email("foo@bar.com")
 				.build();
 
-		repository.send("foo@bar.com", "otpNumber");
+		repository.send("foo@bar.com", "otpNumber", "reset");
 
 		verify(kakfaTemplate).send(EMAIL_TOPIC, expectedEmailMessage);
 	}

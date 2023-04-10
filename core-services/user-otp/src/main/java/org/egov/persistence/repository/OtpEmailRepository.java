@@ -13,7 +13,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 @Service
 public class OtpEmailRepository {
     private static final String PASSWORD_RESET_SUBJECT = "Password Reset";
-    private static final String PASSWORD_RESET_BODY = "Your OTP for recovering password is %s.";
+    private static final String PASSWORD_RESET_BODY = "Your OTP for %s is %s.";
     private CustomKafkaTemplate<String, EmailMessage> kafkaTemplate;
     private String emailTopic;
 
@@ -24,29 +24,25 @@ public class OtpEmailRepository {
         this.emailTopic = emailTopic;
     }
 
-    public void send(String email, String otpNumber) {
+    public void send(String email, String otpNumber, String subject) {
     	if (isEmpty(email)) {
 			return;
 		}
-		sendEmail(email, otpNumber);
+		sendEmail(email, otpNumber, subject);
     }
 
-	private void sendEmail(String email, String otpNumber) {
+	private void sendEmail(String email, String otpNumber, String subject) {
 		final EmailMessage emailMessage = EmailMessage.builder()
-				.body(getBody(otpNumber))
-				.subject(getSubject())
+				.body(getBody(otpNumber, subject))
+				.subject(subject)
 				.email(email)
 				.sender(EMPTY)
 				.build();
 		kafkaTemplate.send(emailTopic, emailMessage);
 	}
 
-	private String getSubject() {
-		return PASSWORD_RESET_SUBJECT;
-	}
-
-	private String getBody(String otpNumber) {
-		return format(PASSWORD_RESET_BODY, otpNumber);
+	private String getBody(String otpNumber, String subject) {
+		return format(PASSWORD_RESET_BODY, subject, otpNumber);
 	}
 
 }

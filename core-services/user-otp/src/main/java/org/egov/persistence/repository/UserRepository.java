@@ -29,14 +29,8 @@ public class UserRepository {
     @Autowired
     private RestTemplate restTemplate;
 
-    public User fetchUser(String mobileNumber, String tenantId, String userType) {
-        UserSearchRequest request = null;
-        if (userType !=null && userType.equals("EMPLOYEE")) {
-            request = new UserSearchRequest(null, tenantId, userType, mobileNumber);
-        } else {
-            request = new UserSearchRequest(mobileNumber, tenantId, userType, null);
-
-        }
+    public User fetchUser(String userName, String tenantId, String userType) {
+        UserSearchRequest request = new UserSearchRequest(userName, tenantId, userType, null);
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

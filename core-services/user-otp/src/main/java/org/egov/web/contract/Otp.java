@@ -20,6 +20,8 @@ public class Otp {
     private static final String PASSWORD_RESET = "passwordreset";
     private static final String USER_LOGIN = "login";
     private String mobileNumber;
+    private String userName;
+    private String email;
     private String tenantId;
     private String type;
     private String userType;

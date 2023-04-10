@@ -19,6 +19,8 @@ public class OtpRequest {
     public org.egov.domain.model.OtpRequest toDomain() {
         return org.egov.domain.model.OtpRequest.builder()
                 .mobileNumber(getMobileNumber())
+                .userName(getUserName())
+                .email(getEmail())
                 .tenantId(getTenantId())
                 .type(getType())
                 .userType(getUserType())
@@ -31,6 +33,14 @@ public class OtpRequest {
 
     private String getMobileNumber() {
         return otp != null ? otp.getMobileNumber() : null;
+    }
+
+    private String getUserName() {
+        return otp != null ? otp.getUserName() : null;
+    }
+
+    private String getEmail() {
+        return otp != null ? otp.getEmail() : null;
     }
 
     private String getUserType() {

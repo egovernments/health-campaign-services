@@ -18,17 +18,20 @@ import static org.springframework.util.StringUtils.isEmpty;
 @NoArgsConstructor
 public class OtpRequest {
 	@Setter
-    private String mobileNumber;
+    private String userName;
+	@Setter
+	private String email;
+	private String mobileNumber;
     private String tenantId;
+
+	@Setter
     private OtpRequestType type;
-    private String userType;
+
+	private String userType;
 
     public void validate() {
         if(isTenantIdAbsent()
-				|| isMobileNumberAbsent()
-				|| isInvalidType()
-				|| isMobileNumberNumeric()
-				|| isMobileNumberValidLength()) {
+				|| isInvalidType()) {
             throw new InvalidOtpRequestException(this);
         }
     }
@@ -36,17 +39,17 @@ public class OtpRequest {
 	public boolean isMobileNumberNumeric() {
 		// TODO Auto-generated method stub
 		if(!(type!=null && type.toString().equalsIgnoreCase(OtpRequestType.PASSWORD_RESET.toString())))
-		return !StringUtils.isNumeric(mobileNumber);
+			return !StringUtils.isNumeric(mobileNumber);
 		return false;
 	}
 
 	public boolean isMobileNumberValidLength() {
 		// TODO Auto-generated method stub
 		if(!(type!=null && type.toString().equalsIgnoreCase(OtpRequestType.PASSWORD_RESET.toString())))
-		return !(mobileNumber != null && mobileNumber.matches("^[0-9]{10,13}$"));
+			return !(mobileNumber != null && mobileNumber.matches("^[0-9]{10,13}$"));
 		return false;
 	}
-    
+
 	public boolean isRegistrationRequestType() {
     	return OtpRequestType.REGISTER.equals(getType());
 	}
@@ -63,7 +66,7 @@ public class OtpRequest {
         return isEmpty(tenantId);
     }
 
-    public boolean isMobileNumberAbsent() {
-        return isEmpty(mobileNumber);
-    }
+	public boolean isMobileNumberAbsent() {
+		return isEmpty(mobileNumber);
+	}
 }
