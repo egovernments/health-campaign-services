@@ -52,7 +52,4 @@ public class IndividualProperties {
 
     @Value(("${user.service.account.locked}"))
     private boolean userServiceAccountLocked;
-
-    @Value(("${user.service.active}"))
-    private boolean userServiceActive;
 }

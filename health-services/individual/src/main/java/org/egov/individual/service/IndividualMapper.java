@@ -11,8 +11,11 @@ import org.egov.common.models.user.UserType;
 import org.egov.individual.config.IndividualProperties;
 
 import java.util.Random;
+import java.util.UUID;
 
 public class IndividualMapper {
+
+    private static Random random = new Random();
 
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties) {
 
@@ -27,7 +30,7 @@ public class IndividualMapper {
                 .orElse(Address.builder().build());
         return UserRequest.builder()
                 .tenantId(individual.getTenantId())
-                .userName(generateDummyMobileNumber(individual.getMobileNumber()))
+                .userName(UUID.randomUUID().toString())
                 .name(String.join(",", individual.getName().getGivenName(),
                         individual.getName().getFamilyName(),
                         individual.getName().getOtherNames()))
@@ -42,7 +45,7 @@ public class IndividualMapper {
                                 .build()).getIdentifierId())
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
                 .accountLocked(properties.isUserServiceAccountLocked())
-                .active(properties.isUserServiceActive())
+                .active(true)
                 .dob(individual.getDateOfBirth())
                 .altContactNumber(individual.getAltContactNumber())
                 .fatherOrHusbandName(individual.getFatherName() != null
@@ -74,7 +77,6 @@ public class IndividualMapper {
      */
     private static String generateDummyMobileNumber(String mobileNumber) {
         if (mobileNumber == null) {
-            Random random = new Random();
             int number = random.nextInt(900000000) + 100000000; // generate 9 digit number
             return "1" + number; // prepend 1 to avoid starting with 0
         } else {

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,12 +32,38 @@ public class UserIntegrationService {
     public Optional<UserRequest> createUser(List<Individual> validIndividuals,
                                             RequestInfo requestInfo) {
         log.info("integrating with user service");
-        List<UserRequest> userRequests = validIndividuals.stream().map(individual -> IndividualMapper
-                        .toUserRequest(individual,
-                                individualProperties))
+        List<UserRequest> userRequests = validIndividuals.stream().map(toUserRequest())
                 .collect(Collectors.toList());
         return userRequests.stream().flatMap(userRequest -> userService.create(
                 new CreateUserRequest(requestInfo,
                         userRequest)).stream()).collect(Collectors.toList()).stream().findFirst();
+    }
+
+
+    public Optional<UserRequest> updateUser(List<Individual> validIndividuals,
+                                            RequestInfo requestInfo) {
+        log.info("updating the user in user service");
+        List<UserRequest> userRequests = validIndividuals.stream().map(toUserRequest())
+                .collect(Collectors.toList());
+        return userRequests.stream().flatMap(userRequest -> userService.update(
+                new CreateUserRequest(requestInfo,
+                        userRequest)).stream()).collect(Collectors.toList()).stream().findFirst();
+    }
+
+    public Optional<UserRequest> deleteUser(List<Individual> validIndividuals,
+                                            RequestInfo requestInfo) {
+        log.info("deleting the user in user service");
+        List<UserRequest> userRequests = validIndividuals.stream().map(toUserRequest())
+                .peek(userRequest -> userRequest.setActive(Boolean.FALSE))
+                .collect(Collectors.toList());
+        return userRequests.stream().flatMap(userRequest -> userService.update(
+                new CreateUserRequest(requestInfo,
+                        userRequest)).stream()).collect(Collectors.toList()).stream().findFirst();
+    }
+
+    private Function<Individual, UserRequest> toUserRequest() {
+        return individual -> IndividualMapper
+                .toUserRequest(individual,
+                        individualProperties);
     }
 }

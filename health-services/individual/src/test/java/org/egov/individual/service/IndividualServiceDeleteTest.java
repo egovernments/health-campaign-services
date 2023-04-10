@@ -11,6 +11,7 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.validators.NonExistentEntityValidator;
 import org.egov.individual.validators.NullIdValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,7 +30,11 @@ import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceDeleteTest {
@@ -59,6 +64,9 @@ class IndividualServiceDeleteTest {
 
     @Mock
     private EnrichmentService enrichmentService;
+
+    @Mock
+    private EncryptionDecryptionUtil encryptionDecryptionUtil;
 
 
     @BeforeEach
@@ -98,6 +106,7 @@ class IndividualServiceDeleteTest {
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
+        when(encryptionDecryptionUtil.encryptObject(any(Object.class), any(String.class), any(Class.class))).thenReturn(request.getIndividual());
 
         individualService.delete(request);
         verify(individualRepository, times(1)).save(anyList(), anyString());
@@ -105,7 +114,7 @@ class IndividualServiceDeleteTest {
 
     @Test
     @DisplayName("should not delete individual when individual has error")
-    void shouldNotDeleteIndividualWhenIndiviudalHasError() {
+    void shouldNotDeleteIndividualWhenIndividualHasError() {
         Individual individual = IndividualTestBuilder.builder().build();
         individual.setHasErrors(true);
         IndividualRequest request = IndividualRequestTestBuilder.builder()
