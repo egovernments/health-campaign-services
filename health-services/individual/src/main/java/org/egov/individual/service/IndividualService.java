@@ -310,7 +310,7 @@ public class IndividualService {
     }
 
     /**
-     * Decrypts the data for
+     * Decrypts the data
      * @param encryptedIndividuals
      * @return
      */
@@ -327,7 +327,11 @@ public class IndividualService {
             classType = Individual.class;
             objectToDecrypt = encryptedIndividuals.get(0);
         }
-        objectToDecrypt = encryptionDecryptionUtil.decryptObject(objectToDecrypt, "IndividualDecrypt", classType, requestInfo);
+        if (isCipherText(encryptedIndividuals)) {
+            objectToDecrypt = encryptionDecryptionUtil.decryptObject(objectToDecrypt, "IndividualDecrypt", classType, requestInfo);
+        } else {
+            log.info("IndividualService:decryptIndividuals:Data is already decrypted / fetched from cache. Skipping decryption.");
+        }
 
         if (objectToDecrypt instanceof List) {
             decryptedIndividualList.addAll((List<Individual>)objectToDecrypt);
@@ -336,6 +340,27 @@ public class IndividualService {
         }
 
         return decryptedIndividualList;
+    }
+
+    /**
+     * Checks if the Individual object contains encrypted data
+     * @param encryptedIndividuals
+     * @return
+     */
+    private boolean isCipherText(List<Individual> encryptedIndividuals) {
+        for (Individual individual : encryptedIndividuals) {
+            String encryptedMobileNumber = individual.getMobileNumber();
+            //sample encrypted data - 640326|7hsFfY6olwUbet1HdcLxbStR1BSkOye8N3M=
+            //unencrpypted mobile number will be all digits. Encrypted one will have a prefix followed by '|' and the base64 encoded data
+            if (StringUtils.isNotBlank(encryptedMobileNumber) && encryptedMobileNumber.contains("|")) {
+                String base64Data = encryptedMobileNumber.split("\\|")[1];
+                if (StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="))) {
+                    break;
+                }
+            }
+            return false;
+        }
+        return true;
     }
 
     /**
