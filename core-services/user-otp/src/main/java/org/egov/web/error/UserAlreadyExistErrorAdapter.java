@@ -11,8 +11,11 @@ import java.util.List;
 public class UserAlreadyExistErrorAdapter implements ErrorAdapter<Void> {
 
 	private static final String UNKNOWN_MOBILE_NUMBER_CODE = "OTP.MOBILENUMBER";
+	private static final String UNKNOWN_USERNAME_CODE = "OTP.USERNAME";
 	private static final String UNKNOWN_MOBILE_NUMBER_MESSAGE = "This MobileNumber Already Register as UserName in System. Pls try Another UserName";
+	private static final String UNKNOWN_USERNAME_MESSAGE = "This User Already Register as UserName in System. Pls try Another UserName";
 	private static final String UNKNOWN_MOBILE_NUMBER_FIELD = "otp.mobileNumber";
+	private static final String UNKNOWN_USERNAME_FIELD = "otp.userName";
 	private static final String MESSAGE = "OTP request for register failed";
 
 	@Override
@@ -30,12 +33,22 @@ public class UserAlreadyExistErrorAdapter implements ErrorAdapter<Void> {
 				.build();
 	}
 
+//	private List<ErrorField> getErrorFields() {
+//		List<ErrorField> errorFields = new ArrayList<>();
+//		final ErrorField latitudeErrorField = ErrorField.builder()
+//				.code(UNKNOWN_MOBILE_NUMBER_CODE)
+//				.message(UNKNOWN_USERNAME_MESSAGE)
+//				.field(UNKNOWN_MOBILE_NUMBER_FIELD)
+//				.build();
+//		errorFields.add(latitudeErrorField);
+//		return errorFields;
+//	}
 	private List<ErrorField> getErrorFields() {
 		List<ErrorField> errorFields = new ArrayList<>();
 		final ErrorField latitudeErrorField = ErrorField.builder()
-				.code(UNKNOWN_MOBILE_NUMBER_CODE)
-				.message(UNKNOWN_MOBILE_NUMBER_MESSAGE)
-				.field(UNKNOWN_MOBILE_NUMBER_FIELD)
+				.code(UNKNOWN_USERNAME_CODE)
+				.message(UNKNOWN_USERNAME_MESSAGE)
+				.field(UNKNOWN_USERNAME_FIELD)
 				.build();
 		errorFields.add(latitudeErrorField);
 		return errorFields;
