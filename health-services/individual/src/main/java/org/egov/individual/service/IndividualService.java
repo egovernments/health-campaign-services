@@ -265,17 +265,14 @@ public class IndividualService {
                 isBulk);
         Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
-        List<Individual> encryptedIndividualList = Collections.emptyList();
         try {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
-                //encrypt PII data
-                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt", isBulk);
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());
                 // integrate with user service create call
-                integrateWithUserService(request, encryptedIndividualList, ApiOperation.DELETE);
+                integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
             }
         } catch(Exception exception) {
             log.error("error occurred", exception);
