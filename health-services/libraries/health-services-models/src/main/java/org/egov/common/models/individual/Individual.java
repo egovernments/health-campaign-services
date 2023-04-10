@@ -15,7 +15,6 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -128,6 +127,9 @@ public class Individual {
     @JsonIgnore
     private Boolean hasErrors = Boolean.FALSE;
 
+    @JsonProperty("isSystemUser")
+    private Boolean isSystemUser = Boolean.FALSE;
+
 
     public Individual addAddressItem(Address addressItem) {
         if (this.address == null) {
@@ -152,6 +154,5 @@ public class Individual {
         this.skills.add(skillItem);
         return this;
     }
-
 }
 

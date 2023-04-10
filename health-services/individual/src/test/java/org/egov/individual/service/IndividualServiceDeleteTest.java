@@ -29,7 +29,9 @@ import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceDeleteTest {
@@ -59,7 +61,6 @@ class IndividualServiceDeleteTest {
 
     @Mock
     private EnrichmentService enrichmentService;
-
 
     @BeforeEach
     void setUp() {
@@ -105,7 +106,7 @@ class IndividualServiceDeleteTest {
 
     @Test
     @DisplayName("should not delete individual when individual has error")
-    void shouldNotDeleteIndividualWhenIndiviudalHasError() {
+    void shouldNotDeleteIndividualWhenIndividualHasError() {
         Individual individual = IndividualTestBuilder.builder().build();
         individual.setHasErrors(true);
         IndividualRequest request = IndividualRequestTestBuilder.builder()
