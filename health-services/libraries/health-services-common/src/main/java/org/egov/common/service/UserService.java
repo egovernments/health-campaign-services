@@ -17,7 +17,7 @@ import java.util.List;
 
 @Slf4j
 @Service
-@ConditionalOnExpression("!'${egov.user.integration.enabled}'.isEmpty() && ${egov.user.integration.enabled:false} && !'${egov.user.host}'.isEmpty() && (!'${egov.search.user.url}'.isEmpty() || !'${egov.create.user.url}'.isEmpty())")
+@ConditionalOnExpression("!'${egov.user.integration.enabled}'.isEmpty() && ${egov.user.integration.enabled:false} && !'${egov.user.host}'.isEmpty() && (!'${egov.search.user.url}'.isEmpty() || !'${egov.create.user.url}'.isEmpty() || !'${egov.update.user.url}'.isEmpty())")
 public class UserService {
 
     private final ServiceRequestClient restRepo;
