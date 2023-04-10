@@ -32,7 +32,8 @@ public class UserIntegrationService {
     public Optional<UserRequest> createUser(List<Individual> validIndividuals,
                                             RequestInfo requestInfo) {
         log.info("integrating with user service");
-        List<UserRequest> userRequests = validIndividuals.stream().map(toUserRequest())
+        List<UserRequest> userRequests = validIndividuals.stream()
+                .filter(Individual::getIsSystemUser).map(toUserRequest())
                 .collect(Collectors.toList());
         return userRequests.stream().flatMap(userRequest -> userService.create(
                 new CreateUserRequest(requestInfo,
@@ -43,7 +44,8 @@ public class UserIntegrationService {
     public Optional<UserRequest> updateUser(List<Individual> validIndividuals,
                                             RequestInfo requestInfo) {
         log.info("updating the user in user service");
-        List<UserRequest> userRequests = validIndividuals.stream().map(toUserRequest())
+        List<UserRequest> userRequests = validIndividuals.stream()
+                .filter(Individual::getIsSystemUser).map(toUserRequest())
                 .collect(Collectors.toList());
         return userRequests.stream().flatMap(userRequest -> userService.update(
                 new CreateUserRequest(requestInfo,
@@ -53,7 +55,8 @@ public class UserIntegrationService {
     public Optional<UserRequest> deleteUser(List<Individual> validIndividuals,
                                             RequestInfo requestInfo) {
         log.info("deleting the user in user service");
-        List<UserRequest> userRequests = validIndividuals.stream().map(toUserRequest())
+        List<UserRequest> userRequests = validIndividuals.stream()
+                .filter(Individual::getIsSystemUser).map(toUserRequest())
                 .peek(userRequest -> userRequest.setActive(Boolean.FALSE))
                 .collect(Collectors.toList());
         return userRequests.stream().flatMap(userRequest -> userService.update(

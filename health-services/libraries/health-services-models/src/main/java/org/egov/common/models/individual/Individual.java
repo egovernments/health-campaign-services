@@ -127,6 +127,9 @@ public class Individual {
     @JsonIgnore
     private Boolean hasErrors = Boolean.FALSE;
 
+    @JsonProperty("isSystemUser")
+    private Boolean isSystemUser = Boolean.FALSE;
+
 
     public Individual addAddressItem(Address addressItem) {
         if (this.address == null) {
