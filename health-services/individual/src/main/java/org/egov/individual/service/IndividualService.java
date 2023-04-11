@@ -311,56 +311,84 @@ public class IndividualService {
 
     /**
      * Decrypts the data
-     * @param encryptedIndividuals
+     * @param individuals
      * @return
      */
-    private List<Individual> decryptIndividuals(List<Individual> encryptedIndividuals, RequestInfo requestInfo) {
+    private List<Individual> decryptIndividuals(List<Individual> individuals, RequestInfo requestInfo) {
         //decrypt
         Class classType;
         Object objectToDecrypt;
         List<Individual> decryptedIndividualList = new ArrayList<>();
 
-        if (encryptedIndividuals.size() > 1) {
-            classType = Individual.class;
-            objectToDecrypt = encryptedIndividuals;
-        } else {
-            classType = Individual.class;
-            objectToDecrypt = encryptedIndividuals.get(0);
-        }
-        if (isCipherText(encryptedIndividuals)) {
+        List<Individual> individualsToDecrypt = getEncryptedIndividuals(individuals);
+        if (!CollectionUtils.isEmpty(individualsToDecrypt)) {
+            if (individualsToDecrypt.size() > 1) {
+                classType = Individual.class;
+                objectToDecrypt = individualsToDecrypt;
+            } else {
+                classType = Individual.class;
+                objectToDecrypt = individualsToDecrypt.get(0);
+            }
             objectToDecrypt = encryptionDecryptionUtil.decryptObject(objectToDecrypt, "IndividualDecrypt", classType, requestInfo);
+
+            if (objectToDecrypt instanceof List) {
+                decryptedIndividualList.addAll((List<Individual>)objectToDecrypt);
+            } else if (objectToDecrypt instanceof Individual) {
+                decryptedIndividualList.add((Individual)objectToDecrypt);
+            }
+
+            if (individuals.size() > decryptedIndividualList.size()) {
+                // add the already decrypted objects to the list
+                List<String> ids = decryptedIndividualList.stream()
+                        .map(decyptedInd -> decyptedInd.getId())
+                        .collect(Collectors.toList());
+                for (Individual individual : individuals) {
+                    if (!ids.contains(individual.getId())) {
+                        decryptedIndividualList.add(individual);
+                    }
+                }
+            }
+
         } else {
             log.info("IndividualService:decryptIndividuals:Data is already decrypted / fetched from cache. Skipping decryption.");
-        }
-
-        if (objectToDecrypt instanceof List) {
-            decryptedIndividualList.addAll((List<Individual>)objectToDecrypt);
-        } else if (objectToDecrypt instanceof Individual) {
-            decryptedIndividualList.add((Individual)objectToDecrypt);
+            decryptedIndividualList.addAll(individuals);
         }
 
         return decryptedIndividualList;
     }
 
     /**
-     * Checks if the Individual object contains encrypted data
-     * @param encryptedIndividuals
+     * Returns the list of individuals that needs to be decrypted
+     * @param individuals
      * @return
      */
-    private boolean isCipherText(List<Individual> encryptedIndividuals) {
-        for (Individual individual : encryptedIndividuals) {
+    private List<Individual> getEncryptedIndividuals (List<Individual> individuals) {
+        List<Individual> encryptedIndividuals = new ArrayList<>();
+        for (Individual individual : individuals) {
             String encryptedMobileNumber = individual.getMobileNumber();
-            //sample encrypted data - 640326|7hsFfY6olwUbet1HdcLxbStR1BSkOye8N3M=
-            //unencrpypted mobile number will be all digits. Encrypted one will have a prefix followed by '|' and the base64 encoded data
-            if (StringUtils.isNotBlank(encryptedMobileNumber) && encryptedMobileNumber.contains("|")) {
-                String base64Data = encryptedMobileNumber.split("\\|")[1];
-                if (StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="))) {
-                    break;
-                }
+            String encryptedIdentifier = !CollectionUtils.isEmpty(individual.getIdentifiers()) ? individual.getIdentifiers().get(0).getIdentifierId() : null;
+            if (isCipherText(encryptedMobileNumber) || isCipherText(encryptedIdentifier)) {
+                encryptedIndividuals.add(individual);
             }
-            return false;
         }
-        return true;
+        return encryptedIndividuals;
+    }
+
+    /**
+     * Checks if the text is cipher or plain
+     * @param text
+     * @return
+     */
+    private boolean isCipherText(String text) {
+        //sample encrypted data - 640326|7hsFfY6olwUbet1HdcLxbStR1BSkOye8N3M=
+        //Encrypted data will have a prefix followed by '|' and the base64 encoded data
+        if ((StringUtils.isNotBlank(text) && text.contains("|"))) {
+            String base64Data = text.split("\\|")[1];
+            if (StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
