@@ -16,7 +16,6 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.validators.AadharMobileNumberValidator;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
@@ -35,6 +34,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -71,7 +72,7 @@ public class IndividualService {
 
     private final EnrichmentService enrichmentService;
 
-    private final EncryptionDecryptionUtil encryptionDecryptionUtil;
+    private final IndividualEncryptionService individualEncryptionService;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -100,14 +101,14 @@ public class IndividualService {
                              @Qualifier("objectMapper") ObjectMapper objectMapper,
                              IndividualProperties properties,
                              EnrichmentService enrichmentService,
-                             EncryptionDecryptionUtil encryptionDecryptionUtil) {
+                             IndividualEncryptionService individualEncryptionService) {
         this.idGenService = idGenService;
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.enrichmentService = enrichmentService;
-        this.encryptionDecryptionUtil = encryptionDecryptionUtil;
+        this.individualEncryptionService = individualEncryptionService;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -129,7 +130,8 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 //encrypt PII data
-                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt",isBulk);
+                encryptedIndividualList = individualEncryptionService
+                        .encrypt(validIndividuals, "IndividualEncrypt");
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
             }
@@ -140,7 +142,8 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        return decryptIndividuals(encryptedIndividualList, request.getRequestInfo());
+        return individualEncryptionService.decrypt(encryptedIndividualList,
+                "IndividualEncrypt", request.getRequestInfo());
     }
 
     private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
@@ -177,9 +180,28 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.update(validIndividuals, request);
                 //encrypt PII data
-                encryptedIndividualList = (List<Individual>) encryptIndividuals(validIndividuals,null,"IndividualEncrypt", isBulk);
-                //fetch identifier details if not present
-                fetchIdentifier(encryptedIndividualList);
+                Map<String, List<Identifier>> identifierGroups = filterMaskedIdentifiers(validIndividuals);
+                List<Individual> individualsToEncrypt = validIndividuals.stream().map(individual -> {
+                    individual.getIdentifiers().removeAll(identifierGroups.get("MASKED")
+                            .stream().filter(identifier ->
+                                    identifier.getIndividualId().equals(individual.getId()))
+                            .collect(Collectors.toList()));
+                    return individual;
+                }).collect(Collectors.toList());
+                encryptedIndividualList = individualEncryptionService
+                        .encrypt(individualsToEncrypt, "IndividualEncrypt");
+                Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
+                List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
+                        false, "id");
+                Map<String, List<Identifier>> existingIdentifiers = existingIndividuals.stream().map(Individual::getIdentifiers)
+                        .flatMap(Collection::stream).collect(Collectors.groupingBy(Identifier::getIndividualId));
+                encryptedIndividualList.forEach(individual -> {
+                    List<Identifier> identifiers = individual.getIdentifiers();
+                    List<Identifier> identifierList = existingIdentifiers.get(individual.getId());
+                    if (identifierList != null) {
+                        identifiers.addAll(identifierList);
+                    }
+                });
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
             }
@@ -190,7 +212,13 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        return decryptIndividuals(encryptedIndividualList, request.getRequestInfo());
+        return individualEncryptionService.decrypt(encryptedIndividualList,
+                "IndividualEncrypt", request.getRequestInfo());
+    }
+
+    private Map<String, List<Identifier>> filterMaskedIdentifiers(List<Individual> validIndividuals) {
+        return validIndividuals.stream().map(Individual::getIdentifiers).flatMap(Collection::stream)
+                .collect(Collectors.groupingBy(identifier -> identifier.getIdentifierId().contains("*") ? "MASKED" : "UNMASKED"));
     }
 
     public List<Individual> search(IndividualSearch individualSearch,
@@ -213,16 +241,23 @@ public class IndividualService {
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             //decrypt
-            return (!encryptedIndividualList.isEmpty()) ? decryptIndividuals(encryptedIndividualList, requestInfo): encryptedIndividualList;
+            return (!encryptedIndividualList.isEmpty())
+                    ? individualEncryptionService.decrypt(encryptedIndividualList,
+                    "IndividualEncrypt",  requestInfo)
+                    : encryptedIndividualList;
         }
         //encrypt search criteria
-        IndividualSearch encryptedIndividualSearch = (IndividualSearch) encryptIndividuals(null,individualSearch,"IndividualSearchEncrypt",false);
+        IndividualSearch encryptedIndividualSearch = individualEncryptionService
+                .encrypt(individualSearch, "IndividualEncrypt");
         encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                         lastChangedSince, includeDeleted).stream()
                 .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                 .collect(Collectors.toList());
         //decrypt
-        return (!encryptedIndividualList.isEmpty()) ? decryptIndividuals(encryptedIndividualList, requestInfo): encryptedIndividualList;
+        return (!encryptedIndividualList.isEmpty())
+                ? individualEncryptionService.decrypt(encryptedIndividualList,
+                "IndividualEncrypt", requestInfo)
+                : encryptedIndividualList;
 
     }
 
@@ -270,125 +305,6 @@ public class IndividualService {
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
         return validIndividuals;
-    }
-
-    /**
-     * Encrypts the PII data of the individual
-     * @param validIndividuals
-     * @return
-     */
-    private Object encryptIndividuals(List<Individual> validIndividuals, IndividualSearch individualSearch, String key, boolean isBulk) {
-        //encrypt
-        Class classType;
-        Object objectToEncrypt;
-        List<Individual> encryptedIndividualList = new ArrayList<>();
-
-        if (individualSearch != null) {
-            classType = IndividualSearch.class;
-            objectToEncrypt = individualSearch;
-        } else if (validIndividuals.size() > 1) {
-            classType = Individual.class;
-            objectToEncrypt = validIndividuals;
-        } else {
-            classType = Individual.class;
-            objectToEncrypt = validIndividuals.get(0);
-        }
-        objectToEncrypt = encryptionDecryptionUtil.encryptObject(objectToEncrypt, key, classType);
-
-        if (objectToEncrypt instanceof List) {
-            encryptedIndividualList.addAll((List<Individual>)objectToEncrypt);
-        } else if (objectToEncrypt instanceof Individual) {
-            encryptedIndividualList.add((Individual)objectToEncrypt);
-        } else if (objectToEncrypt instanceof  IndividualSearch) {
-           return (IndividualSearch) objectToEncrypt;
-        }
-
-        // check if the aadhaar already exists for create and update
-        validateAadhaarUniqueness(encryptedIndividualList,isBulk);
-
-        return encryptedIndividualList;
-    }
-
-    /**
-     * Decrypts the data
-     * @param individuals
-     * @return
-     */
-    private List<Individual> decryptIndividuals(List<Individual> individuals, RequestInfo requestInfo) {
-        //decrypt
-        Class classType;
-        Object objectToDecrypt;
-        List<Individual> decryptedIndividualList = new ArrayList<>();
-
-        List<Individual> individualsToDecrypt = getEncryptedIndividuals(individuals);
-        if (!CollectionUtils.isEmpty(individualsToDecrypt)) {
-            if (individualsToDecrypt.size() > 1) {
-                classType = Individual.class;
-                objectToDecrypt = individualsToDecrypt;
-            } else {
-                classType = Individual.class;
-                objectToDecrypt = individualsToDecrypt.get(0);
-            }
-            objectToDecrypt = encryptionDecryptionUtil.decryptObject(objectToDecrypt, "IndividualDecrypt", classType, requestInfo);
-
-            if (objectToDecrypt instanceof List) {
-                decryptedIndividualList.addAll((List<Individual>)objectToDecrypt);
-            } else if (objectToDecrypt instanceof Individual) {
-                decryptedIndividualList.add((Individual)objectToDecrypt);
-            }
-
-            if (individuals.size() > decryptedIndividualList.size()) {
-                // add the already decrypted objects to the list
-                List<String> ids = decryptedIndividualList.stream()
-                        .map(decyptedInd -> decyptedInd.getId())
-                        .collect(Collectors.toList());
-                for (Individual individual : individuals) {
-                    if (!ids.contains(individual.getId())) {
-                        decryptedIndividualList.add(individual);
-                    }
-                }
-            }
-
-        } else {
-            log.info("IndividualService:decryptIndividuals:Data is already decrypted / fetched from cache. Skipping decryption.");
-            decryptedIndividualList.addAll(individuals);
-        }
-
-        return decryptedIndividualList;
-    }
-
-    /**
-     * Returns the list of individuals that needs to be decrypted
-     * @param individuals
-     * @return
-     */
-    private List<Individual> getEncryptedIndividuals (List<Individual> individuals) {
-        List<Individual> encryptedIndividuals = new ArrayList<>();
-        for (Individual individual : individuals) {
-            String encryptedMobileNumber = individual.getMobileNumber();
-            String encryptedIdentifier = !CollectionUtils.isEmpty(individual.getIdentifiers()) ? individual.getIdentifiers().get(0).getIdentifierId() : null;
-            if (isCipherText(encryptedMobileNumber) || isCipherText(encryptedIdentifier)) {
-                encryptedIndividuals.add(individual);
-            }
-        }
-        return encryptedIndividuals;
-    }
-
-    /**
-     * Checks if the text is cipher or plain
-     * @param text
-     * @return
-     */
-    private boolean isCipherText(String text) {
-        //sample encrypted data - 640326|7hsFfY6olwUbet1HdcLxbStR1BSkOye8N3M=
-        //Encrypted data will have a prefix followed by '|' and the base64 encoded data
-        if ((StringUtils.isNotBlank(text) && text.contains("|"))) {
-            String base64Data = text.split("\\|")[1];
-            if (StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="))) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
