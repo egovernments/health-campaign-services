@@ -1,6 +1,7 @@
 package org.egov.persistence.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.domain.model.Category;
 import org.egov.domain.model.OtpRequest;
 import org.egov.domain.service.LocalizationService;
 import org.egov.persistence.contract.SMSRequest;
@@ -31,21 +32,27 @@ public class OtpSMSRepository {
     private CustomKafkaTemplate<String, SMSRequest> kafkaTemplate;
     private String smsTopic;
 
+    private boolean smsEnabled;
+
+
     @Autowired
     private LocalizationService localizationService;
 
     @Autowired
     public OtpSMSRepository(CustomKafkaTemplate<String, SMSRequest> kafkaTemplate,
-                            @Value("${sms.topic}") String smsTopic) {
+                            @Value("${sms.topic}") String smsTopic,@Value("${sms.enabled}") Boolean smsEnabled) {
         this.kafkaTemplate = kafkaTemplate;
         this.smsTopic = smsTopic;
+        this.smsEnabled=smsEnabled;
     }
 
 
     public void send(OtpRequest otpRequest, String otpNumber) {
-		Long currentTime = System.currentTimeMillis() + maxExecutionTime;
-		final String message = getMessage(otpNumber, otpRequest);
-        //kafkaTemplate.send(smsTopic, new SMSRequest(otpRequest.getMobileNumber(), message, Category.OTP, currentTime));
+        if(this.smsEnabled) {
+            Long currentTime = System.currentTimeMillis() + maxExecutionTime;
+            final String message = getMessage(otpNumber, otpRequest);
+            kafkaTemplate.send(smsTopic, new SMSRequest(otpRequest.getMobileNumber(), message, Category.OTP, currentTime));
+        }
     }
 
     private String getMessage(String otpNumber, OtpRequest otpRequest) {
@@ -111,4 +118,7 @@ public class OtpSMSRepository {
             return tenantId;                                                              // handled case if tenantIdStripSuffixCount    
                                                                                           // is less than or equal to 0
         }
+
+
+
 }
