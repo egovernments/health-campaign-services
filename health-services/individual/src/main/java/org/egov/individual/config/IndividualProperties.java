@@ -34,4 +34,22 @@ public class IndividualProperties {
 
     @Value("${idgen.individual.id.format}")
     private String individualId;
+
+    @Value("${aadhaar.pattern}")
+    private String aadhaarPattern;
+
+    @Value("${mobile.pattern}")
+    private String mobilePattern;
+
+    @Value(("${state.level.tenant.id}"))
+    private String stateLevelTenantId;
+
+    @Value(("${user.sync.enabled}"))
+    private boolean userSyncEnabled;
+
+    @Value(("${user.service.user.type}"))
+    private String userServiceUserType;
+
+    @Value(("${user.service.account.locked}"))
+    private boolean userServiceAccountLocked;
 }

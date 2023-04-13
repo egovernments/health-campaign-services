@@ -117,9 +117,10 @@ public class ProjectTaskEnrichmentService {
     }
 
     private static void enrichAddressesForUpdate(List<Task> validTasks) {
-        List<Task> addressesToCreate = validTasks.stream()
+        List<Address> addressesToCreate = validTasks.stream()
                 .filter(ad1 -> ad1.getAddress() != null && ad1.getAddress().getId() == null)
-                .collect(Collectors.toList());
+                .map(Task::getAddress).collect(Collectors.toList());
+
         if (!addressesToCreate.isEmpty()) {
             log.info("enriching addresses to create");
             List<String> addressIdList = uuidSupplier().apply(addressesToCreate.size());

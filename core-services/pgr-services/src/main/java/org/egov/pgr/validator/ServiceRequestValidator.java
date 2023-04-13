@@ -79,7 +79,7 @@ public class ServiceRequestValidator {
         validateSource(request.getService().getSource());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
-        //validateReOpen(request);
+        validateReOpen(request);
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().ids(Collections.singleton(id)).build();
         criteria.setIsPlainSearch(false);
         List<ServiceWrapper> serviceWrappers = repository.getServiceWrappers(criteria);
@@ -99,6 +99,7 @@ public class ServiceRequestValidator {
     private void validateUserData(ServiceRequest request,Map<String, String> errorMap){
 
         RequestInfo requestInfo = request.getRequestInfo();
+        String accountId = request.getService().getAccountId();
 
         /*if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN)
             && StringUtils.isEmpty(accountId)){
