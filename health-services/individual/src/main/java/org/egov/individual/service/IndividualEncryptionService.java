@@ -2,36 +2,48 @@ package org.egov.individual.service;
 
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.Error;
+import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.web.models.IndividualSearch;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.individual.Constants.SET_INDIVIDUALS;
+import static org.egov.individual.Constants.VALIDATION_ERROR;
 
 @Service
 public class IndividualEncryptionService {
     private final EncryptionDecryptionUtil encryptionDecryptionUtil;
 
-    public IndividualEncryptionService(EncryptionDecryptionUtil encryptionDecryptionUtil) {
+    private final IndividualRepository individualRepository;
+
+    public IndividualEncryptionService(EncryptionDecryptionUtil encryptionDecryptionUtil,
+                                       IndividualRepository individualRepository) {
         this.encryptionDecryptionUtil = encryptionDecryptionUtil;
+        this.individualRepository = individualRepository;
     }
 
 
-    public List<Individual> encrypt(List<Individual> individuals, String key) {
+    public List<Individual> encrypt(IndividualBulkRequest request, List<Individual> individuals, String key, boolean isBulk) {
         List<Individual> encryptedIndividuals = (List<Individual>) encryptionDecryptionUtil
                 .encryptObject(individuals, key, Individual.class);
-        // TODO: Validate for aadhaar uniqueness
+        validateAadhaarUniqueness(encryptedIndividuals, request, isBulk);
         return encryptedIndividuals;
-    }
-
-    public Individual encrypt(Individual individual, String key) {
-        Individual encryptedIndividual = (Individual) encryptionDecryptionUtil
-                .encryptObject(individual, key, Individual.class);
-        // TODO: Validate for aadhaar uniqueness
-        return encryptedIndividual;
     }
 
     public IndividualSearch encrypt(IndividualSearch individualSearch, String key) {
@@ -75,5 +87,42 @@ public class IndividualEncryptionService {
             return StringUtils.isNotBlank(base64Data) && (base64Data.length() % 4 == 0 || base64Data.endsWith("="));
         }
         return false;
+    }
+
+    private void validateAadhaarUniqueness (List<Individual> individuals, IndividualBulkRequest request, boolean isBulk) {
+
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        String tenantId = getTenantId(individuals);
+
+        if (!individuals.isEmpty()) {
+            for (Individual individual : individuals) {
+                if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
+                    Identifier identifier = individual.getIdentifiers().stream()
+                            .filter(id -> id.getIdentifierType().contains("AADHAAR"))
+                            .findFirst().orElse(null);
+                    if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
+                        Identifier identifierSearch = Identifier.builder().identifierType(identifier.getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
+                        IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
+                        List<Individual> individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
+                        if (!CollectionUtils.isEmpty(individualsList)) {
+                            boolean isSelfIdentifier = individualsList.stream()
+                                    .anyMatch(ind -> ind.getId().equalsIgnoreCase(individual.getId()));
+                            if (!isSelfIdentifier) {
+                                Error error = Error.builder().errorMessage("Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId()).errorCode("DUPLICATE_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("DUPLICATE_AADHAAR", "Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId())).build();
+                                populateErrorDetails(individual, error, errorDetailsMap);
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+        if (!errorDetailsMap.isEmpty()) {
+            Map<Individual, ErrorDetails> errorDetailsMapForTracer = new HashMap<>();
+            Stream.of(errorDetailsMap).forEach(e -> populateErrorDetails(request, errorDetailsMapForTracer, e,
+                    SET_INDIVIDUALS));
+            handleErrors(errorDetailsMapForTracer, isBulk, VALIDATION_ERROR);
+        }
     }
 }

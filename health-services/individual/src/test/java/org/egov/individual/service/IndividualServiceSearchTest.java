@@ -6,7 +6,6 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.helper.IndividualSearchTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.web.models.IndividualSearch;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,14 +14,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceSearchTest {
@@ -38,7 +36,7 @@ class IndividualServiceSearchTest {
     private IndividualRepository individualRepository;
 
     @Mock
-    private EncryptionDecryptionUtil encryptionDecryptionUtil;
+    private IndividualEncryptionService encryptionService;
 
     @Test
     @DisplayName("should search only by id if only id is present")
@@ -62,7 +60,7 @@ class IndividualServiceSearchTest {
                 .byNullId()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
-        when(encryptionDecryptionUtil.encryptObject(any(Object.class), any(String.class), any(Class.class))).thenReturn(individualSearch);
+        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
@@ -94,7 +92,7 @@ class IndividualServiceSearchTest {
                 .build();
 
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
-        when(encryptionDecryptionUtil.encryptObject(any(Object.class), any(String.class), any(Class.class))).thenReturn(individualSearch);
+        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
@@ -110,7 +108,7 @@ class IndividualServiceSearchTest {
                 .byGender()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
-        when(encryptionDecryptionUtil.encryptObject(any(Object.class), any(String.class), any(Class.class))).thenReturn(individualSearch);
+        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
