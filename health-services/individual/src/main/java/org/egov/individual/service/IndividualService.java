@@ -216,7 +216,7 @@ public class IndividualService {
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
         return individualEncryptionService.decrypt(encryptedIndividualList,
-                "IndividualEncrypt", request.getRequestInfo());
+                "IndividualDecrypt", request.getRequestInfo());
     }
 
     private List<Identifier> filterMaskedIdentifiers(List<Individual> validIndividuals) {
