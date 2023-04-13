@@ -26,9 +26,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.egov.pgr.util.PGRConstants.EMPLOYEE;
 import static org.egov.pgr.util.PGRConstants.USERTYPE_CITIZEN;
-import static org.egov.pgr.util.PGRConstants.USERTYPE_EMPLOYEE;
 
 @org.springframework.stereotype.Service
 public class UserService {
@@ -53,17 +51,9 @@ public class UserService {
         if(!StringUtils.isEmpty(request.getService().getAccountId())) {
             enrichUser(request);
         }
-        else if(request.getService().getCitizen()!=null) {
+        else if(request.getService().getUser()!=null) {
             upsertUser(request);
         }
-
-        if(!StringUtils.isEmpty(request.getService().getSupervisorId())) {
-            enrichSupervisor(request);
-        }
-        else if(request.getService().getSupervisor()!=null) {
-            upsertSupervisor(request);
-        }
-
 
     }
 
@@ -74,19 +64,15 @@ public class UserService {
     public void enrichUsers(List<ServiceWrapper> serviceWrappers){
 
         Set<String> uuids = new HashSet<>();
-        Set<String> supervisorUuid = new HashSet<>();
         serviceWrappers.forEach(serviceWrapper -> {
             uuids.add(serviceWrapper.getService().getAccountId());
-            supervisorUuid.add(serviceWrapper.getService().getSupervisorId());
         });
 
         Map<String, User> idToUserMap = searchBulkUser(new LinkedList<>(uuids));
-        Map<String, User> idToSupervisorMap = searchBulkUser(new LinkedList<>(supervisorUuid));
 
         serviceWrappers.forEach(serviceWrapper -> {
             Service service = serviceWrapper.getService();
-            service.setSupervisor(idToSupervisorMap.get(serviceWrapper.getService().getSupervisorId()));
-            service.setCitizen(idToUserMap.get(serviceWrapper.getService().getAccountId()));
+            service.setUser(idToUserMap.get(serviceWrapper.getService().getAccountId()));
         });
 
     }
@@ -99,7 +85,7 @@ public class UserService {
      */
     private void upsertUser(ServiceRequest request){
 
-        User user = request.getService().getCitizen();
+        User user = request.getService().getUser();
         String tenantId = request.getService().getTenantId();
         User userServiceResponse = null;
 
@@ -114,42 +100,12 @@ public class UserService {
             else userServiceResponse = userDetailResponse.getUser().get(0);
         }
         else {
-            userServiceResponse = createUser(request.getRequestInfo(),tenantId,user, USERTYPE_CITIZEN);
+            userServiceResponse = createUser(request.getRequestInfo(),tenantId, user);
         }
 
         // Enrich the accountId
         request.getService().setAccountId(userServiceResponse.getUuid());
     }
-
-    /**
-     * Creates or updates the user based on if the user exists. The user existance is searched based on userName = mobileNumber
-     * If the there is already a user with that mobileNumber, the existing user is updated
-     * @param request
-     */
-    private void upsertSupervisor(ServiceRequest request){
-
-        User user = request.getService().getSupervisor();
-        String tenantId = request.getService().getTenantId();
-        User userServiceResponse = null;
-
-        // Search on mobile number as user name
-        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),null,
-                user.getMobileNumber(), USERTYPE_EMPLOYEE);
-        if (!userDetailResponse.getUser().isEmpty()) {
-            User userFromSearch = userDetailResponse.getUser().get(0);
-            if(!user.getName().equalsIgnoreCase(userFromSearch.getName())){
-                userServiceResponse = updateUser(request.getRequestInfo(),user,userFromSearch);
-            }
-            else userServiceResponse = userDetailResponse.getUser().get(0);
-        }
-        else {
-            userServiceResponse = createUser(request.getRequestInfo(),tenantId,user, USERTYPE_EMPLOYEE);
-        }
-
-        // Enrich the accountId
-        request.getService().setSupervisorId(userServiceResponse.getUuid());
-    }
-
 
     /**
      * Calls user search to fetch a user and enriches it in request
@@ -167,27 +123,7 @@ public class UserService {
         if(userDetailResponse.getUser().isEmpty())
             throw new CustomException("INVALID_ACCOUNTID","No user exist for the given accountId");
 
-        else request.getService().setCitizen(userDetailResponse.getUser().get(0));
-
-    }
-
-    /**
-     * Calls user search to fetch a user and enriches it in request
-     * @param request
-     */
-    private void enrichSupervisor(ServiceRequest request){
-
-        RequestInfo requestInfo = request.getRequestInfo();
-        String supervisorId = request.getService().getSupervisorId();
-        String tenantId = request.getService().getTenantId();
-
-        UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),supervisorId,
-                null, EMPLOYEE);
-
-        if(userDetailResponse.getUser().isEmpty())
-            throw new CustomException("INVALID_SUPERVISORID","No user exist for the given supervisorId");
-
-        else request.getService().setSupervisor(userDetailResponse.getUser().get(0));
+        else request.getService().setUser(userDetailResponse.getUser().get(0));
 
     }
 
@@ -198,9 +134,9 @@ public class UserService {
      * @param userInfo
      * @return
      */
-    private User createUser(RequestInfo requestInfo,String tenantId, User userInfo, String userType) {
+    private User createUser(RequestInfo requestInfo,String tenantId, User userInfo) {
 
-        userUtils.addUserDefaultFields(userInfo.getMobileNumber(),tenantId, userInfo, userType);
+        userUtils.addUserDefaultFields(userInfo.getMobileNumber(),tenantId, userInfo);
         StringBuilder uri = new StringBuilder(config.getUserHost())
                 .append(config.getUserContextPath())
                 .append(config.getUserCreateEndpoint());

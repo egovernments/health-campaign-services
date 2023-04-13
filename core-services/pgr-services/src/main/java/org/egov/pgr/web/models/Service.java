@@ -33,8 +33,8 @@ public class Service   {
         @JsonProperty("active")
         private boolean active = true;
 
-        @JsonProperty("citizen")
-        private User citizen = null;
+        @JsonProperty("user")
+        private User user = null;
 
         @SafeHtml
         @JsonProperty("id")
@@ -88,25 +88,7 @@ public class Service   {
         @JsonProperty("auditDetails")
         private AuditDetails auditDetails = null;
 
-        @JsonProperty("dateOfComplaint")
-        private Long dateOfComplaint;
-
-        @SafeHtml
-        @JsonProperty("administrativeArea")
-        private String administrativeArea;
-
         @JsonProperty("selfComplaint")
         private Boolean selfComplaint;
-
-        @SafeHtml
-        @JsonProperty("supervisorId")
-        private String supervisorId = null;
-
-        @JsonProperty("supervisor")
-        private User supervisor = null;
-
-        @SafeHtml
-        @JsonProperty("additionalAttachments")
-        private String additionalAttachments;
 }
 

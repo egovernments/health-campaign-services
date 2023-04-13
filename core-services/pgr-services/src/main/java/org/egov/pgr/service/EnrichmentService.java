@@ -59,7 +59,6 @@ public class EnrichmentService {
 
         userService.callUserService(serviceRequest);
 
-
         AuditDetails auditDetails = utils.getAuditDetails(requestInfo.getUserInfo().getUuid(), service,true);
 
         service.setAuditDetails(auditDetails);
@@ -75,7 +74,7 @@ public class EnrichmentService {
         }
 
         if(StringUtils.isEmpty(service.getAccountId()))
-            service.setAccountId(service.getCitizen().getUuid());
+            service.setAccountId(service.getUser().getUuid());
 
         List<String> customIds = getIdList(requestInfo,tenantId,config.getServiceRequestIdGenName(),config.getServiceRequestIdGenFormat(),1);
 
