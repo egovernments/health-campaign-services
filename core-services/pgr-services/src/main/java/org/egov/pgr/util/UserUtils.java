@@ -108,6 +108,7 @@ public class UserUtils {
     public void addUserDefaultFields(String mobileNumber,String tenantId, User userInfo){
         Role role = getCitizenRole(tenantId);
         userInfo.setRoles(Collections.singletonList(role));
+        userInfo.setType("CITIZEN");
         userInfo.setUserName(mobileNumber);
         userInfo.setTenantId(getStateLevelTenant(tenantId));
         userInfo.setActive(true);
