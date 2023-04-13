@@ -5,7 +5,6 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.util.UserUtils;
 import org.egov.pgr.web.models.RequestSearchCriteria;
-import org.egov.pgr.web.models.Service;
 import org.egov.pgr.web.models.ServiceRequest;
 import org.egov.pgr.web.models.ServiceWrapper;
 import org.egov.pgr.web.models.User;
@@ -71,8 +70,7 @@ public class UserService {
         Map<String, User> idToUserMap = searchBulkUser(new LinkedList<>(uuids));
 
         serviceWrappers.forEach(serviceWrapper -> {
-            Service service = serviceWrapper.getService();
-            service.setUser(idToUserMap.get(serviceWrapper.getService().getAccountId()));
+            serviceWrapper.getService().setUser(idToUserMap.get(serviceWrapper.getService().getAccountId()));
         });
 
     }
@@ -91,7 +89,7 @@ public class UserService {
 
         // Search on mobile number as user name
         UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),null,
-                user.getMobileNumber(), USERTYPE_CITIZEN);
+                user.getMobileNumber(), request.getService().getUser().getType());
         if (!userDetailResponse.getUser().isEmpty()) {
             User userFromSearch = userDetailResponse.getUser().get(0);
             if(!user.getName().equalsIgnoreCase(userFromSearch.getName())){
@@ -100,7 +98,7 @@ public class UserService {
             else userServiceResponse = userDetailResponse.getUser().get(0);
         }
         else {
-            userServiceResponse = createUser(request.getRequestInfo(),tenantId, user);
+            userServiceResponse = createUser(request.getRequestInfo(),tenantId, user, request.getService().getUser().getType());
         }
 
         // Enrich the accountId
@@ -118,7 +116,7 @@ public class UserService {
         String tenantId = request.getService().getTenantId();
 
         UserDetailResponse userDetailResponse = searchUser(userUtils.getStateLevelTenant(tenantId),accountId,
-                null, USERTYPE_CITIZEN);
+                null, request.getService().getUser().getType());
 
         if(userDetailResponse.getUser().isEmpty())
             throw new CustomException("INVALID_ACCOUNTID","No user exist for the given accountId");
@@ -132,11 +130,12 @@ public class UserService {
      * @param requestInfo
      * @param tenantId
      * @param userInfo
+     * @param userType
      * @return
      */
-    private User createUser(RequestInfo requestInfo,String tenantId, User userInfo) {
+    private User createUser(RequestInfo requestInfo,String tenantId, User userInfo, String userType) {
 
-        userUtils.addUserDefaultFields(userInfo.getMobileNumber(),tenantId, userInfo);
+        userUtils.addUserDefaultFields(userInfo.getMobileNumber(),tenantId, userInfo, userType);
         StringBuilder uri = new StringBuilder(config.getUserHost())
                 .append(config.getUserContextPath())
                 .append(config.getUserCreateEndpoint());
