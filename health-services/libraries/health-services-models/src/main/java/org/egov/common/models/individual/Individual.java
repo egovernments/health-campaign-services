@@ -59,7 +59,7 @@ public class Individual {
     private Name name = null;
 
     @JsonProperty("dateOfBirth")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy", timezone = "UTC")
     private Date dateOfBirth = null;
 
     @JsonProperty("gender")

@@ -18,6 +18,7 @@ import org.springframework.util.CollectionUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -58,6 +59,7 @@ public class IndividualEncryptionService {
         List<Individual> encryptedIndividuals = filterEncryptedIndividuals(individuals);
         List<Individual> decryptedIndividuals = (List<Individual>) encryptionDecryptionUtil
                 .decryptObject(encryptedIndividuals, key, Individual.class, requestInfo);
+        log.info("Date of birth before decryption {}", encryptedIndividuals.get(0).getDateOfBirth());
         if (individuals.size() > decryptedIndividuals.size()) {
             // add the already decrypted objects to the list
             List<String> ids = decryptedIndividuals.stream()
@@ -69,6 +71,10 @@ public class IndividualEncryptionService {
                 }
             }
         }
+        log.info("Date of birth after decryption {}", decryptedIndividuals.get(0).getDateOfBirth());
+        log.info("Date of birth after decryption converted to local date {}", decryptedIndividuals.get(0).getDateOfBirth()
+                .toInstant().atZone(TimeZone
+                .getTimeZone("UTC").toZoneId()).toLocalDate());
         return decryptedIndividuals;
     }
 
