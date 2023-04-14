@@ -25,8 +25,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.egov.pgr.util.PGRConstants.USERTYPE_CITIZEN;
-
 @org.springframework.stereotype.Service
 public class UserService {
 
@@ -206,7 +204,6 @@ public class UserService {
 
         UserSearchRequest userSearchRequest =new UserSearchRequest();
         userSearchRequest.setActive(true);
-        userSearchRequest.setUserType(USERTYPE_CITIZEN);
 
 
         if(!CollectionUtils.isEmpty(uuids))
@@ -236,7 +233,6 @@ public class UserService {
 
         UserSearchRequest userSearchRequest =new UserSearchRequest();
         userSearchRequest.setActive(true);
-        userSearchRequest.setUserType(USERTYPE_CITIZEN);
         userSearchRequest.setTenantId(tenantId);
         userSearchRequest.setMobileNumber(mobileNumber);
 
