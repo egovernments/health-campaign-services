@@ -11,7 +11,6 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.models.project.ApiOperation;
 import org.egov.common.models.user.UserRequest;
-import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
@@ -267,10 +266,15 @@ public class IndividualService {
         //encrypt search criteria
         IndividualSearch encryptedIndividualSearch = individualEncryptionService
                 .encrypt(individualSearch, "IndividualSearchEncrypt");
-        encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
-                        lastChangedSince, includeDeleted).stream()
-                .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
-                .collect(Collectors.toList());
+        try {
+            encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
+                            lastChangedSince, includeDeleted).stream()
+                    .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
+                    .collect(Collectors.toList());
+        } catch (Exception exception) {
+            log.error("database error occurred", exception);
+            throw new CustomException("DATABASE_ERROR", exception.getMessage());
+        }
         //decrypt
         return (!encryptedIndividualList.isEmpty())
                 ? individualEncryptionService.decrypt(encryptedIndividualList,

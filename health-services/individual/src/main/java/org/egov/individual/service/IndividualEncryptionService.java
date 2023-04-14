@@ -1,5 +1,6 @@
 package org.egov.individual.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.Error;
@@ -27,6 +28,7 @@ import static org.egov.individual.Constants.SET_INDIVIDUALS;
 import static org.egov.individual.Constants.VALIDATION_ERROR;
 
 @Service
+@Slf4j
 public class IndividualEncryptionService {
     private final EncryptionDecryptionUtil encryptionDecryptionUtil;
 
@@ -103,7 +105,13 @@ public class IndividualEncryptionService {
                     if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                         Identifier identifierSearch = Identifier.builder().identifierType(identifier.getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
                         IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
-                        List<Individual> individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
+                        List<Individual> individualsList = null;
+                        try {
+                            individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
+                        } catch (Exception exception) {
+                            log.error("database error occurred", exception);
+                            throw new CustomException("DATABASE_ERROR", exception.getMessage());
+                        }
                         if (!CollectionUtils.isEmpty(individualsList)) {
                             boolean isSelfIdentifier = individualsList.stream()
                                     .anyMatch(ind -> ind.getId().equalsIgnoreCase(individual.getId()));
