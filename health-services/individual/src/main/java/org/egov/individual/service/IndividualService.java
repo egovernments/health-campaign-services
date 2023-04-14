@@ -13,10 +13,11 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.validators.AadharMobileNumberValidator;
+import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
 import org.egov.individual.validators.IsDeletedValidator;
+import org.egov.individual.validators.MobileNumberValidator;
 import org.egov.individual.validators.NonExistentEntityValidator;
 import org.egov.individual.validators.NullIdValidator;
 import org.egov.individual.validators.RowVersionValidator;
@@ -73,12 +74,14 @@ public class IndividualService {
                     || validator.getClass().equals(RowVersionValidator.class)
                     || validator.getClass().equals(UniqueEntityValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
-                    || validator.getClass().equals(AadharMobileNumberValidator.class);
+                    || validator.getClass().equals(MobileNumberValidator.class)
+                    || validator.getClass().equals(AadharNumberValidator.class);
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
             validator.getClass().equals(AddressTypeValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
-                    || validator.getClass().equals(AadharMobileNumberValidator.class);
+                    || validator.getClass().equals(MobileNumberValidator.class)
+                    || validator.getClass().equals(AadharNumberValidator.class);
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
             validator.getClass().equals(NullIdValidator.class)
