@@ -12,6 +12,7 @@ import org.egov.pgr.web.models.ServiceWrapper;
 import org.egov.pgr.web.models.User;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -36,6 +37,12 @@ public class ServiceRequestValidator {
     private PGRRepository repository;
 
     private HRMSUtil hrmsUtil;
+
+    @Value("${enable.state.level.search:true}")
+    private Boolean enableStateLevelSearch;
+
+    @Value("${enable.usertype.employee:true}")
+    private Boolean enableEmployee;
 
     @Autowired
     public ServiceRequestValidator(PGRConfiguration config, PGRRepository repository, HRMSUtil hrmsUtil) {
@@ -104,14 +111,15 @@ public class ServiceRequestValidator {
             errorMap.put("INVALID_ACCOUNTID","The accountId is different from the user logged in");
         }*/
 
-        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE)){
-            User citizen = request.getService().getCitizen();
-            if(citizen == null)
-                errorMap.put("INVALID_REQUEST","Citizen object cannot be null");
-            else if(citizen.getMobileNumber()==null || citizen.getName()==null)
-                errorMap.put("INVALID_REQUEST","Name and Mobile Number is mandatory in citizen object");
-        }
+        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN)
+        || Boolean.TRUE.equals(enableEmployee && requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE))){
+            User user = request.getService().getUser();
 
+            if(user == null)
+                errorMap.put("INVALID_REQUEST","User object cannot be null");
+            else if(user.getMobileNumber()==null || user.getName()==null)
+                errorMap.put("INVALID_REQUEST","Name and Mobile Number is mandatory in user object");
+        }
     }
 
 
@@ -239,7 +247,9 @@ public class ServiceRequestValidator {
         if(requestInfo.getUserInfo().getType().equalsIgnoreCase("EMPLOYEE" ) && criteria.isEmpty())
             throw new CustomException("INVALID_SEARCH","Search without params is not allowed");
 
-        if(requestInfo.getUserInfo().getType().equalsIgnoreCase("EMPLOYEE") && criteria.getTenantId().split("\\.").length == 1){
+        if(requestInfo.getUserInfo().getType().equalsIgnoreCase("EMPLOYEE")
+                && criteria.getTenantId().split("\\.").length == 1
+        && Boolean.TRUE.equals(!enableStateLevelSearch)){
             throw new CustomException("INVALID_SEARCH", "Employees cannot perform state level searches.");
         }
 

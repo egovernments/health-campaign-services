@@ -33,8 +33,8 @@ public class Service   {
         @JsonProperty("active")
         private boolean active = true;
 
-        @JsonProperty("citizen")
-        private User citizen = null;
+        @JsonProperty("user")
+        private User user = null;
 
         @SafeHtml
         @JsonProperty("id")
@@ -88,6 +88,7 @@ public class Service   {
         @JsonProperty("auditDetails")
         private AuditDetails auditDetails = null;
 
-
+        @JsonProperty("selfComplaint")
+        private Boolean selfComplaint;
 }
 
