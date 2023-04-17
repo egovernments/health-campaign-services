@@ -33,7 +33,7 @@ public class IndividualMapper {
                 .filter(address -> address.getType().equals(AddressType.CORRESPONDENCE))
                 .findFirst()
                 .orElse(Address.builder().build());
-        UserRequest userRequest = UserRequest.builder()
+        return UserRequest.builder()
                 .tenantId(individual.getTenantId())
                 .userName(UUID.randomUUID().toString())
                 .name(String.join(" ", individual.getName().getGivenName(),
@@ -75,8 +75,6 @@ public class IndividualMapper {
                         .name(properties.getUserServiceUserType())
                         .build())))
                 .build();
-        log.info("The user request object is: {}", userRequest);
-        return userRequest;
     }
 
     /**
