@@ -18,7 +18,6 @@ import org.springframework.util.CollectionUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -59,7 +58,6 @@ public class IndividualEncryptionService {
         List<Individual> encryptedIndividuals = filterEncryptedIndividuals(individuals);
         List<Individual> decryptedIndividuals = (List<Individual>) encryptionDecryptionUtil
                 .decryptObject(encryptedIndividuals, key, Individual.class, requestInfo);
-        log.info("Date of birth before decryption {}", encryptedIndividuals.get(0).getDateOfBirth());
         if (individuals.size() > decryptedIndividuals.size()) {
             // add the already decrypted objects to the list
             List<String> ids = decryptedIndividuals.stream()
@@ -71,10 +69,6 @@ public class IndividualEncryptionService {
                 }
             }
         }
-        log.info("Date of birth after decryption {}", decryptedIndividuals.get(0).getDateOfBirth());
-        log.info("Date of birth after decryption converted to local date {}", decryptedIndividuals.get(0).getDateOfBirth()
-                .toInstant().atZone(TimeZone
-                .getTimeZone("UTC").toZoneId()).toLocalDate());
         return decryptedIndividuals;
     }
 
@@ -109,11 +103,13 @@ public class IndividualEncryptionService {
                             .filter(id -> id.getIdentifierType().contains("AADHAAR"))
                             .findFirst().orElse(null);
                     if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
-                        Identifier identifierSearch = Identifier.builder().identifierType(identifier.getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
+                        Identifier identifierSearch = Identifier.builder().identifierType(identifier
+                                .getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
                         IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
                         List<Individual> individualsList = null;
                         try {
-                            individualsList = individualRepository.find(individualSearch,null,null,tenantId,null,false);
+                            individualsList = individualRepository.find(individualSearch,null,
+                                    null,tenantId,null,false);
                         } catch (Exception exception) {
                             log.error("database error occurred", exception);
                             throw new CustomException("DATABASE_ERROR", exception.getMessage());
@@ -122,7 +118,11 @@ public class IndividualEncryptionService {
                             boolean isSelfIdentifier = individualsList.stream()
                                     .anyMatch(ind -> ind.getId().equalsIgnoreCase(individual.getId()));
                             if (!isSelfIdentifier) {
-                                Error error = Error.builder().errorMessage("Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId()).errorCode("DUPLICATE_AADHAAR").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("DUPLICATE_AADHAAR", "Aadhaar already exists for Individual - "+individualsList.get(0).getIndividualId())).build();
+                                Error error = Error.builder().errorMessage("Aadhaar already exists for Individual - "
+                                        +individualsList.get(0).getIndividualId()).errorCode("DUPLICATE_AADHAAR")
+                                        .type(Error.ErrorType.NON_RECOVERABLE)
+                                        .exception(new CustomException("DUPLICATE_AADHAAR", "Aadhaar already exists for Individual - "
+                                                +individualsList.get(0).getIndividualId())).build();
                                 populateErrorDetails(individual, error, errorDetailsMap);
                             }
                         }

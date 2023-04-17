@@ -125,7 +125,6 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
-                log.info("Date of birth before encryption {}", validIndividuals.get(0).getDateOfBirth());
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
