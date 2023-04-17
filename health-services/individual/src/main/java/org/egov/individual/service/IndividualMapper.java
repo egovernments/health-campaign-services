@@ -7,10 +7,13 @@ import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.user.BloodGroup;
 import org.egov.common.models.user.Gender;
+import org.egov.common.models.user.RoleRequest;
 import org.egov.common.models.user.UserRequest;
 import org.egov.common.models.user.UserType;
 import org.egov.individual.config.IndividualProperties;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Random;
 import java.util.UUID;
 
@@ -66,6 +69,11 @@ public class IndividualMapper {
                 .correspondenceCity(correspondenceAddress.getCity())
                 .correspondencePinCode(correspondenceAddress.getPincode())
                 .photo(individual.getPhoto())
+                .roles(new HashSet<>(Collections.singletonList(RoleRequest.builder()
+                        .code(properties.getUserServiceUserType())
+                        .tenantId(individual.getTenantId())
+                        .name(properties.getUserServiceUserType())
+                        .build())))
                 .build();
         log.info("The user request object is: {}", userRequest);
         return userRequest;
