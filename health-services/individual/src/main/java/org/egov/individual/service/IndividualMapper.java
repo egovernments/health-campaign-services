@@ -1,5 +1,6 @@
 package org.egov.individual.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Identifier;
@@ -13,6 +14,7 @@ import org.egov.individual.config.IndividualProperties;
 import java.util.Random;
 import java.util.UUID;
 
+@Slf4j
 public class IndividualMapper {
 
     private static Random random = new Random();
@@ -28,7 +30,7 @@ public class IndividualMapper {
                 .filter(address -> address.getType().equals(AddressType.CORRESPONDENCE))
                 .findFirst()
                 .orElse(Address.builder().build());
-        return UserRequest.builder()
+        UserRequest userRequest = UserRequest.builder()
                 .tenantId(individual.getTenantId())
                 .userName(UUID.randomUUID().toString())
                 .name(String.join(" ", individual.getName().getGivenName(),
@@ -65,6 +67,8 @@ public class IndividualMapper {
                 .correspondencePinCode(correspondenceAddress.getPincode())
                 .photo(individual.getPhoto())
                 .build();
+        log.info("The user request object is: {}", userRequest);
+        return userRequest;
     }
 
     /**

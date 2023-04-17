@@ -141,7 +141,11 @@ public class IndividualService {
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
         // integrate with user service create call
-        integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
+        try {
+            integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
+        } catch (Exception e) {
+            log.error("error in user service integration", e);
+        }
         return decryptedIndividualList;
     }
 
@@ -230,8 +234,12 @@ public class IndividualService {
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
-        // integrate with user service update call
-        integrateWithUserService(request, decryptedIndividualList, ApiOperation.UPDATE);
+        try {
+            // integrate with user service update call
+            integrateWithUserService(request, decryptedIndividualList, ApiOperation.UPDATE);
+        } catch (Exception e) {
+            log.error("error in user service integration", e);
+        }
         return decryptedIndividualList;
     }
 
@@ -328,8 +336,12 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
-        // integrate with user service delete call
-        integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
+        try {
+            // integrate with user service delete call
+            integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
+        } catch (Exception e) {
+            log.error("error in user service integration", e);
+        }
         return validIndividuals;
     }
 
