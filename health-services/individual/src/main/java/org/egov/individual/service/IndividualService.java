@@ -130,8 +130,6 @@ public class IndividualService {
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
-                // integrate with user service create call
-                integrateWithUserService(request, encryptedIndividualList, ApiOperation.CREATE);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -140,8 +138,11 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        return individualEncryptionService.decrypt(encryptedIndividualList,
+        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
+        // integrate with user service create call
+        integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
+        return decryptedIndividualList;
     }
 
     private Tuple<List<Individual>, Map<Individual, ErrorDetails>> validate(List<Validator<IndividualBulkRequest, Individual>> validators,
@@ -219,8 +220,6 @@ public class IndividualService {
                 // save
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
-                // integrate with user service create call
-                integrateWithUserService(request, encryptedIndividualList, ApiOperation.UPDATE);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -229,8 +228,11 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        return individualEncryptionService.decrypt(encryptedIndividualList,
+        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
+        // integrate with user service update call
+        integrateWithUserService(request, decryptedIndividualList, ApiOperation.UPDATE);
+        return decryptedIndividualList;
     }
 
     private List<Identifier> filterMaskedIdentifiers(List<Individual> validIndividuals) {
@@ -318,8 +320,6 @@ public class IndividualService {
                 enrichmentService.delete(validIndividuals, request);
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());
-                // integrate with user service create call
-                integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
             }
         } catch(Exception exception) {
             log.error("error occurred", exception);
@@ -328,6 +328,8 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
+        // integrate with user service delete call
+        integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
         return validIndividuals;
     }
 

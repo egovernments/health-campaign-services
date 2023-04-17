@@ -31,7 +31,7 @@ public class IndividualMapper {
         return UserRequest.builder()
                 .tenantId(individual.getTenantId())
                 .userName(UUID.randomUUID().toString())
-                .name(String.join(",", individual.getName().getGivenName(),
+                .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName(),
                         individual.getName().getOtherNames()))
                 .gender(Gender.valueOf(individual.getGender().name()).name())
