@@ -41,6 +41,7 @@ public interface IResponseHandler {
 	public final static String HIDE_HEADER_DENOMINATION = "hideHeaderDenomination";
 	public final static String SHOW_FOOTER = "showFooter";
 
+	public final static String IS_CAPPED_BY_CAMPAIGN_PERIOD = "isCappedByCampaignPeriod";
 	// Table Chart Keys
 	public static final String SERIAL_NUMBER = "S.N.";
 	public static final String TABLE_TEXT = "text" ;
