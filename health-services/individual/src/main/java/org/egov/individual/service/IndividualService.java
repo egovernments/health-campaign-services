@@ -267,8 +267,18 @@ public class IndividualService {
                     : encryptedIndividualList;
         }
         //encrypt search criteria
-        IndividualSearch encryptedIndividualSearch = individualEncryptionService
-                .encrypt(individualSearch, "IndividualSearchEncrypt");
+
+        IndividualSearch encryptedIndividualSearch;
+        if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
+            encryptedIndividualSearch = individualEncryptionService
+                    .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
+        } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
+            encryptedIndividualSearch = individualEncryptionService
+                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+        } else {
+            encryptedIndividualSearch = individualEncryptionService
+                    .encrypt(individualSearch, "IndividualSearchEncrypt");
+        }
         try {
             encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                             lastChangedSince, includeDeleted).stream()
