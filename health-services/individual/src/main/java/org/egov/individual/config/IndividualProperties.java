@@ -23,6 +23,9 @@ public class IndividualProperties {
     @Value("${individual.producer.delete.topic}")
     private String deleteIndividualTopic;
 
+    @Value("${individual.producer.update.user.id.topic}")
+    private String updateUserIdTopic;
+
     @Value("${individual.consumer.bulk.create.topic}")
     private String bulkSaveIndividualTopic;
 

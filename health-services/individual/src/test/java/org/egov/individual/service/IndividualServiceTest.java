@@ -13,7 +13,6 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.util.EncryptionDecryptionUtil;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
@@ -34,6 +33,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -66,10 +66,8 @@ class IndividualServiceTest {
 
     @Mock
     private EnrichmentService enrichmentService;
-
     @Mock
-    private EncryptionDecryptionUtil encryptionDecryptionUtil;
-
+    private IndividualEncryptionService encryptionService;
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
     @BeforeEach
@@ -97,7 +95,11 @@ class IndividualServiceTest {
                         .withName()
                         .build())
                 .build();
-        when(encryptionDecryptionUtil.encryptObject(any(Object.class), any(String.class), any(Class.class))).thenReturn(request.getIndividual());
+        when(encryptionService.encrypt(any(IndividualBulkRequest.class),
+                anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
+                .withTenantId()
+                .withName()
+                .build()));
         individualService.create(request);
 
         verify(individualRepository, times(1))

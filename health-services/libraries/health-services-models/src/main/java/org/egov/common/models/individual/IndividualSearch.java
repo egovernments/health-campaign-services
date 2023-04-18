@@ -11,7 +11,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -30,6 +31,9 @@ public class IndividualSearch   {
     @JsonProperty("id")
     private List<String> id = null;
 
+    @JsonProperty("individualId")
+    private String individualId = null;
+
     @JsonProperty("clientReferenceId")
     private List<String> clientReferenceId = null;
 
@@ -39,11 +43,29 @@ public class IndividualSearch   {
 
     @JsonProperty("dateOfBirth")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private LocalDate dateOfBirth = null;
+    private Date dateOfBirth = null;
 
     @JsonProperty("gender")
     @Valid
     private Gender gender = null;
+
+    @JsonProperty("mobileNumber")
+    private String mobileNumber = null;
+
+    @JsonProperty("socialCategory")
+    private String socialCategory = null;
+
+    @JsonProperty("wardCode")
+    private String wardCode = null;
+
+    @JsonProperty("individualName")
+    private String individualName = null;
+
+    @JsonProperty("createdFrom")
+    private BigDecimal createdFrom = null;
+
+    @JsonProperty("createdTo")
+    private BigDecimal createdTo = null;
 
     @JsonProperty("identifier")
     @Valid
