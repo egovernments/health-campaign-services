@@ -41,6 +41,9 @@ public class ServiceRequestValidator {
     @Value("${enable.state.level.search:true}")
     private Boolean enableStateLevelSearch;
 
+    @Value("${enable.usertype.employee:true}")
+    private Boolean enableEmployee;
+
     @Autowired
     public ServiceRequestValidator(PGRConfiguration config, PGRRepository repository, HRMSUtil hrmsUtil) {
         this.config = config;
@@ -108,14 +111,15 @@ public class ServiceRequestValidator {
             errorMap.put("INVALID_ACCOUNTID","The accountId is different from the user logged in");
         }*/
 
-        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE)){
-            User citizen = request.getService().getCitizen();
-            if(citizen == null)
-                errorMap.put("INVALID_REQUEST","Citizen object cannot be null");
-            else if(citizen.getMobileNumber()==null || citizen.getName()==null)
-                errorMap.put("INVALID_REQUEST","Name and Mobile Number is mandatory in citizen object");
-        }
+        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN)
+        || Boolean.TRUE.equals(enableEmployee && requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE))){
+            User user = request.getService().getUser();
 
+            if(user == null)
+                errorMap.put("INVALID_REQUEST","User object cannot be null");
+            else if(user.getMobileNumber()==null || user.getName()==null)
+                errorMap.put("INVALID_REQUEST","Name and Mobile Number is mandatory in user object");
+        }
     }
 
 
@@ -245,7 +249,7 @@ public class ServiceRequestValidator {
 
         if(requestInfo.getUserInfo().getType().equalsIgnoreCase("EMPLOYEE")
                 && criteria.getTenantId().split("\\.").length == 1
-                && !enableStateLevelSearch){
+        && Boolean.TRUE.equals(!enableStateLevelSearch)){
             throw new CustomException("INVALID_SEARCH", "Employees cannot perform state level searches.");
         }
 

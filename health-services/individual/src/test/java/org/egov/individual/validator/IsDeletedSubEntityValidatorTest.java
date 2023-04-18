@@ -2,11 +2,15 @@ package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.individual.*;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.AddressType;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.Skill;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
-import org.egov.individual.web.models.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

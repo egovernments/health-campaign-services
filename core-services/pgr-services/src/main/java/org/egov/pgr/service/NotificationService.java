@@ -114,7 +114,7 @@ public class NotificationService {
             }
 
             Map<String, List<String>> finalMessage = getFinalMessage(request, topic, applicationStatus);
-            String citizenMobileNumber = request.getService().getCitizen().getMobileNumber();
+            String citizenMobileNumber = request.getService().getUser().getMobileNumber();
             String employeeMobileNumber = null;
 
             if(applicationStatus.equalsIgnoreCase(PENDINGFORASSIGNMENT) && action.equalsIgnoreCase(PGR_WF_REOPEN)) {
@@ -750,7 +750,7 @@ public class NotificationService {
 
     private EventRequest enrichEventRequest(ServiceRequest request, String finalMessage) {
         String tenantId = request.getService().getTenantId();
-        String mobileNumber = request.getService().getCitizen().getMobileNumber();
+        String mobileNumber = request.getService().getUser().getMobileNumber();
 
         Map<String, String> mapOfPhoneNoAndUUIDs = fetchUserUUIDs(mobileNumber, request.getRequestInfo(),tenantId);
 

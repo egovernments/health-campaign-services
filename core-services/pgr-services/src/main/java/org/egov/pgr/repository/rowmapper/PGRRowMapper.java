@@ -56,6 +56,8 @@ public class PGRRowMapper implements ResultSetExtractor<List<Service>> {
                 String lastmodifiedby = rs.getString("ser_lastmodifiedby");
                 Long lastmodifiedtime = rs.getLong("ser_lastmodifiedtime");
                 Integer rating = rs.getInt("rating");
+                Boolean selfComplaint = rs.getBoolean("selfComplaint");
+
                 if(rs.wasNull()){rating = null;}
 
                 AuditDetails auditDetails = AuditDetails.builder().createdBy(createdby).createdTime(createdtime)
@@ -71,6 +73,7 @@ public class PGRRowMapper implements ResultSetExtractor<List<Service>> {
                         .tenantId(tenantId)
                         .rating(rating)
                         .auditDetails(auditDetails)
+                        .selfComplaint(selfComplaint)
                         .build();
 
                 JsonNode additionalDetails = getAdditionalDetail("ser_additionaldetails",rs);
