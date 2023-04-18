@@ -141,11 +141,7 @@ public class IndividualService {
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
         // integrate with user service create call
-        try {
-            integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
-        } catch (Exception e) {
-            log.error("error in user service integration", e);
-        }
+        integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
         return decryptedIndividualList;
     }
 
@@ -205,7 +201,7 @@ public class IndividualService {
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
                 // find existing individuals from db
                 List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
-                        false, "id");
+                        "id", false);
                 // extract existing identifiers (encrypted) from existing individuals
                 Map<String, List<Identifier>> existingIdentifiers = existingIndividuals.stream()
                         .map(Individual::getIdentifiers)
@@ -234,12 +230,8 @@ public class IndividualService {
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
-        try {
-            // integrate with user service update call
-            integrateWithUserService(request, decryptedIndividualList, ApiOperation.UPDATE);
-        } catch (Exception e) {
-            log.error("error in user service integration", e);
-        }
+        // integrate with user service update call
+        integrateWithUserService(request, decryptedIndividualList, ApiOperation.UPDATE);
         return decryptedIndividualList;
     }
 
@@ -336,12 +328,8 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
-        try {
-            // integrate with user service delete call
-            integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
-        } catch (Exception e) {
-            log.error("error in user service integration", e);
-        }
+        // integrate with user service delete call
+        integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
         return validIndividuals;
     }
 

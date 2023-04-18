@@ -52,6 +52,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                                     .build())
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
+                    .isSystemUser(resultSet.getBoolean("isSystemUser"))
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
