@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import com.tarento.analytics.dto.AggregateRequestDto;
 import com.tarento.analytics.dto.Data;
 
+import static com.tarento.analytics.constant.Constants.PostAggregationTheories.CAMPAIGN_END_DATE;
+import static com.tarento.analytics.constant.Constants.PostAggregationTheories.CAMPAIGN_START_DATE;
 import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_BY_CAMPAIGN_PERIOD;
 
 /**
@@ -45,9 +47,9 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 		        if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
 
 				if(request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD) != null && request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD).asBoolean()){
-					if(request.getFilters()!=null && request.getFilters().containsKey("campaignStartDate") && request.getFilters().containsKey("campaignEndDate")) {
-						Long campaignStartDate = Long.parseLong(String.valueOf(request.getFilters().get("campaignStartDate")));
-						Long campaignEndDate = Long.parseLong(String.valueOf(request.getFilters().get("campaignEndDate")));
+					if(request.getFilters()!=null && request.getFilters().containsKey(CAMPAIGN_START_DATE) && request.getFilters().containsKey(CAMPAIGN_END_DATE)) {
+						Long campaignStartDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_START_DATE)));
+						Long campaignEndDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_END_DATE)));
 						Long campaignDateDifference = TimeUnit.DAYS.convert((campaignEndDate - campaignStartDate), TimeUnit.MILLISECONDS);
 						dateDifference = Math.min(dateDifference, campaignDateDifference);
 					}
