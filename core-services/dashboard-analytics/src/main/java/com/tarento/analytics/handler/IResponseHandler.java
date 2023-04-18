@@ -105,6 +105,8 @@ public interface IResponseHandler {
 	public static final String DIVISOR_FIELDS = "divisorFields";
 	public static final String DIVISIONBYCONSTANT = "divisionbyconstant";
 
+	public static final String TARGET_LINE_CHART = "targetLineChart";
+
 	/**
 	 * Translate the consolidated/aggregated response
 	 *
@@ -149,6 +151,10 @@ public interface IResponseHandler {
 		}
 		if(null!=chartNode.get(FILTER_KEYS))
 			aggregateDto.setFilter((ArrayNode) chartNode.get(FILTER_KEYS));
+
+		if(chartNode.has(TARGET_LINE_CHART)){
+			aggregateDto.setTargetLineChart(chartNode.get(TARGET_LINE_CHART).asText());
+		}
 		return aggregateDto;
 	}
 
