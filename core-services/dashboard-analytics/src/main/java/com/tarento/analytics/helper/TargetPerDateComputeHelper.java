@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 import com.tarento.analytics.dto.AggregateRequestDto;
 import com.tarento.analytics.dto.Data;
 
+import static com.tarento.analytics.constant.Constants.PostAggregationTheories.CAMPAIGN_END_DATE;
+import static com.tarento.analytics.constant.Constants.PostAggregationTheories.CAMPAIGN_START_DATE;
+import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_BY_CAMPAIGN_PERIOD;
+
 /**
  * This implementation of Compute Helper is used to compute the difference of dates between the Request Date
  * The difference is then multiplied against the Per Day Unit of Target which has been obtained from Elastic Search
@@ -41,6 +45,15 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
 		        Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
 		        if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+
+				if(request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD) != null && request.getChartNode().get(IS_CAPPED_BY_CAMPAIGN_PERIOD).asBoolean()){
+					if(request.getFilters()!=null && request.getFilters().containsKey(CAMPAIGN_START_DATE) && request.getFilters().containsKey(CAMPAIGN_END_DATE)) {
+						Long campaignStartDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_START_DATE)));
+						Long campaignEndDate = Long.parseLong(String.valueOf(request.getFilters().get(CAMPAIGN_END_DATE)));
+						Long campaignDateDifference = TimeUnit.DAYS.convert((campaignEndDate - campaignStartDate), TimeUnit.MILLISECONDS);
+						dateDifference = Math.min(dateDifference, campaignDateDifference);
+					}
+				}
 				for(Data eachData : data) { 
 						Double value = (Double) eachData.getHeaderValue();
 						logger.info("Value is : " + value + " :: Date Difference is : " + dateDifference);

@@ -122,7 +122,9 @@ public class Constants {
 		week, month, year, day, dateRange
 	}
 	public interface PostAggregationTheories { 
-		final static String RESPONSE_DIFF_DATES = "repsonseToDifferenceOfDates"; 
+		final static String RESPONSE_DIFF_DATES = "repsonseToDifferenceOfDates";
+		final static String CAMPAIGN_START_DATE = "campaignStartDate";
+		final static String CAMPAIGN_END_DATE = "campaignEndDate";
 	}
 
 	public enum ClienServiceType {

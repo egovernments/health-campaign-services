@@ -42,6 +42,7 @@ public interface IResponseHandler {
 	public final static String LINE_PLOT_LABEL = "linePlotLabel";
 	public final static String SHOW_FOOTER = "showFooter";
 
+	public final static String IS_CAPPED_BY_CAMPAIGN_PERIOD = "isCappedByCampaignPeriod";
 	// Table Chart Keys
 	public static final String SERIAL_NUMBER = "S.N.";
 	public static final String TABLE_TEXT = "text" ;
@@ -104,6 +105,8 @@ public interface IResponseHandler {
 	public static final String DIVISOR_FIELDS = "divisorFields";
 	public static final String DIVISIONBYCONSTANT = "divisionbyconstant";
 
+	public static final String TARGET_LINE_CHART = "targetLineChart";
+
 	/**
 	 * Translate the consolidated/aggregated response
 	 *
@@ -148,6 +151,10 @@ public interface IResponseHandler {
 		}
 		if(null!=chartNode.get(FILTER_KEYS))
 			aggregateDto.setFilter((ArrayNode) chartNode.get(FILTER_KEYS));
+
+		if(chartNode.has(TARGET_LINE_CHART)){
+			aggregateDto.setTargetLineChart(chartNode.get(TARGET_LINE_CHART).asText());
+		}
 		return aggregateDto;
 	}
 
