@@ -6,9 +6,9 @@
         "description": null,
         "fields": [
             {
-                "code": "OTP.MOBILENUMBER",
-                "message": "This MobileNumber Already Register as UserName in System. Pls try Another UserName",
-                "field": "otp.mobileNumber"
+                "code": "OTP.USERNAME",
+                "message": "This User Already Register as UserName in System. Pls try Another UserName",
+                "field": "otp.userName"
             }
         ]
     }
