@@ -1,0 +1,20 @@
+{
+  "responseInfo": null,
+  "error": {
+    "code": 400,
+    "message": "Invalid OTP request",
+    "description": null,
+    "fields": [
+      {
+        "code": "OTP.TENANT_ID_MANDATORY",
+        "message": "Tenant field is mandatory",
+        "field": "otp.tenantId"
+      },
+      {
+        "code": "OTP.REQUEST_TYPE_MANDATORY",
+        "message": "Request type (register, passwordreset,login) is mandatory",
+        "field": "otp.type"
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "otp": {
+    "userName": "username",
+    "email": "email",
+    "tenantId": "tenantId",
+    "type": "passwordreset",
+    "userType": "CITIZEN"
+  }
+}
