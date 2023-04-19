@@ -110,7 +110,9 @@ config:
     build:
       - work-dir: "core-services/user-otp"
         image-name: "user-otp"
+        dockerfile: "build/maven/Dockerfile"
   - name: "builds/health-campaign-services/core-services/egov-notification-mail"
     build:
       - work-dir: "core-services/egov-notification-mail"
         image-name: "egov-notification-mail"
+        dockerfile: "build/maven/Dockerfile"
