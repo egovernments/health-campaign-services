@@ -21,7 +21,7 @@ public class IndividualMapper {
 
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties) {
 
-        UserRequest userRequest =  UserRequest.builder()
+        return  UserRequest.builder()
                 .tenantId(individual.getTenantId())
                 .userName(UUID.randomUUID().toString())
                 .name(String.join(" ", individual.getName().getGivenName(),
@@ -36,8 +36,6 @@ public class IndividualMapper {
                         .name(properties.getUserServiceUserType())
                         .build())))
                 .build();
-        log.info("UserRequest: {}", userRequest);
-        return userRequest;
     }
 
     /**
