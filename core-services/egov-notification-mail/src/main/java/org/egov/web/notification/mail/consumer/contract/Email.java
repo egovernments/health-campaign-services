@@ -8,6 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Set;
+
 @Setter
 @Getter
 @NoArgsConstructor
@@ -17,7 +19,7 @@ import lombok.Setter;
 public class Email {
 
 	@JsonProperty("email")
-	private String emailTo;
+	private Set<String> emailTo;
 	private String subject;
 	private String body;
 	@JsonProperty("isHTML")

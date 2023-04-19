@@ -34,7 +34,7 @@ public class ExternalEmailService implements EmailService {
 
 	private void sendTextEmail(Email email) {
 		final SimpleMailMessage mailMessage = new SimpleMailMessage();
-		mailMessage.setTo(email.getEmailTo());
+		mailMessage.setTo(email.getEmailTo().toArray(new String[0]));
 		mailMessage.setSubject(email.getSubject());
 		mailMessage.setText(email.getBody());
 		mailSender.send(mailMessage);
@@ -45,7 +45,7 @@ public class ExternalEmailService implements EmailService {
 		MimeMessageHelper helper;
 		try {
 			helper = new MimeMessageHelper(message, true);
-			helper.setTo(email.getEmailTo());
+			helper.setTo(email.getEmailTo().toArray(new String[0]));
 			helper.setSubject(email.getSubject());
 			helper.setText(email.getBody(), true);
 		} catch (MessagingException e) {

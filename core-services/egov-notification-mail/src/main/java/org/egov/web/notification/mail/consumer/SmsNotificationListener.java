@@ -48,7 +48,8 @@ public class SmsNotificationListener {
 	}
 
 	private Email getEmailReq(Set<String> emails, String msg) {
-		return Email.builder().build();  //Email.builder().emailTo(emails).body(msg).subject(subject).build();
+
+		return Email.builder().emailTo(emails).body(msg).subject(subject).build();
 	}
 
 	private static Set<String> getValideEmails(List<String> emails) {
