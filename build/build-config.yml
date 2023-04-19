@@ -106,3 +106,11 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/pgr-services/src/main/resources/db"
         image-name: "pgr-services-db"
+  - name: "builds/health-campaign-services/core-services/user-otp"
+    build:
+      - work-dir: "core-services/user-otp"
+        image-name: "user-otp"
+  - name: "builds/health-campaign-services/core-services/egov-notification-mail"
+    build:
+      - work-dir: "core-services/egov-notification-mail"
+        image-name: "egov-notification-mail"
