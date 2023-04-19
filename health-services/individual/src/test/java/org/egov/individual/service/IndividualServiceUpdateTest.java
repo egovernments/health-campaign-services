@@ -31,15 +31,19 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceUpdateTest {
@@ -83,6 +87,8 @@ class IndividualServiceUpdateTest {
     @Mock
     private EnrichmentService enrichmentService;
 
+    @Mock
+    private IndividualEncryptionService encryptionService;
 
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
@@ -131,15 +137,16 @@ class IndividualServiceUpdateTest {
     @Test
     @DisplayName("should check row versions if entities are valid")
     void shouldCheckRowVersionsIfEntitiesAreValid() {
+        Individual requestIndividual = IndividualTestBuilder.builder()
+                .withClientReferenceId()
+                .withName()
+                .withTenantId()
+                .withAddress()
+                .withRowVersion()
+                .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .withIndividuals(IndividualTestBuilder.builder()
-                        .withClientReferenceId()
-                        .withName()
-                        .withTenantId()
-                        .withAddress()
-                        .withRowVersion()
-                        .build())
+                .withIndividuals(requestIndividual)
                 .build();
         List<Individual> individualsInDb = new ArrayList<>();
         individualsInDb.add(IndividualTestBuilder.builder()
@@ -151,6 +158,9 @@ class IndividualServiceUpdateTest {
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
+
+        when(encryptionService.encrypt(any(IndividualBulkRequest.class),
+                anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
 
         assertDoesNotThrow(() -> individualService.update(request));
     }
@@ -207,6 +217,8 @@ class IndividualServiceUpdateTest {
                 .withAuditDetails()
                 .build());
 
+        when(encryptionService.encrypt(any(IndividualBulkRequest.class),
+                anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
         List<Individual> result = individualService.update(request);
         verify(individualRepository, times(1)).save(anyList(), anyString());
     }

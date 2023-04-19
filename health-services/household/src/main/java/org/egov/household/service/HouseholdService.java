@@ -97,7 +97,7 @@ public class HouseholdService {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
                 householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
-                log.info("successfully created households: " + validEntities);
+                log.info("successfully created {} households", validEntities.size());
             }
         } catch (Exception exception) {
             log.error("error occurred while creating households", exception);
@@ -206,6 +206,12 @@ public class HouseholdService {
         List<Household> households = householdRepository.findById(houseHoldIds, columnName, includeDeleted);
         log.info("finished finding Households by Ids. Found {} Households", households.size());
         return households;
+    }
+
+    public void putInCache(List<Household> households) {
+        log.info("putting {} households in cache", households.size());
+        householdRepository.putInCache(households);
+        log.info("successfully put households in cache");
     }
 
     private Tuple<List<Household>, Map<Household, ErrorDetails>> validate(List<Validator<HouseholdBulkRequest, Household>> validators,

@@ -28,6 +28,17 @@ public class AggregateDto {
 	private Boolean hideInsights;
 
 	private Boolean hideHeaderDenomination;
+	private String plotLabel;
+
+	public String getPlotLabel() {
+		return plotLabel;
+	}
+
+	public void setPlotLabel(String plotLabel) {
+		this.plotLabel = plotLabel;
+	}
+
+	private String targetLineChart;
 
 	public Boolean getHideInsights() {
 		return hideInsights;
@@ -131,5 +142,13 @@ public class AggregateDto {
 
 	public void setFilter(Object filter) {
 		this.filter = filter;
+	}
+
+	public String getTargetLineChart() {
+		return targetLineChart;
+	}
+
+	public void setTargetLineChart(String targetLineChart) {
+		this.targetLineChart = targetLineChart;
 	}
 }

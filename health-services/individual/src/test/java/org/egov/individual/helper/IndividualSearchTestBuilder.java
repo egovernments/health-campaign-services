@@ -7,7 +7,9 @@ import org.egov.common.models.individual.Name;
 import org.egov.individual.web.models.IndividualSearch;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class IndividualSearchTestBuilder {
     private IndividualSearch.IndividualSearchBuilder builder;
@@ -68,9 +70,9 @@ public class IndividualSearchTestBuilder {
         return this;
     }
 
-    public IndividualSearchTestBuilder byDateOfBirth(LocalDate... args) {
+    public IndividualSearchTestBuilder byDateOfBirth(Date... args) {
         this.builder.dateOfBirth(args != null && args.length > 0 ?
-                args[0] : LocalDate.now());
+                args[0] : Date.from(LocalDate.now().atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()));
         return this;
     }
 

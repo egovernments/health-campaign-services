@@ -23,6 +23,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
     public Individual mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
             return Individual.builder().id(resultSet.getString("id"))
+                    .individualId(resultSet.getString("individualid"))
                     .userId(resultSet.getString("userId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .tenantId(resultSet.getString("tenantId"))
@@ -30,7 +31,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                             .familyName(resultSet.getString("familyName"))
                             .otherNames(resultSet.getString("otherNames")).build())
                     .dateOfBirth(resultSet.getDate("dateOfBirth") != null ?
-                            resultSet.getDate("dateOfBirth").toLocalDate() : null)
+                            resultSet.getDate("dateOfBirth"): null)
                     .gender(Gender.fromValue(resultSet.getString("gender")))
                     .bloodGroup(BloodGroup.fromValue(resultSet.getString("bloodGroup")))
                     .mobileNumber(resultSet.getString("mobileNumber"))
@@ -38,6 +39,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .email(resultSet.getString("email"))
                     .fatherName(resultSet.getString("fatherName"))
                     .husbandName(resultSet.getString("husbandName"))
+                    .relationship(resultSet.getString("relationship"))
                     .photo(resultSet.getString("photo"))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null :
                             objectMapper.readValue(resultSet.getString("additionalDetails"),
@@ -50,6 +52,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                                     .build())
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
+                    .isSystemUser(resultSet.getBoolean("isSystemUser"))
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);

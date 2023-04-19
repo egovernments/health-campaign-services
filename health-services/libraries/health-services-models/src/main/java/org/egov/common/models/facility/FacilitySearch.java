@@ -27,6 +27,9 @@ public class FacilitySearch {
     @Valid
     private List<String> id = null;
 
+    @JsonProperty("clientReferenceId")
+    private List<String> clientReferenceId = null;
+
     @JsonProperty("isPermanent")
     private Boolean isPermanent = null;
 
