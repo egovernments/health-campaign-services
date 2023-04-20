@@ -55,10 +55,12 @@ public abstract class ProjectTaskTransformationService implements Transformation
     static class ProjectTaskIndexV1Transformer implements
             Transformer<Task, ProjectTaskIndexV1> {
         private final ProjectService projectService;
+        private final TransformerProperties properties;
 
         @Autowired
-        ProjectTaskIndexV1Transformer(ProjectService projectService) {
+        ProjectTaskIndexV1Transformer(ProjectService projectService,  TransformerProperties properties) {
             this.projectService = projectService;
+            this.properties = properties;
         }
 
         @Override
@@ -79,11 +81,11 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .quantity(r.getQuantity())
                             .deliveredTo("HOUSEHOLD")
                             .deliveryComments(r.getDeliveryComment())
-                            .province(boundaryLabelToNameMap.get("Province"))
-                            .district(boundaryLabelToNameMap.get("District"))
-                            .administrativeProvince(boundaryLabelToNameMap.get("AdministrativeProvince"))
-                            .locality(boundaryLabelToNameMap.get("Locality"))
-                            .village(boundaryLabelToNameMap.get("Village"))
+                            .province(boundaryLabelToNameMap.get(properties.getProvince()))
+                            .district(boundaryLabelToNameMap.get(properties.getDistrict()))
+                            .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
+                            .locality(boundaryLabelToNameMap.get(properties.getLocality()))
+                            .village(boundaryLabelToNameMap.get(properties.getVillage()))
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
                             .createdTime(task.getAuditDetails().getCreatedTime())
