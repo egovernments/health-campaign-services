@@ -42,7 +42,7 @@ public class OtpService {
     }
 
     private void sendOtpForUserRegistration(OtpRequest otpRequest) {
-        final User matchingUser = userRepository.fetchUser(otpRequest.getUserName(), otpRequest.getTenantId(),
+        final User matchingUser = userRepository.fetchUser(otpRequest.getMobileNumber(), otpRequest.getTenantId(),
                 otpRequest.getUserType());
 
         if (otpRequest.isRegistrationRequestType() && null != matchingUser)
@@ -56,7 +56,7 @@ public class OtpService {
     }
 
     private void sendOtpForPasswordReset(OtpRequest otpRequest) {
-        final User matchingUser = userRepository.fetchUser(otpRequest.getUserName(), otpRequest.getTenantId(),
+        final User matchingUser = userRepository.fetchUser(otpRequest.getMobileNumber(), otpRequest.getTenantId(),
                 otpRequest.getUserType());
         if (null == matchingUser) {
             throw new UserNotFoundException();
