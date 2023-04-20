@@ -21,6 +21,7 @@ public class OtpRequest {
     private String userName;
 	@Setter
 	private String email;
+	@Setter
 	private String mobileNumber;
     private String tenantId;
 

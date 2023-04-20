@@ -65,7 +65,7 @@ public class OtpService {
             throw new UserMobileNumberNotFoundException();
         try {
             final String otpNumber = otpRepository.fetchOtp(otpRequest);
-            otpEmailRepository.send(matchingUser.getEmail(), otpNumber, otpRequest.getType().toString());
+            otpEmailRepository.send(otpRequest.getEmail(), otpNumber, otpRequest.getType().toString());
             otpSMSSender.send(otpRequest,otpNumber);
         } catch (Exception e) {
             log.error("Exception while fetching otp: ", e);
