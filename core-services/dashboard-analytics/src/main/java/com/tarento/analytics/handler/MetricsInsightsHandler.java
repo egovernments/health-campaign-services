@@ -48,7 +48,7 @@ public class MetricsInsightsHandler implements InsightsHandler {
 			} else if (difference == 0) {
 				textToDisplay = INSIGHT_ZERO_TEXT;
 				insightIndicator = INSIGHT_INDICATOR_ZERO;
-				textToDisplay = textToDisplay.replace(INDICATOR_PLACEHOLDER, EQUAL);
+				textToDisplay = textToDisplay.replace(INDICATOR_PLACEHOLDER, "");
 			} else {
 				difference = (Double) pastData.getHeaderValue() - (Double) currentData.getHeaderValue();
 				Double insightValue = (difference / (Double)pastData.getHeaderValue()) * 100;
