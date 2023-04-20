@@ -56,10 +56,12 @@ public abstract class ProjectStaffTransformationService implements Transformatio
     static class ProjectStaffIndexV1Transformer implements
             Transformer<ProjectStaff, ProjectStaffIndexV1> {
         private final ProjectService projectService;
+        private final TransformerProperties properties;
 
         @Autowired
-        ProjectStaffIndexV1Transformer(ProjectService projectService) {
+        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
             this.projectService = projectService;
+            this.properties = properties;
         }
 
         @Override
@@ -71,11 +73,11 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .id(projectStaff.getId())
                     .projectId(projectStaff.getProjectId())
                     .userId(projectStaff.getUserId())
-                    .province(boundaryLabelToNameMap.get("Province"))
-                    .district(boundaryLabelToNameMap.get("District"))
-                    .administrativeProvince(boundaryLabelToNameMap.get("AdministrativeProvince"))
-                    .locality(boundaryLabelToNameMap.get("Locality"))
-                    .village(boundaryLabelToNameMap.get("Village"))
+                    .province(boundaryLabelToNameMap.get(properties.getProvince()))
+                    .district(boundaryLabelToNameMap.get(properties.getDistrict()))
+                    .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
+                    .locality(boundaryLabelToNameMap.get(properties.getLocality()))
+                    .village(boundaryLabelToNameMap.get(properties.getVillage()))
                     .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                     .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())

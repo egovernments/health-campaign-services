@@ -61,10 +61,14 @@ public abstract class StockTransformationService implements TransformationServic
         private final ProjectService projectService;
 
         private final FacilityService facilityService;
+        private final TransformerProperties properties;
 
-        StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService) {
+        StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
+                                TransformerProperties properties) {
             this.projectService = projectService;
             this.facilityService = facilityService;
+            this.properties = properties;
+
         }
 
         @Override
@@ -90,12 +94,12 @@ public abstract class StockTransformationService implements TransformationServic
                     .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())
                     .longitude(facility.getAddress() != null ? facility.getAddress().getLongitude() : null )
                     .latitude(facility.getAddress() != null ? facility.getAddress().getLatitude() : null)
-                    .province(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get("Province") : null)
-                    .district(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get("District") : null)
+                    .province(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getProvince()) : null)
+                    .district(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getDistrict()) : null)
                     .administrativeProvince(boundaryLabelToNameMap != null ?
-                            boundaryLabelToNameMap.get("AdministrativeProvince") : null)
-                    .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get("Locality") : null)
-                    .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get("Village") : null)
+                            boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
+                    .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
+                    .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .build());
         }
     }
