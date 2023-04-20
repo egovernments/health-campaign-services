@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.web.notification.mail.consumer.contract.Email;
 import org.egov.web.notification.mail.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,15 @@ public class EmailNotificationListener {
     
     private ObjectMapper objectMapper;
 
+    @Value("${mail.sender.username}")
+    private String userName;
+    @Value("${mail.sender.password}")
+    private String password;
+    @Value("${mail.host}")
+    private String smtpHost;
+    @Value("${mail.port}")
+    private String smtpPort;
+
     @Autowired
     public EmailNotificationListener(EmailService emailService, ObjectMapper objectMapper) {
         this.emailService = emailService;
@@ -28,6 +38,11 @@ public class EmailNotificationListener {
     @KafkaListener(topics = "${kafka.topics.notification.mail.name}")
     public void listen(final HashMap<String, Object> record) {
     	Email email = objectMapper.convertValue(record, Email.class);
+        log.info(email.toString());
+        log.info(userName);
+        log.info(password);
+        log.info(smtpHost);
+        log.info(smtpPort);
         emailService.sendEmail(email);
     }
 }
