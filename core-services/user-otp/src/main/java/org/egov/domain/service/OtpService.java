@@ -50,7 +50,11 @@ public class OtpService {
             throw new UserNotExistingInSystemException();
 
         final String otpNumber = otpRepository.fetchOtp(otpRequest);
-        otpEmailRepository.send(otpRequest.getEmail(), otpNumber, otpRequest.getType().toString());
+        if (otpRequest.isLoginRequestType()) {
+            otpEmailRepository.send(matchingUser.getEmail(), otpNumber, otpRequest.getType().toString());
+        } else {
+            otpEmailRepository.send(otpRequest.getEmail(), otpNumber, otpRequest.getType().toString());
+        }
         otpSMSSender.send(otpRequest,otpNumber);
     }
 
@@ -64,7 +68,11 @@ public class OtpService {
 //            throw new UserMobileNumberNotFoundException();
         try {
             final String otpNumber = otpRepository.fetchOtp(otpRequest);
-            otpEmailRepository.send(otpRequest.getEmail(), otpNumber, otpRequest.getType().toString());
+            String emailId = matchingUser.getEmail();
+            if (otpRequest.getEmail() != null && !otpRequest.getEmail().isEmpty()) {
+                emailId = otpRequest.getEmail();
+            }
+            otpEmailRepository.send(emailId, otpNumber, otpRequest.getType().toString());
             otpSMSSender.send(otpRequest,otpNumber);
         } catch (Exception e) {
             log.error("Exception while fetching otp: ", e);
