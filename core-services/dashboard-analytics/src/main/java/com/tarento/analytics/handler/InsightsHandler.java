@@ -28,7 +28,6 @@ public interface InsightsHandler {
 	public static final String INSIGHT_ZERO_TEXT = "$indicatorNo change from $insightInterval";
 	public static final String YESTERDAY = "yesterday";
 	public static final String INSIGHT_LAST_INTERVAL = "last $insightInterval";
-	public static final String EQUAL = "=";
 	public static final String POSITIVE = "+";
 	public static final String NEGATIVE = "-";
 	public static final Map<String, String> INTERVAL_MAP = Stream.of(new String[][] {
