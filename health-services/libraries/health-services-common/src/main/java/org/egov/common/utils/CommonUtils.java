@@ -727,8 +727,11 @@ public class CommonUtils {
         if (exception instanceof CustomException) {
             errorCode = ((CustomException) exception).getCode();
             // in case further cases come up, we can add more cases in a set and check using contains.
-            if (!((CustomException) exception).getCode().equals("IDGEN_ERROR")) {
+            if (exception instanceof CustomException
+                    && !("IDGEN_ERROR".equals(((CustomException) exception).getCode()))) {
                 errorType = Error.ErrorType.RECOVERABLE;
+            } else {
+                errorType = Error.ErrorType.NON_RECOVERABLE;
             }
         }
         List<Error> errorList = new ArrayList<>();
