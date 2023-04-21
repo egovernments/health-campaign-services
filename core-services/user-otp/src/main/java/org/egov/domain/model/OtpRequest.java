@@ -31,11 +31,15 @@ public class OtpRequest {
 	private String userType;
 
     public void validate() {
-        if(isTenantIdAbsent()
+        if(isTenantIdAbsent() || isUserNameEmpty()
 				|| isInvalidType()) {
             throw new InvalidOtpRequestException(this);
         }
     }
+
+	public boolean isUserNameEmpty() {
+		return userName == null || userName.isEmpty();
+	}
 
 	public boolean isMobileNumberNumeric() {
 		// TODO Auto-generated method stub

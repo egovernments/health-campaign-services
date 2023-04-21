@@ -58,7 +58,7 @@ public class OtpControllerTest {
 
 	@Test
 	public void test_should_return_error_response_when_mandatory_fields_are_not_present_in_request() throws Exception {
-		final OtpRequest expectedOtpRequest = new OtpRequest(null,null,"", "", null, "CITIZEN");
+		final OtpRequest expectedOtpRequest = new OtpRequest("",null,null, "", null, "CITIZEN");
 		doThrow( new InvalidOtpRequestException(expectedOtpRequest)).when(otpService).sendOtp(expectedOtpRequest);
 
 		mockMvc.perform(post("/v1/_send").contentType(MediaType.APPLICATION_JSON_UTF8)
@@ -71,13 +71,13 @@ public class OtpControllerTest {
 	@Test
 	public void test_should_return_error_response_when_user_not_found_for_sending_forgot_password_otp()
 			throws Exception {
-		final OtpRequest expectedOtpRequest = new OtpRequest(null,null,"", "", null, "CITIZEN");
+		final OtpRequest expectedOtpRequest = new OtpRequest("",null,null, "", null, "CITIZEN");
 		doThrow(new UserNotFoundException()).when(otpService).sendOtp(expectedOtpRequest);
 
 		mockMvc.perform(post("/v1/_send").contentType(MediaType.APPLICATION_JSON_UTF8)
 				.content(resources.getFileContents("otpRequestWithoutMandatoryFields.json")))
 				.andExpect(status().isBadRequest())
-				.andExpect(content().json(resources.getFileContents("unknownMobileNumberErrorResponse.json")));
+				.andExpect(content().json(resources.getFileContents("unknownUserNameErrorResponse.json")));
 	}
 
 	@Test

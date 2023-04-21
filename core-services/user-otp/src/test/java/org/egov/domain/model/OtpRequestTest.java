@@ -36,6 +36,7 @@ public class OtpRequestTest {
 	@Test
 	public void test_validate_should_not_throw_exception_for_a_valid_request() {
 		final OtpRequest otpRequest = OtpRequest.builder().tenantId("tenantId").mobileNumber("1234567890")
+				.userName("123123")
 				.type(OtpRequestType.REGISTER).build();
 
 		otpRequest.validate();
@@ -44,6 +45,7 @@ public class OtpRequestTest {
 	@Test
 	public void test_should_not_throw_exception_for_a_valid_request() {
 		final OtpRequest otpRequest = OtpRequest.builder().tenantId("tenantId").mobileNumber("1234567890")
+				.userName("123123")
 				.type(OtpRequestType.LOGIN).build();
 
 		otpRequest.validate();

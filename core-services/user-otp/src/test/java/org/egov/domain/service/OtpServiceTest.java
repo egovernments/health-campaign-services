@@ -144,7 +144,7 @@ public class OtpServiceTest {
 
 	@Test
 	public void test_should_send_email_otp_for_password_reset() {
-		final OtpRequest otpRequest = OtpRequest.builder().tenantId("tenant").mobileNumber("1234567890")
+		final OtpRequest otpRequest = OtpRequest.builder().tenantId("tenant").userName("1234567890")
 				.email("foo@bar.com").type(OtpRequestType.PASSWORD_RESET).userType("CITIZEN").build();
 		final String otpNumber = "otpNumber";
 		when(otpRepository.fetchOtp(otpRequest)).thenReturn(otpNumber);

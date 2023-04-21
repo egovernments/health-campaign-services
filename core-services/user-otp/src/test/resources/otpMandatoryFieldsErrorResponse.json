@@ -6,6 +6,11 @@
     "description": null,
     "fields": [
       {
+        "code": "OTP.USERNAME_MANDATORY",
+        "message": "Username field is mandatory",
+        "field": "otp.userName"
+      },
+      {
         "code": "OTP.TENANT_ID_MANDATORY",
         "message": "Tenant field is mandatory",
         "field": "otp.tenantId"

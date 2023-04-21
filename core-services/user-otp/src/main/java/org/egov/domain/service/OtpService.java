@@ -2,7 +2,6 @@ package org.egov.domain.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.domain.exception.UserAlreadyExistInSystemException;
-import org.egov.domain.exception.UserMobileNumberNotFoundException;
 import org.egov.domain.exception.UserNotExistingInSystemException;
 import org.egov.domain.exception.UserNotFoundException;
 import org.egov.domain.model.OtpRequest;
@@ -42,7 +41,7 @@ public class OtpService {
     }
 
     private void sendOtpForUserRegistration(OtpRequest otpRequest) {
-        final User matchingUser = userRepository.fetchUser(otpRequest.getMobileNumber(), otpRequest.getTenantId(),
+        final User matchingUser = userRepository.fetchUser(otpRequest.getUserName(), otpRequest.getTenantId(),
                 otpRequest.getUserType());
 
         if (otpRequest.isRegistrationRequestType() && null != matchingUser)
@@ -56,13 +55,13 @@ public class OtpService {
     }
 
     private void sendOtpForPasswordReset(OtpRequest otpRequest) {
-        final User matchingUser = userRepository.fetchUser(otpRequest.getMobileNumber(), otpRequest.getTenantId(),
+        final User matchingUser = userRepository.fetchUser(otpRequest.getUserName(), otpRequest.getTenantId(),
                 otpRequest.getUserType());
         if (null == matchingUser) {
             throw new UserNotFoundException();
         }
-        if (null == matchingUser.getMobileNumber() || matchingUser.getMobileNumber().isEmpty())
-            throw new UserMobileNumberNotFoundException();
+//        if (null == matchingUser.getMobileNumber() || matchingUser.getMobileNumber().isEmpty())
+//            throw new UserMobileNumberNotFoundException();
         try {
             final String otpNumber = otpRepository.fetchOtp(otpRequest);
             otpEmailRepository.send(otpRequest.getEmail(), otpNumber, otpRequest.getType().toString());

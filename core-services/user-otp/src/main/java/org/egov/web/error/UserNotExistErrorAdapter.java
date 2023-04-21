@@ -13,6 +13,7 @@ public class UserNotExistErrorAdapter implements ErrorAdapter<Void> {
 	private static final String UNKNOWN_MOBILE_NUMBER_CODE = "OTP.UNKNOWN_CREDENTIAL";
 	private static final String UNKNOWN_MOBILE_NUMBER_MESSAGE = "No such username or password";
 	private static final String UNKNOWN_MOBILE_NUMBER_FIELD = "otp.mobileNumber";
+	private static final String UNKNOWN_USERNAME_FIELD = "otp.userName";
 	private static final String MESSAGE = "OTP request for login failed";
 
 	@Override
@@ -35,7 +36,8 @@ public class UserNotExistErrorAdapter implements ErrorAdapter<Void> {
 		final ErrorField latitudeErrorField = ErrorField.builder()
 				.code(UNKNOWN_MOBILE_NUMBER_CODE)
 				.message(UNKNOWN_MOBILE_NUMBER_MESSAGE)
-				.field(UNKNOWN_MOBILE_NUMBER_FIELD)
+				//.field(UNKNOWN_MOBILE_NUMBER_FIELD)
+				.field(UNKNOWN_USERNAME_FIELD)
 				.build();
 		errorFields.add(latitudeErrorField);
 		return errorFields;

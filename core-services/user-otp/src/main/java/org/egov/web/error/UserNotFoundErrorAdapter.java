@@ -13,6 +13,10 @@ public class UserNotFoundErrorAdapter implements ErrorAdapter<Void> {
 	private static final String UNKNOWN_MOBILE_NUMBER_CODE = "OTP.UNKNOWN_MOBILE_NUMBER";
 	private static final String UNKNOWN_MOBILE_NUMBER_MESSAGE = "Mobile number is unknown.";
 	private static final String UNKNOWN_MOBILE_NUMBER_FIELD = "otp.mobileNumber";
+
+	private static final String UNKNOWN_USERNAME_CODE = "OTP.UNKNOWN_USERNAME";
+	private static final String UNKNOWN_USERNAME_MESSAGE = "Username is unknown.";
+	private static final String UNKNOWN_NAME_FIELD = "otp.userName";
 	private static final String MESSAGE = "OTP request for password reset failed";
 
 	@Override
@@ -30,12 +34,23 @@ public class UserNotFoundErrorAdapter implements ErrorAdapter<Void> {
 				.build();
 	}
 
+//	private List<ErrorField> getErrorFields() {
+//		List<ErrorField> errorFields = new ArrayList<>();
+//		final ErrorField latitudeErrorField = ErrorField.builder()
+//				.code(UNKNOWN_MOBILE_NUMBER_CODE)
+//				.message(UNKNOWN_MOBILE_NUMBER_MESSAGE)
+//				.field(UNKNOWN_MOBILE_NUMBER_FIELD)
+//				.build();
+//		errorFields.add(latitudeErrorField);
+//		return errorFields;
+//	}
+
 	private List<ErrorField> getErrorFields() {
 		List<ErrorField> errorFields = new ArrayList<>();
 		final ErrorField latitudeErrorField = ErrorField.builder()
-				.code(UNKNOWN_MOBILE_NUMBER_CODE)
-				.message(UNKNOWN_MOBILE_NUMBER_MESSAGE)
-				.field(UNKNOWN_MOBILE_NUMBER_FIELD)
+				.code(UNKNOWN_USERNAME_CODE)
+				.message(UNKNOWN_USERNAME_MESSAGE)
+				.field(UNKNOWN_NAME_FIELD)
 				.build();
 		errorFields.add(latitudeErrorField);
 		return errorFields;

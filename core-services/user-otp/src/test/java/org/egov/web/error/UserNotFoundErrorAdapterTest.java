@@ -24,9 +24,10 @@ public class UserNotFoundErrorAdapterTest {
 		assertEquals(400, error.getCode());
 		final List<ErrorField> fields = error.getFields();
 		assertEquals(1, fields.size());
-		assertEquals("OTP.UNKNOWN_MOBILE_NUMBER", fields.get(0).getCode());
-		assertEquals("otp.mobileNumber", fields.get(0).getField());
-		assertEquals("Mobile number is unknown.", fields.get(0).getMessage());
+		//assertEquals("OTP.UNKNOWN_MOBILE_NUMBER", fields.get(0).getCode());
+		assertEquals("OTP.UNKNOWN_USERNAME", fields.get(0).getCode());
+		assertEquals("otp.userName", fields.get(0).getField());
+		assertEquals("Username is unknown.", fields.get(0).getMessage());
 	}
 
 }

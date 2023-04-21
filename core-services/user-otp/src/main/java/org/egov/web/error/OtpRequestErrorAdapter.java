@@ -21,6 +21,10 @@ public class OtpRequestErrorAdapter implements ErrorAdapter<OtpRequest> {
     private static final String MOBILE_MANDATORY_MESSAGE = "Mobile number field is mandatory";
     private static final String MOBILE_FIELD = "otp.mobileNumber";
 
+    private static final String USERNAME_MANDATORY_CODE = "OTP.USERNAME_MANDATORY";
+    private static final String USERNAME_MANDATORY_MESSAGE = "Username field is mandatory";
+    private static final String USERNAME_FIELD = "otp.userName";
+
 	private static final String TYPE_INVALID_CODE = "OTP.REQUEST_TYPE_MANDATORY";
 	private static final String TYPE_INVALID_MESSAGE = "Request type (register, passwordreset,login) is mandatory";
 	private static final String TYPE_FIELD = "otp.type";
@@ -52,6 +56,7 @@ public class OtpRequestErrorAdapter implements ErrorAdapter<OtpRequest> {
         List<ErrorField> errorFields = new ArrayList<>();
         addTenantIdValidationErrors(model, errorFields);
         addRequestTypeValidationErrors(model, errorFields);
+        addUserNameValidationErrors(model, errorFields);
         return errorFields;
     }
 
@@ -79,6 +84,17 @@ public class OtpRequestErrorAdapter implements ErrorAdapter<OtpRequest> {
         errorFields.add(longitudeErrorField);
     }
 
+    private void addUserNameValidationErrors(OtpRequest model, List<ErrorField> errorFields) {
+        if (!model.isUserNameEmpty()) {
+            return;
+        }
+        final ErrorField latitudeErrorField = ErrorField.builder()
+                .code(USERNAME_MANDATORY_CODE)
+                .message(USERNAME_MANDATORY_MESSAGE)
+                .field(USERNAME_FIELD)
+                .build();
+        errorFields.add(latitudeErrorField);
+    }
 
     private void addMobileNumberValidationErrors(OtpRequest model, List<ErrorField> errorFields) {
         if (!model.isMobileNumberAbsent()) {
