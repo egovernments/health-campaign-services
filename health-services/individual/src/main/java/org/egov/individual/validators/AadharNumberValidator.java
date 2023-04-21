@@ -56,8 +56,6 @@ public class AadharNumberValidator implements Validator<IndividualBulkRequest, I
                            if (!isValidPattern(last4Digits, regex) || identifier.getIdentifierId().length() != 12) {
                                createError(errorDetailsMap, individual);
                            }
-                       } else {
-                           createError(errorDetailsMap, individual);
                        }
                    }
                }
