@@ -65,10 +65,10 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
 
-    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants) {
+    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo) {
 
         //Fetch Projects based on search criteria
-        List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
 
         Set<String> projectIds = projects.stream().map(Project :: getId).collect(Collectors.toSet());
 
@@ -77,14 +77,18 @@ public class ProjectRepository extends GenericRepository<Project> {
         //Get Project ancestors if includeAncestors flag is true
         if (includeAncestors) {
             ancestors = getProjectAncestors(projects);
-            List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).collect(Collectors.toList());
-            projectIds.addAll(ancestorProjectIds);
+            if (ancestors != null && !ancestors.isEmpty()) {
+                List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).collect(Collectors.toList());
+                projectIds.addAll(ancestorProjectIds);
+            }
         }
         //Get Project descendants if includeDescendants flag is true
         if (includeDescendants) {
             descendants = getProjectDescendants(projects);
-            List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
-            projectIds.addAll(descendantsProjectIds);
+            if (descendants != null && !descendants.isEmpty()) {
+                List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
+                projectIds.addAll(descendantsProjectIds);
+            }
         }
 
         //Fetch targets based on Project Ids
@@ -98,9 +102,9 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Projects based on search criteria */
-    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) {
+    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, preparedStmtList, false);
+        String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStmtList, false);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
 
         log.info("Fetched project list based on given search criteria");
@@ -144,7 +148,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Separates preceding project ids from project hierarchy, adds them in list and fetches data using those project ids */
     private List<Project> getProjectAncestors(List<Project> projects) {
         List<String> ancestorIds = new ArrayList<>();
-        List<Project> ancestors = new ArrayList<>();
+        List<Project> ancestors = null;
 
         // Get project Id of ancestor projects from project Hierarchy
         for (Project project: projects) {
@@ -185,13 +189,11 @@ public class ProjectRepository extends GenericRepository<Project> {
                 log.info("Adding Documents to project " + project.getId());
                 addDocumentToProject(project, documents);
             }
-            if (ancestors != null && StringUtils.isNotBlank(project.getParent())) {
+            if (ancestors != null && !ancestors.isEmpty() && StringUtils.isNotBlank(project.getParent())) {
                 log.info("Adding ancestors to project " + project.getId());
                 addAncestorsToProjectSearchResult(project, ancestors, targets, documents);
-            } else {
-                project.setAncestors(ancestors);
             }
-            if (descendants != null) {
+            if (descendants != null && !descendants.isEmpty()) {
                 log.info("Adding descendants to project " + project.getId());
                 addDescendantsToProjectSearchResult(project, descendants, targets, documents);
             }
@@ -204,7 +206,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     private void addTargetToProject(Project project, List<Target> targets) {
         project.setTargets(new ArrayList<>());
         for (Target target: targets) {
-            if (target.getProjectid().equals(project.getId()) && project.getTargets().stream().noneMatch(t -> t.getId().equals(target.getId()))) {
+            if (target.getProjectid().equals(project.getId()) && !target.getIsDeleted() && project.getTargets().stream().noneMatch(t -> t.getId().equals(target.getId()))) {
                 project.getTargets().add(target);
             }
         }
@@ -214,7 +216,9 @@ public class ProjectRepository extends GenericRepository<Project> {
     private void addDocumentToProject(Project project, List<Document> documents) {
         project.setDocuments(new ArrayList<>());
         for (Document document: documents) {
-            if (document.getProjectid().equals(project.getId()) && project.getDocuments().stream().noneMatch(t -> t.getId().equals(document.getId()))) {
+            if (document.getProjectid().equals(project.getId())
+                    && (document.getStatus() == null || document.getStatus() != null && !document.getStatus().equals("INACTIVE"))
+                    && project.getDocuments().stream().noneMatch(t -> t.getId().equals(document.getId()))) {
                 project.getDocuments().add(document);
             }
         }
@@ -258,8 +262,10 @@ public class ProjectRepository extends GenericRepository<Project> {
             addDocumentToProject(ancestor, documents);
             log.info("Targets and Documents mapped to descendant projects");
         }
-        project.setDescendants(subProjects);
-        log.info("Descendants set for project " + project.getId());
+        if (!subProjects.isEmpty()) {
+            project.setDescendants(subProjects);
+            log.info("Descendants set for project " + project.getId());
+        }
 
         /* The below code returns Project descendants with tree structure. If project hierarchy A.B.C and A.D, "descendants" field of project A will contain project B and project D
          * "descendants" field of project B will contain project C, "descendants" field of project C and D will contain null  and so on.
@@ -284,9 +290,9 @@ public class ProjectRepository extends GenericRepository<Project> {
      * query build at the run time)
      * @return
      */
-    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted) {
+    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {
         List<Object> preparedStatement = new ArrayList<>();
-        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, preparedStatement);
+        String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement);
 
         if (query == null)
             return 0;

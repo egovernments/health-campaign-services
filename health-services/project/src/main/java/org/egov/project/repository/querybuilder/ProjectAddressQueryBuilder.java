@@ -37,10 +37,12 @@ public class ProjectAddressQueryBuilder {
             " result) result_offset " +
             "WHERE offset_ > ? AND offset_ <= ?";
 
-    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM project prj ";
+    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM project prj " +
+            "left join project_address addr " +
+            "on prj.id = addr.projectId ";;
 
     /* Constructs project search query based on conditions */
-    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, List<Object> preparedStmtList, boolean isCountQuery) {
+    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStmtList, boolean isCountQuery) {
         //This uses a ternary operator to choose between PROJECTS_COUNT_QUERY or FETCH_PROJECT_ADDRESS_QUERY based on the value of isCountQuery.
         String query = isCountQuery ? PROJECTS_COUNT_QUERY : FETCH_PROJECT_ADDRESS_QUERY;
         StringBuilder queryBuilder = new StringBuilder(query);
@@ -76,14 +78,20 @@ public class ProjectAddressQueryBuilder {
 
             if (StringUtils.isNotBlank(project.getName())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
-                queryBuilder.append(" prj.name =? ");
-                preparedStmtList.add(project.getName());
+                queryBuilder.append(" prj.name LIKE ? ");
+                preparedStmtList.add('%' + project.getName() + '%');
             }
 
             if (StringUtils.isNotBlank(project.getProjectType())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.projectType=? ");
                 preparedStmtList.add(project.getProjectType());
+            }
+
+            if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" addr.boundary=? ");
+                preparedStmtList.add(project.getAddress().getBoundary());
             }
 
             if (StringUtils.isNotBlank(project.getProjectSubType())) {
@@ -108,6 +116,18 @@ public class ProjectAddressQueryBuilder {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" ( prj.lastModifiedTime >= ? )");
                 preparedStmtList.add(lastChangedSince);
+            }
+
+            if (createdFrom != null && createdFrom != 0) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.createdTime >= ? ");
+                preparedStmtList.add(createdFrom);
+            }
+
+            if (createdTo != null && createdTo != 0) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.createdTime <= ? ");
+                preparedStmtList.add(createdTo);
             }
 
             //Add clause if includeDeleted is true in request parameter
@@ -219,8 +239,8 @@ public class ProjectAddressQueryBuilder {
     }
     
     /* Returns query to get total projects count based on project search params */
-    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, List<Object> preparedStatement) {
-        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, preparedStatement, true);
+    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStatement) {
+        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement, true);
         return query;
     }
 
