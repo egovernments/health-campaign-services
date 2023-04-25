@@ -15,42 +15,18 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.validators.AadharNumberValidator;
-import org.egov.individual.validators.AadharNumberValidatorForCreate;
-import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.validators.IsDeletedSubEntityValidator;
-import org.egov.individual.validators.IsDeletedValidator;
-import org.egov.individual.validators.MobileNumberValidator;
-import org.egov.individual.validators.NonExistentEntityValidator;
-import org.egov.individual.validators.NullIdValidator;
-import org.egov.individual.validators.RowVersionValidator;
-import org.egov.individual.validators.UniqueEntityValidator;
-import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.validators.*;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.*;
 import static org.egov.individual.Constants.SET_INDIVIDUALS;
 import static org.egov.individual.Constants.VALIDATION_ERROR;
 
@@ -69,6 +45,8 @@ public class IndividualService {
     private final IndividualEncryptionService individualEncryptionService;
 
     private final UserIntegrationService userIntegrationService;
+
+    private final NotificationService notificationService;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -98,19 +76,23 @@ public class IndividualService {
                              IndividualProperties properties,
                              EnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
-                             UserIntegrationService userIntegrationService) {
+                             UserIntegrationService userIntegrationService,
+                             NotificationService notificationService) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
         this.enrichmentService = enrichmentService;
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
+        this.notificationService = notificationService;
     }
 
     public List<Individual> create(IndividualRequest request) {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
-        return create(bulkRequest, false);
+        List<Individual> individuals = create(bulkRequest, false);
+        notificationService.sendNotification(request, true);
+        return individuals;
     }
 
     public List<Individual> create(IndividualBulkRequest request, boolean isBulk) {
@@ -163,7 +145,9 @@ public class IndividualService {
     public List<Individual> update(IndividualRequest request) {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
-        return update(bulkRequest, false);
+        List<Individual> individuals = update(bulkRequest, false);
+        notificationService.sendNotification(request, false);
+        return individuals;
     }
 
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
@@ -255,7 +239,7 @@ public class IndividualService {
                             .singletonList(individualSearch)),
                     individualSearch);
 
-            encryptedIndividualList =  individualRepository.findById(ids, idFieldName, includeDeleted)
+            encryptedIndividualList = individualRepository.findById(ids, idFieldName, includeDeleted)
                     .stream().filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
@@ -263,7 +247,7 @@ public class IndividualService {
             //decrypt
             return (!encryptedIndividualList.isEmpty())
                     ? individualEncryptionService.decrypt(encryptedIndividualList,
-                    "IndividualDecrypt",  requestInfo)
+                    "IndividualDecrypt", requestInfo)
                     : encryptedIndividualList;
         }
         //encrypt search criteria
@@ -304,7 +288,7 @@ public class IndividualService {
         if (StringUtils.isNotBlank(wardCode)) {
             return individual -> individual.getAddress()
                     .stream()
-                    .anyMatch(address -> (StringUtils.compare(wardCode,address.getWard().getCode()) == 0));
+                    .anyMatch(address -> (StringUtils.compare(wardCode, address.getWard().getCode()) == 0));
         }
         return individual -> individual.getAddress()
                 .stream()
@@ -331,7 +315,7 @@ public class IndividualService {
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());
             }
-        } catch(Exception exception) {
+        } catch (Exception exception) {
             log.error("error occurred", exception);
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
@@ -363,8 +347,8 @@ public class IndividualService {
                             request.getRequestInfo()).map(UserRequest::getId).orElse(null);
                     encryptedIndividualList.stream().filter(Individual::getIsSystemUser)
                             .forEach(individual ->
-                            individual.setUserId(userId != null ?
-                                    Long.toString(userId) : null));
+                                    individual.setUserId(userId != null ?
+                                            Long.toString(userId) : null));
                     individualRepository.save(encryptedIndividualList,
                             properties.getUpdateUserIdTopic());
                     log.info("successfully created user for {} individuals",
