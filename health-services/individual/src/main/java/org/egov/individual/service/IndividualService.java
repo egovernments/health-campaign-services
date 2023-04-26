@@ -91,7 +91,8 @@ public class IndividualService {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
         List<Individual> individuals = create(bulkRequest, false);
-        notificationService.sendNotification(request, true);
+        if(properties.getIsSMSEnabled())
+            notificationService.sendNotification(request, true);
         return individuals;
     }
 
@@ -146,7 +147,8 @@ public class IndividualService {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
         List<Individual> individuals = update(bulkRequest, false);
-        notificationService.sendNotification(request, false);
+        if(properties.getIsSMSEnabled())
+            notificationService.sendNotification(request, false);
         return individuals;
     }
 
