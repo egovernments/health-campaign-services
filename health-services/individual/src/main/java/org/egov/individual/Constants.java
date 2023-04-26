@@ -11,4 +11,10 @@ public interface Constants {
     String GET_IDENTIFIER_TYPE = "getIdentifierType";
     String GET_TYPE = "getType";
     String GET_ID = "getId";
+    String INDIVIDUAL_CREATE_LOCALIZATION_CODE = "INDIVIDUAL_NOTIFICATION_ON_CREATE";
+    String INDIVIDUAL_UPDATE_LOCALIZATION_CODE = "INDIVIDUAL_NOTIFICATION_ON_UPDATE";
+    String INDIVIDUAL_NOTIFICATION_ENG_LOCALE_CODE = "en_IN";
+    String INDIVIDUAL_MODULE_CODE = "rainmaker-masters";
+    String INDIVIDUAL_LOCALIZATION_CODES_JSONPATH = "$.messages.*.code";
+    String INDIVIDUAL_LOCALIZATION_MSGS_JSONPATH = "$.messages.*.message";
 }

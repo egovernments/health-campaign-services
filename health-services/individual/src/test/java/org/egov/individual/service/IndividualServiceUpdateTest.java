@@ -40,10 +40,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceUpdateTest {
@@ -89,6 +87,9 @@ class IndividualServiceUpdateTest {
 
     @Mock
     private IndividualEncryptionService encryptionService;
+
+    @Mock
+    private NotificationService notificationService;
 
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
@@ -161,6 +162,8 @@ class IndividualServiceUpdateTest {
 
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
+
+        doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(false));
 
         assertDoesNotThrow(() -> individualService.update(request));
     }
