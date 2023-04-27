@@ -163,7 +163,7 @@ class IndividualServiceUpdateTest {
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
 
-        doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(false));
+        lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(false));
 
         assertDoesNotThrow(() -> individualService.update(request));
     }

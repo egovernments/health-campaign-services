@@ -100,7 +100,7 @@ class IndividualServiceTest {
                 .withTenantId()
                 .withName()
                 .build()));
-        doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(true));
+        lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(true));
         individualService.create(request);
 
         verify(individualRepository, times(1))
