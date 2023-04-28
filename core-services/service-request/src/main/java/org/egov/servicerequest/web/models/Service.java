@@ -32,6 +32,18 @@ public class Service {
     @NotNull
     @Size(min = 2, max = 64)
     private String tenantId = null;
+    @JsonProperty("projectId")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String projectId = null;
+    @JsonProperty("checkListName")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String checkListName = null;
+    @JsonProperty("supervisorLevel")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String supervisorLevel = null;
 
     @JsonProperty("serviceDefId")
     @NotNull

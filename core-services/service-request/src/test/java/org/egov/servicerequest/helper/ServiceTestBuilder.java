@@ -24,6 +24,9 @@ public class ServiceTestBuilder {
     public ServiceTestBuilder withService() {
         this.builder.id("some-id")
                 .tenantId("default")
+                .projectId("project-id")
+                .supervisorLevel("supervisor")
+                .checkListName("checkListName")
                 .serviceDefId("service-def-id")
                 .referenceId("reference-id")
                 .attributes(Arrays.asList(AttributeValue.builder()

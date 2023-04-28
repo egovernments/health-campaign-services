@@ -20,6 +20,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.project.staff.index.v1.topic}")
     private String transformerProducerBulkProjectStaffIndexV1Topic;
 
+    @Value("${transformer.producer.service.task.index.v1.topic}")
+    private String transformerProducerServiceTaskIndexV1Topic;
+
     @Value("${transformer.producer.bulk.project.index.v1.topic}")
     private String transformerProducerBulkProjectIndexV1Topic;
 
