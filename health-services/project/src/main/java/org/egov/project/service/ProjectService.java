@@ -64,9 +64,9 @@ public class ProjectService {
         return projectRequest;
     }
 
-    public List<Project> searchProject(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants) {
-        projectValidator.validateSearchProjectRequest(project, limit, offset, tenantId);
-        List<Project> projects = projectRepository.getProjects(project, limit, offset, tenantId, lastChangedSince, includeDeleted, includeAncestors, includeDescendants);
+    public List<Project> searchProject(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo) {
+        projectValidator.validateSearchProjectRequest(project, limit, offset, tenantId, createdFrom, createdTo);
+        List<Project> projects = projectRepository.getProjects(project, limit, offset, tenantId, lastChangedSince, includeDeleted, includeAncestors, includeDescendants, createdFrom, createdTo);
         return projects;
     }
 
@@ -74,7 +74,7 @@ public class ProjectService {
         projectValidator.validateUpdateProjectRequest(project);
         log.info("Update project request validated");
         //Search projects based on project ids
-        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(project.getProjects(), project.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), project.getProjects().get(0).getTenantId(), null, false, false, false);
+        List<Project> projectsFromDB = searchProject(getSearchProjectRequest(project.getProjects(), project.getRequestInfo(), false), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), project.getProjects().get(0).getTenantId(), null, false, false, false, null, null);
         log.info("Fetched projects for update request");
         //Validate Update project request against projects fetched form database
         projectValidator.validateUpdateAgainstDB(project.getProjects(), projectsFromDB);
@@ -91,7 +91,7 @@ public class ProjectService {
         List<Project> parentProjects = null;
         List<Project> projectsForSearchRequest = projectRequest.getProjects().stream().filter(p -> StringUtils.isNotBlank(p.getParent())).collect(Collectors.toList());
         if (projectsForSearchRequest.size() > 0) {
-            parentProjects = searchProject(getSearchProjectRequest(projectsForSearchRequest, projectRequest.getRequestInfo(), true), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), projectRequest.getProjects().get(0).getTenantId(), null, false, false, false);
+            parentProjects = searchProject(getSearchProjectRequest(projectsForSearchRequest, projectRequest.getRequestInfo(), true), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), projectRequest.getProjects().get(0).getTenantId(), null, false, false, false, null, null);
         }
         log.info("Fetched parent projects from DB");
         return parentProjects;
@@ -119,7 +119,7 @@ public class ProjectService {
     /**
      * @return Count of List of matching projects
      */
-    public Integer countAllProjects(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted) {
-        return projectRepository.getProjectCount(project, tenantId, lastChangedSince, includeDeleted);
+    public Integer countAllProjects(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {
+        return projectRepository.getProjectCount(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
     }
 }

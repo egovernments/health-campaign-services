@@ -49,4 +49,21 @@ public class TransformerProperties {
 
     @Value("${project.mdms.module}")
     private String mdmsModule;
+
+    @Value("${boundary.label.name.province}")
+    private String province;
+
+    @Value("${boundary.label.name.locality}")
+    private String locality;
+
+    @Value("${boundary.label.name.district}")
+    private String district;
+
+    @Value("${boundary.label.name.village}")
+    private String Village;
+
+    @Value("${boundary.label.name.administrativeProvince}")
+    private String administrativeProvince;
+
+
 }

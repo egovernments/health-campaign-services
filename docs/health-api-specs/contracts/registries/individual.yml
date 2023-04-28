@@ -347,6 +347,11 @@ definitions:
         minLength: 0
         maxLength: 200
         description: Other names of individual
+  individualId:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Formatted id
   Individual:
     description: A representation of an Individual.
     type: object
@@ -355,6 +360,8 @@ definitions:
     properties:
       id:
         $ref: '#/definitions/id'
+      individualId:
+        $ref: '#/definitions/individualId'
       tenantId:
         $ref: '#/definitions/tenantId'
       clientReferenceId:
@@ -408,6 +415,10 @@ definitions:
         type: string
         description: Individual's husband's name - if applicable
         maxLength: 100
+      relationship:
+        type: string
+        description: Relationship - if guardian
+        maxLength: 100
       identifiers:
         type: array
         items:
@@ -432,6 +443,8 @@ definitions:
     description: A representation of an Individual.
     type: object
     properties:
+      individualId:
+        $ref: '#/definitions/individualId'
       id:
         $ref: '#/definitions/idForSearch'
       clientReferenceId:
@@ -442,10 +455,23 @@ definitions:
         $ref: '#/definitions/dateOfBirth'
       gender:
         $ref: '#/definitions/gender'
+      mobileNumber:
+        type: string
+        description: Mobile number of the user
+        maxLength: 20
+      socialCategory:
+        type: string
+        description: Social category of the user
       identifier:
         $ref: '#/definitions/Identifier'
       boundaryCode:
         $ref: '#/definitions/boundaryCode'
+      wardCode:
+        $ref: '#/definitions/boundaryCode'
+      createdFrom:
+        type: number
+      createdTo:
+        type: number
 
   Identifier:
     type: object

@@ -33,14 +33,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceTest {
@@ -65,7 +63,11 @@ class IndividualServiceTest {
 
     @Mock
     private EnrichmentService enrichmentService;
+    @Mock
+    private IndividualEncryptionService encryptionService;
 
+    @Mock
+    private NotificationService notificationService;
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
     @BeforeEach
@@ -93,7 +95,12 @@ class IndividualServiceTest {
                         .withName()
                         .build())
                 .build();
-
+        when(encryptionService.encrypt(any(IndividualBulkRequest.class),
+                anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
+                .withTenantId()
+                .withName()
+                .build()));
+        lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(true));
         individualService.create(request);
 
         verify(individualRepository, times(1))
@@ -149,15 +156,18 @@ class IndividualServiceTest {
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.PERMANENT)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.OTHER)
-                        .build(), Address.builder()
+                        .build(),
+                        Address.builder()
                         .city("some-city")
                         .tenantId("some-tenant-id")
                         .type(AddressType.CORRESPONDENCE)

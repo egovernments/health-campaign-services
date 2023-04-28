@@ -57,10 +57,14 @@ public abstract class ProjectTransformationService implements TransformationServ
     static class ProjectIndexV1Transformer implements
             Transformer<Project, ProjectIndexV1> {
         private final ProjectService projectService;
+        private final TransformerProperties properties;
+
 
         @Autowired
-        ProjectIndexV1Transformer(ProjectService projectService) {
+        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
             this.projectService = projectService;
+            this.properties = properties;
+
         }
 
         @Override
@@ -94,7 +98,8 @@ public abstract class ProjectTransformationService implements TransformationServ
                         }
 
                         return ProjectIndexV1.builder()
-                                .id(project.getId())
+                                .id(r.getId())
+                                .projectId(project.getId())
                                 .overallTarget(targetNo)
                                 .targetPerDay(targetPerDay)
                                 .campaignDurationInDays(campaignDurationInDays)
@@ -102,11 +107,11 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .endDate(project.getEndDate())
                                 .productVariant(productVariant)
                                 .targetType(r.getBeneficiaryType())
-                                .province(boundaryLabelToNameMap.get("Province"))
-                                .district(boundaryLabelToNameMap.get("District"))
-                                .administrativeProvince(boundaryLabelToNameMap.get("AdministrativeProvince"))
-                                .locality(boundaryLabelToNameMap.get("Locality"))
-                                .village(boundaryLabelToNameMap.get("Village"))
+                                .province(boundaryLabelToNameMap.get(properties.getProvince()))
+                                .district(boundaryLabelToNameMap.get(properties.getDistrict()))
+                                .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
+                                .locality(boundaryLabelToNameMap.get(properties.getLocality()))
+                                .village(boundaryLabelToNameMap.get(properties.getVillage()))
                                 .createdTime(project.getAuditDetails().getCreatedTime())
                                 .createdBy(project.getAuditDetails().getCreatedBy())
                                 .lastModifiedTime(project.getAuditDetails().getLastModifiedTime())

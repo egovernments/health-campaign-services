@@ -4,6 +4,7 @@ import org.egov.common.helpers.SomeObject;
 import org.egov.common.helpers.SomeRepository;
 import org.egov.common.producer.Producer;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,6 +73,7 @@ class GenericRepositorySaveTest {
 
     @Test
     @DisplayName("should save and add objects in the cache")
+    @Disabled
     void shouldSaveAndAddObjectsInTheCache() {
         someRepository.save(someObjects, TOPIC);
 

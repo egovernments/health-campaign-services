@@ -15,7 +15,8 @@ import org.egov.common.models.individual.Name;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -34,6 +35,9 @@ public class IndividualSearch   {
     @JsonProperty("id")
     private List<String> id = null;
 
+    @JsonProperty("individualId")
+    private String individualId = null;
+
     @JsonProperty("clientReferenceId")
     private List<String> clientReferenceId = null;
 
@@ -43,11 +47,34 @@ public class IndividualSearch   {
 
     @JsonProperty("dateOfBirth")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private LocalDate dateOfBirth = null;
+    private Date dateOfBirth = null;
 
     @JsonProperty("gender")
     @Valid
     private Gender gender = null;
+
+    @JsonProperty("mobileNumber")
+    private String mobileNumber = null;
+
+    @JsonProperty("socialCategory")
+    @Exclude
+    private String socialCategory = null;
+
+    @JsonProperty("wardCode")
+    @Exclude
+    private String wardCode = null;
+
+    @JsonProperty("individualName")
+    @Exclude
+    private String individualName = null;
+
+    @JsonProperty("createdFrom")
+    @Exclude
+    private BigDecimal createdFrom = null;
+
+    @JsonProperty("createdTo")
+    @Exclude
+    private BigDecimal createdTo = null;
 
     @JsonProperty("identifier")
     @Valid

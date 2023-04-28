@@ -96,9 +96,12 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
             log.info("fetch the project types");
             List<ProjectType> projectTypes = getProjectTypes(tenantId, beneficiaryBulkRequest.getRequestInfo());
 
+            log.info("creating projectType map");
             Map<String, ProjectType> projectTypeMap = getIdToObjMap(projectTypes);
+            log.info("creating project map");
             Map<String, Project> projectMap = getIdToObjMap(existingProjects);
 
+            log.info("creating beneficiaryType map");
             Map<String, List<ProjectBeneficiary>> beneficiaryTypeMap = validProjectBeneficiaries.stream()
                     .collect(Collectors.groupingBy(b -> projectTypeMap.get(projectMap.get(b
                             .getProjectId()).getProjectTypeId()).getBeneficiaryType()));
@@ -240,7 +243,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                     .builder()
                     .id(getIdList(beneficiaryList, idMethod))
                     .build();
-        } else if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryId() != null)) {
+        } else if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryClientReferenceId() != null)) {
             individualSearch = IndividualSearch
                     .builder()
                     .clientReferenceId(getIdList(beneficiaryList, clientReferenceIdMethod))
