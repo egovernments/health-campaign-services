@@ -22,7 +22,7 @@ public class FacilityRowMapper implements RowMapper<Facility> {
     @Override
     public Facility mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
-            return Facility.builder()
+            Facility facility = Facility.builder()
                     .id(resultSet.getString("id"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .tenantId(resultSet.getString("tenantId"))
@@ -45,7 +45,7 @@ public class FacilityRowMapper implements RowMapper<Facility> {
                             .pincode(resultSet.getString("pinCode"))
                             .buildingName(resultSet.getString("buildingName"))
                             .street(resultSet.getString("street"))
-                            .locality(Boundary.builder().code(resultSet.getString("localityCode")).build())
+                            .locality(resultSet.getString("localityCode") != null ? Boundary.builder().code(resultSet.getString("localityCode")).build() : null)
                             .build())
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                         .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
@@ -58,6 +58,10 @@ public class FacilityRowMapper implements RowMapper<Facility> {
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .build();
+            if (facility.getAddress().getId() == null) {
+                facility.setAddress(null);
+            }
+            return facility;
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
         }
