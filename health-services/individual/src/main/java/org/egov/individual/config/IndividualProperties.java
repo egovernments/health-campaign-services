@@ -55,4 +55,24 @@ public class IndividualProperties {
 
     @Value(("${user.service.account.locked}"))
     private boolean userServiceAccountLocked;
+
+    //SMS notification
+    @Value("${notification.sms.enabled}")
+    private Boolean isSMSEnabled;
+
+    @Value("${kafka.topics.notification.sms}")
+    private String smsNotifTopic;
+
+    //Localization
+    @Value("${egov.localization.host}")
+    private String localizationHost;
+
+    @Value("${egov.localization.context.path}")
+    private String localizationContextPath;
+
+    @Value("${egov.localization.search.endpoint}")
+    private String localizationSearchEndpoint;
+
+    @Value("${egov.localization.statelevel}")
+    private Boolean isLocalizationStateLevel;
 }

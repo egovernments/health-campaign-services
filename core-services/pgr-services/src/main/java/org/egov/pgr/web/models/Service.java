@@ -63,7 +63,7 @@ public class Service   {
         private String accountId = null;
 
         @Max(5)
-        @Min(1)
+        @Min(0)
         @JsonProperty("rating")
         private Integer rating ;
 

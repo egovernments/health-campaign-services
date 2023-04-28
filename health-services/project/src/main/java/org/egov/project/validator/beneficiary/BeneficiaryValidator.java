@@ -243,7 +243,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                     .builder()
                     .id(getIdList(beneficiaryList, idMethod))
                     .build();
-        } else if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryId() != null)) {
+        } else if (beneficiaryList.stream().anyMatch(b -> b.getBeneficiaryClientReferenceId() != null)) {
             individualSearch = IndividualSearch
                     .builder()
                     .clientReferenceId(getIdList(beneficiaryList, clientReferenceIdMethod))
