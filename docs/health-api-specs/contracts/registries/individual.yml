@@ -434,6 +434,10 @@ definitions:
         $ref: '#/definitions/additionalFields'
       isDeleted:
         $ref: '#/definitions/isDeleted'
+      isSystemUser:
+        type: boolean
+        description: Flag to indicate if the individual should be registered with Egov-user service
+        readOnly: true
       rowVersion:
         $ref: '#/definitions/rowVersion'
       auditDetails:
