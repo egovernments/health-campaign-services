@@ -28,11 +28,6 @@ public class ServiceDefinitionCriteria {
     @Size(min = 2, max = 64)
     private String tenantId = null;
 
-    @JsonProperty("projectId")
-    @NotNull
-    @Size(min = 2, max = 64)
-    private String projectId = null;
-
     @JsonProperty("ids")
     private List<String> ids = null;
 

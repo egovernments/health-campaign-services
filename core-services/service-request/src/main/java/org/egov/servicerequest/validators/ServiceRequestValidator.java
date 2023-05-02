@@ -55,7 +55,7 @@ public class ServiceRequestValidator {
     private Configuration config;
 
     public void validateServiceRequest(ServiceRequest serviceRequest){
-        List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId(), serviceRequest.getService().getProjectId());
+        List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
         validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService());
         validateAccountId(serviceRequest.getService());
     }
@@ -161,8 +161,8 @@ public class ServiceRequestValidator {
         }
     }
 
-    private List<ServiceDefinition> validateServiceDefID(String tenantId, String serviceDefId, String projectId) {
-        List<ServiceDefinition> serviceDefinitions = serviceDefinitionRequestRepository.getServiceDefinitions(ServiceDefinitionSearchRequest.builder().serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(tenantId).projectId(projectId).ids(Arrays.asList(serviceDefId)).build()).build());
+    private List<ServiceDefinition> validateServiceDefID(String tenantId, String serviceDefId) {
+        List<ServiceDefinition> serviceDefinitions = serviceDefinitionRequestRepository.getServiceDefinitions(ServiceDefinitionSearchRequest.builder().serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(tenantId).ids(Arrays.asList(serviceDefId)).build()).build());
 
         if(serviceDefinitions.isEmpty())
             throw new CustomException(SERVICE_REQUEST_INVALID_SERVICE_DEF_ID_CODE, SERVICE_REQUEST_INVALID_SERVICE_DEF_ID_MSG);

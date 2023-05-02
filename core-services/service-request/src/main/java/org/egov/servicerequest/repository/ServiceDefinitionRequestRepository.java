@@ -37,7 +37,7 @@ public class ServiceDefinitionRequestRepository {
 
         List<Object> preparedStmtList = new ArrayList<>();
 
-        if(CollectionUtils.isEmpty(criteria.getIds()) && ObjectUtils.isEmpty(criteria.getTenantId()) && ObjectUtils.isEmpty(criteria.getProjectId()) && CollectionUtils.isEmpty(criteria.getCode()))
+        if(CollectionUtils.isEmpty(criteria.getIds()) && ObjectUtils.isEmpty(criteria.getTenantId()) && CollectionUtils.isEmpty(criteria.getCode()))
             return new ArrayList<>();
 
         // Fetch ids based on criteria if ids are not present
