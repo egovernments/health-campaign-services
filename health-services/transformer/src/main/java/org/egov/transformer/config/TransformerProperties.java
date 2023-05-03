@@ -47,6 +47,12 @@ public class TransformerProperties {
     @Value("${egov.search.facility.url}")
     private String facilitySearchUrl;
 
+    @Value("${egov.search.servicedefinition.url}")
+    private String serviceDefinitionSearchUrl;
+
+    @Value("${egov.servicedefinition.host}")
+    private String serviceDefinitionHost;
+
     @Value("${search.api.limit:100}")
     private String searchApiLimit;
 

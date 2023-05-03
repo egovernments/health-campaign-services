@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.servicerequest.web.models.Service;
+import org.egov.servicerequest.web.models.ServiceRequest;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.handler.TransformationHandler;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -31,13 +33,13 @@ public class ServiceTaskConsumer {
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.service.topic}"})
-    public void consumeStaff(ConsumerRecord<String, Object> payload,
+    public void consumeServiceTask(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            List<Service> payloadList = Arrays.asList(objectMapper
-                    .readValue((String) payload.value(),
-                            Service[].class));
-            transformationHandler.handle(payloadList, Operation.SERVICE);
+            List<ServiceRequest> payloadList = Arrays.asList(objectMapper
+                    .readValue((String) payload.value(), ServiceRequest.class));
+            List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
+            transformationHandler.handle(collect, Operation.SERVICE);
         } catch (Exception exception) {
             log.error("error in service task consumer", exception);
         }

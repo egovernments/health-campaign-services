@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.servicerequest.web.models.Service;
+import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ServiceTaskIndexV1;
@@ -58,28 +59,37 @@ public abstract class ServiceTaskTransformationService implements Transformation
             Transformer<Service, ServiceTaskIndexV1> {
         private final ProjectService projectService;
         private final TransformerProperties properties;
+        private final ServiceDefinitionService serviceDefinitionService;
 
         @Autowired
-        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
+        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService) {
+
             this.projectService = projectService;
             this.properties = properties;
+            this.serviceDefinitionService = serviceDefinitionService;
         }
 
         @Override
         public List<ServiceTaskIndexV1> transform(Service service) {
+
+            ServiceDefinition serviceDefinition = serviceDefinitionService.getServiceDefinition(service.getServiceDefId(), service.getTenantId());
+            String[] parts = serviceDefinition.getCode().split("\\.");
+            String projectId = parts[0];
+            String supervisorLevel = parts[2];
             Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(service.getProjectId(), service.getTenantId());
+                    .getBoundaryLabelToNameMap(projectId, service.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             return Collections.singletonList(ServiceTaskIndexV1.builder()
                     .id(service.getId())
-                    .projectId(service.getProjectId())
+                    .projectId(projectId)
                     .serviceDefinitionId(service.getServiceDefId())
-                    .supervisorLevel(service.getSupervisorLevel())
-                    .checklistName(service.getCheckListName())
+                    .supervisorLevel(supervisorLevel)
+                    .checklistName(serviceDefinition.getCode())
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
+                    .tenantId(service.getTenantId())
                     .build());
         }
     }
