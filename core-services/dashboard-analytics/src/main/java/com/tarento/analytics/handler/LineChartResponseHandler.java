@@ -240,7 +240,7 @@ public class LineChartResponseHandler implements IResponseHandler {
     private void appendActualPlot(List<Long> actualEpochKeys, Long finalStartDate, Data data, String symbol, boolean isCumulative) {
         Long actualStartDate = actualEpochKeys.get(0);
         Double differenceInDays = Math.ceil((actualStartDate - finalStartDate) / Constants.DAY_EPOCH);
-        for (int i = 0; i < differenceInDays; i++) {
+        for (int i = 0; i < differenceInDays + 1; i++) {
             String name = getIntervalKey(String.valueOf(finalStartDate + Constants.DAY_EPOCH*i), Constants.Interval.day);
             data.getPlots().add(i,new Plot(name,0.0,symbol));
         }
