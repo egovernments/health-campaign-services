@@ -21,7 +21,7 @@ public class HouseholdRowMapper implements RowMapper<Household> {
     @Override
     public Household mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
-            return Household.builder()
+            Household household =  Household.builder()
                     .id(resultSet.getString("id"))
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
@@ -52,9 +52,14 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                             .pincode(resultSet.getString("pinCode"))
                             .buildingName(resultSet.getString("buildingName"))
                             .street(resultSet.getString("street"))
-                            .locality(Boundary.builder().code(resultSet.getString("localityCode")).build())
+                            .locality(resultSet.getString("localityCode") != null ?
+                                    Boundary.builder().code(resultSet.getString("localityCode")).build() : null)
                             .build())
                     .build();
+            if (household.getAddress().getId() == null) {
+                household.setAddress(null);
+            }
+            return household;
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
         }
