@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ServiceTaskIndexV1 {
+public class ServiceIndexV1 {
     @JsonProperty("id")
     private String id;
     @JsonProperty("createdTime")
@@ -33,7 +33,4 @@ public class ServiceTaskIndexV1 {
     private String district;
     @JsonProperty("tenantId")
     private String tenantId;
-
-
-
 }

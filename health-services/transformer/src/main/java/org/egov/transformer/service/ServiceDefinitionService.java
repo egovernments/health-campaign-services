@@ -3,13 +3,13 @@ package org.egov.transformer.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.servicerequest.web.models.ServiceDefinition;
-import org.egov.servicerequest.web.models.ServiceDefinitionCriteria;
-import org.egov.servicerequest.web.models.ServiceDefinitionResponse;
-import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.models.upstream.ServiceDefinition;
+import org.egov.transformer.models.upstream.ServiceDefinitionCriteria;
+import org.egov.transformer.models.upstream.ServiceDefinitionResponse;
+import org.egov.transformer.models.upstream.ServiceDefinitionSearchRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;

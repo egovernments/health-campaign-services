@@ -2,11 +2,11 @@ package org.egov.transformer.service;
 
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.servicerequest.web.models.Service;
-import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
-import org.egov.transformer.models.downstream.ServiceTaskIndexV1;
+import org.egov.transformer.models.downstream.ServiceIndexV1;
+import org.egov.transformer.models.upstream.Service;
+import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +38,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
     public void transform(List<Service> payloadList) {
         log.info("transforming for ids {}", payloadList.stream()
                 .map(Service::getId).collect(Collectors.toList()));
-        List<ServiceTaskIndexV1> transformedPayloadList = payloadList.stream()
+        List<ServiceIndexV1> transformedPayloadList = payloadList.stream()
                 .map(transformer::transform)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
@@ -56,7 +56,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
     @Component
     static class ServiceTaskIndexV1Transformer implements
-            Transformer<Service, ServiceTaskIndexV1> {
+            Transformer<Service, ServiceIndexV1> {
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final ServiceDefinitionService serviceDefinitionService;
@@ -70,16 +70,16 @@ public abstract class ServiceTaskTransformationService implements Transformation
         }
 
         @Override
-        public List<ServiceTaskIndexV1> transform(Service service) {
+        public List<ServiceIndexV1> transform(Service service) {
 
             ServiceDefinition serviceDefinition = serviceDefinitionService.getServiceDefinition(service.getServiceDefId(), service.getTenantId());
             String[] parts = serviceDefinition.getCode().split("\\.");
-            String projectId = parts[0];
+            String projectName = parts[0];
             String supervisorLevel = parts[2];
-            Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(projectId, service.getTenantId());
+            String projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
+            Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(projectId, service.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-            return Collections.singletonList(ServiceTaskIndexV1.builder()
+            return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
                     .projectId(projectId)
                     .serviceDefinitionId(service.getServiceDefId())
