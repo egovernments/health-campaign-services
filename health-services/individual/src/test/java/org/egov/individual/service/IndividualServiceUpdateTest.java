@@ -1,6 +1,7 @@
 package org.egov.individual.service;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualRequest;
@@ -41,7 +42,10 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceUpdateTest {
@@ -140,9 +144,14 @@ class IndividualServiceUpdateTest {
     void shouldCheckRowVersionsIfEntitiesAreValid() {
         Individual requestIndividual = IndividualTestBuilder.builder()
                 .withClientReferenceId()
+                .withId("some-id")
                 .withName()
                 .withTenantId()
                 .withAddress()
+                .withIdentifiers(Identifier.builder()
+                        .id("some-id")
+                        .identifierId("some-id")
+                        .identifierType("some-type").build())
                 .withRowVersion()
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
@@ -152,14 +161,21 @@ class IndividualServiceUpdateTest {
         List<Individual> individualsInDb = new ArrayList<>();
         individualsInDb.add(IndividualTestBuilder.builder()
                 .withClientReferenceId()
-                .withId()
+                .withId("some-id")
                 .withName()
                 .withTenantId()
                 .withAddress()
+                .withIdentifiers(Identifier.builder()
+                        .id("some-id")
+                        .individualId("some-id")
+                        .identifierId("some-id")
+                        .identifierType("some-type").build())
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
 
+
+        when(individualRepository.findById(anyList(),eq("id"),eq(false))).thenReturn(individualsInDb);
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
 
@@ -203,6 +219,11 @@ class IndividualServiceUpdateTest {
                 .withName("some-new-family-name", "some-new-given-name")
                 .withTenantId()
                 .withAddress()
+                .withId("some-id")
+                .withIdentifiers(Identifier.builder()
+                        .id("some-id")
+                        .identifierId("some-id")
+                        .identifierType("some-type").build())
                 .withRowVersion()
                 .build();
         IndividualRequest request = IndividualRequestTestBuilder.builder()
@@ -212,14 +233,20 @@ class IndividualServiceUpdateTest {
         List<Individual> individualsInDb = new ArrayList<>();
         individualsInDb.add(IndividualTestBuilder.builder()
                 .withClientReferenceId()
-                .withId()
+                .withId("some-id")
                 .withName()
                 .withTenantId()
                 .withAddress()
+                .withIdentifiers(Identifier.builder()
+                        .id("some-id")
+                        .individualId("some-id")
+                        .identifierId("some-id")
+                        .identifierType("some-type").build())
                 .withRowVersion()
                 .withAuditDetails()
                 .build());
 
+        when(individualRepository.findById(anyList(),eq("id"),eq(false))).thenReturn(individualsInDb);
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
         List<Individual> result = individualService.update(request);
