@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,15 +21,12 @@ import java.util.List;
 @Builder
 public class ServiceDefinitionResponse {
     @JsonProperty("ResponseInfo")
-    @Valid
     private ResponseInfo responseInfo = null;
 
     @JsonProperty("ServiceDefinitions")
-    @Valid
     private List<ServiceDefinition> serviceDefinition = null;
 
     @JsonProperty("Pagination")
-    @Valid
     private Pagination pagination = null;
 
 

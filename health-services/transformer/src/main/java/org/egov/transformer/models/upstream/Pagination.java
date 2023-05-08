@@ -3,19 +3,15 @@ package org.egov.transformer.models.upstream;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-
 /**
  * Pagination details
  */
-@Schema(description = "Pagination details")
 @Validated
 @Data
 @AllArgsConstructor
@@ -23,15 +19,12 @@ import javax.validation.Valid;
 @Builder
 public class Pagination {
     @JsonProperty("limit")
-    @Valid
     private Integer limit = new Integer(10);
 
     @JsonProperty("offset")
-    @Valid
     private Integer offset = new Integer(0);
 
     @JsonProperty("totalCount")
-    @Valid
     private Long totalCount = null;
 
     @JsonProperty("sortBy")

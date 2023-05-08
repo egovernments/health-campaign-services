@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 
 @Import({TracerConfiguration.class})
 @Configuration
-@ComponentScan(basePackages = {"org.egov.transformer.producer"})
+@ComponentScan(basePackages = {"org.egov"})
 @Slf4j
 public class MainConfiguration {
 
