@@ -170,9 +170,16 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (lastChangedSince != null) {
             query = query + "AND lastModifiedTime>=:lastModifiedTime ";
         }
-        if (searchObject.getRoleCode() != null) {
-            query = query + "AND roles @> '[{\"code\": \"" + ":roleCode" + "\"}]' ";
-            paramsMap.put("roleCode", searchObject.getRoleCode());
+        if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
+            query = query + "AND roles @> '[";
+            for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
+                query = query + "{\"code\": \":roleCode\"" + i + "}";
+                if (i != searchObject.getRoleCodes().size() - 1) {
+                    query = query + ",";
+                }
+                paramsMap.put("roleCode" + i, searchObject.getRoleCodes().get(i));
+            }
+            query = query + "]' ";
         }
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
