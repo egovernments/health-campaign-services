@@ -73,5 +73,8 @@ public class IndividualSearch   {
 
     @JsonProperty("boundaryCode")
     private String boundaryCode = null;
+
+    @JsonProperty("roleCode")
+    private String roleCode = null;
 }
 

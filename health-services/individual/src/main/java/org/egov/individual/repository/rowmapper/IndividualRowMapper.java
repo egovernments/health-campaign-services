@@ -3,16 +3,19 @@ package org.egov.individual.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import digit.models.coremodels.user.enums.UserType;
 import org.egov.common.models.individual.AdditionalFields;
 import org.egov.common.models.individual.BloodGroup;
 import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.Name;
+import org.egov.common.models.individual.UserDetails;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 @Component
 public class IndividualRowMapper implements RowMapper<Individual> {
@@ -53,6 +56,14 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .isSystemUser(resultSet.getBoolean("isSystemUser"))
+                    .userDetails(UserDetails.builder()
+                            .username(resultSet.getString("username"))
+                            .password(resultSet.getString("password"))
+                            .userType(UserType.fromValue(resultSet.getString("userType")))
+                            .roles(resultSet.getString("roles") == null ? null :
+                                    objectMapper.readValue(resultSet.getString("roles"),
+                                            List.class))
+                            .build())
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);

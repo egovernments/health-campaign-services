@@ -170,6 +170,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (lastChangedSince != null) {
             query = query + "AND lastModifiedTime>=:lastModifiedTime ";
         }
+        if (searchObject.getRoleCode() != null) {
+            query = query + "AND roles @> '[{\"code\": \"" + ":roleCode" + "\"}]' ";
+            paramsMap.put("roleCode", searchObject.getRoleCode());
+        }
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);

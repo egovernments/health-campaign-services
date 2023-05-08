@@ -130,6 +130,9 @@ public class Individual {
     @JsonProperty("isSystemUser")
     private Boolean isSystemUser = Boolean.FALSE;
 
+    @JsonProperty("userDetails")
+    private UserDetails userDetails;
+
 
     public Individual addAddressItem(Address addressItem) {
         if (this.address == null) {

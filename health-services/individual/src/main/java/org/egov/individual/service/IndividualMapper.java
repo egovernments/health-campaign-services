@@ -7,10 +7,9 @@ import org.egov.common.models.user.UserRequest;
 import org.egov.common.models.user.UserType;
 import org.egov.individual.config.IndividualProperties;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class IndividualMapper {
@@ -23,18 +22,21 @@ public class IndividualMapper {
 
         return  UserRequest.builder()
                 .tenantId(individual.getTenantId())
-                .userName(UUID.randomUUID().toString())
                 .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName()))
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
                 .accountLocked(properties.isUserServiceAccountLocked())
                 .active(true)
-                .roles(new HashSet<>(Collections.singletonList(RoleRequest.builder()
-                        .code(properties.getUserServiceUserType())
-                        .tenantId(individual.getTenantId())
-                        .name(properties.getUserServiceUserType())
-                        .build())))
+                .userName(null != individual.getUserDetails().getUsername() ? individual.getUserDetails().getUsername() : UUID.randomUUID().toString())
+                .password(null != individual.getUserDetails().getPassword() ? individual.getUserDetails().getPassword() : null)
+                .roles(individual.getUserDetails().getRoles().stream().map(role -> RoleRequest.builder()
+                                .code(role.getCode())
+                                .name(role.getName())
+                                .tenantId(individual.getTenantId())
+                                .build())
+                        .collect(Collectors.toSet()))
+                .type(UserType.valueOf(individual.getUserDetails().getUserType().name()))
                 .build();
     }
 
