@@ -14,6 +14,7 @@ import org.egov.common.models.project.Task;
 import org.egov.common.models.stock.Stock;
 import org.egov.tracer.config.TracerConfiguration;
 import org.egov.transformer.enums.Operation;
+import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -113,6 +114,17 @@ public class MainConfiguration {
     public Map<Operation, List<TransformationService<Stock>>> getOperationTransformationServiceMapForStock(
             List<TransformationService<Stock>> transformationServices) {
         Map<Operation, List<TransformationService<Stock>>> map =  transformationServices
+                .stream()
+                .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
+    }
+    @Bean
+    @Autowired
+    @Qualifier("serviceTaskTransformationServiceMap")
+    public Map<Operation, List<TransformationService<Service>>> getOperationTransformationServiceMapForServiceTask(
+            List<TransformationService<Service>> transformationServices) {
+        Map<Operation, List<TransformationService<Service>>> map =  transformationServices
                 .stream()
                 .collect(Collectors.groupingBy(TransformationService::getOperation));
         log.info(map.toString());

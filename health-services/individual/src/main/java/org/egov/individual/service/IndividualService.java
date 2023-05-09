@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
@@ -15,18 +16,45 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.validators.*;
+import org.egov.individual.validators.AadharNumberValidator;
+import org.egov.individual.validators.AadharNumberValidatorForCreate;
+import org.egov.individual.validators.AddressTypeValidator;
+import org.egov.individual.validators.IsDeletedSubEntityValidator;
+import org.egov.individual.validators.IsDeletedValidator;
+import org.egov.individual.validators.MobileNumberValidator;
+import org.egov.individual.validators.NonExistentEntityValidator;
+import org.egov.individual.validators.NullIdValidator;
+import org.egov.individual.validators.RowVersionValidator;
+import org.egov.individual.validators.UniqueEntityValidator;
+import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdList;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.individual.Constants.SET_INDIVIDUALS;
 import static org.egov.individual.Constants.VALIDATION_ERROR;
 
@@ -136,7 +164,12 @@ public class IndividualService {
                 isApplicableForCreate, request,
                 SET_INDIVIDUALS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+            Set<String> hashset = new HashSet<>();
+            for (Map.Entry<Individual, ErrorDetails> entry : errorDetailsMap.entrySet()) {
+                List<Error> errors = entry.getValue().getErrors();
+                hashset.addAll(errors.stream().map(error -> error.getErrorCode()).collect(Collectors.toSet()));
+            }
+            throw new CustomException(String.join(":",  hashset), errorDetailsMap.values().toString());
         }
         List<Individual> validIndividuals = request.getIndividuals().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
@@ -197,7 +230,11 @@ public class IndividualService {
                 // this is because we cannot merge masked identifiers with new identifiers which are now encrypted
                 encryptedIndividualList.forEach(encryptedIndividual -> {
                     List<Identifier> newIdentifiers = encryptedIndividual.getIdentifiers();
-                    List<Identifier> identifierList = existingIdentifiers.get(encryptedIndividual.getId());
+                    List<String> newIdentifiersIds = getIdList(newIdentifiers);
+                    List<Identifier> identifierList = existingIdentifiers.get(encryptedIndividual.getId()).stream()
+                            .filter(identifier -> !newIdentifiersIds.contains(identifier.getId()))
+                            .collect(Collectors.toList());
+
                     if (identifierList != null) {
                         newIdentifiers.addAll(identifierList);
                     }
