@@ -188,7 +188,8 @@ public class IndividualService {
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
-                isBulk);Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+                isBulk);
+        Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
         List<Individual> encryptedIndividualList = Collections.emptyList();
 
