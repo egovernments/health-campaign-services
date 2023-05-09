@@ -22,7 +22,7 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
     @Override
     public Task mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
-            return Task.builder()
+            Task task = Task.builder()
                     .id(resultSet.getString("id"))
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
@@ -60,9 +60,14 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
                             .pincode(resultSet.getString("pinCode"))
                             .buildingName(resultSet.getString("buildingName"))
                             .street(resultSet.getString("street"))
-                            .locality(Boundary.builder().code(resultSet.getString("localityCode")).build())
+                            .locality(resultSet.getString("localityCode") != null ?
+                                    Boundary.builder().code(resultSet.getString("localityCode")).build() : null)
                             .build())
                     .build();
+            if (task.getAddress().getId() == null) {
+                task.setAddress(null);
+            }
+            return task;
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
         }
