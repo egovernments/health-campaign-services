@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,6 +78,20 @@ public class ProjectService {
         return project;
     }
 
+    public Project getProjectByName(String projectName, String tenantId) {
+        if (projectMap.containsKey(projectName)) {
+            log.info("getting project {} from cache", projectName);
+            return projectMap.get(projectName);
+        }
+        List<Project> projects = searchProjectByName(projectName, tenantId);
+        Project project = null;
+        if (!projects.isEmpty()) {
+            project = projects.get(0);
+            projectMap.put(projectName, project);
+        }
+        return project;
+    }
+
     public Map<String, String> getBoundaryLabelToNameMap(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
@@ -93,6 +108,41 @@ public class ProjectService {
                 .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
         resultMap.put(locationTree.getBoundaryNode().getLabel(), locationTree.getBoundaryNode().getName());
         return resultMap;
+    }
+
+    private List<Project> searchProjectByName(String projectName, String tenantId) {
+
+        ProjectRequest request = ProjectRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projects(Collections.singletonList(Project.builder().name(projectName).tenantId(tenantId).build()))
+                .build();
+
+        try {
+            log.info(objectMapper.writeValueAsString(request));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        ProjectResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    ProjectResponse.class);
+        } catch (Exception e) {
+            log.error("error while fetching project list", e);
+            throw new CustomException("PROJECT_FETCH_ERROR",
+                    "error while fetching project details for name: " + projectName);
+        }
+        return response.getProject();
     }
 
     private List<Project> searchProject(String projectId, String tenantId) {
