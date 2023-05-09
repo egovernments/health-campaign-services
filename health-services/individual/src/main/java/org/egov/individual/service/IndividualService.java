@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
@@ -35,9 +36,11 @@ import org.springframework.util.ReflectionUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -161,7 +164,12 @@ public class IndividualService {
                 isApplicableForCreate, request,
                 SET_INDIVIDUALS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+            Set<String> hashset = new HashSet<>();
+            for (Map.Entry<Individual, ErrorDetails> entry : errorDetailsMap.entrySet()) {
+                List<Error> errors = entry.getValue().getErrors();
+                hashset.addAll(errors.stream().map(error -> error.getErrorCode()).collect(Collectors.toSet()));
+            }
+            throw new CustomException(String.join(":",  hashset), errorDetailsMap.values().toString());
         }
         List<Individual> validIndividuals = request.getIndividuals().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
@@ -180,8 +188,7 @@ public class IndividualService {
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
-                isBulk);
-        Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
+                isBulk);Map<Individual, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Individual> validIndividuals = tuple.getX();
         List<Individual> encryptedIndividualList = Collections.emptyList();
 
