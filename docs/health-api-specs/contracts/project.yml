@@ -1821,7 +1821,7 @@ definitions:
       RequestInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      Project:
+      Projects:
         type: array
         minItems: 1
         items:
@@ -1848,7 +1848,7 @@ definitions:
       ResponseInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      Project:
+      Projects:
         type: array
         items:
           $ref: '#/definitions/Project'
