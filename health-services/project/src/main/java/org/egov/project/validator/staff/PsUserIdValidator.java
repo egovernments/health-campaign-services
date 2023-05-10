@@ -3,11 +3,17 @@ package org.egov.project.validator.staff;
 import digit.models.coremodels.UserSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkResponse;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.service.UserService;
 import org.egov.common.validator.Validator;
+import org.egov.project.config.ProjectConfiguration;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -34,8 +40,16 @@ public class PsUserIdValidator implements Validator<ProjectStaffBulkRequest, Pro
 
     private final UserService userService;
 
-    public PsUserIdValidator(UserService userService) {
+    private final ProjectConfiguration projectConfiguration;
+
+    private final ServiceRequestClient serviceRequestClient;
+
+    public PsUserIdValidator(UserService userService,
+                             ProjectConfiguration projectConfiguration,
+                             ServiceRequestClient serviceRequestClient) {
         this.userService = userService;
+        this.projectConfiguration = projectConfiguration;
+        this.serviceRequestClient = serviceRequestClient;
     }
 
     @Override
@@ -44,23 +58,41 @@ public class PsUserIdValidator implements Validator<ProjectStaffBulkRequest, Pro
         List<ProjectStaff> entities = request.getProjectStaff();
         Map<ProjectStaff, List<Error>> errorDetailsMap = new HashMap<>();
 
-        List<String> userIds = new ArrayList<>(entities.stream()
+        List<String> userIds = entities.stream()
                 .filter(notHavingErrors())
-                .map(ProjectStaff::getUserId)
-                .collect(Collectors.toSet()));
+                .map(ProjectStaff::getUserId).distinct().collect(Collectors.toList());
+        final String tenantId = getTenantId(entities);
+        Map<String, ProjectStaff> uMap = getIdToObjMap(entities,
+                getMethod(GET_USER_ID, getObjClass(entities)));
         if (!userIds.isEmpty()) {
-            UserSearchRequest userSearchRequest = new UserSearchRequest();
-            userSearchRequest.setTenantId(getTenantId(entities));
-            userSearchRequest.setUuid(userIds);
-
-            Map<String, ProjectStaff> uMap = getIdToObjMap(entities,
-                    getMethod(GET_USER_ID, getObjClass(entities)));
+            List<String> validUserIds = new ArrayList<>();
             try {
-                List<String> validUserIds = userService
-                        .search(userSearchRequest)
-                        .stream()
-                        .map(User::getUuid)
-                        .collect(Collectors.toList());
+                if ("egov-user".equalsIgnoreCase(projectConfiguration.getEgovUserIdValidator())) {
+                    UserSearchRequest userSearchRequest = new UserSearchRequest();
+                    userSearchRequest.setTenantId(tenantId);
+                    userSearchRequest.setUuid(userIds);
+                    validUserIds = userService
+                            .search(userSearchRequest)
+                            .stream()
+                            .map(User::getUuid)
+                            .collect(Collectors.toList());
+                } else if ("individual".equalsIgnoreCase(projectConfiguration.getEgovUserIdValidator())) {
+                    IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
+                            .individual(IndividualSearch.builder()
+                                    // assuming this is "id" field of the individual payload
+                                    .id(userIds)
+                                    .build())
+                            .build();
+                    validUserIds = serviceRequestClient.fetchResult(
+                                    new StringBuilder(projectConfiguration.getIndividualServiceHost()
+                                            + projectConfiguration.getIndividualServiceSearchUrl()
+                                            + "?limit=" + projectConfiguration.getSearchApiLimit()
+                                            + "&offset=0&tenantId=" + tenantId),
+                                    individualSearchRequest,
+                                    IndividualBulkResponse.class).getIndividual().stream()
+                            .map(Individual::getId)
+                            .collect(Collectors.toList());
+                }
                 for (Map.Entry<String, ProjectStaff> entry : uMap.entrySet()) {
                     if (!validUserIds.contains(entry.getKey())) {
                         ProjectStaff staff = entry.getValue();
