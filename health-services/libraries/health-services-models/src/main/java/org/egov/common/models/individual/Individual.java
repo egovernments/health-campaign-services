@@ -97,7 +97,6 @@ public class Individual {
 
     @JsonProperty("relationship")
     @Size(max = 100, min = 1)
-    @NotNull
     private String relationship = null;
 
     @JsonProperty("identifiers")
