@@ -805,8 +805,8 @@ class CommonUtilsTest {
     }
 
     @Test
-    @DisplayName("should throw custom exception when isBulk flag is true")
-    void shouldCallCustomExceptionWhenIsBulkFlagIsTrue() throws JsonProcessingException {
+    @DisplayName("should throw custom exception when isBulk flag is false")
+    void shouldCallCustomExceptionWhenIsBulkFlagIsFalse() throws JsonProcessingException {
         Map<SomeRequest, ErrorDetails> errorDetailsMap = new HashMap<>();
         Exception ex = new Exception();
         SomeRequest someRequest = SomeRequest.builder()
@@ -832,7 +832,7 @@ class CommonUtilsTest {
         try {
             CommonUtils.handleErrors(errorDetailsMap, false, "some-error-code");
         } catch (CustomException e) {
-            assertEquals(e.getErrors().get("some-error-code"), "some-error-message");
+            assertEquals(e.getCode(), "some-error-code");
         }
 
     }

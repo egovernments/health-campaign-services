@@ -800,7 +800,9 @@ public class CommonUtils {
             if (isBulk) {
                 ErrorHandler.exceptionAdviseInstance.exceptionHandler(errorDetailList);
             } else {
-                throw new CustomException(getErrorMap(errorDetailList));
+                Map<String, String> getErrorMap = getErrorMap(errorDetailList);
+                String code =  getErrorMap.keySet().stream().collect(Collectors.joining(":"));
+                throw new CustomException(code, errorDetailsMap.values().toString());
             }
         }
     }
