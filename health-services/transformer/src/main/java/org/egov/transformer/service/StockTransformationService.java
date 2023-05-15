@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.transformer.Constants.PROJECT;
+
 @Slf4j
 public abstract class StockTransformationService implements TransformationService<Stock>{
     protected final StockTransformationService.StockIndexV1Transformer transformer;
@@ -72,13 +74,16 @@ public abstract class StockTransformationService implements TransformationServic
         @Override
         public List<StockIndexV1> transform(Stock stock) {
             Map<String, String> boundaryLabelToNameMap = null;
-//            if (stock.getReferenceIdType().equals(PROJECT)) {
-//                boundaryLabelToNameMap = projectService
-//                        .getBoundaryLabelToNameMap(stock.getReferenceId(), stock.getTenantId());
-//            }
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
-            boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
+            if (facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
+                boundaryLabelToNameMap = projectService
+                        .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
+            } else {
+                if (stock.getReferenceIdType().equals(PROJECT)) {
+                    boundaryLabelToNameMap = projectService
+                            .getBoundaryLabelToNameMapByProjectId(stock.getReferenceId(), stock.getTenantId());
+                }
+            }
 
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
