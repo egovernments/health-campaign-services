@@ -92,15 +92,15 @@ public class ProjectService {
         return project;
     }
 
-    public Map<String, String> getBoundaryLabelToNameMap(String projectId, String tenantId) {
+    public Map<String, String> getBoundaryLabelToNameMapByProjectId(String projectId, String tenantId) {
         Project project = getProject(projectId, tenantId);
         String locationCode = project.getAddress().getBoundary();
-        return getBoundaryLabelToNameMap(project, locationCode);
+        return getBoundaryLabelToNameMap(locationCode, tenantId);
     }
 
-    public Map<String, String> getBoundaryLabelToNameMap(Project project, String locationCode) {
+    public Map<String, String> getBoundaryLabelToNameMap(String locationCode, String tenantId) {
         List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
-                project.getTenantId());
+                tenantId);
         BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
         BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
         List<BoundaryNode> parentNodes = locationTree.getParentNodes();

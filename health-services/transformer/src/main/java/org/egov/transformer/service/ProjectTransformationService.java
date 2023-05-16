@@ -70,7 +70,7 @@ public abstract class ProjectTransformationService implements TransformationServ
         @Override
         public List<ProjectIndexV1> transform(Project project) {
             Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(project, project.getAddress().getBoundary());
+                    .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
             if (targets == null || targets.isEmpty()) {
