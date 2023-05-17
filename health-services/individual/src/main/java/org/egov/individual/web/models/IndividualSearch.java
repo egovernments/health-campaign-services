@@ -88,5 +88,9 @@ public class IndividualSearch   {
     @JsonProperty("roleCode")
     @Exclude
     private List<String> roleCodes = null;
+
+    @Exclude
+    @JsonProperty("username")
+    private String username;
 }
 

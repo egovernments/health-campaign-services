@@ -181,6 +181,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
             query = query + "]' ";
         }
+
+        if (searchObject.getUsername() != null) {
+            query = query + "AND username>=:username ";
+            paramsMap.put("username", searchObject.getUsername());
+        }
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
