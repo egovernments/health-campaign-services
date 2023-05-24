@@ -25,11 +25,12 @@ public class IndividualRowMapper implements RowMapper<Individual> {
     @Override
     public Individual mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
+            String tenantId = resultSet.getString("tenantId");
             return Individual.builder().id(resultSet.getString("id"))
                     .individualId(resultSet.getString("individualid"))
                     .userId(resultSet.getString("userId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
-                    .tenantId(resultSet.getString("tenantId"))
+                    .tenantId(tenantId)
                     .name(Name.builder().givenName(resultSet.getString("givenName"))
                             .familyName(resultSet.getString("familyName"))
                             .otherNames(resultSet.getString("otherNames")).build())
@@ -63,6 +64,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                             .roles(resultSet.getString("roles") == null ? null :
                                     objectMapper.readValue(resultSet.getString("roles"),
                                             List.class))
+                            .tenantId(tenantId)
                             .build())
                     .build();
         } catch (JsonProcessingException e) {
