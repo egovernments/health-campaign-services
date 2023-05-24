@@ -1,5 +1,6 @@
 package org.egov.common.models.individual;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.AllArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserDetails {
     @Size(max=180)
     @JsonProperty("username")
