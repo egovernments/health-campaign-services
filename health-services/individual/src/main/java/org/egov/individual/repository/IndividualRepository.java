@@ -173,7 +173,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
             query = query + "AND roles @> '[";
             for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
-                query = query + "{\"code\": \":roleCode\"" + i + "}";
+                query = query + "{\"code\": \":roleCode" + i + "\"}";
                 if (i != searchObject.getRoleCodes().size() - 1) {
                     query = query + ",";
                 }
