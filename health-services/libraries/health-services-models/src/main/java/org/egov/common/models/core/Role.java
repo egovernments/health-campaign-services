@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Date;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -16,9 +14,5 @@ public class Role {
     private String name;
     private String code;
     private String description;
-    private Long createdBy;
-    private Date createdDate;
-    private Long lastModifiedBy;
-    private Date lastModifiedDate;
     private String tenantId;
 }
