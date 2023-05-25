@@ -183,7 +183,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
 
         if (searchObject.getUsername() != null) {
-            query = query + "AND username>=:username ";
+            query = query + "AND username=:username ";
             paramsMap.put("username", searchObject.getUsername());
         }
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
