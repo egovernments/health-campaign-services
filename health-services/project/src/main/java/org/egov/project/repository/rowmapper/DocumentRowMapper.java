@@ -34,7 +34,7 @@ public class DocumentRowMapper implements ResultSetExtractor<List<Document>> {
             String document_id = rs.getString("documentId");
             String document_projectId = rs.getString("document_projectId");
             String document_documentType = rs.getString("document_documentType");
-            String document_filestoreId = rs.getString("document_filestoreId");
+            String document_fileStoreId = rs.getString("document_fileStoreId");
             String document_documentUid = rs.getString("document_documentUid");
             JsonNode document_additionalDetails = getAdditionalDetail("document_additionalDetails", rs);
             String document_status = rs.getString("document_status");
@@ -51,7 +51,7 @@ public class DocumentRowMapper implements ResultSetExtractor<List<Document>> {
                     .id(document_id)
                     .projectid(document_projectId)
                     .documentType(document_documentType)
-                    .fileStore(document_filestoreId)
+                    .fileStoreId(document_fileStoreId)
                     .documentUid(document_documentUid)
                     .additionalDetails(document_additionalDetails)
                     .status(document_status)
