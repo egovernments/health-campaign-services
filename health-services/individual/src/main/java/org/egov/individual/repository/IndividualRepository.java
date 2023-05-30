@@ -124,12 +124,13 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private String getQueryForIndividual(IndividualSearch searchObject, Integer limit, Integer offset,
                                          String tenantId, Long lastChangedSince,
                                          Boolean includeDeleted, Map<String, Object> paramsMap) {
-        String query = "SELECT * FROM individual";
-        query += " WHERE tenantId=:tenantId ";
-        if (query.contains(tableName + " AND")) {
-            query = query.replace(tableName + " AND", tableName + " WHERE ");
+        String query = "SELECT * FROM individual WHERE";
+          query += " tenantId=:tenantId ";
+        if(searchObject.getIndividualId() != null){
+            query = query + "AND individualId =:individualId ";
+            paramsMap.put("individualId", searchObject.getIndividualId());
         }
-        if (searchObject.getName().getGivenName() != null) {
+        if (searchObject.getName() != null) {
             query = query + " AND LOWER(givenname) LIKE LOWER(:individualName) ";
             paramsMap.put("individualName", "%"+ searchObject.getName().getGivenName().toLowerCase() + "%");
         }
