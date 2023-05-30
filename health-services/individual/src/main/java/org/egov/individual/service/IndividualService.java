@@ -141,6 +141,7 @@ public class IndividualService {
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
+                individualRepository.removeInvalidFromCache(request.getIndividuals(), validIndividuals);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

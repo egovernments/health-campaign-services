@@ -22,6 +22,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getDifference;
+import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
@@ -79,6 +81,13 @@ public abstract class GenericRepository<T> {
             log.info("Cache miss");
         }
         return objFound;
+    }
+
+    public Long removeInvalidFromCache(List<T> entitiesFromRequest, List<T> validEntities) {
+        List<T> invalidEntities = getDifference(entitiesFromRequest, validEntities);
+        List<String> ids = getIdList(invalidEntities,
+                getIdMethod(invalidEntities, "clientReferenceId"));
+        return redisTemplate.opsForHash().delete(tableName, ids);
     }
 
     public List<T> findById(List<String> ids, Boolean includeDeleted) {
