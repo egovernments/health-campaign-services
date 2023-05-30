@@ -197,19 +197,25 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.update(validIndividuals, request);
+                boolean identifiersPresent = validIndividuals.stream()
+                        .anyMatch(individual -> individual.getIdentifiers() != null
+                                && !individual.getIdentifiers().isEmpty());
 
-                // get masked identifiers
-                List<Identifier> maskedIdentifiers = filterMaskedIdentifiers(validIndividuals);
-                // remove masked identifiers because we cannot encrypt them again
-                List<Individual> individualsToEncrypt = validIndividuals.stream().map(individual -> {
-                    if (!maskedIdentifiers.isEmpty()) {
-                        individual.getIdentifiers().removeAll(maskedIdentifiers
-                                .stream().filter(identifier ->
-                                        identifier.getIndividualId().equals(individual.getId()))
-                                .collect(Collectors.toList()));
-                    }
-                    return individual;
-                }).collect(Collectors.toList());
+                List<Individual> individualsToEncrypt = validIndividuals;
+                if (identifiersPresent) {
+                    // get masked identifiers
+                    List<Identifier> maskedIdentifiers = filterMaskedIdentifiers(validIndividuals);
+                    // remove masked identifiers because we cannot encrypt them again
+                    individualsToEncrypt = validIndividuals.stream().map(individual -> {
+                        if (!maskedIdentifiers.isEmpty()) {
+                            individual.getIdentifiers().removeAll(maskedIdentifiers
+                                    .stream().filter(identifier ->
+                                            identifier.getIndividualId().equals(individual.getId()))
+                                    .collect(Collectors.toList()));
+                        }
+                        return individual;
+                    }).collect(Collectors.toList());
+                }
 
 
                 // encrypt new data
@@ -221,24 +227,27 @@ public class IndividualService {
                 // find existing individuals from db
                 List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
                         "id", false);
-                // extract existing identifiers (encrypted) from existing individuals
-                Map<String, List<Identifier>> existingIdentifiers = existingIndividuals.stream()
-                        .map(Individual::getIdentifiers)
-                        .filter(Objects::nonNull)
-                        .flatMap(Collection::stream).collect(Collectors.groupingBy(Identifier::getIndividualId));
-                // merge existing identifiers with new identifiers such that they all are encrypted alike
-                // this is because we cannot merge masked identifiers with new identifiers which are now encrypted
-                encryptedIndividualList.forEach(encryptedIndividual -> {
-                    List<Identifier> newIdentifiers = encryptedIndividual.getIdentifiers();
-                    List<String> newIdentifiersIds = getIdList(newIdentifiers);
-                    List<Identifier> identifierList = existingIdentifiers.get(encryptedIndividual.getId()).stream()
-                            .filter(identifier -> !newIdentifiersIds.contains(identifier.getId()))
-                            .collect(Collectors.toList());
 
-                    if (identifierList != null) {
-                        newIdentifiers.addAll(identifierList);
-                    }
-                });
+                if (identifiersPresent) {
+                    // extract existing identifiers (encrypted) from existing individuals
+                    Map<String, List<Identifier>> existingIdentifiers = existingIndividuals.stream()
+                            .map(Individual::getIdentifiers)
+                            .filter(Objects::nonNull)
+                            .flatMap(Collection::stream).collect(Collectors.groupingBy(Identifier::getIndividualId));
+                    // merge existing identifiers with new identifiers such that they all are encrypted alike
+                    // this is because we cannot merge masked identifiers with new identifiers which are now encrypted
+                    encryptedIndividualList.forEach(encryptedIndividual -> {
+                        List<Identifier> newIdentifiers = encryptedIndividual.getIdentifiers();
+                        List<String> newIdentifiersIds = getIdList(newIdentifiers);
+                        List<Identifier> identifierList = existingIdentifiers.get(encryptedIndividual.getId()).stream()
+                                .filter(identifier -> !newIdentifiersIds.contains(identifier.getId()))
+                                .collect(Collectors.toList());
+
+                        if (identifierList != null) {
+                            newIdentifiers.addAll(identifierList);
+                        }
+                    });
+                }
 
                 // save
                 individualRepository.save(encryptedIndividualList,
