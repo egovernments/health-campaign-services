@@ -27,7 +27,7 @@ public class IndividualMapper {
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
                 .accountLocked(properties.isUserServiceAccountLocked())
-                .active(true)
+                .active(!individual.getIsDeleted())
                 .userName(null != individual.getUserDetails().getUsername() ? individual.getUserDetails().getUsername() : UUID.randomUUID().toString())
                 .password(null != individual.getUserDetails().getPassword() ? individual.getUserDetails().getPassword() : null)
                 .roles(individual.getUserDetails().getRoles().stream().map(role -> RoleRequest.builder()
@@ -36,7 +36,8 @@ public class IndividualMapper {
                                 .tenantId(individual.getTenantId())
                                 .build())
                         .collect(Collectors.toSet()))
-                .type(UserType.valueOf(individual.getUserDetails().getUserType().name()))
+                .type(UserType.fromValue(individual.getUserDetails().getUserType() != null
+                        ? individual.getUserDetails().getUserType().name() : null))
                 .build();
     }
 
