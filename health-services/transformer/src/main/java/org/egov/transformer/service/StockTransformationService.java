@@ -89,6 +89,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .id(stock.getId())
                     .productVariant(stock.getProductVariantId())
                     .facilityId(stock.getFacilityId())
+                    .facilityName(facility.getName())
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())

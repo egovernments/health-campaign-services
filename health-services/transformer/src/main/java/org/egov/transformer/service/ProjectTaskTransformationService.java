@@ -100,6 +100,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .createdBy(task.getAuditDetails().getCreatedBy())
                             .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
                             .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
+                            .isDeleted(task.getIsDeleted())
                             .build()
             ).collect(Collectors.toList());
         }
