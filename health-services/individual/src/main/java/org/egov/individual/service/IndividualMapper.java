@@ -19,9 +19,9 @@ public class IndividualMapper {
     private IndividualMapper() {}
 
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties) {
-
+        Long id = individual.getUserId() != null ? Long.parseLong(individual.getUserId()) : null;
         return  UserRequest.builder()
-                .id(Long.parseLong(individual.getUserId()))
+                .id(id)
                 .uuid(individual.getUserUuid())
                 .tenantId(individual.getTenantId())
                 .name(String.join(" ", individual.getName().getGivenName(),
