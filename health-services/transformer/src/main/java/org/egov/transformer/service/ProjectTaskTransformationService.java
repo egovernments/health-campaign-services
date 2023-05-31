@@ -65,9 +65,16 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
         @Override
         public List<ProjectTaskIndexV1> transform(Task task) {
-            Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(task.getProjectId(), task.getTenantId());
+            Map<String, String> boundaryLabelToNameMap = null;
+            if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
+                boundaryLabelToNameMap = projectService
+                        .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), task.getTenantId());
+            } else {
+                boundaryLabelToNameMap = projectService
+                        .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), task.getTenantId());
+            }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+            Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
@@ -81,17 +88,19 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .quantity(r.getQuantity())
                             .deliveredTo("HOUSEHOLD")
                             .deliveryComments(r.getDeliveryComment())
-                            .province(boundaryLabelToNameMap.get(properties.getProvince()))
-                            .district(boundaryLabelToNameMap.get(properties.getDistrict()))
-                            .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
-                            .locality(boundaryLabelToNameMap.get(properties.getLocality()))
-                            .village(boundaryLabelToNameMap.get(properties.getVillage()))
+                            .province(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getProvince()) : null)
+                            .district(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getDistrict()) : null)
+                            .administrativeProvince(finalBoundaryLabelToNameMap != null ?
+                                    finalBoundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
+                            .locality(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getLocality()) : null)
+                            .village(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getVillage()) : null)
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
                             .createdTime(task.getAuditDetails().getCreatedTime())
                             .createdBy(task.getAuditDetails().getCreatedBy())
                             .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
                             .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
+                            .isDeleted(task.getIsDeleted())
                             .build()
             ).collect(Collectors.toList());
         }
