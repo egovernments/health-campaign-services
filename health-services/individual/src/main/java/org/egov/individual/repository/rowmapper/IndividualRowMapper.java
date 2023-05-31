@@ -66,6 +66,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                                             List.class))
                             .tenantId(tenantId)
                             .build())
+                    .userUuid(resultSet.getString("userUuid"))
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
