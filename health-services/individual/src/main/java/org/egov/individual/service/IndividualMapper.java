@@ -21,6 +21,8 @@ public class IndividualMapper {
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties) {
 
         return  UserRequest.builder()
+                .id(Long.parseLong(individual.getUserId()))
+                .uuid(individual.getUserUuid())
                 .tenantId(individual.getTenantId())
                 .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName()))

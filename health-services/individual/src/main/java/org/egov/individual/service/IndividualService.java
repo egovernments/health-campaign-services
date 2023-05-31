@@ -391,12 +391,15 @@ public class IndividualService {
                     log.info("successfully updated user for {} individuals",
                             encryptedIndividualList.size());
                 } else if (apiOperation.equals(ApiOperation.CREATE)) {
-                    Long userId = userIntegrationService.createUser(encryptedIndividualList,
-                            request.getRequestInfo()).map(UserRequest::getId).orElse(null);
-                    encryptedIndividualList.stream().filter(Individual::getIsSystemUser)
-                            .forEach(individual ->
-                                    individual.setUserId(userId != null ?
-                                            Long.toString(userId) : null));
+                    List<UserRequest> userRequests = userIntegrationService.createUser(encryptedIndividualList,
+                            request.getRequestInfo());
+                    for (int i = 0; i < encryptedIndividualList.size(); i++) {
+                        if (Boolean.TRUE.equals(encryptedIndividualList.get(i).getIsSystemUser())) {
+                            encryptedIndividualList.get(i)
+                                    .setUserId(Long.toString(userRequests.get(i).getId()));
+                            encryptedIndividualList.get(i).setUserUuid(userRequests.get(i).getUuid());
+                        }
+                    }
                     individualRepository.save(encryptedIndividualList,
                             properties.getUpdateUserIdTopic());
                     log.info("successfully created user for {} individuals",

@@ -53,6 +53,9 @@ public class Individual {
     @JsonProperty("userId")
     private String userId = null;
 
+    @JsonProperty("userUuid")
+    private String userUuid = null;
+
     @JsonProperty("name")
     @NotNull
     @Valid
