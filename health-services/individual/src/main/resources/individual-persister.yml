@@ -263,12 +263,13 @@ serviceMaps:
             - jsonPath: $.*.skills.*.id
 
     - version: 1.0
-      description: Updates userId received from user-service into an individual
+      description: Updates userId and userUuid received from user-service into an individual
       fromTopic: update-user-id-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE individual SET userId=? WHERE id=?;
+        - query: UPDATE individual SET userId=?, userUuid=? WHERE id=?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.userId
+            - jsonPath: $.*.userUuid
             - jsonPath: $.*.id

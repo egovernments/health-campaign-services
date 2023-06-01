@@ -22,6 +22,7 @@ public class IndividualMapper {
         Long id = individual.getUserId() != null ? Long.parseLong(individual.getUserId()) : null;
         return  UserRequest.builder()
                 .id(id)
+                .uuid(individual.getUserUuid())
                 .tenantId(individual.getTenantId())
                 .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName()))
