@@ -57,6 +57,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .isSystemUser(resultSet.getBoolean("isSystemUser"))
+                    .isSystemUserActive(resultSet.getBoolean("isSystemUserActive"))
                     .userDetails(UserDetails.builder()
                             .username(resultSet.getString("username"))
                             .password(resultSet.getString("password"))

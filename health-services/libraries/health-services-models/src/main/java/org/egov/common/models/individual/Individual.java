@@ -133,6 +133,9 @@ public class Individual {
     @JsonProperty("isSystemUser")
     private Boolean isSystemUser = Boolean.FALSE;
 
+    @JsonProperty("isSystemUserActive")
+    private Boolean isSystemUserActive = Boolean.TRUE;
+
     @JsonProperty("userDetails")
     private UserDetails userDetails;
 
