@@ -15,6 +15,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.tarento.analytics.handler.IResponseHandler.HIDE_HEADER_DENOMINATION;
+import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_BY_CAMPAIGN_PERIOD;
 
 @Component
 public class AdditiveComputedField implements IComputedField<Data> {
@@ -40,6 +41,7 @@ public class AdditiveComputedField implements IComputedField<Data> {
             Map<String, Plot> plotMap = data.getPlots().stream().collect(Collectors.toMap(Plot::getName, Function.identity()));
 
             double total = 0.0;
+            double capTotal = 0.0;
             for (String field: fields){
                 if(plotMap.containsKey(field)){
                     dataType = plotMap.get(field).getSymbol();
@@ -48,8 +50,13 @@ public class AdditiveComputedField implements IComputedField<Data> {
             }
             if(postAggrTheoryName != null && !postAggrTheoryName.isEmpty()) {
                 ComputeHelper computeHelper = computeHelperFactory.getInstance(postAggrTheoryName);
+                if (chartNode.has(IS_CAPPED_BY_CAMPAIGN_PERIOD)) {
+                    if(plotMap.containsKey(chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).get(0).asText())) {
+                        capTotal = capTotal + plotMap.get(chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).get(0).asText()).getValue();
+                    }
+                }
 
-                total = computeHelper.compute(aggregateRequestDto,total );
+                total = computeHelper.compute(aggregateRequestDto,total,capTotal );
             }
 
 
