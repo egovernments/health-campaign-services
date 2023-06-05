@@ -3,6 +3,7 @@ package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
@@ -36,6 +37,7 @@ import java.util.List;
 
 @Controller
 @Validated
+@Slf4j
 public class IndividualApiController {
 
     private final IndividualService individualService;
@@ -63,6 +65,7 @@ public class IndividualApiController {
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<IndividualResponse> individualV1CreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
 
+
         List<Individual> individuals = individualService.create(request);
         IndividualResponse response = IndividualResponse.builder()
                 .individual(individuals.get(0))
@@ -76,6 +79,7 @@ public class IndividualApiController {
 
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> individualV1BulkCreatePost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualBulkRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
+        log.info(request.getIndividuals().get(0).getDateOfBirth().toString());
         request.getRequestInfo().setApiId(servletRequest.getRequestURI());
         individualService.putInCache(request.getIndividuals());
         producer.push(individualProperties.getBulkSaveIndividualTopic(), request);

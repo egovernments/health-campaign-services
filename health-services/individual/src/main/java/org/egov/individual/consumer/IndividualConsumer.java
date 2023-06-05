@@ -36,6 +36,7 @@ public class IndividualConsumer {
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
+            log.info(request.getIndividuals().get(0).getDateOfBirth().toString());
             return individualService.create(request, true);
         } catch (Exception exception) {
             log.error("error in individual consumer bulk create", exception);
