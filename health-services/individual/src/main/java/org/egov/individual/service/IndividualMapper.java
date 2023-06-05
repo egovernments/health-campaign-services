@@ -26,6 +26,7 @@ public class IndividualMapper {
                 .tenantId(individual.getTenantId())
                 .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName()))
+                .emailId(individual.getEmail())
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
                 .accountLocked(properties.isUserServiceAccountLocked())
