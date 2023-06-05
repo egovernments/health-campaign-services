@@ -45,6 +45,7 @@ import java.util.TimeZone;
     }
 
     @Bean
+    @Qualifier("individualObjectMapper")
     public ObjectMapper objectMapper(){
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).setTimeZone(TimeZone.getTimeZone(timeZone));

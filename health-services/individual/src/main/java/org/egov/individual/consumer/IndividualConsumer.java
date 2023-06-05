@@ -26,7 +26,7 @@ public class IndividualConsumer {
 
     @Autowired
     public IndividualConsumer(IndividualService individualService,
-                              @Qualifier("objectMapper") ObjectMapper objectMapper) {
+                              @Qualifier("individualObjectMapper") ObjectMapper objectMapper) {
         this.individualService = individualService;
         this.objectMapper = objectMapper;
     }
@@ -35,6 +35,7 @@ public class IndividualConsumer {
     public List<Individual> bulkCreate(Map<String, Object> consumerRecord,
                                        @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            log.info(consumerRecord.toString());
             IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
             log.info(request.getIndividuals().get(0).getDateOfBirth().toString());
             return individualService.create(request, true);
