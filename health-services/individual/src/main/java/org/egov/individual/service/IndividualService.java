@@ -139,7 +139,8 @@ public class IndividualService {
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                log.info(encryptedIndividualList.get(0).getDateOfBirth().toString());
+                log.info(encryptedIndividualList.get(0).getDateOfBirth() != null ?
+                        encryptedIndividualList.get(0).getDateOfBirth().toString() : "");
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
             }
