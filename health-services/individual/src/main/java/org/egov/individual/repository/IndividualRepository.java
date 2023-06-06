@@ -204,7 +204,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private List<Address> getAddressForIndividual(String individualId, Boolean includeDeleted) {
         String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.addressId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted" +
                 " FROM (" +
-                "    SELECT individualId, addressId, type, createdTime, lastModifiedTime, isDeleted, " +
+                "    SELECT individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, " +
                 "           ROW_NUMBER() OVER (PARTITION BY individualId, type ORDER BY lastModifiedTime DESC) AS rn" +
                 "    FROM individual_address" +
                 "    WHERE individualId = :individualId" +
