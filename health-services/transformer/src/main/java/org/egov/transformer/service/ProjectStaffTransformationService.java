@@ -67,7 +67,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
             Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(projectStaff.getProjectId(), projectStaff.getTenantId());
+                    .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             return Collections.singletonList(ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())

@@ -99,7 +99,7 @@ public class Individual {
     private String husbandName = null;
 
     @JsonProperty("relationship")
-    @Size(max = 100)
+    @Size(max = 100, min = 1)
     private String relationship = null;
 
     @JsonProperty("identifiers")
