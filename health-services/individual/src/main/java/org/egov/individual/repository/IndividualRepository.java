@@ -209,7 +209,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 "    FROM individual_address" +
                 "    WHERE individualId = :individualId" +
                 " ) AS ia" +
-                " JOIN address AS a ON ia.addressId = a.addressId" +
+                " JOIN address AS a ON ia.addressId = a.id" +
                 " WHERE ia.rn = 1 ", includeDeleted, "ia");
         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
         indServerGenIdParamMap.put("individualId", individualId);
