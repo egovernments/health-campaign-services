@@ -1,6 +1,8 @@
 package org.egov.individual.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.user.RoleRequest;
 import org.egov.common.models.user.UserRequest;
@@ -20,12 +22,18 @@ public class IndividualMapper {
 
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties) {
         Long id = individual.getUserId() != null ? Long.parseLong(individual.getUserId()) : null;
+        String addressLine1 = individual.getAddress() != null && !individual.getAddress().isEmpty()
+                ? individual.getAddress().stream().filter(address -> address.getType()
+                        .equals(AddressType.CORRESPONDENCE)).findFirst()
+                .orElse(Address.builder().build())
+                .getAddressLine1() : null;
         return  UserRequest.builder()
                 .id(id)
                 .uuid(individual.getUserUuid())
                 .tenantId(individual.getTenantId())
                 .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName()))
+                .correspondenceAddress(addressLine1)
                 .emailId(individual.getEmail())
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
                 .type(UserType.valueOf(properties.getUserServiceUserType()))

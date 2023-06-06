@@ -202,7 +202,15 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     private List<Address> getAddressForIndividual(String individualId, Boolean includeDeleted) {
-        String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted FROM address a, individual_address ia WHERE a.id = ia.addressId and ia.individualId =:individualId", includeDeleted, "ia");
+        String addressQuery = getQuery("SELECT a.*, ia.individualId, a.addressId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted\n" +
+                "FROM (\n" +
+                "    SELECT individualId, addressId, type, createdTime, lastModifiedTime, isDeleted\n" +
+                "           ROW_NUMBER() OVER (PARTITION BY individualId, type ORDER BY lastModifiedTime DESC) AS rn\n" +
+                "    FROM individual_address\n" +
+                "    WHERE individualId = :individualId\n" +
+                ") AS ia\n" +
+                "JOIN address AS a ON ia.addressId = a.addressId\n" +
+                "WHERE ia.rn = 1", includeDeleted, "ia");
         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
         indServerGenIdParamMap.put("individualId", individualId);
         indServerGenIdParamMap.put("isDeleted", includeDeleted);
