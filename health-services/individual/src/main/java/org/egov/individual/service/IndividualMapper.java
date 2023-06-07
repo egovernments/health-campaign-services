@@ -34,8 +34,6 @@ public class IndividualMapper {
                 .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName()))
                 .correspondenceAddress(addressLine1)
-                .createdBy(id)
-                .lastModifiedBy(id)
                 .emailId(individual.getEmail())
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
