@@ -79,6 +79,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             String projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
             Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+
             return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
                     .projectId(projectId)
@@ -90,6 +91,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())
+                    .userId(service.getAccountId())
+                    .attributes(service.getAttributes())
                     .build());
         }
     }
