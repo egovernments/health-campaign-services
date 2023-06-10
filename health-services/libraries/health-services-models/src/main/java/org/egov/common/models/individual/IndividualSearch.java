@@ -73,5 +73,11 @@ public class IndividualSearch   {
 
     @JsonProperty("boundaryCode")
     private String boundaryCode = null;
+
+    @JsonProperty("roleCodes")
+    private List<String> roleCodes = null;
+
+    @JsonProperty("username")
+    private String username;
 }
 
