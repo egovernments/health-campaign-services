@@ -41,6 +41,9 @@ public class StockIndexV1 {
     @JsonProperty("eventTimeStamp")
     private Long eventTimeStamp;
 
+    @JsonProperty("dateOfEntry")
+    private Long dateOfEntry;
+
     @JsonProperty("province")
     private String province;
 

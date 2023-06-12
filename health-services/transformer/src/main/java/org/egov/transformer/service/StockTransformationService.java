@@ -95,6 +95,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .reason(stock.getTransactionReason())
                     .eventTimeStamp(stock.getAuditDetails().getLastModifiedTime())
                     .createdTime(stock.getAuditDetails().getCreatedTime())
+                    .dateOfEntry(stock.getDateOfEntry())
                     .createdBy(stock.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())
