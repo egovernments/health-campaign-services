@@ -79,5 +79,8 @@ public class IndividualSearch   {
 
     @JsonProperty("username")
     private String username;
+
+    @JsonProperty("userId")
+    private Long userId;
 }
 
