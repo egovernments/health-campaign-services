@@ -1,16 +1,17 @@
 package org.egov.individual.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.user.RoleRequest;
 import org.egov.common.models.user.UserRequest;
 import org.egov.common.models.user.UserType;
 import org.egov.individual.config.IndividualProperties;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class IndividualMapper {
@@ -20,21 +21,34 @@ public class IndividualMapper {
     private IndividualMapper() {}
 
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties) {
-
+        Long id = individual.getUserId() != null ? Long.parseLong(individual.getUserId()) : null;
+        String addressLine1 = individual.getAddress() != null && !individual.getAddress().isEmpty()
+                ? individual.getAddress().stream().filter(address -> address.getType()
+                        .equals(AddressType.CORRESPONDENCE)).findFirst()
+                .orElse(Address.builder().build())
+                .getAddressLine1() : null;
         return  UserRequest.builder()
+                .id(id)
+                .uuid(individual.getUserUuid())
                 .tenantId(individual.getTenantId())
-                .userName(UUID.randomUUID().toString())
                 .name(String.join(" ", individual.getName().getGivenName(),
                         individual.getName().getFamilyName()))
+                .correspondenceAddress(addressLine1)
+                .emailId(individual.getEmail())
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
                 .accountLocked(properties.isUserServiceAccountLocked())
-                .active(true)
-                .roles(new HashSet<>(Collections.singletonList(RoleRequest.builder()
-                        .code(properties.getUserServiceUserType())
-                        .tenantId(individual.getTenantId())
-                        .name(properties.getUserServiceUserType())
-                        .build())))
+                .active(individual.getIsSystemUserActive())
+                .userName(null != individual.getUserDetails().getUsername() ? individual.getUserDetails().getUsername() : UUID.randomUUID().toString())
+                .password(null != individual.getUserDetails().getPassword() ? individual.getUserDetails().getPassword() : null)
+                .roles(individual.getUserDetails().getRoles().stream().map(role -> RoleRequest.builder()
+                                .code(role.getCode())
+                                .name(role.getName())
+                                .tenantId(individual.getTenantId())
+                                .build())
+                        .collect(Collectors.toSet()))
+                .type(UserType.fromValue(individual.getUserDetails().getUserType() != null
+                        ? individual.getUserDetails().getUserType().name() : null))
                 .build();
     }
 

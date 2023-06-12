@@ -45,6 +45,7 @@ public class StockRowMapper implements RowMapper<Stock> {
                             .build())
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
+                    .dateOfEntry(resultSet.getLong("dateOfEntry"))
                     .build();
         } catch (JsonProcessingException e) {
             throw new SQLException(e);

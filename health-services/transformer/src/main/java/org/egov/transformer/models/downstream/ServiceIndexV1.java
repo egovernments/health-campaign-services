@@ -6,6 +6,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.transformer.models.upstream.AttributeValue;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -33,4 +37,8 @@ public class ServiceIndexV1 {
     private String district;
     @JsonProperty("tenantId")
     private String tenantId;
+    @JsonProperty("userId")
+    private String userId;
+    @JsonProperty("attributes")
+    private List<AttributeValue> attributes = new ArrayList<>();
 }

@@ -170,6 +170,26 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (lastChangedSince != null) {
             query = query + "AND lastModifiedTime>=:lastModifiedTime ";
         }
+        if (searchObject.getRoleCodes() != null && !searchObject.getRoleCodes().isEmpty()) {
+            query = query + "AND roles @> '[";
+            for (int i = 0; i < searchObject.getRoleCodes().size(); i++) {
+                query = query + "{\"code\": \"" + searchObject.getRoleCodes().get(i) + "\"}";
+                if (i != searchObject.getRoleCodes().size() - 1) {
+                    query = query + ",";
+                }
+            }
+            query = query + "]' ";
+        }
+
+        if (searchObject.getUsername() != null) {
+            query = query + "AND username=:username ";
+            paramsMap.put("username", searchObject.getUsername());
+        }
+
+        if (searchObject.getUserId() != null) {
+            query = query + "AND userId=:userId ";
+            paramsMap.put("userId", String.valueOf(searchObject.getUserId()));
+        }
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
@@ -187,7 +207,15 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     private List<Address> getAddressForIndividual(String individualId, Boolean includeDeleted) {
-        String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted FROM address a, individual_address ia WHERE a.id = ia.addressId and ia.individualId =:individualId", includeDeleted, "ia");
+        String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.addressId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted" +
+                " FROM (" +
+                "    SELECT individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, " +
+                "           ROW_NUMBER() OVER (PARTITION BY individualId, type ORDER BY lastModifiedTime DESC) AS rn" +
+                "    FROM individual_address" +
+                "    WHERE individualId = :individualId" +
+                " ) AS ia" +
+                " JOIN address AS a ON ia.addressId = a.id" +
+                " WHERE ia.rn = 1 ", includeDeleted, "ia");
         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
         indServerGenIdParamMap.put("individualId", individualId);
         indServerGenIdParamMap.put("isDeleted", includeDeleted);

@@ -53,6 +53,9 @@ public class Individual {
     @JsonProperty("userId")
     private String userId = null;
 
+    @JsonProperty("userUuid")
+    private String userUuid = null;
+
     @JsonProperty("name")
     @NotNull
     @Valid
@@ -129,6 +132,12 @@ public class Individual {
 
     @JsonProperty("isSystemUser")
     private Boolean isSystemUser = Boolean.FALSE;
+
+    @JsonProperty("isSystemUserActive")
+    private Boolean isSystemUserActive = Boolean.TRUE;
+
+    @JsonProperty("userDetails")
+    private UserDetails userDetails;
 
 
     public Individual addAddressItem(Address addressItem) {

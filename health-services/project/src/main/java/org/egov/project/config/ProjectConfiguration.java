@@ -179,4 +179,7 @@ public class ProjectConfiguration {
 
     @Value("${egov.location.hierarchy.type}")
     private String locationHierarchyType;
+
+    @Value("${egov.user.id.validator}")
+    private String egovUserIdValidator;
 }
