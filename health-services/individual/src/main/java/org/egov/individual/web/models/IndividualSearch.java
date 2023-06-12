@@ -92,5 +92,9 @@ public class IndividualSearch   {
     @Exclude
     @JsonProperty("username")
     private String username;
+
+    @Exclude
+    @JsonProperty("userId")
+    private Long userId;
 }
 

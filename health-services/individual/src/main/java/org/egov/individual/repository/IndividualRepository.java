@@ -185,6 +185,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND username=:username ";
             paramsMap.put("username", searchObject.getUsername());
         }
+
+        if (searchObject.getUserId() != null) {
+            query = query + "AND userId=:userId ";
+            paramsMap.put("userId", String.valueOf(searchObject.getUserId()));
+        }
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
