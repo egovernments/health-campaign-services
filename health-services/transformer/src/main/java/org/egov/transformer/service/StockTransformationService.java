@@ -93,7 +93,8 @@ public abstract class StockTransformationService implements TransformationServic
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())
-                    .eventTimeStamp(stock.getAuditDetails().getLastModifiedTime())
+                    .eventTimeStamp(stock.getDateOfEntry() != null ?
+                            stock.getDateOfEntry() : stock.getAuditDetails().getLastModifiedTime())
                     .createdTime(stock.getAuditDetails().getCreatedTime())
                     .dateOfEntry(stock.getDateOfEntry())
                     .createdBy(stock.getAuditDetails().getCreatedBy())
