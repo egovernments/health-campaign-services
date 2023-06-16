@@ -68,6 +68,10 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                             .tenantId(tenantId)
                             .build())
                     .userUuid(resultSet.getString("userUuid"))
+                    .clientAuditDetails(AuditDetails.builder()
+                            .createdTime(resultSet.getLong("clientCreatedTime"))
+                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                            .build())
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
