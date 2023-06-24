@@ -1,7 +1,9 @@
 package org.egov.transformer.service;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -86,11 +88,17 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             Map<String, String> boundaryLabelToNameMap = null;
             if (service.getAdditionalDetails() != null) {
-                JsonNode jsonNode = (JsonNode) service.getAdditionalDetails();
-                if (jsonNode.has("boundaryCode")) {
-                    String boundaryCode = String.valueOf(jsonNode.get("boundaryCode"));
-                    boundaryLabelToNameMap = projectService
-                            .getBoundaryLabelToNameMap(boundaryCode, service.getTenantId());
+                ObjectMapper map = new ObjectMapper();
+                JsonNode jsonNode = null;
+                try {
+                    jsonNode = map.readTree((String) service.getAdditionalDetails());
+                    if (jsonNode.has("boundaryCode")) {
+                        String boundaryCode = String.valueOf(jsonNode.get("boundaryCode"));
+                        boundaryLabelToNameMap = projectService
+                                .getBoundaryLabelToNameMap(boundaryCode, service.getTenantId());
+                    }
+                } catch (JsonProcessingException e) {
+                    log.error("Cannot parse additional details:" + service.getAdditionalDetails());
                 }
             } else {
                 boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
