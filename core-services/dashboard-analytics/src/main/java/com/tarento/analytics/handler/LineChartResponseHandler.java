@@ -117,7 +117,7 @@ public class LineChartResponseHandler implements IResponseHandler {
             Set<String> finalBucketKeys = new LinkedHashSet<>();
 
             // For multi aggr, find all plot keys first
-            enrichBucketKeys(aggrNodes, finalBucketKeys, interval, startDate);
+            enrichBucketKeys(aggrNodes, finalBucketKeys, interval, startDate, isPredictionEnabled);
             initializeMultiAggrPlotMap(multiAggrPlotMap, finalBucketKeys);
 
             for(JsonNode aggrNode : aggrNodes) {
@@ -125,7 +125,7 @@ public class LineChartResponseHandler implements IResponseHandler {
                     ArrayNode buckets = (ArrayNode) aggrNode.findValues(IResponseHandler.BUCKETS).get(0);
                     for(JsonNode bucket : buckets){
                             JsonNode bkey = bucket.findValue(IResponseHandler.KEY);
-                            if (Long.parseLong(bkey.asText()) < startDate) {
+                            if (isPredictionEnabled && Long.parseLong(bkey.asText()) < startDate) {
                                 continue;
                             }
                             String key = getIntervalKey(bkey.asText(), Constants.Interval.valueOf(interval));
@@ -357,14 +357,14 @@ public class LineChartResponseHandler implements IResponseHandler {
         });
     }
 
-    private void enrichBucketKeys(List<JsonNode> aggrNodes, Set<String> finalBucketKeys, String interval, Long startDate) {
+    private void enrichBucketKeys(List<JsonNode> aggrNodes, Set<String> finalBucketKeys, String interval, Long startDate, Boolean isPredictionEnabled) {
         List<String> bkeyList = new ArrayList<>();
         for(JsonNode aggrNode : aggrNodes) {
             if (aggrNode.findValues(IResponseHandler.BUCKETS).size() > 0) {
                 ArrayNode buckets = (ArrayNode) aggrNode.findValues(IResponseHandler.BUCKETS).get(0);
                 for(JsonNode bucket : buckets){
                     String bkey = bucket.findValue(IResponseHandler.KEY).asText();
-                    if (Long.parseLong(bkey) < (startDate)) {
+                    if (isPredictionEnabled && Long.parseLong(bkey) < (startDate)) {
                         continue;
                     }
                     bkeyList.add(bkey);
