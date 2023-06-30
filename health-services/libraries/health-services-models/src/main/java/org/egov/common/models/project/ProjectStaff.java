@@ -75,5 +75,9 @@ public class ProjectStaff {
     @Valid
     private AuditDetails auditDetails = null;
 
+    @JsonProperty("clientAuditDetails")
+    @Valid
+    private AuditDetails clientAuditDetails = null;
+
 }
 

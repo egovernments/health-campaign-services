@@ -37,6 +37,10 @@ public class ProjectResourceRowMapper implements RowMapper<ProjectResource> {
                         .lastModifiedBy(resultSet.getString("lastmodifiedby"))
                         .lastModifiedTime(resultSet.getLong("lastmodifiedtime"))
                         .build())
+                .clientAuditDetails(AuditDetails.builder()
+                        .createdTime(resultSet.getLong("clientCreatedTime"))
+                        .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                        .build())
                 .rowVersion(resultSet.getInt("rowversion"))
                 .isDeleted(resultSet.getBoolean("isdeleted"))
                 .build();

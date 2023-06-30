@@ -34,6 +34,10 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                             .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                             .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
                             .build())
+                    .clientAuditDetails(AuditDetails.builder()
+                            .createdTime(resultSet.getLong("clientCreatedTime"))
+                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                            .build())
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
                             .getString("additionalDetails"), AdditionalFields.class))
                     .address(Address.builder()
