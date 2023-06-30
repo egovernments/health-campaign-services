@@ -33,6 +33,10 @@ public class ProductVariantRowMapper implements RowMapper<ProductVariant> {
                             .lastModifiedBy(resultSet.getString("lastmodifiedby"))
                             .lastModifiedTime(resultSet.getLong("lastmodifiedtime"))
                             .build())
+                    .clientAuditDetails(AuditDetails.builder()
+                            .createdTime(resultSet.getLong("clientCreatedTime"))
+                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                            .build())
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
                             .getString("additionalDetails"), AdditionalFields.class))
                     .build();

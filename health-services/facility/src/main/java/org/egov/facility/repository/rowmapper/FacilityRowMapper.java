@@ -55,6 +55,10 @@ public class FacilityRowMapper implements RowMapper<Facility> {
                             .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                             .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
                             .build())
+                    .clientAuditDetails(AuditDetails.builder()
+                            .createdTime(resultSet.getLong("clientCreatedTime"))
+                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                            .build())
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .build();

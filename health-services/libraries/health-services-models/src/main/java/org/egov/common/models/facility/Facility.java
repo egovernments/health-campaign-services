@@ -69,6 +69,10 @@ public class Facility {
     @Valid
     private AuditDetails auditDetails = null;
 
+    @JsonProperty("clientAuditDetails")
+    @Valid
+    private AuditDetails clientAuditDetails = null;
+
     @JsonIgnore
     private Boolean hasErrors = Boolean.FALSE;
 

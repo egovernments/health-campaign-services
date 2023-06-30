@@ -1,0 +1,5 @@
+ALTER TABLE PRODUCT ADD COLUMN clientCreatedTime bigint;
+ALTER TABLE PRODUCT ADD COLUMN clientLastModifiedTime bigint;
+
+ALTER TABLE PRODUCT_VARIANT ADD COLUMN clientCreatedTime bigint;
+ALTER TABLE PRODUCT_VARIANT ADD COLUMN clientLastModifiedTime bigint;

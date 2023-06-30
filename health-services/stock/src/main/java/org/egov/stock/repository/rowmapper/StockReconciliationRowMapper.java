@@ -45,6 +45,10 @@ public class StockReconciliationRowMapper implements RowMapper<StockReconciliati
                             .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                             .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
                             .build())
+                    .clientAuditDetails(AuditDetails.builder()
+                            .createdTime(resultSet.getLong("clientCreatedTime"))
+                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                            .build())
                     .build();
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
