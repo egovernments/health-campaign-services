@@ -32,16 +32,10 @@ import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -421,14 +415,18 @@ public class IndividualService {
     }
     Boolean isSmsEnabledForRole(IndividualRequest request) {
         List<String> roleCodes = new ArrayList<>();
+        if (StringUtils.isEmpty(properties.getSmsDisabledRoles()))
+            return true;
+        String[] smsDisabledRolesArray = properties.getSmsDisabledRoles().split(",");
         if(request != null && request.getIndividual() != null && request.getIndividual().getUserDetails() != null
                 && request.getIndividual().getUserDetails().getRoles() != null) {
             // get the role codes from the list of roles
             roleCodes = request.getIndividual().getUserDetails().getRoles().stream().map(Role::getCode).collect(Collectors.toList());
         }
-        if (roleCodes.contains(ORG_ADMIN_ROLE_CODE))
-            return false;
-
+        for (String smsDisabledRole : smsDisabledRolesArray) {
+            if (roleCodes.contains(smsDisabledRole))
+                return false;
+        }
         return true;
     }
 }

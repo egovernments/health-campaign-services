@@ -63,6 +63,9 @@ public class IndividualProperties {
     @Value("${kafka.topics.notification.sms}")
     private String smsNotifTopic;
 
+    @Value("${notification.sms.disabled.roles}")
+    private String smsDisabledRoles;
+
     //Localization
     @Value("${egov.localization.host}")
     private String localizationHost;
