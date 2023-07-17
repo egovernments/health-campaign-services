@@ -6,6 +6,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
@@ -55,8 +56,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.individual.Constants.SET_INDIVIDUALS;
-import static org.egov.individual.Constants.VALIDATION_ERROR;
+import static org.egov.individual.Constants.*;
 
 @Service
 @Slf4j
@@ -119,7 +119,9 @@ public class IndividualService {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
         List<Individual> individuals = create(bulkRequest, false);
-        if(properties.getIsSMSEnabled())
+
+        // check if sms feature is enable for the environment role
+        if(properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
             notificationService.sendNotification(request, true);
         return individuals;
     }
@@ -180,7 +182,9 @@ public class IndividualService {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
         List<Individual> individuals = update(bulkRequest, false);
-        if(properties.getIsSMSEnabled())
+
+        // check if sms feature is enable for the environment role
+        if(properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
             notificationService.sendNotification(request, false);
         return individuals;
     }
@@ -414,5 +418,17 @@ public class IndividualService {
                 log.error("error occurred while creating user", exception);
             }
         }
+    }
+    Boolean isSmsEnabledForRole(IndividualRequest request) {
+        List<String> roleCodes = new ArrayList<>();
+        if(request != null && request.getIndividual() != null && request.getIndividual().getUserDetails() != null
+                && request.getIndividual().getUserDetails().getRoles() != null) {
+            // get the role codes from the list of roles
+            roleCodes = request.getIndividual().getUserDetails().getRoles().stream().map(Role::getCode).collect(Collectors.toList());
+        }
+        if (roleCodes.contains(ORG_ADMIN_ROLE_CODE))
+            return false;
+
+        return true;
     }
 }
