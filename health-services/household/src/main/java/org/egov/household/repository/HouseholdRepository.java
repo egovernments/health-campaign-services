@@ -88,4 +88,31 @@ public class HouseholdRepository extends GenericRepository<Household> {
         paramsMap.put("offset", offset);
         return this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
     }
+
+    public List<Household> findByRadius(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Boolean includeDeleted) throws QueryBuilderException {
+        String query = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))\n" +
+                "SELECT * FROM (SELECT h.*, a.*, ( 6371.4 * acos (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )\n" +
+                "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ) ) ) AS distance \n" +
+                "FROM public.household h LEFT JOIN public.address a ON h.addressid = a.id AND h.tenantid = a.tenantid, cte_search_criteria_waypoint cte_scw ";
+        Map<String, Object> paramsMap = new HashMap<>();
+        List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
+        query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
+        query = query.replace("id IN (:id)", "h.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "h.clientReferenceId IN (:clientReferenceId)");
+        query = query + " and h.tenantId=:tenantId ";
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            query = query + "and isDeleted=:isDeleted ";
+        }
+        query = query + " ) AS rt ";
+        query = query + " WHERE distance < :distance ";
+        query = query + " ORDER BY distance ASC LIMIT :limit OFFSET :offset ";
+        paramsMap.put("s_latitude", searchObject.getLatitude());
+        paramsMap.put("s_longitude", searchObject.getLongitude());
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("isDeleted", includeDeleted);
+        paramsMap.put("distance", searchObject.getSearchRadius());
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+        return this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+    }
 }

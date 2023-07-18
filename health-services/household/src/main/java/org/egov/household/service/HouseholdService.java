@@ -125,6 +125,16 @@ public class HouseholdService {
             log.info("households found for search by id, size: {}", households.size());
             return households;
         }
+        if(isProximityBasedSearch(householdSearch)) {
+            try {
+                List<Household> households = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
+                log.info("households found for search, size: {}", households.size());
+                return households;
+            } catch (QueryBuilderException e) {
+                log.error("error occurred while searching households", e);
+                throw new CustomException("ERROR_IN_QUERY", e.getMessage());
+            }
+        }
         try {
             List<Household> households = householdRepository.find(householdSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
@@ -231,4 +241,7 @@ public class HouseholdService {
         return new Tuple<>(validHouseholds, errorDetailsMap);
     }
 
+    private Boolean isProximityBasedSearch(HouseholdSearch householdSearch) {
+        return householdSearch.getLatitude() != null && householdSearch.getLongitude() != null && householdSearch.getSearchRadius() != null;
+    }
 }
