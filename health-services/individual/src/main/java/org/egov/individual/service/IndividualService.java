@@ -414,16 +414,16 @@ public class IndividualService {
         }
     }
     Boolean isSmsEnabledForRole(IndividualRequest request) {
-        List<String> roleCodes = new ArrayList<>();
-        if (StringUtils.isEmpty(properties.getSmsDisabledRoles()))
+        if (CollectionUtils.isEmpty(properties.getSmsDisabledRoles()))
             return true;
-        String[] smsDisabledRolesArray = properties.getSmsDisabledRoles().split(",");
+        List<String> smsDisabledRoles = properties.getSmsDisabledRoles();
+        List<String> roleCodes = new ArrayList<>();
         if(request != null && request.getIndividual() != null && request.getIndividual().getUserDetails() != null
                 && request.getIndividual().getUserDetails().getRoles() != null) {
             // get the role codes from the list of roles
             roleCodes = request.getIndividual().getUserDetails().getRoles().stream().map(Role::getCode).collect(Collectors.toList());
         }
-        for (String smsDisabledRole : smsDisabledRolesArray) {
+        for (String smsDisabledRole : smsDisabledRoles) {
             if (roleCodes.contains(smsDisabledRole))
                 return false;
         }

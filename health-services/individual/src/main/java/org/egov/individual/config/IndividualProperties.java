@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -64,7 +66,7 @@ public class IndividualProperties {
     private String smsNotifTopic;
 
     @Value("${notification.sms.disabled.roles}")
-    private String smsDisabledRoles;
+    private List<String> smsDisabledRoles;
 
     //Localization
     @Value("${egov.localization.host}")
