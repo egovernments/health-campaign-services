@@ -96,5 +96,18 @@ public class IndividualSearch   {
     @Exclude
     @JsonProperty("userId")
     private Long userId;
+
+    @Exclude
+    @JsonProperty("latitude")
+    private Double latitude;
+
+    @Exclude
+    @JsonProperty("longitude")
+    private Double longitude;
+
+    @Exclude
+    @JsonProperty("searchRadius")
+    private Double searchRadius;
+
 }
 

@@ -79,6 +79,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
         Map<String, Object> paramsMap = new HashMap<>();
         String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
                 includeDeleted, paramsMap);
+        if (isProximityBasedSearch(searchObject)) {
+            List<Individual> individuals = findByRadius(query, searchObject, includeDeleted, paramsMap);
+            return individuals;
+        }
         if (searchObject.getIdentifier() == null) {
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
@@ -111,6 +115,58 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
             return Collections.emptyList();
         }
+    }
+
+    public List<Individual> findByRadius(String query, IndividualSearch searchObject, Boolean includeDeleted, Map<String, Object> paramsMap) {
+        String cte_query = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
+        paramsMap.put("s_latitude", searchObject.getLatitude());
+        paramsMap.put("s_longitude", searchObject.getLongitude());
+        if (searchObject.getIdentifier() != null) {
+            Map<String, Object> identifierParamMap = new HashMap<>();
+            String identifierQuery = getIdentifierQuery(searchObject.getIdentifier(), identifierParamMap);
+            identifierParamMap.put("isDeleted", includeDeleted);
+            List<Identifier> identifiers = this.namedParameterJdbcTemplate
+                    .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
+            if (!identifiers.isEmpty()) {
+                query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
+                paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
+                List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
+                        paramsMap, this.rowMapper);
+                if (!individuals.isEmpty()) {
+                    individuals.forEach(individual -> {
+                        individual.setIdentifiers(identifiers);
+                        List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
+                        individual.setAddress(addresses);
+                        Map<String, Object> indServerGenIdParamMap = new HashMap<>();
+                        indServerGenIdParamMap.put("individualId", individual.getId());
+                        indServerGenIdParamMap.put("isDeleted", includeDeleted);
+                        enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
+                    });
+                }
+                return individuals;
+            }
+        } else {
+            query = cte_query + ", cte_individual AS (" + query + ")";
+            query = query + "SELECT * FROM (SELECT cte_i.*, ( 6371.4 * acos (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )";
+            query = query + "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ) ) ) AS distance FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
+            if(searchObject.getSearchRadius() != null) {
+                query = query + " WHERE rt.distance < :distance ";
+            }
+            query = query + " ORDER BY distance ASC ";
+            paramsMap.put("distance", searchObject.getSearchRadius());
+            List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
+                    paramsMap, this.rowMapper);
+            if (!individuals.isEmpty()) {
+                enrichIndividuals(individuals, includeDeleted);
+            }
+            return individuals;
+        }
+        return Collections.emptyList();
+    }
+
+
+    private Boolean isProximityBasedSearch(IndividualSearch searchObject) {
+        return searchObject.getLatitude() != null && searchObject.getLongitude() != null && searchObject.getSearchRadius() != null;
     }
 
     private void enrichSkills(Boolean includeDeleted, Individual individual, Map<String, Object> indServerGenIdParamMap) {
