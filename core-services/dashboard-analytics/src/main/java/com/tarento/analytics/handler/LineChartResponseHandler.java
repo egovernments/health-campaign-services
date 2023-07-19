@@ -85,8 +85,8 @@ public class LineChartResponseHandler implements IResponseHandler {
 
         if(isPredictionEnabled ){
             List<JsonNode> aggrNodes = aggregationNode.findValues(CHART_SPECIFIC);
-            startDate = aggrNodes.get(0).findValues(START_DATE).get(0).findValues("key").get(0).asLong();
-            endDate = aggrNodes.get(0).findValues(END_DATE).get(0).findValues("key").get(0).asLong();
+            startDate = (aggrNodes.get(0).findValues(START_DATE).get(0).findValues("key").get(0).asLong()/86400000)*86400000;
+            endDate = (aggrNodes.get(0).findValues(END_DATE).get(0).findValues("key").get(0).asLong()/86400000)*86400000;
             interval=Constants.Interval.day.toString();
             addTargetDates(startDate, endDate,targetEpochKeys);
         }
@@ -117,6 +117,7 @@ public class LineChartResponseHandler implements IResponseHandler {
             Set<String> finalBucketKeys = new LinkedHashSet<>();
 
             // For multi aggr, find all plot keys first
+//            enrichBucketKeys(aggrNodes, finalBucketKeys, interval);
             enrichBucketKeys(aggrNodes, finalBucketKeys, interval, startDate, isPredictionEnabled);
             initializeMultiAggrPlotMap(multiAggrPlotMap, finalBucketKeys);
 
