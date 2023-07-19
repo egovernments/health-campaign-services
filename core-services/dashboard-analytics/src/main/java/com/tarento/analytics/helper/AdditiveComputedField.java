@@ -48,7 +48,7 @@ public class AdditiveComputedField implements IComputedField<Data> {
             for (String field: fields){
                 if(plotMap.containsKey(field)){
                     dataType = plotMap.get(field).getSymbol();
-                    if(doesTextExistInArrayNode((ArrayNode) chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD), field)) continue;
+                    if(chartNode.has(IS_CAPPED_BY_CAMPAIGN_PERIOD) && doesTextExistInArrayNode((ArrayNode) chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD), field)) continue;
                     total = total+ plotMap.get(field).getValue();
                 }
             }
