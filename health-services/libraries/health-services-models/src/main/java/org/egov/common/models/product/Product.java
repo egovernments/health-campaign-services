@@ -62,8 +62,5 @@ public class Product {
     @Valid
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
 }
 
