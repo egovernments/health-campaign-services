@@ -33,6 +33,7 @@ public class IndividualMapper {
                 .tenantId(individual.getTenantId())
                 .name(individual.getName().getGivenName())
                 .dob(individual.getDateOfBirth())
+                .gender(individual.getGender().name())
                 .correspondenceAddress(addressLine1)
                 .emailId(individual.getEmail())
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
