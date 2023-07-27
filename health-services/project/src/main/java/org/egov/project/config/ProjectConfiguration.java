@@ -182,4 +182,22 @@ public class ProjectConfiguration {
 
     @Value("${egov.user.id.validator}")
     private String egovUserIdValidator;
+
+    @Value("${project.adverseevent.kafka.create.topic}")
+    private String createAdverseEventTopic;
+
+    @Value("${project.adverseevent.kafka.update.topic}")
+    private String updateAdverseEventTopic;
+
+    @Value("${project.adverseevent.kafka.delete.topic}")
+    private String deleteAdverseEventTopic;
+
+    @Value("${project.adverseevent.consumer.bulk.create.topic}")
+    private String createAdverseEventBulkTopic;
+
+    @Value("${project.adverseevent.consumer.bulk.update.topic}")
+    private String updateAdverseEventBulkTopic;
+
+    @Value("${project.adverseevent.consumer.bulk.delete.topic}")
+    private String deleteAdverseEventBulkTopic;
 }

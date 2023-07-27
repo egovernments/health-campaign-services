@@ -6,10 +6,12 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.project.AdverseEvent;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskResource;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.producer.Producer;
+import org.egov.project.repository.rowmapper.AdverseEventRowMapper;
 import org.egov.project.repository.rowmapper.ProjectTaskRowMapper;
 import org.egov.project.repository.rowmapper.TaskResourceRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,9 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
 
     @Autowired
     private TaskResourceRowMapper taskResourceRowMapper;
+
+    @Autowired
+    private AdverseEventRepository adverseEventRepository;
 
     @Autowired
     protected ProjectTaskRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
@@ -69,6 +74,7 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
         paramsMap.put("offset", offset);
         List<Task> taskList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
         fetchAndSetTaskResource(taskList);
+        fetchAndSetAdverseEvents(taskList);
         return taskList;
     }
 
@@ -120,8 +126,17 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
         List<Task> taskList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
         fetchAndSetTaskResource(taskList);
+        fetchAndSetAdverseEvents(taskList);
         objFound.addAll(taskList);
         putInCache(objFound);
         return objFound;
+    }
+
+    private void fetchAndSetAdverseEvents(List<Task> taskList) {
+        if (taskList.isEmpty()) {
+            return;
+        }
+        Map<String, List<AdverseEvent>> idToObjMap = adverseEventRepository.fetchAdverseEvents(taskList);
+        taskList.forEach(task -> task.setAdverseEvents(idToObjMap.get(task.getId())));
     }
 }
