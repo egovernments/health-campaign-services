@@ -38,7 +38,7 @@ public class ServiceDefinitionService {
     public ServiceDefinition getServiceDefinition(String serviceDefId, String tenantId) {
 
         if (serviceMap.containsKey(serviceDefId)) {
-            log.info("getting project {} from cache",serviceDefId);
+            log.info("getting service definition {} from cache",serviceDefId);
             return serviceMap.get(serviceDefId);
         }
         List<ServiceDefinition> serviceDefinitionList = searchServiceDefinition(serviceDefId, tenantId);
