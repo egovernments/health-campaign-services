@@ -131,8 +131,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
                 paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
                 query = cte_query + ", cte_individual AS (" + query + ")";
-                query = query + "SELECT * FROM (SELECT cte_i.*, ( 6371.4 * acos ( GREATEST ( LEAST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )";
-                query = query + "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), 1), -1) ) ) AS distance FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
+                query = query + "SELECT * FROM (SELECT cte_i.*, ( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )";
+                query = query + "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
                 if(searchObject.getSearchRadius() != null) {
                     query = query + " WHERE rt.distance < :distance ";
                 }
@@ -155,8 +155,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
         } else {
             query = cte_query + ", cte_individual AS (" + query + ")";
-            query = query + "SELECT * FROM (SELECT cte_i.*, ( 6371.4 * acos ( GREATEST ( LEAST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )";
-            query = query + "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), 1), -1) ) ) AS distance FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
+            query = query + "SELECT * FROM (SELECT cte_i.*, ( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )";
+            query = query + "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
             if(searchObject.getSearchRadius() != null) {
                 query = query + " WHERE rt.distance < :distance ";
             }

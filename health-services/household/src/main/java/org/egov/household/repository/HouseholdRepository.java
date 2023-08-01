@@ -91,8 +91,8 @@ public class HouseholdRepository extends GenericRepository<Household> {
 
     public List<Household> findByRadius(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Boolean includeDeleted) throws QueryBuilderException {
         String query = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))\n" +
-                "SELECT * FROM (SELECT h.*, a.*, ( 6371.4 * acos (GREATEST (least (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )\n" +
-                "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), 1), -1) ) ) AS distance \n" +
+                "SELECT * FROM (SELECT h.*, a.*, ( 6371.4 * acos (LEAST (GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )\n" +
+                "+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance \n" +
                 "FROM public.household h LEFT JOIN public.address a ON h.addressid = a.id AND h.tenantid = a.tenantid, cte_search_criteria_waypoint cte_scw ";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
