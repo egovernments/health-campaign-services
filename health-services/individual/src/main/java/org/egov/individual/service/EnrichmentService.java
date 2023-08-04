@@ -49,7 +49,7 @@ public class EnrichmentService {
         this.properties = properties;
     }
 
-    public void create(List<Individual> validIndividuals, IndividualBulkRequest request) throws Exception {
+    public void create(List<Individual> validIndividuals, IndividualBulkRequest request) {
         log.info("starting the enrichment for create individuals");
 
         log.info("extracting tenantId");
