@@ -118,6 +118,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     public List<Individual> findByRadius(String query, IndividualSearch searchObject, Boolean includeDeleted, Map<String, Object> paramsMap) {
+        query = query.replace("LIMIT :limit OFFSET :offset", "");
         String cte_query = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
         paramsMap.put("s_latitude", searchObject.getLatitude());
         paramsMap.put("s_longitude", searchObject.getLongitude());
@@ -137,6 +138,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     query = query + " WHERE rt.distance < :distance ";
                 }
                 query = query + " ORDER BY distance ASC ";
+                query = query + "LIMIT :limit OFFSET :offset";
                 paramsMap.put("distance", searchObject.getSearchRadius());
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
@@ -161,6 +163,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 query = query + " WHERE rt.distance < :distance ";
             }
             query = query + " ORDER BY distance ASC ";
+            query = query + "LIMIT :limit OFFSET :offset";
             paramsMap.put("distance", searchObject.getSearchRadius());
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                     paramsMap, this.rowMapper);
