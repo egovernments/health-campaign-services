@@ -802,7 +802,8 @@ public class CommonUtils {
             } else {
                 Map<String, String> getErrorMap = getErrorMap(errorDetailList);
                 String code =  getErrorMap.keySet().stream().collect(Collectors.joining(":"));
-                throw new CustomException(code, errorDetailsMap.values().toString());
+                String message = getErrorMap.values().stream().collect(Collectors.joining(":"));
+                throw new CustomException(code, message);
             }
         }
     }
