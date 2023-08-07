@@ -25,7 +25,7 @@ public class AdverseEventBulkRequest {
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("AdverseEvent")
+    @JsonProperty("AdverseEvents")
     @NotNull
     @Valid
     @Size(min=1)

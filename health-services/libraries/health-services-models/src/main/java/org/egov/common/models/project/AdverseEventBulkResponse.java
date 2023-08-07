@@ -25,7 +25,7 @@ public class AdverseEventBulkResponse {
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("AdverseEvent")
+    @JsonProperty("AdverseEvents")
     @NotNull
     @Valid
     private List<AdverseEvent> adverseEvents = new ArrayList<>();
