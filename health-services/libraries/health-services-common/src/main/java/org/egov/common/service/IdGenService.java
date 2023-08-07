@@ -37,7 +37,7 @@ public class IdGenService {
     }
 
     public List<String> getIdList(RequestInfo requestInfo, String tenantId, String idName,
-                                  String idFormat, Integer count) throws Exception {
+                                  String idFormat, Integer count)  {
         List<IdRequest> reqList = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             reqList.add(IdRequest.builder().idName(idName).format(idFormat).tenantId(tenantId).build());
