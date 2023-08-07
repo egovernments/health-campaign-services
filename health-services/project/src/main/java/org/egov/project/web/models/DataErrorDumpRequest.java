@@ -1,7 +1,5 @@
 package org.egov.project.web.models;
 
-import java.util.List;
-
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.ErrorQueueContract;
 
@@ -16,5 +14,5 @@ public class DataErrorDumpRequest {
 
 	RequestInfo requestInfo;
 
-	List<ErrorQueueContract> errorEntities;
+	ErrorQueueContract errorQueueContract;
 }
