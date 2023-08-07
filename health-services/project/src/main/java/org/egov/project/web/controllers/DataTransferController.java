@@ -38,7 +38,7 @@ public class DataTransferController {
                 .build());
     }
     
-    @RequestMapping(value = "/data/recoveryindex", method = RequestMethod.POST)
+    @RequestMapping(value = "/data/errordump", method = RequestMethod.POST)
     public ResponseEntity<BandwidthCheckResponse> indexRecoveryData(@ApiParam(value = "Captures failed data from offline client to index", required = true) @Valid @RequestBody DataErrorDumpRequest request) {
         log.info("Request received: {}", request);
         
