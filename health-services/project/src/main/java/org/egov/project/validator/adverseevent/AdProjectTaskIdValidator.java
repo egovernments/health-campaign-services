@@ -44,8 +44,9 @@ public class AdProjectTaskIdValidator implements Validator<AdverseEventBulkReque
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<String> existingProjectTaskIds = projectTaskRepository.validateIds(entityIds,
-                    getIdFieldName(idMethod));
+            List<String> existingProjectTaskIds = projectTaskRepository.findById(entityIds, getIdFieldName(idMethod),Boolean.FALSE)
+                    .stream().map(t -> t.getId())
+                    .collect(Collectors.toList());
             List<AdverseEvent> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                             !existingProjectTaskIds.contains(entity.getTaskId()))
                     .collect(Collectors.toList());

@@ -4,7 +4,7 @@ CREATE TABLE ADVERSE_EVENT(
 	tenantId		        character varying(1000),
     taskId		            character varying(64),
     taskClientReferenceId	character varying(64),
-    symptoms                text[],
+    symptoms                jsonb,
     reAttempts              bigint,
 	createdBy		        character varying(64),
     createdTime             bigint,
