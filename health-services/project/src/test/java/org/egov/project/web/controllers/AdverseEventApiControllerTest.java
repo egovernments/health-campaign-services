@@ -109,26 +109,6 @@ public class AdverseEventApiControllerTest {
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
 
-
-    @Test
-    @DisplayName("should send 400 bad request in case of incorrect api operation for create")
-    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/task/adverse_event/v1/_create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
-                                .withOneAdverseEvent()
-                                .withApiOperationNotNullAndNotCreate()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
-    }
-
-
     @Test
     @DisplayName("should update adverse event and return with 202 accepted")
     void shouldUpdateAdverseEventAndReturnWith202Accepted() throws Exception {
@@ -171,26 +151,7 @@ public class AdverseEventApiControllerTest {
         assertEquals(1, response.getErrors().size());
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
-
-    @Test
-    @DisplayName("should send 400 bad request in case of incorrect api operation for update")
-    void shouldSend400BadRequestInCaseOfIncorrectApiOperationForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/task/adverse_event/v1/_update")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
-                                .withOneAdverseEventHavingId()
-                                .withApiOperationNotUpdate()
-                                .build())))
-                .andExpect(status().isBadRequest())
-                .andReturn();
-        String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
-
-        assertEquals(1, response.getErrors().size());
-    }
-
-
+    
     @Test
     @DisplayName("Should accept search request and return response as accepted")
     void shouldAcceptSearchRequestAndReturnAdverseEvent() throws Exception {

@@ -171,6 +171,8 @@ serviceMaps:
             - jsonPath: $.*.taskId
             - jsonPath: $.*.taskClientReferenceId
             - jsonPath: $.*.symptoms
+              type: JSON
+              dbType: JSONB
             - jsonPath: $.*.reAttempts
             - jsonPath: $.*.auditDetails.createdBy
             - jsonPath: $.*.auditDetails.createdTime
@@ -193,6 +195,8 @@ serviceMaps:
             - jsonPath: $.*.taskId
             - jsonPath: $.*.taskClientReferenceId
             - jsonPath: $.*.symptoms
+              type: JSON
+              dbType: JSONB
             - jsonPath: $.*.reAttempts
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
@@ -203,7 +207,7 @@ serviceMaps:
 
     - version: 1.0
       description: Deletes a adverse event
-      fromTopic: delete-project-task-topic
+      fromTopic: delete-adverse-event-topic
       isTransaction: true
       queryMaps:
         - query: UPDATE ADVERSE_EVENT SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
