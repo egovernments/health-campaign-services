@@ -1,5 +1,7 @@
 package org.egov.project.validator.adverseevent;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.AdverseEvent;
@@ -28,9 +30,12 @@ public class AdNonExistentEntityValidator implements Validator<AdverseEventBulkR
 
     private final AdverseEventRepository adverseEventRepository;
 
+    private final ObjectMapper objectMapper;
+
     @Autowired
-    public AdNonExistentEntityValidator(AdverseEventRepository adverseEventRepository) {
+    public AdNonExistentEntityValidator(AdverseEventRepository adverseEventRepository, ObjectMapper objectMapper) {
         this.adverseEventRepository = adverseEventRepository;
+        this.objectMapper = objectMapper;
     }
 
 
@@ -44,9 +49,14 @@ public class AdNonExistentEntityValidator implements Validator<AdverseEventBulkR
         Map<String, AdverseEvent> iMap = getIdToObjMap(adverseEvents
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
-            List<String> beneficiaryIds = new ArrayList<>(iMap.keySet());
+            List<String> adverseEventIds = new ArrayList<>(iMap.keySet());
             List<AdverseEvent> existingAdverseEvents = adverseEventRepository
-                    .findById(beneficiaryIds, false, getIdFieldName(idMethod));
+                    .findById(adverseEventIds, false, getIdFieldName(idMethod));
+            existingAdverseEvents.forEach(eAD -> {
+                if(iMap.containsKey(eAD.getId())) {
+                    iMap.get(eAD.getId()).setRowVersion(eAD.getRowVersion());
+                }
+            });
             List<AdverseEvent> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingAdverseEvents, idMethod);
             nonExistentIndividuals.forEach(adverseEvent -> {
