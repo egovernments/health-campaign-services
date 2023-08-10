@@ -180,8 +180,11 @@ public class AdverseEventService {
         try {
             if (!validAdverseEvents.isEmpty()) {
                 log.info("processing {} valid entities", validAdverseEvents.size());
-                adverseEventEnrichmentService.delete(validAdverseEvents, adverseEventRequest);
-                adverseEventRepository.save(validAdverseEvents,
+                List<String> adverseEventIds = validAdverseEvents.stream().map(entity -> entity.getId()).collect(Collectors.toSet()).stream().collect(Collectors.toList());
+                List<AdverseEvent> existingAdverseEvents = adverseEventRepository
+                        .findById(adverseEventIds, false);
+                adverseEventEnrichmentService.delete(existingAdverseEvents, adverseEventRequest);
+                adverseEventRepository.save(existingAdverseEvents,
                         projectConfiguration.getDeleteAdverseEventTopic());
                 log.info("successfully deleted entities");
             }

@@ -52,11 +52,6 @@ public class AdNonExistentEntityValidator implements Validator<AdverseEventBulkR
             List<String> adverseEventIds = new ArrayList<>(iMap.keySet());
             List<AdverseEvent> existingAdverseEvents = adverseEventRepository
                     .findById(adverseEventIds, false, getIdFieldName(idMethod));
-            existingAdverseEvents.forEach(eAD -> {
-                if(iMap.containsKey(eAD.getId())) {
-                    iMap.get(eAD.getId()).setRowVersion(eAD.getRowVersion());
-                }
-            });
             List<AdverseEvent> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingAdverseEvents, idMethod);
             nonExistentIndividuals.forEach(adverseEvent -> {

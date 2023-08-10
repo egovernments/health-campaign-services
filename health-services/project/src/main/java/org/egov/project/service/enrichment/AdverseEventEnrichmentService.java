@@ -7,6 +7,8 @@ import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.project.config.ProjectConfiguration;
+import org.egov.project.repository.AdverseEventRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -15,11 +17,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.egov.common.utils.CommonUtils.enrichForCreate;
-import static org.egov.common.utils.CommonUtils.enrichForDelete;
-import static org.egov.common.utils.CommonUtils.enrichForUpdate;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.*;
 
 @Component
 @Slf4j
@@ -29,9 +27,12 @@ public class AdverseEventEnrichmentService {
 
     private final ProjectConfiguration projectConfiguration;
 
-    public AdverseEventEnrichmentService(IdGenService idGenService, ProjectConfiguration projectConfiguration) {
+    private final AdverseEventRepository adverseEventRepository;
+
+    public AdverseEventEnrichmentService(IdGenService idGenService, ProjectConfiguration projectConfiguration, AdverseEventRepository adverseEventRepository) {
         this.idGenService = idGenService;
         this.projectConfiguration = projectConfiguration;
+        this.adverseEventRepository = adverseEventRepository;
     }
 
     public void create(List<AdverseEvent> entities, AdverseEventBulkRequest request) throws Exception {
