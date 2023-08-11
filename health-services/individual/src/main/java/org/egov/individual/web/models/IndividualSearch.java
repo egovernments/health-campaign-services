@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+
 import org.egov.common.data.query.annotations.Exclude;
 import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Identifier;
@@ -30,6 +32,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
     @JsonIgnoreProperties(ignoreUnknown = true)
 public class IndividualSearch   {
     @JsonProperty("id")
