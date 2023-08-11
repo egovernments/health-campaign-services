@@ -105,7 +105,9 @@ public class IndividualEncryptionService {
                     if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                         Identifier identifierSearch = Identifier.builder().identifierType(identifier
                                 .getIdentifierType()).identifierId(identifier.getIdentifierId()).build();
-                        IndividualSearch individualSearch = IndividualSearch.builder().identifier(identifierSearch).build();
+                        IndividualSearch individualSearch = IndividualSearch.builder()
+                                .name(individual.getName())
+                                .identifier(identifierSearch).build();
                         List<Individual> individualsList = null;
                         try {
                             individualsList = individualRepository.find(individualSearch,null,

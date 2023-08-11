@@ -124,17 +124,15 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private String getQueryForIndividual(IndividualSearch searchObject, Integer limit, Integer offset,
                                          String tenantId, Long lastChangedSince,
                                          Boolean includeDeleted, Map<String, Object> paramsMap) {
-        String query = "SELECT * FROM individual";
-        List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
-        query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-
-        query += " AND tenantId=:tenantId ";
-        if (query.contains(tableName + " AND")) {
-            query = query.replace(tableName + " AND", tableName + " WHERE ");
+        String query = "SELECT * FROM individual WHERE";
+          query += " tenantId=:tenantId ";
+        if(searchObject.getIndividualId() != null){
+            query = query + "AND individualId =:individualId ";
+            paramsMap.put("individualId", searchObject.getIndividualId());
         }
-        if (searchObject.getIndividualName() != null) {
-            query = query + "AND givenname LIKE :individualName ";
-            paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
+        if (searchObject.getName() != null) {
+            query = query + " AND LOWER(givenname) LIKE LOWER(:individualName) ";
+            paramsMap.put("individualName", "%"+ searchObject.getName().getGivenName().toLowerCase() + "%");
         }
         if (searchObject.getGender() != null) {
             query = query + "AND gender =:gender ";

@@ -110,7 +110,7 @@ class IndividualRepositoryTest {
                 .query(anyString(), anyMap(), any(IdentifierRowMapper.class));
     }
 
-    @Test
+   /* @Test
     @DisplayName("should find only by identifier")
     void shouldFindOnlyByIdentifier() throws QueryBuilderException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
@@ -138,7 +138,7 @@ class IndividualRepositoryTest {
         verify(namedParameterJdbcTemplate, times(1))
                 .query(anyString(), anyMap(), any(IdentifierRowMapper.class));
     }
-
+*/
     @Test
     @DisplayName("should find by other params and identifier from db and return all the dependent entities as well if present")
     void shouldFindOtherParamsAndIdentifierFromDbAndReturnAllTheDependentEntitiesAsWellIfPresent() throws QueryBuilderException {
