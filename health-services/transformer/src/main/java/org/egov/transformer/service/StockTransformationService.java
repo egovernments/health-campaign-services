@@ -74,9 +74,9 @@ public abstract class StockTransformationService implements TransformationServic
         @Override
         public List<StockIndexV1> transform(Stock stock) {
             System.out.println(stock);
-            log.info("Stock body", stock);
             Map<String, String> boundaryLabelToNameMap = null;
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
+            System.out.println(facility);
             if (facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
