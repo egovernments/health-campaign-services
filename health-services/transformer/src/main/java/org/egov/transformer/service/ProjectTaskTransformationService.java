@@ -65,7 +65,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
         @Override
         public List<ProjectTaskIndexV1> transform(Task task) {
-            System.out.println(task);
             Map<String, String> boundaryLabelToNameMap = null;
             if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
@@ -97,10 +96,12 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .village(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getVillage()) : null)
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
+                            .locationAccuracy(task.getAddress().getLocationAccuracy())
                             .createdTime(task.getAuditDetails().getCreatedTime())
                             .createdBy(task.getAuditDetails().getCreatedBy())
                             .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
                             .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
+                            .projectBeneficiaryClientReferenceId(task.getProjectBeneficiaryClientReferenceId())
                             .isDeleted(task.getIsDeleted())
                             .build()
             ).collect(Collectors.toList());
