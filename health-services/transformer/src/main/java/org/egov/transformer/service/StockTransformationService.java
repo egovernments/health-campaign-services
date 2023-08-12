@@ -73,10 +73,9 @@ public abstract class StockTransformationService implements TransformationServic
 
         @Override
         public List<StockIndexV1> transform(Stock stock) {
-            System.out.println(stock);
             Map<String, String> boundaryLabelToNameMap = null;
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
-            System.out.println(facility);
+            Facility transactingFacility = facilityService.findFacilityById((stock.getTransactingPartyId()), stock.getTenantId());
             if (facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
@@ -92,6 +91,8 @@ public abstract class StockTransformationService implements TransformationServic
                     .productVariant(stock.getProductVariantId())
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
+                    .transactingFacilityId(stock.getTransactingPartyId())
+                    .transactingFacilityName(transactingFacility.getName())
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())
