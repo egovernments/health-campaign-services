@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.stock.TransactionReason;
 import org.egov.common.models.stock.TransactionType;
 
@@ -76,4 +77,7 @@ public class StockIndexV1 {
 
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime;
+
+    @JsonProperty("additionalFields")
+    private AdditionalFields additionalFields;
 }

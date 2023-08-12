@@ -110,6 +110,7 @@ public abstract class StockTransformationService implements TransformationServic
                             boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                     .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
+                    .additionalFields(stock.getAdditionalFields())
                     .build());
         }
     }
