@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Controller
-@RequestMapping("/error-handler")
+@RequestMapping("")
 public class ErrorHandlerController {
 
     @Autowired
