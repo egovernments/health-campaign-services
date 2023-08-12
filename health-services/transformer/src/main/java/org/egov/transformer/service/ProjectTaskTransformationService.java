@@ -65,6 +65,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
         @Override
         public List<ProjectTaskIndexV1> transform(Task task) {
+            System.out.println(task);
             Map<String, String> boundaryLabelToNameMap = null;
             if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
