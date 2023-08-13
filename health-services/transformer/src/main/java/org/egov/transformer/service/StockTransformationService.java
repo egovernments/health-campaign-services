@@ -75,7 +75,6 @@ public abstract class StockTransformationService implements TransformationServic
         public List<StockIndexV1> transform(Stock stock) {
             Map<String, String> boundaryLabelToNameMap = null;
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
-            Facility transactingFacility = facilityService.findFacilityById((stock.getTransactingPartyId()), stock.getTenantId());
             if (facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
@@ -86,13 +85,22 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
 
+            String transactingPartyName = null;
+            if (stock.getTransactingPartyType()=="WAREHOUSE") {
+                Facility transactingFacility = facilityService.findFacilityById((stock.getTransactingPartyId()), stock.getTenantId());
+                transactingPartyName = transactingFacility.getName();
+            } else {
+                transactingPartyName = stock.getTransactingPartyId();
+            }
+
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
                     .productVariant(stock.getProductVariantId())
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
                     .transactingFacilityId(stock.getTransactingPartyId())
-                    .transactingFacilityName(transactingFacility.getName())
+                    .transactingPartyName(transactingPartyName)
+                    .transactingPartyType(stock.getTransactingPartyType())
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())
