@@ -96,10 +96,12 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .village(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getVillage()) : null)
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
+                            .locationAccuracy(task.getAddress().getLocationAccuracy())
                             .createdTime(task.getAuditDetails().getCreatedTime())
                             .createdBy(task.getAuditDetails().getCreatedBy())
                             .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
                             .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
+                            .projectBeneficiaryClientReferenceId(task.getProjectBeneficiaryClientReferenceId())
                             .isDeleted(task.getIsDeleted())
                             .build()
             ).collect(Collectors.toList());

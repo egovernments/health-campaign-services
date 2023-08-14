@@ -66,7 +66,7 @@ public class FacilityRepository extends GenericRepository<Facility> {
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "f.id IN (:id)");
-
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "f.clientReferenceId IN (:clientReferenceId)");
         query = query + " and f.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and isDeleted=:isDeleted ";

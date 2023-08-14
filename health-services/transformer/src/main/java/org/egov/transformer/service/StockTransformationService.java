@@ -85,11 +85,22 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
 
+            String transactingPartyName = null;
+            if (stock.getTransactingPartyType()=="WAREHOUSE") {
+                Facility transactingFacility = facilityService.findFacilityById((stock.getTransactingPartyId()), stock.getTenantId());
+                transactingPartyName = transactingFacility.getName();
+            } else {
+                transactingPartyName = stock.getTransactingPartyId();
+            }
+
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
                     .productVariant(stock.getProductVariantId())
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
+                    .transactingFacilityId(stock.getTransactingPartyId())
+                    .transactingPartyName(transactingPartyName)
+                    .transactingPartyType(stock.getTransactingPartyType())
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())
@@ -108,6 +119,7 @@ public abstract class StockTransformationService implements TransformationServic
                             boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                     .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
+                    .additionalFields(stock.getAdditionalFields())
                     .build());
         }
     }

@@ -49,6 +49,8 @@ public class ProjectTaskIndexV1 {
     private Double latitude;
     @JsonProperty("longitude")
     private Double longitude;
+    @JsonProperty("locationAccuracy")
+    private Double locationAccuracy;
     @JsonProperty("createdBy")
     private String createdBy;
     @JsonProperty("lastModifiedBy")
@@ -59,4 +61,6 @@ public class ProjectTaskIndexV1 {
     private Long lastModifiedTime;
     @JsonProperty("isDeleted")
     private boolean isDeleted;
+    @JsonProperty("projectBeneficiaryClientReferenceId")
+    private String projectBeneficiaryClientReferenceId;
 }
