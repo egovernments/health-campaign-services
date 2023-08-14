@@ -19,11 +19,7 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -40,6 +36,8 @@ public class BoundaryService {
 
     private static final Map<String, List<Boundary>> boundaryListMap = new ConcurrentHashMap<>();
 
+    private static final List<BoundaryTree> cachedBoundaryTree = new ArrayList<>();
+
     public BoundaryService(TransformerProperties transformerProperties,
                            ServiceRequestClient serviceRequestClient,
                            ObjectMapper objectMapper, TreeGenerator treeGenerator) {
@@ -49,18 +47,43 @@ public class BoundaryService {
         this.treeGenerator = treeGenerator;
     }
 
-    public List<Boundary> getBoundary(String code, String hierarchyTypeCode, String tenantId) {
-        if (boundaryListMap.containsKey(code)) {
-            log.info("getting boudary data for code {} from cache", code);
-            return boundaryListMap.get(code);
-        }
-        List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
-        if (!boundaryList.isEmpty()) {
-            boundaryListMap.put(code, boundaryList);
+    public BoundaryTree getBoundary(String code, String hierarchyTypeCode, String tenantId) {
+        if(cachedBoundaryTree.isEmpty()) {
+            List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+            if(boundaryList.isEmpty()) return null;
+            BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
+            BoundaryTree locationTree = search(boundaryTree, code);
+            log.info("no cached boundary tree, adding current tree into the cache");
+            cachedBoundaryTree.add(locationTree);
+            return locationTree;
         } else {
-            boundaryList = Collections.emptyList();
+            BoundaryTree cachedItem =  cachedBoundaryTree.get(0);
+            BoundaryTree searchedFromCache = search(cachedItem, code);
+            if(searchedFromCache !=null) {
+                BoundaryTree finalTree = searchedFromCache;
+                return searchedFromCache;
+            } else {
+                List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+                if(boundaryList.isEmpty()) return null;
+                BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
+                BoundaryTree locationTree = search(boundaryTree, code);
+                cachedBoundaryTree.clear();
+                cachedBoundaryTree.add(locationTree);
+                return cachedBoundaryTree.get(0);
+            }
         }
-        return boundaryList;
+
+//        if (boundaryListMap.containsKey(code)) {
+//            log.info("getting boudary data for code {} from cache", code);
+//            return boundaryListMap.get(code);
+//        }
+//        List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+//        if (!boundaryList.isEmpty()) {
+//            boundaryListMap.put(code, boundaryList);
+//        } else {
+//            boundaryList = Collections.emptyList();
+//        }
+//        return boundaryList;
     }
 
     public BoundaryTree generateTree(Boundary boundary) {

@@ -98,10 +98,12 @@ public class ProjectService {
     }
 
     public Map<String, String> getBoundaryLabelToNameMap(String locationCode, String tenantId) {
-        List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
+//        List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
+//                tenantId);
+//        BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
+//        BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
+        BoundaryTree locationTree = boundaryService.getBoundary(locationCode, "ADMIN",
                 tenantId);
-        BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
-        BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
         List<BoundaryNode> parentNodes = locationTree.getParentNodes();
         Map<String, String> resultMap = parentNodes.stream().collect(Collectors
                 .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
