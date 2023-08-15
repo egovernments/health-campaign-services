@@ -8,4 +8,5 @@ public interface Constants {
     String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
 
     String PROJECT = "PROJECT";
+    String WAREHOUSE = "WAREHOUSE";
 }
