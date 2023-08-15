@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
 
@@ -76,8 +77,19 @@ public abstract class ServiceTaskTransformationService implements Transformation
             String[] parts = serviceDefinition.getCode().split("\\.");
             String projectName = parts[0];
             String supervisorLevel = parts[2];
-            String projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
-            Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
+            String projectId = null;
+            if (service.getAccountId() != null) {
+                projectId = service.getAccountId();
+            } else {
+                projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
+            }
+            Map<String, String> boundaryLabelToNameMap = null;
+            if (service.getAdditionalDetails() != null) {
+                boundaryLabelToNameMap = projectService
+                        .getBoundaryLabelToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
+            } else {
+                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
+            }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
             return Collections.singletonList(ServiceIndexV1.builder()

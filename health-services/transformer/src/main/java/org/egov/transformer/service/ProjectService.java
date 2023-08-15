@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
@@ -47,7 +46,7 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
-    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
+//    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
@@ -61,33 +60,33 @@ public class ProjectService {
 
 
     public void updateProjectsInCache(ProjectRequest projectRequest) {
-        projectRequest.getProjects().forEach(project -> projectMap.put(project.getId(), project));
+//        projectRequest.getProjects().forEach(project -> projectMap.put(project.getId(), project));
     }
 
     public Project getProject(String projectId, String tenantId) {
-        if (projectMap.containsKey(projectId)) {
-            log.info("getting project {} from cache", projectId);
-            return projectMap.get(projectId);
-        }
+//        if (projectMap.containsKey(projectId)) {
+//            log.info("getting project {} from cache", projectId);
+//            return projectMap.get(projectId);
+//        }
         List<Project> projects = searchProject(projectId, tenantId);
         Project project = null;
         if (!projects.isEmpty()) {
             project = projects.get(0);
-            projectMap.put(projectId, project);
+//            projectMap.put(projectId, project);
         }
         return project;
     }
 
     public Project getProjectByName(String projectName, String tenantId) {
-        if (projectMap.containsKey(projectName)) {
-            log.info("getting project {} from cache", projectName);
-            return projectMap.get(projectName);
-        }
+//        if (projectMap.containsKey(projectName)) {
+//            log.info("getting project {} from cache", projectName);
+//            return projectMap.get(projectName);
+//        }
         List<Project> projects = searchProjectByName(projectName, tenantId);
         Project project = null;
         if (!projects.isEmpty()) {
             project = projects.get(0);
-            projectMap.put(projectName, project);
+//            projectMap.put(projectName, project);
         }
         return project;
     }

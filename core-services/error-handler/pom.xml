@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.2.6.RELEASE</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>org.egov</groupId>
+	<artifactId>error-handler</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<name>error-handler</name>
+	<description>Dump service to accept error queue objects</description>
+	<properties>
+		<java.version>8</java.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.egov.services</groupId>
+			<artifactId>tracer</artifactId>
+			<version>2.1.4-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+	</dependencies>
+
+	<repositories>
+		<repository>
+			<id>repo.egovernments.org</id>
+			<name>eGov ERP Releases Repository</name>
+			<url>https://nexus-repo.egovernments.org/nexus/content/repositories/releases/</url>
+		</repository>
+		<repository>
+			<id>repo.egovernments.org.snapshots</id>
+			<name>eGov ERP Releases Repository</name>
+			<url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots/</url>
+		</repository>
+		<repository>
+			<id>repo.egovernments.org.public</id>
+			<name>eGov Public Repository Group</name>
+			<url>https://nexus-repo.egovernments.org/nexus/content/groups/public/</url>
+		</repository>
+		<repository>
+			<id>repo.digit.org</id>
+			<name>eGov DIGIT Releases Repository</name>
+			<url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots/</url>
+		</repository>
+	</repositories>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

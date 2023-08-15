@@ -31,8 +31,9 @@ public class IndividualMapper {
                 .id(id)
                 .uuid(individual.getUserUuid())
                 .tenantId(individual.getTenantId())
-                .name(String.join(" ", individual.getName().getGivenName(),
-                        individual.getName().getFamilyName()))
+                .name(individual.getName().getGivenName())
+                .dob(individual.getDateOfBirth())
+                .gender(individual.getGender() != null ? individual.getGender().name() : null)
                 .correspondenceAddress(addressLine1)
                 .emailId(individual.getEmail())
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))

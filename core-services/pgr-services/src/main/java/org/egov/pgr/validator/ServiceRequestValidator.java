@@ -78,7 +78,6 @@ public class ServiceRequestValidator {
         String id = request.getService().getId();
         validateSource(request.getService().getSource());
         validateMDMS(request, mdmsData);
-        validateDepartment(request, mdmsData);
         validateReOpen(request);
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().ids(Collections.singleton(id)).build();
         criteria.setIsPlainSearch(false);
@@ -158,11 +157,12 @@ public class ServiceRequestValidator {
 
         String serviceCode = request.getService().getServiceCode();
         List<String> assignes = request.getWorkflow().getAssignes();
+        List<String> hrmsAssignes = request.getWorkflow().getHrmsAssignes();
 
-        if(CollectionUtils.isEmpty(assignes))
+        if(CollectionUtils.isEmpty(hrmsAssignes))
             return;
 
-        List<String> departments = hrmsUtil.getDepartment(assignes, request.getRequestInfo());
+        List<String> departments = hrmsUtil.getDepartment(hrmsAssignes, request.getRequestInfo());
 
         String jsonPath = MDMS_DEPARTMENT_SEARCH.replace("{SERVICEDEF}",serviceCode);
 
