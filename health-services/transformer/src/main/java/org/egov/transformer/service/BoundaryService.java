@@ -19,11 +19,7 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -38,7 +34,7 @@ public class BoundaryService {
 
     private final TreeGenerator treeGenerator;
 
-    private static final Map<String, List<Boundary>> boundaryListMap = new ConcurrentHashMap<>();
+    private static final List<BoundaryTree> cachedBoundaryTree = new ArrayList<>();
 
     public BoundaryService(TransformerProperties transformerProperties,
                            ServiceRequestClient serviceRequestClient,
@@ -49,20 +45,36 @@ public class BoundaryService {
         this.treeGenerator = treeGenerator;
     }
 
-    public List<Boundary> getBoundary(String code, String hierarchyTypeCode, String tenantId) {
-        if (boundaryListMap.containsKey(code)) {
-            log.info("getting boudary data for code {} from cache", code);
-            return boundaryListMap.get(code);
-        }
-        List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
-        if (!boundaryList.isEmpty()) {
-            boundaryListMap.put(code, boundaryList);
+    public BoundaryTree getBoundary(String code, String hierarchyTypeCode, String tenantId) {
+        if(cachedBoundaryTree.isEmpty()) {
+            BoundaryTree locationTree = generateLocationTree(code, hierarchyTypeCode, tenantId);
+            log.info("no cached boundary tree, adding current tree into the cache");
+            cachedBoundaryTree.add(locationTree);
+            return locationTree;
         } else {
-            boundaryList = Collections.emptyList();
+            log.info("fetching boundary {} from cached tree", code);
+            BoundaryTree cachedItem =  cachedBoundaryTree.get(0);
+            BoundaryTree searchedFromCache = search(cachedItem, code);
+            if(searchedFromCache !=null) {
+                return searchedFromCache;
+            } else {
+                log.info("boundary code {} not in cached tree, generating new tree", code);
+                BoundaryTree locationTree = generateLocationTree(code, hierarchyTypeCode, tenantId);
+                cachedBoundaryTree.clear();
+                cachedBoundaryTree.add(locationTree);
+                return cachedBoundaryTree.get(0);
+            }
         }
-        return boundaryList;
     }
 
+    public BoundaryTree generateLocationTree (String code, String hierarchyTypeCode, String tenantId) {
+        List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+        if(boundaryList.isEmpty()) return null;
+        BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
+        BoundaryTree locationTree = search(boundaryTree, code);
+        return locationTree;
+
+    }
     public BoundaryTree generateTree(Boundary boundary) {
         return treeGenerator.generateTree(boundary);
     }

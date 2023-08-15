@@ -86,7 +86,7 @@ public abstract class StockTransformationService implements TransformationServic
             }
 
             String transactingPartyName = null;
-            if (stock.getTransactingPartyType()=="WAREHOUSE") {
+            if (stock.getTransactingPartyType().toString()=="WAREHOUSE") {
                 Facility transactingFacility = facilityService.findFacilityById((stock.getTransactingPartyId()), stock.getTenantId());
                 transactingPartyName = transactingFacility.getName();
             } else {
