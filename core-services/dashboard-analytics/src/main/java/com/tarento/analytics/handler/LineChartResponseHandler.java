@@ -234,8 +234,12 @@ public class LineChartResponseHandler implements IResponseHandler {
 
             }
         }
-        if (computedFields != null && computedFields.size()!= 0 && computedFields.get(0).has("sort")) {
-            String sortingKey = computedFields.get(0).get("sort").asText();
+        if (computedFields != null && computedFields.size()!= 0 && computedFields.get(0).has(SORT)) {
+            String sortingKey = computedFields.get(0).get(SORT).asText();
+            dataList = sortingHelper.sort(sortingKey, dataList);
+        }
+        if (chartNode.has(SORT)) {
+            String sortingKey = chartNode.get(SORT).asText();
             dataList = sortingHelper.sort(sortingKey, dataList);
         }
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
