@@ -34,7 +34,7 @@ public class BoundaryService {
 
     private final TreeGenerator treeGenerator;
 
-    private static final List<BoundaryTree> cachedBoundaryTree = new ArrayList<>();
+    private static BoundaryTree cachedBoundaryTree = null;
 
     public BoundaryService(TransformerProperties transformerProperties,
                            ServiceRequestClient serviceRequestClient,
@@ -46,36 +46,35 @@ public class BoundaryService {
     }
 
     public BoundaryTree getBoundary(String code, String hierarchyTypeCode, String tenantId) {
-        if(cachedBoundaryTree.isEmpty()) {
-            BoundaryTree locationTree = generateLocationTree(code, hierarchyTypeCode, tenantId);
-            log.info("no cached boundary tree, adding current tree into the cache");
-            cachedBoundaryTree.add(locationTree);
-            return locationTree;
-        } else {
-            log.info("fetching boundary {} from cached tree", code);
-            BoundaryTree cachedItem =  cachedBoundaryTree.get(0);
-            BoundaryTree searchedFromCache = search(cachedItem, code);
-            if(searchedFromCache !=null) {
-                return searchedFromCache;
-            } else {
-                log.info("boundary code {} not in cached tree, generating new tree", code);
-                BoundaryTree locationTree = generateLocationTree(code, hierarchyTypeCode, tenantId);
-                cachedBoundaryTree.clear();
-                cachedBoundaryTree.add(locationTree);
-                return cachedBoundaryTree.get(0);
-            }
-        }
+        return generateLocationTree(code, hierarchyTypeCode, tenantId);
     }
 
     public BoundaryTree generateLocationTree (String code, String hierarchyTypeCode, String tenantId) {
-        List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
-        if(boundaryList.isEmpty()) return null;
-        BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
-        BoundaryTree locationTree = search(boundaryTree, code);
-        return locationTree;
-
+        if(cachedBoundaryTree != null) {
+            List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+            if(boundaryList.isEmpty()) return null;
+            log.info("no cached boundary tree, adding current tree into the cache");
+            BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
+            cachedBoundaryTree = boundaryTree;
+            return search(cachedBoundaryTree, code);
+        }
+        else {
+            log.info("fetching boundary {} from cached tree", code);
+            BoundaryTree searchedFromCache = search(cachedBoundaryTree, code);
+            if(searchedFromCache != null) {
+                return searchedFromCache;
+            } else {
+                List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+                if(boundaryList.isEmpty()) return null;
+                log.info("boundary code {} not in cached tree, generating new tree", code);
+                BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
+                cachedBoundaryTree = boundaryTree;
+                return search(cachedBoundaryTree, code);
+            }
+        }
     }
     public BoundaryTree generateTree(Boundary boundary) {
+
         return treeGenerator.generateTree(boundary);
     }
 
