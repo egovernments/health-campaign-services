@@ -10,6 +10,7 @@ import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.stock.helper.StockBulkRequestTestBuilder;
 import org.egov.stock.helper.StockReconciliationBulkRequestTestBuilder;
 import org.egov.stock.service.FacilityService;
+import org.egov.stock.service.ProjectStaffService;
 import org.egov.stock.validator.stock.SFacilityIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrFacilityIdValidator;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +39,9 @@ class FacilityIdValidatorTest {
 
     @Mock
     private FacilityService facilityService;
+
+    @Mock
+    private ProjectStaffService projectStaffService;
 
     private void mockEmptyResponse() {
         when(facilityService.validateFacilityIds(any(List.class),

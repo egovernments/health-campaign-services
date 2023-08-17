@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.stock.Constants.GET_REFERENCE_ID;
 import static org.egov.stock.Constants.PROJECT;
+import static org.egov.stock.Constants.STAFF;
 import static org.egov.stock.util.ValidatorUtil.validateProjectFacilityMappings;
 
 @Component
@@ -35,11 +36,11 @@ public class SReferenceIdValidator implements Validator<StockBulkRequest, Stock>
         log.info("validating for reference id");
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
 
-        List<Stock> validEntities = request.getStock().stream()
+        Map<Boolean, List<Stock>> validEntitiesMap = request.getStock().stream()
                 .filter(notHavingErrors())
                 .filter(entity -> PROJECT.equals(entity.getReferenceIdType()))
-                .collect(Collectors.toList());
-        return validateProjectFacilityMappings(request, errorDetailsMap, validEntities,
+                .collect(Collectors.partitioningBy(entity -> entity.getTransactingPartyType().equals(STAFF)));
+        return validateProjectFacilityMappings(request, errorDetailsMap, validEntitiesMap.get(Boolean.FALSE),
                 GET_REFERENCE_ID, facilityService);
     }
 }
