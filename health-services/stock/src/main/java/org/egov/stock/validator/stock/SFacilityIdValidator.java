@@ -44,6 +44,7 @@ public class SFacilityIdValidator implements Validator<StockBulkRequest, Stock> 
                 .filter(notHavingErrors())
                 .collect(Collectors.partitioningBy(entity -> entity.getTransactingPartyType().equals(STAFF)));
         validateFacilityIds(request, errorDetailsMap, validEntitiesMap.get(Boolean.FALSE), GET_FACILITY_ID, facilityService);
+        log.info("validating for project staff user id");
         projectStaffService.validateStaffIds(request, errorDetailsMap, validEntitiesMap.get(Boolean.TRUE), GET_FACILITY_ID);
         return errorDetailsMap;
     }

@@ -1,10 +1,14 @@
 package org.egov.stock.service;
 
-import digit.models.coremodels.UserSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
-import org.egov.common.service.UserService;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkResponse;
+import org.egov.common.models.project.ProjectStaffSearch;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
+import org.egov.stock.config.StockConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -23,10 +27,13 @@ import static org.egov.stock.Constants.GET_REQUEST_INFO;
 @Slf4j
 public class ProjectStaffService {
 
-    private final UserService userService;
+    private final StockConfiguration stockConfiguration;
 
-    public ProjectStaffService(UserService userService) {
-        this.userService = userService;
+    private final ServiceRequestClient serviceRequestClient;
+
+    public ProjectStaffService(StockConfiguration stockConfiguration, ServiceRequestClient serviceRequestClient) {
+        this.stockConfiguration = stockConfiguration;
+        this.serviceRequestClient = serviceRequestClient;
     }
 
     /**
@@ -55,12 +62,24 @@ public class ProjectStaffService {
 
             if (!eMap.isEmpty()) {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
-                UserSearchRequest userSearchRequest = new UserSearchRequest();
-                userSearchRequest.setRequestInfo(requestInfo);
-                userSearchRequest.setUuid(entityIds);
+                ProjectStaffSearchRequest projectStaffSearchRequest =
+                        ProjectStaffSearchRequest.builder().requestInfo(requestInfo).projectStaff(
+                                ProjectStaffSearch.builder().staffId(entityIds.stream().distinct().findFirst().get()).build()
+                        ).build();
+//                UserSearchRequest userSearchRequest = new UserSearchRequest();
+//                userSearchRequest.setRequestInfo(requestInfo);
+//                userSearchRequest.setUuid(entityIds);
                 try {
-                    List<String> existingUserIds = userService.search(userSearchRequest).stream()
-                            .map(entity -> entity.getUuid()).collect(Collectors.toList());
+//                    List<String> existingUserIds = userService.search(userSearchRequest).stream()
+//                            .map(entity -> entity.getUuid()).collect(Collectors.toList());
+                    ProjectStaffBulkResponse response = serviceRequestClient.fetchResult(
+                            new StringBuilder(stockConfiguration.getProjectStaffServiceHost()
+                                    + stockConfiguration.getProjectStaffServiceSearchUrl()
+                                    + "?limit=" + entityIds.size()
+                                    + "&offset=0&tenantId=" + tenantId),
+                            projectStaffSearchRequest,
+                            ProjectStaffBulkResponse.class);
+                    List<String> existingUserIds = response.getProjectStaff().stream().map(ProjectStaff::getUserId).collect(Collectors.toList());
                     List<T> invalidEntities = validEntities.stream()
                             .filter(notHavingErrors()).filter(entity ->
                                     !existingUserIds.contains((String) ReflectionUtils.invokeMethod(idMethod, entity)))
