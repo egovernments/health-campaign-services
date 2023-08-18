@@ -234,10 +234,12 @@ public class LineChartResponseHandler implements IResponseHandler {
 
             }
         }
+        //"sort" key as final String
         if (computedFields != null && computedFields.size()!= 0 && computedFields.get(0).has(SORT)) {
             String sortingKey = computedFields.get(0).get(SORT).asText();
             dataList = sortingHelper.sort(sortingKey, dataList);
         }
+        //We already have value sorting feature enabled, implementing the same for key sorting
         if (chartNode.has(SORT)) {
             String sortingKey = chartNode.get(SORT).asText();
             dataList = sortingHelper.sort(sortingKey, dataList);
