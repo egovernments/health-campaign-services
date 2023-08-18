@@ -11,9 +11,10 @@ import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectRequest;
-import org.egov.common.models.project.ProjectResponse;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdRequest;
+import org.egov.common.models.household.HouseholdResponse;
+import org.egov.common.models.project.*;
 import org.egov.common.models.transformer.upstream.Boundary;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.boundary.BoundaryNode;
@@ -172,6 +173,62 @@ public class ProjectService {
                     "error while fetching project details for id: " + projectId);
         }
         return response.getProject();
+    }
+
+    private ProjectBeneficiary searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
+        BeneficiaryRequest request = BeneficiaryRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectBeneficiary( ProjectBeneficiary.builder().
+                        beneficiaryClientReferenceId(projectBeneficiaryClientRefId).build())
+                .build();
+        BeneficiaryResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectBeneficiarySearchUrl())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    BeneficiaryResponse.class);
+        } catch (Exception e) {
+            log.error("error while fetching beneficiary", e);
+            throw new CustomException("PROJECT_BENIFICIARY_FETCH_ERROR",
+                    "error while fetching beneficairy details for id: " + projectBeneficiaryClientRefId);
+        }
+        return response.getProjectBeneficiary();
+    }
+
+    private Household searchHousehold(String clientRefId, String tenantId) {
+        HouseholdRequest request = HouseholdRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .household(Household.builder().
+                        clientReferenceId(clientRefId).build())
+                .build();
+        HouseholdResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getHouseholdSearchUrl())
+                    .append(transformerProperties.getHouseholdSearchUrl())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    HouseholdResponse.class);
+        } catch (Exception e) {
+            log.error("error while fetching household", e);
+            throw new CustomException("HOUSEHOLD_FETCH_ERROR",
+                    "error while fetching household details for id: " + clientRefId);
+        }
+        return response.getHousehold();
     }
 
     public List<String> getProducts(String tenantId, String projectTypeId) {
