@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.PROJECT;
+import static org.egov.transformer.Constants.WAREHOUSE;
 
 @Slf4j
 public abstract class StockTransformationService implements TransformationService<Stock>{
@@ -86,8 +87,8 @@ public abstract class StockTransformationService implements TransformationServic
             }
 
             String transactingPartyName = null;
-            if (stock.getTransactingPartyType().toString()=="WAREHOUSE") {
-                Facility transactingFacility = facilityService.findFacilityById((stock.getTransactingPartyId()), stock.getTenantId());
+            if (WAREHOUSE.equals(stock.getTransactingPartyType())) {
+                Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
                 transactingPartyName = transactingFacility.getName();
             } else {
                 transactingPartyName = stock.getTransactingPartyId();
