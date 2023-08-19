@@ -11,7 +11,6 @@ import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.models.household.Household;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.Project;
@@ -25,7 +24,6 @@ import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -168,20 +166,6 @@ public class ProjectService {
                     "error while fetching project details for id: " + projectId);
         }
         return response.getProject();
-    }
-
-    public Integer getHouseholdMembersCount(String projectBeneficiaryClientRefId, String tenantId) {
-        Integer numberOfMembers = 0;
-        List<ProjectBeneficiary> projectBeneficiaries = searchBeneficiary(projectBeneficiaryClientRefId, tenantId);
-
-        if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
-            List<Household> households = householdService.searchHousehold(projectBeneficiaries.get(0)
-                    .getBeneficiaryClientReferenceId(), tenantId);
-            if (!CollectionUtils.isEmpty(households)) {
-                numberOfMembers = households.get(0).getMemberCount();
-            }
-        }
-        return numberOfMembers;
     }
 
     public List<ProjectBeneficiary> searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
