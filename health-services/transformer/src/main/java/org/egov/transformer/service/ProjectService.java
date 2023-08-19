@@ -22,10 +22,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
@@ -98,10 +95,12 @@ public class ProjectService {
     }
 
     public Map<String, String> getBoundaryLabelToNameMap(String locationCode, String tenantId) {
-        List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
+        BoundaryTree locationTree = boundaryService.getBoundary(locationCode, "ADMIN",
                 tenantId);
-        BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
-        BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
+        if (locationTree == null) {
+            log.info("could not fetch location tree for code {}", locationCode);
+            return new HashMap<>();
+        }
         List<BoundaryNode> parentNodes = locationTree.getParentNodes();
         Map<String, String> resultMap = parentNodes.stream().collect(Collectors
                 .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
