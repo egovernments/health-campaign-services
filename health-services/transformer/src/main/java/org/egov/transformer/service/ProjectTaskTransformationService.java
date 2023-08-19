@@ -1,6 +1,8 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -9,6 +11,7 @@ import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.Collection;
 import java.util.List;
@@ -56,25 +59,58 @@ public abstract class ProjectTaskTransformationService implements Transformation
             Transformer<Task, ProjectTaskIndexV1> {
         private final ProjectService projectService;
         private final TransformerProperties properties;
+        private final HouseholdService householdService;
 
         @Autowired
-        ProjectTaskIndexV1Transformer(ProjectService projectService,  TransformerProperties properties) {
+        ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
+                                      HouseholdService householdService) {
             this.projectService = projectService;
             this.properties = properties;
+            this.householdService = householdService;
         }
 
         @Override
         public List<ProjectTaskIndexV1> transform(Task task) {
             Map<String, String> boundaryLabelToNameMap = null;
+            String tenantId = task.getTenantId();
             if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), task.getTenantId());
+                        .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
             } else {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), task.getTenantId());
+                        .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
+
+            // fetch project beenficiary and household
+            String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+            log.info("get member count for project beneficiary client reference id {}",
+                    projectBeneficiaryClientReferenceId);
+
+            ProjectBeneficiary projectBeneficiary = null;
+            Household household = null;
+            Integer numberOfMembers = 0;
+
+            List<ProjectBeneficiary> projectBeneficiaries = projectService
+                    .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
+
+            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+                projectBeneficiary = projectBeneficiaries.get(0);
+                List<Household> households = householdService.searchHousehold(projectBeneficiary
+                        .getBeneficiaryClientReferenceId(), tenantId);
+                if (!CollectionUtils.isEmpty(households)) {
+                    household = households.get(0);
+                    numberOfMembers = household.getMemberCount();
+                }
+            }
+
+            final Integer memberCount = numberOfMembers;
+            final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
+            final Household finalHousehold = household;
+
+            log.info("member count is {}", memberCount);
+
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
@@ -101,8 +137,11 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .createdBy(task.getAuditDetails().getCreatedBy())
                             .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
                             .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
-                            .projectBeneficiaryClientReferenceId(task.getProjectBeneficiaryClientReferenceId())
+                            .projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId)
                             .isDeleted(task.getIsDeleted())
+                            .memberCount(memberCount)
+                            .projectBeneficiary(finalProjectBeneficiary)
+                            .household(finalHousehold)
                             .build()
             ).collect(Collectors.toList());
         }

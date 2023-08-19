@@ -12,18 +12,26 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
-import org.egov.common.models.household.HouseholdRequest;
-import org.egov.common.models.household.HouseholdResponse;
-import org.egov.common.models.project.*;
-import org.egov.common.models.transformer.upstream.Boundary;
+import org.egov.common.models.project.BeneficiaryBulkResponse;
+import org.egov.common.models.project.BeneficiarySearchRequest;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
+import org.egov.common.models.project.ProjectRequest;
+import org.egov.common.models.project.ProjectResponse;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.boundary.BoundaryNode;
 import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
@@ -44,47 +52,35 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
+    private final HouseholdService householdService;
+
 //    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService) {
+                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService, HouseholdService householdService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.boundaryService = boundaryService;
         this.mdmsService = mdmsService;
-    }
-
-
-    public void updateProjectsInCache(ProjectRequest projectRequest) {
-//        projectRequest.getProjects().forEach(project -> projectMap.put(project.getId(), project));
+        this.householdService = householdService;
     }
 
     public Project getProject(String projectId, String tenantId) {
-//        if (projectMap.containsKey(projectId)) {
-//            log.info("getting project {} from cache", projectId);
-//            return projectMap.get(projectId);
-//        }
         List<Project> projects = searchProject(projectId, tenantId);
         Project project = null;
         if (!projects.isEmpty()) {
             project = projects.get(0);
-//            projectMap.put(projectId, project);
         }
         return project;
     }
 
     public Project getProjectByName(String projectName, String tenantId) {
-//        if (projectMap.containsKey(projectName)) {
-//            log.info("getting project {} from cache", projectName);
-//            return projectMap.get(projectName);
-//        }
         List<Project> projects = searchProjectByName(projectName, tenantId);
         Project project = null;
         if (!projects.isEmpty()) {
             project = projects.get(0);
-//            projectMap.put(projectName, project);
         }
         return project;
     }
@@ -174,60 +170,47 @@ public class ProjectService {
         return response.getProject();
     }
 
-    private ProjectBeneficiary searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
-        BeneficiaryRequest request = BeneficiaryRequest.builder()
+    public Integer getHouseholdMembersCount(String projectBeneficiaryClientRefId, String tenantId) {
+        Integer numberOfMembers = 0;
+        List<ProjectBeneficiary> projectBeneficiaries = searchBeneficiary(projectBeneficiaryClientRefId, tenantId);
+
+        if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+            List<Household> households = householdService.searchHousehold(projectBeneficiaries.get(0)
+                    .getBeneficiaryClientReferenceId(), tenantId);
+            if (!CollectionUtils.isEmpty(households)) {
+                numberOfMembers = households.get(0).getMemberCount();
+            }
+        }
+        return numberOfMembers;
+    }
+
+    public List<ProjectBeneficiary> searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
+        BeneficiarySearchRequest request = BeneficiarySearchRequest.builder()
                 .requestInfo(RequestInfo.builder().
                         userInfo(User.builder()
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
-                .projectBeneficiary( ProjectBeneficiary.builder().
-                        beneficiaryClientReferenceId(projectBeneficiaryClientRefId).build())
+                .projectBeneficiary( ProjectBeneficiarySearch.builder().
+                        clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build())
                 .build();
-        BeneficiaryResponse response;
+        BeneficiaryBulkResponse response;
         try {
             StringBuilder uri = new StringBuilder();
             uri.append(transformerProperties.getProjectHost())
                     .append(transformerProperties.getProjectBeneficiarySearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
                     .append("&offset=0")
                     .append("&tenantId=").append(tenantId);
             response = serviceRequestClient.fetchResult(uri,
                     request,
-                    BeneficiaryResponse.class);
+                    BeneficiaryBulkResponse.class);
         } catch (Exception e) {
             log.error("error while fetching beneficiary", e);
-            throw new CustomException("PROJECT_BENIFICIARY_FETCH_ERROR",
-                    "error while fetching beneficairy details for id: " + projectBeneficiaryClientRefId);
+            throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
+                    "error while fetching beneficiary details for id: " + projectBeneficiaryClientRefId);
         }
-        return response.getProjectBeneficiary();
-    }
-
-    private Household searchHousehold(String clientRefId, String tenantId) {
-        HouseholdRequest request = HouseholdRequest.builder()
-                .requestInfo(RequestInfo.builder().
-                        userInfo(User.builder()
-                                .uuid("transformer-uuid")
-                                .build())
-                        .build())
-                .household(Household.builder().
-                        clientReferenceId(clientRefId).build())
-                .build();
-        HouseholdResponse response;
-        try {
-            StringBuilder uri = new StringBuilder();
-            uri.append(transformerProperties.getHouseholdSearchUrl())
-                    .append(transformerProperties.getHouseholdSearchUrl())
-                    .append("&offset=0")
-                    .append("&tenantId=").append(tenantId);
-            response = serviceRequestClient.fetchResult(uri,
-                    request,
-                    HouseholdResponse.class);
-        } catch (Exception e) {
-            log.error("error while fetching household", e);
-            throw new CustomException("HOUSEHOLD_FETCH_ERROR",
-                    "error while fetching household details for id: " + clientRefId);
-        }
-        return response.getHousehold();
+        return response.getProjectBeneficiaries();
     }
 
     public List<String> getProducts(String tenantId, String projectTypeId) {

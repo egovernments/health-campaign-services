@@ -38,6 +38,9 @@ public class TransformerProperties {
     @Value("${egov.search.project.beneficiary.url}")
     private String projectBeneficiarySearchUrl;
 
+    @Value("${egov.household.host}")
+    private String householdHost;
+
     @Value("${egov.search.household.url}")
     private String householdSearchUrl;
 
