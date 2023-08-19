@@ -50,7 +50,7 @@ public class BoundaryService {
     }
 
     public BoundaryTree generateLocationTree (String code, String hierarchyTypeCode, String tenantId) {
-        if(cachedBoundaryTree != null) {
+        if(cachedBoundaryTree == null) {
             List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
             if(boundaryList.isEmpty()) return null;
             log.info("no cached boundary tree, adding current tree into the cache");
