@@ -35,6 +35,12 @@ public class ServiceIndexV1 {
     private String province;
     @JsonProperty("district")
     private String district;
+    @JsonProperty("administrativeProvince")
+    private String administrativeProvince;
+    @JsonProperty("locality")
+    private String locality;
+    @JsonProperty("village")
+    private String village;
     @JsonProperty("tenantId")
     private String tenantId;
     @JsonProperty("userId")
