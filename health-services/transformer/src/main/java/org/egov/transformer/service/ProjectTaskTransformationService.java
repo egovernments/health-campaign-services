@@ -7,6 +7,7 @@ import org.egov.common.models.project.Task;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
+import org.egov.transformer.models.upstream.DeliveryConfiguration;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -111,6 +112,10 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             log.info("member count is {}", memberCount);
 
+            DeliveryConfiguration configuration = projectService.getProgramMandateValues(tenantId);
+            String programMandateComment = projectService.getProgramMandateComment(tenantId);
+            final boolean isMandateComment = isMandateComment(memberCount, configuration);
+
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
@@ -123,7 +128,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .isDelivered(r.getIsDelivered())
                             .quantity(r.getQuantity())
                             .deliveredTo("HOUSEHOLD")
-                            .deliveryComments(r.getDeliveryComment())
+                            .deliveryComments(r.getDeliveryComment() != null ? r.getDeliveryComment() : isMandateComment ? programMandateComment : null)
                             .province(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getProvince()) : null)
                             .district(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getDistrict()) : null)
                             .administrativeProvince(finalBoundaryLabelToNameMap != null ?
@@ -144,6 +149,22 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .household(finalHousehold)
                             .build()
             ).collect(Collectors.toList());
+        }
+
+        private static boolean isMandateComment(Integer memberCount, DeliveryConfiguration configuration) {
+            boolean isMandateComment = false;
+
+            if (memberCount > 0 && configuration != null) {
+                Integer programMandate = configuration.getProgramMandateValue();
+                Double dividingFactor = configuration.getDividingFactor();
+                Integer deliveryCount = (int) Math.round((Double)(memberCount /dividingFactor));
+                if (deliveryCount > programMandate) {
+                    isMandateComment = true;
+                }
+            }
+
+            final boolean isMandateCommentFinal = isMandateComment;
+            return isMandateCommentFinal;
         }
     }
 }

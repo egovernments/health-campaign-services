@@ -23,7 +23,9 @@ import org.egov.transformer.boundary.BoundaryNode;
 import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.transformer.models.upstream.DeliveryConfiguration;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,8 +34,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.transformer.Constants.DELIVERY_COMMENT_OPTIONS_POPULATOR;
+import static org.egov.transformer.Constants.HCM_DELIVERY_CONFIGURATION_MASTER;
+import static org.egov.transformer.Constants.HCM_DELIVERY_CONFIGURATION_MODULE;
+import static org.egov.transformer.Constants.HCM_FIELD_APP_CONFIGURATION_MASTER;
+import static org.egov.transformer.Constants.HCM_FIELD_APP_CONFIGURATION_MODULE;
 import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
 import static org.egov.transformer.Constants.MDMS_RESPONSE;
+import static org.egov.transformer.Constants.PROGRAM_MANDATE;
 import static org.egov.transformer.Constants.PROJECT_TYPES;
 
 @Component
@@ -207,6 +215,45 @@ public class ProjectService {
         JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                 transformerProperties.getMdmsModule(), filter);
         return convertToProjectTypeList(response);
+    }
+
+    public DeliveryConfiguration getProgramMandateValues(String tenantId) {
+
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+
+        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, HCM_DELIVERY_CONFIGURATION_MASTER,
+                HCM_DELIVERY_CONFIGURATION_MODULE, null);
+        JsonNode programMandateJson = response.get(HCM_DELIVERY_CONFIGURATION_MODULE).withArray(HCM_DELIVERY_CONFIGURATION_MASTER);
+
+        List<DeliveryConfiguration> configurations =  new ObjectMapper().convertValue(programMandateJson, new TypeReference<List<DeliveryConfiguration>>() {
+        });
+
+        if (CollectionUtils.isEmpty(configurations)) {
+            return null;
+        }
+        return configurations.get(0);
+    }
+
+    public String getProgramMandateComment(String tenantId) {
+        String filter = "$[0]." + DELIVERY_COMMENT_OPTIONS_POPULATOR + "[?(@.code== '" + PROGRAM_MANDATE + "')].name";
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+
+        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, HCM_FIELD_APP_CONFIGURATION_MASTER,
+                HCM_FIELD_APP_CONFIGURATION_MODULE, filter);
+        JsonNode programMandateJson = response.get(HCM_FIELD_APP_CONFIGURATION_MODULE)
+                .withArray(HCM_FIELD_APP_CONFIGURATION_MASTER);
+
+        List<String> comments =  new ObjectMapper().convertValue(programMandateJson, new TypeReference<List<String>>() {
+        });
+
+        if (CollectionUtils.isEmpty(comments)) {
+            return null;
+        }
+        return comments.get(0);
     }
 
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,
