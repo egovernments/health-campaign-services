@@ -19,8 +19,10 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 @Component
 @Slf4j
@@ -50,7 +52,7 @@ public class BoundaryService {
     }
 
     public BoundaryTree generateLocationTree (String code, String hierarchyTypeCode, String tenantId) {
-        if(cachedBoundaryTree != null) {
+        if(cachedBoundaryTree == null) {
             List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
             if(boundaryList.isEmpty()) return null;
             log.info("no cached boundary tree, adding current tree into the cache");

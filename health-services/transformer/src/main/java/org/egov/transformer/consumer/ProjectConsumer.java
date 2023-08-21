@@ -41,7 +41,6 @@ public class ProjectConsumer {
             ProjectRequest request = objectMapper
                     .readValue((String) payload.value(),
                             ProjectRequest.class);
-            projectService.updateProjectsInCache(request);
             transformationHandler.handle(request.getProjects(), Operation.PROJECT);
         } catch (Exception exception) {
             log.error("error in project consumer", exception);

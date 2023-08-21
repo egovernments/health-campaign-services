@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.household.Household;
+import org.egov.common.models.project.ProjectBeneficiary;
 
 @Data
 @AllArgsConstructor
@@ -63,4 +65,10 @@ public class ProjectTaskIndexV1 {
     private boolean isDeleted;
     @JsonProperty("projectBeneficiaryClientReferenceId")
     private String projectBeneficiaryClientReferenceId;
+    @JsonProperty("memberCount")
+    private Integer memberCount;
+    @JsonProperty("projectBeneficiary")
+    private ProjectBeneficiary projectBeneficiary;
+    @JsonProperty("household")
+    private Household household;
 }
