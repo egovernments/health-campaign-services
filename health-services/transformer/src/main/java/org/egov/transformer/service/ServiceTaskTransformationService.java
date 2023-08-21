@@ -100,6 +100,10 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .checklistName(serviceDefinition.getCode())
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
+                    .administrativeProvince(boundaryLabelToNameMap != null ?
+                            boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
+                    .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
+                    .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())
