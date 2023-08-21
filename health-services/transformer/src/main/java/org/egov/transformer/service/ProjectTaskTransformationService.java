@@ -18,10 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.DIVIDING_FACTOR;
-import static org.egov.transformer.Constants.PROGRAM_MANDATE_COMMENT;
-import static org.egov.transformer.Constants.PROGRAM_MANDATE_LIMIT;
-
 @Slf4j
 public abstract class ProjectTaskTransformationService implements TransformationService<Task> {
     protected final ProjectTaskIndexV1Transformer transformer;
@@ -73,11 +69,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
             this.householdService = householdService;
         }
 
-        private static boolean isMandateComment(Integer memberCount) {
-            int deliveryCount = (int) Math.round((Double)(memberCount/DIVIDING_FACTOR));
-            return deliveryCount > PROGRAM_MANDATE_LIMIT;
-        }
-
         @Override
         public List<ProjectTaskIndexV1> transform(Task task) {
             Map<String, String> boundaryLabelToNameMap = null;
@@ -117,7 +108,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
             final Integer memberCount = numberOfMembers;
             final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
             final Household finalHousehold = household;
-            final boolean isMandateComment = isMandateComment(memberCount);
+            int deliveryCount = (int) Math.round((Double)(memberCount/ properties.getProgramMandateDividingFactor()));
+            final boolean isMandateComment = deliveryCount > properties.getProgramMandateLimit();
 
             log.info("member count is {}", memberCount);
 
@@ -133,7 +125,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .isDelivered(r.getIsDelivered())
                             .quantity(r.getQuantity())
                             .deliveredTo("HOUSEHOLD")
-                            .deliveryComments(r.getDeliveryComment() != null ? r.getDeliveryComment() : isMandateComment ? PROGRAM_MANDATE_COMMENT : null)
+                            .deliveryComments(r.getDeliveryComment() != null ? r.getDeliveryComment() : isMandateComment ? properties.getProgramMandateComment() : null)
                             .province(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getProvince()) : null)
                             .district(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getDistrict()) : null)
                             .administrativeProvince(finalBoundaryLabelToNameMap != null ?

@@ -83,5 +83,14 @@ public class TransformerProperties {
     @Value("${boundary.label.name.administrativeProvince}")
     private String administrativeProvince;
 
+    @Value("${egov.program.mandate.limit}")
+    private Integer programMandateLimit;
+
+    @Value("${egov.program.mandate.dividing.factor}")
+    private Double programMandateDividingFactor;
+
+    @Value("${egov.program.mandate.comment}")
+    private String programMandateComment;
+
 
 }
