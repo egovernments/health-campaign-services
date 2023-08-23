@@ -19,6 +19,16 @@ public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary
     @Override
     public ProjectBeneficiary mapRow(ResultSet resultSet, int i) throws SQLException {
             try {
+                AuditDetails auditDetails = AuditDetails.builder()
+                        .createdBy(resultSet.getString("createdby"))
+                        .createdTime(resultSet.getLong("createdtime"))
+                        .lastModifiedBy(resultSet.getString("lastmodifiedby"))
+                        .lastModifiedTime(resultSet.getLong("lastmodifiedtime"))
+                        .build();
+                AuditDetails clientAuditDetails = AuditDetails.builder()
+                        .createdTime(resultSet.getLong("clientCreatedTime"))
+                        .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                        .build();
             return ProjectBeneficiary.builder()
                     .id(resultSet.getString("id"))
                     .tenantId(resultSet.getString("tenantid"))
@@ -31,16 +41,8 @@ public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary
                             ? null : objectMapper.readValue(resultSet.getString("additionalDetails"),
                             AdditionalFields.class)
                     )
-                    .auditDetails(AuditDetails.builder()
-                            .createdBy(resultSet.getString("createdby"))
-                            .createdTime(resultSet.getLong("createdtime"))
-                            .lastModifiedBy(resultSet.getString("lastmodifiedby"))
-                            .lastModifiedTime(resultSet.getLong("lastmodifiedtime"))
-                            .build())
-                    .clientAuditDetails(AuditDetails.builder()
-                            .createdTime(resultSet.getLong("clientCreatedTime"))
-                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
-                            .build())
+                    .auditDetails(auditDetails)
+                    .clientAuditDetails(clientAuditDetails)
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
                     .build();

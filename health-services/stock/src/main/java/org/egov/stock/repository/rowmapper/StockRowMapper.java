@@ -21,6 +21,16 @@ public class StockRowMapper implements RowMapper<Stock> {
     @Override
     public Stock mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
+            AuditDetails auditDetails = AuditDetails.builder()
+                    .createdBy(resultSet.getString("createdBy"))
+                    .createdTime(resultSet.getLong("createdTime"))
+                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
+                    .build();
+            AuditDetails clientAuditDetails = AuditDetails.builder()
+                    .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .build();
             return Stock.builder()
                     .id(resultSet.getString("id"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
@@ -37,16 +47,8 @@ public class StockRowMapper implements RowMapper<Stock> {
                     .transactingPartyType(resultSet.getString("transactingPartyType"))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                         .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
-                    .auditDetails(AuditDetails.builder()
-                            .createdBy(resultSet.getString("createdBy"))
-                            .createdTime(resultSet.getLong("createdTime"))
-                            .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                            .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                            .build())
-                    .clientAuditDetails(AuditDetails.builder()
-                            .createdTime(resultSet.getLong("clientCreatedTime"))
-                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
-                            .build())
+                    .auditDetails(auditDetails)
+                    .clientAuditDetails(clientAuditDetails)
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .dateOfEntry(resultSet.getLong("dateOfEntry"))

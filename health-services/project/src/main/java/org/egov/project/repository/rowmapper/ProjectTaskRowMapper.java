@@ -22,6 +22,16 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
     @Override
     public Task mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
+            AuditDetails auditDetails = AuditDetails.builder()
+                    .createdBy(resultSet.getString("createdBy"))
+                    .createdTime(resultSet.getLong("createdTime"))
+                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
+                    .build();
+            AuditDetails clientAuditDetails = AuditDetails.builder()
+                    .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .build();
             Task task = Task.builder()
                     .id(resultSet.getString("id"))
                     .rowVersion(resultSet.getInt("rowVersion"))
@@ -36,16 +46,8 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
                     .actualStartDate(resultSet.getLong("actualStartDate"))
                     .actualEndDate(resultSet.getLong("actualEndDate"))
                     .status(resultSet.getString("status"))
-                    .auditDetails(AuditDetails.builder()
-                            .createdBy(resultSet.getString("createdBy"))
-                            .createdTime(resultSet.getLong("createdTime"))
-                            .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                            .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                            .build())
-                    .clientAuditDetails(AuditDetails.builder()
-                            .createdTime(resultSet.getLong("clientCreatedTime"))
-                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
-                            .build())
+                    .auditDetails(auditDetails)
+                    .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .address(Address.builder()

@@ -26,6 +26,16 @@ public class IndividualRowMapper implements RowMapper<Individual> {
     public Individual mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
             String tenantId = resultSet.getString("tenantId");
+            AuditDetails auditDetails = AuditDetails.builder()
+                    .createdBy(resultSet.getString("createdBy"))
+                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                    .createdTime(resultSet.getLong("createdTime"))
+                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
+                    .build();
+            AuditDetails clientAuditDetails = AuditDetails.builder()
+                    .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .build();
             return Individual.builder().id(resultSet.getString("id"))
                     .individualId(resultSet.getString("individualid"))
                     .userId(resultSet.getString("userId"))
@@ -47,13 +57,9 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .photo(resultSet.getString("photo"))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null :
                             objectMapper.readValue(resultSet.getString("additionalDetails"),
-                                    AdditionalFields.class))
-                            .auditDetails(AuditDetails.builder()
-                                    .createdBy(resultSet.getString("createdBy"))
-                                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                                    .createdTime(resultSet.getLong("createdTime"))
-                                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                                    .build())
+                                    AdditionalFields.class)
+                    )
+                    .auditDetails(auditDetails)
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .isSystemUser(resultSet.getBoolean("isSystemUser"))
@@ -68,10 +74,7 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                             .tenantId(tenantId)
                             .build())
                     .userUuid(resultSet.getString("userUuid"))
-                    .clientAuditDetails(AuditDetails.builder()
-                            .createdTime(resultSet.getLong("clientCreatedTime"))
-                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
-                            .build())
+                    .clientAuditDetails(clientAuditDetails)
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
