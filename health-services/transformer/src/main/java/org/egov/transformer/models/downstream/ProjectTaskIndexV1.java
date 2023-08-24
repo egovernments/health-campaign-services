@@ -73,4 +73,6 @@ public class ProjectTaskIndexV1 {
     private Household household;
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
+    @JsonProperty("tenantId")
+    private String tenantId;
 }
