@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.transformer.Constants.UNDERSCORE;
+
 @Slf4j
 public abstract class ProjectTaskTransformationService implements TransformationService<Task> {
     protected final ProjectTaskIndexV1Transformer transformer;
@@ -117,6 +119,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
                             .taskId(task.getId())
+                            .taskClientReferenceId(task.getClientReferenceId()
+                                    + UNDERSCORE + projectBeneficiaryClientReferenceId
+                                    + UNDERSCORE + tenantId)
                             .taskType("DELIVERY")
                             .projectId(task.getProjectId())
                             .startDate(task.getActualStartDate())

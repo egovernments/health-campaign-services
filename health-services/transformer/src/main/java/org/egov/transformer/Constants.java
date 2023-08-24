@@ -9,4 +9,6 @@ public interface Constants {
 
     String PROJECT = "PROJECT";
     String WAREHOUSE = "WAREHOUSE";
+
+    String UNDERSCORE = "_";
 }

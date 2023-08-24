@@ -89,4 +89,7 @@ public class StockIndexV1 {
 
     @JsonProperty("additionalFields")
     private AdditionalFields additionalFields;
+
+    @JsonProperty("clientReferenceId")
+    private String clientReferenceId;
 }
