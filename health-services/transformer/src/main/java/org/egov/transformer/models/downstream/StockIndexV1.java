@@ -92,4 +92,7 @@ public class StockIndexV1 {
 
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
+
+    @JsonProperty("tenantId")
+    private String tenantId;
 }

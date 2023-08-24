@@ -119,7 +119,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
                             .taskId(task.getId())
-                            .taskClientReferenceId(task.getClientReferenceId()
+                            .clientReferenceId(r.getClientReferenceId()
                                     + UNDERSCORE + projectBeneficiaryClientReferenceId
                                     + UNDERSCORE + tenantId)
                             .taskType("DELIVERY")

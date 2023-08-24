@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.PROJECT;
-import static org.egov.transformer.Constants.UNDERSCORE;
 import static org.egov.transformer.Constants.WAREHOUSE;
 
 @Slf4j
@@ -97,7 +96,8 @@ public abstract class StockTransformationService implements TransformationServic
 
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
-                    .clientReferenceId(stock.getClientReferenceId() + UNDERSCORE + stock.getTenantId())
+                    .clientReferenceId(stock.getClientReferenceId())
+                    .tenantId(stock.getTenantId())
                     .productVariant(stock.getProductVariantId())
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())

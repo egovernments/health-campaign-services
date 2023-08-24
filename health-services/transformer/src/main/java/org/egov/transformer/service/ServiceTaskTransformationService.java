@@ -18,8 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.UNDERSCORE;
-
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
 
@@ -96,7 +94,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
             return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
-                    .clientReferenceId(service.getClientId() + UNDERSCORE + service.getTenantId())
+                    .clientReferenceId(service.getClientId())
                     .projectId(projectId)
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)

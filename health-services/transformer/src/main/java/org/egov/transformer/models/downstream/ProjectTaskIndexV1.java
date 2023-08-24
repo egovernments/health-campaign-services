@@ -71,6 +71,6 @@ public class ProjectTaskIndexV1 {
     private ProjectBeneficiary projectBeneficiary;
     @JsonProperty("household")
     private Household household;
-    @JsonProperty("taskClientReferenceId")
-    private String taskClientReferenceId;
+    @JsonProperty("clientReferenceId")
+    private String clientReferenceId;
 }
