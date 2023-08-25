@@ -96,6 +96,8 @@ public abstract class StockTransformationService implements TransformationServic
 
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
+                    .clientReferenceId(stock.getClientReferenceId())
+                    .tenantId(stock.getTenantId())
                     .productVariant(stock.getProductVariantId())
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
