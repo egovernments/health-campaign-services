@@ -1,7 +1,9 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.facility.AdditionalFields;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.facility.Field;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -14,9 +16,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.PROJECT;
+import static org.egov.transformer.Constants.TYPE_KEY;
 import static org.egov.transformer.Constants.WAREHOUSE;
 
 @Slf4j
@@ -87,11 +91,22 @@ public abstract class StockTransformationService implements TransformationServic
             }
 
             String transactingPartyName = null;
-            if (WAREHOUSE.equals(stock.getTransactingPartyType())) {
+            String transactingPartyType = stock.getTransactingPartyType();
+            String facilityType = transactingPartyType;
+            if (WAREHOUSE.equals(transactingPartyType)) {
                 Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
                 transactingPartyName = transactingFacility.getName();
             } else {
                 transactingPartyName = stock.getTransactingPartyId();
+            }
+
+            AdditionalFields facilityAdditionalFields = facility.getAdditionalFields();
+            if (facilityAdditionalFields != null) {
+                List<Field> fields = facilityAdditionalFields.getFields();
+                Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
+                if (field.isPresent() && field.get().getValue() != null) {
+                    facilityType = field.get().getValue();
+                }
             }
 
             return Collections.singletonList(StockIndexV1.builder()
@@ -101,7 +116,8 @@ public abstract class StockTransformationService implements TransformationServic
                     .facilityName(facility.getName())
                     .transactingFacilityId(stock.getTransactingPartyId())
                     .transactingPartyName(transactingPartyName)
-                    .transactingPartyType(stock.getTransactingPartyType())
+                    .transactingPartyType(transactingPartyType)
+                    .facilityType(facilityType)
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())
