@@ -47,4 +47,6 @@ public class ServiceIndexV1 {
     private String userId;
     @JsonProperty("attributes")
     private List<AttributeValue> attributes = new ArrayList<>();
+    @JsonProperty("clientReferenceId")
+    private String clientReferenceId;
 }

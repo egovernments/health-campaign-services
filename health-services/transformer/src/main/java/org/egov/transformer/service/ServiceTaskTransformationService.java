@@ -94,6 +94,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
             return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
+                    .clientReferenceId(service.getClientId())
                     .projectId(projectId)
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
