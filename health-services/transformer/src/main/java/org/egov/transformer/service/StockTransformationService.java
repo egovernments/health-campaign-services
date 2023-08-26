@@ -92,22 +92,17 @@ public abstract class StockTransformationService implements TransformationServic
 
             String transactingPartyName = null;
             String transactingPartyType = stock.getTransactingPartyType();
-            String facilityType = transactingPartyType;
+            String transactingFacilityType = transactingPartyType;
+            String facilityType = WAREHOUSE;
             if (WAREHOUSE.equals(transactingPartyType)) {
                 Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
                 transactingPartyName = transactingFacility.getName();
+                transactingFacilityType = getType(transactingFacilityType, transactingFacility);
             } else {
                 transactingPartyName = stock.getTransactingPartyId();
             }
 
-            AdditionalFields facilityAdditionalFields = facility.getAdditionalFields();
-            if (facilityAdditionalFields != null) {
-                List<Field> fields = facilityAdditionalFields.getFields();
-                Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
-                if (field.isPresent() && field.get().getValue() != null) {
-                    facilityType = field.get().getValue();
-                }
-            }
+            facilityType = getType(facilityType, facility);
 
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
@@ -118,6 +113,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .transactingPartyName(transactingPartyName)
                     .transactingPartyType(transactingPartyType)
                     .facilityType(facilityType)
+                    .transactingFacilityType(transactingFacilityType)
                     .physicalCount(stock.getQuantity())
                     .eventType(stock.getTransactionType())
                     .reason(stock.getTransactionReason())
@@ -138,6 +134,18 @@ public abstract class StockTransformationService implements TransformationServic
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .additionalFields(stock.getAdditionalFields())
                     .build());
+        }
+
+        private String getType(String transactingFacilityType, Facility transactingFacility) {
+            AdditionalFields transactingFacilityAdditionalFields = transactingFacility.getAdditionalFields();
+            if (transactingFacilityAdditionalFields != null) {
+                List<Field> fields = transactingFacilityAdditionalFields.getFields();
+                Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
+                if (field.isPresent() && field.get().getValue() != null) {
+                    transactingFacilityType = field.get().getValue();
+                }
+            }
+            return transactingFacilityType;
         }
     }
 }

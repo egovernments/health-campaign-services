@@ -92,4 +92,7 @@ public class StockIndexV1 {
 
     @JsonProperty("facilityType")
     private String facilityType;
+
+    @JsonProperty("transactingFacilityType")
+    private String transactingFacilityType;
 }
