@@ -44,9 +44,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
 		        long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-				logger.info("eDate, sDate, datediff: " + eDate + "," + sDate + "," + dateDifference);
 		        dateDifference = dateDifference + 1L;
-				logger.info("dateDiff: " + dateDifference);
 
 				for(Data eachData : data) { 
 						Double value = (Double) eachData.getHeaderValue();
@@ -77,7 +75,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
 				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+				dateDifference = dateDifference + 1l ;
 
 				for(Data eachData : data) {
 					Double value = (Double) eachData.getHeaderValue();
@@ -120,7 +118,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
 				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+				dateDifference = dateDifference + 1l ;
 
 				value = (value / NUMBER_OF_DAYS) * dateDifference;
 				logger.info("Value is : " + value + " :: Date Difference is : " + dateDifference);
@@ -152,7 +150,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
 				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+				dateDifference = dateDifference + 1l ;
 
 				value = (value / NUMBER_OF_DAYS) * dateDifference;
 
