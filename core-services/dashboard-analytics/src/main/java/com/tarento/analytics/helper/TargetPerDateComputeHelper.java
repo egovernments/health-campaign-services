@@ -44,7 +44,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
 		        Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-		        if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+		        dateDifference = dateDifference + 1l ;
 
 				for(Data eachData : data) { 
 						Double value = (Double) eachData.getHeaderValue();
