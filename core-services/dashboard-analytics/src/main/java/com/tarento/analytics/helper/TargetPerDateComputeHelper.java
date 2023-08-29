@@ -43,8 +43,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 					eDate = eDate + ROUND_OFF; 
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
-		        Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-		        if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+		        Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS) + 1L;
 
 				for(Data eachData : data) { 
 						Double value = (Double) eachData.getHeaderValue();
@@ -74,8 +73,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 					eDate = eDate + ROUND_OFF;
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
-				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS) + 1L;
 
 				for(Data eachData : data) {
 					Double value = (Double) eachData.getHeaderValue();
@@ -117,8 +115,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 					eDate = eDate + ROUND_OFF;
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
-				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS) + 1L;
 
 				value = (value / NUMBER_OF_DAYS) * dateDifference;
 				logger.info("Value is : " + value + " :: Date Difference is : " + dateDifference);
@@ -149,8 +146,7 @@ public class TargetPerDateComputeHelper implements ComputeHelper {
 					eDate = eDate + ROUND_OFF;
 				}
 				logger.info("End Date after Round Off: " + String.valueOf(eDate));
-				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS);
-				if(dateDifference == 0l) dateDifference = dateDifference + 1l ;
+				Long dateDifference = TimeUnit.DAYS.convert((eDate - sDate), TimeUnit.MILLISECONDS) + 1L;
 
 				value = (value / NUMBER_OF_DAYS) * dateDifference;
 
