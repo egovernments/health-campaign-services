@@ -30,7 +30,9 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
                     .build();
             AuditDetails clientAuditDetails = AuditDetails.builder()
                     .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .createdBy(resultSet.getString("clientCreatedBy"))
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
             Task task = Task.builder()
                     .id(resultSet.getString("id"))

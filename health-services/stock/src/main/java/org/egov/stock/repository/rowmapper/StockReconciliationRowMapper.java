@@ -31,7 +31,9 @@ public class StockReconciliationRowMapper implements RowMapper<StockReconciliati
                     .build();
             AuditDetails clientAuditDetails = AuditDetails.builder()
                     .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .createdBy(resultSet.getString("clientCreatedBy"))
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
             return StockReconciliation.builder()
                     .id(resultSet.getString("id"))

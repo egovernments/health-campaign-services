@@ -29,7 +29,9 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                     .build();
             AuditDetails clientAuditDetails = AuditDetails.builder()
                     .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .createdBy(resultSet.getString("clientCreatedBy"))
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
             Household household =  Household.builder()
                     .id(resultSet.getString("id"))

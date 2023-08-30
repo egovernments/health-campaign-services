@@ -34,7 +34,9 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .build();
             AuditDetails clientAuditDetails = AuditDetails.builder()
                     .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .createdBy(resultSet.getString("clientCreatedBy"))
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
             return Individual.builder().id(resultSet.getString("id"))
                     .individualId(resultSet.getString("individualid"))
