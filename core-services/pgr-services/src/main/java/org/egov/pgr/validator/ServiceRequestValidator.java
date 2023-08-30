@@ -1,6 +1,19 @@
 package org.egov.pgr.validator;
 
-import com.jayway.jsonpath.JsonPath;
+import static org.egov.pgr.util.PGRConstants.MDMS_DEPARTMENT_SEARCH;
+import static org.egov.pgr.util.PGRConstants.MDMS_SERVICEDEF_SEARCH;
+import static org.egov.pgr.util.PGRConstants.PGR_WF_REOPEN;
+import static org.egov.pgr.util.PGRConstants.USERTYPE_CITIZEN;
+import static org.egov.pgr.util.PGRConstants.USERTYPE_EMPLOYEE;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.repository.PGRRepository;
@@ -16,17 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.egov.pgr.util.PGRConstants.MDMS_DEPARTMENT_SEARCH;
-import static org.egov.pgr.util.PGRConstants.MDMS_SERVICEDEF_SEARCH;
-import static org.egov.pgr.util.PGRConstants.PGR_WF_REOPEN;
-import static org.egov.pgr.util.PGRConstants.USERTYPE_CITIZEN;
-import static org.egov.pgr.util.PGRConstants.USERTYPE_EMPLOYEE;
+import com.jayway.jsonpath.JsonPath;
 
 @Component
 public class ServiceRequestValidator {
@@ -296,6 +299,11 @@ public class ServiceRequestValidator {
 
 
     public void validatePlainSearch(RequestSearchCriteria criteria) {
+    	Set<String> newTenantId = new HashSet<>();
+
+    	newTenantId.add(criteria.getTenantId());
+    		 criteria.setTenantIds(newTenantId);
+    	 
         if(CollectionUtils.isEmpty(criteria.getTenantIds())){
             throw new CustomException("TENANT_ID_LIST_EMPTY", "Tenant ids not provided for searching.");
         }
