@@ -45,7 +45,7 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
 
     public List<Task> find(TaskSearch searchObject, Integer limit, Integer offset, String tenantId,
                            Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT * FROM project_task pt  LEFT JOIN address a ON pt.addressid = a.id";
+        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM project_task pt  LEFT JOIN address a ON pt.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
