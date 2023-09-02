@@ -45,9 +45,9 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
                             .getString("additionalDetails"), AdditionalFields.class))
                     .address(Address.builder()
-                            .id(resultSet.getString("a.id"))
-                            .clientReferenceId(resultSet.getString("a.clientreferenceid"))
-                            .tenantId(resultSet.getString("a.tenantid"))
+                            .id(resultSet.getString("aid"))
+                            .clientReferenceId(resultSet.getString("aclientreferenceid"))
+                            .tenantId(resultSet.getString("atenantid"))
                             .doorNo(resultSet.getString("doorNo"))
                             .latitude(resultSet.getDouble("latitude"))
                             .longitude(resultSet.getDouble("longitude"))
