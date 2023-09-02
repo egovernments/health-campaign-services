@@ -52,9 +52,9 @@ public class HouseholdRepository extends GenericRepository<Household> {
             }
         }
 
-        String query = String.format("SELECT * FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
@@ -65,7 +65,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
     }
 
     public List<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT * FROM household h LEFT JOIN address a ON h.addressid = a.id";
+        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();

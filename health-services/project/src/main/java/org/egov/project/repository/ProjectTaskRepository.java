@@ -111,9 +111,9 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
             }
         }
 
-        String query = String.format("SELECT * FROM project_task pt LEFT JOIN address a ON pt.addressid = a.id WHERE pt.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM project_task pt LEFT JOIN address a ON pt.addressid = a.id WHERE pt.%s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM project_task pt LEFT JOIN address a ON pt.addressid = a.id  WHERE pt.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM project_task pt LEFT JOIN address a ON pt.addressid = a.id  WHERE pt.%s IN (:ids)", columnName);
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
