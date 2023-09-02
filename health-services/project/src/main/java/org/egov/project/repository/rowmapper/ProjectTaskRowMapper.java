@@ -53,9 +53,9 @@ public class ProjectTaskRowMapper implements RowMapper<Task> {
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .address(Address.builder()
-                            .id(resultSet.getString("a.id"))
-                            .tenantId(resultSet.getString("a.tenantid"))
-                            .clientReferenceId(resultSet.getString("a.clientreferenceid"))
+                            .id(resultSet.getString("aid"))
+                            .tenantId(resultSet.getString("atenantid"))
+                            .clientReferenceId(resultSet.getString("aclientreferenceid"))
                             .doorNo(resultSet.getString("doorNo"))
                             .latitude(resultSet.getDouble("latitude"))
                             .longitude(resultSet.getDouble("longitude"))
