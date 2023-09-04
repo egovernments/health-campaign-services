@@ -191,7 +191,7 @@ public class NotificationUtil {
                 message = messageObj.get(0);
             }
         } catch (Exception e) {
-            log.warn("Fetching from localization for placeholder failed", ExceptionUtils.getStackTrace((e));
+            log.warn("Fetching from localization for placeholder failed", ExceptionUtils.getStackTrace(e));
         }
         return message;
     }

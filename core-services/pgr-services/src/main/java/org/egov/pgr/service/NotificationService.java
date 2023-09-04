@@ -289,7 +289,7 @@ public class NotificationService {
                         messageForEmployee = messageForEmployee.replace("{ao_designation}", messageObj.get(0));
                     }
                 } catch (Exception e) {
-                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace((e));
+                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace(e));
                 }
             }
         }
@@ -349,7 +349,7 @@ public class NotificationService {
                         messageForEmployee = messageForEmployee.replace("{ao_designation}", messageObj.get(0));
                     }
                 } catch (Exception e) {
-                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace((e));
+                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace(e));
                 }
             }
         }
@@ -525,7 +525,7 @@ public class NotificationService {
                         messageForEmployee = messageForEmployee.replace("{ao_designation}", messageObj.get(0));
                     }
                 } catch (Exception e) {
-                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace((e));
+                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace(e));
                 }
             }
         }
