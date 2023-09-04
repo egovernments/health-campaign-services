@@ -2,6 +2,7 @@ package org.egov.transformer.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.Task;
 import org.egov.transformer.enums.Operation;
@@ -41,7 +42,7 @@ public class ProjectTaskConsumer {
                             Task[].class));
             transformationHandler.handle(payloadList, Operation.TASK);
         } catch (Exception exception) {
-            log.error("error in project task bulk consumer", exception);
+            log.error("error in project task bulk consumer", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

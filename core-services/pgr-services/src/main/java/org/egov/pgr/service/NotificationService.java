@@ -3,6 +3,7 @@ package org.egov.pgr.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.Role;
 import org.egov.common.contract.request.User;
@@ -188,7 +189,7 @@ public class NotificationService {
 
 
         } catch (Exception ex) {
-            log.error("Error occured while processing the record from topic : " + topic, ex);
+            log.error("Error occured while processing the record from topic : " + topic, ExceptionUtils.getStackTrace(ex));
         }
     }
 
@@ -288,7 +289,7 @@ public class NotificationService {
                         messageForEmployee = messageForEmployee.replace("{ao_designation}", messageObj.get(0));
                     }
                 } catch (Exception e) {
-                    log.warn("Fetching from localization failed", e);
+                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace((e));
                 }
             }
         }
@@ -348,7 +349,7 @@ public class NotificationService {
                         messageForEmployee = messageForEmployee.replace("{ao_designation}", messageObj.get(0));
                     }
                 } catch (Exception e) {
-                    log.warn("Fetching from localization failed", e);
+                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace((e));
                 }
             }
         }
@@ -524,7 +525,7 @@ public class NotificationService {
                         messageForEmployee = messageForEmployee.replace("{ao_designation}", messageObj.get(0));
                     }
                 } catch (Exception e) {
-                    log.warn("Fetching from localization failed", e);
+                    log.warn("Fetching from localization failed", ExceptionUtils.getStackTrace((e));
                 }
             }
         }
@@ -592,7 +593,7 @@ public class NotificationService {
             user = 	mapper.convertValue(users.get(0), User.class);
 
         }catch(Exception e) {
-            log.error("Exception while trying parse user object: ",e);
+            log.error("Exception while trying parse user object: ",ExceptionUtils.getStackTrace(e));
         }
 
         requestInfo.setUserInfo(userInfoCopy);
@@ -820,7 +821,7 @@ public class NotificationService {
             }
         }catch(Exception e) {
             log.error("Exception while fetching user for username - "+mobileNumber);
-            log.error("Exception trace: ",e);
+            log.error("Exception trace: ",ExceptionUtils.getStackTrace(e));
         }
 
         return mapOfPhoneNoAndUUIDs;

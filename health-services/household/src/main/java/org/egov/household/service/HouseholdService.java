@@ -1,6 +1,7 @@
 package org.egov.household.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -100,7 +101,7 @@ public class HouseholdService {
                 log.info("successfully created {} households", validEntities.size());
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating households", exception);
+            log.error("error occurred while creating households", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
@@ -131,7 +132,7 @@ public class HouseholdService {
             log.info("households found for search, size: {}", households.size());
             return households;
         } catch (QueryBuilderException e) {
-            log.error("error occurred while searching households", e);
+            log.error("error occurred while searching households", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
@@ -157,7 +158,7 @@ public class HouseholdService {
                 log.info("successfully updated households");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating households: " + exception.getMessage());
+            log.error("error occurred while updating households: " + ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
@@ -191,7 +192,7 @@ public class HouseholdService {
                 log.info("Households saved to delete topic");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting households: ", exception);
+            log.error("error occurred while deleting households: ", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 

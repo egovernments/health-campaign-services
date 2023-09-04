@@ -1,6 +1,7 @@
 package org.egov.stock.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -61,7 +62,7 @@ public class FacilityService {
                     FacilityBulkResponse.class);
             return response.getFacilities().stream().map(Facility::getId).collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("error while fetching facility list", e);
+            log.error("error while fetching facility list", ExceptionUtils.getStackTrace(e));
             entities.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);
@@ -95,7 +96,7 @@ public class FacilityService {
                     .map(projectFacility -> projectFacility.getFacilityId() + PIPE + projectFacility.getProjectId())
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("error while fetching project facility list", e);
+            log.error("error while fetching project facility list", ExceptionUtils.getStackTrace(e));
             entities.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);

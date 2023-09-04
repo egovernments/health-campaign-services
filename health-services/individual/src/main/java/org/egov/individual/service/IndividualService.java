@@ -2,6 +2,7 @@ package org.egov.individual.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
@@ -139,7 +140,7 @@ public class IndividualService {
                         properties.getSaveIndividualTopic());
             }
         } catch (CustomException exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
@@ -252,7 +253,7 @@ public class IndividualService {
                         properties.getUpdateIndividualTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
@@ -315,7 +316,7 @@ public class IndividualService {
                     .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
-            log.error("database error occurred", exception);
+            log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
         }
         //decrypt
@@ -362,7 +363,7 @@ public class IndividualService {
                         properties.getDeleteIndividualTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
@@ -409,7 +410,7 @@ public class IndividualService {
                             encryptedIndividualList.size());
                 }
             } catch (Exception exception) {
-                log.error("error occurred while creating user", exception);
+                log.error("error occurred while creating user", ExceptionUtils.getStackTrace(exception));
             }
         }
     }

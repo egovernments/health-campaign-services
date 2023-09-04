@@ -2,6 +2,7 @@ package org.egov.stock.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.stock.service.StockService;
@@ -33,7 +34,7 @@ public class StockConsumer {
             StockBulkRequest request = objectMapper.convertValue(consumerRecord, StockBulkRequest.class);
             return service.create(request, true);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk create", exception);
+            log.error("error in stock consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -45,7 +46,7 @@ public class StockConsumer {
             StockBulkRequest request = objectMapper.convertValue(consumerRecord, StockBulkRequest.class);
             return service.update(request, true);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk update", exception);
+            log.error("error in stock consumer bulk update", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -57,7 +58,7 @@ public class StockConsumer {
             StockBulkRequest request = objectMapper.convertValue(consumerRecord, StockBulkRequest.class);
             return service.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk delete", exception);
+            log.error("error in stock consumer bulk delete", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
