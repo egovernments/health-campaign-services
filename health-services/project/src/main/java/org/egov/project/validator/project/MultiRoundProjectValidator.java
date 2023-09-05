@@ -41,8 +41,6 @@ import static org.egov.project.util.ProjectConstants.MDMS_TENANT_MODULE_NAME;
 import static org.egov.project.util.ProjectConstants.MASTER_PROJECT_OBSERVATION_TYPE;
 import static org.egov.project.util.ProjectConstants.MASTER_PROJECT_CYCLES;
 
-// keep cached task for some specific time, use those task to verify whether past task is updated with respect to multi round fields else update the cached map from db first and then verify next using that record.
-
 @Component
 @Slf4j
 public class MultiRoundProjectValidator {
@@ -103,5 +101,17 @@ public class MultiRoundProjectValidator {
         return mdmsCriteriaReq;
     }
 
-//    public void validate
+    public Map<String, ProjectType> populateProjectIdProjectTypeMap(Map<String, List<Project>> tenantIdProjectsMap, RequestInfo requestInfo, Map<String, List<Project>> projectTypeCodeProjectsMap) {
+        Map<String, ProjectType> projectIdProjectTypeMap = new HashMap<>();
+        List<ProjectType> projectTypes = new ArrayList<>();
+        for(Map.Entry<String, List<Project>> entry : tenantIdProjectsMap.entrySet()) {
+            projectTypes.addAll(this.getProjectTypes(entry.getKey(), requestInfo));
+        }
+        projectTypes.forEach(projectType -> {
+            if(projectTypeCodeProjectsMap.containsKey(projectType.getCode())) {
+                projectTypeCodeProjectsMap.get(projectType).forEach(project -> projectIdProjectTypeMap.put(project.getId(), projectType));
+            }
+        });
+        return projectIdProjectTypeMap;
+    }
 }
