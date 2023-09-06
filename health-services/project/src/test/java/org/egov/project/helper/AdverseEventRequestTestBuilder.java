@@ -1,7 +1,7 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.project.AdverseEventRequest;
+import org.egov.common.models.project.adverseevent.AdverseEventRequest;
 
 import java.util.ArrayList;
 

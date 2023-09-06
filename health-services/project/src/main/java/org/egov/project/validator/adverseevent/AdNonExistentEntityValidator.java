@@ -1,11 +1,10 @@
 package org.egov.project.validator.adverseevent;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.project.AdverseEvent;
-import org.egov.common.models.project.AdverseEventBulkRequest;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
+import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.AdverseEventRepository;
 import org.springframework.beans.factory.annotation.Autowired;

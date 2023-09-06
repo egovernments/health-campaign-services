@@ -101,19 +101,8 @@ public class Task {
     @JsonIgnore
     private Boolean hasErrors = Boolean.FALSE;
 
-    @JsonProperty("adverseEvents")
-    private List<AdverseEvent> adverseEvents = new ArrayList<>();
-
     public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);
-        return this;
-    }
-
-    public Task addAdverseEventItem(AdverseEvent adverseEventItem) {
-        if (this.adverseEvents == null) {
-            this.adverseEvents = new ArrayList<>();
-        }
-        this.adverseEvents.add(adverseEventItem);
         return this;
     }
 }

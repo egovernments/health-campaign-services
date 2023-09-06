@@ -2416,10 +2416,6 @@ definitions:
         type: array
         items:
           type: string
-      reAttempts:
-        type: integer
-        format: int64
-        description: Re-Attempts
       isDeleted:
         $ref: '#/definitions/isDeleted'
       rowVersion:

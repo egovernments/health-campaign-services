@@ -2,7 +2,12 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.project.*;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
+import org.egov.common.models.project.adverseevent.AdverseEventBulkResponse;
+import org.egov.common.models.project.adverseevent.AdverseEventRequest;
+import org.egov.common.models.project.adverseevent.AdverseEventResponse;
+import org.egov.common.models.project.adverseevent.AdverseEventSearch;
+import org.egov.common.models.project.adverseevent.AdverseEventSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.project.TestConfiguration;
 import org.egov.project.config.ProjectConfiguration;

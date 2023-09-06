@@ -1,21 +1,16 @@
 package org.egov.project.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.project.AdverseEvent;
-import org.egov.common.models.project.AdverseEventBulkRequest;
-import org.egov.common.models.project.ProjectResourceBulkRequest;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
+import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.AdverseEventRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.egov.common.utils.CommonUtils.*;
 

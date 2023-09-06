@@ -162,7 +162,7 @@ serviceMaps:
       fromTopic: save-adverse-event-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO ADVERSE_EVENT(id, clientReferenceId, tenantId, taskId, taskClientReferenceId, symptoms, reAttempts, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedTime, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO ADVERSE_EVENT(id, clientReferenceId, tenantId, taskId, taskClientReferenceId, symptoms, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedTime, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -173,7 +173,6 @@ serviceMaps:
             - jsonPath: $.*.symptoms
               type: JSON
               dbType: JSONB
-            - jsonPath: $.*.reAttempts
             - jsonPath: $.*.auditDetails.createdBy
             - jsonPath: $.*.auditDetails.createdTime
             - jsonPath: $.*.auditDetails.lastModifiedBy
@@ -188,7 +187,7 @@ serviceMaps:
       fromTopic: update-adverse-event-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE ADVERSE_EVENT SET tenantId = ?, taskId = ?, taskClientReferenceId = ?, symptoms = ?, reAttempts = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+        - query: UPDATE ADVERSE_EVENT SET tenantId = ?, taskId = ?, taskClientReferenceId = ?, symptoms = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
@@ -197,7 +196,6 @@ serviceMaps:
             - jsonPath: $.*.symptoms
               type: JSON
               dbType: JSONB
-            - jsonPath: $.*.reAttempts
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.clientAuditDetails.lastModifiedTime

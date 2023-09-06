@@ -1,4 +1,4 @@
-package org.egov.common.models.project;
+package org.egov.common.models.project.adverseevent;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -16,13 +17,14 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AdverseEventSearchRequest {
+public class AdverseEventRequest{
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
     @JsonProperty("AdverseEvent")
+    @NotNull
     @Valid
-    private AdverseEventSearch adverseEvent = null;
+    private AdverseEvent adverseEvent = null;
 }

@@ -3,8 +3,8 @@ package org.egov.project.validator.adverseevent;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.models.Error;
-import org.egov.common.models.project.AdverseEvent;
-import org.egov.common.models.project.AdverseEventBulkRequest;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
+import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.validator.Validator;
@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

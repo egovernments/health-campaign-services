@@ -1,7 +1,7 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.project.AdverseEvent;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,7 +28,6 @@ public class AdverseEventTestBuilder {
                 .id(null)
                 .taskClientReferenceId("null")
                 .symptoms(new ArrayList<>(Arrays.asList("fever")))
-                .reAttempts(1)
                 .tenantId("some-tenant-id")
                 .rowVersion(1);
         return this;
@@ -39,7 +38,6 @@ public class AdverseEventTestBuilder {
                 .clientReferenceId("adverseEventClientReferenceId")
                 .taskClientReferenceId("null")
                 .symptoms(new ArrayList<>(Arrays.asList("fever")))
-                .reAttempts(1)
                 .tenantId("some-tenant-id");
         return this;
     }
@@ -59,7 +57,6 @@ public class AdverseEventTestBuilder {
                 .clientReferenceId("adverseEventClientReferenceId")
                 .taskClientReferenceId("null")
                 .symptoms(new ArrayList<>(Arrays.asList("fever")))
-                .reAttempts(1)
                 .tenantId("some-tenant-id")
                 .rowVersion(1)
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())

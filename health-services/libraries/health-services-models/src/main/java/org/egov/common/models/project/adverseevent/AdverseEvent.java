@@ -1,4 +1,4 @@
-package org.egov.common.models.project;
+package org.egov.common.models.project.adverseevent;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -39,11 +39,9 @@ public class AdverseEvent {
     private String taskClientReferenceId = null;
 
     @JsonProperty("symptoms")
+    @NotNull
+    @Min(1)
     private List<String> symptoms = null;
-
-    @JsonProperty("reAttempts")
-    @Min(value = 0, message = "Re-Attempts must be greater than or equal to 0")
-    private Integer reAttempts = null;
 
     @JsonProperty("tenantId")
     @NotNull

@@ -1,4 +1,4 @@
-package org.egov.common.models.project;
+package org.egov.common.models.project.adverseevent;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -10,22 +10,28 @@ import org.egov.common.contract.response.ResponseInfo;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AdverseEventResponse   {
+public class AdverseEventBulkResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("AdverseEvent")
+    @JsonProperty("AdverseEvents")
     @NotNull
     @Valid
-    private AdverseEvent adverseEvent = null;
+    private List<AdverseEvent> adverseEvents = new ArrayList<>();
 
+    public AdverseEventBulkResponse addAdverseEventItem(AdverseEvent adverseEventItem) {
+        this.adverseEvents.add(adverseEventItem);
+        return this;
+    }
 }

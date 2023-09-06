@@ -3,7 +3,7 @@ package org.egov.project.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.project.AdverseEvent;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 @Component
 public class AdverseEventRowMapper implements RowMapper<AdverseEvent> {
@@ -29,7 +28,6 @@ public class AdverseEventRowMapper implements RowMapper<AdverseEvent> {
                     .taskClientReferenceId(resultSet.getString("taskClientreferenceid"))
                     .tenantId(resultSet.getString("tenantid"))
                     .symptoms(resultSet.getString("symptoms") == null ? null : objectMapper.readValue(resultSet.getString("symptoms"), ArrayList.class))
-                    .reAttempts(resultSet.getInt("reAttempts"))
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
                     .auditDetails(AuditDetails.builder()

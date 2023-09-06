@@ -3,7 +3,10 @@ package org.egov.project.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.project.*;
+import org.egov.common.models.project.adverseevent.AdverseEvent;
+import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.project.adverseevent.AdverseEventRequest;
+import org.egov.common.models.project.adverseevent.AdverseEventSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
@@ -139,11 +142,11 @@ public class AdverseEventService {
     }
 
     public List<AdverseEvent> search(AdverseEventSearchRequest adverseEventSearchRequest,
-                                           Integer limit,
-                                           Integer offset,
-                                           String tenantId,
-                                           Long lastChangedSince,
-                                           Boolean includeDeleted) throws Exception {
+                                     Integer limit,
+                                     Integer offset,
+                                     String tenantId,
+                                     Long lastChangedSince,
+                                     Boolean includeDeleted) throws Exception {
         log.info("received request to search adverse events");
         String idFieldName = getIdFieldName(adverseEventSearchRequest.getAdverseEvent());
         if (isSearchByIdOnly(adverseEventSearchRequest.getAdverseEvent(), idFieldName)) {
