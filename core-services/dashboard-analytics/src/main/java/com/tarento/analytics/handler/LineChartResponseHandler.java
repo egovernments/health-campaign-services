@@ -284,7 +284,7 @@ public class LineChartResponseHandler implements IResponseHandler {
     public void addTargetDates(Long startDate, Long endDate, List<Long> targetEpochKeys){
         targetEpochKeys.add(startDate);
         ListIterator<Long> iterator = targetEpochKeys.listIterator();
-        while (targetEpochKeys.get(targetEpochKeys.size()-1) < endDate){
+        while (targetEpochKeys.get(targetEpochKeys.size()-1) < endDate && targetEpochKeys.get(targetEpochKeys.size()-1) + Constants.DAY_EPOCH < endDate){
             targetEpochKeys.add(targetEpochKeys.get(targetEpochKeys.size()-1) + Constants.DAY_EPOCH);
         }
     }
