@@ -1,45 +1,28 @@
 package org.egov.project.validator.project;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectRequest;
-import org.egov.common.models.project.ProjectType;
 import org.egov.common.service.MdmsService;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectService;
-import org.egov.project.util.BoundaryUtil;
-import org.egov.project.util.MDMSUtils;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.egov.project.Constants.INTERNAL_SERVER_ERROR;
 import static org.egov.project.Constants.MDMS_RESPONSE;
 import static org.egov.project.Constants.PROJECT_TYPES;
-import static org.egov.project.util.ProjectConstants.MASTER_DEPARTMENT;
-import static org.egov.project.util.ProjectConstants.MASTER_NATUREOFWORK;
-import static org.egov.project.util.ProjectConstants.MASTER_PROJECTTYPE;
-import static org.egov.project.util.ProjectConstants.MASTER_TENANTS;
-import static org.egov.project.util.ProjectConstants.MDMS_COMMON_MASTERS_MODULE_NAME;
-import static org.egov.project.util.ProjectConstants.MDMS_TENANT_MODULE_NAME;
-import static org.egov.project.util.ProjectConstants.MASTER_PROJECT_OBSERVATION_TYPE;
-import static org.egov.project.util.ProjectConstants.MASTER_PROJECT_CYCLES;
 
 @Component
 @Slf4j
@@ -59,10 +42,10 @@ public class MultiRoundProjectValidator {
         this.projectConfiguration = projectConfiguration;
     }
 
-    public List<ProjectType> getProjectTypes(String tenantId, RequestInfo requestInfo) {
+    public Map<String, JsonNode> getProjectTypes(String tenantId, RequestInfo requestInfo) {
         JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                 projectConfiguration.getMdmsModule());
-        return convertToProjectTypeList(response);
+        return convertToProjectTypeMap(response);
     }
 
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,
@@ -75,10 +58,11 @@ public class MultiRoundProjectValidator {
         }
     }
 
-    private List<ProjectType> convertToProjectTypeList(JsonNode jsonNode) {
+    private Map<String, JsonNode> convertToProjectTypeMap(JsonNode jsonNode) {
         JsonNode projectTypesNode = jsonNode.get(projectConfiguration.getMdmsModule()).withArray(PROJECT_TYPES);
-        return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<ProjectType>>() {
-        });
+        Map<String, JsonNode> map = new HashMap<>();
+        projectTypesNode.forEach(json -> map.put(json.get("id").textValue(), json));
+        return map;
     }
 
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
@@ -93,7 +77,7 @@ public class MultiRoundProjectValidator {
         List<ModuleDetail> moduleDetailList = new ArrayList<>();
         moduleDetailList.add(moduleDetail);
         MdmsCriteria mdmsCriteria = new MdmsCriteria();
-        mdmsCriteria.setTenantId(tenantId.split("\\.")[0]);
+        mdmsCriteria.setTenantId(tenantId);
         mdmsCriteria.setModuleDetails(moduleDetailList);
         MdmsCriteriaReq mdmsCriteriaReq = new MdmsCriteriaReq();
         mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
@@ -101,17 +85,11 @@ public class MultiRoundProjectValidator {
         return mdmsCriteriaReq;
     }
 
-    public Map<String, ProjectType> populateProjectIdProjectTypeMap(Map<String, List<Project>> tenantIdProjectsMap, RequestInfo requestInfo, Map<String, List<Project>> projectTypeCodeProjectsMap) {
-        Map<String, ProjectType> projectIdProjectTypeMap = new HashMap<>();
-        List<ProjectType> projectTypes = new ArrayList<>();
-        for(Map.Entry<String, List<Project>> entry : tenantIdProjectsMap.entrySet()) {
-            projectTypes.addAll(this.getProjectTypes(entry.getKey(), requestInfo));
+    public Map<String, JsonNode> populateProjectIdProjectTypeMap(Set<String> tenantIdSet, RequestInfo requestInfo, Map<String, List<Project>> projectTypeCodeProjectsMap) {
+        Map<String, JsonNode> projectTypeMap = new HashMap<>();
+        for(String tenant : tenantIdSet) {
+            projectTypeMap.putAll(this.getProjectTypes(tenant, requestInfo));
         }
-        projectTypes.forEach(projectType -> {
-            if(projectTypeCodeProjectsMap.containsKey(projectType.getCode())) {
-                projectTypeCodeProjectsMap.get(projectType).forEach(project -> projectIdProjectTypeMap.put(project.getId(), projectType));
-            }
-        });
-        return projectIdProjectTypeMap;
+        return projectTypeMap;
     }
 }
