@@ -21,6 +21,18 @@ public class HouseholdRowMapper implements RowMapper<Household> {
     @Override
     public Household mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
+            AuditDetails auditDetails = AuditDetails.builder()
+                    .createdBy(resultSet.getString("createdBy"))
+                    .createdTime(resultSet.getLong("createdTime"))
+                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
+                    .build();
+            AuditDetails clientAuditDetails = AuditDetails.builder()
+                    .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .createdBy(resultSet.getString("clientCreatedBy"))
+                    .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
+                    .build();
             Household household =  Household.builder()
                     .id(resultSet.getString("id"))
                     .rowVersion(resultSet.getInt("rowVersion"))
@@ -28,12 +40,8 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                     .tenantId(resultSet.getString("tenantId"))
                     .memberCount(resultSet.getInt("numberOfMembers"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
-                    .auditDetails(AuditDetails.builder()
-                            .createdBy(resultSet.getString("createdBy"))
-                            .createdTime(resultSet.getLong("createdTime"))
-                            .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                            .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                            .build())
+                    .auditDetails(auditDetails)
+                    .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper.readValue(resultSet
                             .getString("additionalDetails"), AdditionalFields.class))
                     .address(Address.builder()
