@@ -15,6 +15,7 @@ import org.egov.project.repository.ProjectRepository;
 import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.validator.project.MultiRoundProjectValidator;
 import org.egov.project.validator.project.ProjectValidator;
+import org.egov.project.web.models.MultiRoundConstants;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -24,7 +25,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +67,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         Map<String, List<Task>> projectIdTasksMap = entities.stream().collect(Collectors.groupingBy(e -> e.getProjectId()));
         if (!projectIdTasksMap.isEmpty()) {
             List<String> projectIds = new ArrayList<>(projectIdTasksMap.keySet());
-            List<Project> projects = projectRepository.getProjectsBasedOnProjectIds(projectIds, Collections.emptyList());
+            List<Project> projects = projectRepository.getProjectsBasedOnProjectIds(projectIds, new ArrayList<>());
             Map<String, Project> projectMap = new HashMap<>();
             Map<String, String> projectIdProjectTypeIdMap = new HashMap<>();
             Map<String, List<Project>> tenantIdProjectsMap = new HashMap<>();
@@ -90,7 +90,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
             Map<String, List<Task>> projectBeneficiaryClientReferenceIdTaskMap = entities.stream().collect(Collectors.groupingBy(Task::getProjectBeneficiaryClientReferenceId));
             projectBeneficiaryClientReferenceIdTaskMap.forEach((projectBeneficiaryClientReferenceId, tasks) -> {
                 JsonNode projectTypeJson = projectTypeJsonMap.get(projectIdProjectTypeIdMap.get(tasks.get(0).getProjectId()));
-                if(projectTypeJson.get("projectType").textValue().equalsIgnoreCase("MR-DN")) verifyPastTask(projectBeneficiaryClientReferenceId, projectTypeJson, tasks.get(0).getTenantId(), tasks, errorDetailsMap);
+                if(projectTypeJson.get("code").textValue().equalsIgnoreCase("MR-DN")) verifyPastTask(projectBeneficiaryClientReferenceId, projectTypeJson, tasks.get(0).getTenantId(), tasks, errorDetailsMap);
             });
         }
         return errorDetailsMap;
@@ -113,29 +113,48 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         Integer index = 0;
         JsonNode cycles = projectTypeJson.withArray("cycles");
         String mandatoryWaitTimeForCycleInDays = "";
-        Date previousCycleStartDate = null;
+        Long previousCycleEndDate = null;
         for(JsonNode cycle : cycles) {
-            //whether we can start the cycle or not needs to be identified here.
-            if(previousCycleStartDate != null) {
+            if(previousCycleEndDate != null) {
                 mandatoryWaitTimeForCycleInDays = cycle.with("mandatoryWaitSinceLastCycleInDays").textValue();
-                Date currentCycleStartDate = new Date(tasks.get(index).getCreatedDate());
-                int differenceInDays = (int) ((currentCycleStartDate.getTime() - previousCycleStartDate.getTime())/(1000*60*60*24));
-                if(differenceInDays < Integer.parseInt(mandatoryWaitTimeForCycleInDays)) {
-
+                Long currentCycleStartDate = tasks.get(index).getCreatedDate();
+                Long differenceInDays = ((currentCycleStartDate - previousCycleEndDate)/(1000*60*60*24));
+                if(differenceInDays < Long.valueOf(mandatoryWaitTimeForCycleInDays)) {
+                    Error error = Error.builder()
+                            .errorMessage("Task not allowed as Mandatory wait time for cycle is not over.")
+                            .errorCode("TASK_NOT_ALLOWED")
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as Mandatory wait time for cycle is not over.")).build();
+                    populateErrorDetails(tasks.get(index), error, errorDetailsMap);
                 }
-                previousCycleStartDate= currentCycleStartDate;
-            } else previousCycleStartDate = new Date(tasks.get(0).getCreatedDate());
-            if(Boolean.FALSE.equals(isTasksForCycleAllowed(tasks, index, cycle, errorDetailsMap))) break;
+            }
+            previousCycleEndDate = isTasksForCycleAllowed(tasks, index, cycle, errorDetailsMap);
+            if(previousCycleEndDate == null) break;
         }
     }
 
-    public Boolean isTasksForCycleAllowed(List<Task> tasks, int index, JsonNode cycle, Map<Task, List<Error>> errorDetailsMap) {
+    public Long isTasksForCycleAllowed(List<Task> tasks, Integer index, JsonNode cycle, Map<Task, List<Error>> errorDetailsMap) {
         String mandatoryWaitTimeInDays = "";
         Boolean taskAllowed = Boolean.TRUE;
+        Long previousTaskEndDate = null;
+        List<Task> futureTasks = null;
+        Long lastTaskEndDate = null;
+        Task task = null;
         loop : for(JsonNode delivery : cycle.withArray("deliveries")) {
             mandatoryWaitTimeInDays = delivery.with("mandatoryWaitSinceLastDeliveryInDays").textValue();
             String deliveryStrategy = delivery.with("deliveryStrategy").textValue();
-            List<Task> futureTasks = new ArrayList<>();
+            futureTasks = new ArrayList<>();
+            task = tasks.get(index);
+            if(getDateFromAdditionalFields(task.getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_DELIVERY) == null) {
+                Error error = Error.builder()
+                        .errorMessage("Task not allowed as "+MultiRoundConstants.DateType.DATE_OF_DELIVERY+" is required.")
+                        .errorCode("TASK_NOT_ALLOWED")
+                        .type(Error.ErrorType.NON_RECOVERABLE)
+                        .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as "+MultiRoundConstants.DateType.DATE_OF_DELIVERY+" is required.")).build();
+                populateErrorDetails(task, error, errorDetailsMap);
+                taskAllowed = Boolean.FALSE;
+                break;
+            }
             switch (DeliveryType.valueOf(deliveryStrategy)) {
                 case DIRECT:
                     if(!futureTasks.isEmpty()) {
@@ -144,39 +163,50 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
                                 .errorCode("DIRECT_TASK_NOT_ALLOWED")
                                 .type(Error.ErrorType.NON_RECOVERABLE)
                                 .exception(new CustomException("DIRECT_TASK_NOT_ALLOWED", "Direct task not allowed as un-finished/un-verified task exists")).build();
-                        populateErrorDetails(tasks.get(index), error, errorDetailsMap);
+                        populateErrorDetails(task, error, errorDetailsMap);
                         taskAllowed = Boolean.FALSE;
                         break loop;
                     } else {
-                        if(getDateOfVerificationFromAdditionalFields(tasks.get(index).getAdditionalFields()) == null) {
+                        String dateOfVerification = getDateFromAdditionalFields(task.getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_VERIFICATION);
+                        if(dateOfVerification == null || dateOfVerification.trim().isEmpty()) {
                             Error error = Error.builder()
                                     .errorMessage("Future task not allowed")
                                     .errorCode("FUTURE_TASK_NOT_ALLOWED")
                                     .type(Error.ErrorType.NON_RECOVERABLE)
                                     .exception(new CustomException("FUTURE_TASK_NOT_ALLOWED", "Future task not allowed")).build();
-                            populateErrorDetails(tasks.get(index), error, errorDetailsMap);
+                            populateErrorDetails(task, error, errorDetailsMap);
                             taskAllowed = Boolean.FALSE;
                             break loop;
-                        } else {
-
                         }
+                        Long differenceInDays = ((task.getCreatedDate() - previousTaskEndDate)/(1000*60*60*24));
+                        if(differenceInDays < Long.valueOf(mandatoryWaitTimeInDays)) {
+                            Error error = Error.builder()
+                                    .errorMessage("Task not allowed as Mandatory wait time for delivery is not over.")
+                                    .errorCode("TASK_NOT_ALLOWED")
+                                    .type(Error.ErrorType.NON_RECOVERABLE)
+                                    .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as Mandatory wait time for delivery is not over.")).build();
+                            populateErrorDetails(tasks.get(index), error, errorDetailsMap);
+                        }
+                        previousTaskEndDate = Long.valueOf(dateOfVerification);
                     }
                     break;
                 case INDIRECT:
-                    futureTasks.add(tasks.get(index));
+                    futureTasks.add(task);
             }
             index++;
         }
         if(!taskAllowed) {
             index++;
             failedTasksFrom(tasks, index, errorDetailsMap);
+        } else {
+            lastTaskEndDate = Long.valueOf(getDateFromAdditionalFields(tasks.get(index - 1).getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_VERIFICATION));
         }
-        return taskAllowed;
+        return lastTaskEndDate;
     }
 
-    public String getDateOfVerificationFromAdditionalFields(AdditionalFields fields) {
-        Optional<Field> dateOfVerificationField = fields.getFields().stream().filter(field -> field.getKey().equalsIgnoreCase("DateOfVerification")).findFirst();
-        return dateOfVerificationField.map(Field::getValue).orElse(null);
+    public String getDateFromAdditionalFields(AdditionalFields fields, MultiRoundConstants.DateType dateType) {
+        Optional<Field> dateField = fields.getFields().stream().filter(field -> field.getKey().equalsIgnoreCase(dateType.toString())).findFirst();
+        return dateField.map(Field::getValue).orElse(null);
     }
     public void failedTasksFrom(List<Task> tasks, Integer fromIndex, Map<Task, List<Error>> errorDetailsMap) {
         while(fromIndex < tasks.size()) {

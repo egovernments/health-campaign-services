@@ -64,4 +64,32 @@ public class MultiRoundConstants {
         }
 
     }
+
+    public enum DateType {
+        DATE_OF_DELIVERY("DateOfDelivery"),
+        DATE_OF_ADMINISTRATION("DateOfAdministration"),
+        DATE_OF_VERIFICATION("DateOfVerification");
+
+        private String value;
+
+        DateType(String value) {
+            this.value = value;
+        }
+
+        @Override
+        @JsonValue
+        public String toString() {
+            return String.valueOf(value);
+        }
+
+        @JsonCreator
+        public static DateType fromValue(String text) {
+            for (DateType b : DateType.values()) {
+                if (String.valueOf(b.value).equals(text)) {
+                    return b;
+                }
+            }
+            return null;
+        }
+    }
 }
