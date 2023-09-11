@@ -116,7 +116,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         Long previousCycleEndDate = null;
         for(JsonNode cycle : cycles) {
             if(previousCycleEndDate != null) {
-                mandatoryWaitTimeForCycleInDays = cycle.with("mandatoryWaitSinceLastCycleInDays").textValue();
+                mandatoryWaitTimeForCycleInDays = cycle.get("mandatoryWaitSinceLastCycleInDays").textValue();
                 Long currentCycleStartDate = tasks.get(index).getCreatedDate();
                 Long differenceInDays = ((currentCycleStartDate - previousCycleEndDate)/(1000*60*60*24));
                 if(differenceInDays < Long.valueOf(mandatoryWaitTimeForCycleInDays)) {
@@ -141,8 +141,8 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         Long lastTaskEndDate = null;
         Task task = null;
         loop : for(JsonNode delivery : cycle.withArray("deliveries")) {
-            mandatoryWaitTimeInDays = delivery.with("mandatoryWaitSinceLastDeliveryInDays").textValue();
-            String deliveryStrategy = delivery.with("deliveryStrategy").textValue();
+            mandatoryWaitTimeInDays = delivery.get("mandatoryWaitSinceLastDeliveryInDays").textValue();
+            String deliveryStrategy = delivery.get("deliveryStrategy").textValue();
             futureTasks = new ArrayList<>();
             task = tasks.get(index);
             if(getDateFromAdditionalFields(task.getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_DELIVERY) == null) {
