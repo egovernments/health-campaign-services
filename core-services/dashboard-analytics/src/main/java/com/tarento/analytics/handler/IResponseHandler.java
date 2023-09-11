@@ -43,6 +43,8 @@ public interface IResponseHandler {
 	public final static String SHOW_FOOTER = "showFooter";
 
 	public final static String IS_CAPPED_BY_CAMPAIGN_PERIOD = "isCappedByCampaignPeriod";
+
+	public final static String ACTUAL_VS_PLANNED_CAPPED_TARGET = "cappedTarget";
 	// Table Chart Keys
 	public static final String SERIAL_NUMBER = "S.N.";
 	public static final String TABLE_TEXT = "text" ;
@@ -96,6 +98,7 @@ public interface IResponseHandler {
     public final String START_DATE = "startDate";
 	public final String END_DATE = "endDate";
 	public final String PREDICTION_PATH = "predictionPath";
+	public final String DISTRIBUTION_PATH = "distributionPath";
 
 	public static final String XTABLE_COLUMN = "XtableColumnOrder";
 
