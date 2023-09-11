@@ -90,7 +90,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
             Map<String, List<Task>> projectBeneficiaryClientReferenceIdTaskMap = entities.stream().collect(Collectors.groupingBy(Task::getProjectBeneficiaryClientReferenceId));
             projectBeneficiaryClientReferenceIdTaskMap.forEach((projectBeneficiaryClientReferenceId, tasks) -> {
                 JsonNode projectTypeJson = projectTypeJsonMap.get(projectIdProjectTypeIdMap.get(tasks.get(0).getProjectId()));
-                verifyPastTask(projectBeneficiaryClientReferenceId, projectTypeJson, tasks.get(0).getTenantId(), tasks, errorDetailsMap);
+                if(projectTypeJson.get("projectType").textValue().equalsIgnoreCase("MR-DN")) verifyPastTask(projectBeneficiaryClientReferenceId, projectTypeJson, tasks.get(0).getTenantId(), tasks, errorDetailsMap);
             });
         }
         return errorDetailsMap;
