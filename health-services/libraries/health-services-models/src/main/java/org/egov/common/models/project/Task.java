@@ -95,6 +95,10 @@ public class Task {
     @Valid
     private AuditDetails auditDetails = null;
 
+    @JsonProperty("clientAuditDetails")
+    @Valid
+    private AuditDetails clientAuditDetails = null;
+
     @JsonProperty("status")
     private String status = null;
 
