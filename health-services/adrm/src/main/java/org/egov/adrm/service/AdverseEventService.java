@@ -2,6 +2,14 @@ package org.egov.adrm.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.adrm.Constants;
+import org.egov.adrm.config.AdrmConfiguration;
+import org.egov.adrm.repository.AdverseEventRepository;
+import org.egov.adrm.service.enrichment.AdverseEventEnrichmentService;
+import org.egov.adrm.validator.adverseevent.AdIsDeletedValidator;
+import org.egov.adrm.validator.adverseevent.AdNonExistentEntityValidator;
+import org.egov.adrm.validator.adverseevent.AdNullIdValidator;
+import org.egov.adrm.validator.adverseevent.AdProjectTaskIdValidator;
+import org.egov.adrm.validator.adverseevent.AdUniqueEntityValidator;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.adverseevent.AdverseEvent;
@@ -11,11 +19,6 @@ import org.egov.common.models.project.adverseevent.AdverseEventSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
-import org.egov.adrm.config.AdrmConfiguration;
-import org.egov.adrm.repository.AdverseEventRepository;
-import org.egov.adrm.service.enrichment.AdverseEventEnrichmentService;
-import org.egov.adrm.validator.adverseevent.*;
-import org.egov.project.service.ProjectService;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,9 +30,15 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.*;
-import static org.egov.adrm.Constants.SET_ADVERSE_EVENTS;
-import static org.egov.adrm.Constants.VALIDATION_ERROR;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 @Service
 @Slf4j

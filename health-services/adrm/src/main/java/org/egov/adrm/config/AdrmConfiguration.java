@@ -32,4 +32,10 @@ public class AdrmConfiguration {
 
     @Value("${project.adverseevent.consumer.bulk.delete.topic}")
     private String deleteAdverseEventBulkTopic;
+
+    @Value("${egov.project.task.host}")
+    private String projectTaskHost;
+
+    @Value("${egov.search.project.task.url}")
+    private String projectTaskSearchUrl;
 }
