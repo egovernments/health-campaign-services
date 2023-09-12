@@ -129,7 +129,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
                 }
             }
             previousCycleEndDate = isTasksForCycleAllowed(tasks, index, cycle, errorDetailsMap);
-            if(previousCycleEndDate == null) break;
+            if(previousCycleEndDate == null || index >= tasks.size()) break;
         }
     }
 
@@ -141,6 +141,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         Long lastTaskEndDate = null;
         Task task = null;
         loop : for(JsonNode delivery : cycle.withArray("deliveries")) {
+            if(index < tasks.size()) break;
             mandatoryWaitTimeInDays = delivery.get("mandatoryWaitSinceLastDeliveryInDays").textValue();
             String deliveryStrategy = delivery.get("deliveryStrategy").textValue();
             futureTasks = new ArrayList<>();
@@ -178,8 +179,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
                             taskAllowed = Boolean.FALSE;
                             break loop;
                         }
-                        Long differenceInDays = ((task.getCreatedDate() - previousTaskEndDate)/(1000*60*60*24));
-                        if(differenceInDays < Long.valueOf(mandatoryWaitTimeInDays)) {
+                        if((previousTaskEndDate != null && mandatoryWaitTimeInDays != null && ((task.getCreatedDate() - previousTaskEndDate)/(1000*60*60*24)) < Long.valueOf(mandatoryWaitTimeInDays))) {
                             Error error = Error.builder()
                                     .errorMessage("Task not allowed as Mandatory wait time for delivery is not over.")
                                     .errorCode("TASK_NOT_ALLOWED")
