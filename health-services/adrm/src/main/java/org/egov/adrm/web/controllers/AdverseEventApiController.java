@@ -1,6 +1,8 @@
-package org.egov.project.web.controllers;
+package org.egov.adrm.web.controllers;
 
 import io.swagger.annotations.ApiParam;
+import org.egov.adrm.config.AdrmConfiguration;
+import org.egov.adrm.service.AdverseEventService;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.project.adverseevent.AdverseEvent;
 import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
@@ -10,8 +12,6 @@ import org.egov.common.models.project.adverseevent.AdverseEventResponse;
 import org.egov.common.models.project.adverseevent.AdverseEventSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
-import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.service.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -39,18 +39,18 @@ public class AdverseEventApiController {
 
     private final Producer producer;
 
-    private final ProjectConfiguration projectConfiguration;
+    private final AdrmConfiguration adrmConfiguration;
 
     public AdverseEventApiController(
             HttpServletRequest httpServletRequest,
             AdverseEventService adverseEventService,
             Producer producer,
-            ProjectConfiguration projectConfiguration
+            AdrmConfiguration adrmConfiguration
     ) {
         this.httpServletRequest = httpServletRequest;
         this.adverseEventService = adverseEventService;
         this.producer = producer;
-        this.projectConfiguration = projectConfiguration;
+        this.adrmConfiguration = adrmConfiguration;
     }
 
     @RequestMapping(value = "/task/adverse_event/v1/_create", method = RequestMethod.POST)
@@ -72,7 +72,7 @@ public class AdverseEventApiController {
     public ResponseEntity<ResponseInfo> adverseEventBulkV1CreatePost(@ApiParam(value = "Capture details of Adverse Event", required = true) @Valid @RequestBody AdverseEventBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         adverseEventService.putInCache(request.getAdverseEvents());
-        producer.push(projectConfiguration.getCreateAdverseEventBulkTopic(), request);
+        producer.push(adrmConfiguration.getCreateAdverseEventBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -110,7 +110,7 @@ public class AdverseEventApiController {
     @RequestMapping(value = "/task/adverse_event/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> adverseEventV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing adverse event", required = true) @Valid @RequestBody AdverseEventBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getUpdateAdverseEventBulkTopic(), request);
+        producer.push(adrmConfiguration.getUpdateAdverseEventBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -133,7 +133,7 @@ public class AdverseEventApiController {
     @RequestMapping(value = "/task/adverse_event/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> adverseEventV1BulkDeletePost(@ApiParam(value = "Capture details of Existing adverse event", required = true) @Valid @RequestBody AdverseEventBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(projectConfiguration.getDeleteAdverseEventBulkTopic(), request);
+        producer.push(adrmConfiguration.getDeleteAdverseEventBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));

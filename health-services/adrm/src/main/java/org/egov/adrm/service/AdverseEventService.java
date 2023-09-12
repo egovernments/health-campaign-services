@@ -1,6 +1,7 @@
-package org.egov.project.service;
+package org.egov.adrm.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.adrm.Constants;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.adverseevent.AdverseEvent;
@@ -10,10 +11,11 @@ import org.egov.common.models.project.adverseevent.AdverseEventSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
-import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.repository.AdverseEventRepository;
-import org.egov.project.service.enrichment.AdverseEventEnrichmentService;
-import org.egov.project.validator.adverseevent.*;
+import org.egov.adrm.config.AdrmConfiguration;
+import org.egov.adrm.repository.AdverseEventRepository;
+import org.egov.adrm.service.enrichment.AdverseEventEnrichmentService;
+import org.egov.adrm.validator.adverseevent.*;
+import org.egov.project.service.ProjectService;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,8 +28,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.*;
-import static org.egov.project.Constants.SET_ADVERSE_EVENTS;
-import static org.egov.project.Constants.VALIDATION_ERROR;
+import static org.egov.adrm.Constants.SET_ADVERSE_EVENTS;
+import static org.egov.adrm.Constants.VALIDATION_ERROR;
 
 @Service
 @Slf4j
@@ -36,9 +38,7 @@ public class AdverseEventService {
 
     private final AdverseEventRepository adverseEventRepository;
 
-    private final ProjectService projectService;
-
-    private final ProjectConfiguration projectConfiguration;
+    private final AdrmConfiguration adrmConfiguration;
 
     private final AdverseEventEnrichmentService adverseEventEnrichmentService;
 
@@ -62,15 +62,13 @@ public class AdverseEventService {
     public AdverseEventService(
             IdGenService idGenService,
             AdverseEventRepository adverseEventRepository,
-            ProjectService projectService,
-            ProjectConfiguration projectConfiguration,
+            AdrmConfiguration adrmConfiguration,
             AdverseEventEnrichmentService adverseEventEnrichmentService,
             List<Validator<AdverseEventBulkRequest, AdverseEvent>> validators
     ) {
         this.idGenService = idGenService;
         this.adverseEventRepository = adverseEventRepository;
-        this.projectService = projectService;
-        this.projectConfiguration = projectConfiguration;
+        this.adrmConfiguration = adrmConfiguration;
         this.adverseEventEnrichmentService = adverseEventEnrichmentService;
         this.validators = validators;
     }
@@ -95,15 +93,15 @@ public class AdverseEventService {
                 log.info("processing {} valid entities", validAdverseEvents.size());
                 adverseEventEnrichmentService.create(validAdverseEvents, adverseEventRequest);
                 adverseEventRepository.save(validAdverseEvents,
-                        projectConfiguration.getCreateAdverseEventTopic());
+                        adrmConfiguration.getCreateAdverseEventTopic());
                 log.info("successfully created adverse events");
             }
         } catch (Exception exception) {
             log.error("error occurred while creating adverse events: {}", exception.getMessage());
             populateErrorDetails(adverseEventRequest, errorDetailsMap, validAdverseEvents,
-                    exception, SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_ADVERSE_EVENTS);
         }
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
         return validAdverseEvents;
     }
@@ -128,15 +126,15 @@ public class AdverseEventService {
                 log.info("processing {} valid entities", validAdverseEvents.size());
                 adverseEventEnrichmentService.update(validAdverseEvents, adverseEventRequest);
                 adverseEventRepository.save(validAdverseEvents,
-                        projectConfiguration.getUpdateAdverseEventTopic());
+                        adrmConfiguration.getUpdateAdverseEventTopic());
                 log.info("successfully updated bulk adverse events");
             }
         } catch (Exception exception) {
             log.error("error occurred while updating adverse events", exception);
             populateErrorDetails(adverseEventRequest, errorDetailsMap, validAdverseEvents,
-                    exception, SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_ADVERSE_EVENTS);
         }
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
         return validAdverseEvents;
     }
@@ -188,15 +186,15 @@ public class AdverseEventService {
                         .findById(adverseEventIds, false);
                 adverseEventEnrichmentService.delete(existingAdverseEvents, adverseEventRequest);
                 adverseEventRepository.save(existingAdverseEvents,
-                        projectConfiguration.getDeleteAdverseEventTopic());
+                        adrmConfiguration.getDeleteAdverseEventTopic());
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(adverseEventRequest, errorDetailsMap, validAdverseEvents,
-                    exception, SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_ADVERSE_EVENTS);
         }
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
         return validAdverseEvents;
     }
@@ -216,10 +214,10 @@ public class AdverseEventService {
         log.info("validating request");
         Map<AdverseEvent, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                SET_ADVERSE_EVENTS);
+                Constants.SET_ADVERSE_EVENTS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
-            throw new CustomException(VALIDATION_ERROR, errorDetailsMap.values().toString());
+            throw new CustomException(Constants.VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<AdverseEvent> validAdverseEvents = request.getAdverseEvents().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());

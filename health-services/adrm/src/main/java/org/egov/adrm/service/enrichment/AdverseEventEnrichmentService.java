@@ -1,12 +1,12 @@
-package org.egov.project.service.enrichment;
+package org.egov.adrm.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.adrm.config.AdrmConfiguration;
 import org.egov.common.models.project.adverseevent.AdverseEvent;
 import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
-import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.repository.AdverseEventRepository;
+import org.egov.adrm.repository.AdverseEventRepository;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -20,13 +20,13 @@ public class AdverseEventEnrichmentService {
 
     private final IdGenService idGenService;
 
-    private final ProjectConfiguration projectConfiguration;
+    private final AdrmConfiguration adrmConfiguration;
 
     private final AdverseEventRepository adverseEventRepository;
 
-    public AdverseEventEnrichmentService(IdGenService idGenService, ProjectConfiguration projectConfiguration, AdverseEventRepository adverseEventRepository) {
+    public AdverseEventEnrichmentService(IdGenService idGenService, AdrmConfiguration adrmConfiguration, AdverseEventRepository adverseEventRepository) {
         this.idGenService = idGenService;
-        this.projectConfiguration = projectConfiguration;
+        this.adrmConfiguration = adrmConfiguration;
         this.adverseEventRepository = adverseEventRepository;
     }
 

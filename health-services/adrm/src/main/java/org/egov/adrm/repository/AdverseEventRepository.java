@@ -1,4 +1,4 @@
-package org.egov.project.repository;
+package org.egov.adrm.repository;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
@@ -10,7 +10,7 @@ import org.egov.common.models.project.adverseevent.AdverseEvent;
 import org.egov.common.models.project.adverseevent.AdverseEventSearch;
 import org.egov.common.models.project.Task;
 import org.egov.common.producer.Producer;
-import org.egov.project.repository.rowmapper.AdverseEventRowMapper;
+import org.egov.adrm.repository.rowmapper.AdverseEventRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;

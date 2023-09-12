@@ -54,8 +54,4 @@ public interface Constants {
 
     String PROJECT_ID = "projectId";
 
-    String SET_ADVERSE_EVENTS = "setAdverseEvents";
-
-    String GET_ADVERSE_EVENTS = "getAdverseEvents";
-
 }

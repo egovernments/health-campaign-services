@@ -1,4 +1,4 @@
-package org.egov.project.validator.adverseevent;
+package org.egov.adrm.validator.adverseevent;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
+import static org.egov.adrm.Constants.GET_ADVERSE_EVENTS;
 import static org.egov.common.utils.CommonUtils.validateForNullId;
-import static org.egov.project.Constants.GET_ADVERSE_EVENTS;
 
 
 @Component

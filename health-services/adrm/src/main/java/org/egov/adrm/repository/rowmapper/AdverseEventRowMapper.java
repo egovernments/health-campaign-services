@@ -1,4 +1,4 @@
-package org.egov.project.repository.rowmapper;
+package org.egov.adrm.repository.rowmapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

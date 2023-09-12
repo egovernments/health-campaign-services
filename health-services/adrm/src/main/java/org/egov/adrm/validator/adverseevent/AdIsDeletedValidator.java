@@ -1,4 +1,4 @@
-package org.egov.project.validator.adverseevent;
+package org.egov.adrm.validator.adverseevent;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
