@@ -1,0 +1,51 @@
+#
+# config:
+# -   name: < Name of the job, foo/bar would create job named bar inside folder foo >
+#     build:
+#     - work-dir: < Working directory of the app to be built >
+#       dockerfile: < Path to the dockerfile, optional, assumes dockerfile in working directory if not provided >
+#       image-name: < Docker image name  >
+# -
+# -
+#
+# config:
+# -   name: < Name of the job, foo/bar would create job named bar inside folder foo >
+#     build:
+#     - work-dir: < Working directory of the app to be built >
+#       dockerfile: < Path to the dockerfile, optional, assumes dockerfile in working directory if not provided >
+#       image-name: < Docker image name  >
+# -
+# -
+config:
+
+# frontend
+  - name: builds/Digit-Frontend/workbench-ui
+    build:
+      - work-dir: micro-ui/
+        dockerfile: micro-ui/web/workbench/Dockerfile
+        image-name: workbench-ui
+        
+  - name: builds/Digit-Frontend/storybook-svg
+    build:
+    - work-dir: micro-ui/web/micro-ui-internals/packages/svg-components/
+      dockerfile: micro-ui/web/micro-ui-internals/packages/svg-components/docker/Dockerfile
+      image-name: storybook-svg
+      
+  - name: builds/Digit-Frontend/storybook
+    build:
+    - work-dir: micro-ui/web/micro-ui-internals/packages/components-core/
+      dockerfile: micro-ui/web/micro-ui-internals/packages/components-core/docker/Dockerfile
+      image-name: storybook
+
+  - name: builds/Digit-Frontend/digit-ui
+    build:
+      - work-dir: micro-ui/
+        dockerfile: micro-ui/web/docker/Dockerfile
+        image-name: digit-ui
+
+  - name: builds/Digit-Frontend/core-ui
+    build:
+      - work-dir: micro-ui/
+        dockerfile: micro-ui/web/docker/Dockerfile
+        image-name: core-ui
+
