@@ -21,7 +21,7 @@ public class TaskResourceRowMapper implements RowMapper<TaskResource> {
                 .productVariantId(resultSet.getString("productVariantId"))
                 .quantity(resultSet.getLong("quantity"))
                 .isDelivered(resultSet.getBoolean("isDelivered"))
-                .deliveryComment(resultSet.getString("isDelivered"))
+                .deliveryComment(resultSet.getString("reasonIfNotDelivered"))
                 .clientReferenceId(resultSet.getString("clientReferenceId"))
                 .auditDetails(AuditDetails.builder()
                         .createdBy(resultSet.getString("createdBy"))
