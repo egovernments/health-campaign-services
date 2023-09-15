@@ -75,32 +75,22 @@ public class ProjectRepository extends GenericRepository<Project> {
 
         List<Project> ancestors = null;
         List<Project> descendants = null;
-        List<Project> immediateChildrens = null;
 
         //Get Project ancestors if includeAncestors flag is true
         if (includeAncestors) {
             ancestors = getProjectAncestors(projects);
             if (ancestors != null && !ancestors.isEmpty()) {
-                List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).collect(Collectors.toList());
+                List<String> ancestorProjectIds = ancestors.stream().map(Project::getId).collect(Collectors.toList());
                 projectIds.addAll(ancestorProjectIds);
             }
         }
         if (includeImmediateChildren) {
-            immediateChildrens = getProjectImmediateDescendants(projects);
-            if (immediateChildrens != null && !immediateChildrens.isEmpty()) {
-                List<String> immediateChildrenProjectIds = immediateChildrens.stream().map(Project::getId).collect(Collectors.toList());
-                projectIds.addAll(immediateChildrenProjectIds);
-            }
-        } else {
-            //Get Project descendants if includeDescendants flag is true
-            if (includeDescendants) {
-                descendants = getProjectDescendants(projects);
-                if (descendants != null && !descendants.isEmpty()) {
-                    List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
-                    projectIds.addAll(descendantsProjectIds);
-                }
-            }
+            descendants = getProjectImmediateDescendants(projects);
+        } else if (includeDescendants) {
+            descendants = getProjectDescendants(projects);
         }
+        List<String> descendantsProjectIds = descendants == null || descendants.isEmpty() ? new ArrayList<>() : descendants.stream().map(Project::getId).collect(Collectors.toList());
+        projectIds.addAll(descendantsProjectIds);
 
         //Fetch targets based on Project Ids
         List<Target> targets = getTargetsBasedOnProjectIds(projectIds);
@@ -109,7 +99,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         List<Document> documents = getDocumentsBasedOnProjectIds(projectIds);
 
         //Construct Project Objects with fetched projects, targets and documents using Project id
-        return buildProjectSearchResult(projects, targets, documents, ancestors, descendants, immediateChildrens, includeImmediateChildren);
+        return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
     }
 
     /* Fetch Projects based on search criteria */
@@ -207,18 +197,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Constructs Project Objects with fetched projects, targets and documents using Project id and return list of Projects */
-    private List<Project> buildProjectSearchResult(List<Project> projects, List<Target> targets, List<Document> documents, List<Project> ancestors, List<Project> descendants, List<Project> immediateChildrens, Boolean includeImmediateChildren) {
-        if (includeImmediateChildren) {
-            getProjectSearchResultForDescendants(projects, targets, documents, ancestors, immediateChildrens);
-        } else {
-            getProjectSearchResultForDescendants(projects, targets, documents, ancestors, descendants);
-        }
-        return projects;
-    }
-
-
-    private void getProjectSearchResultForDescendants(List<Project> projects, List<Target> targets, List<Document> documents,
-                                                      List<Project> ancestors, List<Project> descendants) {
+    private List<Project> buildProjectSearchResult(List<Project> projects, List<Target> targets, List<Document> documents, List<Project> ancestors, List<Project> descendants) {
         for (Project project : projects) {
             log.info("Constructing project object for project " + project.getId());
             if (targets != null && targets.size() > 0) {
@@ -239,8 +218,8 @@ public class ProjectRepository extends GenericRepository<Project> {
             }
             log.info("Constructed project object for project " + project.getId());
         }
+        return projects;
     }
-
 
     /* Add Targets to projects based on projectId and targets list passed */
     private void addTargetToProject(Project project, List<Target> targets) {
