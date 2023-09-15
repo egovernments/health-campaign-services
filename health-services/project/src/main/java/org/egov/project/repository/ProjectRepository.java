@@ -85,14 +85,13 @@ public class ProjectRepository extends GenericRepository<Project> {
                 projectIds.addAll(ancestorProjectIds);
             }
         }
-        if(includeImmediateChildren){
+        if (includeImmediateChildren) {
             immediateChildrens = getProjectImmediateDescendants(projects);
-            if(immediateChildrens!=null && !immediateChildrens.isEmpty()){
-                List<String> immediateChildrenProjectIds = immediateChildrens.stream().map(Project :: getId).collect(Collectors.toList());
+            if (immediateChildrens != null && !immediateChildrens.isEmpty()) {
+                List<String> immediateChildrenProjectIds = immediateChildrens.stream().map(Project::getId).collect(Collectors.toList());
                 projectIds.addAll(immediateChildrenProjectIds);
             }
-
-        }else{
+        } else {
             //Get Project descendants if includeDescendants flag is true
             if (includeDescendants) {
                 descendants = getProjectDescendants(projects);
@@ -110,7 +109,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         List<Document> documents = getDocumentsBasedOnProjectIds(projectIds);
 
         //Construct Project Objects with fetched projects, targets and documents using Project id
-        return buildProjectSearchResult(projects, targets, documents, ancestors, descendants,immediateChildrens,includeImmediateChildren);
+        return buildProjectSearchResult(projects, targets, documents, ancestors, descendants, immediateChildrens, includeImmediateChildren);
     }
 
     /* Fetch Projects based on search criteria */
@@ -208,10 +207,10 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Constructs Project Objects with fetched projects, targets and documents using Project id and return list of Projects */
-    private List<Project> buildProjectSearchResult(List<Project> projects, List<Target> targets, List<Document> documents, List<Project> ancestors, List<Project> descendants,List<Project> immediateChildrens,Boolean includeImmediateChildren ) {
-        if(includeImmediateChildren){
+    private List<Project> buildProjectSearchResult(List<Project> projects, List<Target> targets, List<Document> documents, List<Project> ancestors, List<Project> descendants, List<Project> immediateChildrens, Boolean includeImmediateChildren) {
+        if (includeImmediateChildren) {
             getProjectSearchResultForDescendants(projects, targets, documents, ancestors, immediateChildrens);
-        }else{
+        } else {
             getProjectSearchResultForDescendants(projects, targets, documents, ancestors, descendants);
         }
         return projects;
@@ -220,7 +219,7 @@ public class ProjectRepository extends GenericRepository<Project> {
 
     private void getProjectSearchResultForDescendants(List<Project> projects, List<Target> targets, List<Document> documents,
                                                       List<Project> ancestors, List<Project> descendants) {
-        for (Project project: projects) {
+        for (Project project : projects) {
             log.info("Constructing project object for project " + project.getId());
             if (targets != null && targets.size() > 0) {
                 log.info("Adding Targets to project " + project.getId());
@@ -246,7 +245,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Add Targets to projects based on projectId and targets list passed */
     private void addTargetToProject(Project project, List<Target> targets) {
         project.setTargets(new ArrayList<>());
-        for (Target target: targets) {
+        for (Target target : targets) {
             if (target.getProjectid().equals(project.getId()) && !target.getIsDeleted() && project.getTargets().stream().noneMatch(t -> t.getId().equals(target.getId()))) {
                 project.getTargets().add(target);
             }
@@ -256,7 +255,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /* Add Documents to projects based on projectId and documents list passed */
     private void addDocumentToProject(Project project, List<Document> documents) {
         project.setDocuments(new ArrayList<>());
-        for (Document document: documents) {
+        for (Document document : documents) {
             if (document.getProjectid().equals(project.getId())
                     && (document.getStatus() == null || document.getStatus() != null && !document.getStatus().equals("INACTIVE"))
                     && project.getDocuments().stream().noneMatch(t -> t.getId().equals(document.getId()))) {
@@ -271,7 +270,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         List<Project> currentProjectAncestors = ancestors.stream().filter(a -> (project.getProjectHierarchy().contains(a.getId())
                 && !project.getId().equals(a.getId()))).collect(Collectors.toList());
         //Add target and document to ancestor projects using targets and documents list
-        for (Project ancestor: currentProjectAncestors) {
+        for (Project ancestor : currentProjectAncestors) {
             addTargetToProject(ancestor, targets);
             addDocumentToProject(ancestor, documents);
             log.info("Targets and Documents mapped to ancestor projects");
@@ -298,7 +297,7 @@ public class ProjectRepository extends GenericRepository<Project> {
                 && d.getProjectHierarchy().contains(project.getId())
                 && !d.getId().equals(project.getId())).collect(Collectors.toList());
         //Add target and document to descendants projects using targets and documents list
-        for (Project ancestor: subProjects) {
+        for (Project ancestor : subProjects) {
             addTargetToProject(ancestor, targets);
             addDocumentToProject(ancestor, documents);
             log.info("Targets and Documents mapped to descendant projects");
@@ -329,6 +328,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /**
      * Get the count of projects based on the given search criteria (using dynamic
      * query build at the run time)
+     *
      * @return
      */
     public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {

@@ -243,8 +243,8 @@ public class ProjectAddressQueryBuilder {
         StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_ADDRESS_QUERY);
         for (String projectId : projectIds) {
             addConditionalClause(preparedStmtListDescendants, queryBuilder);
-            queryBuilder.append(" ( prj.parent LIKE ? )");
-            preparedStmtListDescendants.add('%' + projectId + '%');
+            queryBuilder.append(" ( prj.parent = ? )");
+            preparedStmtListDescendants.add(projectId);
         }
 
         return queryBuilder.toString();
