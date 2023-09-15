@@ -744,11 +744,11 @@ public class CommonUtils {
             if (errorListMap.containsKey(payload)) {
                 errorListMap.get(payload).addAll(errorList);
             } else {
-                errorListMap.put(payload, errorList);
-            }
-            populateErrorDetails(request, errorDetailsMap, errorListMap, setPayloadMethodName);
-        });
-    }
+				errorListMap.put(payload, errorList);
+			}
+		});
+		populateErrorDetails(request, errorDetailsMap, errorListMap, setPayloadMethodName);
+	}
 
     /**
      * Populate error details for exception scenarios.

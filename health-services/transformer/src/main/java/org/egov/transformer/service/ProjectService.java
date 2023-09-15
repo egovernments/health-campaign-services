@@ -9,6 +9,7 @@ import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
@@ -131,7 +132,7 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching project list", e);
+            log.error("error while fetching project list", ExceptionUtils.getStackTrace(e));
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for name: " + projectName);
         }
@@ -161,7 +162,7 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching project list", e);
+            log.error("error while fetching project list", ExceptionUtils.getStackTrace(e));
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for id: " + projectId);
         }
@@ -190,7 +191,7 @@ public class ProjectService {
                     request,
                     BeneficiaryBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching beneficiary", e);
+            log.error("error while fetching beneficiary", ExceptionUtils.getStackTrace(e));
             throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
                     "error while fetching beneficiary details for id: " + projectBeneficiaryClientRefId);
         }

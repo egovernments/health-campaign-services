@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -75,7 +76,7 @@ public class ServiceDefinitionService {
                     request,
                     ServiceDefinitionResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching serviceDefinition list", e);
+            log.error("error while fetching serviceDefinition list", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ServiceDefinition_FETCH_ERROR",
                     "error while fetching service details for id: " + serviceDefId);
         }

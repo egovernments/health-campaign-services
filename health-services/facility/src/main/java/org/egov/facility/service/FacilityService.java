@@ -1,6 +1,7 @@
 package org.egov.facility.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.facility.Facility;
@@ -93,7 +94,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getCreateFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
@@ -124,7 +125,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getUpdateFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
@@ -155,7 +156,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getDeleteFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 

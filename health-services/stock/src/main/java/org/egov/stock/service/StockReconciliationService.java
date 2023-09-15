@@ -1,6 +1,7 @@
 package org.egov.stock.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.stock.StockReconciliation;
@@ -105,7 +106,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getCreateStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 
@@ -137,7 +138,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getUpdateStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 
@@ -170,7 +171,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getDeleteStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 

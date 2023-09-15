@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.Facility;
@@ -63,7 +64,7 @@ public class FacilityService {
             updateFacilitiesInCache(facilities);
             return facilities.isEmpty() ? null : facilities.get(0);
         } catch (Exception e) {
-            log.error("error while fetching facility", e);
+            log.error("error while fetching facility", ExceptionUtils.getStackTrace(e));
             return null;
         }
     }

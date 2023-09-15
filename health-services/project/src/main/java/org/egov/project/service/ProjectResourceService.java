@@ -1,6 +1,7 @@
 package org.egov.project.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -105,7 +106,7 @@ public class ProjectResourceService {
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project resource: {}", exception.getMessage());
+            log.error("error occurred while creating project resource: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
         }
 
@@ -138,7 +139,7 @@ public class ProjectResourceService {
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project resource: {}", exception.getMessage());
+            log.error("error occurred while creating project resource: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
         }
 
@@ -171,7 +172,7 @@ public class ProjectResourceService {
                 log.info("successfully deleted project resource");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting project resource: {}", exception.getMessage());
+            log.error("error occurred while deleting project resource: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
         }
 
