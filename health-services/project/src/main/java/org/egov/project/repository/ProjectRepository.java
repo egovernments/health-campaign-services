@@ -66,7 +66,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
 
-    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants,Boolean includeImmediateChildren, Long createdFrom, Long createdTo) {
+    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Boolean includeImmediateChildren, Long createdFrom, Long createdTo) {
 
         //Fetch Projects based on search criteria
         List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
