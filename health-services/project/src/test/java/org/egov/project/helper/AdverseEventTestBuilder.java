@@ -1,7 +1,7 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.project.adverseevent.AdverseEvent;
+import org.egov.common.models.adrm.adverseevent.AdverseEvent;
 
 import java.util.ArrayList;
 import java.util.Arrays;

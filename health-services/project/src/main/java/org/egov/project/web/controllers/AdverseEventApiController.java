@@ -2,12 +2,12 @@ package org.egov.project.web.controllers;
 
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.project.adverseevent.AdverseEvent;
-import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
-import org.egov.common.models.project.adverseevent.AdverseEventBulkResponse;
-import org.egov.common.models.project.adverseevent.AdverseEventRequest;
-import org.egov.common.models.project.adverseevent.AdverseEventResponse;
-import org.egov.common.models.project.adverseevent.AdverseEventSearchRequest;
+import org.egov.common.models.adrm.adverseevent.AdverseEvent;
+import org.egov.common.models.adrm.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.adrm.adverseevent.AdverseEventBulkResponse;
+import org.egov.common.models.adrm.adverseevent.AdverseEventRequest;
+import org.egov.common.models.adrm.adverseevent.AdverseEventResponse;
+import org.egov.common.models.adrm.adverseevent.AdverseEventSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
