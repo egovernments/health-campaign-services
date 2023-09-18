@@ -1,4 +1,4 @@
-package org.egov.common.models.project.adverseevent;
+package org.egov.common.models.adrm.adverseevent;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -40,7 +40,7 @@ public class AdverseEvent {
 
     @JsonProperty("symptoms")
     @NotNull
-    @Min(1)
+    @Size(min=1)
     private List<String> symptoms = null;
 
     @JsonProperty("tenantId")

@@ -37,9 +37,6 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
     private TaskResourceRowMapper taskResourceRowMapper;
 
     @Autowired
-    private AdverseEventRepository adverseEventRepository;
-
-    @Autowired
     protected ProjectTaskRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                     RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder,
                                     ProjectTaskRowMapper rowMapper) {

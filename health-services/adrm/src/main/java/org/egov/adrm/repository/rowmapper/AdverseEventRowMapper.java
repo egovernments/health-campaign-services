@@ -3,7 +3,7 @@ package org.egov.adrm.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.project.adverseevent.AdverseEvent;
+import org.egov.common.models.adrm.adverseevent.AdverseEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;

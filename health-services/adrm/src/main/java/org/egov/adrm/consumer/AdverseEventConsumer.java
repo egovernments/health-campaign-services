@@ -3,7 +3,7 @@ package org.egov.adrm.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.adrm.adverseevent.AdverseEventBulkRequest;
 import org.egov.adrm.service.AdverseEventService;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;

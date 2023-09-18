@@ -1,4 +1,4 @@
-package org.egov.common.models.project.adverseevent;
+package org.egov.common.models.adrm.adverseevent;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

@@ -1,25 +1,26 @@
-package org.egov.project.web.controllers;
+package org.egov.adrm.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.egov.adrm.TestConfiguration;
+import org.egov.adrm.config.AdrmConfiguration;
+import org.egov.adrm.helper.AdverseEventRequestTestBuilder;
+import org.egov.adrm.helper.AdverseEventTestBuilder;
+import org.egov.adrm.service.AdverseEventService;
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.project.adverseevent.AdverseEvent;
-import org.egov.common.models.project.adverseevent.AdverseEventBulkResponse;
-import org.egov.common.models.project.adverseevent.AdverseEventRequest;
-import org.egov.common.models.project.adverseevent.AdverseEventResponse;
-import org.egov.common.models.project.adverseevent.AdverseEventSearch;
-import org.egov.common.models.project.adverseevent.AdverseEventSearchRequest;
+import org.egov.common.models.adrm.adverseevent.AdverseEvent;
+import org.egov.common.models.adrm.adverseevent.AdverseEventBulkResponse;
+import org.egov.common.models.adrm.adverseevent.AdverseEventRequest;
+import org.egov.common.models.adrm.adverseevent.AdverseEventResponse;
+import org.egov.common.models.adrm.adverseevent.AdverseEventSearch;
+import org.egov.common.models.adrm.adverseevent.AdverseEventSearchRequest;
 import org.egov.common.producer.Producer;
-import org.egov.project.TestConfiguration;
-import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.helper.AdverseEventRequestTestBuilder;
-import org.egov.project.helper.AdverseEventTestBuilder;
-import org.egov.project.service.AdverseEventService;
-import org.egov.project.service.ProjectService;
-import org.egov.project.service.ProjectTaskService;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -27,17 +28,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AdverseEventApiController.class)
 @Import(TestConfiguration.class)
@@ -53,16 +49,10 @@ public class AdverseEventApiControllerTest {
     private AdverseEventService adverseEventService;
 
     @MockBean
-    private ProjectTaskService projectTaskService;
-
-    @MockBean
     private Producer producer;
 
     @MockBean
-    private ProjectConfiguration projectConfiguration;
-
-    @MockBean
-    private ProjectService projectService;
+    AdrmConfiguration adrmConfiguration;
 
     @Test
     @DisplayName("should create adverse event and return with 202 accepted")
@@ -72,20 +62,20 @@ public class AdverseEventApiControllerTest {
                 .withApiOperationNotUpdate()
                 .build();
         List<AdverseEvent> adverseEvents = getAdverseEvents();
-        when(adverseEventService.create(any(AdverseEventRequest.class))).thenReturn(adverseEvents.get(0));
+        Mockito.when(adverseEventService.create(ArgumentMatchers.any(AdverseEventRequest.class))).thenReturn(adverseEvents.get(0));
 
-        final MvcResult result = mockMvc.perform(post("/task/adverse_event/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isAccepted())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isAccepted())
+                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
         AdverseEventResponse response = objectMapper.readValue(responseStr, AdverseEventResponse.class);
 
-        assertNotNull(response.getAdverseEvent());
-        assertNotNull(response.getAdverseEvent().getId());
-        assertEquals("successful", response.getResponseInfo().getStatus());
+        Assertions.assertNotNull(response.getAdverseEvent());
+        Assertions.assertNotNull(response.getAdverseEvent().getId());
+        Assertions.assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
     private List<AdverseEvent> getAdverseEvents() {
@@ -99,19 +89,19 @@ public class AdverseEventApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/task/adverse_event/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
                                 .withOneAdverseEvent()
                                 .withBadTenantIdInOneAdverseEvent()
                                 .build())))
-                .andExpect(status().isBadRequest())
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
         ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
-        assertEquals(1, response.getErrors().size());
-        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+        Assertions.assertEquals(1, response.getErrors().size());
+        Assertions.assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
 
     @Test
@@ -122,39 +112,39 @@ public class AdverseEventApiControllerTest {
                 .withApiOperationNotNullAndNotCreate()
                 .build();
         AdverseEvent adverseEvent = AdverseEventTestBuilder.builder().withId().build();
-        when(adverseEventService.update(any(AdverseEventRequest.class))).thenReturn(adverseEvent);
+        Mockito.when(adverseEventService.update(ArgumentMatchers.any(AdverseEventRequest.class))).thenReturn(adverseEvent);
 
-        final MvcResult result = mockMvc.perform(post("/task/adverse_event/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isAccepted())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isAccepted())
+                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
         AdverseEventResponse response = objectMapper.readValue(responseStr, AdverseEventResponse.class);
 
-        assertNotNull(response.getAdverseEvent());
-        assertNotNull(response.getAdverseEvent().getId());
-        assertEquals("successful", response.getResponseInfo().getStatus());
+        Assertions.assertNotNull(response.getAdverseEvent());
+        Assertions.assertNotNull(response.getAdverseEvent().getId());
+        Assertions.assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(post("/task/adverse_event/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
                                 .withOneAdverseEventHavingId()
                                 .withBadTenantIdInOneAdverseEvent()
                                 .build())))
-                .andExpect(status().isBadRequest())
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
         ErrorRes response = objectMapper.readValue(responseStr,
                 ErrorRes.class);
 
-        assertEquals(1, response.getErrors().size());
-        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+        Assertions.assertEquals(1, response.getErrors().size());
+        Assertions.assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
     
     @Test
@@ -165,25 +155,25 @@ public class AdverseEventApiControllerTest {
                 AdverseEventSearch.builder().taskId("some-task-id").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
-        when(adverseEventService.search(any(AdverseEventSearchRequest.class),
-                any(Integer.class),
-                any(Integer.class),
-                any(String.class),
-                any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(AdverseEventTestBuilder.builder().withId().withAuditDetails().build()));
+        Mockito.when(adverseEventService.search(ArgumentMatchers.any(AdverseEventSearchRequest.class),
+                ArgumentMatchers.any(Integer.class),
+                ArgumentMatchers.any(Integer.class),
+                ArgumentMatchers.any(String.class),
+                ArgumentMatchers.any(Long.class),
+                ArgumentMatchers.any(Boolean.class))).thenReturn(Arrays.asList(AdverseEventTestBuilder.builder().withId().withAuditDetails().build()));
 
-        final MvcResult result = mockMvc.perform(post(
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post(
                         "/task/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(adverseEventSearchRequest)))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
         AdverseEventBulkResponse response = objectMapper.readValue(responseStr,
                 AdverseEventBulkResponse.class);
 
-        assertEquals(response.getAdverseEvents().size(), 1);
+        Assertions.assertEquals(response.getAdverseEvents().size(), 1);
     }
 
     @Test
@@ -194,25 +184,25 @@ public class AdverseEventApiControllerTest {
                 AdverseEventSearch.builder().taskId("some-task-id").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
-        when(adverseEventService.search(any(AdverseEventSearchRequest.class),
-                any(Integer.class),
-                any(Integer.class),
-                any(String.class),
-                any(Long.class),
-                any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Adverse Event found."));
+        Mockito.when(adverseEventService.search(ArgumentMatchers.any(AdverseEventSearchRequest.class),
+                ArgumentMatchers.any(Integer.class),
+                ArgumentMatchers.any(Integer.class),
+                ArgumentMatchers.any(String.class),
+                ArgumentMatchers.any(Long.class),
+                ArgumentMatchers.any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Adverse Event found."));
 
 
-        final MvcResult result = mockMvc.perform(post("/task/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(adverseEventSearchRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
         ErrorRes response = objectMapper.readValue(responseStr,
                 ErrorRes.class);
 
-        assertEquals(response.getErrors().size(), 1);
+        Assertions.assertEquals(response.getErrors().size(), 1);
     }
 
 }

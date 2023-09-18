@@ -2,8 +2,8 @@ package org.egov.adrm.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.adrm.config.AdrmConfiguration;
-import org.egov.common.models.project.adverseevent.AdverseEvent;
-import org.egov.common.models.project.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.adrm.adverseevent.AdverseEvent;
+import org.egov.common.models.adrm.adverseevent.AdverseEventBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.adrm.repository.AdverseEventRepository;
