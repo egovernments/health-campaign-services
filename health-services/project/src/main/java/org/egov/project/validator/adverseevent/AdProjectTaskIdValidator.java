@@ -44,7 +44,7 @@ public class AdProjectTaskIdValidator implements Validator<AdverseEventBulkReque
         Map<AdverseEvent, List<Error>> errorDetailsMap = new HashMap<>();
         List<AdverseEvent> entities = request.getAdverseEvents();
         Map<String, List<String>> tenantIdTaskIdMap = entities.stream().collect(Collectors.groupingBy(AdverseEvent::getTenantId, Collectors.mapping(AdverseEvent::getTaskId, Collectors.toList())));
-        Map<String, List<String>> tenantIdTaskReferenceIdMap = entities.stream().collect(Collectors.groupingBy(AdverseEvent::getTenantId, Collectors.mapping(AdverseEvent::getTaskId, Collectors.toList())));
+        Map<String, List<String>> tenantIdTaskReferenceIdMap = entities.stream().collect(Collectors.groupingBy(AdverseEvent::getTenantId, Collectors.mapping(AdverseEvent::getTaskClientReferenceId, Collectors.toList())));
         List<String> tenantIds = new ArrayList<>(tenantIdTaskIdMap.keySet());
         tenantIds.forEach(tenantId -> {
             List<String> taskIdList = tenantIdTaskIdMap.get(tenantId);
