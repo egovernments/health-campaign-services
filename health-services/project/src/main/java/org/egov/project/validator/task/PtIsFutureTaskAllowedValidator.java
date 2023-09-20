@@ -101,11 +101,12 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         try {
             pastTasks = projectTaskRepository.find(TaskSearch.builder().projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId).build(), null, 0, tenantId, null, Boolean.FALSE);
         } catch (QueryBuilderException e) {
-            Error error = Error.builder().errorMessage(String.format("Failed to retrieve past task for validation : "+e.getMessage()))
-                    .errorCode("FAILED_TO_FETCH_TASK_FROM_DB").type(Error.ErrorType.NON_RECOVERABLE)
-                    .exception(new CustomException("FAILED_TO_FETCH_TASK_FROM_DB", e.toString()))
-                    .build();
-            populateErrorDetails(Task.builder().projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId).tenantId(tenantId).build(), error, errorDetailsMap);
+//            Error error = Error.builder().errorMessage(String.format("Failed to retrieve past task for validation : "+e.getMessage()))
+//                    .errorCode("FAILED_TO_FETCH_TASK_FROM_DB").type(Error.ErrorType.NON_RECOVERABLE)
+//                    .exception(new CustomException("FAILED_TO_FETCH_TASK_FROM_DB", e.toString()))
+//                    .build();
+//            populateErrorDetails(Task.builder().projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId).tenantId(tenantId).build(), error, errorDetailsMap);
+//            return;
         }
         taskYetToBePersisted.sort(Comparator.comparing(Task::getCreatedDate));
         List<Task> tasks = new ArrayList<>(pastTasks);
@@ -115,92 +116,93 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         String mandatoryWaitTimeForCycleInDays = "";
         Long previousCycleEndDate = null;
         for(JsonNode cycle : cycles) {
-            if(previousCycleEndDate != null) {
-                mandatoryWaitTimeForCycleInDays = cycle.get("mandatoryWaitSinceLastCycleInDays").textValue();
-                Long currentCycleStartDate = tasks.get(index).getCreatedDate();
-                Long differenceInDays = ((currentCycleStartDate - previousCycleEndDate)/(1000*60*60*24));
-                if(differenceInDays < Long.valueOf(mandatoryWaitTimeForCycleInDays)) {
-                    Error error = Error.builder()
-                            .errorMessage("Task not allowed as Mandatory wait time for cycle is not over.")
-                            .errorCode("TASK_NOT_ALLOWED")
-                            .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as Mandatory wait time for cycle is not over.")).build();
-                    populateErrorDetails(tasks.get(index), error, errorDetailsMap);
-                }
-            }
+//            if(previousCycleEndDate != null) {
+//                mandatoryWaitTimeForCycleInDays = cycle.get("mandatoryWaitSinceLastCycleInDays").textValue();
+//                Long currentCycleStartDate = tasks.get(index).getCreatedDate();
+//                Long differenceInDays = ((currentCycleStartDate - previousCycleEndDate)/(1000*60*60*24));
+//                if(differenceInDays < Long.valueOf(mandatoryWaitTimeForCycleInDays)) {
+//                    Error error = Error.builder()
+//                            .errorMessage("Task not allowed as Mandatory wait time for cycle is not over.")
+//                            .errorCode("TASK_NOT_ALLOWED")
+//                            .type(Error.ErrorType.NON_RECOVERABLE)
+//                            .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as Mandatory wait time for cycle is not over.")).build();
+//                    populateErrorDetails(tasks.get(index), error, errorDetailsMap);
+//                }
+//            }
             previousCycleEndDate = isTasksForCycleAllowed(tasks, index, cycle, errorDetailsMap);
             if(previousCycleEndDate == null || index >= tasks.size()) break;
         }
     }
 
     public Long isTasksForCycleAllowed(List<Task> tasks, Integer index, JsonNode cycle, Map<Task, List<Error>> errorDetailsMap) {
-        String mandatoryWaitTimeInDays = "";
-        Boolean taskAllowed = Boolean.TRUE;
-        Long previousTaskEndDate = null;
-        List<Task> futureTasks = null;
+//        String mandatoryWaitTimeInDays = "";
+//        Boolean taskAllowed = Boolean.TRUE;
+//        Long previousTaskEndDate = null;
+//        List<Task> futureTasks = null;
         Long lastTaskEndDate = null;
-        Task task = null;
-        loop : for(JsonNode delivery : cycle.withArray("deliveries")) {
-            if(index < tasks.size()) break;
-            mandatoryWaitTimeInDays = delivery.get("mandatoryWaitSinceLastDeliveryInDays").textValue();
-            String deliveryStrategy = delivery.get("deliveryStrategy").textValue();
-            futureTasks = new ArrayList<>();
-            task = tasks.get(index);
-            if(getDateFromAdditionalFields(task.getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_DELIVERY) == null) {
-                Error error = Error.builder()
-                        .errorMessage("Task not allowed as "+MultiRoundConstants.DateType.DATE_OF_DELIVERY+" is required.")
-                        .errorCode("TASK_NOT_ALLOWED")
-                        .type(Error.ErrorType.NON_RECOVERABLE)
-                        .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as "+MultiRoundConstants.DateType.DATE_OF_DELIVERY+" is required.")).build();
-                populateErrorDetails(task, error, errorDetailsMap);
-                taskAllowed = Boolean.FALSE;
-                break;
-            }
-            switch (DeliveryType.valueOf(deliveryStrategy)) {
-                case DIRECT:
-                    if(!futureTasks.isEmpty()) {
-                        Error error = Error.builder()
-                                .errorMessage("Direct task not allowed as un-finished/un-verified task exists")
-                                .errorCode("DIRECT_TASK_NOT_ALLOWED")
-                                .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException("DIRECT_TASK_NOT_ALLOWED", "Direct task not allowed as un-finished/un-verified task exists")).build();
-                        populateErrorDetails(task, error, errorDetailsMap);
-                        taskAllowed = Boolean.FALSE;
-                        break loop;
-                    } else {
-                        String dateOfVerification = getDateFromAdditionalFields(task.getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_VERIFICATION);
-                        if(dateOfVerification == null || dateOfVerification.trim().isEmpty()) {
-                            Error error = Error.builder()
-                                    .errorMessage("Future task not allowed")
-                                    .errorCode("FUTURE_TASK_NOT_ALLOWED")
-                                    .type(Error.ErrorType.NON_RECOVERABLE)
-                                    .exception(new CustomException("FUTURE_TASK_NOT_ALLOWED", "Future task not allowed")).build();
-                            populateErrorDetails(task, error, errorDetailsMap);
-                            taskAllowed = Boolean.FALSE;
-                            break loop;
-                        }
-                        if((previousTaskEndDate != null && mandatoryWaitTimeInDays != null && ((task.getCreatedDate() - previousTaskEndDate)/(1000*60*60*24)) < Long.valueOf(mandatoryWaitTimeInDays))) {
-                            Error error = Error.builder()
-                                    .errorMessage("Task not allowed as Mandatory wait time for delivery is not over.")
-                                    .errorCode("TASK_NOT_ALLOWED")
-                                    .type(Error.ErrorType.NON_RECOVERABLE)
-                                    .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as Mandatory wait time for delivery is not over.")).build();
-                            populateErrorDetails(tasks.get(index), error, errorDetailsMap);
-                        }
-                        previousTaskEndDate = Long.valueOf(dateOfVerification);
-                    }
-                    break;
-                case INDIRECT:
-                    futureTasks.add(task);
-            }
-            index++;
-        }
-        if(!taskAllowed) {
-            index++;
-            failedTasksFrom(tasks, index, errorDetailsMap);
-        } else {
-            lastTaskEndDate = Long.valueOf(getDateFromAdditionalFields(tasks.get(index - 1).getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_VERIFICATION));
-        }
+//        Task task = null;
+//        loop : for(JsonNode delivery : cycle.withArray("deliveries")) {
+//            if(index >= tasks.size()) break;
+//            mandatoryWaitTimeInDays = delivery.get("mandatoryWaitSinceLastDeliveryInDays").textValue();
+//            String deliveryStrategy = delivery.get("deliveryStrategy").textValue();
+//            futureTasks = new ArrayList<>();
+//            task = tasks.get(index);
+//            if(getDateFromAdditionalFields(task.getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_DELIVERY) == null) {
+//                Error error = Error.builder()
+//                        .errorMessage("Task not allowed as "+MultiRoundConstants.DateType.DATE_OF_DELIVERY+" is required.")
+//                        .errorCode("TASK_NOT_ALLOWED")
+//                        .type(Error.ErrorType.NON_RECOVERABLE)
+//                        .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as "+MultiRoundConstants.DateType.DATE_OF_DELIVERY+" is required.")).build();
+//                populateErrorDetails(task, error, errorDetailsMap);
+//                taskAllowed = Boolean.FALSE;
+//                break;
+//            }
+//            switch (DeliveryType.valueOf(deliveryStrategy)) {
+//                case DIRECT:
+//                    if(!futureTasks.isEmpty()) {
+//                        Error error = Error.builder()
+//                                .errorMessage("Direct task not allowed as un-finished/un-verified task exists")
+//                                .errorCode("DIRECT_TASK_NOT_ALLOWED")
+//                                .type(Error.ErrorType.NON_RECOVERABLE)
+//                                .exception(new CustomException("DIRECT_TASK_NOT_ALLOWED", "Direct task not allowed as un-finished/un-verified task exists")).build();
+//                        populateErrorDetails(task, error, errorDetailsMap);
+//                        taskAllowed = Boolean.FALSE;
+//                        break loop;
+//                    } else {
+//                        String dateOfVerification = getDateFromAdditionalFields(task.getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_VERIFICATION);
+//                        if(dateOfVerification == null || dateOfVerification.trim().isEmpty()) {
+//                            Error error = Error.builder()
+//                                    .errorMessage("Future task not allowed")
+//                                    .errorCode("FUTURE_TASK_NOT_ALLOWED")
+//                                    .type(Error.ErrorType.NON_RECOVERABLE)
+//                                    .exception(new CustomException("FUTURE_TASK_NOT_ALLOWED", "Future task not allowed")).build();
+//                            populateErrorDetails(task, error, errorDetailsMap);
+//                            taskAllowed = Boolean.FALSE;
+//                            break loop;
+//                        }
+//                        if((previousTaskEndDate != null && mandatoryWaitTimeInDays != null && ((task.getCreatedDate() - previousTaskEndDate)/(1000*60*60*24)) < Long.valueOf(mandatoryWaitTimeInDays))) {
+//                            Error error = Error.builder()
+//                                    .errorMessage("Task not allowed as Mandatory wait time for delivery is not over.")
+//                                    .errorCode("TASK_NOT_ALLOWED")
+//                                    .type(Error.ErrorType.NON_RECOVERABLE)
+//                                    .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as Mandatory wait time for delivery is not over.")).build();
+//                            populateErrorDetails(tasks.get(index), error, errorDetailsMap);
+//                        }
+//                        previousTaskEndDate = Long.valueOf(getDateFromAdditionalFields(tasks.get(index - 1).getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_ADMINISTRATION));
+//                    }
+//                    break;
+//                case INDIRECT:
+//                    futureTasks.add(task);
+//            }
+//            index++;
+//        }
+//        if(!taskAllowed) {
+//            index++;
+//            failedTasksFrom(tasks, index, errorDetailsMap);
+//        } else {
+//            lastTaskEndDate = Long.valueOf(getDateFromAdditionalFields(tasks.get(index - 1).getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_ADMINISTRATION));
+//        }
+        lastTaskEndDate = Long.valueOf(getDateFromAdditionalFields(tasks.get(tasks.size() - 1).getAdditionalFields(), MultiRoundConstants.DateType.DATE_OF_ADMINISTRATION));
         return lastTaskEndDate;
     }
 
