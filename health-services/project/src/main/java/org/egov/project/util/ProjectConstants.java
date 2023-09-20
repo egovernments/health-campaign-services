@@ -13,8 +13,4 @@ public class ProjectConstants {
     public static final String SEMICOLON = ":";
     public static final String DOT = ".";
     public static final String PROJECT_PARENT_HIERARCHY_SEPERATOR = ".";
-
-    public static final String MASTER_PROJECT_OBSERVATION_TYPE = "observationType";
-
-    public static final String MASTER_PROJECT_CYCLES = "cycles";
 }

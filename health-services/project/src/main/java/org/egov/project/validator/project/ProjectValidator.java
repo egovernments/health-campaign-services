@@ -443,7 +443,7 @@ public class ProjectValidator {
     }
 
     /* Validate document Ids */
-    public void validateDocumentIds(ProjectRequest projectRequest) {
+    private void validateDocumentIds(ProjectRequest projectRequest) {
         if ("TRUE".equalsIgnoreCase(config.getDocumentIdVerificationRequired())) {
             //TODO
             // For now throwing exception. Later implementation will be done
