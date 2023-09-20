@@ -134,7 +134,7 @@ public class ProjectValidator {
     }
 
     /* Validates if search Project request parameters are valid */
-    public void validateSearchProjectRequestParams(Integer limit, Integer offset, String tenantId, Long createdFrom, Long createdTo) {
+    private void validateSearchProjectRequestParams(Integer limit, Integer offset, String tenantId, Long createdFrom, Long createdTo) {
         if (limit == null) {
             log.error("limit is mandatory parameter in Project search");
             throw new CustomException("SEARCH_PROJECT.LIMIT", "limit is mandatory for Project Search");
@@ -162,7 +162,7 @@ public class ProjectValidator {
     }
 
     /* Validates Project request body for create and update apis */
-    public void validateProjectRequest(List<Project> projects) {
+    private void validateProjectRequest(List<Project> projects) {
         Map<String, String> errorMap = new HashMap<>();
 
         if (projects == null || projects.size() == 0) {
@@ -194,7 +194,7 @@ public class ProjectValidator {
     }
 
     /* Validates Search Project Request body */
-    public void validateSearchProjectRequest(List<Project> projects, String tenantId, Long createdFrom) {
+    private void validateSearchProjectRequest(List<Project> projects, String tenantId, Long createdFrom) {
         if (projects == null || projects.size() == 0) {
             log.error("Project list is empty. Projects is mandatory");
             throw new CustomException("PROJECT", "Projects are mandatory");
@@ -239,7 +239,7 @@ public class ProjectValidator {
     }
 
     /* Validates Request Info and User Info */
-    public void validateRequestInfo(RequestInfo requestInfo) {
+    private void validateRequestInfo(RequestInfo requestInfo) {
         if (requestInfo == null) {
             log.error("Request info is mandatory");
             throw new CustomException("REQUEST_INFO", "Request info is mandatory");
@@ -255,7 +255,7 @@ public class ProjectValidator {
     }
 
     /* Validates the request data against MDMS data */
-    public void  validateMDMSData(List<Project> projects, Object mdmsData, Map<String, String> errorMap) {
+    private void  validateMDMSData(List<Project> projects, Object mdmsData, Map<String, String> errorMap) {
         final String jsonPathForMDMSTypeOfProjectList = "$.MdmsRes." + config.getMdmsModule() + "." + MASTER_PROJECTTYPE + ".[?(@.active==true)].code";
         final String jsonPathForMDMSNatureOfWorkList = "$.MdmsRes." + config.getMdmsModule() + "." + MASTER_NATUREOFWORK + ".[?(@.active==true)].code";
         final String jsonPathForDepartment = "$.MdmsRes." + MDMS_COMMON_MASTERS_MODULE_NAME + "." + MASTER_DEPARTMENT + ".*.code";
@@ -304,7 +304,7 @@ public class ProjectValidator {
     }
 
     /* Validate Project Request MDMS data */
-    public void validateRequestMDMSData(ProjectRequest request, String tenantId, Map<String, String> errorMap) {
+    private void validateRequestMDMSData(ProjectRequest request, String tenantId, Map<String, String> errorMap) {
         String rootTenantId = tenantId.split("\\.")[0];
 
         //Get MDMS data using create project request and tenantId
@@ -315,7 +315,7 @@ public class ProjectValidator {
     }
 
     /* Returns boundaries map for all Projects in request body with key boundaryType and value as list of all boundaries corresponding to boundaryType*/
-    public Map<String, List<String>> getBoundaryForValidation(List<Project> projects) {
+    private Map<String, List<String>> getBoundaryForValidation(List<Project> projects) {
         Map<String, List<String>> boundariesMap = new HashMap<>();
         for (Project project: projects) {
             if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary())) {
@@ -338,7 +338,7 @@ public class ProjectValidator {
     }
 
     /* Validates Boundary data with location service */
-    public void validateBoundary(Map<String, List<String>> boundaries, String tenantId, RequestInfo requestInfo, Map<String, String> errorMap) {
+    private void validateBoundary(Map<String, List<String>> boundaries, String tenantId, RequestInfo requestInfo, Map<String, String> errorMap) {
         if (boundaries.size() > 0) {
             boundaryUtil.validateBoundaryDetails(boundaries, tenantId, requestInfo, config.getLocationHierarchyType());
         }
@@ -367,7 +367,7 @@ public class ProjectValidator {
         }
     }
 
-    public void validateUpdateAddressAgainstDB(Project project, Project projectFromDB) {
+    private void validateUpdateAddressAgainstDB(Project project, Project projectFromDB) {
         //Checks for a project if address already present in DB
         if ((projectFromDB.getAddress() != null && projectFromDB.getAddress().getId() != null) && project.getAddress() != null && StringUtils.isBlank(project.getAddress().getId())) {
             log.error("The address with id " + projectFromDB.getAddress().getId() + " already exists for the project");
@@ -382,7 +382,7 @@ public class ProjectValidator {
         }
     }
 
-    public void validateUpdateTargetAgainstDB(Project project, Project projectFromDB) {
+    private void validateUpdateTargetAgainstDB(Project project, Project projectFromDB) {
         //If targets are present in the project's database and target id in update request mismatches
         if (projectFromDB.getTargets() != null && !projectFromDB.getTargets().isEmpty()) {
             Set<String> targetIdsFromDB = projectFromDB.getTargets().stream().filter(t -> !t.getIsDeleted()).map(Target :: getId).collect(Collectors.toSet());
@@ -407,7 +407,7 @@ public class ProjectValidator {
         }
     }
 
-    public void validateUpdateDocumentAgainstDB(Project project, Project projectFromDB) {
+    private void validateUpdateDocumentAgainstDB(Project project, Project projectFromDB) {
         //If targets are present in the project's database and target id in update request mismatches
         if (projectFromDB.getDocuments() != null && !projectFromDB.getDocuments().isEmpty()) {
             Set<String> documentIdsFromDB = projectFromDB.getDocuments().stream().map(Document:: getId).collect(Collectors.toSet());
@@ -433,7 +433,7 @@ public class ProjectValidator {
     }
 
     /* Validates if all Projects have same tenant Id */
-    public void validateMultipleTenantIds(ProjectRequest projectRequest) {
+    private void validateMultipleTenantIds(ProjectRequest projectRequest) {
         List<Project> projects = projectRequest.getProjects();
         String firstTenantId = projects.get(0).getTenantId();
         if (projects.stream().anyMatch(p -> !p.getTenantId().equals(firstTenantId))) {
