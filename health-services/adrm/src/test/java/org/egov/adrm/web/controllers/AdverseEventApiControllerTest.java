@@ -64,7 +64,7 @@ public class AdverseEventApiControllerTest {
         List<AdverseEvent> adverseEvents = getAdverseEvents();
         Mockito.when(adverseEventService.create(ArgumentMatchers.any(AdverseEventRequest.class))).thenReturn(adverseEvents.get(0));
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
@@ -89,7 +89,7 @@ public class AdverseEventApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
                                 .withOneAdverseEvent()
@@ -114,7 +114,7 @@ public class AdverseEventApiControllerTest {
         AdverseEvent adverseEvent = AdverseEventTestBuilder.builder().withId().build();
         Mockito.when(adverseEventService.update(ArgumentMatchers.any(AdverseEventRequest.class))).thenReturn(adverseEvent);
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
@@ -131,7 +131,7 @@ public class AdverseEventApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
                                 .withOneAdverseEventHavingId()
@@ -163,7 +163,7 @@ public class AdverseEventApiControllerTest {
                 ArgumentMatchers.any(Boolean.class))).thenReturn(Arrays.asList(AdverseEventTestBuilder.builder().withId().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post(
-                        "/task/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        "/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(adverseEventSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isOk())
@@ -192,7 +192,7 @@ public class AdverseEventApiControllerTest {
                 ArgumentMatchers.any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Adverse Event found."));
 
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/task/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(adverseEventSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())

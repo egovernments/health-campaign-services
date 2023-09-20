@@ -1,0 +1,446 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Adverse Event and Referral Management System
+  contact:
+    name: egovernments foundation
+    email: info@egovernments.org
+schemes:
+  - https
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  /adrm/adverse_event/v1/_create:
+    post:
+      summary: >-
+        Create adverse event for the project
+      description: >-
+        Create adverse event for the project
+      parameters:
+        - name: AdverseEvent
+          in: body
+          description: Capture details of Adverse Event
+          required: true
+          schema:
+            $ref: '#/definitions/AdverseEventRequest'
+      tags:
+        - Adverse Event
+      responses:
+        '202':
+          description: Create adverse event request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/AdverseEventResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/adverse_event/v1/bulk/_create:
+    post:
+      summary: >-
+        Create adverse events for the project in bulk
+      description: >-
+        Create adverse events for the project in bulk
+      parameters:
+        - name: AdverseEvent
+          in: body
+          description: Capture details of Task
+          required: true
+          schema:
+            $ref: '#/definitions/AdverseEventBulkRequest'
+      tags:
+        - Adverse Event
+      responses:
+        '202':
+          description: Create adverse event request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/adverse_event/v1/_update:
+    post:
+      summary: >-
+        Adverse Event Request
+      description: >-
+        Adverse Event Request
+      parameters:
+        - name: AdverseEvent
+          in: body
+          description: Capture details of Existing adverse event
+          required: true
+          schema:
+            $ref: '#/definitions/AdverseEventRequest'
+      tags:
+        - Adverse Event
+      responses:
+        '202':
+          description: update averse event request has been accepted for update.
+          schema:
+            $ref: '#/definitions/AdverseEventResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/adverse_event/v1/bulk/_update:
+    post:
+      summary: >-
+        Adverse Event Request in bulk for a project
+      description: >-
+        Adverse Event Request in bulk for a project
+      parameters:
+        - name: AdverseEvent
+          in: body
+          description: Capture details of Existing Adverse Events
+          required: true
+          schema:
+            $ref: '#/definitions/AdverseEventBulkRequest'
+      tags:
+        - Adverse Event
+      responses:
+        '202':
+          description: update Adverse Events bulk request has been accepted for update.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/adverse_event/v1/_delete:
+    post:
+      summary: >-
+        Soft delete Adverse Event for a project
+      description: >-
+        Soft delete Adverse Event for a project
+      parameters:
+        - name: AdverseEvent
+          in: body
+          description: Capture details of Existing Adverse Event
+          required: true
+          schema:
+            $ref: '#/definitions/AdverseEventRequest'
+      tags:
+        - Adverse Event
+      responses:
+        '202':
+          description: delete Adverse Event request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/AdverseEventResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/adverse_event/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete Adverse Events for a project
+      description: >-
+        Soft delete Adverse Events for a project
+      parameters:
+        - name: AdverseEvent
+          in: body
+          description: Capture details of Existing Adverse Event
+          required: true
+          schema:
+            $ref: '#/definitions/AdverseEventRequest'
+      tags:
+        - Adverse Event
+      responses:
+        '202':
+          description: delete bulk Adverse Event request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/adverse_event/v1/_search:
+    post:
+      summary: >-
+        Search Adverse Event for Project
+      description: >-
+        Search Adverse Event for Project
+      parameters:
+        - name: AdverseEvent
+          in: body
+          description: Adverse Event Search.
+          required: true
+          schema:
+            $ref: '#/definitions/AdverseEventSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Adverse Event
+      responses:
+        '200':
+          description: Adverse Events.
+          schema:
+            $ref: '#/definitions/AdverseEventBulkResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+parameters:
+  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  echoResource:
+    name: echoResource
+    in: query
+    type: boolean
+    required: false
+    default: true
+    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
+
+  serverHandlesErrors:
+    name: serverHandlesErrors
+    in: query
+    type: boolean
+    required: false
+    default: false
+    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
+
+  limit:
+    name: limit
+    description: Pagination - limit records in response
+    in: query
+    type: integer
+    minimum: 0
+    maximum: 1000 #TODO review
+    required: true
+
+  offset:
+    name: offset
+    description: Pagination - offset from which records should be returned in response
+    in: query
+    type: integer
+    minimum: 0
+    required: true
+
+  includeDeleted:
+    name: includeDeleted
+    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  includeEnded:
+    name: includeEnded
+    description: Used in project search API to specify if records past end date should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  includeAncestors:
+    name: includeAncestors
+    description: Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  includeDescendants:
+    name: includeDescendants
+    description: Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  createdFrom:
+    name: createdFrom
+    description: |
+      Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  createdTo:
+    name: createdTo
+    description: |
+      Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+definitions:
+  boundaryCode:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
+  id:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
+  idForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
+  clientReferenceIdForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceIdForSearch'
+  clientReferenceId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceId'
+  tenantId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
+  eventTimestamp:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
+  isDeleted:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
+  rowVersion:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
+  apiOperation:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/apiOperation'
+  additionalFields:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
+  Address:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
+
+  AdverseEvent:
+    type: object
+    required:
+      - tenantId
+      - taskId
+      - symptoms
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      taskId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique TaskId
+      taskClientReferenceId:
+        type: string
+        example: "R-ID-1"
+        description: Unique Task Client Reference Id
+      symptoms:
+        type: array
+        items:
+          type: string
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+      clientAuditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  AdverseEventRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      AdverseEvent:
+        type: object
+        $ref: '#/definitions/AdverseEvent'
+    required:
+      - RequestInfo
+      - AdverseEvent
+
+  AdverseEventBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      AdverseEvents:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/AdverseEvent'
+    required:
+      - RequestInfo
+      - AdverseEvents
+
+  AdverseEventSearch:
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      taskId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique TaskId
+      taskClientReferenceId:
+        type: string
+        example: "R-ID-1"
+
+  AdverseEventSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      AdverseEvent:
+        $ref: '#/definitions/AdverseEventSearch'
+    required:
+      - RequestInfo
+      - AdverseEvent
+
+  AdverseEventResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      AdverseEvent:
+        type: object
+        $ref: '#/definitions/AdverseEvent'
+    required:
+      - ResponseInfo
+      - AdverseEvent
+
+  AdverseEventBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      AdverseEvents:
+        type: array
+        items:
+          $ref: '#/definitions/AdverseEvent'
+    required:
+      - ResponseInfo
+      - AdverseEvents

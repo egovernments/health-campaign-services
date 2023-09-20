@@ -29,7 +29,7 @@ import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @Controller
-@RequestMapping("")
+@RequestMapping("/adverse_event")
 @Validated
 public class AdverseEventApiController {
 
@@ -53,7 +53,7 @@ public class AdverseEventApiController {
         this.adrmConfiguration = adrmConfiguration;
     }
 
-    @RequestMapping(value = "/task/adverse_event/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<AdverseEventResponse> adverseEventV1CreatePost(@ApiParam(value = "Capture details of Adverse Event", required = true) @Valid @RequestBody AdverseEventRequest request) {
 
         AdverseEvent adverseEvent = adverseEventService.create(request);
@@ -68,7 +68,7 @@ public class AdverseEventApiController {
 
 
 
-    @RequestMapping(value = "/task/adverse_event/v1/bulk/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> adverseEventBulkV1CreatePost(@ApiParam(value = "Capture details of Adverse Event", required = true) @Valid @RequestBody AdverseEventBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         adverseEventService.putInCache(request.getAdverseEvents());
@@ -78,7 +78,7 @@ public class AdverseEventApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/task/adverse_event/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<AdverseEventBulkResponse> adverseEventV1SearchPost(@ApiParam(value = "Adverse Event Search.", required = true) @Valid @RequestBody AdverseEventSearchRequest request,
                                                                              @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
                                                                              @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
@@ -93,7 +93,7 @@ public class AdverseEventApiController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @RequestMapping(value = "/task/adverse_event/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<AdverseEventResponse> adverseEventV1UpdatePost(@ApiParam(value = "Capture details of Existing adverse event", required = true) @Valid @RequestBody AdverseEventRequest request) {
         AdverseEvent adverseEvent = adverseEventService.update(request);
 
@@ -107,7 +107,7 @@ public class AdverseEventApiController {
 
     }
 
-    @RequestMapping(value = "/task/adverse_event/v1/bulk/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> adverseEventV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing adverse event", required = true) @Valid @RequestBody AdverseEventBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(adrmConfiguration.getUpdateAdverseEventBulkTopic(), request);
@@ -116,7 +116,7 @@ public class AdverseEventApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/task/adverse_event/v1/_delete", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
     public ResponseEntity<AdverseEventResponse> adverseEventV1DeletePost(@ApiParam(value = "Capture details of Existing adverse event", required = true) @Valid @RequestBody AdverseEventRequest request) {
         AdverseEvent adverseEvent = adverseEventService.delete(request);
 
@@ -130,7 +130,7 @@ public class AdverseEventApiController {
 
     }
 
-    @RequestMapping(value = "/task/adverse_event/v1/bulk/_delete", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> adverseEventV1BulkDeletePost(@ApiParam(value = "Capture details of Existing adverse event", required = true) @Valid @RequestBody AdverseEventBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(adrmConfiguration.getDeleteAdverseEventBulkTopic(), request);
