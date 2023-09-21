@@ -1,0 +1,71 @@
+serviceMaps:
+  serviceName: adrm
+    mappings:
+      - version: 1.0
+        description: Saves a adverse event
+        fromTopic: save-adverse-event-topic
+        isTransaction: true
+        queryMaps:
+          - query: INSERT INTO ADVERSE_EVENT(id, clientReferenceId, tenantId, taskId, taskClientReferenceId, projectBeneficiaryId, projectBeneficiaryClientReferenceId,symptoms, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+            basePath: $.*
+            jsonMaps:
+              - jsonPath: $.*.id
+              - jsonPath: $.*.clientReferenceId
+              - jsonPath: $.*.tenantId
+              - jsonPath: $.*.taskId
+              - jsonPath: $.*.taskClientReferenceId
+              - jsonPath: $.*.projectBeneficiaryId
+              - jsonPath: $.*.projectBeneficiaryClientReferenceId
+              - jsonPath: $.*.symptoms
+                type: JSON
+                dbType: JSONB
+              - jsonPath: $.*.auditDetails.createdBy
+              - jsonPath: $.*.auditDetails.createdTime
+              - jsonPath: $.*.auditDetails.lastModifiedBy
+              - jsonPath: $.*.auditDetails.lastModifiedTime
+              - jsonPath: $.*.clientAuditDetails.createdBy
+              - jsonPath: $.*.clientAuditDetails.createdTime
+              - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+              - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+              - jsonPath: $.*.rowVersion
+              - jsonPath: $.*.isDeleted
+
+          - version: 1.0
+            description: Updates a adverse event
+            fromTopic: update-adverse-event-topic
+            isTransaction: true
+            queryMaps:
+              - query: UPDATE ADVERSE_EVENT SET tenantId = ?, taskId = ?, taskClientReferenceId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, symptoms = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+                basePath: $.*
+                jsonMaps:
+                  - jsonPath: $.*.tenantId
+                  - jsonPath: $.*.taskId
+                  - jsonPath: $.*.taskClientReferenceId
+                  - jsonPath: $.*.projectBeneficiaryId
+                  - jsonPath: $.*.projectBeneficiaryClientReferenceId
+                  - jsonPath: $.*.symptoms
+                    type: JSON
+                    dbType: JSONB
+                  - jsonPath: $.*.auditDetails.lastModifiedBy
+                  - jsonPath: $.*.auditDetails.lastModifiedTime
+                  - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+                  - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+                  - jsonPath: $.*.rowVersion
+                  - jsonPath: $.*.isDeleted
+                  - jsonPath: $.*.id
+
+          - version: 1.0
+            description: Deletes a adverse event
+            fromTopic: delete-adverse-event-topic
+            isTransaction: true
+            queryMaps:
+              - query: UPDATE ADVERSE_EVENT SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+                basePath: $.*
+                jsonMaps:
+                  - jsonPath: $.*.auditDetails.lastModifiedBy
+                  - jsonPath: $.*.auditDetails.lastModifiedTime
+                  - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+                  - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+                  - jsonPath: $.*.rowVersion
+                  - jsonPath: $.*.isDeleted
+                  - jsonPath: $.*.id

@@ -21,28 +21,34 @@ public class AdverseEventRowMapper implements RowMapper<AdverseEvent> {
     @Override
     public AdverseEvent mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
+            AuditDetails auditDetails = AuditDetails.builder()
+                    .createdBy(resultSet.getString("createdBy"))
+                    .createdTime(resultSet.getLong("createdTime"))
+                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
+                    .build();
+            AuditDetails clientAuditDetails = AuditDetails.builder()
+                    .createdBy(resultSet.getString("clientCreatedBy"))
+                    .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
+                    .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .build();
             return AdverseEvent.builder()
                     .id(resultSet.getString("id"))
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .taskId(resultSet.getString("taskId"))
                     .taskClientReferenceId(resultSet.getString("taskClientreferenceid"))
+                    .projectBeneficiaryId(resultSet.getString("projectBeneficiaryId"))
+                    .projectBeneficiaryClientReferenceId(resultSet.getString("projectBeneficiaryClientReferenceId"))
                     .tenantId(resultSet.getString("tenantid"))
                     .symptoms(resultSet.getString("symptoms") == null ? null : objectMapper.readValue(resultSet.getString("symptoms"), ArrayList.class))
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
-                    .auditDetails(AuditDetails.builder()
-                            .createdBy(resultSet.getString("createdBy"))
-                            .createdTime(resultSet.getLong("createdTime"))
-                            .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                            .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                            .build())
-                    .clientAuditDetails(AuditDetails.builder()
-                            .createdTime(resultSet.getLong("clientCreatedTime"))
-                            .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
-                            .build())
+                    .auditDetails(auditDetails)
+                    .clientAuditDetails(clientAuditDetails)
                     .build();
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new SQLException(e);
         }
     }
 }
