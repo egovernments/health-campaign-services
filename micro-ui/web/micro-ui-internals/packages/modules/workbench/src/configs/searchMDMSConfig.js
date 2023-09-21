@@ -43,7 +43,10 @@ export const Config = {
         defaultValues: {
           value: "",
           field: "",
-          isActive:""
+          isActive:{
+            code: "WBH_COMMON_ALL",
+            value: "all",
+          }
           // createdFrom: "",
           // createdTo: "",
         },
@@ -100,6 +103,10 @@ export const Config = {
                 {
                   code: "WBH_COMMON_NO",
                   value: false,
+                },
+                {
+                  code: "WBH_COMMON_ALL",
+                  value: "all",
                 }
               ],
             },
@@ -170,7 +177,8 @@ export const Config = {
         enableGlobalSearch: false,
         enableColumnSort: true,
         resultsJsonPath: "mdms",
-        rowClassName:"table-row-mdms"
+        rowClassName:"table-row-mdms",
+        noColumnBorder:true
       },
       children: {},
       show: true,
