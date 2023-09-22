@@ -79,7 +79,7 @@ public class AdProjectTaskIdValidator implements Validator<AdverseEventBulkReque
                     TaskBulkResponse taskBulkResponse = serviceRequestClient.fetchResult(
                             new StringBuilder(adrmConfiguration.getProjectHost()
                                     + adrmConfiguration.getProjectTaskSearchUrl()
-                                    + "&offset=0&tenantId=" + tenantId),
+                                    + "?offset=0&tenantId=" + tenantId),
                             TaskSearchRequest.builder().requestInfo(request.getRequestInfo()).task(taskSearch).build(),
                             TaskBulkResponse.class
                     );
@@ -91,7 +91,7 @@ public class AdProjectTaskIdValidator implements Validator<AdverseEventBulkReque
                     BeneficiaryBulkResponse beneficiaryBulkResponse = serviceRequestClient.fetchResult(
                             new StringBuilder(adrmConfiguration.getProjectHost()
                                     + adrmConfiguration.getProjectBeneficiarySearchUrl()
-                                    + "&offset=0&tenantId=" + tenantId),
+                                    + "?offset=0&tenantId=" + tenantId),
                             BeneficiarySearchRequest.builder().requestInfo(request.getRequestInfo()).projectBeneficiary(projectBeneficiarySearch).build(),
                             BeneficiaryBulkResponse.class
                     );
