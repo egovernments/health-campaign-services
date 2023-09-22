@@ -15,22 +15,22 @@ import org.springframework.stereotype.Component;
 @Builder
 @Component
 public class AdrmConfiguration {
-    @Value("${project.adverseevent.kafka.create.topic}")
+    @Value("${adrm.adverseevent.kafka.create.topic}")
     private String createAdverseEventTopic;
 
-    @Value("${project.adverseevent.kafka.update.topic}")
+    @Value("${adrm.adverseevent.kafka.update.topic}")
     private String updateAdverseEventTopic;
 
-    @Value("${project.adverseevent.kafka.delete.topic}")
+    @Value("${adrm.adverseevent.kafka.delete.topic}")
     private String deleteAdverseEventTopic;
 
-    @Value("${project.adverseevent.consumer.bulk.create.topic}")
+    @Value("${adrm.adverseevent.consumer.bulk.create.topic}")
     private String createAdverseEventBulkTopic;
 
-    @Value("${project.adverseevent.consumer.bulk.update.topic}")
+    @Value("${adrm.adverseevent.consumer.bulk.update.topic}")
     private String updateAdverseEventBulkTopic;
 
-    @Value("${project.adverseevent.consumer.bulk.delete.topic}")
+    @Value("${adrm.adverseevent.consumer.bulk.delete.topic}")
     private String deleteAdverseEventBulkTopic;
 
     @Value("${egov.project.host}")
