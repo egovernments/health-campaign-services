@@ -27,12 +27,12 @@ It is also used to manage the Localisation data present in the system (Localisat
 Clone the project
 
 ```bash
-  git clone https://github.com/egovernments/Digit-Core.git
+  git clone https://github.com/egovernments/DIGIT-Frontend.git
 ```
 
 Go to the Sub directory to run UI
 ```bash
-    cd into frontend/micro-ui/web/micro-ui-internals
+    cd into micro-ui/web/micro-ui-internals
 ```
 
 Install dependencies
@@ -43,7 +43,7 @@ Install dependencies
 
 Add .env file
 ```bash
-    frontend/micro-ui/web/micro-ui-internals/example/.env
+    micro-ui/web/micro-ui-internals/example/.env
 ```
 
 Start the server
@@ -118,7 +118,7 @@ For support, add the issues in https://github.com/egovernments/DIGIT-core/issues
 Go to the Sub directory to run UI
 
 ```bash
-    cd into frontend/micro-ui/web
+    cd into micro-ui/web
 ```
     
 ```bash
@@ -127,7 +127,7 @@ Go to the Sub directory to run UI
 
 Add .env file
 ```bash
-    frontend/micro-ui/web/.env
+    micro-ui/web/.env
 ```
 
 Start the server
