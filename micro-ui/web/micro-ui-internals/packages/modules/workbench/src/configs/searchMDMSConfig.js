@@ -5,7 +5,7 @@ export const Config = {
   actionRole: "MDMS_ADMIN",
   actionLink: "workbench/mdms-add-v2",
   apiDetails: {
-    serviceName: "/mdms-v2/v2/_search",
+    serviceName: `/mdms-v2/v2/_search`,
     requestParam: {},
     requestBody: {
       MdmsCriteria: {
@@ -177,7 +177,7 @@ export const Config = {
         enableGlobalSearch: false,
         enableColumnSort: true,
         resultsJsonPath: "mdms",
-        rowClassName:"table-row-mdms",
+        rowClassName:"table-row-mdms table-row-mdms-hover",
         noColumnBorder:true
       },
       children: {},
