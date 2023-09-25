@@ -36,6 +36,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/project/src/main/resources/db"
         image-name: "project-db"
+  - name: "builds/health-campaign-services/health-services/adrm"
+    build:
+      - work-dir: "health-services/adrm"
+        image-name: "adrm"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/adrm/src/main/resources/db"
+        image-name: "adrm-db"
   - name: "builds/health-campaign-services/health-services/household"
     build:
       - work-dir: "health-services/household"
