@@ -1,9 +1,9 @@
-package org.egov.adrm.consumer;
+package org.egov.referralmanagement.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.adrm.service.ReferralManagementService;
+import org.egov.referralmanagement.service.ReferralManagementService;
 import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;

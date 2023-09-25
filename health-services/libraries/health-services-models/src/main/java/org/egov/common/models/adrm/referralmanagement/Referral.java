@@ -42,12 +42,20 @@ public class Referral {
     @Size(min = 2, max = 64)
     private String referringPartyId = null;
 
+    @JsonProperty("referringPartyClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String referringPartyClientReferenceId = null;
+
     @JsonProperty("referredToType")
     private String referredToType = null;
 
     @JsonProperty("referredToId")
     @Size(min = 2, max = 64)
     private String referredToId = null;
+
+    @JsonProperty("referredToClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String referredToClientReferenceId = null;
 
     @JsonProperty("reasons")
     @NotNull

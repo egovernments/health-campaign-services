@@ -1,4 +1,4 @@
-package org.egov.adrm.repository;
+package org.egov.referralmanagement.repository;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.adrm.repository.rowmapper.ReferralRowMapper;
@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository

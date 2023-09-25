@@ -1,12 +1,12 @@
-package org.egov.adrm.service.enrichment;
+package org.egov.referralmanagement.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.adrm.config.AdrmConfiguration;
-import org.egov.adrm.repository.ReferralManagementRepository;
+import org.egov.referralmanagement.repository.ReferralManagementRepository;
 import org.egov.common.models.adrm.referralmanagement.Referral;
 import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -22,13 +22,13 @@ import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 public class ReferralManagementEnrichmentService {
     private final IdGenService idGenService;
 
-    private final AdrmConfiguration adrmConfiguration;
+    private final ReferralManagementConfiguration referralManagementConfiguration;
 
     private final ReferralManagementRepository referralManagementRepository;
 
-    public ReferralManagementEnrichmentService(IdGenService idGenService, AdrmConfiguration adrmConfiguration, ReferralManagementRepository referralManagementRepository) {
+    public ReferralManagementEnrichmentService(IdGenService idGenService, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementRepository referralManagementRepository) {
         this.idGenService = idGenService;
-        this.adrmConfiguration = adrmConfiguration;
+        this.referralManagementConfiguration = referralManagementConfiguration;
         this.referralManagementRepository = referralManagementRepository;
     }
 

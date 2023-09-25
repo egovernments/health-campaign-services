@@ -1,8 +1,7 @@
-package org.egov.adrm.web.controllers;
+package org.egov.referralmanagement.web.controllers;
 
 import io.swagger.annotations.ApiParam;
-import org.egov.adrm.config.AdrmConfiguration;
-import org.egov.adrm.service.ReferralManagementService;
+import org.egov.referralmanagement.service.ReferralManagementService;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.adrm.referralmanagement.Referral;
 import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
@@ -12,6 +11,7 @@ import org.egov.common.models.adrm.referralmanagement.ReferralResponse;
 import org.egov.common.models.adrm.referralmanagement.ReferralSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -38,18 +38,18 @@ public class ReferralManagementApiController {
 
     private final Producer producer;
 
-    private final AdrmConfiguration adrmConfiguration;
+    private final ReferralManagementConfiguration referralManagementConfiguration;
 
     public ReferralManagementApiController(
             HttpServletRequest httpServletRequest, 
             ReferralManagementService referralManagementService, 
-            Producer producer, 
-            AdrmConfiguration adrmConfiguration
+            Producer producer,
+            ReferralManagementConfiguration referralManagementConfiguration
     ) {
         this.httpServletRequest = httpServletRequest;
         this.referralManagementService = referralManagementService;
         this.producer = producer;
-        this.adrmConfiguration = adrmConfiguration;
+        this.referralManagementConfiguration = referralManagementConfiguration;
     }
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
@@ -71,7 +71,7 @@ public class ReferralManagementApiController {
     public ResponseEntity<ResponseInfo> referralBulkV1CreatePost(@ApiParam(value = "Capture details of Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         referralManagementService.putInCache(request.getReferrals());
-        producer.push(adrmConfiguration.getCreateReferralBulkTopic(), request);
+        producer.push(referralManagementConfiguration.getCreateReferralBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -109,7 +109,7 @@ public class ReferralManagementApiController {
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> referralV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(adrmConfiguration.getUpdateReferralBulkTopic(), request);
+        producer.push(referralManagementConfiguration.getUpdateReferralBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
@@ -132,7 +132,7 @@ public class ReferralManagementApiController {
     @RequestMapping(value = "/v1/bulk/_delete", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> referralV1BulkDeletePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
-        producer.push(adrmConfiguration.getDeleteReferralBulkTopic(), request);
+        producer.push(referralManagementConfiguration.getDeleteReferralBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
