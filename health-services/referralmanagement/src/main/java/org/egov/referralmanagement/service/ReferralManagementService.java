@@ -1,15 +1,16 @@
-package org.egov.referralmanagement.service;
+package org.egov.adrm.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.referralmanagement.Constants;
-import org.egov.referralmanagement.config.ReferralManagementConfiguration;
-import org.egov.referralmanagement.repository.ReferralManagementRepository;
-import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
-import org.egov.referralmanagement.validator.adverseevent.AdIsDeletedValidator;
-import org.egov.referralmanagement.validator.adverseevent.AdNonExistentEntityValidator;
-import org.egov.referralmanagement.validator.adverseevent.AdNullIdValidator;
-import org.egov.referralmanagement.validator.adverseevent.AdProjectTaskIdValidator;
-import org.egov.referralmanagement.validator.adverseevent.AdUniqueEntityValidator;
+import org.egov.adrm.Constants;
+import org.egov.adrm.config.AdrmConfiguration;
+import org.egov.adrm.repository.ReferralManagementRepository;
+import org.egov.adrm.service.enrichment.ReferralManagementEnrichmentService;
+import org.egov.adrm.validator.rm.RmFacilityEntitiesIdValidator;
+import org.egov.adrm.validator.rm.RmIsDeletedValidator;
+import org.egov.adrm.validator.rm.RmNonExistentEntityValidator;
+import org.egov.adrm.validator.rm.RmNullIdValidator;
+import org.egov.adrm.validator.rm.RmProjectEntitiesIdValidator;
+import org.egov.adrm.validator.rm.RmUniqueEntityValidator;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.adrm.referralmanagement.Referral;
@@ -46,7 +47,7 @@ public class ReferralManagementService {
 
     private final ReferralManagementRepository referralManagementRepository;
 
-    private final ReferralManagementConfiguration referralManagementConfiguration;
+    private final AdrmConfiguration adrmConfiguration;
 
     private final ReferralManagementEnrichmentService referralManagementEnrichmentService;
 
@@ -97,7 +98,7 @@ public class ReferralManagementService {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.create(validReferrals, referralRequest);
                 referralManagementRepository.save(validReferrals,
-                        referralManagementConfiguration.getCreateReferralTopic());
+                        adrmConfiguration.getCreateReferralTopic());
                 log.info("successfully created adverse events");
             }
         } catch (Exception exception) {
@@ -130,7 +131,7 @@ public class ReferralManagementService {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.update(validReferrals, referralRequest);
                 referralManagementRepository.save(validReferrals,
-                        referralManagementConfiguration.getUpdateReferralTopic());
+                        adrmConfiguration.getUpdateReferralTopic());
                 log.info("successfully updated bulk adverse events");
             }
         } catch (Exception exception) {
@@ -190,7 +191,7 @@ public class ReferralManagementService {
                         .findById(referralIds, false);
                 referralManagementEnrichmentService.delete(existingReferrals, referralRequest);
                 referralManagementRepository.save(existingReferrals,
-                        referralManagementConfiguration.getDeleteReferralTopic());
+                        adrmConfiguration.getDeleteReferralTopic());
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
