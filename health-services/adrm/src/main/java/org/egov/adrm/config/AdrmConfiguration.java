@@ -41,4 +41,22 @@ public class AdrmConfiguration {
 
     @Value("${egov.search.project.beneficiary.url}")
     private String projectBeneficiarySearchUrl;
+
+    @Value("${adrm.referralmanagement.kafka.create.topic}")
+    private String createReferralTopic;
+
+    @Value("${adrm.referralmanagement.kafka.update.topic}")
+    private String updateReferralTopic;
+
+    @Value("${adrm.referralmanagement.kafka.delete.topic}")
+    private String deleteReferralTopic;
+
+    @Value("${adrm.referralmanagement.consumer.bulk.create.topic}")
+    private String createReferralBulkTopic;
+
+    @Value("${adrm.referralmanagement.consumer.bulk.update.topic}")
+    private String updateReferralBulkTopic;
+
+    @Value("${adrm.referralmanagement.consumer.bulk.delete.topic}")
+    private String deleteReferralBulkTopic;
 }

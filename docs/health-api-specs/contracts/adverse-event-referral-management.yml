@@ -79,7 +79,7 @@ paths:
         - Adverse Event
       responses:
         '202':
-          description: update averse event request has been accepted for update.
+          description: update adverse event request has been accepted for update.
           schema:
             $ref: '#/definitions/AdverseEventResponse'
         '400':
@@ -191,6 +191,193 @@ paths:
           description: Adverse Events.
           schema:
             $ref: '#/definitions/AdverseEventBulkResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/referral-management/v1/_create:
+    post:
+      summary: >-
+        Create referral for the project beneficiary
+      description: >-
+        Create referral for the project benefiaciary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: Create referral request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/referral-management/v1/bulk/_create:
+    post:
+      summary: >-
+        Create referrals for the project beneficiary in bulk
+      description: >-
+        Create referrals for the project beneficiary in bulk
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Task
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralBulkRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: Create referral request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/referral-management/v1/_update:
+    post:
+      summary: >-
+        Referral Request
+      description: >-
+        Referral Request
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: update referral request has been accepted for update.
+          schema:
+            $ref: '#/definitions/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/referral-management/v1/bulk/_update:
+    post:
+      summary: >-
+        Referral Request in bulk for a project beneficiary
+      description: >-
+        Referral Request in bulk for a project beneficiary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing Referrals
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralBulkRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: update Referrals bulk request has been accepted for update.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/referral-management/v1/_delete:
+    post:
+      summary: >-
+        Soft delete Referral for a project beneficiary
+      description: >-
+        Soft delete Referral for a project beneficiary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing Referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: delete Referral request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/referral-management/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete Referrals for a project beneficiary
+      description: >-
+        Soft delete Referrals for a project beneficiary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing Referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: delete bulk Referral request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /adrm/referral-management/v1/_search:
+    post:
+      summary: >-
+        Search Referral for Project
+      description: >-
+        Search Referral for Project
+      parameters:
+        - name: Referral
+          in: body
+          description: Referral Search.
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Referral
+      responses:
+        '200':
+          description: Referrals.
+          schema:
+            $ref: '#/definitions/ReferralBulkResponse'
         '400':
           description: Invalid Input body.
           schema:
@@ -444,3 +631,156 @@ definitions:
     required:
       - ResponseInfo
       - AdverseEvents
+
+  Referral:
+    type: object
+    required:
+      - tenantId
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      projectBeneficiaryId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Project Beneficiary Id
+      projectBeneficiaryClientReferenceId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Project Beneficiary Client Reference Id
+      referringPartyId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Worker Id that is referring the Beneficiary
+      referringPartyClientReferenceId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Worker Client Reference Id that is referring the Beneficiary
+      referredToId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Individual or Facility Id whom the Beneficiary is referred to.
+      referredToClientReferenceId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Individual or Facility Client Reference Id whom the Beneficiary is Referred To.
+      referredToType:
+        type: string
+        description: Individual or Facility
+      reasons:
+        type: array
+        items:
+          type: string
+      adverseEvent:
+        $ref: '#/definition/AdverseEvent'
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+      clientAuditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  ReferralRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Referral:
+        type: object
+        $ref: '#/definitions/Referral'
+    required:
+      - RequestInfo
+      - Referral
+
+  ReferralBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Referrals:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/Referral'
+    required:
+      - RequestInfo
+      - Referrals
+
+  ReferralSearch:
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      projectBeneficiaryId:
+        type: array
+        items:
+          type: string
+      projectBeneficiaryClientReferenceId:
+        type: array
+        items:
+          type: string
+
+  ReferralSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Referral:
+        $ref: '#/definitions/ReferralSearch'
+    required:
+      - RequestInfo
+      - Referral
+
+  ReferralResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Referral:
+        type: object
+        $ref: '#/definitions/Referral'
+    required:
+      - ResponseInfo
+      - Referral
+
+  ReferralBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Referrals:
+        type: array
+        items:
+          $ref: '#/definitions/Referral'
+    required:
+      - ResponseInfo
+      - Referrals
+
+  BulkAcceptedResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+    required:
+      - ResponseInfo
