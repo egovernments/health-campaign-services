@@ -52,6 +52,12 @@ public class HouseholdRepository extends GenericRepository<Household> {
             }
         }
 
+        objFound.addAll(findByIdFromDB(ids, columnName, includeDeleted));
+        putInCache(objFound);
+        return objFound;
+    }
+
+    public List<Household> findByIdFromDB(List<String> ids, String columnName, Boolean includeDeleted) {
         String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
             query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
@@ -59,9 +65,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
 
-        objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
-        putInCache(objFound);
-        return objFound;
+        return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
     }
 
     public List<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
