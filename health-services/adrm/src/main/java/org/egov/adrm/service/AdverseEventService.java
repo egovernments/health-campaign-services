@@ -108,7 +108,7 @@ public class AdverseEventService {
         } catch (Exception exception) {
             log.error("error occurred while creating adverse events: {}", exception.getMessage());
             populateErrorDetails(adverseEventRequest, errorDetailsMap, validAdverseEvents,
-                    exception, Constants.SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -141,7 +141,7 @@ public class AdverseEventService {
         } catch (Exception exception) {
             log.error("error occurred while updating adverse events", exception);
             populateErrorDetails(adverseEventRequest, errorDetailsMap, validAdverseEvents,
-                    exception, Constants.SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -201,7 +201,7 @@ public class AdverseEventService {
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(adverseEventRequest, errorDetailsMap, validAdverseEvents,
-                    exception, Constants.SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -223,7 +223,7 @@ public class AdverseEventService {
         log.info("validating request");
         Map<AdverseEvent, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                Constants.SET_ADVERSE_EVENTS);
+                Constants.SET_REFERRALS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(Constants.VALIDATION_ERROR, errorDetailsMap.values().toString());

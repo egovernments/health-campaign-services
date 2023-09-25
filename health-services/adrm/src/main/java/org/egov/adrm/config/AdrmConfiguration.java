@@ -59,4 +59,13 @@ public class AdrmConfiguration {
 
     @Value("${adrm.referralmanagement.consumer.bulk.delete.topic}")
     private String deleteReferralBulkTopic;
+
+    @Value("${egov.search.project.staff.url}")
+    private String projectStaffSearchUrl;
+
+    @Value("${egov.facility.host}")
+    private String facilityHost;
+
+    @Value("${egov.search.facility.url}")
+    private String facilitySearchUrl;
 }
