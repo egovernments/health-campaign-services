@@ -658,21 +658,11 @@ definitions:
         minLength: 2
         maxLength: 64
         description: Worker Id that is referring the Beneficiary
-      referringPartyClientReferenceId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Worker Client Reference Id that is referring the Beneficiary
       referredToId:
         type: string
         minLength: 2
         maxLength: 64
         description: Individual or Facility Id whom the Beneficiary is referred to.
-      referredToClientReferenceId:
-        type: string
-        minLength: 2
-        maxLength: 64
-        description: Individual or Facility Client Reference Id whom the Beneficiary is Referred To.
       referredToType:
         type: string
         description: Individual or Facility
