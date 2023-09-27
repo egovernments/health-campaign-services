@@ -1,12 +1,15 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import net.minidev.json.JSONArray;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -23,13 +26,14 @@ public abstract class ProjectStaffTransformationService implements Transformatio
     protected final Producer producer;
 
     protected final TransformerProperties properties;
-
+    protected static UserService userService = null;
     @Autowired
     protected ProjectStaffTransformationService(ProjectStaffIndexV1Transformer transformer,
-                                                Producer producer, TransformerProperties properties) {
+                                                Producer producer, TransformerProperties properties, UserService userService) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
+        this.userService = userService;
     }
 
     @Override
@@ -57,13 +61,11 @@ public abstract class ProjectStaffTransformationService implements Transformatio
             Transformer<ProjectStaff, ProjectStaffIndexV1> {
         private final ProjectService projectService;
         private final TransformerProperties properties;
-
         @Autowired
         ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
             this.projectService = projectService;
             this.properties = properties;
         }
-
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
             Map<String, String> boundaryLabelToNameMap = projectService
@@ -74,6 +76,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .projectId(projectStaff.getProjectId())
                     .userId(projectStaff.getUserId())
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
+                    .role(userService.filterStaffRole(projectStaff.getTenantId(),projectStaff.getUserId()))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
                     .locality(boundaryLabelToNameMap.get(properties.getLocality()))

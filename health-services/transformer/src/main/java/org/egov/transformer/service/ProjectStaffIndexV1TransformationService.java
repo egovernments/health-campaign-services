@@ -15,8 +15,8 @@ public class ProjectStaffIndexV1TransformationService extends ProjectStaffTransf
 
     @Autowired
     public ProjectStaffIndexV1TransformationService(ProjectStaffIndexV1Transformer transformer,
-                                                    Producer producer, TransformerProperties properties) {
-        super(transformer, producer, properties);
+                                                    Producer producer, TransformerProperties properties, UserService userService) {
+        super(transformer, producer, properties,userService);
     }
 
     @Override

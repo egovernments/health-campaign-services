@@ -1,0 +1,136 @@
+package org.egov.transformer.service;
+
+import digit.models.coremodels.UserDetailResponse;
+import digit.models.coremodels.UserSearchRequest;
+import digit.models.coremodels.mdms.*;
+import lombok.extern.slf4j.Slf4j;
+import net.minidev.json.JSONArray;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
+import org.egov.tracer.model.CustomException;
+import org.egov.transformer.http.client.ServiceRequestClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import static org.egov.transformer.Constants.PROJECT_STAFF_ROLES;
+@Slf4j
+@Service
+public class UserService {
+
+    private final ServiceRequestClient restRepo;
+
+    private final String host;
+
+    private final String searchUrl;
+    private final MdmsService mdmsService;
+    private final String moduleName;
+    @Autowired
+    public UserService(ServiceRequestClient restRepo,
+                       @Value("${egov.user.host}") String host,
+                       @Value("${egov.search.user.url}") String searchUrl, MdmsService mdmsService, @Value("${project.staff.role.mdms.module}") String moduleName) {
+
+        this.restRepo = restRepo;
+        this.host = host;
+        this.searchUrl = searchUrl;
+        this.mdmsService = mdmsService;
+        this.moduleName = moduleName;
+    }
+
+    public List<User> search(UserSearchRequest userSearchRequest) {
+        try {
+            UserDetailResponse response = restRepo.fetchResult(
+                    new StringBuilder(host + searchUrl),
+                    userSearchRequest,
+                    UserDetailResponse.class
+            );
+            return response.getUser();
+        } catch (Exception e) {
+            log.error("Exception while searching users : ", e);
+            throw new CustomException("USER_SEARCH_ERROR", e.getMessage());
+        }
+    }
+
+    public List<String> getUserRoles(String tenantId, String userId) {
+        UserSearchRequest searchRequest = new UserSearchRequest();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        List<String> Ids = new ArrayList<>();
+        Ids.add(userId);
+        searchRequest.setRequestInfo(requestInfo);
+        searchRequest.setTenantId(tenantId);
+        searchRequest.setUuid(Ids);
+        List<User> response = null;
+        try {
+            response = search(searchRequest);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
+        List<String> roles = new ArrayList<>();
+        if(response != null && response.size() > 0){
+            response.get(0).getRoles().forEach(role -> roles.add(role.getCode()));
+        }
+        return roles;
+    }
+
+    public HashMap<String, Integer> getProjectStaffRoles(String tenantId){
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, PROJECT_STAFF_ROLES, moduleName);
+        MdmsResponse mdmsResponse = new MdmsResponse();
+        try {
+            mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        JSONArray projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
+        HashMap<String,Integer> projectStaffRolesMap = new HashMap<>();
+//        projectStaffRoles.forEach(role -> {
+//            projectStaffRolesMap.put(role)
+//        });
+        return projectStaffRolesMap;
+    }
+
+    public String filterStaffRole(String tenantId, String userId){
+        List<String> userRoles = getUserRoles(tenantId,userId);
+        HashMap<String, Integer> projectStaffRolesMap = getProjectStaffRoles(tenantId);
+        String roleByRank = null;
+        int minValue = Integer.MAX_VALUE;
+
+        for (String element : userRoles) {
+            if (projectStaffRolesMap.containsKey(element)) {
+                int value = projectStaffRolesMap.get(element);
+                if (value < minValue) {
+                    minValue = value;
+                    roleByRank = element;
+                }
+            }
+        }
+        return roleByRank;
+    }
+    private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
+                                           String moduleName) {
+        MasterDetail masterDetail = new MasterDetail();
+        masterDetail.setName(masterName);
+        List<MasterDetail> masterDetailList = new ArrayList<>();
+        masterDetailList.add(masterDetail);
+        ModuleDetail moduleDetail = new ModuleDetail();
+        moduleDetail.setMasterDetails(masterDetailList);
+        moduleDetail.setModuleName(moduleName);
+        List<ModuleDetail> moduleDetailList = new ArrayList<>();
+        moduleDetailList.add(moduleDetail);
+        MdmsCriteria mdmsCriteria = new MdmsCriteria();
+        mdmsCriteria.setTenantId(tenantId);
+        mdmsCriteria.setModuleDetails(moduleDetailList);
+        MdmsCriteriaReq mdmsCriteriaReq = new MdmsCriteriaReq();
+        mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
+        mdmsCriteriaReq.setRequestInfo(requestInfo);
+        return mdmsCriteriaReq;
+    }
+}
