@@ -1,4 +1,4 @@
-package org.egov.common.models.adrm.referralmanagement;
+package org.egov.common.models.referralmanagement;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.contract.request.RequestInfo;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -16,11 +16,11 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ReferralResponse {
-    @JsonProperty("ResponseInfo")
+public class ReferralRequest {
+    @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private ResponseInfo responseInfo = null;
+    private RequestInfo requestInfo = null;
 
     @JsonProperty("Referral")
     @NotNull

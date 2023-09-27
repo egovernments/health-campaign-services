@@ -2,8 +2,8 @@ package org.egov.referralmanagement.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.referralmanagement.repository.ReferralManagementRepository;
-import org.egov.common.models.adrm.referralmanagement.Referral;
-import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
+import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;

@@ -1,17 +1,17 @@
-package org.egov.adrm.validator.rm;
+package org.egov.referralmanagement.validator;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.adrm.config.AdrmConfiguration;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
-import org.egov.common.models.adrm.referralmanagement.Referral;
-import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkResponse;
 import org.egov.common.models.facility.FacilitySearch;
 import org.egov.common.models.facility.FacilitySearchRequest;
+import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.validator.Validator;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -24,10 +24,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static org.egov.adrm.Constants.FACILITY;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
+import static org.egov.referralmanagement.Constants.FACILITY;
 
 
 @Component
@@ -35,12 +35,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 @Slf4j
 public class RmFacilityEntitiesIdValidator implements Validator<ReferralBulkRequest, Referral> {
     private final ServiceRequestClient serviceRequestClient;
-    private final AdrmConfiguration adrmConfiguration;
+    private final ReferralManagementConfiguration referralManagementConfiguration;
 
     @Autowired
-    public RmFacilityEntitiesIdValidator(ServiceRequestClient serviceRequestClient, AdrmConfiguration adrmConfiguration) {
+    public RmFacilityEntitiesIdValidator(ServiceRequestClient serviceRequestClient, ReferralManagementConfiguration referralManagementConfiguration) {
         this.serviceRequestClient = serviceRequestClient;
-        this.adrmConfiguration = adrmConfiguration;
+        this.referralManagementConfiguration = referralManagementConfiguration;
     }
 
 
@@ -66,8 +66,8 @@ public class RmFacilityEntitiesIdValidator implements Validator<ReferralBulkRequ
                             .id(facilityIdList.isEmpty() ? null : facilityIdList)
                             .build();
                     FacilityBulkResponse facilityBulkResponse = serviceRequestClient.fetchResult(
-                            new StringBuilder(adrmConfiguration.getFacilityHost()
-                                    + adrmConfiguration.getFacilitySearchUrl()
+                            new StringBuilder(referralManagementConfiguration.getFacilityHost()
+                                    + referralManagementConfiguration.getFacilitySearchUrl()
                                     +"?limit=" + entities.size()
                                     + "&offset=0&tenantId=" + tenantId),
                             FacilitySearchRequest.builder().requestInfo(request.getRequestInfo()).facility(facilitySearch).build(),

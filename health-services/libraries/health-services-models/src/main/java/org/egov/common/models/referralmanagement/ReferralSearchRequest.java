@@ -1,4 +1,4 @@
-package org.egov.common.models.adrm.referralmanagement;
+package org.egov.common.models.referralmanagement;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -16,14 +16,13 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ReferralRequest {
+public class ReferralSearchRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
     @JsonProperty("Referral")
-    @NotNull
     @Valid
-    private Referral referral = null;
+    private ReferralSearch referral = null;
 }

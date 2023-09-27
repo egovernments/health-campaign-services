@@ -1,17 +1,14 @@
 package org.egov.referralmanagement.repository;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.adrm.repository.rowmapper.ReferralRowMapper;
+import org.egov.referralmanagement.repository.rowmapper.ReferralRowMapper;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
-import org.egov.common.models.adrm.referralmanagement.Referral;
-import org.egov.common.models.adrm.referralmanagement.ReferralSearch;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskResource;
+import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.ReferralSearch;
 import org.egov.common.producer.Producer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;

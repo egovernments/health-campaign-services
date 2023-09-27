@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.referralmanagement.service.ReferralManagementService;
-import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
+import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,7 +30,7 @@ public class ReferralManagementConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "${adrm.referralmanagement.consumer.bulk.create.topic}")
+    @KafkaListener(topics = "${referralmanagement.referralmanagement.consumer.bulk.create.topic}")
     public void bulkCreate(Map<String, Object> consumerRecord,
                                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -43,7 +43,7 @@ public class ReferralManagementConsumer {
         }
     }
 
-    @KafkaListener(topics = "${adrm.referralmanagement.consumer.bulk.update.topic}")
+    @KafkaListener(topics = "${referralmanagement.referralmanagement.consumer.bulk.update.topic}")
     public void bulkUpdate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -56,7 +56,7 @@ public class ReferralManagementConsumer {
         }
     }
 
-    @KafkaListener(topics = "${adrm.referralmanagement.consumer.bulk.delete.topic}")
+    @KafkaListener(topics = "${referralmanagement.referralmanagement.consumer.bulk.delete.topic}")
     public void bulkDelete(Map<String, Object> consumerRecord,
                                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

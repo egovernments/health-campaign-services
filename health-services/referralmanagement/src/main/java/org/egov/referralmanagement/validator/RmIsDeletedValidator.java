@@ -1,9 +1,9 @@
-package org.egov.adrm.validator.rm;
+package org.egov.referralmanagement.validator;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.adrm.referralmanagement.Referral;
-import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
+import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.validator.Validator;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

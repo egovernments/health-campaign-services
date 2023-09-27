@@ -1,4 +1,4 @@
-package org.egov.adrm.validator.rm;
+package org.egov.referralmanagement.validator;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.adrm.config.AdrmConfiguration;

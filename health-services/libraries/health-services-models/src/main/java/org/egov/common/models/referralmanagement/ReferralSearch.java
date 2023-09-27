@@ -1,4 +1,4 @@
-package org.egov.common.models.adrm.referralmanagement;
+package org.egov.common.models.referralmanagement;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
