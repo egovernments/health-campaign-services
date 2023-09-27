@@ -36,6 +36,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/project/src/main/resources/db"
         image-name: "project-db"
+  - name: "builds/health-campaign-services/health-services/referralmanagement"
+    build:
+      - work-dir: "health-services/referralmanagement"
+        image-name: "referralmanagement"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/referralmanagement/src/main/resources/db"
+        image-name: "referralmanagement-db"
   - name: "builds/health-campaign-services/health-services/household"
     build:
       - work-dir: "health-services/household"
