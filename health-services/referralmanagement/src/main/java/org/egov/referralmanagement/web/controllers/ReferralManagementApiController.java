@@ -38,7 +38,11 @@ public class ReferralManagementApiController {
 
     private final Producer producer;
 
+<<<<<<< HEAD
     private final ReferralManagementConfiguration referralManagementConfiguration;
+=======
+    private final AdrmConfiguration adrmConfiguration;
+>>>>>>> 73a5aefec0 (HLM-3069: changed module name to referral management)
 
     public ReferralManagementApiController(
             HttpServletRequest httpServletRequest, 

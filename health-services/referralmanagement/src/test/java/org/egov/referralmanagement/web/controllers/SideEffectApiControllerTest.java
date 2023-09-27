@@ -3,6 +3,7 @@ package org.egov.referralmanagement.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.referralmanagement.TestConfiguration;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+<<<<<<<< HEAD:health-services/referralmanagement/src/test/java/org/egov/referralmanagement/web/controllers/SideEffectApiControllerTest.java
 import org.egov.referralmanagement.helper.SideEffectRequestTestBuilder;
 import org.egov.referralmanagement.helper.SideEffectTestBuilder;
 import org.egov.referralmanagement.service.SideEffectService;
@@ -13,6 +14,18 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
+========
+import org.egov.referralmanagement.helper.AdverseEventRequestTestBuilder;
+import org.egov.referralmanagement.helper.AdverseEventTestBuilder;
+import org.egov.referralmanagement.service.AdverseEventService;
+import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkResponse;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEventRequest;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEventResponse;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEventSearch;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEventSearchRequest;
+>>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/test/java/org/egov/referralmanagement/web/controllers/AdverseEventApiControllerTest.java
 import org.egov.common.producer.Producer;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;

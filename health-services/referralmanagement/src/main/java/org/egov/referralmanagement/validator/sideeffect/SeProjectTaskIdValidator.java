@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/sideeffect/SeProjectTaskIdValidator.java
 package org.egov.referralmanagement.validator.sideeffect;
+========
+package org.egov.referralmanagement.validator.adverseevent;
+>>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/adverseevent/AdProjectTaskIdValidator.java
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
@@ -13,8 +17,13 @@ import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkResponse;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.models.project.TaskSearchRequest;
+<<<<<<<< HEAD:health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/sideeffect/SeProjectTaskIdValidator.java
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
+========
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkRequest;
+>>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/adverseevent/AdProjectTaskIdValidator.java
 import org.egov.common.validator.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -41,7 +50,11 @@ public class SeProjectTaskIdValidator implements Validator<SideEffectBulkRequest
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
     @Autowired
+<<<<<<<< HEAD:health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/sideeffect/SeProjectTaskIdValidator.java
     public SeProjectTaskIdValidator(ServiceRequestClient serviceRequestClient, ReferralManagementConfiguration referralManagementConfiguration) {
+========
+    public AdProjectTaskIdValidator(ServiceRequestClient serviceRequestClient, ReferralManagementConfiguration referralManagementConfiguration) {
+>>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/adverseevent/AdProjectTaskIdValidator.java
         this.serviceRequestClient = serviceRequestClient;
         this.referralManagementConfiguration = referralManagementConfiguration;
     }

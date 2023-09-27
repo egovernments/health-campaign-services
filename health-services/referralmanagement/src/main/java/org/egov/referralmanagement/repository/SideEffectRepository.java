@@ -6,11 +6,19 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+<<<<<<<< HEAD:health-services/referralmanagement/src/main/java/org/egov/referralmanagement/repository/SideEffectRepository.java
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.project.Task;
 import org.egov.common.producer.Producer;
 import org.egov.referralmanagement.repository.rowmapper.SideEffectRowMapper;
+========
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEventSearch;
+import org.egov.common.models.project.Task;
+import org.egov.common.producer.Producer;
+import org.egov.referralmanagement.repository.rowmapper.AdverseEventRowMapper;
+>>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/main/java/org/egov/referralmanagement/repository/AdverseEventRepository.java
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;

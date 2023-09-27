@@ -3,7 +3,11 @@ package org.egov.referralmanagement.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+<<<<<<<< HEAD:health-services/referralmanagement/src/main/java/org/egov/referralmanagement/repository/rowmapper/SideEffectRowMapper.java
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+========
+import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
+>>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/main/java/org/egov/referralmanagement/repository/rowmapper/AdverseEventRowMapper.java
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
