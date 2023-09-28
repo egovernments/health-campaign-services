@@ -1,7 +1,7 @@
 package org.egov.referralmanagement.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.referralmanagement.repository.ReferralManagementRepository;
+import org.egov.referralmanagement.repository.ReferralRepository;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.service.IdGenService;
@@ -24,12 +24,12 @@ public class ReferralManagementEnrichmentService {
 
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
-    private final ReferralManagementRepository referralManagementRepository;
+    private final ReferralRepository referralRepository;
 
-    public ReferralManagementEnrichmentService(IdGenService idGenService, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementRepository referralManagementRepository) {
+    public ReferralManagementEnrichmentService(IdGenService idGenService, ReferralManagementConfiguration referralManagementConfiguration, ReferralRepository referralRepository) {
         this.idGenService = idGenService;
         this.referralManagementConfiguration = referralManagementConfiguration;
-        this.referralManagementRepository = referralManagementRepository;
+        this.referralRepository = referralRepository;
     }
 
     public void create(List<Referral> entities, ReferralBulkRequest request) throws Exception {

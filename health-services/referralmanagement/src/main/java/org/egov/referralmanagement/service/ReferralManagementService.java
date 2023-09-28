@@ -3,7 +3,7 @@ package org.egov.referralmanagement.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
-import org.egov.referralmanagement.repository.ReferralManagementRepository;
+import org.egov.referralmanagement.repository.ReferralRepository;
 import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
 import org.egov.referralmanagement.validator.RmFacilityEntitiesIdValidator;
 import org.egov.referralmanagement.validator.RmIsDeletedValidator;
@@ -45,7 +45,7 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 public class ReferralManagementService {
     private final IdGenService idGenService;
 
-    private final ReferralManagementRepository referralManagementRepository;
+    private final ReferralRepository referralRepository;
 
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
@@ -70,9 +70,9 @@ public class ReferralManagementService {
                     || validator.getClass().equals(RmNonExistentEntityValidator.class);
 
 
-    public ReferralManagementService(IdGenService idGenService, ReferralManagementRepository referralManagementRepository, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementEnrichmentService referralManagementEnrichmentService, List<Validator<ReferralBulkRequest, Referral>> validators) {
+    public ReferralManagementService(IdGenService idGenService, ReferralRepository referralRepository, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementEnrichmentService referralManagementEnrichmentService, List<Validator<ReferralBulkRequest, Referral>> validators) {
         this.idGenService = idGenService;
-        this.referralManagementRepository = referralManagementRepository;
+        this.referralRepository = referralRepository;
         this.referralManagementConfiguration = referralManagementConfiguration;
         this.referralManagementEnrichmentService = referralManagementEnrichmentService;
         this.validators = validators;
@@ -97,7 +97,7 @@ public class ReferralManagementService {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.create(validReferrals, referralRequest);
-                referralManagementRepository.save(validReferrals,
+                referralRepository.save(validReferrals,
                         referralManagementConfiguration.getCreateReferralTopic());
                 log.info("successfully created adverse events");
             }
@@ -130,7 +130,7 @@ public class ReferralManagementService {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.update(validReferrals, referralRequest);
-                referralManagementRepository.save(validReferrals,
+                referralRepository.save(validReferrals,
                         referralManagementConfiguration.getUpdateReferralTopic());
                 log.info("successfully updated bulk adverse events");
             }
@@ -158,14 +158,14 @@ public class ReferralManagementService {
                             .singletonList(referralSearchRequest.getReferral())),
                     referralSearchRequest.getReferral());
             log.info("fetching adverse events with ids: {}", ids);
-            return referralManagementRepository.findById(ids, includeDeleted, idFieldName).stream()
+            return referralRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
         log.info("searching adverse events using criteria");
-        return referralManagementRepository.find(referralSearchRequest.getReferral(),
+        return referralRepository.find(referralSearchRequest.getReferral(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 
@@ -187,10 +187,10 @@ public class ReferralManagementService {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
                 List<String> referralIds = validReferrals.stream().map(entity -> entity.getId()).collect(Collectors.toSet()).stream().collect(Collectors.toList());
-                List<Referral> existingReferrals = referralManagementRepository
+                List<Referral> existingReferrals = referralRepository
                         .findById(referralIds, false);
                 referralManagementEnrichmentService.delete(existingReferrals, referralRequest);
-                referralManagementRepository.save(existingReferrals,
+                referralRepository.save(existingReferrals,
                         referralManagementConfiguration.getDeleteReferralTopic());
                 log.info("successfully deleted entities");
             }
@@ -206,7 +206,7 @@ public class ReferralManagementService {
 
     public void putInCache(List<Referral> referrals) {
         log.info("putting {} adverse events in cache", referrals.size());
-        referralManagementRepository.putInCache(referrals);
+        referralRepository.putInCache(referrals);
         log.info("successfully put adverse events in cache");
     }
 

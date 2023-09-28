@@ -65,7 +65,7 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .projectBeneficiaryId(resultSet.getString("projectBeneficiaryId"))
                     .projectBeneficiaryClientReferenceId(resultSet.getString("projectbeneficiaryclientreferenceid"))
-                    .referringPartyId(resultSet.getString("referrringpartyid"))
+                    .referredById(resultSet.getString("referredById"))
                     .referredToId(resultSet.getString("referredToId"))
                     .referredToType(resultSet.getString("referredToType"))
                     .adverseEvent(adverseEvent)

@@ -1,12 +1,9 @@
 package org.egov.referralmanagement.validator;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.adrm.config.AdrmConfiguration;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
-import org.egov.common.models.adrm.referralmanagement.Referral;
-import org.egov.common.models.adrm.referralmanagement.ReferralBulkRequest;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -15,7 +12,10 @@ import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.ProjectStaffBulkResponse;
 import org.egov.common.models.project.ProjectStaffSearch;
 import org.egov.common.models.project.ProjectStaffSearchRequest;
+import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.validator.Validator;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static org.egov.adrm.Constants.PROJECT_STAFF;
+import static org.egov.referralmanagement.Constants.PROJECT_STAFF;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
@@ -39,12 +39,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 @Slf4j
 public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkRequest, Referral> {
     private final ServiceRequestClient serviceRequestClient;
-    private final AdrmConfiguration adrmConfiguration;
+    private final ReferralManagementConfiguration referralManagementConfiguration;
 
     @Autowired
-    public RmProjectEntitiesIdValidator(ServiceRequestClient serviceRequestClient, AdrmConfiguration adrmConfiguration) {
+    public RmProjectEntitiesIdValidator(ServiceRequestClient serviceRequestClient, ReferralManagementConfiguration referralManagementConfiguration) {
         this.serviceRequestClient = serviceRequestClient;
-        this.adrmConfiguration = adrmConfiguration;
+        this.referralManagementConfiguration = referralManagementConfiguration;
     }
 
 
@@ -67,7 +67,7 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
                     referralList.forEach(referral -> {
                         addIgnoreNull(projectBeneficiaryIdList, referral.getProjectBeneficiaryId());
                         addIgnoreNull(projectBeneficiaryClientReferenceIdList, referral.getProjectBeneficiaryClientReferenceId());
-                        addIgnoreNull(projectStaffIdList, referral.getReferringPartyId());
+                        addIgnoreNull(projectStaffIdList, referral.getReferredById());
                         if(referral.getReferredToType().equals(PROJECT_STAFF)){
                             addIgnoreNull(projectStaffIdList, referral.getReferredToId());
                         }
@@ -77,8 +77,8 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
                             .clientReferenceId(projectBeneficiaryClientReferenceIdList.isEmpty() ? null : projectBeneficiaryClientReferenceIdList)
                             .build();
                     BeneficiaryBulkResponse beneficiaryBulkResponse = serviceRequestClient.fetchResult(
-                            new StringBuilder(adrmConfiguration.getProjectHost()
-                                    + adrmConfiguration.getProjectBeneficiarySearchUrl()
+                            new StringBuilder(referralManagementConfiguration.getProjectHost()
+                                    + referralManagementConfiguration.getProjectBeneficiarySearchUrl()
                                     +"?limit=" + entities.size()
                                     + "&offset=0&tenantId=" + tenantId),
                             BeneficiarySearchRequest.builder().requestInfo(request.getRequestInfo()).projectBeneficiary(projectBeneficiarySearch).build(),
@@ -89,8 +89,8 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
                             .id(projectStaffIdList.isEmpty() ? null : projectStaffIdList)
                             .build();
                     ProjectStaffBulkResponse projectStaffBulkResponse = serviceRequestClient.fetchResult(
-                            new StringBuilder(adrmConfiguration.getProjectHost()
-                                    + adrmConfiguration.getProjectStaffSearchUrl()
+                            new StringBuilder(referralManagementConfiguration.getProjectHost()
+                                    + referralManagementConfiguration.getProjectStaffSearchUrl()
                                     +"?limit=" + entities.size()
                                     + "&offset=0&tenantId=" + tenantId),
                             ProjectStaffSearchRequest.builder().requestInfo(request.getRequestInfo()).projectStaff(projectStaffSearch).build(),
@@ -113,7 +113,7 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
                 final List<String> existingProjectStaffIds = new ArrayList<>();
                 existingProjectStaffList.forEach(projectStaff -> existingProjectStaffIds.add(projectStaff.getId()));
                 List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                                !existingProjectStaffIds.contains(entity.getReferringPartyId())
+                                !existingProjectStaffIds.contains(entity.getReferredById())
                                         && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
                                         && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
                                         && (!entity.getReferredToType().equals(PROJECT_STAFF) || !existingProjectStaffIds.contains(entity.getReferredToId()))

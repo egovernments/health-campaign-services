@@ -42,22 +42,22 @@ public class ReferralManagementConfiguration {
     @Value("${egov.search.project.beneficiary.url}")
     private String projectBeneficiarySearchUrl;
 
-    @Value("${referralmanagement.referralmanagement.kafka.create.topic}")
+    @Value("${referralmanagement.referral.kafka.create.topic}")
     private String createReferralTopic;
 
-    @Value("${referralmanagement.referralmanagement.kafka.update.topic}")
+    @Value("${referralmanagement.referral.kafka.update.topic}")
     private String updateReferralTopic;
 
-    @Value("${referralmanagement.referralmanagement.kafka.delete.topic}")
+    @Value("${referralmanagement.referral.kafka.delete.topic}")
     private String deleteReferralTopic;
 
-    @Value("${referralmanagement.referralmanagement.consumer.bulk.create.topic}")
+    @Value("${referralmanagement.referral.consumer.bulk.create.topic}")
     private String createReferralBulkTopic;
 
-    @Value("${referralmanagement.referralmanagement.consumer.bulk.update.topic}")
+    @Value("${referralmanagement.referral.consumer.bulk.update.topic}")
     private String updateReferralBulkTopic;
 
-    @Value("${referralmanagement.referralmanagement.consumer.bulk.delete.topic}")
+    @Value("${referralmanagement.referral.consumer.bulk.delete.topic}")
     private String deleteReferralBulkTopic;
 
     @Value("${egov.search.project.staff.url}")

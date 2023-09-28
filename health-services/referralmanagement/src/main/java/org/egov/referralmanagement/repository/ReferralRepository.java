@@ -17,8 +17,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,15 +27,15 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
-public class ReferralManagementRepository extends GenericRepository<Referral> {
+public class ReferralRepository extends GenericRepository<Referral> {
     @Autowired
     private ReferralRowMapper rowMapper;
 
     @Autowired
-    protected ReferralManagementRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+    protected ReferralRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                  RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder,
                                  ReferralRowMapper rowMapper) {
-        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("adverse_event"));
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("referral"));
     }
 
     public List<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,

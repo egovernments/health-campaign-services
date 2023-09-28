@@ -10,7 +10,7 @@ schemes:
 x-common-path: >-
   https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
 paths:
-  /adrm/adverse_event/v1/_create:
+  /referral-management/adverse_event/v1/_create:
     post:
       summary: >-
         Create adverse event for the project
@@ -36,7 +36,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/bulk/_create:
+  /referral-management/adverse_event/v1/bulk/_create:
     post:
       summary: >-
         Create adverse events for the project in bulk
@@ -62,7 +62,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/_update:
+  /referral-management/adverse_event/v1/_update:
     post:
       summary: >-
         Adverse Event Request
@@ -88,7 +88,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/bulk/_update:
+  /referral-management/adverse_event/v1/bulk/_update:
     post:
       summary: >-
         Adverse Event Request in bulk for a project
@@ -114,7 +114,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/_delete:
+  /referral-management/adverse_event/v1/_delete:
     post:
       summary: >-
         Soft delete Adverse Event for a project
@@ -140,7 +140,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/bulk/_delete:
+  /referral-management/adverse_event/v1/bulk/_delete:
     post:
       summary: >-
         Soft delete Adverse Events for a project
@@ -166,7 +166,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/_search:
+  /referral-management/adverse_event/v1/_search:
     post:
       summary: >-
         Search Adverse Event for Project
@@ -197,7 +197,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/referral-management/v1/_create:
+  /referral-management/referral/v1/_create:
     post:
       summary: >-
         Create referral for the project beneficiary
@@ -223,7 +223,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/referral-management/v1/bulk/_create:
+  /referral-management/referral/v1/bulk/_create:
     post:
       summary: >-
         Create referrals for the project beneficiary in bulk
@@ -249,7 +249,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/referral-management/v1/_update:
+  /referral-management/referral/v1/_update:
     post:
       summary: >-
         Referral Request
@@ -275,7 +275,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/referral-management/v1/bulk/_update:
+  /referral-management/referral/v1/bulk/_update:
     post:
       summary: >-
         Referral Request in bulk for a project beneficiary
@@ -301,7 +301,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/referral-management/v1/_delete:
+  /referral-management/referral/v1/_delete:
     post:
       summary: >-
         Soft delete Referral for a project beneficiary
@@ -327,7 +327,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/referral-management/v1/bulk/_delete:
+  /referral-management/referral/v1/bulk/_delete:
     post:
       summary: >-
         Soft delete Referrals for a project beneficiary
@@ -353,7 +353,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/referral-management/v1/_search:
+  /referral-management/referral/v1/_search:
     post:
       summary: >-
         Search Referral for Project
@@ -653,7 +653,7 @@ definitions:
         minLength: 2
         maxLength: 64
         description: Project Beneficiary Client Reference Id
-      referringPartyId:
+      referringById:
         type: string
         minLength: 2
         maxLength: 64

@@ -1,0 +1,25 @@
+CREATE TABLE REFERRAL
+(
+    id                   				character varying(64),
+    clientReferenceId    				character varying(64),
+    tenantId             				character varying(1000),
+    projectBeneficiaryId     			character varying(64),
+    projectBeneficiaryClientReferenceId character varying(64),
+    referredById             			character varying(100),
+    referredToId          				character varying(100),
+    referredToType      				character varying(100),
+    reasons    							jsonb,
+    adverseEventId 						character varying(100),
+    createdBy            				character varying(64),
+    createdTime          				bigint,
+    lastModifiedBy       				character varying(64),
+    lastModifiedTime     				bigint,
+    clientCreatedBy            				character varying(64),
+    clientCreatedTime          				bigint,
+    clientLastModifiedBy       				character varying(64),
+    clientLastModifiedTime     				bigint,
+    rowVersion           				bigint,
+    isDeleted            				boolean,
+    CONSTRAINT uk_referral_id PRIMARY KEY (id),
+    CONSTRAINT uk_referral_clientReferenceId UNIQUE (clientReferenceId)
+);
