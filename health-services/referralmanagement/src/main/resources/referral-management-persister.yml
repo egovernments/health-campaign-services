@@ -2,11 +2,11 @@ serviceMaps:
   serviceName: referralmanagement
     mappings:
       - version: 1.0
-        description: Saves a adverse event
-        fromTopic: save-adverse-event-topic
+        description: Saves a side effect
+        fromTopic: save-side-effect-topic
         isTransaction: true
         queryMaps:
-          - query: INSERT INTO ADVERSE_EVENT(id, clientReferenceId, tenantId, taskId, taskClientReferenceId, projectBeneficiaryId, projectBeneficiaryClientReferenceId,symptoms, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          - query: INSERT INTO SIDE_EFFECT(id, clientReferenceId, tenantId, taskId, taskClientReferenceId, projectBeneficiaryId, projectBeneficiaryClientReferenceId,symptoms, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
             basePath: $.*
             jsonMaps:
               - jsonPath: $.*.id
@@ -31,11 +31,11 @@ serviceMaps:
               - jsonPath: $.*.isDeleted
 
           - version: 1.0
-            description: Updates a adverse event
-            fromTopic: update-adverse-event-topic
+            description: Updates a side effect
+            fromTopic: update-side-effect-topic
             isTransaction: true
             queryMaps:
-              - query: UPDATE ADVERSE_EVENT SET tenantId = ?, taskId = ?, taskClientReferenceId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, symptoms = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+              - query: UPDATE SIDE_EFFECT SET tenantId = ?, taskId = ?, taskClientReferenceId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, symptoms = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
                 basePath: $.*
                 jsonMaps:
                   - jsonPath: $.*.tenantId
@@ -55,11 +55,11 @@ serviceMaps:
                   - jsonPath: $.*.id
 
           - version: 1.0
-            description: Deletes a adverse event
-            fromTopic: delete-adverse-event-topic
+            description: Deletes a side effect
+            fromTopic: delete-side-effect-topic
             isTransaction: true
             queryMaps:
-              - query: UPDATE ADVERSE_EVENT SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+              - query: UPDATE SIDE_EFFECT SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
                 basePath: $.*
                 jsonMaps:
                   - jsonPath: $.*.auditDetails.lastModifiedBy

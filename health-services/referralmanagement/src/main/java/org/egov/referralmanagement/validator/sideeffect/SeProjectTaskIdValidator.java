@@ -1,4 +1,4 @@
-package org.egov.referralmanagement.validator.adverseevent;
+package org.egov.referralmanagement.validator.sideeffect;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
@@ -13,8 +13,8 @@ import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkResponse;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.models.project.TaskSearchRequest;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.validator.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -36,27 +36,27 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 @Component
 @Order(value = 3)
 @Slf4j
-public class AdProjectTaskIdValidator implements Validator<AdverseEventBulkRequest, AdverseEvent> {
+public class SeProjectTaskIdValidator implements Validator<SideEffectBulkRequest, SideEffect> {
     private final ServiceRequestClient serviceRequestClient;
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
     @Autowired
-    public AdProjectTaskIdValidator(ServiceRequestClient serviceRequestClient, ReferralManagementConfiguration referralManagementConfiguration) {
+    public SeProjectTaskIdValidator(ServiceRequestClient serviceRequestClient, ReferralManagementConfiguration referralManagementConfiguration) {
         this.serviceRequestClient = serviceRequestClient;
         this.referralManagementConfiguration = referralManagementConfiguration;
     }
 
 
     @Override
-    public Map<AdverseEvent, List<Error>> validate(AdverseEventBulkRequest request) {
+    public Map<SideEffect, List<Error>> validate(SideEffectBulkRequest request) {
         log.info("validating project task id");
-        Map<AdverseEvent, List<Error>> errorDetailsMap = new HashMap<>();
-        List<AdverseEvent> entities = request.getAdverseEvents();
-        Map<String, List<AdverseEvent>> tenantIdAdverseEventMap = entities.stream().collect(Collectors.groupingBy(AdverseEvent::getTenantId));
-        List<String> tenantIds = new ArrayList<>(tenantIdAdverseEventMap.keySet());
+        Map<SideEffect, List<Error>> errorDetailsMap = new HashMap<>();
+        List<SideEffect> entities = request.getSideEffects();
+        Map<String, List<SideEffect>> tenantIdSideEffectMap = entities.stream().collect(Collectors.groupingBy(SideEffect::getTenantId));
+        List<String> tenantIds = new ArrayList<>(tenantIdSideEffectMap.keySet());
         tenantIds.forEach(tenantId -> {
-            List<AdverseEvent> adverseEventList = tenantIdAdverseEventMap.get(tenantId);
-            if (!adverseEventList.isEmpty()) {
+            List<SideEffect> sideEffectList = tenantIdSideEffectMap.get(tenantId);
+            if (!sideEffectList.isEmpty()) {
                 List<Task> existingTasks = null;
                 List<ProjectBeneficiary> existingProjectBeneficiaries = null;
                 final List<String> projectBeneficiaryIdList = new ArrayList<>();
@@ -64,11 +64,11 @@ public class AdProjectTaskIdValidator implements Validator<AdverseEventBulkReque
                 final List<String> taskIdList = new ArrayList<>();
                 final List<String> taskClientReferenceIdList = new ArrayList<>();
                 try {
-                    adverseEventList.forEach(adverseEvent -> {
-                        addIgnoreNull(projectBeneficiaryIdList, adverseEvent.getProjectBeneficiaryId());
-                        addIgnoreNull(projectBeneficiaryClientReferenceIdList, adverseEvent.getProjectBeneficiaryClientReferenceId());
-                        addIgnoreNull(taskIdList, adverseEvent.getTaskId());
-                        addIgnoreNull(taskClientReferenceIdList, adverseEvent.getTaskClientReferenceId());
+                    sideEffectList.forEach(sideEffect -> {
+                        addIgnoreNull(projectBeneficiaryIdList, sideEffect.getProjectBeneficiaryId());
+                        addIgnoreNull(projectBeneficiaryClientReferenceIdList, sideEffect.getProjectBeneficiaryClientReferenceId());
+                        addIgnoreNull(taskIdList, sideEffect.getTaskId());
+                        addIgnoreNull(taskClientReferenceIdList, sideEffect.getTaskClientReferenceId());
                     });
                     TaskSearch taskSearch = TaskSearch.builder()
                             .id(taskIdList.isEmpty() ? null : taskIdList)
@@ -109,15 +109,15 @@ public class AdProjectTaskIdValidator implements Validator<AdverseEventBulkReque
                 });
                 final List<String> existingProjectTaskIds = existingTasks.stream().map(Task::getId).collect(Collectors.toList());
                 final List<String> existingProjectReferenceTaskIds = existingTasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
-                List<AdverseEvent> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
+                List<SideEffect> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                                 !existingProjectTaskIds.contains(entity.getTaskId())
                                         && !existingProjectReferenceTaskIds.contains(entity.getTaskClientReferenceId())
                                         && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
                                         && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
                         ).collect(Collectors.toList());
-                invalidEntities.forEach(adverseEvent -> {
+                invalidEntities.forEach(sideEffect -> {
                     Error error = getErrorForNonExistentEntity();
-                    populateErrorDetails(adverseEvent, error, errorDetailsMap);
+                    populateErrorDetails(sideEffect, error, errorDetailsMap);
                 });
 
             }

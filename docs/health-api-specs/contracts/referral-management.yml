@@ -1,7 +1,7 @@
 swagger: '2.0'
 info:
   version: 1.0.0
-  title: Adverse Event and Referral Management System
+  title: Referral Management System
   contact:
     name: egovernments foundation
     email: info@egovernments.org
@@ -10,50 +10,50 @@ schemes:
 x-common-path: >-
   https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
 paths:
-  /adrm/adverse_event/v1/_create:
+  /adrm/side_effect/v1/_create:
     post:
       summary: >-
-        Create adverse event for the project
+        Create side effect for the project
       description: >-
-        Create adverse event for the project
+        Create side effect for the project
       parameters:
-        - name: AdverseEvent
+        - name: SideEffect
           in: body
-          description: Capture details of Adverse Event
+          description: Capture details of Side Effect
           required: true
           schema:
-            $ref: '#/definitions/AdverseEventRequest'
+            $ref: '#/definitions/SideEffectRequest'
       tags:
-        - Adverse Event
+        - Side Effect
       responses:
         '202':
-          description: Create adverse event request has been accepted for creation.
+          description: Create side effect request has been accepted for creation.
           schema:
-            $ref: '#/definitions/AdverseEventResponse'
+            $ref: '#/definitions/SideEffectResponse'
         '400':
           description: Invalid Input body.
           schema:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/bulk/_create:
+  /adrm/side_effect/v1/bulk/_create:
     post:
       summary: >-
-        Create adverse events for the project in bulk
+        Create side effects for the project in bulk
       description: >-
-        Create adverse events for the project in bulk
+        Create side effects for the project in bulk
       parameters:
-        - name: AdverseEvent
+        - name: SideEffect
           in: body
           description: Capture details of Task
           required: true
           schema:
-            $ref: '#/definitions/AdverseEventBulkRequest'
+            $ref: '#/definitions/SideEffectBulkRequest'
       tags:
-        - Adverse Event
+        - Side Effect
       responses:
         '202':
-          description: Create adverse event request has been accepted for creation.
+          description: Create side effect request has been accepted for creation.
           schema:
             $ref: '#/definitions/BulkAcceptedResponse'
         '400':
@@ -62,50 +62,50 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/_update:
+  /adrm/side-effect/v1/_update:
     post:
       summary: >-
-        Adverse Event Request
+        Side Effect Request
       description: >-
-        Adverse Event Request
+        Side Effect Request
       parameters:
-        - name: AdverseEvent
+        - name: SideEffect
           in: body
-          description: Capture details of Existing adverse event
+          description: Capture details of Existing side effect
           required: true
           schema:
-            $ref: '#/definitions/AdverseEventRequest'
+            $ref: '#/definitions/SideEffectRequest'
       tags:
-        - Adverse Event
+        - Side Effect
       responses:
         '202':
           description: update averse event request has been accepted for update.
           schema:
-            $ref: '#/definitions/AdverseEventResponse'
+            $ref: '#/definitions/SideEffectResponse'
         '400':
           description: Invalid Input body.
           schema:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/bulk/_update:
+  /adrm/side-effect/v1/bulk/_update:
     post:
       summary: >-
-        Adverse Event Request in bulk for a project
+        Side Effect Request in bulk for a project
       description: >-
-        Adverse Event Request in bulk for a project
+        Side Effect Request in bulk for a project
       parameters:
-        - name: AdverseEvent
+        - name: SideEffect
           in: body
-          description: Capture details of Existing Adverse Events
+          description: Capture details of Existing Side Effects
           required: true
           schema:
-            $ref: '#/definitions/AdverseEventBulkRequest'
+            $ref: '#/definitions/SideEffectBulkRequest'
       tags:
-        - Adverse Event
+        - Side Effect
       responses:
         '202':
-          description: update Adverse Events bulk request has been accepted for update.
+          description: update Side Effects bulk request has been accepted for update.
           schema:
             $ref: '#/definitions/BulkAcceptedResponse'
         '400':
@@ -114,50 +114,50 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/_delete:
+  /adrm/side-effect/v1/_delete:
     post:
       summary: >-
-        Soft delete Adverse Event for a project
+        Soft delete Side Effect for a project
       description: >-
-        Soft delete Adverse Event for a project
+        Soft delete Side Effect for a project
       parameters:
-        - name: AdverseEvent
+        - name: SideEffect
           in: body
-          description: Capture details of Existing Adverse Event
+          description: Capture details of Existing Side Effect
           required: true
           schema:
-            $ref: '#/definitions/AdverseEventRequest'
+            $ref: '#/definitions/SideEffectRequest'
       tags:
-        - Adverse Event
+        - Side Effect
       responses:
         '202':
-          description: delete Adverse Event request has been accepted for deletion.
+          description: delete Side Effect request has been accepted for deletion.
           schema:
-            $ref: '#/definitions/AdverseEventResponse'
+            $ref: '#/definitions/SideEffectResponse'
         '400':
           description: Invalid Input body.
           schema:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/bulk/_delete:
+  /adrm/side-effect/v1/bulk/_delete:
     post:
       summary: >-
-        Soft delete Adverse Events for a project
+        Soft delete Side Effects for a project
       description: >-
-        Soft delete Adverse Events for a project
+        Soft delete Side Effects for a project
       parameters:
-        - name: AdverseEvent
+        - name: SideEffect
           in: body
-          description: Capture details of Existing Adverse Event
+          description: Capture details of Existing Side Effect
           required: true
           schema:
-            $ref: '#/definitions/AdverseEventRequest'
+            $ref: '#/definitions/SideEffectRequest'
       tags:
-        - Adverse Event
+        - Side Effect
       responses:
         '202':
-          description: delete bulk Adverse Event request has been accepted for deletion.
+          description: delete bulk Side Effect request has been accepted for deletion.
           schema:
             $ref: '#/definitions/BulkAcceptedResponse'
         '400':
@@ -166,31 +166,31 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/adverse_event/v1/_search:
+  /adrm/side-effect/v1/_search:
     post:
       summary: >-
-        Search Adverse Event for Project
+        Search Side Effect for Project
       description: >-
-        Search Adverse Event for Project
+        Search Side Effect for Project
       parameters:
-        - name: AdverseEvent
+        - name: SideEffect
           in: body
-          description: Adverse Event Search.
+          description: Side Effect Search.
           required: true
           schema:
-            $ref: '#/definitions/AdverseEventSearchRequest'
+            $ref: '#/definitions/SideEffectSearchRequest'
         - $ref: '#/parameters/limit'
         - $ref: '#/parameters/offset'
         - $ref: '#/parameters/tenantId'
         - $ref: '#/parameters/lastChangedSince'
         - $ref: '#/parameters/includeDeleted'
       tags:
-        - Adverse Event
+        - Side Effect
       responses:
         '200':
-          description: Adverse Events.
+          description: Side Effects.
           schema:
-            $ref: '#/definitions/AdverseEventBulkResponse'
+            $ref: '#/definitions/SideEffectBulkResponse'
         '400':
           description: Invalid Input body.
           schema:
@@ -325,7 +325,7 @@ definitions:
   Address:
     $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
 
-  AdverseEvent:
+  SideEffect:
     type: object
     required:
       - tenantId
@@ -362,35 +362,35 @@ definitions:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
 
-  AdverseEventRequest:
+  SideEffectRequest:
     type: object
     properties:
       RequestInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      AdverseEvent:
+      SideEffect:
         type: object
-        $ref: '#/definitions/AdverseEvent'
+        $ref: '#/definitions/SideEffect'
     required:
       - RequestInfo
-      - AdverseEvent
+      - SideEffect
 
-  AdverseEventBulkRequest:
+  SideEffectBulkRequest:
     type: object
     properties:
       RequestInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      AdverseEvents:
+      SideEffects:
         type: array
         minItems: 1
         items:
-          $ref: '#/definitions/AdverseEvent'
+          $ref: '#/definitions/SideEffect'
     required:
       - RequestInfo
-      - AdverseEvents
+      - SideEffects
 
-  AdverseEventSearch:
+  SideEffectSearch:
     type: object
     properties:
       id:
@@ -406,41 +406,41 @@ definitions:
         type: string
         example: "R-ID-1"
 
-  AdverseEventSearchRequest:
+  SideEffectSearchRequest:
     type: object
     properties:
       RequestInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
-      AdverseEvent:
-        $ref: '#/definitions/AdverseEventSearch'
+      SideEffect:
+        $ref: '#/definitions/SideEffectSearch'
     required:
       - RequestInfo
-      - AdverseEvent
+      - SideEffect
 
-  AdverseEventResponse:
+  SideEffectResponse:
     type: object
     properties:
       ResponseInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      AdverseEvent:
+      SideEffect:
         type: object
-        $ref: '#/definitions/AdverseEvent'
+        $ref: '#/definitions/SideEffect'
     required:
       - ResponseInfo
-      - AdverseEvent
+      - SideEffect
 
-  AdverseEventBulkResponse:
+  SideEffectBulkResponse:
     type: object
     properties:
       ResponseInfo:
         $ref: >-
           https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
-      AdverseEvents:
+      SideEffects:
         type: array
         items:
-          $ref: '#/definitions/AdverseEvent'
+          $ref: '#/definitions/SideEffect'
     required:
       - ResponseInfo
-      - AdverseEvents
+      - SideEffects

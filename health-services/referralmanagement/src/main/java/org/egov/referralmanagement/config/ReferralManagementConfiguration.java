@@ -15,23 +15,23 @@ import org.springframework.stereotype.Component;
 @Builder
 @Component
 public class ReferralManagementConfiguration {
-    @Value("${referralmanagement.adverseevent.kafka.create.topic}")
-    private String createAdverseEventTopic;
+    @Value("${referralmanagement.sideeffect.kafka.create.topic}")
+    private String createSideEffectTopic;
 
-    @Value("${referralmanagement.adverseevent.kafka.update.topic}")
-    private String updateAdverseEventTopic;
+    @Value("${referralmanagement.sideeffect.kafka.update.topic}")
+    private String updateSideEffectTopic;
 
-    @Value("${referralmanagement.adverseevent.kafka.delete.topic}")
-    private String deleteAdverseEventTopic;
+    @Value("${referralmanagement.sideeffect.kafka.delete.topic}")
+    private String deleteSideEffectTopic;
 
-    @Value("${referralmanagement.adverseevent.consumer.bulk.create.topic}")
-    private String createAdverseEventBulkTopic;
+    @Value("${referralmanagement.sideeffect.consumer.bulk.create.topic}")
+    private String createSideEffectBulkTopic;
 
-    @Value("${referralmanagement.adverseevent.consumer.bulk.update.topic}")
-    private String updateAdverseEventBulkTopic;
+    @Value("${referralmanagement.sideeffect.consumer.bulk.update.topic}")
+    private String updateSideEffectBulkTopic;
 
-    @Value("${referralmanagement.adverseevent.consumer.bulk.delete.topic}")
-    private String deleteAdverseEventBulkTopic;
+    @Value("${referralmanagement.sideeffect.consumer.bulk.delete.topic}")
+    private String deleteSideEffectBulkTopic;
 
     @Value("${egov.project.host}")
     private String projectHost;

@@ -1,9 +1,9 @@
-package org.egov.referralmanagement.validator.adverseevent;
+package org.egov.referralmanagement.validator.sideeffect;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.validator.Validator;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -18,14 +18,14 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForIsDelete;
 @Component
 @Order(2)
 @Slf4j
-public class AdIsDeletedValidator implements Validator<AdverseEventBulkRequest, AdverseEvent> {
+public class SeIsDeletedValidator implements Validator<SideEffectBulkRequest, SideEffect> {
 
     @Override
-    public Map<AdverseEvent, List<Error>> validate(AdverseEventBulkRequest request) {
+    public Map<SideEffect, List<Error>> validate(SideEffectBulkRequest request) {
         log.info("validating isDeleted field");
-        HashMap<AdverseEvent, List<Error>> errorDetailsMap = new HashMap<>();
-        List<AdverseEvent> validIndividuals = request.getAdverseEvents();
-        validIndividuals.stream().filter(AdverseEvent::getIsDeleted).forEach(individual -> {
+        HashMap<SideEffect, List<Error>> errorDetailsMap = new HashMap<>();
+        List<SideEffect> validIndividuals = request.getSideEffects();
+        validIndividuals.stream().filter(SideEffect::getIsDeleted).forEach(individual -> {
             Error error = getErrorForIsDelete();
             populateErrorDetails(individual, error, errorDetailsMap);
         });
