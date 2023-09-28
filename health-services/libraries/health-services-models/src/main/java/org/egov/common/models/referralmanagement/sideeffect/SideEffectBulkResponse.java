@@ -1,4 +1,4 @@
-package org.egov.common.models.referralmanagement.adverseevent;
+package org.egov.common.models.referralmanagement.sideeffect;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -6,11 +6,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.response.ResponseInfo;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,21 +18,20 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AdverseEventBulkRequest {
-    @JsonProperty("RequestInfo")
+public class SideEffectBulkResponse {
+
+    @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private ResponseInfo responseInfo = null;
 
-    @JsonProperty("AdverseEvents")
+    @JsonProperty("SideEffects")
     @NotNull
     @Valid
-    @Size(min=1)
-    private List<AdverseEvent> adverseEvents = new ArrayList<>();
+    private List<SideEffect> sideEffects = new ArrayList<>();
 
-    public AdverseEventBulkRequest addAdverseEventItem(AdverseEvent adverseEventItem) {
-        this.adverseEvents.add(adverseEventItem);
+    public SideEffectBulkResponse addSideEffectItem(SideEffect sideEffectItem) {
+        this.sideEffects.add(sideEffectItem);
         return this;
     }
-
 }

@@ -6,11 +6,11 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventSearch;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.project.Task;
 import org.egov.common.producer.Producer;
-import org.egov.referralmanagement.repository.rowmapper.AdverseEventRowMapper;
+import org.egov.referralmanagement.repository.rowmapper.SideEffectRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -26,45 +26,45 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
-public class AdverseEventRepository extends GenericRepository<AdverseEvent> {
+public class SideEffectRepository extends GenericRepository<SideEffect> {
     @Autowired
-    private AdverseEventRowMapper rowMapper;
+    private SideEffectRowMapper rowMapper;
 
     @Autowired
-    protected AdverseEventRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
-                                        RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder,
-                                        AdverseEventRowMapper rowMapper) {
-        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("adverse_event"));
+    protected SideEffectRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+                                   RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder,
+                                   SideEffectRowMapper rowMapper) {
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, rowMapper, Optional.of("side_effect"));
     }
 
-    public Map<String, List<AdverseEvent>> fetchAdverseEvents(List<Task> taskList) {
+    public Map<String, List<SideEffect>> fetchSideEffects(List<Task> taskList) {
         if (taskList.isEmpty()) {
             return Collections.emptyMap();
         }
         List<String> taskIds = getIdList(taskList);
         Map<String, Object> resourceParamsMap = new HashMap<>();
-        String resourceQuery = "SELECT * FROM adverse_event ae where ae.taskId IN (:taskIds)";
+        String resourceQuery = "SELECT * FROM side_effect ae where ae.taskId IN (:taskIds)";
         resourceParamsMap.put("taskIds", taskIds);
-        List<AdverseEvent> adverseEventList = this.namedParameterJdbcTemplate.query(resourceQuery, resourceParamsMap,
+        List<SideEffect> sideEffectList = this.namedParameterJdbcTemplate.query(resourceQuery, resourceParamsMap,
                 this.rowMapper);
-        Map<String, List<AdverseEvent>> idToObjMap = new HashMap<>();
+        Map<String, List<SideEffect>> idToObjMap = new HashMap<>();
 
-        adverseEventList.forEach(adverseEvent -> {
-            String taskId = adverseEvent.getTaskId();
+        sideEffectList.forEach(sideEffect -> {
+            String taskId = sideEffect.getTaskId();
             if (idToObjMap.containsKey(taskId)) {
-                idToObjMap.get(taskId).add(adverseEvent);
+                idToObjMap.get(taskId).add(sideEffect);
             } else {
-                List<AdverseEvent> adverseEvents = new ArrayList<>();
-                adverseEvents.add(adverseEvent);
-                idToObjMap.put(taskId, adverseEvents);
+                List<SideEffect> sideEffects = new ArrayList<>();
+                sideEffects.add(sideEffect);
+                idToObjMap.put(taskId, sideEffects);
             }
         });
         return idToObjMap;
     }
 
-    public List<AdverseEvent> find(AdverseEventSearch searchObject, Integer limit, Integer offset, String tenantId,
-                                   Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT * FROM adverse_event ae  LEFT JOIN project_task pt ON ae.taskId = pt.id ";
+    public List<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
+                                 Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+        String query = "SELECT * FROM side_effect ae  LEFT JOIN project_task pt ON ae.taskId = pt.id ";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
@@ -86,12 +86,12 @@ public class AdverseEventRepository extends GenericRepository<AdverseEvent> {
         paramsMap.put("lastModifiedTime", lastChangedSince);
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        List<AdverseEvent> adverseEventList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
-        return adverseEventList;
+        List<SideEffect> sideEffectList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        return sideEffectList;
     }
 
-    public List<AdverseEvent> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<AdverseEvent> objFound = findInCache(ids).stream()
+    public List<SideEffect> findById(List<String> ids, String columnName, Boolean includeDeleted) {
+        List<SideEffect> objFound = findInCache(ids).stream()
                 .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
                 .collect(Collectors.toList());
         if (!objFound.isEmpty()) {
@@ -104,15 +104,15 @@ public class AdverseEventRepository extends GenericRepository<AdverseEvent> {
             }
         }
 
-        String query = String.format("SELECT * FROM adverse_event ae LEFT JOIN project_task pt ON ae.taskid = pt.id WHERE ae.%s IN (:ids) ", columnName);
+        String query = String.format("SELECT * FROM side_effect ae LEFT JOIN project_task pt ON ae.taskid = pt.id WHERE ae.%s IN (:ids) ", columnName);
         if (includeDeleted == null || !includeDeleted) {
             query += " AND ae.isDeleted = false ";
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
-        List<AdverseEvent> adverseEventList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+        List<SideEffect> sideEffectList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
-        objFound.addAll(adverseEventList);
+        objFound.addAll(sideEffectList);
         putInCache(objFound);
         return objFound;
     }

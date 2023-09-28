@@ -1,11 +1,10 @@
-CREATE TABLE ADVERSE_EVENT(
+CREATE TABLE SIDE_EFFECT(
 	id		                character varying(64),
-	clientReferenceId		character varying(64),
+	clientReferenceId		character varying(64) NOT NULL,
 	tenantId		        character varying(1000),
     taskId		            character varying(64),
-    taskClientReferenceId	character varying(64),
+    taskClientReferenceId	character varying(64) NOT NULL,
     symptoms                jsonb,
-    reAttempts              bigint,
 	createdBy		        character varying(64),
     createdTime             bigint,
 	lastModifiedBy		    character varying(64),
@@ -14,6 +13,6 @@ CREATE TABLE ADVERSE_EVENT(
     clientLastModifiedTime  bigint,
 	rowVersion              bigint,
 	isDeleted               bool,
-	CONSTRAINT uk_adverse_event PRIMARY KEY (id),
-	CONSTRAINT uk_adverse_event_clientReference_id unique (clientReferenceId)
+	CONSTRAINT uk_side_effect PRIMARY KEY (id),
+	CONSTRAINT uk_side_effect_clientReference_id unique (clientReferenceId)
 );

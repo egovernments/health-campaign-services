@@ -3,16 +3,16 @@ package org.egov.referralmanagement.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.referralmanagement.TestConfiguration;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
-import org.egov.referralmanagement.helper.AdverseEventRequestTestBuilder;
-import org.egov.referralmanagement.helper.AdverseEventTestBuilder;
-import org.egov.referralmanagement.service.AdverseEventService;
+import org.egov.referralmanagement.helper.SideEffectRequestTestBuilder;
+import org.egov.referralmanagement.helper.SideEffectTestBuilder;
+import org.egov.referralmanagement.service.SideEffectService;
 import org.egov.common.helper.RequestInfoTestBuilder;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkResponse;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventRequest;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventResponse;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventSearch;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventSearchRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkResponse;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectResponse;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
@@ -35,9 +35,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-@WebMvcTest(AdverseEventApiController.class)
+@WebMvcTest(SideEffectApiController.class)
 @Import(TestConfiguration.class)
-public class AdverseEventApiControllerTest {
+public class SideEffectApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -46,7 +46,7 @@ public class AdverseEventApiControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private AdverseEventService adverseEventService;
+    private SideEffectService sideEffectService;
 
     @MockBean
     private Producer producer;
@@ -55,45 +55,45 @@ public class AdverseEventApiControllerTest {
     ReferralManagementConfiguration referralManagementConfiguration;
 
     @Test
-    @DisplayName("should create adverse event and return with 202 accepted")
-    void shouldCreateAdverseEventAndReturnWith202Accepted() throws Exception {
-        AdverseEventRequest request = AdverseEventRequestTestBuilder.builder()
-                .withOneAdverseEvent()
+    @DisplayName("should create side effect and return with 202 accepted")
+    void shouldCreateSideEffectAndReturnWith202Accepted() throws Exception {
+        SideEffectRequest request = SideEffectRequestTestBuilder.builder()
+                .withOneSideEffect()
                 .withApiOperationNotUpdate()
                 .build();
-        List<AdverseEvent> adverseEvents = getAdverseEvents();
-        Mockito.when(adverseEventService.create(ArgumentMatchers.any(AdverseEventRequest.class))).thenReturn(adverseEvents.get(0));
+        List<SideEffect> sideEffects = getSideEffects();
+        Mockito.when(sideEffectService.create(ArgumentMatchers.any(SideEffectRequest.class))).thenReturn(sideEffects.get(0));
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
                 .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        AdverseEventResponse response = objectMapper.readValue(responseStr, AdverseEventResponse.class);
+        SideEffectResponse response = objectMapper.readValue(responseStr, SideEffectResponse.class);
 
-        Assertions.assertNotNull(response.getAdverseEvent());
-        Assertions.assertNotNull(response.getAdverseEvent().getId());
+        Assertions.assertNotNull(response.getSideEffect());
+        Assertions.assertNotNull(response.getSideEffect().getId());
         Assertions.assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
-    private List<AdverseEvent> getAdverseEvents() {
-        AdverseEvent adverseEvent = AdverseEventTestBuilder.builder().withId().build();
-        List<AdverseEvent> adverseEvents = new ArrayList<>();
-        adverseEvents.add(adverseEvent);
-        return adverseEvents;
+    private List<SideEffect> getSideEffects() {
+        SideEffect sideEffect = SideEffectTestBuilder.builder().withId().build();
+        List<SideEffect> sideEffects = new ArrayList<>();
+        sideEffects.add(sideEffect);
+        return sideEffects;
     }
 
 
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
-                                .withOneAdverseEvent()
-                                .withBadTenantIdInOneAdverseEvent()
+                        .content(objectMapper.writeValueAsString(SideEffectRequestTestBuilder.builder()
+                                .withOneSideEffect()
+                                .withBadTenantIdInOneSideEffect()
                                 .build())))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andReturn();
@@ -105,37 +105,37 @@ public class AdverseEventApiControllerTest {
     }
 
     @Test
-    @DisplayName("should update adverse event and return with 202 accepted")
-    void shouldUpdateAdverseEventAndReturnWith202Accepted() throws Exception {
-        AdverseEventRequest request = AdverseEventRequestTestBuilder.builder()
-                .withOneAdverseEventHavingId()
+    @DisplayName("should update side effect and return with 202 accepted")
+    void shouldUpdateSideEffectAndReturnWith202Accepted() throws Exception {
+        SideEffectRequest request = SideEffectRequestTestBuilder.builder()
+                .withOneSideEffectHavingId()
                 .withApiOperationNotNullAndNotCreate()
                 .build();
-        AdverseEvent adverseEvent = AdverseEventTestBuilder.builder().withId().build();
-        Mockito.when(adverseEventService.update(ArgumentMatchers.any(AdverseEventRequest.class))).thenReturn(adverseEvent);
+        SideEffect sideEffect = SideEffectTestBuilder.builder().withId().build();
+        Mockito.when(sideEffectService.update(ArgumentMatchers.any(SideEffectRequest.class))).thenReturn(sideEffect);
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
                 .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        AdverseEventResponse response = objectMapper.readValue(responseStr, AdverseEventResponse.class);
+        SideEffectResponse response = objectMapper.readValue(responseStr, SideEffectResponse.class);
 
-        Assertions.assertNotNull(response.getAdverseEvent());
-        Assertions.assertNotNull(response.getAdverseEvent().getId());
+        Assertions.assertNotNull(response.getSideEffect());
+        Assertions.assertNotNull(response.getSideEffect().getId());
         Assertions.assertEquals("successful", response.getResponseInfo().getStatus());
     }
 
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(AdverseEventRequestTestBuilder.builder()
-                                .withOneAdverseEventHavingId()
-                                .withBadTenantIdInOneAdverseEvent()
+                        .content(objectMapper.writeValueAsString(SideEffectRequestTestBuilder.builder()
+                                .withOneSideEffectHavingId()
+                                .withBadTenantIdInOneSideEffect()
                                 .build())))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andReturn();
@@ -149,52 +149,52 @@ public class AdverseEventApiControllerTest {
     
     @Test
     @DisplayName("Should accept search request and return response as accepted")
-    void shouldAcceptSearchRequestAndReturnAdverseEvent() throws Exception {
+    void shouldAcceptSearchRequestAndReturnSideEffect() throws Exception {
 
-        AdverseEventSearchRequest adverseEventSearchRequest = AdverseEventSearchRequest.builder().adverseEvent(
-                AdverseEventSearch.builder().taskId("some-task-id").build()
+        SideEffectSearchRequest sideEffectSearchRequest = SideEffectSearchRequest.builder().sideEffect(
+                SideEffectSearch.builder().taskId("some-task-id").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
-        Mockito.when(adverseEventService.search(ArgumentMatchers.any(AdverseEventSearchRequest.class),
+        Mockito.when(sideEffectService.search(ArgumentMatchers.any(SideEffectSearchRequest.class),
                 ArgumentMatchers.any(Integer.class),
                 ArgumentMatchers.any(Integer.class),
                 ArgumentMatchers.any(String.class),
                 ArgumentMatchers.any(Long.class),
-                ArgumentMatchers.any(Boolean.class))).thenReturn(Arrays.asList(AdverseEventTestBuilder.builder().withId().withAuditDetails().build()));
+                ArgumentMatchers.any(Boolean.class))).thenReturn(Arrays.asList(SideEffectTestBuilder.builder().withId().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post(
-                        "/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        "/side_effect/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(adverseEventSearchRequest)))
+                        .content(objectMapper.writeValueAsString(sideEffectSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();
         String responseStr = result.getResponse().getContentAsString();
-        AdverseEventBulkResponse response = objectMapper.readValue(responseStr,
-                AdverseEventBulkResponse.class);
+        SideEffectBulkResponse response = objectMapper.readValue(responseStr,
+                SideEffectBulkResponse.class);
 
-        Assertions.assertEquals(response.getAdverseEvents().size(), 1);
+        Assertions.assertEquals(response.getSideEffects().size(), 1);
     }
 
     @Test
     @DisplayName("Should accept search request and return response as accepted")
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
-        AdverseEventSearchRequest adverseEventSearchRequest = AdverseEventSearchRequest.builder().adverseEvent(
-                AdverseEventSearch.builder().taskId("some-task-id").build()
+        SideEffectSearchRequest sideEffectSearchRequest = SideEffectSearchRequest.builder().sideEffect(
+                SideEffectSearch.builder().taskId("some-task-id").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
-        Mockito.when(adverseEventService.search(ArgumentMatchers.any(AdverseEventSearchRequest.class),
+        Mockito.when(sideEffectService.search(ArgumentMatchers.any(SideEffectSearchRequest.class),
                 ArgumentMatchers.any(Integer.class),
                 ArgumentMatchers.any(Integer.class),
                 ArgumentMatchers.any(String.class),
                 ArgumentMatchers.any(Long.class),
-                ArgumentMatchers.any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Adverse Event found."));
+                ArgumentMatchers.any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Side Effect found."));
 
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/adverse_event/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(adverseEventSearchRequest)))
+                        .content(objectMapper.writeValueAsString(sideEffectSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_JSON))
                 .andReturn();

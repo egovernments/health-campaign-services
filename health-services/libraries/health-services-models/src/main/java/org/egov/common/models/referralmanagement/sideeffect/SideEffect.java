@@ -1,4 +1,4 @@
-package org.egov.common.models.referralmanagement.adverseevent;
+package org.egov.common.models.referralmanagement.sideeffect;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -19,7 +19,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AdverseEvent {
+public class SideEffect {
 
     @JsonProperty("id")
     @Size(min = 2, max = 64)

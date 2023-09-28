@@ -1,11 +1,11 @@
-package org.egov.referralmanagement.validator.adverseevent;
+package org.egov.referralmanagement.validator.sideeffect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.referralmanagement.repository.AdverseEventRepository;
+import org.egov.referralmanagement.repository.SideEffectRepository;
 import org.egov.common.models.Error;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.validator.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -31,37 +31,37 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 @Component
 @Order(value = 4)
 @Slf4j
-public class AdNonExistentEntityValidator implements Validator<AdverseEventBulkRequest, AdverseEvent> {
+public class SeNonExistentEntityValidator implements Validator<SideEffectBulkRequest, SideEffect> {
 
-    private final AdverseEventRepository adverseEventRepository;
+    private final SideEffectRepository sideEffectRepository;
 
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public AdNonExistentEntityValidator(AdverseEventRepository adverseEventRepository, ObjectMapper objectMapper) {
-        this.adverseEventRepository = adverseEventRepository;
+    public SeNonExistentEntityValidator(SideEffectRepository sideEffectRepository, ObjectMapper objectMapper) {
+        this.sideEffectRepository = sideEffectRepository;
         this.objectMapper = objectMapper;
     }
 
 
     @Override
-    public Map<AdverseEvent, List<Error>> validate(AdverseEventBulkRequest request) {
+    public Map<SideEffect, List<Error>> validate(SideEffectBulkRequest request) {
         log.info("validating for existence of entity");
-        Map<AdverseEvent, List<Error>> errorDetailsMap = new HashMap<>();
-        List<AdverseEvent> adverseEvents = request.getAdverseEvents();
-        Class<?> objClass = getObjClass(adverseEvents);
+        Map<SideEffect, List<Error>> errorDetailsMap = new HashMap<>();
+        List<SideEffect> sideEffects = request.getSideEffects();
+        Class<?> objClass = getObjClass(sideEffects);
         Method idMethod = getMethod(GET_ID, objClass);
-        Map<String, AdverseEvent> iMap = getIdToObjMap(adverseEvents
+        Map<String, SideEffect> iMap = getIdToObjMap(sideEffects
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
-            List<String> adverseEventIds = new ArrayList<>(iMap.keySet());
-            List<AdverseEvent> existingAdverseEvents = adverseEventRepository
-                    .findById(adverseEventIds, false, getIdFieldName(idMethod));
-            List<AdverseEvent> nonExistentIndividuals = checkNonExistentEntities(iMap,
-                    existingAdverseEvents, idMethod);
-            nonExistentIndividuals.forEach(adverseEvent -> {
+            List<String> sideEffectIds = new ArrayList<>(iMap.keySet());
+            List<SideEffect> existingSideEffects = sideEffectRepository
+                    .findById(sideEffectIds, false, getIdFieldName(idMethod));
+            List<SideEffect> nonExistentIndividuals = checkNonExistentEntities(iMap,
+                    existingSideEffects, idMethod);
+            nonExistentIndividuals.forEach(sideEffect -> {
                 Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(adverseEvent, error, errorDetailsMap);
+                populateErrorDetails(sideEffect, error, errorDetailsMap);
             });
         }
 

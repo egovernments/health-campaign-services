@@ -1,4 +1,4 @@
-package org.egov.common.models.referralmanagement.adverseevent;
+package org.egov.common.models.referralmanagement.sideeffect;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -10,28 +10,22 @@ import org.egov.common.contract.response.ResponseInfo;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AdverseEventBulkResponse {
+public class SideEffectResponse {
 
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("AdverseEvents")
+    @JsonProperty("SideEffect")
     @NotNull
     @Valid
-    private List<AdverseEvent> adverseEvents = new ArrayList<>();
+    private SideEffect sideEffect = null;
 
-    public AdverseEventBulkResponse addAdverseEventItem(AdverseEvent adverseEventItem) {
-        this.adverseEvents.add(adverseEventItem);
-        return this;
-    }
 }

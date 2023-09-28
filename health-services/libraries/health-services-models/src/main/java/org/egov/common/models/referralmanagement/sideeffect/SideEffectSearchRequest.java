@@ -1,4 +1,4 @@
-package org.egov.common.models.referralmanagement.adverseevent;
+package org.egov.common.models.referralmanagement.sideeffect;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -16,14 +16,13 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AdverseEventRequest{
+public class SideEffectSearchRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("AdverseEvent")
-    @NotNull
+    @JsonProperty("SideEffect")
     @Valid
-    private AdverseEvent adverseEvent = null;
+    private SideEffectSearch sideEffect = null;
 }

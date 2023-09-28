@@ -1,4 +1,4 @@
-package org.egov.common.models.referralmanagement.adverseevent;
+package org.egov.common.models.referralmanagement.sideeffect;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.validation.constraints.Size;
 import java.util.List;
 
 @Data
@@ -15,7 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AdverseEventSearch {
+public class SideEffectSearch {
     @JsonProperty("id")
     private List<String> id = null;
 

@@ -1,9 +1,9 @@
-package org.egov.referralmanagement.validator.adverseevent;
+package org.egov.referralmanagement.validator.sideeffect;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.validator.Validator;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -19,16 +19,16 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 @Component
 @Order(value = 2)
 @Slf4j
-public class AdUniqueEntityValidator implements Validator<AdverseEventBulkRequest, AdverseEvent> {
+public class SeUniqueEntityValidator implements Validator<SideEffectBulkRequest, SideEffect> {
 
     @Override
-    public Map<AdverseEvent, List<Error>> validate(AdverseEventBulkRequest request) {
+    public Map<SideEffect, List<Error>> validate(SideEffectBulkRequest request) {
         log.info("validating unique entity");
-        Map<AdverseEvent, List<Error>> errorDetailsMap = new HashMap<>();
-        List<AdverseEvent> validEntities = request.getAdverseEvents()
+        Map<SideEffect, List<Error>> errorDetailsMap = new HashMap<>();
+        List<SideEffect> validEntities = request.getSideEffects()
                 .stream().filter(notHavingErrors()).collect(Collectors.toList());
         if (!validEntities.isEmpty()) {
-            Map<String, AdverseEvent> eMap = getIdToObjMap(validEntities);
+            Map<String, SideEffect> eMap = getIdToObjMap(validEntities);
             if (eMap.keySet().size() != validEntities.size()) {
                 List<String> duplicates = eMap.keySet().stream().filter(id ->
                         validEntities.stream()
