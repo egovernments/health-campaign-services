@@ -1,11 +1,7 @@
 package org.egov.referralmanagement.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-<<<<<<<< HEAD:health-services/referralmanagement/src/test/java/org/egov/referralmanagement/helper/SideEffectTestBuilder.java
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
-========
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
->>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/test/java/org/egov/referralmanagement/helper/AdverseEventTestBuilder.java
 
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -79,7 +79,7 @@ public class ReferralManagementService {
     }
 
     public Referral create(ReferralRequest request) {
-        log.info("received request to create adverse events");
+        log.info("received request to create referrals");
         ReferralBulkRequest bulkRequest = ReferralBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .referrals(Collections.singletonList(request.getReferral())).build();
         log.info("creating bulk request");
@@ -87,7 +87,7 @@ public class ReferralManagementService {
     }
 
     public List<Referral> create(ReferralBulkRequest referralRequest, boolean isBulk) {
-        log.info("received request to create bulk adverse events");
+        log.info("received request to create bulk referrals");
         Tuple<List<Referral>, Map<Referral, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, referralRequest, isBulk);
         Map<Referral, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -99,12 +99,12 @@ public class ReferralManagementService {
                 referralManagementEnrichmentService.create(validReferrals, referralRequest);
                 referralRepository.save(validReferrals,
                         referralManagementConfiguration.getCreateReferralTopic());
-                log.info("successfully created adverse events");
+                log.info("successfully created referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating adverse events: {}", exception.getMessage());
+            log.error("error occurred while creating referrals: {}", exception.getMessage());
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_SIDE_EFFECTS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -112,7 +112,7 @@ public class ReferralManagementService {
     }
 
     public Referral update(ReferralRequest request) {
-        log.info("received request to update adverse event");
+        log.info("received request to update referral");
         ReferralBulkRequest bulkRequest = ReferralBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .referrals(Collections.singletonList(request.getReferral())).build();
         log.info("creating bulk request");
@@ -120,7 +120,7 @@ public class ReferralManagementService {
     }
 
     public List<Referral> update(ReferralBulkRequest referralRequest, boolean isBulk) {
-        log.info("received request to update bulk adverse event");
+        log.info("received request to update bulk referral");
         Tuple<List<Referral>, Map<Referral, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, referralRequest, isBulk);
         Map<Referral, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -132,12 +132,12 @@ public class ReferralManagementService {
                 referralManagementEnrichmentService.update(validReferrals, referralRequest);
                 referralRepository.save(validReferrals,
                         referralManagementConfiguration.getUpdateReferralTopic());
-                log.info("successfully updated bulk adverse events");
+                log.info("successfully updated bulk referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating adverse events", exception);
+            log.error("error occurred while updating referrals", exception);
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_SIDE_EFFECTS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -150,27 +150,27 @@ public class ReferralManagementService {
                                  String tenantId,
                                  Long lastChangedSince,
                                  Boolean includeDeleted) throws Exception {
-        log.info("received request to search adverse events");
+        log.info("received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
-            log.info("searching adverse events by id");
+            log.info("searching referrals by id");
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(referralSearchRequest.getReferral())),
                     referralSearchRequest.getReferral());
-            log.info("fetching adverse events with ids: {}", ids);
+            log.info("fetching referrals with ids: {}", ids);
             return referralRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
-        log.info("searching adverse events using criteria");
+        log.info("searching referrals using criteria");
         return referralRepository.find(referralSearchRequest.getReferral(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 
     public Referral delete(ReferralRequest referralRequest) {
-        log.info("received request to delete a adverse event");
+        log.info("received request to delete a referral");
         ReferralBulkRequest bulkRequest = ReferralBulkRequest.builder().requestInfo(referralRequest.getRequestInfo())
                 .referrals(Collections.singletonList(referralRequest.getReferral())).build();
         log.info("creating bulk request");
@@ -197,7 +197,7 @@ public class ReferralManagementService {
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_ADVERSE_EVENTS);
+                    exception, Constants.SET_SIDE_EFFECTS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -205,9 +205,9 @@ public class ReferralManagementService {
     }
 
     public void putInCache(List<Referral> referrals) {
-        log.info("putting {} adverse events in cache", referrals.size());
+        log.info("putting {} referrals in cache", referrals.size());
         referralRepository.putInCache(referrals);
-        log.info("successfully put adverse events in cache");
+        log.info("successfully put referrals in cache");
     }
 
     private Tuple<List<Referral>, Map<Referral, ErrorDetails>> validate(
@@ -219,14 +219,14 @@ public class ReferralManagementService {
         log.info("validating request");
         Map<Referral, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                Constants.SET_ADVERSE_EVENTS);
+                Constants.SET_SIDE_EFFECTS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(Constants.VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<Referral> validReferrals = request.getReferrals().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        log.info("validation successful, found valid adverse events");
+        log.info("validation successful, found valid referrals");
         return new Tuple<>(validReferrals, errorDetailsMap);
     }
 }

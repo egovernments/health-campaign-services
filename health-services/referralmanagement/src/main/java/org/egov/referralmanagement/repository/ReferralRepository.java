@@ -40,7 +40,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
 
     public List<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT r.*, ae.id, ae.clientreferenceid, ae.tenantid, ae.taskid, ae.taskclientreferenceid, ae.symptoms, ae.reattempts, ae.createdby, ae.createdtime, ae.lastmodifiedby, ae.lastmodifiedtime, ae.clientcreatedtime, ae.clientlastmodifiedtime, ae.rowversion, ae.isdeleted FROM referral r left join adverse_event ae on r.adverseEventclientReferenceid = ae.clientreferenceid";
+        String query = "SELECT r.*, se.id, se.clientreferenceid, se.tenantid, se.taskid, se.taskclientreferenceid, se.symptoms, se.reattempts, se.createdby, se.createdtime, se.lastmodifiedby, se.lastmodifiedtime, se.clientcreatedtime, se.clientlastmodifiedtime, se.rowversion, se.isdeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
@@ -80,7 +80,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
             }
         }
 
-        String query = String.format("SELECT r.*, ae.id, ae.clientreferenceid, ae.tenantid, ae.taskid, ae.taskclientreferenceid, ae.symptoms, ae.reattempts, ae.createdby, ae.createdtime, ae.lastmodifiedby, ae.lastmodifiedtime, ae.clientcreatedtime, ae.clientlastmodifiedtime, ae.rowversion, ae.isdeleted FROM referral r left join adverse_event ae on r.adverseEventclientReferenceid = ae.clientreferenceid WHERE r.%s IN (:ids) ", columnName);
+        String query = String.format("SELECT r.*, se.id, se.clientreferenceid, se.tenantid, se.taskid, se.taskclientreferenceid, se.symptoms, se.reattempts, se.createdby, se.createdtime, se.lastmodifiedby, se.lastmodifiedtime, se.clientcreatedtime, se.clientlastmodifiedtime, se.rowversion, se.isdeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid WHERE r.%s IN (:ids) ", columnName);
         if (includeDeleted == null || !includeDeleted) {
             query += " AND r.isDeleted = false ";
         }

@@ -8,7 +8,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -54,8 +54,8 @@ public class Referral {
     @Size(min=1)
     private List<String> reasons = null;
 
-    @JsonProperty("adverseEvent")
-    private AdverseEvent adverseEvent = null;
+    @JsonProperty("sideEffect")
+    private SideEffect sideEffect = null;
 
     @JsonProperty("tenantId")
     @NotNull
