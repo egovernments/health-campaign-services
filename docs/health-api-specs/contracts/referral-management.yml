@@ -10,7 +10,7 @@ schemes:
 x-common-path: >-
   https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
 paths:
-  /adrm/side_effect/v1/_create:
+  /referral-management/side_effect/v1/_create:
     post:
       summary: >-
         Create side effect for the project
@@ -36,7 +36,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/side_effect/v1/bulk/_create:
+  /referral-management/side_effect/v1/bulk/_create:
     post:
       summary: >-
         Create side effects for the project in bulk
@@ -62,7 +62,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/side-effect/v1/_update:
+  /referral-management/side-effect/v1/_update:
     post:
       summary: >-
         Side Effect Request
@@ -79,7 +79,7 @@ paths:
         - Side Effect
       responses:
         '202':
-          description: update averse event request has been accepted for update.
+          description: update side effect request has been accepted for update.
           schema:
             $ref: '#/definitions/SideEffectResponse'
         '400':
@@ -88,7 +88,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/side-effect/v1/bulk/_update:
+  /referral-management/side-effect/v1/bulk/_update:
     post:
       summary: >-
         Side Effect Request in bulk for a project
@@ -114,7 +114,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/side-effect/v1/_delete:
+  /referral-management/side-effect/v1/_delete:
     post:
       summary: >-
         Soft delete Side Effect for a project
@@ -140,7 +140,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/side-effect/v1/bulk/_delete:
+  /referral-management/side-effect/v1/bulk/_delete:
     post:
       summary: >-
         Soft delete Side Effects for a project
@@ -166,7 +166,7 @@ paths:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
 
-  /adrm/side-effect/v1/_search:
+  /referral-management/side-effect/v1/_search:
     post:
       summary: >-
         Search Side Effect for Project

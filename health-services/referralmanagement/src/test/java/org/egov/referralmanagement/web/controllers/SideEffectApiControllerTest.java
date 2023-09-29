@@ -1,11 +1,6 @@
 package org.egov.referralmanagement.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.referralmanagement.TestConfiguration;
-import org.egov.referralmanagement.config.ReferralManagementConfiguration;
-import org.egov.referralmanagement.helper.SideEffectRequestTestBuilder;
-import org.egov.referralmanagement.helper.SideEffectTestBuilder;
-import org.egov.referralmanagement.service.SideEffectService;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkResponse;
@@ -14,6 +9,11 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
 import org.egov.common.producer.Producer;
+import org.egov.referralmanagement.TestConfiguration;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.helper.SideEffectRequestTestBuilder;
+import org.egov.referralmanagement.helper.SideEffectTestBuilder;
+import org.egov.referralmanagement.service.SideEffectService;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.Assertions;
