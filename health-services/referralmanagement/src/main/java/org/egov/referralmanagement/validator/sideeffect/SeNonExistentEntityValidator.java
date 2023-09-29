@@ -1,4 +1,3 @@
-<<<<<<<< HEAD:health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/sideeffect/SeNonExistentEntityValidator.java
 package org.egov.referralmanagement.validator.sideeffect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,16 +6,6 @@ import org.egov.referralmanagement.repository.SideEffectRepository;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
-========
-package org.egov.referralmanagement.validator.adverseevent;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.egov.referralmanagement.repository.AdverseEventRepository;
-import org.egov.common.models.Error;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEventBulkRequest;
->>>>>>>> 51cd6f6468 (HLM-3069: changed module name to referral management):health-services/referralmanagement/src/main/java/org/egov/referralmanagement/validator/adverseevent/AdNonExistentEntityValidator.java
 import org.egov.common.validator.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;

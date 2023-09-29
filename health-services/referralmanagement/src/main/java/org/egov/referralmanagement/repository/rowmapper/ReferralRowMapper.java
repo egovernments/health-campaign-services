@@ -3,7 +3,6 @@ package org.egov.referralmanagement.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.referralmanagement.adverseevent.AdverseEvent;
 import org.egov.common.models.referralmanagement.Referral;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
@@ -22,7 +21,7 @@ public class ReferralRowMapper implements RowMapper<Referral> {
     @Override
     public Referral mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
-            AdverseEvent adverseEvent = null;
+            SideEffect adverseEvent = null;
             String adverseEventClientReferenceId = resultSet.getString("adverseEventClientReferenceId");
             if(adverseEventClientReferenceId != null) {
                 AuditDetails adverseEventAuditDetails = AuditDetails.builder()
