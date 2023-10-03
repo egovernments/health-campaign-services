@@ -11,8 +11,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public class MultiRoundConstants {
     public enum Status {
         DELIVERED("DELIVERED"),
-        ADMINISTERED("ADMINISTERED"),
-        OBSERVED("OBSERVED");
+        NOT_DELIVERED("NOT_DELIVERED"),
+        BENEFICIARY_REFUSED("BENEFICIARY_REFUSED"),
+        PARTIALLY_DELIVERED("PARTIALLY_DELIVERED");
 
         private String value;
 

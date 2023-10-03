@@ -7,10 +7,8 @@ import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.project.Project;
 import org.egov.common.service.MdmsService;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.service.ProjectService;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
@@ -29,16 +27,12 @@ import static org.egov.project.Constants.PROJECT_TYPES;
 public class MultiRoundProjectValidator {
 
     private final MdmsService mdmsService;
-
-    private final ProjectService projectService;
-
-    private final ProjectConfiguration projectConfiguration;
+        private final ProjectConfiguration projectConfiguration;
 
 
 
-    public MultiRoundProjectValidator(MdmsService mdmsService, ProjectService projectService, ProjectConfiguration projectConfiguration) {
+    public MultiRoundProjectValidator(MdmsService mdmsService, ProjectConfiguration projectConfiguration) {
         this.mdmsService = mdmsService;
-        this.projectService = projectService;
         this.projectConfiguration = projectConfiguration;
     }
 
@@ -54,7 +48,7 @@ public class MultiRoundProjectValidator {
         try {
             return mdmsService.fetchConfig(serviceRegistry, JsonNode.class).get(MDMS_RESPONSE);
         } catch (Exception e) {
-            throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching mdms config");
+            throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching MDMS config");
         }
     }
 
@@ -85,7 +79,7 @@ public class MultiRoundProjectValidator {
         return mdmsCriteriaReq;
     }
 
-    public Map<String, JsonNode> populateProjectIdProjectTypeMap(Set<String> tenantIdSet, RequestInfo requestInfo, Map<String, List<Project>> projectTypeCodeProjectsMap) {
+    public Map<String, JsonNode> populateProjectTypeMap(Set<String> tenantIdSet, RequestInfo requestInfo) {
         Map<String, JsonNode> projectTypeMap = new HashMap<>();
         for(String tenant : tenantIdSet) {
             projectTypeMap.putAll(this.getProjectTypes(tenant, requestInfo));
