@@ -16,17 +16,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.validators.AadharNumberValidator;
-import org.egov.individual.validators.AadharNumberValidatorForCreate;
-import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.validators.IsDeletedSubEntityValidator;
-import org.egov.individual.validators.IsDeletedValidator;
-import org.egov.individual.validators.MobileNumberValidator;
-import org.egov.individual.validators.NonExistentEntityValidator;
-import org.egov.individual.validators.NullIdValidator;
-import org.egov.individual.validators.RowVersionValidator;
-import org.egov.individual.validators.UniqueEntityValidator;
-import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.validators.*;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,6 +66,8 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
+    private final SearchValidator searchValidator;
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IsDeletedValidator.class)
@@ -105,7 +97,8 @@ public class IndividualService {
                              EnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             SearchValidator searchValidator) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -113,6 +106,7 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
+        this.searchValidator = searchValidator;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -282,6 +276,7 @@ public class IndividualService {
                                    RequestInfo requestInfo) {
         String idFieldName = getIdFieldName(individualSearch);
         List<Individual> encryptedIndividualList = null;
+        searchValidator.validate(individualSearch);
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(individualSearch)),
