@@ -52,7 +52,7 @@ public class ReferralManagementApiController {
         this.referralManagementConfiguration = referralManagementConfiguration;
     }
 
-    @RequestMapping(value = "/referral/v1/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ReferralResponse> referralV1CreatePost(@ApiParam(value = "Capture details of Referral", required = true) @Valid @RequestBody ReferralRequest request) {
 
         Referral referral = referralManagementService.create(request);
@@ -67,7 +67,7 @@ public class ReferralManagementApiController {
 
 
 
-    @RequestMapping(value = "/referral/v1/bulk/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> referralBulkV1CreatePost(@ApiParam(value = "Capture details of Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         referralManagementService.putInCache(request.getReferrals());
@@ -77,7 +77,7 @@ public class ReferralManagementApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/referral/v1/_search", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "Referral Search.", required = true) @Valid @RequestBody ReferralSearchRequest request,
                                                                              @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
                                                                              @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
@@ -92,7 +92,7 @@ public class ReferralManagementApiController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @RequestMapping(value = "/referral/v1/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ReferralResponse> referralV1UpdatePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralRequest request) {
         Referral referral = referralManagementService.update(request);
 
@@ -106,7 +106,7 @@ public class ReferralManagementApiController {
 
     }
 
-    @RequestMapping(value = "/referral/v1/bulk/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> referralV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         producer.push(referralManagementConfiguration.getUpdateReferralBulkTopic(), request);
@@ -115,7 +115,7 @@ public class ReferralManagementApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
-    @RequestMapping(value = "/referral/v1/_delete", method = RequestMethod.POST)
+    @RequestMapping(value = "/v1/_delete", method = RequestMethod.POST)
     public ResponseEntity<ReferralResponse> referralV1DeletePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralRequest request) {
         Referral referral = referralManagementService.delete(request);
 
