@@ -23,11 +23,19 @@ public class StockTestBuilder {
     }
 
     public StockTestBuilder withStock() {
-        this.builder.facilityId("facility-id").productVariantId("pv-id").quantity(0).referenceId("reference-id")
-                .referenceIdType("PROJECT").rowVersion(1).tenantId("default").transactingPartyId("transaction-party-id")
-                .transactionType(TransactionType.DISPATCHED).transactionReason(TransactionReason.RECEIVED)
-                .transactingPartyType("WAREHOUSE").hasErrors(false).isDeleted(Boolean.FALSE)
-                .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+        this.builder
+        	.senderId("sender-id")
+        	.receiverId("receiver-id")
+        	.productVariantId("pv-id").quantity(0)
+        	.referenceId("reference-id")
+            .referenceIdType("PROJECT").rowVersion(1).tenantId("default")
+            .transactionType(TransactionType.DISPATCHED)
+            .transactionReason(TransactionReason.RECEIVED)
+            .senderType("WAREHOUSE")
+            .receiverType("STAFF")
+            .hasErrors(false)
+            .isDeleted(Boolean.FALSE)
+            .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;
     }
 
