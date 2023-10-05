@@ -174,7 +174,7 @@ paths:
           schema:
             $ref: >-
               https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
-              
+  
 
   /project/beneficiary/v1/bulk/_update:
     post:
