@@ -110,6 +110,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())
                     .attributes(service.getAttributes())
+                    .clientAuditDetails(service.getAuditDetails())
                     .build());
         }
     }

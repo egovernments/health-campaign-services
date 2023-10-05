@@ -146,6 +146,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .memberCount(memberCount)
                             .projectBeneficiary(finalProjectBeneficiary)
                             .household(finalHousehold)
+                            .clientAuditDetails(task.getClientAuditDetails())
                             .build()
             ).collect(Collectors.toList());
         }

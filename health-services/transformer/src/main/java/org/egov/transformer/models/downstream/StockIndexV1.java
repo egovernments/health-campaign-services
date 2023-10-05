@@ -2,6 +2,7 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +10,8 @@ import lombok.NoArgsConstructor;
 import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.stock.TransactionReason;
 import org.egov.common.models.stock.TransactionType;
+
+import javax.validation.Valid;
 
 
 @Data
@@ -101,4 +104,7 @@ public class StockIndexV1 {
 
     @JsonProperty("transactingFacilityType")
     private String transactingFacilityType;
+
+    @JsonProperty("clientAuditDetails")
+    private @Valid AuditDetails clientAuditDetails;
 }

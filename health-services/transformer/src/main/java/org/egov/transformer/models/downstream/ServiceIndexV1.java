@@ -2,12 +2,14 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.transformer.models.upstream.AttributeValue;
 
+import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,4 +51,6 @@ public class ServiceIndexV1 {
     private List<AttributeValue> attributes = new ArrayList<>();
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
+    @JsonProperty("clientAuditDetails")
+    private @Valid AuditDetails clientAuditDetails;
 }
