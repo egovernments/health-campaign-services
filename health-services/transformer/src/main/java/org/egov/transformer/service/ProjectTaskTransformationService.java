@@ -9,6 +9,7 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -25,13 +26,15 @@ public abstract class ProjectTaskTransformationService implements Transformation
     protected final Producer producer;
 
     protected final TransformerProperties properties;
+    protected final CommonUtils commonUtils;
 
     @Autowired
     protected ProjectTaskTransformationService(ProjectTaskIndexV1Transformer transformer,
-                                               Producer producer, TransformerProperties properties) {
+                                               Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
+        this.commonUtils = commonUtils;
     }
 
     @Override
@@ -60,13 +63,15 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final HouseholdService householdService;
+        private final CommonUtils commonUtils;
 
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService) {
+                                      HouseholdService householdService, CommonUtils commonUtils) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
+            this.commonUtils = commonUtils;
         }
 
         @Override
@@ -113,6 +118,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             log.info("member count is {}", memberCount);
 
+            String syncedTime = commonUtils.getTimeStampFromEpoch(task.getClientAuditDetails().getCreatedTime());
+
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
@@ -147,6 +154,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .projectBeneficiary(finalProjectBeneficiary)
                             .household(finalHousehold)
                             .clientAuditDetails(task.getClientAuditDetails())
+                            .syncedTime(syncedTime)
                             .build()
             ).collect(Collectors.toList());
         }

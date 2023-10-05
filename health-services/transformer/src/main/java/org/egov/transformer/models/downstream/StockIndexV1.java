@@ -90,6 +90,9 @@ public class StockIndexV1 {
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime;
 
+    @JsonProperty("syncedTime")
+    private String syncedTime;
+
     @JsonProperty("additionalFields")
     private AdditionalFields additionalFields;
 

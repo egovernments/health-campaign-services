@@ -53,4 +53,6 @@ public class ServiceIndexV1 {
     private String clientReferenceId;
     @JsonProperty("clientAuditDetails")
     private @Valid AuditDetails clientAuditDetails;
+    @JsonProperty("syncedTime")
+    private String syncedTime = null;
 }

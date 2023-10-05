@@ -80,4 +80,7 @@ public class ProjectTaskIndexV1 {
     private String tenantId;
     @JsonProperty("clientAuditDetails")
     private @Valid AuditDetails clientAuditDetails;
+    @JsonProperty("syncedTime")
+    private String syncedTime;
+
 }
