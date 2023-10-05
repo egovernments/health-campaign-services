@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.project.web.models.MultiRoundConstants.TASK_NOT_ALLOWED;
 
 
 @Component
@@ -34,7 +35,6 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest, Task> {
 
     private final ProjectRepository projectRepository;
-
     private final ProjectTaskRepository projectTaskRepository;
     private final MultiRoundProjectValidator multiRoundProjectValidator;
 
@@ -64,6 +64,7 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
                         .add(project);
                 projectIdProjectTypeIdMap.put(project.getId(), project.getProjectTypeId());
             });
+            
             // Fetch project type from mdms for each project.
             Map<String, JsonNode> projectTypeJsonMap = multiRoundProjectValidator.populateProjectTypeMap(tenantIdProjectsMap.keySet(), request.getRequestInfo());
 
@@ -94,13 +95,22 @@ public class PtIsFutureTaskAllowedValidator implements Validator<TaskBulkRequest
         List<Task> tasks = new ArrayList<>(pastTasks);
         tasks.addAll(taskYetToBePersisted);
         tasks.forEach(task -> {
-            if(!task.getStatus().equals(MultiRoundConstants.Status.BENEFICIARY_REFUSED) && (task.getResources() == null || task.getResources().isEmpty())) {
-                Error error = Error.builder()
-                        .errorMessage("Task not allowed as resources are missing.")
-                        .errorCode("TASK_NOT_ALLOWED")
-                        .type(Error.ErrorType.NON_RECOVERABLE)
-                        .exception(new CustomException("TASK_NOT_ALLOWED", "Task not allowed as resources are missing.")).build();
-                populateErrorDetails(task, error, errorDetailsMap);
+            if(task.getStatus() != null) {
+                if(!task.getStatus().equals(MultiRoundConstants.Status.BENEFICIARY_REFUSED) && (task.getResources() == null || task.getResources().isEmpty())) {
+                    Error error = Error.builder()
+                            .errorMessage("Task not allowed as resources are missing.")
+                            .errorCode(TASK_NOT_ALLOWED)
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException(TASK_NOT_ALLOWED, "Task not allowed as resources are missing.")).build();
+                    populateErrorDetails(task, error, errorDetailsMap);
+                } else if(task.getStatus().equals(MultiRoundConstants.Status.BENEFICIARY_REFUSED) && task.getResources() != null) {
+                    Error error = Error.builder()
+                            .errorMessage("Task not allowed as resources can not be provided when "+MultiRoundConstants.Status.BENEFICIARY_REFUSED)
+                            .errorCode(TASK_NOT_ALLOWED)
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException(TASK_NOT_ALLOWED, "Task not allowed as resources can not be provided when "+MultiRoundConstants.Status.BENEFICIARY_REFUSED)).build();
+                    populateErrorDetails(task, error, errorDetailsMap);
+                }
             }
         });
     }

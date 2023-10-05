@@ -93,4 +93,6 @@ public class MultiRoundConstants {
             return null;
         }
     }
+
+    public static final String TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED";
 }
