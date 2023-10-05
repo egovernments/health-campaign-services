@@ -29,7 +29,7 @@ import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @Controller
-@RequestMapping("/side_effect")
+@RequestMapping("/side-effect")
 @Validated
 public class SideEffectApiController {
 

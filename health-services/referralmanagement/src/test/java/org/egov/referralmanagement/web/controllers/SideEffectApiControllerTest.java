@@ -64,7 +64,7 @@ public class SideEffectApiControllerTest {
         List<SideEffect> sideEffects = getSideEffects();
         Mockito.when(sideEffectService.create(ArgumentMatchers.any(SideEffectRequest.class))).thenReturn(sideEffects.get(0));
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side-effect/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
@@ -89,7 +89,7 @@ public class SideEffectApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side-effect/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(SideEffectRequestTestBuilder.builder()
                                 .withOneSideEffect()
@@ -114,7 +114,7 @@ public class SideEffectApiControllerTest {
         SideEffect sideEffect = SideEffectTestBuilder.builder().withId().build();
         Mockito.when(sideEffectService.update(ArgumentMatchers.any(SideEffectRequest.class))).thenReturn(sideEffect);
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side-effect/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
@@ -131,7 +131,7 @@ public class SideEffectApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side-effect/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(SideEffectRequestTestBuilder.builder()
                                 .withOneSideEffectHavingId()
@@ -163,7 +163,7 @@ public class SideEffectApiControllerTest {
                 ArgumentMatchers.any(Boolean.class))).thenReturn(Arrays.asList(SideEffectTestBuilder.builder().withId().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post(
-                        "/side_effect/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        "/side-effect/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sideEffectSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isOk())
@@ -192,7 +192,7 @@ public class SideEffectApiControllerTest {
                 ArgumentMatchers.any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Side Effect found."));
 
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side_effect/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side-effect/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(sideEffectSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
