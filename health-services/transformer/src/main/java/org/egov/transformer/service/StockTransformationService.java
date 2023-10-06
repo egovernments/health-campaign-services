@@ -109,7 +109,7 @@ public abstract class StockTransformationService implements TransformationServic
 
             facilityType = getType(facilityType, facility);
 
-            String syncedTime = commonUtils.getTimeStampFromEpoch(stock.getClientAuditDetails().getCreatedTime());
+            String syncedTime = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
 
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
@@ -128,7 +128,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .reason(stock.getTransactionReason())
                     .eventTimeStamp(stock.getDateOfEntry() != null ?
                             stock.getDateOfEntry() : stock.getAuditDetails().getLastModifiedTime())
-                    .createdTime(stock.getAuditDetails().getCreatedTime())
+                    .createdTime(stock.getClientAuditDetails().getCreatedTime())
                     .dateOfEntry(stock.getDateOfEntry())
                     .createdBy(stock.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getAuditDetails().getLastModifiedTime())
