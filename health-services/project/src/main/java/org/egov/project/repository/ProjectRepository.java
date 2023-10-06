@@ -112,7 +112,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Projects based on Project ids */
-    private List<Project> getProjectsBasedOnProjectIds(List<String> projectIds,  List<Object> preparedStmtList) {
+    public List<Project> getProjectsBasedOnProjectIds(List<String> projectIds,  List<Object> preparedStmtList) {
         String query = queryBuilder.getProjectSearchQueryBasedOnIds(projectIds, preparedStmtList);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
         log.info("Fetched project list based on given Project Ids");
