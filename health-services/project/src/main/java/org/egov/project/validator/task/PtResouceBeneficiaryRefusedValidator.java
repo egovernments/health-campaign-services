@@ -26,7 +26,7 @@ public class PtResouceBeneficiaryRefusedValidator implements Validator<TaskBulkR
         List<Task> entities = request.getTasks();
         if(!entities.isEmpty()) {
             entities.forEach(task -> {
-                if(task.getStatus() != null && task.getStatus().equals(ProjectConstants.TaskStatus.BENEFICIARY_REFUSED) && task.getResources() != null) {
+                if(task.getStatus() != null && task.getStatus().equals(ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString()) && task.getResources() != null) {
                     Error error = Error.builder()
                             .errorMessage("Task not allowed as resources can not be provided when "+ProjectConstants.TaskStatus.BENEFICIARY_REFUSED)
                             .errorCode(TASK_NOT_ALLOWED)
