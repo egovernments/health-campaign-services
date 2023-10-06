@@ -19,12 +19,12 @@ import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
 import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
-import org.egov.project.validator.task.PtIsFutureTaskAllowedValidator;
 import org.egov.project.validator.task.PtNonExistentEntityValidator;
 import org.egov.project.validator.task.PtNullIdValidator;
 import org.egov.project.validator.task.PtProductVariantIdValidator;
 import org.egov.project.validator.task.PtProjectBeneficiaryIdValidator;
 import org.egov.project.validator.task.PtProjectIdValidator;
+import org.egov.project.validator.task.PtResouceBeneficiaryRefusedValidator;
 import org.egov.project.validator.task.PtRowVersionValidator;
 import org.egov.project.validator.task.PtUniqueEntityValidator;
 import org.egov.project.validator.task.PtUniqueSubEntityValidator;
@@ -70,13 +70,13 @@ public class ProjectTaskService {
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
-                    || validator.getClass().equals(PtIsFutureTaskAllowedValidator.class)
+                    || validator.getClass().equals(PtResouceBeneficiaryRefusedValidator.class)
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
                     || validator.getClass().equals(PtProductVariantIdValidator.class);
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
-                    || validator.getClass().equals(PtIsFutureTaskAllowedValidator.class)
+                    || validator.getClass().equals(PtResouceBeneficiaryRefusedValidator.class)
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
                     || validator.getClass().equals(PtProductVariantIdValidator.class)
                     || validator.getClass().equals(PtNullIdValidator.class)
