@@ -28,7 +28,7 @@ public class ServiceRequestClient {
 
 
     public <T> T fetchResult(StringBuilder uri, Object request, Class
-            <T> clazz) throws Exception {
+            <T> clazz) {
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         T response;
         try {
@@ -36,6 +36,9 @@ public class ServiceRequestClient {
         } catch (HttpClientErrorException e) {
             throw new CustomException("HTTP_CLIENT_ERROR",
                     String.format("%s - %s", e.getMessage(), e.getResponseBodyAsString()));
+        }catch (Exception exception) {
+            throw new CustomException("SERVICE_REQUEST_CLIENT_ERROR",
+                    exception.getMessage());
         }
         return response;
     }

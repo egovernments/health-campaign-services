@@ -1,0 +1,5 @@
+ALTER TABLE HOUSEHOLD ADD COLUMN clientCreatedTime bigint;
+ALTER TABLE HOUSEHOLD ADD COLUMN clientLastModifiedTime bigint;
+
+ALTER TABLE HOUSEHOLD_MEMBER ADD COLUMN clientCreatedTime bigint;
+ALTER TABLE HOUSEHOLD_MEMBER ADD COLUMN clientLastModifiedTime bigint;

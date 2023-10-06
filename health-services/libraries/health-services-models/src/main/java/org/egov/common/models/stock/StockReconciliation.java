@@ -84,5 +84,9 @@ public class StockReconciliation {
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
+
+    @JsonProperty("clientAuditDetails")
+    @Valid
+    private AuditDetails clientAuditDetails = null;
 }
 

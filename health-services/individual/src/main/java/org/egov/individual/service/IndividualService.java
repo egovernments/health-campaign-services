@@ -142,7 +142,7 @@ public class IndividualService {
                 individualRepository.save(encryptedIndividualList,
                         properties.getSaveIndividualTopic());
             }
-        } catch (Exception exception) {
+        } catch (CustomException exception) {
             log.error("error occurred", exception);
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
