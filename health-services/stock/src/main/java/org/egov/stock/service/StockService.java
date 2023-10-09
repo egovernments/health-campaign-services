@@ -102,9 +102,14 @@ public class StockService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                for (Stock entity : validEntities) {
-                    stockRepository.save(Collections.singletonList(entity),
+                if (configuration.getIsPersisterBulkProcessingEnabled()) {
+                    stockRepository.save(validEntities,
                             configuration.getCreateStockTopic());
+                } else {
+                    for (Stock entity : validEntities) {
+                        stockRepository.save(Collections.singletonList(entity),
+                                configuration.getCreateStockTopic());
+                    }
                 }
             }
         } catch (Exception exception) {

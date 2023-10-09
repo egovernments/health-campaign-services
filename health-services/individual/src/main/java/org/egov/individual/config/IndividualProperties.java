@@ -80,4 +80,7 @@ public class IndividualProperties {
 
     @Value("${egov.localization.statelevel}")
     private Boolean isLocalizationStateLevel;
+
+    @Value("${egov.persister.bulk.processing.enabled}")
+    private Boolean isPersisterBulkProcessingEnabled;
 }

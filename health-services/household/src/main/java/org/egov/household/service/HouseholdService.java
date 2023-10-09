@@ -97,8 +97,14 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
-                for (Household entity : validEntities) {
-                    householdRepository.save(Collections.singletonList(entity), householdConfiguration.getCreateTopic());
+                if (householdConfiguration.getIsPersisterBulkProcessingEnabled()) {
+                    householdRepository.save(validEntities,
+                            householdConfiguration.getCreateTopic());
+                } else {
+                    for (Household entity : validEntities) {
+                        householdRepository.save(Collections.singletonList(entity),
+                                householdConfiguration.getCreateTopic());
+                    }
                 }
                 log.info("successfully created {} households", validEntities.size());
             }

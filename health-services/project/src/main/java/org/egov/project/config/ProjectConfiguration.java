@@ -182,4 +182,7 @@ public class ProjectConfiguration {
 
     @Value("${egov.user.id.validator}")
     private String egovUserIdValidator;
+
+    @Value("${egov.persister.bulk.processing.enabled}")
+    private Boolean isPersisterBulkProcessingEnabled;
 }

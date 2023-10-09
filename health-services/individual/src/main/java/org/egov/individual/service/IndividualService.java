@@ -144,9 +144,14 @@ public class IndividualService {
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                for (Individual entity : encryptedIndividualList) {
-                    individualRepository.save(Collections.singletonList(entity),
+                if (properties.getIsPersisterBulkProcessingEnabled()) {
+                    individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
+                } else {
+                    for (Individual entity : encryptedIndividualList) {
+                        individualRepository.save(Collections.singletonList(entity),
+                                properties.getSaveIndividualTopic());
+                    }
                 }
             }
         } catch (CustomException exception) {

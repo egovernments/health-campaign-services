@@ -113,9 +113,14 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.create(validProjectBeneficiaries, beneficiaryRequest);
-                for (ProjectBeneficiary entity : validProjectBeneficiaries) {
-                    projectBeneficiaryRepository.save(Collections.singletonList(entity),
+                if (projectConfiguration.getIsPersisterBulkProcessingEnabled()) {
+                    projectBeneficiaryRepository.save(validProjectBeneficiaries,
                             projectConfiguration.getCreateProjectBeneficiaryTopic());
+                } else {
+                    for (ProjectBeneficiary entity : validProjectBeneficiaries) {
+                        projectBeneficiaryRepository.save(Collections.singletonList(entity),
+                                projectConfiguration.getCreateProjectBeneficiaryTopic());
+                    }
                 }
                 log.info("successfully created project beneficiaries");
             }

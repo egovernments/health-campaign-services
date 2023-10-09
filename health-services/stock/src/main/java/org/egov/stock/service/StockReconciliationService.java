@@ -103,9 +103,15 @@ public class StockReconciliationService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                for (StockReconciliation entity : validEntities) {
-                    stockRepository.save(Collections.singletonList(entity),
+
+                if (configuration.getIsPersisterBulkProcessingEnabled()) {
+                    stockRepository.save(validEntities,
                             configuration.getCreateStockReconciliationTopic());
+                } else {
+                    for (StockReconciliation entity : validEntities) {
+                        stockRepository.save(Collections.singletonList(entity),
+                                configuration.getCreateStockReconciliationTopic());
+                    }
                 }
             }
         } catch (Exception exception) {
