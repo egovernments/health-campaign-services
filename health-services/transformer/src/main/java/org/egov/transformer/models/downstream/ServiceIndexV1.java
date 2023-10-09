@@ -51,6 +51,6 @@ public class ServiceIndexV1 {
     private List<AttributeValue> attributes = new ArrayList<>();
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
-    @JsonProperty("clientAuditDetails")
-    private @Valid AuditDetails clientAuditDetails;
+    @JsonProperty("syncedTime")
+    private String syncedTime = null;
 }
