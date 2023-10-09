@@ -9,6 +9,7 @@ import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -26,13 +27,15 @@ public abstract class ServiceTaskTransformationService implements Transformation
     protected final Producer producer;
 
     protected final TransformerProperties properties;
+    protected final CommonUtils commonUtils;
 
     @Autowired
     protected ServiceTaskTransformationService(ServiceTaskTransformationService.ServiceTaskIndexV1Transformer transformer,
-                                                Producer producer, TransformerProperties properties) {
+                                               Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
+        this.commonUtils = commonUtils;
     }
 
     @Override
@@ -61,13 +64,15 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final ServiceDefinitionService serviceDefinitionService;
+        private final CommonUtils commonUtils;
 
         @Autowired
-        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService) {
+        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils) {
 
             this.projectService = projectService;
             this.properties = properties;
             this.serviceDefinitionService = serviceDefinitionService;
+            this.commonUtils = commonUtils;
         }
 
         @Override
@@ -92,6 +97,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
+            String syncedTime = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
+
             return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
                     .clientReferenceId(service.getClientId())
@@ -110,6 +117,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())
                     .attributes(service.getAttributes())
+                    .syncedTime(syncedTime)
                     .build());
         }
     }

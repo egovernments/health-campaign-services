@@ -92,5 +92,8 @@ public class TransformerProperties {
     @Value("${egov.program.mandate.comment}")
     private String programMandateComment;
 
+    @Value("${egov.timestamp.timeZone}")
+    private String timeZone;
+
 
 }
