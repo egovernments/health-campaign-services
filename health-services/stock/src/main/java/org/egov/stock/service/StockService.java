@@ -97,21 +97,24 @@ public class StockService {
                 isApplicableForCreate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<Stock> validTasks = tuple.getX();
+        List<Stock> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.create(validEntities, request);
+                for (Stock entity : validEntities) {
+                    stockRepository.save(Collections.singletonList(entity),
+                            configuration.getCreateStockTopic());
+                }
             }
         } catch (Exception exception) {
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed create method for stock");
-        return validTasks;
+        return validEntities;
     }
 
     public Stock update(StockRequest request) {

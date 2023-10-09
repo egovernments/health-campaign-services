@@ -98,21 +98,24 @@ public class StockReconciliationService {
                 isBulk);
 
         Map<StockReconciliation, ErrorDetails> errorDetailsMap = tuple.getY();
-        List<StockReconciliation> validTasks = tuple.getX();
+        List<StockReconciliation> validEntities = tuple.getX();
         try {
-            if (!validTasks.isEmpty()) {
-                log.info("processing {} valid entities", validTasks.size());
-                enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockReconciliationTopic());
+            if (!validEntities.isEmpty()) {
+                log.info("processing {} valid entities", validEntities.size());
+                enrichmentService.create(validEntities, request);
+                for (StockReconciliation entity : validEntities) {
+                    stockRepository.save(Collections.singletonList(entity),
+                            configuration.getCreateStockReconciliationTopic());
+                }
             }
         } catch (Exception exception) {
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
-            populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
+            populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         log.info("completed create method for stock reconciliation");
-        return validTasks;
+        return validEntities;
     }
 
     public StockReconciliation update(StockReconciliationRequest request) {
