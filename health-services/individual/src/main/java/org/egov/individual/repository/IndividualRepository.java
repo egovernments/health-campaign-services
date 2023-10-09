@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
@@ -139,7 +140,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             identifierParamMap.put("isDeleted", includeDeleted);
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
                     .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
-            if (!identifiers.isEmpty()) {
+            if (CollectionUtils.isEmpty(identifiers)) {
                 query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
                 paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
                 query = cteQuery + ", cte_individual AS (" + query + ")";
