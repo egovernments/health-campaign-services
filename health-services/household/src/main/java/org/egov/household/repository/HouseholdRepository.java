@@ -39,9 +39,12 @@ public class HouseholdRepository extends GenericRepository<Household> {
     }
 
     public List<Household> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Household> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        List<Household> objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
@@ -52,12 +55,6 @@ public class HouseholdRepository extends GenericRepository<Household> {
             }
         }
 
-        objFound.addAll(findByIdFromDB(ids, columnName, includeDeleted));
-        putInCache(objFound);
-        return objFound;
-    }
-
-    public List<Household> findByIdFromDB(List<String> ids, String columnName, Boolean includeDeleted) {
         String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
             query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
@@ -65,7 +62,9 @@ public class HouseholdRepository extends GenericRepository<Household> {
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
 
-        return this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+        objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
+        putInCache(objFound);
+        return objFound;
     }
 
     public List<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
