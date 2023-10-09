@@ -1,0 +1,786 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Referral Management System
+  contact:
+    name: egovernments foundation
+    email: info@egovernments.org
+schemes:
+  - https
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  /referralmanagement/side-effect/v1/_create:
+    post:
+      summary: >-
+        Create side effect for the project
+      description: >-
+        Create side effect for the project
+      parameters:
+        - name: SideEffect
+          in: body
+          description: Capture details of Side Effect
+          required: true
+          schema:
+            $ref: '#/definitions/SideEffectRequest'
+      tags:
+        - Side Effect
+      responses:
+        '202':
+          description: Create side effect request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/SideEffectResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/side-effect/v1/bulk/_create:
+    post:
+      summary: >-
+        Create side effects for the project in bulk
+      description: >-
+        Create side effects for the project in bulk
+      parameters:
+        - name: SideEffect
+          in: body
+          description: Capture details of Task
+          required: true
+          schema:
+            $ref: '#/definitions/SideEffectBulkRequest'
+      tags:
+        - Side Effect
+      responses:
+        '202':
+          description: Create side effect request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/side-effect/v1/_update:
+    post:
+      summary: >-
+        Side Effect Request
+      description: >-
+        Side Effect Request
+      parameters:
+        - name: SideEffect
+          in: body
+          description: Capture details of Existing side effect
+          required: true
+          schema:
+            $ref: '#/definitions/SideEffectRequest'
+      tags:
+        - Side Effect
+      responses:
+        '202':
+          description: update side effect request has been accepted for update.
+          schema:
+            $ref: '#/definitions/SideEffectResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/side-effect/v1/bulk/_update:
+    post:
+      summary: >-
+        Side Effect Request in bulk for a project
+      description: >-
+        Side Effect Request in bulk for a project
+      parameters:
+        - name: SideEffect
+          in: body
+          description: Capture details of Existing Side Effects
+          required: true
+          schema:
+            $ref: '#/definitions/SideEffectBulkRequest'
+      tags:
+        - Side Effect
+      responses:
+        '202':
+          description: update Side Effects bulk request has been accepted for update.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/side-effect/v1/_delete:
+    post:
+      summary: >-
+        Soft delete Side Effect for a project
+      description: >-
+        Soft delete Side Effect for a project
+      parameters:
+        - name: SideEffect
+          in: body
+          description: Capture details of Existing Side Effect
+          required: true
+          schema:
+            $ref: '#/definitions/SideEffectRequest'
+      tags:
+        - Side Effect
+      responses:
+        '202':
+          description: delete Side Effect request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/SideEffectResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/side-effect/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete Side Effects for a project
+      description: >-
+        Soft delete Side Effects for a project
+      parameters:
+        - name: SideEffect
+          in: body
+          description: Capture details of Existing Side Effect
+          required: true
+          schema:
+            $ref: '#/definitions/SideEffectRequest'
+      tags:
+        - Side Effect
+      responses:
+        '202':
+          description: delete bulk Side Effect request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/side-effect/v1/_search:
+    post:
+      summary: >-
+        Search Side Effect for Project
+      description: >-
+        Search Side Effect for Project
+      parameters:
+        - name: SideEffect
+          in: body
+          description: Side Effect Search.
+          required: true
+          schema:
+            $ref: '#/definitions/SideEffectSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Side Effect
+      responses:
+        '200':
+          description: Side Effects.
+          schema:
+            $ref: '#/definitions/SideEffectBulkResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/v1/_create:
+    post:
+      summary: >-
+        Create referral for the project beneficiary
+      description: >-
+        Create referral for the project benefiaciary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: Create referral request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/v1/bulk/_create:
+    post:
+      summary: >-
+        Create referrals for the project beneficiary in bulk
+      description: >-
+        Create referrals for the project beneficiary in bulk
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Task
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralBulkRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: Create referral request has been accepted for creation.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/v1/_update:
+    post:
+      summary: >-
+        Referral Request
+      description: >-
+        Referral Request
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: update referral request has been accepted for update.
+          schema:
+            $ref: '#/definitions/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/v1/bulk/_update:
+    post:
+      summary: >-
+        Referral Request in bulk for a project beneficiary
+      description: >-
+        Referral Request in bulk for a project beneficiary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing Referrals
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralBulkRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: update Referrals bulk request has been accepted for update.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/v1/_delete:
+    post:
+      summary: >-
+        Soft delete Referral for a project beneficiary
+      description: >-
+        Soft delete Referral for a project beneficiary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing Referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: delete Referral request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/ReferralResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete Referrals for a project beneficiary
+      description: >-
+        Soft delete Referrals for a project beneficiary
+      parameters:
+        - name: Referral
+          in: body
+          description: Capture details of Existing Referral
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralRequest'
+      tags:
+        - Referral
+      responses:
+        '202':
+          description: delete bulk Referral request has been accepted for deletion.
+          schema:
+            $ref: '#/definitions/BulkAcceptedResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /referralmanagement/v1/_search:
+    post:
+      summary: >-
+        Search Referral for Project
+      description: >-
+        Search Referral for Project
+      parameters:
+        - name: Referral
+          in: body
+          description: Referral Search.
+          required: true
+          schema:
+            $ref: '#/definitions/ReferralSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Referral
+      responses:
+        '200':
+          description: Referrals.
+          schema:
+            $ref: '#/definitions/ReferralBulkResponse'
+        '400':
+          description: Invalid Input body.
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+parameters:
+  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  echoResource:
+    name: echoResource
+    in: query
+    type: boolean
+    required: false
+    default: true
+    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
+
+  serverHandlesErrors:
+    name: serverHandlesErrors
+    in: query
+    type: boolean
+    required: false
+    default: false
+    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
+
+  limit:
+    name: limit
+    description: Pagination - limit records in response
+    in: query
+    type: integer
+    minimum: 0
+    maximum: 1000 #TODO review
+    required: true
+
+  offset:
+    name: offset
+    description: Pagination - offset from which records should be returned in response
+    in: query
+    type: integer
+    minimum: 0
+    required: true
+
+  includeDeleted:
+    name: includeDeleted
+    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  includeEnded:
+    name: includeEnded
+    description: Used in project search API to specify if records past end date should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  includeAncestors:
+    name: includeAncestors
+    description: Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  includeDescendants:
+    name: includeDescendants
+    description: Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+  createdFrom:
+    name: createdFrom
+    description: |
+      Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  createdTo:
+    name: createdTo
+    description: |
+      Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+definitions:
+  boundaryCode:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
+  id:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
+  idForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
+  clientReferenceIdForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceIdForSearch'
+  clientReferenceId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceId'
+  tenantId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
+  eventTimestamp:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
+  isDeleted:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
+  rowVersion:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
+  apiOperation:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/apiOperation'
+  additionalFields:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
+  Address:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
+
+  SideEffect:
+    type: object
+    required:
+      - tenantId
+      - taskId
+      - symptoms
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      taskId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique TaskId
+      taskClientReferenceId:
+        type: string
+        example: "R-ID-1"
+        description: Unique Task Client Reference Id
+      projectBeneficiaryId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Project Beneficiary Id
+      projectBeneficiaryClientReferenceId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Project Beneficiary Client Reference Id
+      symptoms:
+        type: array
+        items:
+          type: string
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+      clientAuditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  SideEffectRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      SideEffect:
+        type: object
+        $ref: '#/definitions/SideEffect'
+    required:
+      - RequestInfo
+      - SideEffect
+
+  SideEffectBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      SideEffects:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/SideEffect'
+    required:
+      - RequestInfo
+      - SideEffects
+
+  SideEffectSearch:
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      taskId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique TaskId
+      taskClientReferenceId:
+        type: string
+        example: "R-ID-1"
+
+  SideEffectSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      SideEffect:
+        $ref: '#/definitions/SideEffectSearch'
+    required:
+      - RequestInfo
+      - SideEffect
+
+  SideEffectResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      SideEffect:
+        type: object
+        $ref: '#/definitions/SideEffect'
+    required:
+      - ResponseInfo
+      - SideEffect
+
+  SideEffectBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      SideEffects:
+        type: array
+        items:
+          $ref: '#/definitions/SideEffect'
+    required:
+      - ResponseInfo
+      - SideEffects
+
+  Referral:
+    type: object
+    required:
+      - tenantId
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      projectBeneficiaryId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Project Beneficiary Id
+      projectBeneficiaryClientReferenceId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Project Beneficiary Client Reference Id
+      referringById:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Worker Id that is referring the Beneficiary
+      referredToId:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Individual or Facility Id whom the Beneficiary is referred to.
+      referredToType:
+        type: string
+        description: Individual or Facility
+      reasons:
+        type: array
+        items:
+          type: string
+      sideEffect:
+        $ref: '#/definition/SideEffect'
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+      clientAuditDetails:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails
+
+  ReferralRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Referral:
+        type: object
+        $ref: '#/definitions/Referral'
+    required:
+      - RequestInfo
+      - Referral
+
+  ReferralBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Referrals:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/Referral'
+    required:
+      - RequestInfo
+      - Referrals
+
+  ReferralSearch:
+    type: object
+    properties:
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      projectBeneficiaryId:
+        type: array
+        items:
+          type: string
+      projectBeneficiaryClientReferenceId:
+        type: array
+        items:
+          type: string
+
+  ReferralSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Referral:
+        $ref: '#/definitions/ReferralSearch'
+    required:
+      - RequestInfo
+      - Referral
+
+  ReferralResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Referral:
+        type: object
+        $ref: '#/definitions/Referral'
+    required:
+      - ResponseInfo
+      - Referral
+
+  ReferralBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Referrals:
+        type: array
+        items:
+          $ref: '#/definitions/Referral'
+    required:
+      - ResponseInfo
+      - Referrals
+
+  BulkAcceptedResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+    required:
+      - ResponseInfo

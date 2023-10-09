@@ -14,6 +14,7 @@ import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.service.UserService;
 import org.egov.common.validator.Validator;
 import org.egov.stock.service.FacilityService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,7 @@ public class StocktransferPartiesValidator implements Validator<StockBulkRequest
 
 	private UserService userService;
 
+	@Autowired
 	public StocktransferPartiesValidator(FacilityService facilityService, UserService userService) {
 		this.facilityService = facilityService;
 		this.userService = userService;

@@ -130,7 +130,6 @@ Project service APIs - contains create, update, delete and search end point
 - update-project-resource-bulk-topic
 - delete-project-resource-bulk-topic
 
-
 ### Kafka Producers
 
 - save-project-staff-topic
@@ -152,7 +151,6 @@ Project service APIs - contains create, update, delete and search end point
 - save-project-resource-topic
 - update-project-resource-topic
 - delete-project-resource-topic
-
 
 ## Pre commit script
 
