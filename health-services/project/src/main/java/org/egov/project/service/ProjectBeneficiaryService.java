@@ -123,8 +123,10 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.create(validProjectBeneficiaries, beneficiaryRequest);
-                projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getCreateProjectBeneficiaryTopic());
+                for (ProjectBeneficiary entity : validProjectBeneficiaries) {
+                    projectBeneficiaryRepository.save(Collections.singletonList(entity),
+                            projectConfiguration.getCreateProjectBeneficiaryTopic());
+                }
                 log.info("successfully created project beneficiaries");
             }
         } catch (Exception exception) {

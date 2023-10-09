@@ -127,9 +127,11 @@ public abstract class GenericRepository<T> {
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             Method isDeleted = getMethod("getIsDeleted", getObjClass(objFound));
-            objFound = objFound.stream()
-                    .filter(entity -> Objects.equals(ReflectionUtils.invokeMethod(isDeleted, entity), includeDeleted))
-                    .collect(Collectors.toList());
+            if (!includeDeleted) {
+                objFound = objFound.stream()
+                        .filter(entity -> Objects.equals(ReflectionUtils.invokeMethod(isDeleted, entity), false))
+                        .collect(Collectors.toList());
+            }
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));

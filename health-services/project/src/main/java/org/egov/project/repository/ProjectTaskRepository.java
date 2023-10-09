@@ -105,9 +105,12 @@ public class ProjectTaskRepository extends GenericRepository<Task> {
     }
 
     public SearchResponse<Task> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Task> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        List<Task> objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()

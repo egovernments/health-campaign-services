@@ -55,9 +55,12 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
     public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
         List<Individual> objFound;
-        objFound = findInCache(ids).stream()
-                .filter(individual -> individual.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+        objFound = findInCache(ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, idColumn);
             ids.removeAll(objFound.stream()
