@@ -54,6 +54,9 @@ public class HouseholdSearch {
     @DecimalMax("180")
     private Double longitude = null;
 
+    /*
+     * @value unit of measurement in Kilometer
+     * */
     @Exclude
     @JsonProperty("searchRadius")
     @DecimalMin("0")
