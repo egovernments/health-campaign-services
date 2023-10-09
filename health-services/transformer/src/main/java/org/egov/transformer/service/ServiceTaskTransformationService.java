@@ -30,7 +30,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
     protected final CommonUtils commonUtils;
 
     @Autowired
-    protected ServiceTaskTransformationService(ServiceTaskIndexV1Transformer transformer,
+    protected ServiceTaskTransformationService(ServiceTaskTransformationService.ServiceTaskIndexV1Transformer transformer,
                                                Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
@@ -64,7 +64,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final ServiceDefinitionService serviceDefinitionService;
-
         private final CommonUtils commonUtils;
 
         @Autowired

@@ -31,7 +31,6 @@ public abstract class StockTransformationService implements TransformationServic
     protected final Producer producer;
 
     protected final TransformerProperties properties;
-
     protected final CommonUtils commonUtils;
 
     protected StockTransformationService(StockIndexV1Transformer transformer,
