@@ -30,7 +30,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 public class HouseholdRepository extends GenericRepository<Household> {
 
     private final String searchCriteriaWaypointQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))\n";
-    private final String calculateDistanceQuery = "( 6371.4 * acos (LEAST (GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) ) + sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
+    private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos (LEAST (GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) ) + sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
     @Autowired
     protected HouseholdRepository(Producer producer,
                                   NamedParameterJdbcTemplate namedParameterJdbcTemplate,
@@ -104,7 +104,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
      */
     public List<Household> findByRadius(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Boolean includeDeleted) throws QueryBuilderException {
         String query = searchCriteriaWaypointQuery +
-                "SELECT * FROM (SELECT h.*, a.*, " + calculateDistanceQuery + " \n" +
+                "SELECT * FROM (SELECT h.*, a.*, " + calculateDistanceFromTwoWaypointsFormulaQuery + " \n" +
                 "FROM public.household h LEFT JOIN public.address a ON h.addressid = a.id AND h.tenantid = a.tenantid, cte_search_criteria_waypoint cte_scw ";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);

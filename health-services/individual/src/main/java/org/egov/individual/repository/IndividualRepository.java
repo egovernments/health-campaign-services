@@ -40,7 +40,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 public class IndividualRepository extends GenericRepository<Individual> {
 
     private final String cteQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
-    private final String calculateDistanceQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
+    private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
 
     protected IndividualRepository(@Qualifier("individualProducer")  Producer producer,
                                    NamedParameterJdbcTemplate namedParameterJdbcTemplate,
@@ -144,7 +144,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
                 paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
                 query = cteQuery + ", cte_individual AS (" + query + ")";
-                query = query + "SELECT * FROM (SELECT cte_i.*, " + calculateDistanceQuery
+                query = query + "SELECT * FROM (SELECT cte_i.*, " + calculateDistanceFromTwoWaypointsFormulaQuery
                         +" FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
                 if(searchObject.getSearchRadius() != null) {
                     query = query + " WHERE rt.distance < :distance ";
@@ -169,7 +169,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
         } else {
             query = cteQuery + ", cte_individual AS (" + query + ")";
-            query = query + "SELECT * FROM (SELECT cte_i.*, "+ calculateDistanceQuery
+            query = query + "SELECT * FROM (SELECT cte_i.*, "+ calculateDistanceFromTwoWaypointsFormulaQuery
                     +" FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
             if(searchObject.getSearchRadius() != null) {
                 query = query + " WHERE rt.distance < :distance ";
