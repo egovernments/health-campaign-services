@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.egov.transformer.Constants.PROJECT_STAFF_ROLES;
@@ -91,9 +92,9 @@ public class UserService {
         }
         JSONArray projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
         HashMap<String,Integer> projectStaffRolesMap = new HashMap<>();
-//        projectStaffRoles.forEach(role -> {
-//            projectStaffRolesMap.put(role)
-//        });
+        projectStaffRoles.forEach(role -> {
+            projectStaffRolesMap.put((String) ((LinkedHashMap) role).get("code"), (Integer) ((LinkedHashMap) role).get("rank"));
+        });
         return projectStaffRolesMap;
     }
 
