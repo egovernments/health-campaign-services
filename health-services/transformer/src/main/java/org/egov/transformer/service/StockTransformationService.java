@@ -10,6 +10,7 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.StockIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -30,13 +31,15 @@ public abstract class StockTransformationService implements TransformationServic
     protected final Producer producer;
 
     protected final TransformerProperties properties;
+    protected final CommonUtils commonUtils;
 
     protected StockTransformationService(StockIndexV1Transformer transformer,
                                          Producer producer,
-                                         TransformerProperties properties) {
+                                         TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
+        this.commonUtils = commonUtils;
     }
 
     @Override
@@ -67,13 +70,14 @@ public abstract class StockTransformationService implements TransformationServic
 
         private final FacilityService facilityService;
         private final TransformerProperties properties;
+        private final CommonUtils commonUtils;
 
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
-                                TransformerProperties properties) {
+                                TransformerProperties properties, CommonUtils commonUtils) {
             this.projectService = projectService;
             this.facilityService = facilityService;
             this.properties = properties;
-
+            this.commonUtils = commonUtils;
         }
 
         @Override
@@ -104,6 +108,8 @@ public abstract class StockTransformationService implements TransformationServic
 
             facilityType = getType(facilityType, facility);
 
+            String syncedTime = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
+
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
                     .clientReferenceId(stock.getClientReferenceId())
@@ -121,7 +127,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .reason(stock.getTransactionReason())
                     .eventTimeStamp(stock.getDateOfEntry() != null ?
                             stock.getDateOfEntry() : stock.getAuditDetails().getLastModifiedTime())
-                    .createdTime(stock.getAuditDetails().getCreatedTime())
+                    .createdTime(stock.getClientAuditDetails().getCreatedTime())
                     .dateOfEntry(stock.getDateOfEntry())
                     .createdBy(stock.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getAuditDetails().getLastModifiedTime())
@@ -135,6 +141,8 @@ public abstract class StockTransformationService implements TransformationServic
                     .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .additionalFields(stock.getAdditionalFields())
+                    .clientAuditDetails(stock.getClientAuditDetails())
+                    .syncedTime(syncedTime)
                     .build());
         }
 
