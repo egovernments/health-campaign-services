@@ -45,6 +45,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
         log.info("transformation successful");
+        log.info("transformedPayloadList {}",transformedPayloadList);
         producer.push(getTopic(),
                 transformedPayloadList);
     }
@@ -71,12 +72,14 @@ public abstract class ProjectStaffTransformationService implements Transformatio
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+            List<User> users = userService.getUsers(projectStaff.getTenantId(),projectStaff.getUserId());
             return Collections.singletonList(ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
                     .projectId(projectStaff.getProjectId())
                     .userId(projectStaff.getUserId())
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
-                    .role(userService.filterStaffRole(projectStaff.getTenantId(),projectStaff.getUserId()))
+                    .userName(userService.getUserName(users))
+                    .role(userService.getStaffRole(projectStaff.getTenantId(),users))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
                     .locality(boundaryLabelToNameMap.get(properties.getLocality()))

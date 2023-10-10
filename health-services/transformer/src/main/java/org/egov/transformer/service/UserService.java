@@ -1,5 +1,7 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.UserDetailResponse;
 import digit.models.coremodels.UserSearchRequest;
 import digit.models.coremodels.mdms.*;
@@ -42,21 +44,7 @@ public class UserService {
         this.moduleName = moduleName;
     }
 
-    public List<User> search(UserSearchRequest userSearchRequest) {
-        try {
-            UserDetailResponse response = restRepo.fetchResult(
-                    new StringBuilder(host + searchUrl),
-                    userSearchRequest,
-                    UserDetailResponse.class
-            );
-            return response.getUser();
-        } catch (Exception e) {
-            log.error("Exception while searching users : ", e);
-            throw new CustomException("USER_SEARCH_ERROR", e.getMessage());
-        }
-    }
-
-    public List<String> getUserRoles(String tenantId, String userId) {
+    public List<User> getUsers(String tenantId, String userId){
         UserSearchRequest searchRequest = new UserSearchRequest();
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
@@ -66,17 +54,17 @@ public class UserService {
         searchRequest.setRequestInfo(requestInfo);
         searchRequest.setTenantId(tenantId);
         searchRequest.setUuid(Ids);
-        List<User> response = null;
         try {
-            response = search(searchRequest);
+            UserDetailResponse response = restRepo.fetchResult(
+                    new StringBuilder(host + searchUrl),
+                    searchRequest,
+                    UserDetailResponse.class
+            );
+            return response.getUser();
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("Exception while searching users : ", e);
+            throw new CustomException("USER_SEARCH_ERROR", e.getMessage());
         }
-        List<String> roles = new ArrayList<>();
-        if(response != null && response.size() > 0){
-            response.get(0).getRoles().forEach(role -> roles.add(role.getCode()));
-        }
-        return roles;
     }
 
     public HashMap<String, Integer> getProjectStaffRoles(String tenantId){
@@ -92,28 +80,44 @@ public class UserService {
         }
         JSONArray projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
         HashMap<String,Integer> projectStaffRolesMap = new HashMap<>();
+        ObjectMapper objectMapper = new ObjectMapper();
         projectStaffRoles.forEach(role -> {
-            projectStaffRolesMap.put((String) ((LinkedHashMap) role).get("code"), (Integer) ((LinkedHashMap) role).get("rank"));
+            LinkedHashMap<String,Object> map = objectMapper.convertValue(role, new TypeReference<LinkedHashMap>() {});
+            projectStaffRolesMap.put((String) map.get("code"), (Integer) map.get("rank"));
         });
         return projectStaffRolesMap;
     }
 
-    public String filterStaffRole(String tenantId, String userId){
-        List<String> userRoles = getUserRoles(tenantId,userId);
+    public String getStaffRole(String tenantId, List<User> users){
+
+        List<String> userRoles = new ArrayList<>();
+        if(users != null && users.size() > 0){
+            users.get(0).getRoles().forEach(role -> userRoles.add(role.getCode()));
+        }
+
         HashMap<String, Integer> projectStaffRolesMap = getProjectStaffRoles(tenantId);
         String roleByRank = null;
         int minValue = Integer.MAX_VALUE;
 
-        for (String element : userRoles) {
-            if (projectStaffRolesMap.containsKey(element)) {
-                int value = projectStaffRolesMap.get(element);
-                if (value < minValue) {
-                    minValue = value;
-                    roleByRank = element;
+        if(userRoles.size() > 0){
+            for (String element : userRoles) {
+                if (projectStaffRolesMap.containsKey(element)) {
+                    int value = projectStaffRolesMap.get(element);
+                    if (value < minValue) {
+                        minValue = value;
+                        roleByRank = element;
+                    }
                 }
             }
         }
         return roleByRank;
+    }
+
+    public String getUserName (List<User> users){
+        if (users!= null && users.size()>0){
+            return users.get(0).getUserName();
+        }
+        return "";
     }
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
                                            String moduleName) {
