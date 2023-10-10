@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.AdditionalFields;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.Field;
@@ -32,14 +33,15 @@ public abstract class StockTransformationService implements TransformationServic
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
-
+    private static UserService userService = null;
     protected StockTransformationService(StockIndexV1Transformer transformer,
                                          Producer producer,
-                                         TransformerProperties properties, CommonUtils commonUtils) {
+                                         TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
         this.commonUtils = commonUtils;
+        this.userService = userService;
     }
 
     @Override
@@ -109,7 +111,7 @@ public abstract class StockTransformationService implements TransformationServic
             facilityType = getType(facilityType, facility);
 
             String syncedTime = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
-
+            List<User> users = userService.getUsers(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
                     .clientReferenceId(stock.getClientReferenceId())
@@ -118,6 +120,8 @@ public abstract class StockTransformationService implements TransformationServic
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
                     .transactingFacilityId(stock.getTransactingPartyId())
+                    .userName(userService.getUserName(users))
+                    .role(userService.getStaffRole(stock.getTenantId(),users))
                     .transactingPartyName(transactingPartyName)
                     .transactingPartyType(transactingPartyType)
                     .facilityType(facilityType)

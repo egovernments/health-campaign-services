@@ -26,7 +26,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
     protected final Producer producer;
 
     protected final TransformerProperties properties;
-    protected static UserService userService = null;
+    private static UserService userService = null;
     @Autowired
     protected ProjectStaffTransformationService(ProjectStaffIndexV1Transformer transformer,
                                                 Producer producer, TransformerProperties properties, UserService userService) {

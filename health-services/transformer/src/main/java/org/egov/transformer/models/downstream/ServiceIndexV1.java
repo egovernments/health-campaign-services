@@ -33,6 +33,10 @@ public class ServiceIndexV1 {
     private String projectId;
     @JsonProperty("serviceDefinitionId")
     private String serviceDefinitionId;
+    @JsonProperty("userName")
+    private String userName;
+    @JsonProperty("role")
+    private String role;
     @JsonProperty("province")
     private String province;
     @JsonProperty("district")

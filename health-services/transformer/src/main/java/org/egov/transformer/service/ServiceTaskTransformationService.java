@@ -2,6 +2,7 @@ package org.egov.transformer.service;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.User;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
@@ -28,14 +29,15 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
-
+    private static UserService userService = null;
     @Autowired
-    protected ServiceTaskTransformationService(ServiceTaskTransformationService.ServiceTaskIndexV1Transformer transformer,
-                                               Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
+    protected ServiceTaskTransformationService(ServiceTaskIndexV1Transformer transformer,
+                                               Producer producer, TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
         this.commonUtils = commonUtils;
+        this.userService = userService;
     }
 
     @Override
@@ -98,7 +100,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
             String syncedTime = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
-
+            List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
                     .clientReferenceId(service.getClientId())
@@ -106,6 +108,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(serviceDefinition.getCode())
+                    .userName(userService.getUserName(users))
+                    .role(userService.getStaffRole(service.getTenantId(),users))
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .administrativeProvince(boundaryLabelToNameMap != null ?
