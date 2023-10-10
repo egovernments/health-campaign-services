@@ -115,11 +115,10 @@ public class Stock {
     private AuditDetails auditDetails;
 
     @JsonProperty("dateOfEntry")
-    private Long dateOfEntry = null;
+    private Long dateOfEntry;
 
     @JsonProperty("clientAuditDetails")
     @Valid
     private AuditDetails clientAuditDetails;
-
 }
 
