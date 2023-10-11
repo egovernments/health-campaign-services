@@ -22,7 +22,7 @@
     "@egovernments/digit-ui-module-utilities": "1.0.0-beta",
     "@egovernments/digit-ui-module-engagement": "1.5.20",
     "@egovernments/digit-ui-module-workbench": "1.0.0-beta",
-    "@egovernments/digit-ui-react-components": "1.8.0-beta",
+    "@egovernments/digit-ui-react-components": "1.8.0-beta.1",
     "babel-loader": "8.1.0",
     "clean-webpack-plugin": "4.0.0",
     "react": "17.0.2",
