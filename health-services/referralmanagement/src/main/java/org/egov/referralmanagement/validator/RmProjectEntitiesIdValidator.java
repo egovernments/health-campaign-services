@@ -60,16 +60,16 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
             if (!referralList.isEmpty()) {
                 List<ProjectBeneficiary> existingProjectBeneficiaries = null;
                 List<ProjectStaff> existingProjectStaffList = null;
-                final List<String> projectBeneficiaryIdList = new ArrayList<>();
+                final List<String> projectBeneficiaryIdList = new ArrayList<>(); // done
                 final List<String> projectBeneficiaryClientReferenceIdList = new ArrayList<>();
                 final List<String> projectStaffIdList = new ArrayList<>();
                 try {
                     referralList.forEach(referral -> {
                         addIgnoreNull(projectBeneficiaryIdList, referral.getProjectBeneficiaryId());
                         addIgnoreNull(projectBeneficiaryClientReferenceIdList, referral.getProjectBeneficiaryClientReferenceId());
-                        addIgnoreNull(projectStaffIdList, referral.getReferredById());
-                        if(referral.getReferredToType().equals(PROJECT_STAFF)){
-                            addIgnoreNull(projectStaffIdList, referral.getReferredToId());
+                        addIgnoreNull(projectStaffIdList, referral.getReferrerId());
+                        if(referral.getRecipientType().equals(PROJECT_STAFF)){
+                            addIgnoreNull(projectStaffIdList, referral.getRecipientId());
                         }
                     });
                     ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
@@ -113,10 +113,10 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
                 final List<String> existingProjectStaffIds = new ArrayList<>();
                 existingProjectStaffList.forEach(projectStaff -> existingProjectStaffIds.add(projectStaff.getId()));
                 List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                                !existingProjectStaffIds.contains(entity.getReferredById())
+                                !existingProjectStaffIds.contains(entity.getReferrerId())
                                         && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
                                         && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
-                                        && (!entity.getReferredToType().equals(PROJECT_STAFF) || !existingProjectStaffIds.contains(entity.getReferredToId()))
+                                        && (!entity.getRecipientType().equals(PROJECT_STAFF) || !existingProjectStaffIds.contains(entity.getRecipientId()))
                         ).collect(Collectors.toList());
                 invalidEntities.forEach(referral -> {
                     Error error = getErrorForNonExistentEntity();

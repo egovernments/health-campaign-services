@@ -1,7 +1,6 @@
 package org.egov.common.models.referralmanagement;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
@@ -19,7 +18,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class Referral {
 
     @JsonProperty("id")
@@ -38,16 +36,16 @@ public class Referral {
     @Size(min = 2, max = 64)
     private String projectBeneficiaryClientReferenceId = null;
 
-    @JsonProperty("referredById")
+    @JsonProperty("referrerId")
     @Size(min = 2, max = 64)
-    private String referredById = null;
+    private String referrerId = null;
 
-    @JsonProperty("referredToType")
-    private String referredToType = null;
+    @JsonProperty("recipientType")
+    private String recipientType = null;
 
-    @JsonProperty("referredToId")
+    @JsonProperty("recipientId")
     @Size(min = 2, max = 64)
-    private String referredToId = null;
+    private String recipientId = null;
 
     @JsonProperty("reasons")
     @NotNull

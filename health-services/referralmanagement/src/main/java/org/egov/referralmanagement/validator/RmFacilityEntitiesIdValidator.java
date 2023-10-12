@@ -58,8 +58,8 @@ public class RmFacilityEntitiesIdValidator implements Validator<ReferralBulkRequ
                 final List<String> facilityIdList = new ArrayList<>();
                 try {
                     referralList.forEach(referral -> {
-                        if(referral.getReferredToType().equals(FACILITY)){
-                            addIgnoreNull(facilityIdList, referral.getReferredToId());
+                        if(referral.getRecipientType().equals(FACILITY)){
+                            addIgnoreNull(facilityIdList, referral.getRecipientId());
                         }
                     });
                     FacilitySearch facilitySearch = FacilitySearch.builder()
@@ -82,7 +82,7 @@ public class RmFacilityEntitiesIdValidator implements Validator<ReferralBulkRequ
                 final List<String> existingFacilityIds = new ArrayList<>();
                 existingFacilityList.forEach(facility -> existingFacilityIds.add(facility.getId()));
                 List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                                        (!entity.getReferredToType().equals(FACILITY) || !existingFacilityIds.contains(entity.getReferredToId()))
+                                        (!entity.getRecipientType().equals(FACILITY) || !existingFacilityIds.contains(entity.getRecipientId()))
                         ).collect(Collectors.toList());
                 invalidEntities.forEach(referral -> {
                     Error error = getErrorForNonExistentEntity();

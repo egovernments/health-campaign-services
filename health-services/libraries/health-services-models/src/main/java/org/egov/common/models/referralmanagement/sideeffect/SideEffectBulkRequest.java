@@ -18,7 +18,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class SideEffectBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
