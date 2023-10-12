@@ -145,6 +145,7 @@ public class ValidatorUtil {
 	 * @param invalidFacilityIds
 	 */
 	private static <T> void validateFacilityIds(FacilityService facilityService, List<String> facilityIds, List<Stock> validStockEntities, String tenantId, Map<T, List<Error>> errorDetailsMap, RequestInfo requestInfo, List<String> invalidFacilityIds) {
+		if(CollectionUtils.isEmpty(facilityIds)) return;
 		List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIds, (List<T>) validStockEntities,
 				tenantId, errorDetailsMap, requestInfo);
 		invalidFacilityIds.removeAll(validFacilityIds);
