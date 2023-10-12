@@ -39,6 +39,13 @@ public class SReferenceIdValidator implements Validator<StockBulkRequest, Stock>
                 .filter(notHavingErrors())
                 .filter(entity -> PROJECT.equals(entity.getReferenceIdType()))
                 .collect(Collectors.toList());
+        
+        long countOfWareHouseInStock = request.getStock().stream().filter(stock -> 
+        	stock.getReceiverType().equalsIgnoreCase("WAREHOUSE") || stock.getSenderType().equalsIgnoreCase("WAREHOUSE")
+        ).count();
+        if(countOfWareHouseInStock == 0)
+        	return errorDetailsMap;
+        
         return validateProjectFacilityMappings(request, errorDetailsMap, validEntities,
                 GET_REFERENCE_ID, facilityService);
     }
