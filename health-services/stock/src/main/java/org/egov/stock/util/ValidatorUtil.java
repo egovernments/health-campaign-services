@@ -117,26 +117,56 @@ public class ValidatorUtil {
 		enrichFaciltyAndStaffIdsFromStock(validStockEntities, facilityIds, staffIds);
 
 		// copy all of party identifiers into invalid list
-		List<String> InvalidStaffIds = new ArrayList<>(staffIds);
+		List<String> invalidStaffIds = new ArrayList<>(staffIds);
 		List<String> invalidFacilityIds = new ArrayList<>(facilityIds);
 
 		String tenantId = getTenantId(validStockEntities);
 
 		// validate and remove valid identifiers from invalidStaffIds
+		validateStaffIds(userService, requestInfo, staffIds, invalidStaffIds);
+
+		// validate and remove valid identifiers from invalidfacilityIds
+		validateFacilityIds(facilityService, facilityIds, validStockEntities, tenantId, errorDetailsMap, requestInfo, invalidFacilityIds);
+
+
+
+		return new Tuple<>(invalidStaffIds, invalidFacilityIds);
+	}
+
+	/**
+	 * private method to fetch the valid facility ids and removed from the invalid facility id list
+	 * @param <T>
+	 * @param facilityService
+	 * @param facilityIds
+	 * @param validStockEntities
+	 * @param tenantId
+	 * @param errorDetailsMap
+	 * @param requestInfo
+	 * @param invalidFacilityIds
+	 */
+	private static <T> void validateFacilityIds(FacilityService facilityService, List<String> facilityIds, List<Stock> validStockEntities, String tenantId, Map<T, List<Error>> errorDetailsMap, RequestInfo requestInfo, List<String> invalidFacilityIds) {
+		List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIds, (List<T>) validStockEntities,
+				tenantId, errorDetailsMap, requestInfo);
+		invalidFacilityIds.removeAll(validFacilityIds);
+	}
+
+	/**
+	 * private method to fetch the valid staff ids and removed from the invalid staff id list
+	 * @param userService
+	 * @param requestInfo
+	 * @param staffIds
+	 * @param invalidStaffIds
+	 */
+	private static void validateStaffIds(UserService userService, RequestInfo requestInfo, List<String> staffIds, List<String> invalidStaffIds) {
+		if(CollectionUtils.isEmpty(staffIds)) return;
 		UserSearchRequest userSearchRequest = new UserSearchRequest();
 		userSearchRequest.setRequestInfo(requestInfo);
 		userSearchRequest.setUuid(staffIds);
 		List<String> validStaffIds = userService.search(userSearchRequest).stream().map(user -> user.getUuid())
 				.collect(Collectors.toList());
-		InvalidStaffIds.removeAll(validStaffIds);
-
-		// validate and remove valid identifiers from invalidfacilityIds
-		List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIds, (List<T>) validStockEntities,
-				tenantId, errorDetailsMap, requestInfo);
-		invalidFacilityIds.removeAll(validFacilityIds);
-
-		return new Tuple<>(InvalidStaffIds, invalidFacilityIds);
+		invalidStaffIds.removeAll(validStaffIds);
 	}
+
 
 	/**
 	 * Private method to enrich facility id and staff id
