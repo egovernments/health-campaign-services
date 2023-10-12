@@ -152,8 +152,8 @@ const getFormattedData = (data = {}) => {
   });
   return formattedData;
 };
-/* Method currently used to find the path to insert enum to the schema*/
 
+/* Method currently used to find the path to insert enum to the schema*/
 const getUpdatedPath = (path = "") => {
   let tempPath = path;
   if (!tempPath?.includes(".")) {
@@ -188,5 +188,54 @@ const updateTitleToLocalisationCodeForObject = (definition, schemaCode) => {
   });
   return definition;
 };
+const formatDates= (value,type)=>{
+  if(type!="EPOC" && (!value || Number.isNaN(value))){
+    value= new Date();
+  }
+  switch(type){
+    case "date":
+      return new Date(value)?.toISOString?.()?.split?.("T")?.[0];
+    case "datetime":
+      return new Date(value).toISOString();
+    case "EPOC":
+      return String(new Date(value)?.getTime());
+  }
+}
 
-export default { getConfig, getMDMSLabel, getFormattedData, getUpdatedPath, updateTitleToLocalisationCodeForObject };
+const generateId = (format,tenant)=>{
+  return null;
+}
+
+const formatData =  (value,type,schema)=>{
+  switch(type){
+    case "EPOC":
+      return formatDates(value,type);
+    case "REVERT-EPOC":
+      return formatDates(typeof value=="string"&& value?.endsWith?.("Z")?value:parseInt(value),schema?.["ui:widget"]);
+    case "REVERT-EPOC":
+        return new Date(typeof value=="string"&& value?.endsWith?.("Z")?value:parseInt(value)).toISOString();
+    default:
+      return value;
+  }
+}
+/*  preprocess the data before sending the data to mdms create api */
+const preProcessData = (data={},schema={})=>{
+  Object.keys(schema).map((key)=>{
+    if(typeof schema[key]=="object" && schema[key]?.["format"] && schema[key]?.["format"]?.includes?.("preprocess")  && schema?.[key]?.formatType){
+      data[key]= formatData(data?.[key],schema?.[key]?.formatType,schema?.[key]);
+    }
+  })
+  return {...data};
+}
+
+/*  postprocess the data received from mdms search api to the form */
+const postProcessData =  (data={},schema={})=>{
+  Object.keys(schema).map((key)=>{
+    if(typeof schema[key]=="object" && schema[key]?.["format"] && schema[key]?.["format"]?.includes?.("postprocess")  && schema?.[key]?.formatType){
+      data[key]= formatData(data?.[key],`REVERT-${schema?.[key]?.formatType}`,schema?.[key]);
+    }
+  })
+  return {...data};
+}
+
+export default { getConfig, getMDMSLabel, getFormattedData, getUpdatedPath, updateTitleToLocalisationCodeForObject ,preProcessData,postProcessData};

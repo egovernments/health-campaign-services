@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import Select from "react-select";
 import { useTranslation } from "react-i18next";
 import { Loader } from "@egovernments/digit-ui-react-components";
