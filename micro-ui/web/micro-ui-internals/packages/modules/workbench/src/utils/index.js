@@ -121,10 +121,10 @@ const getConfig = (type = "text") => {
   };
 };
 
-const getMDMSLabel = (code = "",masterName="",moduleName="",ignore=[]) => {
-  let ignoreThis = ignore?.some(url => url===code)
-  if(ignoreThis) {
-    return null
+const getMDMSLabel = (code = "", masterName = "", moduleName = "", ignore = []) => {
+  let ignoreThis = ignore?.some((url) => url === code);
+  if (ignoreThis) {
+    return null;
   }
   //enable this flag to get the localisation enabled for the mdms forms
   let flag = true;
@@ -134,7 +134,7 @@ const getMDMSLabel = (code = "",masterName="",moduleName="",ignore=[]) => {
       .reduce((acc, curr) => acc + curr.charAt(0).toUpperCase() + curr.slice(1) + " ", "")
       .trim();
   }
-  if(masterName && moduleName){
+  if (masterName && moduleName) {
     return Digit.Utils.locale.getTransformedLocale(`SCHEMA_${moduleName}_${masterName}`);
   }
   return Digit.Utils.locale.getTransformedLocale(code);
@@ -188,11 +188,11 @@ const updateTitleToLocalisationCodeForObject = (definition, schemaCode) => {
   });
   return definition;
 };
-const formatDates= (value,type)=>{
-  if(type!="EPOC" && (!value || Number.isNaN(value))){
-    value= new Date();
+const formatDates = (value, type) => {
+  if (type != "EPOC" && (!value || Number.isNaN(value))) {
+    value = new Date();
   }
-  switch(type){
+  switch (type) {
     case "date":
       return new Date(value)?.toISOString?.()?.split?.("T")?.[0];
     case "datetime":
@@ -200,42 +200,71 @@ const formatDates= (value,type)=>{
     case "EPOC":
       return String(new Date(value)?.getTime());
   }
-}
+};
 
-const generateId = (format,tenant)=>{
-  return null;
-}
+const generateId = async (format, tenantId = Digit.ULBService.getCurrentTenantId()) => {
+  const requestCriteria = {
+    url: "/egov-idgen/id/_generate",
+    body: {
+      idRequests: [
+        {
+          tenantId: tenantId,
+          idName: format,
+        },
+      ],
+    },
+  };
+  const response = await Digit.CustomService.getResponse({ url: requestCriteria?.url, body: requestCriteria?.body });
+  return response?.idResponses?.[0]?.id;
+};
 
-const formatData =  (value,type,schema)=>{
-  switch(type){
+const formatData = (value, type, schema) => {
+  switch (type) {
     case "EPOC":
-      return formatDates(value,type);
+      return formatDates(value, type);
     case "REVERT-EPOC":
-      return formatDates(typeof value=="string"&& value?.endsWith?.("Z")?value:parseInt(value),schema?.["ui:widget"]);
+      return formatDates(typeof value == "string" && value?.endsWith?.("Z") ? value : parseInt(value), schema?.["ui:widget"]);
     case "REVERT-EPOC":
-        return new Date(typeof value=="string"&& value?.endsWith?.("Z")?value:parseInt(value)).toISOString();
+      return new Date(typeof value == "string" && value?.endsWith?.("Z") ? value : parseInt(value)).toISOString();
     default:
       return value;
   }
-}
+};
 /*  preprocess the data before sending the data to mdms create api */
-const preProcessData = (data={},schema={})=>{
-  Object.keys(schema).map((key)=>{
-    if(typeof schema[key]=="object" && schema[key]?.["format"] && schema[key]?.["format"]?.includes?.("preprocess")  && schema?.[key]?.formatType){
-      data[key]= formatData(data?.[key],schema?.[key]?.formatType,schema?.[key]);
+const preProcessData = async (data = {}, schema = {}) => {
+  let fieldKey = "";
+  let autoGenerateFormat = "";
+
+  Object.keys(schema).map((key) => {
+    if (typeof schema[key] == "object" && schema[key]?.["format"] && schema[key]?.["format"]?.includes?.("preprocess") && schema?.[key]?.formatType) {
+      /* this autogenerate format logic can be removed once we have the mdms v2 support to geenrate formatted id */
+      if (schema?.[key]?.formatType == "autogenerate" && schema?.[key]?.autogenerate) {
+        autoGenerateFormat = schema?.[key]?.autogenerate;
+        fieldKey = key;
+      } else {
+        data[key] = formatData(data?.[key], schema?.[key]?.formatType, schema?.[key]);
+      }
     }
-  })
-  return {...data};
-}
+  });
+  if (fieldKey != "" && autoGenerateFormat != "") {
+    data[fieldKey] = await generateId(autoGenerateFormat);
+  }
+  return { ...data };
+};
 
 /*  postprocess the data received from mdms search api to the form */
-const postProcessData =  (data={},schema={})=>{
-  Object.keys(schema).map((key)=>{
-    if(typeof schema[key]=="object" && schema[key]?.["format"] && schema[key]?.["format"]?.includes?.("postprocess")  && schema?.[key]?.formatType){
-      data[key]= formatData(data?.[key],`REVERT-${schema?.[key]?.formatType}`,schema?.[key]);
+const postProcessData = (data = {}, schema = {}) => {
+  Object.keys(schema).map((key) => {
+    if (
+      typeof schema[key] == "object" &&
+      schema[key]?.["format"] &&
+      schema[key]?.["format"]?.includes?.("postprocess") &&
+      schema?.[key]?.formatType
+    ) {
+      data[key] = formatData(data?.[key], `REVERT-${schema?.[key]?.formatType}`, schema?.[key]);
     }
-  })
-  return {...data};
-}
+  });
+  return { ...data };
+};
 
-export default { getConfig, getMDMSLabel, getFormattedData, getUpdatedPath, updateTitleToLocalisationCodeForObject ,preProcessData,postProcessData};
+export default { getConfig, getMDMSLabel, getFormattedData, getUpdatedPath, updateTitleToLocalisationCodeForObject, preProcessData, postProcessData };

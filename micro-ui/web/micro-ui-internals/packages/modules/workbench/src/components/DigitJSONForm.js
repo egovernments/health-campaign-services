@@ -257,8 +257,9 @@ const DigitJSONForm = ({
   useEffect(() => {
     onFormChange({ formData: Digit.Utils.workbench.postProcessData(formData, inputUiSchema) });
   }, []);
-  const onSubmitV2 = ({ formData }) => {
-    onSubmit(Digit.Utils.workbench.preProcessData(formData, inputUiSchema));
+  const onSubmitV2 = async({ formData }) => {
+    const updatedData=await Digit.Utils.workbench.preProcessData(formData, inputUiSchema);
+    onSubmit(updatedData);
   };
 
   const customWidgets = { SelectWidget: CustomDropdown, CheckboxWidget: CustomCheckbox };

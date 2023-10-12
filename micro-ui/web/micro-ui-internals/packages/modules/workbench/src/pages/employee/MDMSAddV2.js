@@ -25,10 +25,8 @@ const MDMSAdd = ({ defaultFormData, updatesToUISchema, screenType = "add", onVie
   const [formSchema, setFormSchema] = useState({});
   const [uiSchema, setUiSchema] = useState({});
   const [api, setAPI] = useState(false);
-  const [autogenerate, setAutoGenerate] = useState(false);
 
   const [noSchema, setNoSchema] = useState(false);
-  const [loadDependent, setLoadDependent] = useState([]);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [disableForm, setDisableForm] = useState(false);
 
@@ -59,46 +57,11 @@ const MDMSAdd = ({ defaultFormData, updatesToUISchema, screenType = "add", onVie
         if (data?.SchemaDefinitions?.[0]?.definition?.["x-ui-schema"]?.["ui-apidetails"]) {
           setAPI(data?.SchemaDefinitions?.[0]?.definition?.["x-ui-schema"]?.["ui-apidetails"]);
         }
-        if (data?.SchemaDefinitions?.[0]?.definition?.["x-ui-schema"]?.["ui-autogenerate"]) {
-          const autogenerate = data?.SchemaDefinitions?.[0]?.definition?.["x-ui-schema"]?.["ui-autogenerate"];
-          setAutoGenerate(Object.keys(autogenerate).map((key) => ({ id: autogenerate[key], path: key })));
-        }
         return data?.SchemaDefinitions?.[0] || {};
       },
     },
     changeQueryName: "schema",
   };
-  const { isLoading1, data: generatedNo, error } = Digit.Hooks.useCustomAPIHook({
-    url: "/egov-idgen/id/_generate",
-    body: {
-      idRequests: [
-        {
-          tenantId: tenantId,
-          idName: autogenerate?.[0]?.id,
-        },
-      ],
-    },
-    config: {
-      enabled: autogenerate?.[0]?.id && screenType == "add" && true,
-      select: (data) => {
-        if (data?.idResponses?.[0]?.id) {
-          setAutoGenerate([{ ...autogenerate?.[0], value: data?.idResponses?.[0]?.id }]);
-          session[autogenerate?.[0]?.path] = data?.idResponses?.[0]?.id;
-          setSession({ ...session });
-          uiSchema[autogenerate?.[0]?.path] = {
-            ...uiSchema[autogenerate?.[0]?.path],
-            "ui:readonly": true,
-          };
-          setUiSchema({ ...uiSchema });
-          setDisableForm(true);
-          setTimeout(() => {
-            setDisableForm(false);
-          });
-        }
-        return data?.idResponses?.[0]?.id || "";
-      },
-    },
-  });
 
   const { isLoading, data: schema, isFetching } = Digit.Hooks.useCustomAPIHook(reqCriteria);
   const body = api?.requestBody
