@@ -236,7 +236,7 @@ const preProcessData = async (data = {}, schema = {}) => {
   let autoGenerateFormat = "";
 
   Object.keys(schema).map((key) => {
-    if (typeof schema[key] == "object" && schema[key]?.["format"] && schema[key]?.["format"]?.includes?.("preprocess") && schema?.[key]?.formatType) {
+    if (typeof schema[key] == "object" && schema[key]?.["format"] && schema[key]?.["format"]?.includes?.("preprocess") && schema?.[key]?.formatType && data[key]) {
       /* this autogenerate format logic can be removed once we have the mdms v2 support to geenrate formatted id */
       if (schema?.[key]?.formatType == "autogenerate" && schema?.[key]?.autogenerate) {
         autoGenerateFormat = schema?.[key]?.autogenerate;
@@ -259,7 +259,8 @@ const postProcessData = (data = {}, schema = {}) => {
       typeof schema[key] == "object" &&
       schema[key]?.["format"] &&
       schema[key]?.["format"]?.includes?.("postprocess") &&
-      schema?.[key]?.formatType
+      schema?.[key]?.formatType &&
+      data[key]
     ) {
       data[key] = formatData(data?.[key], `REVERT-${schema?.[key]?.formatType}`, schema?.[key]);
     }
