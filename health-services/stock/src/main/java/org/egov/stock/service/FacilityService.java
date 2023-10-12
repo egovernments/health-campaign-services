@@ -123,7 +123,7 @@ public class FacilityService {
                     ProjectFacilityBulkResponse.class);
             
 			return response.getProjectFacilities().stream()
-					.collect(Collectors.groupingBy(projectFacility -> projectFacility.getFacilityId(),
+					.collect(Collectors.groupingBy(projectFacility -> projectFacility.getProjectId(),
 							Collectors.mapping(projectFacility -> projectFacility.getFacilityId(), Collectors.toList())));
             
         } catch (Exception e) {
