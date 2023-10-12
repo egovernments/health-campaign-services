@@ -29,6 +29,7 @@ import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.stock.config.StockConfiguration;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,6 +52,9 @@ public class FacilityService {
                                              Map<T, List<Error>> errorDetailsMap,
                                              RequestInfo requestInfo) {
 
+		if (CollectionUtils.isEmpty(entityIds))
+			return Collections.emptyList();
+		
         FacilitySearchRequest facilitySearchRequest = FacilitySearchRequest.builder()
                 .facility(FacilitySearch.builder().id(entityIds).build())
                 .requestInfo(requestInfo)
