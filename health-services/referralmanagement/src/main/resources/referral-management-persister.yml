@@ -75,7 +75,7 @@ serviceMaps:
           fromTopic: save-referral-topic
           isTransaction: true
           queryMaps:
-            - query: INSERT INTO REFERRAL(id, clientReferenceId, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, referredById, referredToId, referredToType, reasons, sideEffectId, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+            - query: INSERT INTO REFERRAL(id, clientReferenceId, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, referrerId, recipientId, recipientType, reasons, sideEffectId, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
               basePath: $.*
               jsonMaps:
                 - jsonPath: $.*.id
@@ -83,9 +83,9 @@ serviceMaps:
                 - jsonPath: $.*.tenantId
                 - jsonPath: $.*.projectBeneficiaryId
                 - jsonPath: $.*.projectBeneficiaryClientReferenceId
-                - jsonPath: $.*.referredById
-                - jsonPath: $.*.referredToId
-                - jsonPath: $.*.referredToType
+                - jsonPath: $.*.referrerId
+                - jsonPath: $.*.recipientId
+                - jsonPath: $.*.recipientType
                 - jsonPath: $.*.reasons
                   type: JSON
                   dbType: JSONB
@@ -106,15 +106,15 @@ serviceMaps:
               fromTopic: update-referral-topic
               isTransaction: true
               queryMaps:
-                - query: UPDATE REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, referredById = ?, referredToId = ?, referredToType = ?, reasons = ?, sideEffectId = ?, createdBy = ?, createdTime = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientCreatedBy = ?, clientCreatedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted WHERE ID = ?;
+                - query: UPDATE REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, sideEffectId = ?, createdBy = ?, createdTime = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientCreatedBy = ?, clientCreatedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted WHERE ID = ?;
                   basePath: $.*
                   jsonMaps:
                     - jsonPath: $.*.tenantId
                     - jsonPath: $.*.projectBeneficiaryId
                     - jsonPath: $.*.projectBeneficiaryClientReferenceId
-                    - jsonPath: $.*.referredById
-                    - jsonPath: $.*.referredToId
-                    - jsonPath: $.*.referredToType
+                    - jsonPath: $.*.referrerId
+                    - jsonPath: $.*.recipientId
+                    - jsonPath: $.*.recipientType
                     - jsonPath: $.*.reasons
                       type: JSON
                       dbType: JSONB

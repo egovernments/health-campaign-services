@@ -10,6 +10,6 @@ public interface Constants {
     String MDMS_RESPONSE = "MdmsRes";
     String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
     String GET_ID = "getId";
-    String PROJECT_STAFF = "project_staff";
-    String FACILITY = "facility";
+    String STAFF = "STAFF";
+    String FACILITY = "WAREHOUSE";
 }
