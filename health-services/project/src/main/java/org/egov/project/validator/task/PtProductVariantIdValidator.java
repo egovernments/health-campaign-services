@@ -63,7 +63,8 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if (!entities.isEmpty()) {
             for (Task task : entities) {
-                if(CollectionUtils.isEmpty(task.getResources())) continue;
+                if(CollectionUtils.isEmpty(task.getResources()))
+                    continue;
                 Set<String> productVariantIds = new HashSet<>(getIdList(task.getResources(),
                         getIdMethod(task.getResources(), "productVariantId")));
                 try {
