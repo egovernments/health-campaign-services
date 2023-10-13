@@ -55,6 +55,7 @@ public class Task {
 
     @JsonProperty("resources")
     @Valid
+    @Builder.Default
     private List<TaskResource> resources = new ArrayList<>();
 
     @JsonProperty("plannedStartDate")
