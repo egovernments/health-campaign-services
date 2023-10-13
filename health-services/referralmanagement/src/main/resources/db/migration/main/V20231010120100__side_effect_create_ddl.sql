@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS SIDE_EFFECT(
     taskId		                        character varying(64),
     taskClientReferenceId	            character varying(64) NOT NULL,
     projectBeneficiary		            character varying(64),
-    projectBeneficiaryClientReferenceId	character varying(64) NOT NULL,
+    projectBeneficiaryClientReferenceId	character varying(64),
     symptoms                            jsonb,
 	createdBy		                    character varying(64),
     createdTime                         bigint,
