@@ -12,7 +12,7 @@
     "micro-ui-internals/packages/react-components",
     "micro-ui-internals/packages/modules/*"
   ],
-  "homepage": "/digit-ui",
+  "homepage": "/core-ui",
   "dependencies": {
     "@egovernments/digit-ui-libraries": "1.8.0-beta",
     "@egovernments/digit-ui-module-workbench": "1.0.0-beta",
