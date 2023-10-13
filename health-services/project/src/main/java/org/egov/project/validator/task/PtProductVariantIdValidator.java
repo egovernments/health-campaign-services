@@ -17,6 +17,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,7 +63,7 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
                 .filter(notHavingErrors()).collect(Collectors.toList());
         if (!entities.isEmpty()) {
             for (Task task : entities) {
-                if(task.getResources() == null) continue;
+                if(CollectionUtils.isEmpty(task.getResources())) continue;
                 Set<String> productVariantIds = new HashSet<>(getIdList(task.getResources(),
                         getIdMethod(task.getResources(), "productVariantId")));
                 try {
