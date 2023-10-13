@@ -56,7 +56,6 @@ public class Task {
     @JsonProperty("resources")
     @NotNull
     @Valid
-    @Size(min = 1)
     private List<TaskResource> resources = new ArrayList<>();
 
     @JsonProperty("plannedStartDate")

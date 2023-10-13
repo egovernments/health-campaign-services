@@ -18,6 +18,7 @@ public class ProjectConstants {
     public static final String PROJECT_PARENT_HIERARCHY_SEPERATOR = ".";
     public static final String TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED";
 
+    public static final String TASK_NOT_ALLOWED_ERROR_MESSAGE = "Task not allowed as resources can not be provided when ";
     public enum TaskStatus {
         BENEFICIARY_REFUSED("BENEFICIARY_REFUSED");
         private String value;
