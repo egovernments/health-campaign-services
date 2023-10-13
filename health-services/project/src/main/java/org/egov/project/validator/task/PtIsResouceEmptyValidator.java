@@ -30,12 +30,21 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
         List<Task> entities = request.getTasks();
         if(!entities.isEmpty()) {
             entities.forEach(task -> {
-                if(CollectionUtils.isEmpty(task.getResources()) && ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())) {
+                if(CollectionUtils.isEmpty(task.getResources()) && !ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())) {
+                    // if the task resource is empty or null and task status is not BENEFICIARY_REFUSED
                     Error error = Error.builder()
-                            .errorMessage(ProjectConstants.TASK_NOT_ALLOWED_ERROR_MESSAGE + ProjectConstants.TaskStatus.BENEFICIARY_REFUSED)
+                            .errorMessage(ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE + ProjectConstants.TaskStatus.BENEFICIARY_REFUSED)
                             .errorCode(TASK_NOT_ALLOWED)
                             .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException(TASK_NOT_ALLOWED, "Task not allowed as resources can not be provided when "+ProjectConstants.TaskStatus.BENEFICIARY_REFUSED)).build();
+                            .exception(new CustomException(TASK_NOT_ALLOWED, ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE + ProjectConstants.TaskStatus.BENEFICIARY_REFUSED)).build();
+                    populateErrorDetails(task, error, errorDetailsMap);
+                } else if (!CollectionUtils.isEmpty(task.getResources()) && ProjectConstants.TaskStatus.BENEFICIARY_REFUSED.toString().equals(task.getStatus())) {
+                    // If the task resource is not empty and task status is not BENEFICIARY_REFUSED
+                    Error error = Error.builder()
+                            .errorMessage(ProjectConstants.TASK_NOT_ALLOWED_BENEFICIARY_REFUSED_RESOURCE_EMPTY_ERROR_MESSAGE)
+                            .errorCode(TASK_NOT_ALLOWED)
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException(TASK_NOT_ALLOWED, ProjectConstants.TASK_NOT_ALLOWED_BENEFICIARY_REFUSED_RESOURCE_EMPTY_ERROR_MESSAGE)).build();
                     populateErrorDetails(task, error, errorDetailsMap);
                 }
             });
