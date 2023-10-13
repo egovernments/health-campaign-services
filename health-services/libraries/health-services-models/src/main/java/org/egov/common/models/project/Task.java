@@ -54,7 +54,6 @@ public class Task {
     private String projectBeneficiaryClientReferenceId = null;
 
     @JsonProperty("resources")
-    @NotNull
     @Valid
     private List<TaskResource> resources = new ArrayList<>();
 
