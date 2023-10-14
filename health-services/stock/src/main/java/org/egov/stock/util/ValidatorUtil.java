@@ -117,25 +117,33 @@ public class ValidatorUtil {
 		enrichFaciltyAndStaffIdsFromStock(validStockEntities, facilityIds, staffIds);
 
 		// copy all of party identifiers into invalid list
-		List<String> InvalidStaffIds = new ArrayList<>(staffIds);
+		List<String> invalidStaffIds = new ArrayList<>(staffIds);
 		List<String> invalidFacilityIds = new ArrayList<>(facilityIds);
 
 		String tenantId = getTenantId(validStockEntities);
 
 		// validate and remove valid identifiers from invalidStaffIds
-		UserSearchRequest userSearchRequest = new UserSearchRequest();
-		userSearchRequest.setRequestInfo(requestInfo);
-		userSearchRequest.setUuid(staffIds);
-		List<String> validStaffIds = userService.search(userSearchRequest).stream().map(user -> user.getUuid())
-				.collect(Collectors.toList());
-		InvalidStaffIds.removeAll(validStaffIds);
+		validateAndEnrichStaffIds(requestInfo, userService, staffIds, invalidStaffIds);
 
 		// validate and remove valid identifiers from invalidfacilityIds
 		List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIds, (List<T>) validStockEntities,
-				tenantId, errorDetailsMap, requestInfo);
+					tenantId, errorDetailsMap, requestInfo);
 		invalidFacilityIds.removeAll(validFacilityIds);
 
-		return new Tuple<>(InvalidStaffIds, invalidFacilityIds);
+		return new Tuple<>(invalidStaffIds, invalidFacilityIds);
+	}
+
+	private static void validateAndEnrichStaffIds(RequestInfo requestInfo, UserService userService,
+			List<String> staffIds, List<String> invalidStaffIds) {
+		if (!CollectionUtils.isEmpty(staffIds)) {
+
+			UserSearchRequest userSearchRequest = new UserSearchRequest();
+			userSearchRequest.setRequestInfo(requestInfo);
+			userSearchRequest.setUuid(staffIds);
+			List<String> validStaffIds = userService.search(userSearchRequest).stream().map(user -> user.getUuid())
+					.collect(Collectors.toList());
+			invalidStaffIds.removeAll(validStaffIds);
+		}
 	}
 
 	/**
@@ -176,7 +184,7 @@ public class ValidatorUtil {
 	 */
 	@SuppressWarnings("unchecked")
 	private static <T> void enrichErrorMapFromInvalidPartyIds(Map<T, List<Error>> errorDetailsMap,
-			List<Stock> validStockEntities, List<String> InvalidStaffId, List<String> invalidFacilityIds) {
+			List<Stock> validStockEntities, List<String> invalidStaffIds, List<String> invalidFacilityIds) {
 
 		Class<?> objClass = getObjClass(validStockEntities);
 		Method senderIdMethod = getMethod("getSenderId", objClass);
@@ -189,14 +197,14 @@ public class ValidatorUtil {
 
 			if ((stock.getSenderType().equalsIgnoreCase(WAREHOUSE) && invalidFacilityIds.contains(senderId))
 
-					|| (stock.getSenderType().equalsIgnoreCase(STAFF) && InvalidStaffId.contains(senderId))) {
+					|| (stock.getSenderType().equalsIgnoreCase(STAFF) && invalidStaffIds.contains(senderId))) {
 
 				getIdForErrorFromMethod(errorDetailsMap, (T) stock, senderIdMethod);
 			}
 
 			if ((stock.getReceiverType().equalsIgnoreCase(WAREHOUSE) && invalidFacilityIds.contains(recieverId))
 
-					|| (stock.getReceiverType().equalsIgnoreCase(STAFF) && InvalidStaffId.contains(recieverId))) {
+					|| (stock.getReceiverType().equalsIgnoreCase(STAFF) && invalidStaffIds.contains(recieverId))) {
 
 				getIdForErrorFromMethod(errorDetailsMap, (T) stock, recieverIdMethod);
 			}
