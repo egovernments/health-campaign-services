@@ -38,9 +38,8 @@ public class RmReferrerIdValidator implements Validator<ReferralBulkRequest, Ref
         List<Referral> entities = request.getReferrals();
         Map<String, List<Referral>> tenantIdReferralMap = entities.stream().collect(Collectors.groupingBy(Referral::getTenantId));
         tenantIdReferralMap.forEach((tenantId, referralList) -> {
-            List<ProjectStaff> existingProjectStaffList = new ArrayList<>();
-            referralList.forEach(referral -> addIgnoreNull());
-
+            List<String> existingProjectStaffList = new ArrayList<>();
+            referralList.forEach(referral -> addIgnoreNull(existingProjectStaffList, referral.getReferrerId()));
         });
         return errorDetailsMap;
     }

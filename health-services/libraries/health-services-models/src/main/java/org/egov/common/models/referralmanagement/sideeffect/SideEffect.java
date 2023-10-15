@@ -33,6 +33,7 @@ public class SideEffect {
     private String taskId = null;
 
     @JsonProperty("taskClientReferenceId")
+    @NotNull
     @Size(min = 2, max = 64)
     private String taskClientReferenceId = null;
 

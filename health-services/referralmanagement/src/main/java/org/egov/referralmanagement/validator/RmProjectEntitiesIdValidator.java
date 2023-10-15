@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static org.egov.referralmanagement.Constants.PROJECT_STAFF;
+import static org.egov.referralmanagement.Constants.STAFF;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
@@ -68,7 +68,7 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
                         addIgnoreNull(projectBeneficiaryIdList, referral.getProjectBeneficiaryId());
                         addIgnoreNull(projectBeneficiaryClientReferenceIdList, referral.getProjectBeneficiaryClientReferenceId());
                         addIgnoreNull(projectStaffIdList, referral.getReferrerId());
-                        if(referral.getRecipientType().equals(PROJECT_STAFF)){
+                        if(referral.getRecipientType().equals(STAFF)){
                             addIgnoreNull(projectStaffIdList, referral.getRecipientId());
                         }
                     });
@@ -116,7 +116,7 @@ public class RmProjectEntitiesIdValidator implements Validator<ReferralBulkReque
                                 !existingProjectStaffIds.contains(entity.getReferrerId())
                                         && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
                                         && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
-                                        && (!entity.getRecipientType().equals(PROJECT_STAFF) || !existingProjectStaffIds.contains(entity.getRecipientId()))
+                                        && (!entity.getRecipientType().equals(STAFF) || !existingProjectStaffIds.contains(entity.getRecipientId()))
                         ).collect(Collectors.toList());
                 invalidEntities.forEach(referral -> {
                     Error error = getErrorForNonExistentEntity();
