@@ -54,5 +54,12 @@ public class StockConfiguration {
 
     @Value("${egov.search.project.facility.url}")
     private String projectFacilityServiceSearchUrl;
-    
+
+    @Value("${egov.project.staff.host}")
+    private String projectStaffServiceHost;
+
+    @Value("${egov.search.project.staff.url}")
+    private String projectStaffServiceSearchUrl;
+
+
 }
