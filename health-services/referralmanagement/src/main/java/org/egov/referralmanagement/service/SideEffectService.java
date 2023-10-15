@@ -1,6 +1,14 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.ds.Tuple;
+import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectRequest;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
+import org.egov.common.utils.CommonUtils;
+import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.SideEffectRepository;
@@ -8,17 +16,9 @@ import org.egov.referralmanagement.service.enrichment.SideEffectEnrichmentServic
 import org.egov.referralmanagement.validator.sideeffect.SeIsDeletedValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeNullIdValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeProjectBeneficiaryIdValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeProjectTaskIdValidator;
 import org.egov.referralmanagement.validator.sideeffect.SeUniqueEntityValidator;
-import org.egov.common.ds.Tuple;
-import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
-import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
-import org.egov.common.models.referralmanagement.sideeffect.SideEffectRequest;
-import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
-import org.egov.common.service.IdGenService;
-import org.egov.common.utils.CommonUtils;
-import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,11 +40,13 @@ import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
+/**
+ * @author kanishq-egov
+ * Service created to enrich, validate request and perform crud operations
+ */
 @Service
 @Slf4j
 public class SideEffectService {
-    private final IdGenService idGenService;
-
     private final SideEffectRepository sideEffectRepository;
 
     private final ReferralManagementConfiguration referralManagementConfiguration;
@@ -54,7 +56,8 @@ public class SideEffectService {
     private final List<Validator<SideEffectBulkRequest, SideEffect>> validators;
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForCreate = validator ->
-            validator.getClass().equals(SeProjectTaskIdValidator.class);
+            validator.getClass().equals(SeProjectTaskIdValidator.class)
+                || validator.getClass().equals(SeProjectBeneficiaryIdValidator.class);
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForUpdate = validator ->
             validator.getClass().equals(SeProjectTaskIdValidator.class)
@@ -69,19 +72,22 @@ public class SideEffectService {
     
     @Autowired
     public SideEffectService(
-            IdGenService idGenService,
             SideEffectRepository sideEffectRepository,
             ReferralManagementConfiguration referralManagementConfiguration,
             SideEffectEnrichmentService sideEffectEnrichmentService,
             List<Validator<SideEffectBulkRequest, SideEffect>> validators
     ) {
-        this.idGenService = idGenService;
         this.sideEffectRepository = sideEffectRepository;
         this.referralManagementConfiguration = referralManagementConfiguration;
         this.sideEffectEnrichmentService = sideEffectEnrichmentService;
         this.validators = validators;
     }
 
+    /**
+     * converting SideEffectRequest to SideEffectBulkRequest
+     * @param request
+     * @return
+     */
     public SideEffect create(SideEffectRequest request) {
         log.info("received request to create side effects");
         SideEffectBulkRequest bulkRequest = SideEffectBulkRequest.builder().requestInfo(request.getRequestInfo())
@@ -90,6 +96,13 @@ public class SideEffectService {
         return create(bulkRequest, false).get(0);
     }
 
+    /**
+     * validate the request, for valid objects after enriching them, sending it to kafka, and
+     * throwing error for the invalid objects.
+     * @param sideEffectRequest
+     * @param isBulk
+     * @return
+     */
     public List<SideEffect> create(SideEffectBulkRequest sideEffectRequest, boolean isBulk) {
         log.info("received request to create bulk side effects");
         Tuple<List<SideEffect>, Map<SideEffect, ErrorDetails>> tuple = validate(validators,
@@ -115,6 +128,11 @@ public class SideEffectService {
         return validSideEffects;
     }
 
+    /**
+     * converting SideEffectRequest to SideEffectBulkRequest
+     * @param request
+     * @return
+     */
     public SideEffect update(SideEffectRequest request) {
         log.info("received request to update side effect");
         SideEffectBulkRequest bulkRequest = SideEffectBulkRequest.builder().requestInfo(request.getRequestInfo())
@@ -123,6 +141,13 @@ public class SideEffectService {
         return update(bulkRequest, false).get(0);
     }
 
+    /**
+     * validate the request, for valid objects after enriching them, sending it to kafka, and
+     * throwing error for the invalid objects.
+     * @param sideEffectRequest
+     * @param isBulk
+     * @return
+     */
     public List<SideEffect> update(SideEffectBulkRequest sideEffectRequest, boolean isBulk) {
         log.info("received request to update bulk side effect");
         Tuple<List<SideEffect>, Map<SideEffect, ErrorDetails>> tuple = validate(validators,
@@ -148,6 +173,17 @@ public class SideEffectService {
         return validSideEffects;
     }
 
+    /**
+     * searching based on parameters
+     * @param sideEffectSearchRequest
+     * @param limit
+     * @param offset
+     * @param tenantId
+     * @param lastChangedSince
+     * @param includeDeleted
+     * @return
+     * @throws Exception
+     */
     public List<SideEffect> search(SideEffectSearchRequest sideEffectSearchRequest,
                                    Integer limit,
                                    Integer offset,
@@ -173,6 +209,11 @@ public class SideEffectService {
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 
+    /**
+     * converting SideEffectRequest to SideEffectBulkRequest
+     * @param sideEffectRequest
+     * @return
+     */
     public SideEffect delete(SideEffectRequest sideEffectRequest) {
         log.info("received request to delete a side effect");
         SideEffectBulkRequest bulkRequest = SideEffectBulkRequest.builder().requestInfo(sideEffectRequest.getRequestInfo())
@@ -181,6 +222,13 @@ public class SideEffectService {
         return delete(bulkRequest, false).get(0);
     }
 
+    /**
+     * validating the request, enriching the valid objects and sending them to kafka
+     * throwing error on invalid objects
+     * @param sideEffectRequest
+     * @param isBulk
+     * @return
+     */
     public List<SideEffect> delete(SideEffectBulkRequest sideEffectRequest, boolean isBulk) {
         Tuple<List<SideEffect>, Map<SideEffect, ErrorDetails>> tuple = validate(validators,
                 isApplicableForDelete, sideEffectRequest, isBulk);
@@ -214,6 +262,14 @@ public class SideEffectService {
         log.info("successfully put side effects in cache");
     }
 
+    /**
+     * method use to valid request using parameters objects
+     * @param validators
+     * @param isApplicable
+     * @param request
+     * @param isBulk
+     * @return
+     */
     private Tuple<List<SideEffect>, Map<SideEffect, ErrorDetails>> validate(
             List<Validator<SideEffectBulkRequest, SideEffect>> validators,
             Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicable,
