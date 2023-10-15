@@ -12,6 +12,7 @@ import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -51,15 +52,15 @@ public class RmProjectBeneficiaryIdValidator  implements Validator<ReferralBulkR
             List<ProjectBeneficiary> existingProjectBeneficiaries = null;
             final List<String> projectBeneficiaryIdList = new ArrayList<>();
             final List<String> projectBeneficiaryClientReferenceIdList = new ArrayList<>();
+            referralList.forEach(referral -> {
+                addIgnoreNull(projectBeneficiaryIdList, referral.getProjectBeneficiaryId());
+                addIgnoreNull(projectBeneficiaryClientReferenceIdList, referral.getProjectBeneficiaryClientReferenceId());
+            });
+            ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
+                    .id(projectBeneficiaryIdList.isEmpty() ? null : projectBeneficiaryIdList)
+                    .clientReferenceId(projectBeneficiaryClientReferenceIdList.isEmpty() ? null : projectBeneficiaryClientReferenceIdList)
+                    .build();
             try {
-                referralList.forEach(referral -> {
-                    addIgnoreNull(projectBeneficiaryIdList, referral.getProjectBeneficiaryId());
-                    addIgnoreNull(projectBeneficiaryClientReferenceIdList, referral.getProjectBeneficiaryClientReferenceId());
-                });
-                ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
-                        .id(projectBeneficiaryIdList.isEmpty() ? null : projectBeneficiaryIdList)
-                        .clientReferenceId(projectBeneficiaryClientReferenceIdList.isEmpty() ? null : projectBeneficiaryClientReferenceIdList)
-                        .build();
                 BeneficiaryBulkResponse beneficiaryBulkResponse = serviceRequestClient.fetchResult(
                         new StringBuilder(referralManagementConfiguration.getProjectHost()
                                 + referralManagementConfiguration.getProjectBeneficiarySearchUrl()
@@ -72,7 +73,7 @@ public class RmProjectBeneficiaryIdValidator  implements Validator<ReferralBulkR
             } catch (QueryBuilderException e) {
                 existingProjectBeneficiaries = Collections.emptyList();
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                throw new CustomException("Project Beneficiaries failed to fetch", "Exception : "+e.getMessage());
             }
             final List<String> existingProjectBeneficiaryIds = new ArrayList<>();
             final List<String> existingProjectBeneficiaryClientReferenceIds = new ArrayList<>();
