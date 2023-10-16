@@ -182,4 +182,5 @@ public class ProjectConfiguration {
 
     @Value("${egov.user.id.validator}")
     private String egovUserIdValidator;
+
 }

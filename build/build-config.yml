@@ -36,6 +36,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/project/src/main/resources/db"
         image-name: "project-db"
+  - name: "builds/health-campaign-services/health-services/referralmanagement"
+    build:
+      - work-dir: "health-services/referralmanagement"
+        image-name: "referralmanagement"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/referralmanagement/src/main/resources/db"
+        image-name: "referralmanagement-db"
   - name: "builds/health-campaign-services/health-services/household"
     build:
       - work-dir: "health-services/household"
@@ -57,6 +64,11 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/household/src/main/resources/db"
         image-name: "household-db"
+  - name: "builds/health-campaign-services/core-services/error-handler"
+    build:
+      - work-dir: "core-services/error-handler"
+        image-name: "error-handler"
+        dockerfile: "build/maven/Dockerfile"        
   - name: "builds/health-campaign-services/core-services/dashboard-analytics"
     build:
       - work-dir: "core-services/dashboard-analytics"

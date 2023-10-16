@@ -9,6 +9,7 @@ import org.egov.common.models.project.TaskResource;
 import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -143,6 +144,8 @@ public class ProjectTaskEnrichmentService {
         for (Task task : validTasks) {
             log.info("enriching resources");
             List<TaskResource> resources = task.getResources();
+            if(CollectionUtils.isEmpty(resources))
+                continue;
             enrichResourcesForCreate(request, resources, task.getId());
         }
     }
