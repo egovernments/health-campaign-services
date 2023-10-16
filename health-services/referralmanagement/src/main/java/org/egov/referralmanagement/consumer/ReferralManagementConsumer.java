@@ -39,7 +39,7 @@ public class ReferralManagementConsumer {
         } catch (Exception exception) {
             log.error("Error in Referral consumer bulk create", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
-            throw new CustomException("HCM_ADRM_REFERRAL_MANAGEMENT_CREATE", exception.getMessage());
+            throw new CustomException("HCM_REFERRAL_MANAGEMENT_REFERRAL_CREATE", exception.getMessage());
         }
     }
 
@@ -52,7 +52,7 @@ public class ReferralManagementConsumer {
         } catch (Exception exception) {
             log.error("Error in Referral consumer bulk update", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
-            throw new CustomException("HCM_ADRM_REFERRAL_MANAGEMENT_CREATE", exception.getMessage());
+            throw new CustomException("HCM_REFERRAL_MANAGEMENT_REFERRAL_UPDATE", exception.getMessage());
         }
     }
 
@@ -65,7 +65,7 @@ public class ReferralManagementConsumer {
         } catch (Exception exception) {
             log.error("Error in Referral consumer bulk delete", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
-            throw new CustomException("HCM_ADRM_REFERRAL_MANAGEMENT_CREATE", exception.getMessage());
+            throw new CustomException("HCM_REFERRAL_MANAGEMENT_REFERRAL_DELETE", exception.getMessage());
         }
     }
 }

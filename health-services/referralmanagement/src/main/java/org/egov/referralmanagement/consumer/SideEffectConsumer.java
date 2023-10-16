@@ -39,7 +39,7 @@ public class SideEffectConsumer {
         } catch (Exception exception) {
             log.error("Error in Side Effect consumer bulk create", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
-            throw new CustomException("HCM_PROJECT_SIDE_EFFECT_CREATE", exception.getMessage());
+            throw new CustomException("HCM_REFERRAL_MANAGEMENT_SIDE_EFFECT_CREATE", exception.getMessage());
         }
     }
 
@@ -52,7 +52,7 @@ public class SideEffectConsumer {
         } catch (Exception exception) {
             log.error("Error in Side Effect consumer bulk update", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
-            throw new CustomException("HCM_PROJECT_SIDE_EFFECT_CREATE", exception.getMessage());
+            throw new CustomException("HCM_REFERRAL_MANAGEMENT_SIDE_EFFECT_UPDATE", exception.getMessage());
         }
     }
 
@@ -65,7 +65,7 @@ public class SideEffectConsumer {
         } catch (Exception exception) {
             log.error("Error in Side Effect consumer bulk delete", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
-            throw new CustomException("HCM_PROJECT_SIDE_EFFECT_CREATE", exception.getMessage());
+            throw new CustomException("HCM_REFERRAL_MANAGEMENT_SIDE_EFFECT_DELETE", exception.getMessage());
         }
     }
 }

@@ -1,6 +1,5 @@
 package org.egov.common.models.referralmanagement.sideeffect;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,6 +11,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @NoArgsConstructor
@@ -30,7 +30,8 @@ public class SideEffectBulkResponse {
     private List<SideEffect> sideEffects = new ArrayList<>();
 
     public SideEffectBulkResponse addSideEffectItem(SideEffect sideEffectItem) {
-        this.sideEffects.add(sideEffectItem);
+        if(Objects.nonNull(sideEffectItem))
+            this.sideEffects.add(sideEffectItem);
         return this;
     }
 }
