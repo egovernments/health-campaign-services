@@ -9,7 +9,10 @@ import org.egov.referralmanagement.validator.RmFacilityEntitiesIdValidator;
 import org.egov.referralmanagement.validator.RmIsDeletedValidator;
 import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmNullIdValidator;
+import org.egov.referralmanagement.validator.RmProjectBeneficiaryIdValidator;
 import org.egov.referralmanagement.validator.RmProjectEntitiesIdValidator;
+import org.egov.referralmanagement.validator.RmRecipientIdValidator;
+import org.egov.referralmanagement.validator.RmSideEffectIdValidator;
 import org.egov.referralmanagement.validator.RmUniqueEntityValidator;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -54,12 +57,14 @@ public class ReferralManagementService {
     private final List<Validator<ReferralBulkRequest, Referral>> validators;
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
-            validator.getClass().equals(RmProjectEntitiesIdValidator.class)
-                || validator.getClass().equals(RmFacilityEntitiesIdValidator.class);
+            validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmRecipientIdValidator.class)
+                || validator.getClass().equals(RmSideEffectIdValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(RmProjectEntitiesIdValidator.class)
-                || validator.getClass().equals(RmFacilityEntitiesIdValidator.class)
+            validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmRecipientIdValidator.class)
+                || validator.getClass().equals(RmSideEffectIdValidator.class)
                 || validator.getClass().equals(RmNullIdValidator.class)
                 || validator.getClass().equals(RmIsDeletedValidator.class)
                 || validator.getClass().equals(RmUniqueEntityValidator.class)
@@ -67,7 +72,7 @@ public class ReferralManagementService {
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForDelete = validator ->
             validator.getClass().equals(RmNullIdValidator.class)
-                    || validator.getClass().equals(RmNonExistentEntityValidator.class);
+                || validator.getClass().equals(RmNonExistentEntityValidator.class);
 
 
     public ReferralManagementService(IdGenService idGenService, ReferralRepository referralRepository, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementEnrichmentService referralManagementEnrichmentService, List<Validator<ReferralBulkRequest, Referral>> validators) {

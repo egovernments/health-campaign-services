@@ -29,11 +29,13 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 
 
-/**/
+/**
+ * Validate whether project beneficiary exist in db or not using project beneficiary id and project beneficiary client beneficiary id for Referral object
+ */
 @Component
 @Order(value = 3)
 @Slf4j
-public class RmProjectBeneficiaryIdValidator  implements Validator<ReferralBulkRequest, Referral> {
+public class RmProjectBeneficiaryIdValidator implements Validator<ReferralBulkRequest, Referral> {
     private final ServiceRequestClient serviceRequestClient;
     private final ReferralManagementConfiguration referralManagementConfiguration;
 
@@ -61,6 +63,7 @@ public class RmProjectBeneficiaryIdValidator  implements Validator<ReferralBulkR
                     .clientReferenceId(projectBeneficiaryClientReferenceIdList.isEmpty() ? null : projectBeneficiaryClientReferenceIdList)
                     .build();
             try {
+                // validating project beneficiary ids by callilng project beneficiary search and fetching the valid ids.
                 BeneficiaryBulkResponse beneficiaryBulkResponse = serviceRequestClient.fetchResult(
                         new StringBuilder(referralManagementConfiguration.getProjectHost()
                                 + referralManagementConfiguration.getProjectBeneficiarySearchUrl()
@@ -82,8 +85,8 @@ public class RmProjectBeneficiaryIdValidator  implements Validator<ReferralBulkR
                 existingProjectBeneficiaryClientReferenceIds.add(projectBeneficiary.getClientReferenceId());
             });
             List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                            !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
-                            && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
+                !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
+                    && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
             ).collect(Collectors.toList());
             invalidEntities.forEach(referral -> {
                 Error error = getErrorForNonExistentEntity();
