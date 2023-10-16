@@ -2,12 +2,15 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.ProjectBeneficiary;
+
+import javax.validation.Valid;
 
 @Data
 @AllArgsConstructor
@@ -75,4 +78,9 @@ public class ProjectTaskIndexV1 {
     private String clientReferenceId;
     @JsonProperty("tenantId")
     private String tenantId;
+    @JsonProperty("clientAuditDetails")
+    private @Valid AuditDetails clientAuditDetails;
+    @JsonProperty("syncedTime")
+    private String syncedTime;
+
 }
