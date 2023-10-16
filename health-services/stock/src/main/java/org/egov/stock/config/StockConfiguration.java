@@ -54,5 +54,8 @@ public class StockConfiguration {
 
     @Value("${egov.search.project.facility.url}")
     private String projectFacilityServiceSearchUrl;
+
+    @Value("${egov.persister.bulk.processing.enabled}")
+    private Boolean isPersisterBulkProcessingEnabled;
     
 }

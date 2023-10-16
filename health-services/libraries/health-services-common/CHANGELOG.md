@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.14
+- fixed search in cache when includeDeleted is true
+
 ## 1.0.13
 - removed exponential loop in unhandled-error handler
 

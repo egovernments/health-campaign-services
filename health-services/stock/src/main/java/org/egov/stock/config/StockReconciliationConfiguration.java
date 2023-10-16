@@ -42,4 +42,7 @@ public class StockReconciliationConfiguration {
 
     @Value("${stock.reconciliation.idgen.id.format}")
     private String stockReconciliationIdFormat;
+
+    @Value("${egov.persister.bulk.processing.enabled}")
+    private Boolean isPersisterBulkProcessingEnabled;
 }
