@@ -20,6 +20,7 @@ import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
 import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
+import org.egov.project.validator.task.PtIsResouceEmptyValidator;
 import org.egov.project.validator.task.PtNonExistentEntityValidator;
 import org.egov.project.validator.task.PtNullIdValidator;
 import org.egov.project.validator.task.PtProductVariantIdValidator;
@@ -70,11 +71,13 @@ public class ProjectTaskService {
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForCreate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
+                    || validator.getClass().equals(PtIsResouceEmptyValidator.class)
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
                     || validator.getClass().equals(PtProductVariantIdValidator.class);
 
     private final Predicate<Validator<TaskBulkRequest, Task>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PtProjectIdValidator.class)
+                    || validator.getClass().equals(PtIsResouceEmptyValidator.class)
                     || validator.getClass().equals(PtProjectBeneficiaryIdValidator.class)
                     || validator.getClass().equals(PtProductVariantIdValidator.class)
                     || validator.getClass().equals(PtNullIdValidator.class)
