@@ -1,4 +1,4 @@
-package org.egov.common.models.project;
+package org.egov.common.models.referralmanagement.sideeffect;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -8,42 +8,35 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-import java.util.ArrayList;
 import java.util.List;
-
-/**
-* Task
-*/
-@Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Task {
+public class SideEffect {
 
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    private String tenantId = null;
 
     @JsonProperty("clientReferenceId")
     @Size(min = 2, max = 64)
     private String clientReferenceId = null;
 
-    @JsonProperty("projectId")
+    @JsonProperty("taskId")
+    @Size(min = 2, max = 64)
+    private String taskId = null;
+
+    @JsonProperty("taskClientReferenceId")
     @NotNull
-    @Size(min=2,max=64)
-    private String projectId = null;
+    @Size(min = 2, max = 64)
+    private String taskClientReferenceId = null;
 
     @JsonProperty("projectBeneficiaryId")
     @Size(min = 2, max = 64)
@@ -53,36 +46,15 @@ public class Task {
     @Size(min = 2, max = 64)
     private String projectBeneficiaryClientReferenceId = null;
 
-    @JsonProperty("resources")
-    @Valid
-    @Builder.Default
-    private List<TaskResource> resources = new ArrayList<>();
+    @JsonProperty("symptoms")
+    @NotNull
+    @Size(min=1)
+    private List<String> symptoms = null;
 
-    @JsonProperty("plannedStartDate")
-    private Long plannedStartDate = null;
-
-    @JsonProperty("plannedEndDate")
-    private Long plannedEndDate = null;
-
-    @JsonProperty("actualStartDate")
-    private Long actualStartDate = null;
-
-    @JsonProperty("actualEndDate")
-    private Long actualEndDate = null;
-
-    @JsonProperty("createdBy")
-    private String createdBy = null;
-
-    @JsonProperty("createdDate")
-    private Long createdDate = null;
-
-    @JsonProperty("address")
-    @Valid
-    private Address address = null;
-
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
+    @JsonProperty("tenantId")
+    @NotNull
+    @Size(min=2, max = 1000)
+    private String tenantId = null;
 
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
@@ -98,15 +70,6 @@ public class Task {
     @Valid
     private AuditDetails clientAuditDetails = null;
 
-    @JsonProperty("status")
-    private String status = null;
-
     @JsonIgnore
     private Boolean hasErrors = Boolean.FALSE;
-
-    public Task addResourcesItem(TaskResource resourcesItem) {
-        this.resources.add(resourcesItem);
-        return this;
-    }
 }
-
