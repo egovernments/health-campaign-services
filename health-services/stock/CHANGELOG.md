@@ -1,7 +1,12 @@
 All notable changes to this module will be documented in this file.
+## 1.1.1-beta
+
+- Enhanced Inventory flow by introducing more actors.
+
+## 1.1.0
+
 
 ## 1.0.0
 
 - Base version
 
-## 1.1.0
