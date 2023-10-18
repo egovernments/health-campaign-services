@@ -117,7 +117,6 @@ public class LineChartResponseHandler implements IResponseHandler {
             Set<String> finalBucketKeys = new LinkedHashSet<>();
 
             // For multi aggr, find all plot keys first
-//            enrichBucketKeys(aggrNodes, finalBucketKeys, interval);
             enrichBucketKeys(aggrNodes, finalBucketKeys, interval, startDate, isPredictionEnabled);
             initializeMultiAggrPlotMap(multiAggrPlotMap, finalBucketKeys);
 

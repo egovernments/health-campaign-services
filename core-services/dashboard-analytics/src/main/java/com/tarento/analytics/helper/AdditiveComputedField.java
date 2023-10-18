@@ -93,4 +93,3 @@ public class AdditiveComputedField implements IComputedField<Data> {
         return false;
     }
 }
-
