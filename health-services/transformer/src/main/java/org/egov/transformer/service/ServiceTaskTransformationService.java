@@ -97,7 +97,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
-            String syncedTime = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
             return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
@@ -117,7 +117,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())
                     .attributes(service.getAttributes())
-                    .syncedTime(syncedTime)
+                    .syncedTime(service.getAuditDetails().getCreatedTime())
+                    .syncedTimeStamp(syncedTimeStamp)
                     .build());
         }
     }

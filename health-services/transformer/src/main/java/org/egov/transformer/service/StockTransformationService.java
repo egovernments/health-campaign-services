@@ -20,9 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.PROJECT;
-import static org.egov.transformer.Constants.TYPE_KEY;
-import static org.egov.transformer.Constants.WAREHOUSE;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class StockTransformationService implements TransformationService<Stock>{
@@ -84,6 +82,7 @@ public abstract class StockTransformationService implements TransformationServic
         public List<StockIndexV1> transform(Stock stock) {
             Map<String, String> boundaryLabelToNameMap = null;
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
+            Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
             if (facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
@@ -94,21 +93,17 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
 
-            String transactingPartyName = null;
-            String transactingPartyType = stock.getTransactingPartyType();
-            String transactingFacilityType = transactingPartyType;
+            String facilityLevel = getFacilityLevel(facility);
+            String transactingFacilityLevel = getFacilityLevel(transactingFacility);
+            Long facilityTarget = getFacilityTarget(facility);
+
             String facilityType = WAREHOUSE;
-            if (WAREHOUSE.equals(transactingPartyType)) {
-                Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
-                transactingPartyName = transactingFacility.getName();
-                transactingFacilityType = getType(transactingFacilityType, transactingFacility);
-            } else {
-                transactingPartyName = stock.getTransactingPartyId();
-            }
+            String transactingFacilityType = WAREHOUSE;
 
             facilityType = getType(facilityType, facility);
+            transactingFacilityType = getType(transactingFacilityType, transactingFacility);
 
-            String syncedTime = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
 
             return Collections.singletonList(StockIndexV1.builder()
                     .id(stock.getId())
@@ -118,8 +113,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
                     .transactingFacilityId(stock.getTransactingPartyId())
-                    .transactingPartyName(transactingPartyName)
-                    .transactingPartyType(transactingPartyType)
+                    .transactingFacilityName(transactingFacility.getName())
                     .facilityType(facilityType)
                     .transactingFacilityType(transactingFacilityType)
                     .physicalCount(stock.getQuantity())
@@ -130,7 +124,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .createdTime(stock.getClientAuditDetails().getCreatedTime())
                     .dateOfEntry(stock.getDateOfEntry())
                     .createdBy(stock.getAuditDetails().getCreatedBy())
-                    .lastModifiedTime(stock.getAuditDetails().getLastModifiedTime())
+                    .lastModifiedTime(stock.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())
                     .longitude(facility.getAddress() != null ? facility.getAddress().getLongitude() : null )
                     .latitude(facility.getAddress() != null ? facility.getAddress().getLatitude() : null)
@@ -142,7 +136,11 @@ public abstract class StockTransformationService implements TransformationServic
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .additionalFields(stock.getAdditionalFields())
                     .clientAuditDetails(stock.getClientAuditDetails())
-                    .syncedTime(syncedTime)
+                    .syncedTimeStamp(syncedTimeStamp)
+                    .syncedTime(stock.getAuditDetails().getCreatedTime())
+                    .facilityLevel(facilityLevel)
+                    .transactingFacilityLevel(transactingFacilityLevel)
+                    .facilityTarget(facilityTarget)
                     .build());
         }
 
@@ -156,6 +154,23 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
             return transactingFacilityType;
+        }
+
+        private Long getFacilityTarget(Facility facility) {
+            AdditionalFields facilityAdditionalFields = facility.getAdditionalFields();
+            if (facilityAdditionalFields != null) {
+                List<Field> fields = facilityAdditionalFields.getFields();
+                Optional<Field> field = fields.stream().filter(field1 -> FACILITY_TARGET_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
+                if (field.isPresent() && field.get().getValue() != null) {
+                    return Long.valueOf(field.get().getValue());
+                }
+            }
+            return null;
+        }
+
+        private String getFacilityLevel(Facility facility) {
+            return facility.getUsage().equalsIgnoreCase(WAREHOUSE) ?
+                    (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
         }
     }
 }

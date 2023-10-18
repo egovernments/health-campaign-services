@@ -118,7 +118,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             log.info("member count is {}", memberCount);
 
-            String syncedTime = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
 
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
@@ -146,7 +146,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .locationAccuracy(task.getAddress().getLocationAccuracy())
                             .createdTime(task.getClientAuditDetails().getCreatedTime())
                             .createdBy(task.getAuditDetails().getCreatedBy())
-                            .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
+                            .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
                             .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
                             .projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId)
                             .isDeleted(task.getIsDeleted())
@@ -154,7 +154,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .projectBeneficiary(finalProjectBeneficiary)
                             .household(finalHousehold)
                             .clientAuditDetails(task.getClientAuditDetails())
-                            .syncedTime(syncedTime)
+                            .syncedTimeStamp(syncedTimeStamp)
+                            .syncedTime(task.getAuditDetails().getCreatedTime())
                             .build()
             ).collect(Collectors.toList());
         }
