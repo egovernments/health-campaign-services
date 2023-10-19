@@ -5,7 +5,7 @@
     <artifactId>individual</artifactId>
     <packaging>jar</packaging>
     <name>individual</name>
-    <version>1.1.1</version>
+    <version>1.1.2-beta</version>
     <properties>
         <java.version>1.8</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -49,7 +49,7 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-models</artifactId>
-            <version>1.0.7-SNAPSHOT</version>
+            <version>1.0.9-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
