@@ -11,5 +11,5 @@ public interface Constants {
     String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
     String GET_ID = "getId";
     String STAFF = "STAFF";
-    String FACILITY = "WAREHOUSE";
+    String FACILITY = "FACILITY";
 }
