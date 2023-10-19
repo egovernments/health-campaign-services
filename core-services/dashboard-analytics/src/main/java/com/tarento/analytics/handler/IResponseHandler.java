@@ -47,6 +47,7 @@ public interface IResponseHandler {
 	public final static String ACTUAL_VS_PLANNED_CAPPED_TARGET = "cappedTarget";
 	// Table Chart Keys
 	public static final String SERIAL_NUMBER = "S.N.";
+	public static final String INCLUDE_CONSTANT_COLUMNS = "includeConstantColumns";
 	public static final String TABLE_TEXT = "text" ;
 	public static final String TABLE_KEY = "Key";
 
