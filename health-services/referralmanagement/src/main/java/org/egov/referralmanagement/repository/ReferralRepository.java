@@ -40,7 +40,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
 
     public List<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT r.*, se.id, se.clientreferenceid, se.tenantid, se.taskid, se.taskclientreferenceid, se.symptoms, se.reattempts, se.createdby, se.createdtime, se.lastmodifiedby, se.lastmodifiedtime, se.clientcreatedtime, se.clientlastmodifiedtime, se.rowversion, se.isdeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid";
+        String query = "SELECT r.*, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedBy, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
@@ -80,7 +80,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
             }
         }
 
-        String query = String.format("SELECT r.*, se.id, se.clientreferenceid, se.tenantid, se.taskid, se.taskclientreferenceid, se.symptoms, se.reattempts, se.createdby, se.createdtime, se.lastmodifiedby, se.lastmodifiedtime, se.clientcreatedtime, se.clientlastmodifiedtime, se.rowversion, se.isdeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid WHERE r.%s IN (:ids) ", columnName);
+        String query = String.format("SELECT r.*, , se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedBy, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid WHERE r.%s IN (:ids) ", columnName);
         if (includeDeleted == null || !includeDeleted) {
             query += " AND r.isDeleted = false ";
         }

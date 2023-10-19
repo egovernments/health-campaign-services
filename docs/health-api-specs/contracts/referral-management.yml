@@ -548,6 +548,8 @@ definitions:
         type: array
         items:
           type: string
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
       isDeleted:
         $ref: '#/definitions/isDeleted'
       rowVersion:
@@ -682,6 +684,8 @@ definitions:
           type: string
       sideEffect:
         $ref: '#/definition/SideEffect'
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
       isDeleted:
         $ref: '#/definitions/isDeleted'
       rowVersion:
