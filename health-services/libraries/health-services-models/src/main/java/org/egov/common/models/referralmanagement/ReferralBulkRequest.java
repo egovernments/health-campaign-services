@@ -22,7 +22,7 @@ public class ReferralBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private RequestInfo requestInfo;
 
     @JsonProperty("Referrals")
     @NotNull

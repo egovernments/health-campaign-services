@@ -18,10 +18,10 @@ public class ReferralResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
-    private ResponseInfo responseInfo = null;
+    private ResponseInfo responseInfo;
 
     @JsonProperty("Referral")
     @NotNull
     @Valid
-    private Referral referral = null;
+    private Referral referral;
 }

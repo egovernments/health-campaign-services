@@ -19,11 +19,11 @@ public class SideEffectResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
-    private ResponseInfo responseInfo = null;
+    private ResponseInfo responseInfo;
 
     @JsonProperty("SideEffect")
     @NotNull
     @Valid
-    private SideEffect sideEffect = null;
+    private SideEffect sideEffect;
 
 }

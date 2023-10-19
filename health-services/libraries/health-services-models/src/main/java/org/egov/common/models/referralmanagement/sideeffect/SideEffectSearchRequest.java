@@ -18,9 +18,9 @@ public class SideEffectSearchRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private RequestInfo requestInfo;
 
     @JsonProperty("SideEffect")
     @Valid
-    private SideEffectSearch sideEffect = null;
+    private SideEffectSearch sideEffect;
 }

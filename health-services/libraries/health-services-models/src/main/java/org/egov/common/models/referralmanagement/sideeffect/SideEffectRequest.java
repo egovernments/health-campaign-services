@@ -18,10 +18,10 @@ public class SideEffectRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private RequestInfo requestInfo;
 
     @JsonProperty("SideEffect")
     @NotNull
     @Valid
-    private SideEffect sideEffect = null;
+    private SideEffect sideEffect;
 }
