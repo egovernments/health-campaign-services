@@ -52,14 +52,16 @@ public class RmSideEffectIdValidator implements Validator<ReferralBulkRequest, R
                 if (Objects.nonNull(referral.getSideEffect()))
                     addIgnoreNull(sideEffectIds, referral.getSideEffect().getId());
             });
-            List<String> validSideEffectIds;
-            try {
-                validSideEffectIds = sideEffectService.search(
-                        SideEffectSearchRequest.builder().sideEffect(SideEffectSearch.builder().id(sideEffectIds).build()).build(),
-                        sideEffectIds.size(), 0, tenantId, null, false
-                ).stream().map(SideEffect::getId).collect(Collectors.toList());
-            } catch (Exception e) {
-                throw new CustomException("Side Effect failed to fetch", "Exception : " + e.getMessage());
+            List<String> validSideEffectIds = new ArrayList<>();
+            if(!sideEffectIds.isEmpty()) {
+                try {
+                    validSideEffectIds = sideEffectService.search(
+                            SideEffectSearchRequest.builder().sideEffect(SideEffectSearch.builder().id(sideEffectIds).build()).build(),
+                            sideEffectIds.size(), 0, tenantId, null, false
+                    ).stream().map(SideEffect::getId).collect(Collectors.toList());
+                } catch (Exception e) {
+                    throw new CustomException("Side Effect failed to fetch", "Exception : " + e.getMessage());
+                }
             }
             sideEffectIds.removeAll(validSideEffectIds);
             List<String> invalidSideEffectIds = new ArrayList<>(sideEffectIds);
