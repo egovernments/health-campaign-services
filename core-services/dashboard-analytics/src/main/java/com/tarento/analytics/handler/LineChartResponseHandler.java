@@ -84,7 +84,7 @@ public class LineChartResponseHandler implements IResponseHandler {
         boolean isPredictionEnabled = predictionPath!=null;
         String action = chartNode.get(ACTION).asText();
         Double divisorValues = 1.0;
-
+        boolean showPercentageValue = chartNode.has(SHOW_PERCENTAGE_VALUE) ? chartNode.get(SHOW_PERCENTAGE_VALUE).asBoolean() : false;
         if(isPredictionEnabled ){
             List<JsonNode> aggrNodes = aggregationNode.findValues(CHART_SPECIFIC);
             startDate = (aggrNodes.get(0).findValues(START_DATE).get(0).findValues("key").get(0).asLong()/86400000)*86400000;
@@ -245,6 +245,15 @@ public class LineChartResponseHandler implements IResponseHandler {
         if (chartNode.has(SORT)) {
             String sortingKey = chartNode.get(SORT).asText();
             dataList = sortingHelper.sort(sortingKey, dataList);
+        }
+
+        if (showPercentageValue && cappedTargetValue!=null){
+            dataList.forEach(data -> {
+                data.setHeaderValue(((Double) data.getHeaderValue())*100/cappedTargetValue.doubleValue());
+                data.getPlots().forEach(plot -> {
+                    plot.setValue((plot.getValue()*100)/cappedTargetValue.doubleValue());
+                });
+            });
         }
         return getAggregatedDto(chartNode, dataList, requestDto.getVisualizationCode());
     }

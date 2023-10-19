@@ -99,7 +99,7 @@ public interface IResponseHandler {
 	public final String END_DATE = "endDate";
 	public final String PREDICTION_PATH = "predictionPath";
 	public final String DISTRIBUTION_PATH = "distributionPath";
-
+	public final String SHOW_PERCENTAGE_VALUE = "showPercentageValue";
 	public static final String XTABLE_COLUMN = "XtableColumnOrder";
 
 	public static final String IS_ROUND_OFF = "isRoundOff";
