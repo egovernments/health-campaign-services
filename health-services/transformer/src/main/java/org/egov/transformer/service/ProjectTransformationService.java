@@ -10,11 +10,12 @@ import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import java.lang.reflect.*;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -73,9 +74,24 @@ public abstract class ProjectTransformationService implements TransformationServ
                     .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
+            String fieldToCheck = "Target";
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
             }
+            if(project.getAdditionalDetails()!=null){
+                Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
+                if(isFieldPresent(project.getAdditionalDetails(),fieldToCheck)){
+                    List<Target> additionalTargets = (List<Target>) project.getAdditionalDetails();
+                    if(!CollectionUtils.isEmpty(additionalTargets)) {
+                        additionalTargets.forEach(target -> {
+                            if (!beneficiaryTypes.contains(target.getBeneficiaryType())) {
+                                targets.add(target);
+                            }
+                        });
+                    }
+                }
+            }
+
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
                         Long endDate = project.getEndDate();
@@ -119,6 +135,18 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .build();
                     }
             ).collect(Collectors.toList());
+        }
+
+        private boolean isFieldPresent(Object objectToTest,String fieldToCheck){
+            Class<?> clazz = objectToTest.getClass();
+            Field[] getFields = clazz.getDeclaredFields();
+            AtomicBoolean isFieldPresent = new AtomicBoolean(false);
+            Arrays.stream(getFields).forEach(field -> {
+                if(field.toString().contains(fieldToCheck)){
+                    isFieldPresent.set(true);
+                }
+            });
+            return isFieldPresent.get();
         }
     }
 }
