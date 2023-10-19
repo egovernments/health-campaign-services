@@ -28,16 +28,14 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
-    private static UserService userService = null;
 
     @Autowired
     protected ProjectTaskTransformationService(ProjectTaskIndexV1Transformer transformer,
-                                               Producer producer, TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
+                                               Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
         this.commonUtils = commonUtils;
-        this.userService = userService;
     }
 
     @Override
@@ -67,14 +65,15 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final TransformerProperties properties;
         private final HouseholdService householdService;
         private final CommonUtils commonUtils;
-
+        private UserService userService;
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils) {
+                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
             this.commonUtils = commonUtils;
+            this.userService = userService;
         }
 
         @Override

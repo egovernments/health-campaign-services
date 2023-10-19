@@ -26,14 +26,13 @@ public abstract class ProjectStaffTransformationService implements Transformatio
     protected final Producer producer;
 
     protected final TransformerProperties properties;
-    private static UserService userService = null;
+
     @Autowired
     protected ProjectStaffTransformationService(ProjectStaffIndexV1Transformer transformer,
-                                                Producer producer, TransformerProperties properties, UserService userService) {
+                                                Producer producer, TransformerProperties properties) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
-        this.userService = userService;
     }
 
     @Override
@@ -62,10 +61,13 @@ public abstract class ProjectStaffTransformationService implements Transformatio
             Transformer<ProjectStaff, ProjectStaffIndexV1> {
         private final ProjectService projectService;
         private final TransformerProperties properties;
+
+        private UserService userService;
         @Autowired
-        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
+        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties,UserService userService) {
             this.projectService = projectService;
             this.properties = properties;
+            this.userService = userService;
         }
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {

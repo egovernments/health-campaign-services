@@ -33,15 +33,13 @@ public abstract class StockTransformationService implements TransformationServic
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
-    private static UserService userService = null;
     protected StockTransformationService(StockIndexV1Transformer transformer,
                                          Producer producer,
-                                         TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
+                                         TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
         this.commonUtils = commonUtils;
-        this.userService = userService;
     }
 
     @Override
@@ -73,13 +71,14 @@ public abstract class StockTransformationService implements TransformationServic
         private final FacilityService facilityService;
         private final TransformerProperties properties;
         private final CommonUtils commonUtils;
-
+        private UserService userService;
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
-                                TransformerProperties properties, CommonUtils commonUtils) {
+                                TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
             this.projectService = projectService;
             this.facilityService = facilityService;
             this.properties = properties;
             this.commonUtils = commonUtils;
+            this.userService = userService;
         }
 
         @Override

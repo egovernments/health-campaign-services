@@ -63,8 +63,8 @@ public class UserService {
             return response.getUser();
         } catch (Exception e) {
             log.error("Exception while searching users : ", e);
-            throw new CustomException("USER_SEARCH_ERROR", e.getMessage());
         }
+        return new ArrayList<>();
     }
 
     public HashMap<String, Integer> getProjectStaffRoles(String tenantId){
@@ -72,13 +72,14 @@ public class UserService {
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
         MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, PROJECT_STAFF_ROLES, moduleName);
-        MdmsResponse mdmsResponse = new MdmsResponse();
+        JSONArray projectStaffRoles = new JSONArray();
         try {
-            mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.error("Exception while fetching mdms roles : {}", e);
         }
-        JSONArray projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
+
         HashMap<String,Integer> projectStaffRolesMap = new HashMap<>();
         ObjectMapper objectMapper = new ObjectMapper();
         projectStaffRoles.forEach(role -> {

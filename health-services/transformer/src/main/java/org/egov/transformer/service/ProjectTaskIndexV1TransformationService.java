@@ -16,8 +16,8 @@ public class ProjectTaskIndexV1TransformationService extends ProjectTaskTransfor
 
     @Autowired
     public ProjectTaskIndexV1TransformationService(ProjectTaskIndexV1Transformer transformer,
-                                                   Producer producer, TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
-        super(transformer, producer, properties, commonUtils,userService);
+                                                   Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
+        super(transformer, producer, properties, commonUtils);
     }
 
     @Override
