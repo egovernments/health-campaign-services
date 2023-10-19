@@ -21,7 +21,7 @@ public class ReferralBulkResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
-    private ResponseInfo responseInfo = null;
+    private ResponseInfo responseInfo;
 
     @JsonProperty("Referrals")
     @NotNull

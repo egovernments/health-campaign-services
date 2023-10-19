@@ -14,15 +14,15 @@ import java.util.List;
 @Builder
 public class SideEffectSearch {
     @JsonProperty("id")
-    private List<String> id = null;
+    private List<String> id;
 
     @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId = null;
+    private List<String> clientReferenceId;
 
     @JsonProperty("taskId")
-    private String taskId = null;
+    private String taskId;
 
     @JsonProperty("taskClientReferenceId")
-    private String taskClientReferenceId = null;
+    private String taskClientReferenceId;
 
 }

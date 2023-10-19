@@ -9,8 +9,11 @@ import org.egov.common.models.project.ProjectStaffSearch;
 import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
+import org.egov.common.service.UserService;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.service.FacilityService;
+import org.egov.referralmanagement.util.ValidatorUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -25,21 +28,22 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
+import static org.egov.referralmanagement.Constants.STAFF;
 
 /**
- *
+ * Validate the referrer using user service
  */
 @Component
 @Order(value = 3)
 @Slf4j
 public class RmReferrerIdValidator implements Validator<ReferralBulkRequest, Referral> {
 
-    private final ServiceRequestClient serviceRequestClient;
-    private final ReferralManagementConfiguration referralManagementConfiguration;
+    private final FacilityService facilityService;
+    private final UserService userService;
 
-    public RmReferrerIdValidator(ServiceRequestClient serviceRequestClient, ReferralManagementConfiguration referralManagementConfiguration) {
-        this.serviceRequestClient = serviceRequestClient;
-        this.referralManagementConfiguration = referralManagementConfiguration;
+    public RmReferrerIdValidator(FacilityService facilityService, UserService userService) {
+        this.facilityService = facilityService;
+        this.userService = userService;
     }
 
     @Override
@@ -49,30 +53,18 @@ public class RmReferrerIdValidator implements Validator<ReferralBulkRequest, Ref
         List<Referral> entities = request.getReferrals();
         Map<String, List<Referral>> tenantIdReferralMap = entities.stream().collect(Collectors.groupingBy(Referral::getTenantId));
         tenantIdReferralMap.forEach((tenantId, referralList) -> {
-            List<ProjectStaff> existingProjectStaffList = new ArrayList<>();
             final List<String> projectStaffUuidList = new ArrayList<>();
             referralList.forEach(referral -> addIgnoreNull(projectStaffUuidList, referral.getReferrerId()));
-            ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
-                    .id(projectStaffUuidList.isEmpty() ? null : projectStaffUuidList)
-                    .build();
+            List<String> invalidStaffIds = new ArrayList<>(projectStaffUuidList);
             try {
-                ProjectStaffBulkResponse projectStaffBulkResponse = serviceRequestClient.fetchResult(
-                        new StringBuilder(referralManagementConfiguration.getProjectHost()
-                                + referralManagementConfiguration.getProjectStaffSearchUrl()
-                                +"?limit=" + entities.size()
-                                + "&offset=0&tenantId=" + tenantId),
-                        ProjectStaffSearchRequest.builder().requestInfo(request.getRequestInfo()).projectStaff(projectStaffSearch).build(),
-                        ProjectStaffBulkResponse.class
-                );
-                existingProjectStaffList = projectStaffBulkResponse.getProjectStaff();
+                ValidatorUtil.validateAndEnrichStaffIds(request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
             } catch (Exception e) {
                 throw new CustomException("Project Staff failed to fetch", "Exception : "+e.getMessage());
             }
-            final List<String> existingProjectStaffUuids = new ArrayList<>();
-            existingProjectStaffList.forEach(projectStaff -> existingProjectStaffUuids.add(projectStaff.getId()));
             List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                    !existingProjectStaffUuids.contains(entity.getReferrerId())
+                    invalidStaffIds.contains(entity.getReferrerId())
             ).collect(Collectors.toList());
+
             invalidEntities.forEach(referral -> {
                 Error error = getErrorForNonExistentEntity();
                 populateErrorDetails(referral, error, errorDetailsMap);

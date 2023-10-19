@@ -18,9 +18,9 @@ public class ReferralSearchRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private RequestInfo requestInfo;
 
     @JsonProperty("Referral")
     @Valid
-    private ReferralSearch referral = null;
+    private ReferralSearch referral;
 }

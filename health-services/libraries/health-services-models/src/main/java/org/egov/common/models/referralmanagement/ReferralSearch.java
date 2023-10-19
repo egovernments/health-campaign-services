@@ -14,26 +14,26 @@ import java.util.List;
 @Builder
 public class ReferralSearch {
     @JsonProperty("id")
-    private List<String> id = null;
+    private List<String> id;
 
     @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId = null;
+    private List<String> clientReferenceId;
 
     @JsonProperty("projectBeneficiaryId")
-    private List<String> projectBeneficiaryId = null;
+    private List<String> projectBeneficiaryId;
 
     @JsonProperty("projectBeneficiaryClientReferenceId")
-    private List<String> projectBeneficiaryClientReferenceId = null;
+    private List<String> projectBeneficiaryClientReferenceId;
 
     @JsonProperty("sideEffectId")
-    private List<String> sideEffectId = null;
+    private List<String> sideEffectId;
 
     @JsonProperty("sideEffectClientReferenceId")
-    private List<String> sideEffectClientReferenceId = null;
+    private List<String> sideEffectClientReferenceId;
 
     @JsonProperty("referrerId")
-    private List<String> referrerId = null;
+    private List<String> referrerId;
 
     @JsonProperty("recipientId")
-    private List<String> recipientId = null;
+    private List<String> recipientId;
 }

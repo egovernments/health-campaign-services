@@ -22,7 +22,7 @@ public class SideEffectBulkResponse {
     @JsonProperty("ResponseInfo")
     @NotNull
     @Valid
-    private ResponseInfo responseInfo = null;
+    private ResponseInfo responseInfo;
 
     @JsonProperty("SideEffects")
     @NotNull
