@@ -116,7 +116,7 @@ serviceMaps:
       fromTopic: update-referral-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, additionalDetails = ?, sideEffectId = ?, sideEffectClientReferenceId = ?, createdBy = ?, createdTime = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientCreatedBy = ?, clientCreatedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+        - query: UPDATE REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, additionalDetails = ?, sideEffectId = ?, sideEffectClientReferenceId = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
