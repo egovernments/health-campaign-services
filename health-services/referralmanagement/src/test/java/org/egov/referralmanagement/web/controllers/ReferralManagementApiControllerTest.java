@@ -55,7 +55,7 @@ public class ReferralManagementApiControllerTest {
     ReferralManagementConfiguration referralManagementConfiguration;
 
     @Test
-    @DisplayName("should create side effect and return with 202 accepted")
+    @DisplayName("should create referral and return with 202 accepted")
     void shouldCreateReferralAndReturnWith202Accepted() throws Exception {
         ReferralRequest request = ReferralRequestTestBuilder.builder()
                 .withOneReferral()
@@ -64,7 +64,7 @@ public class ReferralManagementApiControllerTest {
         List<Referral> referrals = getReferrals();
         Mockito.when(referralManagementService.create(ArgumentMatchers.any(ReferralRequest.class))).thenReturn(referrals.get(0));
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/side-effect/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
@@ -89,7 +89,7 @@ public class ReferralManagementApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/referralmanagement/v1/_create")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(ReferralRequestTestBuilder.builder()
                                 .withOneReferral()
@@ -105,7 +105,7 @@ public class ReferralManagementApiControllerTest {
     }
 
     @Test
-    @DisplayName("should update side effect and return with 202 accepted")
+    @DisplayName("should update referral and return with 202 accepted")
     void shouldUpdateReferralAndReturnWith202Accepted() throws Exception {
         ReferralRequest request = ReferralRequestTestBuilder.builder()
                 .withOneReferralHavingId()
@@ -114,7 +114,7 @@ public class ReferralManagementApiControllerTest {
         Referral referral = ReferralTestBuilder.builder().withId().build();
         Mockito.when(referralManagementService.update(ArgumentMatchers.any(ReferralRequest.class))).thenReturn(referral);
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/referralmanagement/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(MockMvcResultMatchers.status().isAccepted())
@@ -131,7 +131,7 @@ public class ReferralManagementApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/referralmanagement/v1/_update")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(ReferralRequestTestBuilder.builder()
                                 .withOneReferralHavingId()
@@ -163,7 +163,7 @@ public class ReferralManagementApiControllerTest {
                 ArgumentMatchers.any(Boolean.class))).thenReturn(Arrays.asList(ReferralTestBuilder.builder().withId().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post(
-                        "/referralmanagement/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        "/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(referralSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isOk())
@@ -192,7 +192,7 @@ public class ReferralManagementApiControllerTest {
                 ArgumentMatchers.any(Boolean.class))).thenThrow(new CustomException("NO_RESULT_FOUND", "No Referral found."));
 
 
-        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/referralmanagement/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+        final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(referralSearchRequest)))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
