@@ -66,7 +66,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
         return referralList;
     }
 
-    public List<Referral> findById(List<String> ids, String columnName, Boolean includeDeleted) {
+    public List<Referral> findById(List<String> ids, Boolean includeDeleted, String columnName) {
         List<Referral> objFound = findInCache(ids).stream()
                 .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
                 .collect(Collectors.toList());
