@@ -33,11 +33,8 @@ public class StockIndexV1 {
     @JsonProperty("facilityName")
     private String facilityName;
 
-    @JsonProperty("transactingPartyName")
-    private String transactingPartyName;
-
-    @JsonProperty("transactingPartyType")
-    private String transactingPartyType;
+    @JsonProperty("transactingFacilityName")
+    private String transactingFacilityName;
 
     @JsonProperty("productVariant")
     private String productVariant;
@@ -96,8 +93,11 @@ public class StockIndexV1 {
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime;
 
+    @JsonProperty("syncedTimeStamp")
+    private String syncedTimeStamp;
+
     @JsonProperty("syncedTime")
-    private String syncedTime;
+    private Long syncedTime;
 
     @JsonProperty("additionalFields")
     private AdditionalFields additionalFields;
@@ -113,6 +113,15 @@ public class StockIndexV1 {
 
     @JsonProperty("transactingFacilityType")
     private String transactingFacilityType;
+
+    @JsonProperty("facilityLevel")
+    private String facilityLevel;
+
+    @JsonProperty("transactingFacilityLevel")
+    private String transactingFacilityLevel;
+
+    @JsonProperty("facilityTarget")
+    private Long facilityTarget;
 
     @JsonProperty("clientAuditDetails")
     private @Valid AuditDetails clientAuditDetails;

@@ -84,7 +84,9 @@ public class ProjectTaskIndexV1 {
     private String tenantId;
     @JsonProperty("clientAuditDetails")
     private @Valid AuditDetails clientAuditDetails;
+    @JsonProperty("syncedTimeStamp")
+    private String syncedTimeStamp;
     @JsonProperty("syncedTime")
-    private String syncedTime;
+    private Long syncedTime;
 
 }

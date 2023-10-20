@@ -37,4 +37,7 @@ public class HouseholdConfiguration {
     @Value("${household.idgen.id.format}")
     private String idgenFormat;
 
+    @Value("${egov.persister.bulk.processing.enabled}")
+    private Boolean isPersisterBulkProcessingEnabled;
+
 }
