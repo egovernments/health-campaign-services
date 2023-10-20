@@ -107,7 +107,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(serviceDefinition.getCode())
-                    .userName(userService.getUserName(users))
+                    .userName(userService.getUserName(users,service.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(service.getTenantId(),users))
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
