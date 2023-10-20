@@ -54,9 +54,9 @@ public class RmNonExistentEntityValidator implements Validator<ReferralBulkReque
         Map<String, Referral> iMap = getIdToObjMap(referrals
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
-            List<String> sideEffectIds = new ArrayList<>(iMap.keySet());
+            List<String> referralIds = new ArrayList<>(iMap.keySet());
             List<Referral> existingReferrals = referralRepository
-                    .findById(sideEffectIds, false, getIdFieldName(idMethod));
+                    .findById(referralIds, false, getIdFieldName(idMethod));
             List<Referral> nonExistentReferrals = checkNonExistentEntities(iMap,
                     existingReferrals, idMethod);
             nonExistentReferrals.forEach(sideEffect -> {
