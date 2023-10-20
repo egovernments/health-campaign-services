@@ -100,6 +100,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
             String syncedTime = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
             List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
+
             return Collections.singletonList(ServiceIndexV1.builder()
                     .id(service.getId())
                     .clientReferenceId(service.getClientId())
@@ -120,7 +122,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())
                     .attributes(service.getAttributes())
-                    .syncedTime(syncedTime)
+                    .syncedTime(service.getAuditDetails().getCreatedTime())
+                    .syncedTimeStamp(syncedTimeStamp)
                     .build());
         }
     }
