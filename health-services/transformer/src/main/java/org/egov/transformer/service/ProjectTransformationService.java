@@ -1,5 +1,8 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
@@ -17,6 +20,8 @@ import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 public abstract class ProjectTransformationService implements TransformationService<Project> {
@@ -59,13 +64,14 @@ public abstract class ProjectTransformationService implements TransformationServ
             Transformer<Project, ProjectIndexV1> {
         private final ProjectService projectService;
         private final TransformerProperties properties;
+        private final ObjectMapper objectMapper;
 
 
         @Autowired
-        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
+        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ObjectMapper objectMapper) {
             this.projectService = projectService;
             this.properties = properties;
-
+            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -74,23 +80,18 @@ public abstract class ProjectTransformationService implements TransformationServ
                     .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
-            String fieldToCheck = "Target";
+            String fieldToCheck = "targets";
+            String beneficiaryType = "beneficiaryType";
+            String totalNoCheck = "totalNo";
+            String targetNoCheck = "targetNo";
+            Set<String> fieldsToCheck = new HashSet<>();
+            fieldsToCheck.add(beneficiaryType);
+            fieldsToCheck.add(totalNoCheck);
+            fieldsToCheck.add(targetNoCheck);
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
             }
-            if(project.getAdditionalDetails()!=null){
-                Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
-                if(isFieldPresent(project.getAdditionalDetails(),fieldToCheck)){
-                    List<Target> additionalTargets = (List<Target>) project.getAdditionalDetails();
-                    if(!CollectionUtils.isEmpty(additionalTargets)) {
-                        additionalTargets.forEach(target -> {
-                            if (!beneficiaryTypes.contains(target.getBeneficiaryType())) {
-                                targets.add(target);
-                            }
-                        });
-                    }
-                }
-            }
+            isValidTargetsAdditionalDetails(project, targets, fieldToCheck, fieldsToCheck, beneficiaryType);
 
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
@@ -136,17 +137,34 @@ public abstract class ProjectTransformationService implements TransformationServ
                     }
             ).collect(Collectors.toList());
         }
+        private void isValidTargetsAdditionalDetails(Project project, List<Target> targets, String fieldToCheck, Set<String> fieldsToCheck, String beneficiaryType) {
+            if(project.getAdditionalDetails()!=null){
+                JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+                Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
+                if(additionalDetails.hasNonNull(fieldToCheck)){
+                    JsonNode targetArray = additionalDetails.get(fieldToCheck);
+                    if(targetArray.isArray() && !targetArray.isEmpty()) {
+                        targetArray.forEach(target->{
+                            Iterator<String> fieldIterator = target.fieldNames();
+                            Iterable<String> iterable = () -> fieldIterator;
+                            List<String> actualList = StreamSupport
+                                    .stream(iterable.spliterator(), false)
+                                    .collect(Collectors.toList());
+                            if(actualList.containsAll(fieldsToCheck)){
+                                if(!beneficiaryTypes.contains(target.get(beneficiaryType).asText())){
+                                    try {
+                                        targets.add(objectMapper.treeToValue(target,Target.class));
 
-        private boolean isFieldPresent(Object objectToTest,String fieldToCheck){
-            Class<?> clazz = objectToTest.getClass();
-            Field[] getFields = clazz.getDeclaredFields();
-            AtomicBoolean isFieldPresent = new AtomicBoolean(false);
-            Arrays.stream(getFields).forEach(field -> {
-                if(field.toString().contains(fieldToCheck)){
-                    isFieldPresent.set(true);
+                                    } catch (JsonProcessingException e) {
+                                        log.error("target object could not be processed",e);
+                                    }
+                                }
+                            }
+                        });
+                    }
                 }
-            });
-            return isFieldPresent.get();
+            }
         }
+
     }
 }
