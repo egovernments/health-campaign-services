@@ -110,7 +110,7 @@ public class ReferralManagementService {
         } catch (Exception exception) {
             log.error("error occurred while creating referrals: {}", exception.getMessage());
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_SIDE_EFFECTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -143,7 +143,7 @@ public class ReferralManagementService {
         } catch (Exception exception) {
             log.error("error occurred while updating referrals", exception);
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_SIDE_EFFECTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -203,7 +203,7 @@ public class ReferralManagementService {
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_SIDE_EFFECTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -225,7 +225,7 @@ public class ReferralManagementService {
         log.info("validating request");
         Map<Referral, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                Constants.SET_SIDE_EFFECTS);
+                Constants.SET_REFERRALS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(Constants.VALIDATION_ERROR, errorDetailsMap.values().toString());
