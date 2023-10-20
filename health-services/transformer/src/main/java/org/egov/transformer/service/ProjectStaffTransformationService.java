@@ -80,7 +80,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .projectId(projectStaff.getProjectId())
                     .userId(projectStaff.getUserId())
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
-                    .userName(userService.getUserName(users))
+                    .userName(userService.getUserName(users,projectStaff.getUserId()))
                     .role(userService.getStaffRole(projectStaff.getTenantId(),users))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
