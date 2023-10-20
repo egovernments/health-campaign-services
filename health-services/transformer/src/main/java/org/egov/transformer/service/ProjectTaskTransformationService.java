@@ -133,7 +133,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .taskType("DELIVERY")
                             .projectId(task.getProjectId())
                             .startDate(task.getActualStartDate())
-                            .userName(userService.getUserName(users))
+                            .userName(userService.getUserName(users,task.getAuditDetails().getCreatedBy()))
                             .role(userService.getStaffRole(task.getTenantId(),users))
                             .endDate(task.getActualEndDate())
                             .productVariant(r.getProductVariantId())

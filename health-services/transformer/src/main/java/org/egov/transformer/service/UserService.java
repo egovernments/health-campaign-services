@@ -114,11 +114,11 @@ public class UserService {
         return roleByRank;
     }
 
-    public String getUserName (List<User> users){
+    public String getUserName (List<User> users, String userId){
         if (users!= null && users.size()>0){
             return users.get(0).getUserName();
         }
-        return "";
+        return userId;
     }
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
                                            String moduleName) {
