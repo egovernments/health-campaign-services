@@ -80,7 +80,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                     .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
-            String fieldToCheck = "targets";
+            String fieldTarget = "targets";
             String beneficiaryType = "beneficiaryType";
             String totalNoCheck = "totalNo";
             String targetNoCheck = "targetNo";
@@ -91,7 +91,7 @@ public abstract class ProjectTransformationService implements TransformationServ
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
             }
-            isValidTargetsAdditionalDetails(project, targets, fieldToCheck, fieldsToCheck, beneficiaryType);
+            isValidTargetsAdditionalDetails(project, targets, fieldTarget, fieldsToCheck, beneficiaryType);
 
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
@@ -137,12 +137,12 @@ public abstract class ProjectTransformationService implements TransformationServ
                     }
             ).collect(Collectors.toList());
         }
-        private void isValidTargetsAdditionalDetails(Project project, List<Target> targets, String fieldToCheck, Set<String> fieldsToCheck, String beneficiaryType) {
+        private void isValidTargetsAdditionalDetails(Project project, List<Target> targets, String fieldTarget, Set<String> fieldsToCheck, String beneficiaryType) {
             if(project.getAdditionalDetails()!=null){
                 JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
                 Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
-                if(additionalDetails.hasNonNull(fieldToCheck)){
-                    JsonNode targetArray = additionalDetails.get(fieldToCheck);
+                if(additionalDetails.hasNonNull(fieldTarget)){
+                    JsonNode targetArray = additionalDetails.get(fieldTarget);
                     if(targetArray.isArray() && !targetArray.isEmpty()) {
                         targetArray.forEach(target->{
                             Iterator<String> fieldIterator = target.fieldNames();
@@ -156,7 +156,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                         targets.add(objectMapper.treeToValue(target,Target.class));
 
                                     } catch (JsonProcessingException e) {
-                                        log.error("target object could not be processed",e);
+                                        log.error("target object :"+target+ " could not be processed",e);
                                     }
                                 }
                             }
