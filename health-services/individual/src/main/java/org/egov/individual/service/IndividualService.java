@@ -36,7 +36,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -51,7 +58,8 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.individual.Constants.*;
+import static org.egov.individual.Constants.SET_INDIVIDUALS;
+import static org.egov.individual.Constants.VALIDATION_ERROR;
 
 @Service
 @Slf4j
@@ -136,8 +144,15 @@ public class IndividualService {
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                individualRepository.save(encryptedIndividualList,
-                        properties.getSaveIndividualTopic());
+                if (properties.getIsPersisterBulkProcessingEnabled()) {
+                    individualRepository.save(encryptedIndividualList,
+                            properties.getSaveIndividualTopic());
+                } else {
+                    for (Individual entity : encryptedIndividualList) {
+                        individualRepository.save(Collections.singletonList(entity),
+                                properties.getSaveIndividualTopic());
+                    }
+                }
             }
         } catch (CustomException exception) {
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));

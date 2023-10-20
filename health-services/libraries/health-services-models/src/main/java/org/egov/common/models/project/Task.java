@@ -54,9 +54,8 @@ public class Task {
     private String projectBeneficiaryClientReferenceId = null;
 
     @JsonProperty("resources")
-    @NotNull
     @Valid
-    @Size(min = 1)
+    @Builder.Default
     private List<TaskResource> resources = new ArrayList<>();
 
     @JsonProperty("plannedStartDate")
