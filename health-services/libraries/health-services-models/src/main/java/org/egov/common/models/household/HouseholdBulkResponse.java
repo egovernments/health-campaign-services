@@ -35,6 +35,10 @@ public class HouseholdBulkResponse {
     @Valid
     private List<Household> households = null;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
 
     public HouseholdBulkResponse addHouseholdItem(Household householdItem) {
         if (this.households == null) {

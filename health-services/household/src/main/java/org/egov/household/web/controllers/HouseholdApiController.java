@@ -4,6 +4,7 @@ package org.egov.household.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.ds.Tuple;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdBulkResponse;
@@ -204,9 +205,9 @@ public class HouseholdApiController {
                                                                        @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                        @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
 
-        List<Household> households = householdService.search(request.getHousehold(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        Tuple<Long, List<Household>> tuple = householdService.search(request.getHousehold(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         HouseholdBulkResponse response = HouseholdBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).households(households).build();
+                .createResponseInfo(request.getRequestInfo(), true)).totalCount(tuple.getX()).households(tuple.getY()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
