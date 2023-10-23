@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
+import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
@@ -13,14 +14,10 @@ import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
-import java.lang.reflect.*;
 
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @Slf4j
@@ -80,18 +77,14 @@ public abstract class ProjectTransformationService implements TransformationServ
                     .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
-            String fieldTarget = "targets";
-            String beneficiaryType = "beneficiaryType";
-            String totalNoCheck = "totalNo";
-            String targetNoCheck = "targetNo";
             Set<String> fieldsToCheck = new HashSet<>();
-            fieldsToCheck.add(beneficiaryType);
-            fieldsToCheck.add(totalNoCheck);
-            fieldsToCheck.add(targetNoCheck);
+            fieldsToCheck.add(Constants.BENEFICIARY_TYPE);
+            fieldsToCheck.add(Constants.TOTAL_NO_CHECK);
+            fieldsToCheck.add(Constants.TARGET_NO_CHECK);
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
             }
-            isValidTargetsAdditionalDetails(project, targets, fieldTarget, fieldsToCheck, beneficiaryType);
+            isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
 
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
