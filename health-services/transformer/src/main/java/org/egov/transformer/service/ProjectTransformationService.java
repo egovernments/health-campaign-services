@@ -140,9 +140,9 @@ public abstract class ProjectTransformationService implements TransformationServ
                         targetArray.forEach(target->{
                             Iterator<String> fieldIterator = target.fieldNames();
                             Iterable<String> iterable = () -> fieldIterator;
-                            List<String> actualList = StreamSupport
+                            Set<String> actualList = StreamSupport
                                     .stream(iterable.spliterator(), false)
-                                    .collect(Collectors.toList());
+                                    .collect(Collectors.toSet());
                             if(actualList.containsAll(fieldsToCheck)){
                                 if(!beneficiaryTypes.contains(target.get(beneficiaryType).asText())){
                                     try {
