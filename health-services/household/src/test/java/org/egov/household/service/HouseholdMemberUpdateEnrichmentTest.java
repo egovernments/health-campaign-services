@@ -43,7 +43,7 @@ class HouseholdMemberUpdateEnrichmentTest {
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)
-        )).thenReturn(
+        ).getY()).thenReturn(
                 Collections.singletonList(
                         Household.builder().id("some-household-id").clientReferenceId("some-client-ref-id").build())
         );
