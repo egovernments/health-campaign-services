@@ -10,6 +10,7 @@ import org.egov.common.service.UserService;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.service.FacilityService;
 import org.egov.referralmanagement.util.ValidatorUtil;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.referralmanagement.Constants.FACILITY;
+import static org.egov.referralmanagement.Constants.INVALID_RECIPIENT_TYPE;
 import static org.egov.referralmanagement.Constants.STAFF;
 
 /**
@@ -63,6 +65,9 @@ public class RmRecipientIdValidator implements Validator<ReferralBulkRequest, Re
                         break;
                     case FACILITY:
                         addIgnoreNull(facilityIdList, referral.getRecipientId());
+                        break;
+                    default:
+                        throw new CustomException(INVALID_RECIPIENT_TYPE, "Exception : The Recipient Type is invalid.");
                 }
             });
 

@@ -12,4 +12,6 @@ public interface Constants {
     String GET_ID = "getId";
     String STAFF = "STAFF";
     String FACILITY = "FACILITY";
+
+    String INVALID_RECIPIENT_TYPE = "Invalid Recipient Type";
 }
