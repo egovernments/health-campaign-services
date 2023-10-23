@@ -3,6 +3,7 @@ package org.egov.referralmanagement.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
@@ -42,6 +43,8 @@ public class SideEffectRowMapper implements RowMapper<SideEffect> {
                     .projectBeneficiaryClientReferenceId(resultSet.getString("projectBeneficiaryClientReferenceId"))
                     .tenantId(resultSet.getString("tenantid"))
                     .symptoms(resultSet.getString("symptoms") == null ? null : objectMapper.readValue(resultSet.getString("symptoms"), ArrayList.class))
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
+                            .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
                     .auditDetails(auditDetails)
