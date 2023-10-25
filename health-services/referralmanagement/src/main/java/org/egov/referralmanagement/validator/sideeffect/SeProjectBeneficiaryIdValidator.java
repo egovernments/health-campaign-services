@@ -92,7 +92,8 @@ public class SeProjectBeneficiaryIdValidator implements Validator<SideEffectBulk
                     existingProjectBeneficiaryClientReferenceIds.add(projectBeneficiary.getClientReferenceId());
                 });
                 List<SideEffect> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                    !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
+                        ( Objects.nonNull(entity.getProjectBeneficiaryClientReferenceId()) || Objects.nonNull(entity.getProjectBeneficiaryId()) ) &&
+                        !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
                         && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
                 ).collect(Collectors.toList());
                 invalidEntities.forEach(sideEffect -> {
