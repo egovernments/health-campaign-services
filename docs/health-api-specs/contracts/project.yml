@@ -1413,10 +1413,10 @@ definitions:
         minLength: 2
         maxLength: 64
         description: Client maintained unique ID of Household/Individual being added as beneficiary
-      tag:
+      voucherTag:
         type: string
         maxLength: 1000
-        description: Beneficiary Tag
+        description: Beneficiary Voucher Tag
       dateOfRegistration:
         $ref: '#/definitions/eventTimestamp'
       additionalFields:
