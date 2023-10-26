@@ -47,7 +47,7 @@ public class ProjectBeneficiaryRowMapper implements RowMapper<ProjectBeneficiary
                     .clientAuditDetails(clientAuditDetails)
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
-                    .tag(resultSet.getString("tag"))
+                    .voucherTag(resultSet.getString("voucherTag"))
                     .build();
             } catch (JsonProcessingException e) {
                 throw new SQLException(e);
