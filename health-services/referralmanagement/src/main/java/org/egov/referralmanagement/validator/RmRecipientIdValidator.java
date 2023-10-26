@@ -1,9 +1,8 @@
 package org.egov.referralmanagement.validator;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
-import org.egov.common.models.facility.Facility;
-import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.service.UserService;
@@ -49,51 +48,60 @@ public class RmRecipientIdValidator implements Validator<ReferralBulkRequest, Re
      */
     @Override
     public Map<Referral, List<Error>> validate(ReferralBulkRequest request) {
-        log.info("validating project beneficiary id");
+        log.info("validating recipient id");
         Map<Referral, List<Error>> errorDetailsMap = new HashMap<>();
         List<Referral> entities = request.getReferrals();
         Map<String, List<Referral>> tenantIdReferralMap = entities.stream().collect(Collectors.groupingBy(Referral::getTenantId));
         tenantIdReferralMap.forEach((tenantId, referralList) -> {
-            List<ProjectStaff> existingProjectStaffList = new ArrayList<>();
-            List<Facility> existingFacilityList = new ArrayList<>();
-            final List<String> projectStaffUuidList = new ArrayList<>();
-            final List<String> facilityIdList = new ArrayList<>();
-            referralList.forEach(referral -> {
-                switch (referral.getRecipientType()) {
-                    case STAFF :
-                        addIgnoreNull(projectStaffUuidList, referral.getRecipientId());
-                        break;
-                    case FACILITY:
-                        addIgnoreNull(facilityIdList, referral.getRecipientId());
-                        break;
-                    default:
-                        throw new CustomException(INVALID_RECIPIENT_TYPE, "Exception : The Recipient Type is invalid.");
-                }
-            });
 
-            List<String> invalidStaffIds = new ArrayList<>(projectStaffUuidList);
-            // validate and remove valid identifiers from invalidStaffIds
-            ValidatorUtil.validateAndEnrichStaffIds(request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
-
-            // validate and remove valid identifiers from invalidfacilityIds
-            List<String> invalidFacilityIds = new ArrayList<>(facilityIdList);
-            List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIdList, (List<Referral>) entities,
-                    tenantId, errorDetailsMap, request.getRequestInfo());
-            invalidFacilityIds.removeAll(validFacilityIds);
-
-            List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                    entity.getRecipientType().equals(STAFF) ? invalidStaffIds.contains(entity.getRecipientId()) : invalidFacilityIds.contains(entity.getRecipientId())
-            ).collect(Collectors.toList());
-
-            invalidEntities.forEach(referral -> {
-                Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(referral, error, errorDetailsMap);
-            });
+            Tuple<List<String>, List<String>> tuple = getInvalidStaffAndFacilityId(request, entities, tenantId, referralList, errorDetailsMap);
+            // validate and populate error if found.
+            validateAndPopulateErrors(entities, tuple.getX(), tuple.getY(), errorDetailsMap);
         });
         return errorDetailsMap;
     }
 
     private void addIgnoreNull(List<String> list, String item) {
         if(Objects.nonNull(item)) list.add(item);
+    }
+
+    private Tuple<List<String>, List<String>> getInvalidStaffAndFacilityId(ReferralBulkRequest request, List<Referral> entities, String tenantId, List<Referral> referralList, Map<Referral, List<Error>> errorDetailsMap) {
+        final List<String> projectStaffUuidList = new ArrayList<>();
+        final List<String> facilityIdList = new ArrayList<>();
+        referralList.forEach(referral -> {
+            switch (referral.getRecipientType()) {
+                case STAFF :
+                    addIgnoreNull(projectStaffUuidList, referral.getRecipientId());
+                    break;
+                case FACILITY:
+                    addIgnoreNull(facilityIdList, referral.getRecipientId());
+                    break;
+                default:
+                    throw new CustomException(INVALID_RECIPIENT_TYPE, "Exception : The Recipient Type is invalid.");
+            }
+        });
+
+        List<String> invalidStaffIds = new ArrayList<>(projectStaffUuidList);
+        // fetch valid identifiers and remove it from invalidStaffIds
+        ValidatorUtil.validateAndEnrichStaffIds(request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
+
+        // fetch valid facilities and remove it from invalidfacilityIds
+        List<String> invalidFacilityIds = new ArrayList<>(facilityIdList);
+        List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIdList, entities, tenantId,
+                errorDetailsMap, request.getRequestInfo());
+        invalidFacilityIds.removeAll(validFacilityIds);
+
+        return new Tuple<>(invalidStaffIds, invalidFacilityIds);
+    }
+
+    private void validateAndPopulateErrors(List<Referral> entities, List<String> invalidStaffIds, List<String> invalidFacilityIds, Map<Referral, List<Error>> errorDetailsMap) {
+        List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
+                entity.getRecipientType().equals(STAFF) ? invalidStaffIds.contains(entity.getRecipientId()) : invalidFacilityIds.contains(entity.getRecipientId())
+        ).collect(Collectors.toList());
+
+        invalidEntities.forEach(referral -> {
+            Error error = getErrorForNonExistentEntity();
+            populateErrorDetails(referral, error, errorDetailsMap);
+        });
     }
 }

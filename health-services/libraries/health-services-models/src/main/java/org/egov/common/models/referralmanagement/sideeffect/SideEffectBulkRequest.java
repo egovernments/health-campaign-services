@@ -30,7 +30,15 @@ public class SideEffectBulkRequest {
     @Size(min=1)
     private List<SideEffect> sideEffects = new ArrayList<>();
 
+    /**
+     * Add a SideEffect item to the list of side effects in the request.
+     *
+     * @param sideEffectItem The SideEffect item to add to the request.
+     * @return The updated SideEffectBulkRequest.
+     */
     public SideEffectBulkRequest addSideEffectItem(SideEffect sideEffectItem) {
+        if(Objects.isNull(sideEffects))
+            sideEffects = new ArrayList<>();
         if(Objects.nonNull(sideEffectItem))
             this.sideEffects.add(sideEffectItem);
         return this;
