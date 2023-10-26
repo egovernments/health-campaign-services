@@ -41,10 +41,10 @@ class HouseholdFindTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().id(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.findById(anyList(), eq("id"), anyBoolean()))
-                .thenReturn(new Tuple(0L,Collections.emptyList()));
+                .thenReturn(new Tuple(0L, Collections.emptyList()));
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
-                null, false);
+                null, false, false);
 
         verify(householdRepository, times(1))
                 .findById(anyList(), eq("id"), anyBoolean());
@@ -57,10 +57,10 @@ class HouseholdFindTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.findById(anyList(), eq("clientReferenceId"), anyBoolean()))
-                .thenReturn(new Tuple(0L,Collections.emptyList()));
+                .thenReturn(new Tuple(0L, Collections.emptyList()));
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0, "default",
-                null, false);
+                null, false, false);
 
         verify(householdRepository, times(1)).findById(anyList(),
                 eq("clientReferenceId"), anyBoolean());
@@ -74,10 +74,10 @@ class HouseholdFindTest {
                 .household(HouseholdSearch.builder().id(Collections.singletonList("someid"))
                         .clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean(), anyBoolean())).thenReturn(new Tuple(0L,Collections.emptyList()));
+                anyInt(), anyString(), anyLong(), anyBoolean(), anyBoolean())).thenReturn(new Tuple(0L, Collections.emptyList()));
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0,
-                "default", 0L, false);
+                "default", 0L, false, false);
 
         verify(householdRepository, times(0))
                 .findById(anyList(), anyString(), anyBoolean());
@@ -91,10 +91,10 @@ class HouseholdFindTest {
                 .household(HouseholdSearch.builder().id(Collections.singletonList("someid"))
                         .clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(householdRepository.find(any(HouseholdSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean(), anyBoolean())).thenReturn(new Tuple(0L,Collections.emptyList()));
+                anyInt(), anyString(), anyLong(), anyBoolean(), anyBoolean())).thenReturn(new Tuple(0L, Collections.emptyList()));
 
         householdService.search(householdSearchRequest.getHousehold(), 10, 0,
-                "default", 0L, false);
+                "default", 0L, false, false);
 
         verify(householdRepository, times(1))
                 .find(any(HouseholdSearch.class), anyInt(),

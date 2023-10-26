@@ -44,10 +44,11 @@ class HouseholdMemberUpdateEnrichmentTest {
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)
-        )).thenReturn( new Tuple(1L,
+        )).thenReturn(new Tuple(1L,
                 Collections.singletonList(
                         Household.builder().id("some-household-id").clientReferenceId("some-client-ref-id").build())
-        ));
+            )
+        );
     }
 
     private void mockFindById() {

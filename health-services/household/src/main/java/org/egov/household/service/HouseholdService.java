@@ -109,7 +109,7 @@ public class HouseholdService {
     }
 
     public Tuple<Long, List<Household>> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
-                                               Long lastChangedSince, Boolean includeDeleted, Boolean useCTE) {
+                                  Long lastChangedSince, Boolean includeDeleted, Boolean useCTE) {
 
         String idFieldName = getIdFieldName(householdSearch);
         if (isSearchByIdOnly(householdSearch, idFieldName)) {
@@ -129,7 +129,7 @@ public class HouseholdService {
         try {
             new Tuple<>(null, Collections.emptyList());
             Tuple<Long, List<Household>> householdsTuple;
-            if(isProximityBasedSearch(householdSearch)) {
+            if(Boolean.TRUE.equals(isProximityBasedSearch(householdSearch))) {
                 householdsTuple = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
             } else {
                 householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted, useCTE);
@@ -140,10 +140,6 @@ public class HouseholdService {
             log.error("error occurred while searching households", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
-    }
-    public Tuple<Long, List<Household>> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
-                                  Long lastChangedSince, Boolean includeDeleted) {
-        return this.search(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted, false);
     }
 
     public Household update(HouseholdRequest request) {
