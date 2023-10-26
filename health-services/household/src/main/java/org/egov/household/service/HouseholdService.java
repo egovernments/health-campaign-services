@@ -109,7 +109,7 @@ public class HouseholdService {
     }
 
     public Tuple<Long, List<Household>> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
-                                  Long lastChangedSince, Boolean includeDeleted) {
+                                               Long lastChangedSince, Boolean includeDeleted, Boolean useCTE) {
 
         String idFieldName = getIdFieldName(householdSearch);
         if (isSearchByIdOnly(householdSearch, idFieldName)) {
@@ -117,7 +117,7 @@ public class HouseholdService {
                             .singletonList(householdSearch)),
                     householdSearch);
             Tuple<Long, List<Household>> householdsTuple = householdRepository.findById(ids,
-                            idFieldName, includeDeleted);
+                    idFieldName, includeDeleted);
             List<Household> households = householdsTuple.getY().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
@@ -132,7 +132,7 @@ public class HouseholdService {
             if(isProximityBasedSearch(householdSearch)) {
                 householdsTuple = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
             } else {
-                householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
+                householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted, useCTE);
             }
             log.info("households found for search, size: {}", householdsTuple.getY().size());
             return householdsTuple;
@@ -140,6 +140,10 @@ public class HouseholdService {
             log.error("error occurred while searching households", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
+    }
+    public Tuple<Long, List<Household>> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
+                                  Long lastChangedSince, Boolean includeDeleted) {
+        return this.search(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted, false);
     }
 
     public Household update(HouseholdRequest request) {

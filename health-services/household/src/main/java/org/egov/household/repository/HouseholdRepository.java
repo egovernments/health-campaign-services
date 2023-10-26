@@ -69,8 +69,10 @@ public class HouseholdRepository extends GenericRepository<Household> {
         return new Tuple<>(totalCount, objFound);
     }
 
-    public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id";
+    public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean useCTE) throws QueryBuilderException {
+        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
+        if(!useCTE) query += ", count(*) over() as totalCount ";
+        query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
@@ -89,7 +91,9 @@ public class HouseholdRepository extends GenericRepository<Household> {
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
-        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
+        Long totalCount = 0L;
+        if(useCTE)
+            totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
 
         query = query + "ORDER BY h.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
@@ -141,4 +145,6 @@ public class HouseholdRepository extends GenericRepository<Household> {
             return resultSet.getLong("totalRows");
         });
     }
+
+
 }
