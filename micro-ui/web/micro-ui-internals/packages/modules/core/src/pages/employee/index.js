@@ -40,7 +40,7 @@ const EmployeeApp = ({
     Digit.UserService.setType("employee");
   }, []);
 
-  const additionalComponent = initData?.modules?.filter((i) => i?.additionalComponent);
+  const additionalComponent = initData?.modules?.filter((i) => i?.additionalComponent).map((i)=> i?.additionalComponent);
 
   return (
     <div className="employee">
