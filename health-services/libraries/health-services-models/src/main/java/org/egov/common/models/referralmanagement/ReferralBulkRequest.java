@@ -28,11 +28,19 @@ public class ReferralBulkRequest {
     @NotNull
     @Valid
     @Size(min = 1)
-    private List<Referral> referrals = new ArrayList<>();
+    private List<Referral> referrals;
 
+    /**
+     * Add a Referral item to the list of Referrals in the bulk request.
+     *
+     * @param referralItem The Referral item to add to the request.
+     * @return The updated ReferralBulkRequest.
+     */
     public ReferralBulkRequest addReferralItem(Referral referralItem) {
-        if(Objects.nonNull(Objects.nonNull(referralItem)))
-            this.referrals.add(referralItem);
+        if(Objects.isNull(referrals))
+            referrals = new ArrayList<>();
+        if(Objects.nonNull(referralItem))
+            referrals.add(referralItem);
         return this;
     }
 }

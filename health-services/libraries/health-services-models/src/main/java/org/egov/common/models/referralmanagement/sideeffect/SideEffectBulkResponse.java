@@ -29,7 +29,15 @@ public class SideEffectBulkResponse {
     @Valid
     private List<SideEffect> sideEffects = new ArrayList<>();
 
+    /**
+     * Add a SideEffect item to the list of side effects in the response.
+     *
+     * @param sideEffectItem The SideEffect item to add to the response.
+     * @return The updated SideEffectBulkResponse.
+     */
     public SideEffectBulkResponse addSideEffectItem(SideEffect sideEffectItem) {
+        if(Objects.isNull(sideEffects))
+            sideEffects = new ArrayList<>();
         if(Objects.nonNull(sideEffectItem))
             this.sideEffects.add(sideEffectItem);
         return this;

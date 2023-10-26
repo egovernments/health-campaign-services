@@ -51,51 +51,64 @@ public class RmProjectBeneficiaryIdValidator implements Validator<ReferralBulkRe
         List<Referral> entities = request.getReferrals();
         Map<String, List<Referral>> tenantIdReferralMap = entities.stream().collect(Collectors.groupingBy(Referral::getTenantId));
         tenantIdReferralMap.forEach((tenantId, referralList) -> {
-            List<ProjectBeneficiary> existingProjectBeneficiaries = null;
-            final List<String> projectBeneficiaryIdList = new ArrayList<>();
-            final List<String> projectBeneficiaryClientReferenceIdList = new ArrayList<>();
-            referralList.forEach(referral -> {
-                addIgnoreNull(projectBeneficiaryIdList, referral.getProjectBeneficiaryId());
-                addIgnoreNull(projectBeneficiaryClientReferenceIdList, referral.getProjectBeneficiaryClientReferenceId());
-            });
-            ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
-                    .id(projectBeneficiaryIdList.isEmpty() ? null : projectBeneficiaryIdList)
-                    .clientReferenceId(projectBeneficiaryClientReferenceIdList.isEmpty() ? null : projectBeneficiaryClientReferenceIdList)
-                    .build();
-            try {
-                // validating project beneficiary ids by callilng project beneficiary search and fetching the valid ids.
-                BeneficiaryBulkResponse beneficiaryBulkResponse = serviceRequestClient.fetchResult(
-                        new StringBuilder(referralManagementConfiguration.getProjectHost()
-                                + referralManagementConfiguration.getProjectBeneficiarySearchUrl()
-                                +"?limit=" + entities.size()
-                                + "&offset=0&tenantId=" + tenantId),
-                        BeneficiarySearchRequest.builder().requestInfo(request.getRequestInfo()).projectBeneficiary(projectBeneficiarySearch).build(),
-                        BeneficiaryBulkResponse.class
-                );
-                existingProjectBeneficiaries = beneficiaryBulkResponse.getProjectBeneficiaries();
-            } catch (QueryBuilderException e) {
-                existingProjectBeneficiaries = Collections.emptyList();
-            } catch (Exception e) {
-                throw new CustomException("Project Beneficiaries failed to fetch", "Exception : "+e.getMessage());
-            }
-            final List<String> existingProjectBeneficiaryIds = new ArrayList<>();
-            final List<String> existingProjectBeneficiaryClientReferenceIds = new ArrayList<>();
-            existingProjectBeneficiaries.forEach(projectBeneficiary -> {
-                existingProjectBeneficiaryIds.add(projectBeneficiary.getId());
-                existingProjectBeneficiaryClientReferenceIds.add(projectBeneficiary.getClientReferenceId());
-            });
-            List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
-                    && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
-            ).collect(Collectors.toList());
-            invalidEntities.forEach(referral -> {
-                Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(referral, error, errorDetailsMap);
-            });
+            /** Get all the existing project beneficiaries in the referral list from Project Service
+             */
+            List<ProjectBeneficiary> existingProjectBeneficiaries = getExistingProjectBeneficiaries(tenantId, referralList, request);
+            /** Validate project beneficiaries and populate error map if invalid entities are found
+             */
+            validateAndPopulateErrors(existingProjectBeneficiaries, entities, errorDetailsMap);
         });
         return errorDetailsMap;
     }
     private void addIgnoreNull(List<String> list, String item) {
         if(Objects.nonNull(item)) list.add(item);
+    }
+
+    private List<ProjectBeneficiary> getExistingProjectBeneficiaries(String tenantId, List<Referral> referrals, ReferralBulkRequest request) {
+        List<ProjectBeneficiary> existingProjectBeneficiaries = null;
+        final List<String> projectBeneficiaryIdList = new ArrayList<>();
+        final List<String> projectBeneficiaryClientReferenceIdList = new ArrayList<>();
+        referrals.forEach(referral -> {
+            addIgnoreNull(projectBeneficiaryIdList, referral.getProjectBeneficiaryId());
+            addIgnoreNull(projectBeneficiaryClientReferenceIdList, referral.getProjectBeneficiaryClientReferenceId());
+        });
+        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
+                .id(projectBeneficiaryIdList.isEmpty() ? null : projectBeneficiaryIdList)
+                .clientReferenceId(projectBeneficiaryClientReferenceIdList.isEmpty() ? null : projectBeneficiaryClientReferenceIdList)
+                .build();
+        try {
+            // using project beneficiary search and fetching the valid ids.
+            BeneficiaryBulkResponse beneficiaryBulkResponse = serviceRequestClient.fetchResult(
+                    new StringBuilder(referralManagementConfiguration.getProjectHost()
+                            + referralManagementConfiguration.getProjectBeneficiarySearchUrl()
+                            +"?limit=" + referrals.size()
+                            + "&offset=0&tenantId=" + tenantId),
+                    BeneficiarySearchRequest.builder().requestInfo(request.getRequestInfo()).projectBeneficiary(projectBeneficiarySearch).build(),
+                    BeneficiaryBulkResponse.class
+            );
+            existingProjectBeneficiaries = beneficiaryBulkResponse.getProjectBeneficiaries();
+        } catch (QueryBuilderException e) {
+            existingProjectBeneficiaries = Collections.emptyList();
+        } catch (Exception e) {
+            throw new CustomException("Project Beneficiaries failed to fetch", "Exception : "+e.getMessage());
+        }
+        return existingProjectBeneficiaries;
+    }
+
+    private void validateAndPopulateErrors(List<ProjectBeneficiary> existingProjectBeneficiaries, List<Referral> entities, Map<Referral, List<Error>> errorDetailsMap) {
+        final List<String> existingProjectBeneficiaryIds = new ArrayList<>();
+        final List<String> existingProjectBeneficiaryClientReferenceIds = new ArrayList<>();
+        existingProjectBeneficiaries.forEach(projectBeneficiary -> {
+            existingProjectBeneficiaryIds.add(projectBeneficiary.getId());
+            existingProjectBeneficiaryClientReferenceIds.add(projectBeneficiary.getClientReferenceId());
+        });
+        List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
+                (Objects.nonNull(entity.getProjectBeneficiaryClientReferenceId()) && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId()) )
+                        || (Objects.nonNull(entity.getProjectBeneficiaryClientReferenceId()) && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId()))
+        ).collect(Collectors.toList());
+        invalidEntities.forEach(referral -> {
+            Error error = getErrorForNonExistentEntity();
+            populateErrorDetails(referral, error, errorDetailsMap);
+        });
     }
 }
