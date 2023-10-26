@@ -104,7 +104,6 @@ public abstract class StockTransformationService implements TransformationServic
             facilityType = getType(facilityType, facility);
             transactingFacilityType = getType(transactingFacilityType, transactingFacility);
 
-            String syncedTime = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
             List<User> users = userService.getUsers(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
 

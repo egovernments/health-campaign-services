@@ -98,7 +98,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
-            String syncedTime = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
             List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 

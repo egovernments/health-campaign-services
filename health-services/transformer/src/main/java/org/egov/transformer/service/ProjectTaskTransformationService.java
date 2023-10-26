@@ -120,7 +120,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             log.info("member count is {}", memberCount);
 
-            String syncedTime = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
             List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
 
