@@ -1,6 +1,5 @@
 package org.egov.common.models.referralmanagement;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,17 +12,17 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class ReferralBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private RequestInfo requestInfo;
 
     @JsonProperty("Referrals")
     @NotNull
@@ -32,7 +31,8 @@ public class ReferralBulkRequest {
     private List<Referral> referrals = new ArrayList<>();
 
     public ReferralBulkRequest addReferralItem(Referral referralItem) {
-        this.referrals.add(referralItem);
+        if(Objects.nonNull(Objects.nonNull(referralItem)))
+            this.referrals.add(referralItem);
         return this;
     }
 }

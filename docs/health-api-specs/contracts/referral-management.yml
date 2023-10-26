@@ -548,6 +548,8 @@ definitions:
         type: array
         items:
           type: string
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
       isDeleted:
         $ref: '#/definitions/isDeleted'
       rowVersion:
@@ -663,17 +665,17 @@ definitions:
         minLength: 2
         maxLength: 64
         description: Project Beneficiary Client Reference Id
-      referringById:
+      referrerId:
         type: string
         minLength: 2
         maxLength: 64
         description: Worker Id that is referring the Beneficiary
-      referredToId:
+      recipientId:
         type: string
         minLength: 2
         maxLength: 64
         description: Individual or Facility Id whom the Beneficiary is referred to.
-      referredToType:
+      recipientType:
         type: string
         description: Individual or Facility
       reasons:
@@ -682,6 +684,8 @@ definitions:
           type: string
       sideEffect:
         $ref: '#/definition/SideEffect'
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
       isDeleted:
         $ref: '#/definitions/isDeleted'
       rowVersion:
