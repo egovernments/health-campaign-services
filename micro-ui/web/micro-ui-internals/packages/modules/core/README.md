@@ -65,6 +65,7 @@ with
 # Changelog
 
 ```bash
+1.8.0-beta.6 added addtional component render for tqm modules
 1.8.0-beta.5 fix for login screen alignments
 1.8.0-beta.4 made the default localisation in globalconfig
 1.8.0-beta workbench base version beta release
