@@ -14,7 +14,7 @@ import java.util.List;
 public class ServiceTaskIndexV1TransformationService extends ServiceTaskTransformationService {
 
 
-    protected ServiceTaskIndexV1TransformationService(ServiceTaskIndexV1Transformer transformer, Producer producer, TransformerProperties properties, CommonUtils commonUtils ) {
+    protected ServiceTaskIndexV1TransformationService(ServiceTaskIndexV1Transformer transformer, Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
         super(transformer, producer, properties,commonUtils);
     }
 

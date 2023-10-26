@@ -1,7 +1,6 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
-import net.minidev.json.JSONArray;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
@@ -9,7 +8,6 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
-import org.egov.transformer.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -44,7 +42,6 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
         log.info("transformation successful");
-        log.info("transformedPayloadList {}",transformedPayloadList);
         producer.push(getTopic(),
                 transformedPayloadList);
     }

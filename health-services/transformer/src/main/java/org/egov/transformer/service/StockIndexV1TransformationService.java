@@ -16,7 +16,7 @@ public class StockIndexV1TransformationService extends StockTransformationServic
 
     @Autowired
     protected StockIndexV1TransformationService(StockIndexV1Transformer transformer,
-                                                Producer producer, TransformerProperties properties, CommonUtils commonUtils ) {
+                                                Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
         super(transformer, producer, properties, commonUtils);
     }
 
