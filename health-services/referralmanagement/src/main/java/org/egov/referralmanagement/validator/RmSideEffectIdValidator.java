@@ -66,14 +66,7 @@ public class RmSideEffectIdValidator implements Validator<ReferralBulkRequest, R
             sideEffectIds.removeAll(validSideEffectIds);
             List<String> invalidSideEffectIds = new ArrayList<>(sideEffectIds);
 
-            List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                    Objects.nonNull(entity.getSideEffect()) && invalidSideEffectIds.contains(entity.getSideEffect().getId())
-            ).collect(Collectors.toList());
-
-            invalidEntities.forEach(referral -> {
-                Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(referral, error, errorDetailsMap);
-            });
+            validateAndPopulateErrors(entities, invalidSideEffectIds, errorDetailsMap);
 
         });
 
@@ -81,5 +74,16 @@ public class RmSideEffectIdValidator implements Validator<ReferralBulkRequest, R
     }
     private void addIgnoreNull(List<String> list, String item) {
         if(Objects.nonNull(item)) list.add(item);
+    }
+
+    private void validateAndPopulateErrors(List<Referral> entities, List<String> invalidSideEffectIds, Map<Referral, List<Error>> errorDetailsMap) {
+        List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
+                Objects.nonNull(entity.getSideEffect()) && invalidSideEffectIds.contains(entity.getSideEffect().getId())
+        ).collect(Collectors.toList());
+
+        invalidEntities.forEach(referral -> {
+            Error error = getErrorForNonExistentEntity();
+            populateErrorDetails(referral, error, errorDetailsMap);
+        });
     }
 }
