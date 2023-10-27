@@ -15,4 +15,11 @@ public interface Constants {
     String SATELLITE_WAREHOUSE = "SATELLITE_WAREHOUSE";
     String TYPE_KEY = "type";
     String FACILITY_TARGET_KEY = "target";
+    String FIELD_TARGET = "targets";
+    String BENEFICIARY_TYPE = "beneficiaryType";
+    String TOTAL_NO_CHECK = "totalNo";
+    String TARGET_NO_CHECK = "targetNo";
+
+
+
 }
