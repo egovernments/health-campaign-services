@@ -68,6 +68,9 @@ public class TransformerProperties {
     @Value("${project.mdms.module}")
     private String mdmsModule;
 
+    @Value("${project.staff.role.mdms.module}")
+    private String projectStaffRolesMdmsModule;
+
     @Value("${boundary.label.name.province}")
     private String province;
 

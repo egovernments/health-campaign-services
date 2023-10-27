@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
@@ -64,14 +65,15 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final TransformerProperties properties;
         private final HouseholdService householdService;
         private final CommonUtils commonUtils;
-
+        private UserService userService;
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils) {
+                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
             this.commonUtils = commonUtils;
+            this.userService = userService;
         }
 
         @Override
@@ -118,6 +120,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             log.info("member count is {}", memberCount);
 
+            List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
 
             return task.getResources().stream().map(r ->
@@ -129,6 +132,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .taskType("DELIVERY")
                             .projectId(task.getProjectId())
                             .startDate(task.getActualStartDate())
+                            .userName(userService.getUserName(users,task.getAuditDetails().getCreatedBy()))
+                            .role(userService.getStaffRole(task.getTenantId(),users))
                             .endDate(task.getActualEndDate())
                             .productVariant(r.getProductVariantId())
                             .isDelivered(r.getIsDelivered())

@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -58,22 +59,26 @@ public abstract class ProjectStaffTransformationService implements Transformatio
         private final ProjectService projectService;
         private final TransformerProperties properties;
 
+        private UserService userService;
         @Autowired
-        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
+        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties,UserService userService) {
             this.projectService = projectService;
             this.properties = properties;
+            this.userService = userService;
         }
-
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+            List<User> users = userService.getUsers(projectStaff.getTenantId(),projectStaff.getUserId());
             return Collections.singletonList(ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
                     .projectId(projectStaff.getProjectId())
                     .userId(projectStaff.getUserId())
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
+                    .userName(userService.getUserName(users,projectStaff.getUserId()))
+                    .role(userService.getStaffRole(projectStaff.getTenantId(),users))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
                     .locality(boundaryLabelToNameMap.get(properties.getLocality()))

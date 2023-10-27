@@ -26,6 +26,10 @@ public class ProjectTaskIndexV1 {
     private String taskType;
     @JsonProperty("projectId")
     private String projectId;
+    @JsonProperty("userName")
+    private String userName;
+    @JsonProperty("role")
+    private String role;
     @JsonProperty("startDate")
     private Long startDate;
     @JsonProperty("endDate")

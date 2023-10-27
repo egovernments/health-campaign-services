@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.AdditionalFields;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.Field;
@@ -30,7 +31,6 @@ public abstract class StockTransformationService implements TransformationServic
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
-
     protected StockTransformationService(StockIndexV1Transformer transformer,
                                          Producer producer,
                                          TransformerProperties properties, CommonUtils commonUtils) {
@@ -69,13 +69,14 @@ public abstract class StockTransformationService implements TransformationServic
         private final FacilityService facilityService;
         private final TransformerProperties properties;
         private final CommonUtils commonUtils;
-
+        private UserService userService;
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
-                                TransformerProperties properties, CommonUtils commonUtils) {
+                                TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
             this.projectService = projectService;
             this.facilityService = facilityService;
             this.properties = properties;
             this.commonUtils = commonUtils;
+            this.userService = userService;
         }
 
         @Override
@@ -103,6 +104,7 @@ public abstract class StockTransformationService implements TransformationServic
             facilityType = getType(facilityType, facility);
             transactingFacilityType = getType(transactingFacilityType, transactingFacility);
 
+            List<User> users = userService.getUsers(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
 
             return Collections.singletonList(StockIndexV1.builder()
@@ -113,6 +115,8 @@ public abstract class StockTransformationService implements TransformationServic
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
                     .transactingFacilityId(stock.getTransactingPartyId())
+                    .userName(userService.getUserName(users,stock.getAuditDetails().getCreatedBy()))
+                    .role(userService.getStaffRole(stock.getTenantId(),users))
                     .transactingFacilityName(transactingFacility.getName())
                     .facilityType(facilityType)
                     .transactingFacilityType(transactingFacilityType)

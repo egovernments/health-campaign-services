@@ -2,6 +2,7 @@ package org.egov.transformer.service;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.User;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
@@ -28,7 +29,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
-
     @Autowired
     protected ServiceTaskTransformationService(ServiceTaskTransformationService.ServiceTaskIndexV1Transformer transformer,
                                                Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
@@ -65,14 +65,15 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private final TransformerProperties properties;
         private final ServiceDefinitionService serviceDefinitionService;
         private final CommonUtils commonUtils;
-
+        private UserService userService;
         @Autowired
-        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils) {
+        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService) {
 
             this.projectService = projectService;
             this.properties = properties;
             this.serviceDefinitionService = serviceDefinitionService;
             this.commonUtils = commonUtils;
+            this.userService = userService;
         }
 
         @Override
@@ -97,6 +98,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
+            List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
             return Collections.singletonList(ServiceIndexV1.builder()
@@ -106,6 +108,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(serviceDefinition.getCode())
+                    .userName(userService.getUserName(users,service.getAuditDetails().getCreatedBy()))
+                    .role(userService.getStaffRole(service.getTenantId(),users))
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .administrativeProvince(boundaryLabelToNameMap != null ?
