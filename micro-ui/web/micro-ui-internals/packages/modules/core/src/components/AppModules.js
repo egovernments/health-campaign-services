@@ -10,7 +10,7 @@ const getTenants = (codes, tenants) => {
   return tenants.filter((tenant) => codes?.map?.((item) => item.code).includes(tenant.code));
 };
 
-export const AppModules = ({ stateCode, userType, modules, appTenants }) => {
+export const AppModules = ({ stateCode, userType, modules, appTenants, additionalComponent }) => {
   const ComponentProvider = Digit.Contexts.ComponentProvider;
   const { path } = useRouteMatch();
   const location = useLocation();
@@ -50,7 +50,7 @@ export const AppModules = ({ stateCode, userType, modules, appTenants }) => {
           <ChangePassword />
         </Route>
         <Route>
-          <AppHome userType={userType} modules={modules} />
+          <AppHome userType={userType} modules={modules} additionalComponent={additionalComponent} />
         </Route>
         {/* <Route path={`${path}/user-profile`}> <UserProfile /></Route> */}
       </Switch>

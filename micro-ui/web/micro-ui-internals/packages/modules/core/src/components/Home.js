@@ -12,7 +12,7 @@ import {
   TLIcon,
   WSICon,
 } from "@egovernments/digit-ui-react-components";
-import React from "react";
+import React, { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 
 /* 
@@ -126,22 +126,35 @@ const CitizenHome = ({ modules, getCitizenMenu, fetchedCitizen, isLoading }) => 
   );
 };
 
-const EmployeeHome = ({ modules }) => {
+const EmployeeHome = ({ modules, additionalComponent }) => {
   return (
-    <div className="employee-app-container">
-      <div className="ground-container moduleCardWrapper gridModuleWrapper">
-        {modules.map(({ code }, index) => {
-          const Card = Digit.ComponentRegistryService.getComponent(`${code}Card`) || (() => <React.Fragment />);
-          return <Card key={index} />;
-        })}
+    <>
+      <div className="employee-app-container">
+        <div className="ground-container moduleCardWrapper gridModuleWrapper">
+          {modules.map(({ code }, index) => {
+            const Card = Digit.ComponentRegistryService.getComponent(`${code}Card`) || (() => <React.Fragment />);
+            return <Card key={index} />;
+          })}
+        </div>
       </div>
-    </div>
+
+      {additionalComponent &&
+        additionalComponent?.length > 0 &&
+        additionalComponent.map((i) => {
+          const Component = typeof i === "string" ? Digit.ComponentRegistryService.getComponent(i) : null;
+          return Component ? (
+            <div className="additional-component-wrapper">
+              <Component />
+            </div>
+          ) : null;
+        })}
+    </>
   );
 };
 
-export const AppHome = ({ userType, modules, getCitizenMenu, fetchedCitizen, isLoading }) => {
+export const AppHome = ({ userType, modules, getCitizenMenu, fetchedCitizen, isLoading, additionalComponent }) => {
   if (userType === "citizen") {
     return <CitizenHome modules={modules} getCitizenMenu={getCitizenMenu} fetchedCitizen={fetchedCitizen} isLoading={isLoading} />;
   }
-  return <EmployeeHome modules={modules} />;
+  return <EmployeeHome modules={modules} additionalComponent={additionalComponent} />;
 };
