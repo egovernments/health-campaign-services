@@ -5,8 +5,8 @@ import org.egov.common.models.Error;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.validator.Validator;
+import org.egov.project.repository.ProjectBeneficiaryRepository;
 import org.egov.project.service.ProjectBeneficiaryService;
-import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.project.web.models.ProjectBeneficiarySearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,16 +34,11 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 @Order(value = 2)
 @Slf4j
 public class PbVoucherTagUniqueValidator implements Validator<BeneficiaryBulkRequest, ProjectBeneficiary> {
-    /**
-     * @param beneficiaryBulkRequest 
-     * @return
-     */
-
-    final ProjectBeneficiaryService projectBeneficiaryService;
+    final ProjectBeneficiaryRepository projectBeneficiaryRepository;
 
     @Autowired
-    public PbVoucherTagUniqueValidator(ProjectBeneficiaryService projectBeneficiaryService) {
-        this.projectBeneficiaryService = projectBeneficiaryService;
+    public PbVoucherTagUniqueValidator(ProjectBeneficiaryRepository projectBeneficiaryRepository) {
+        this.projectBeneficiaryRepository = projectBeneficiaryRepository;
     }
 
     /**
@@ -103,12 +98,9 @@ public class PbVoucherTagUniqueValidator implements Validator<BeneficiaryBulkReq
         ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder().voucherTag(voucherTags).build();
         try {
             log.info("Fetching project beneficiary based on voucher tags");
-            List<String> existingVoucherTags = projectBeneficiaryService.search(
-                            BeneficiarySearchRequest.builder()
-                                    .requestInfo(beneficiaryBulkRequest.getRequestInfo())
-                                    .projectBeneficiary(projectBeneficiarySearch)
-                                    .build(),
-                            voucherTags.size(), 0, validProjectBeneficiaries.get(0).getTenantId(), null, false
+            List<String> existingVoucherTags = projectBeneficiaryRepository.find(
+                        projectBeneficiarySearch,
+                        voucherTags.size(), 0, validProjectBeneficiaries.get(0).getTenantId(), null, false
                     )
                     .stream()
                     .map(ProjectBeneficiary::getVoucherTag)
