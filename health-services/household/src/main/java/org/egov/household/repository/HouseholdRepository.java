@@ -142,7 +142,10 @@ public class HouseholdRepository extends GenericRepository<Household> {
     private Long constructTotalCountCTEAndReturnResult(String query, Map<String, Object> paramsMap) {
         String cteQuery = "WITH result_cte AS ("+query+"), totalCount_cte AS (SELECT COUNT(*) AS totalRows FROM result_cte) select * from totalCount_cte";
         return this.namedParameterJdbcTemplate.query(cteQuery, paramsMap, resultSet -> {
-            return resultSet.getLong("totalRows");
+            if(resultSet.next())
+                return resultSet.getLong("totalRows");
+            else
+                return 0L;
         });
     }
 
