@@ -85,13 +85,18 @@ public class LineChartResponseHandler implements IResponseHandler {
         String action = chartNode.get(ACTION).asText();
         Double divisorValues = 1.0;
         boolean showPercentageValue = chartNode.has(SHOW_PERCENTAGE_VALUE) ? chartNode.get(SHOW_PERCENTAGE_VALUE).asBoolean() : false;
-        if(isPredictionEnabled ){
+        boolean appendDistributionPlot = chartNode.has(APPEND_DISTRIBUTION_PLOT) ? chartNode.get(APPEND_DISTRIBUTION_PLOT).asBoolean() : false;
+        if(isPredictionEnabled ) {
             List<JsonNode> aggrNodes = aggregationNode.findValues(CHART_SPECIFIC);
             startDate = (aggrNodes.get(0).findValues(START_DATE).get(0).findValues("key").get(0).asLong()/86400000)*86400000;
             endDate = (aggrNodes.get(0).findValues(END_DATE).get(0).findValues("key").get(0).asLong()/86400000)*86400000;
             cappedTargetValue = (aggrNodes.get(0).findValues(cappedTarget.asText()).get(0).findValues("value").get(0).asLong());
             interval=Constants.Interval.day.toString();
             addTargetDates(startDate, endDate,targetEpochKeys);
+        } else if(appendDistributionPlot) {
+            List<JsonNode> aggrNodes = aggregationNode.findValues(CHART_SPECIFIC);
+            startDate = (aggrNodes.get(0).findValues(START_DATE).get(0).findValues("key").get(0).asLong()/86400000)*86400000;
+            cappedTargetValue = (aggrNodes.get(0).findValues(cappedTarget.asText()).get(0).findValues("value").get(0).asLong());
         } else {
             cappedTargetValue = null;
         }
@@ -133,8 +138,8 @@ public class LineChartResponseHandler implements IResponseHandler {
                             }
                             String key = getIntervalKey(bkey.asText(), Constants.Interval.valueOf(interval));
                             plotKeys.add(key);
-                            if(isPredictionEnabled && headerPath.equals(distributionPath)){
-                                actualEpochKeys.add(bkey.asLong());
+                            if((isPredictionEnabled || appendDistributionPlot) && headerPath.equals(distributionPath)){
+                                    actualEpochKeys.add(bkey.asLong());
                             }
                             double previousVal = !isCumulative ? 0.0 : (totalValues.size() > 0 ? totalValues.get(totalValues.size() - 1) : 0.0);
 
@@ -205,13 +210,17 @@ public class LineChartResponseHandler implements IResponseHandler {
 
         Long finalStartDate = startDate;
         dataList.forEach(data -> {
-            if(isPredictionEnabled){
+            if(isPredictionEnabled) {
                 if(data.getHeaderName().equals(predictionPath.asText())) {
                     appendTargetPlot(targetEpochKeys, data, symbol, isCumulative, cappedTargetValue);
-                }else{
+                } else {
                     appendActualPlot(actualEpochKeys, finalStartDate,data,symbol,isCumulative);
                 }
-            }else{
+            } else if(appendDistributionPlot) {
+                if(data.getHeaderName().equals(distributionPath.asText())) {
+                    appendActualPlot(actualEpochKeys, finalStartDate,data,symbol,isCumulative);
+                }
+            } else {
                 appendMissingPlot(plotKeys, data, symbol, isCumulative);
             }
         });

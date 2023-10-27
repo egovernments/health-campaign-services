@@ -102,7 +102,7 @@ public interface IResponseHandler {
 	public final String DISTRIBUTION_PATH = "distributionPath";
 	public final String SHOW_PERCENTAGE_VALUE = "showPercentageValue";
 	public static final String XTABLE_COLUMN = "XtableColumnOrder";
-
+	public final String APPEND_DISTRIBUTION_PLOT = "appendDistributionPlot";
 	public static final String IS_ROUND_OFF = "isRoundOff";
 
 	public static Double BOUNDARY_VALUE = 50.0;
