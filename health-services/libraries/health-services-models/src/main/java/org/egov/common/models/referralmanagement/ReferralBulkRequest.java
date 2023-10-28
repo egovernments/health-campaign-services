@@ -1,6 +1,5 @@
 package org.egov.common.models.referralmanagement;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,26 +12,35 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class ReferralBulkRequest {
     @JsonProperty("RequestInfo")
     @NotNull
     @Valid
-    private RequestInfo requestInfo = null;
+    private RequestInfo requestInfo;
 
     @JsonProperty("Referrals")
     @NotNull
     @Valid
     @Size(min = 1)
-    private List<Referral> referrals = new ArrayList<>();
+    private List<Referral> referrals;
 
+    /**
+     * Add a Referral item to the list of Referrals in the bulk request.
+     *
+     * @param referralItem The Referral item to add to the request.
+     * @return The updated ReferralBulkRequest.
+     */
     public ReferralBulkRequest addReferralItem(Referral referralItem) {
-        this.referrals.add(referralItem);
+        if(Objects.isNull(referrals))
+            referrals = new ArrayList<>();
+        if(Objects.nonNull(referralItem))
+            referrals.add(referralItem);
         return this;
     }
 }

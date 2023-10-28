@@ -91,15 +91,9 @@ public class SeProjectBeneficiaryIdValidator implements Validator<SideEffectBulk
                     existingProjectBeneficiaryIds.add(projectBeneficiary.getId());
                     existingProjectBeneficiaryClientReferenceIds.add(projectBeneficiary.getClientReferenceId());
                 });
-                /**
-                 * for all the entities that do not have any error in previous validations
-                 * checking whether the project beneficiary client reference id is not null and exist in the db
-                 */
                 List<SideEffect> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                        ( Objects.nonNull(entity.getProjectBeneficiaryClientReferenceId())
-                                && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId()) )
-                        || ( Objects.nonNull(entity.getProjectBeneficiaryId())
-                                && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId()) )
+                    !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
+                        && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
                 ).collect(Collectors.toList());
                 invalidEntities.forEach(sideEffect -> {
                     Error error = getErrorForNonExistentEntity();

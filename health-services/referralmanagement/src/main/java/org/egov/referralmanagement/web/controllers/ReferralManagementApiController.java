@@ -28,6 +28,9 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 
+/**
+ * Referral Management Api Controller
+ */
 @Controller
 @RequestMapping("")
 @Validated
@@ -52,6 +55,11 @@ public class ReferralManagementApiController {
         this.referralManagementConfiguration = referralManagementConfiguration;
     }
 
+    /**
+     * @
+     * @param request
+     * @return
+     */
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ReferralResponse> referralV1CreatePost(@ApiParam(value = "Capture details of Referral", required = true) @Valid @RequestBody ReferralRequest request) {
 
@@ -66,7 +74,11 @@ public class ReferralManagementApiController {
     }
 
 
-
+    /**
+     *
+     * @param request
+     * @return
+     */
     @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> referralBulkV1CreatePost(@ApiParam(value = "Capture details of Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
@@ -77,6 +89,17 @@ public class ReferralManagementApiController {
                 .createResponseInfo(request.getRequestInfo(), true));
     }
 
+    /**
+     *
+     * @param request
+     * @param limit
+     * @param offset
+     * @param tenantId
+     * @param lastChangedSince
+     * @param includeDeleted
+     * @return
+     * @throws Exception
+     */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "Referral Search.", required = true) @Valid @RequestBody ReferralSearchRequest request,
                                                                              @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
@@ -92,6 +115,11 @@ public class ReferralManagementApiController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    /**
+     *
+     * @param request
+     * @return
+     */
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ReferralResponse> referralV1UpdatePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralRequest request) {
         Referral referral = referralManagementService.update(request);
@@ -106,6 +134,11 @@ public class ReferralManagementApiController {
 
     }
 
+    /**
+     *
+     * @param request
+     * @return
+     */
     @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> referralV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing Referral", required = true) @Valid @RequestBody ReferralBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
