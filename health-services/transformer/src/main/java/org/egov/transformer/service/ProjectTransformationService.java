@@ -107,6 +107,9 @@ public abstract class ProjectTransformationService implements TransformationServ
                         if (productVariants != null && !productVariants.isEmpty()) {
                             productVariant = String.join(",", productVariants);
                         }
+                        if (r.getId() == null) {
+                            r.setId(project.getId() + "-" + r.getBeneficiaryType());
+                        }
 
                         return ProjectIndexV1.builder()
                                 .id(r.getId())
