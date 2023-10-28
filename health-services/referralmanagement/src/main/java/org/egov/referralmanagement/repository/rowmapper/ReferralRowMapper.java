@@ -3,6 +3,7 @@ package org.egov.referralmanagement.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
+import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,24 +27,31 @@ public class ReferralRowMapper implements RowMapper<Referral> {
             String sideEffectClientReferenceId = resultSet.getString("sideEffectClientReferenceId");
             if(sideEffectClientReferenceId != null) {
                 AuditDetails sideEffectAuditDetails = AuditDetails.builder()
-                        .createdBy(resultSet.getString("se.createdBy"))
-                        .createdTime(resultSet.getLong("se.createdTime"))
-                        .lastModifiedBy(resultSet.getString("se.lastModifiedBy"))
-                        .lastModifiedTime(resultSet.getLong("se.lastModifiedTime"))
+                        .createdBy(resultSet.getString("sCreatedBy"))
+                        .createdTime(resultSet.getLong("sCreatedTime"))
+                        .lastModifiedBy(resultSet.getString("sLastModifiedBy"))
+                        .lastModifiedTime(resultSet.getLong("sLastModifiedTime"))
                         .build();
                 AuditDetails sideEffectClientAuditDetails = AuditDetails.builder()
-                        .createdTime(resultSet.getLong("se.clientCreatedTime"))
-                        .lastModifiedTime(resultSet.getLong("se.clientLastModifiedTime"))
+                        .createdBy(resultSet.getString("sClientCreatedBy"))
+                        .createdTime(resultSet.getLong("sClientCreatedTime"))
+                        .lastModifiedBy(resultSet.getString("sClientLastModifiedBy"))
+                        .lastModifiedTime(resultSet.getLong("sClientLastModifiedTime"))
                         .build();
                 sideEffect = SideEffect.builder()
-                        .id(resultSet.getString("se.id"))
-                        .clientReferenceId(resultSet.getString("se.clientreferenceid"))
-                        .taskId(resultSet.getString("se.taskId"))
-                        .taskClientReferenceId(resultSet.getString("se.taskClientreferenceid"))
-                        .tenantId(resultSet.getString("se.tenantid"))
-                        .symptoms(resultSet.getString("se.symptoms") == null ? null : objectMapper.readValue(resultSet.getString("se.symptoms"), ArrayList.class))
-                        .rowVersion(resultSet.getInt("se.rowversion"))
-                        .isDeleted(resultSet.getBoolean("se.isdeleted"))
+                        .id(resultSet.getString("sId"))
+                        .clientReferenceId(resultSet.getString("sClientReferenceId"))
+                        .taskId(resultSet.getString("sTaskId"))
+                        .taskClientReferenceId(resultSet.getString("sTaskClientReferenceId"))
+                        .projectBeneficiaryId(resultSet.getString("sProjectBeneficiaryId"))
+                        .projectBeneficiaryClientReferenceId(resultSet.getString("sProjectBeneficiaryClientReferenceId"))
+                        .tenantId(resultSet.getString("sTenantId"))
+                        .symptoms(resultSet.getString("sSymptoms") == null ? null : objectMapper
+                                .readValue(resultSet.getString("sSymptoms"), ArrayList.class))
+                        .additionalFields(resultSet.getString("sAdditionalDetails") == null ? null : objectMapper
+                                .readValue(resultSet.getString("sAdditionalDetails"), AdditionalFields.class))
+                        .rowVersion(resultSet.getInt("sRowVersion"))
+                        .isDeleted(resultSet.getBoolean("sIsDeleted"))
                         .auditDetails(sideEffectAuditDetails)
                         .clientAuditDetails(sideEffectClientAuditDetails)
                         .build();
@@ -65,12 +73,14 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .projectBeneficiaryId(resultSet.getString("projectBeneficiaryId"))
                     .projectBeneficiaryClientReferenceId(resultSet.getString("projectbeneficiaryclientreferenceid"))
-                    .referredById(resultSet.getString("referredById"))
-                    .referredToId(resultSet.getString("referredToId"))
-                    .referredToType(resultSet.getString("referredToType"))
+                    .referrerId(resultSet.getString("referrerId"))
+                    .recipientId(resultSet.getString("recipientId"))
+                    .recipientType(resultSet.getString("recipientType"))
                     .sideEffect(sideEffect)
                     .tenantId(resultSet.getString("tenantid"))
                     .reasons(resultSet.getString("reasons") == null ? null : objectMapper.readValue(resultSet.getString("reasons"), ArrayList.class))
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
+                            .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .rowVersion(resultSet.getInt("rowversion"))
                     .isDeleted(resultSet.getBoolean("isdeleted"))
                     .auditDetails(auditDetails)
