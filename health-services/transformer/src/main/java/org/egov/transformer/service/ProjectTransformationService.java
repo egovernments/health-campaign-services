@@ -88,7 +88,6 @@ public abstract class ProjectTransformationService implements TransformationServ
             }
             isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
 
-            log.info("final targets are : {}", targets.toString());
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
                         Long endDate = project.getEndDate();
