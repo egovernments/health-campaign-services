@@ -19,7 +19,6 @@ public interface Constants {
     String BENEFICIARY_TYPE = "beneficiaryType";
     String TOTAL_NO_CHECK = "totalNo";
     String TARGET_NO_CHECK = "targetNo";
-
-
+    String HYPHEN = "-";
 
 }

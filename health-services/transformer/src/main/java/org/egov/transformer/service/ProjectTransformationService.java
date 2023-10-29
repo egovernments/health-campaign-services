@@ -20,6 +20,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.egov.transformer.Constants.HYPHEN;
+
 @Slf4j
 public abstract class ProjectTransformationService implements TransformationService<Project> {
     protected final ProjectIndexV1Transformer transformer;
@@ -86,7 +88,7 @@ public abstract class ProjectTransformationService implements TransformationServ
             }
             isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
 
-            log.info("targets are : {}", targets);
+            log.info("final targets are : {}", targets.toString());
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
                         Long endDate = project.getEndDate();
@@ -108,7 +110,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                             productVariant = String.join(",", productVariants);
                         }
                         if (r.getId() == null) {
-                            r.setId(project.getId() + "-" + r.getBeneficiaryType());
+                            r.setId(project.getId() + HYPHEN + r.getBeneficiaryType());
                         }
 
                         return ProjectIndexV1.builder()
