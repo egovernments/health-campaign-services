@@ -1,8 +1,12 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
+import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
@@ -11,11 +15,12 @@ import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import static org.egov.transformer.Constants.HYPHEN;
 
 @Slf4j
 public abstract class ProjectTransformationService implements TransformationService<Project> {
@@ -58,13 +63,14 @@ public abstract class ProjectTransformationService implements TransformationServ
             Transformer<Project, ProjectIndexV1> {
         private final ProjectService projectService;
         private final TransformerProperties properties;
+        private final ObjectMapper objectMapper;
 
 
         @Autowired
-        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
+        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ObjectMapper objectMapper) {
             this.projectService = projectService;
             this.properties = properties;
-
+            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -73,9 +79,15 @@ public abstract class ProjectTransformationService implements TransformationServ
                     .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
+            Set<String> fieldsToCheck = new HashSet<>();
+            fieldsToCheck.add(Constants.BENEFICIARY_TYPE);
+            fieldsToCheck.add(Constants.TOTAL_NO_CHECK);
+            fieldsToCheck.add(Constants.TARGET_NO_CHECK);
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
             }
+            isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
+
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
                         Long endDate = project.getEndDate();
@@ -95,6 +107,9 @@ public abstract class ProjectTransformationService implements TransformationServ
                         String productVariant = null;
                         if (productVariants != null && !productVariants.isEmpty()) {
                             productVariant = String.join(",", productVariants);
+                        }
+                        if (r.getId() == null) {
+                            r.setId(project.getId() + HYPHEN + r.getBeneficiaryType());
                         }
 
                         return ProjectIndexV1.builder()
@@ -120,5 +135,34 @@ public abstract class ProjectTransformationService implements TransformationServ
                     }
             ).collect(Collectors.toList());
         }
+        private void isValidTargetsAdditionalDetails(Project project, List<Target> targets, String fieldTarget, Set<String> fieldsToCheck, String beneficiaryType) {
+            if(project.getAdditionalDetails()!=null){
+                JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+                Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
+                if(additionalDetails.hasNonNull(fieldTarget)){
+                    JsonNode targetArray = additionalDetails.get(fieldTarget);
+                    if(targetArray.isArray() && !targetArray.isEmpty()) {
+                        targetArray.forEach(target->{
+                            Iterator<String> fieldIterator = target.fieldNames();
+                            Iterable<String> iterable = () -> fieldIterator;
+                            Set<String> actualList = StreamSupport
+                                    .stream(iterable.spliterator(), false)
+                                    .collect(Collectors.toSet());
+                            if(actualList.containsAll(fieldsToCheck)){
+                                if(!beneficiaryTypes.contains(target.get(beneficiaryType).asText())){
+                                    try {
+                                        targets.add(objectMapper.treeToValue(target,Target.class));
+
+                                    } catch (JsonProcessingException e) {
+                                        log.error("target object :"+target+ " could not be processed",e);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
     }
 }
