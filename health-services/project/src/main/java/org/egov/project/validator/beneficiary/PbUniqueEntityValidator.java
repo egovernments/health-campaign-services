@@ -3,7 +3,6 @@ package org.egov.project.validator.beneficiary;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.validator.Validator;
 import org.springframework.core.annotation.Order;
@@ -13,14 +12,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
-import static org.egov.project.validator.beneficiary.ValidatorUtils.validateUniqueTags;
 
 /**
  * This class, PbUniqueEntityValidator, is a Spring component that serves as a validator for ensuring the uniqueness
