@@ -105,14 +105,16 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
         Map<String, ProjectBeneficiary> existingProjectBeneficiaryMap = existingProjectBeneficiaries.stream().collect(Collectors.toMap(ProjectBeneficiary::getId, projectBeneficiary -> projectBeneficiary));
         // Filter project beneficiaries that are valid and have invalid voucher tags
         List<ProjectBeneficiary> invalidEntities = validProjectBeneficiaries.stream().filter(notHavingErrors())
-                .filter(entity -> existingProjectBeneficiaryMap.containsKey(entity.getId()))
+                .filter(entity -> !existingProjectBeneficiaryMap.containsKey(entity.getId()))
                 .collect(Collectors.toList());
 
         populateErrors(invalidEntities, errorDetailsMap);
 
+        List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getVoucherTag).collect(Collectors.toList());
         invalidEntities = validProjectBeneficiaries.stream()
                 .filter(notHavingErrors())
-                .filter(projectBeneficiary -> isInvalid(projectBeneficiary, existingProjectBeneficiaryMap))
+                .filter(projectBeneficiary -> !existingProjectBeneficiaryMap.get(projectBeneficiary.getId()).getVoucherTag().equals(projectBeneficiary.getVoucherTag()))
+                .filter(projectBeneficiary -> isInvalid(projectBeneficiary, existingVoucherTags))
                 .collect(Collectors.toList());
 
         populateErrors(invalidEntities, errorDetailsMap);
@@ -135,16 +137,16 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
     /**
      * This method checks if a ProjectBeneficiary entity is invalid based on its voucher tag.
      *
-     * @param entity                    The ProjectBeneficiary entity to check.
-     * @param existingProjectBeneficiaryMap A map of existing ProjectBeneficiary entities.
+     * @param entity                        The ProjectBeneficiary entity to check.
+     * @param existingVoucherTags
      * @return true if the entity is invalid, false otherwise.
      */
-    private boolean isInvalid(ProjectBeneficiary entity, Map<String, ProjectBeneficiary> existingProjectBeneficiaryMap) {
+    private boolean isInvalid(ProjectBeneficiary entity, List<String> existingVoucherTags) {
         String id = entity.getId();
         String voucherTag = entity.getVoucherTag();
 
         // Check if an entity with the same ID exists in the map and has a different VoucherTag
-        return !(existingProjectBeneficiaryMap.containsKey(id) && !existingProjectBeneficiaryMap.get(id).getVoucherTag().equals(voucherTag));
+        return existingVoucherTags.contains(voucherTag);
     }
 
 }

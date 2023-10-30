@@ -71,9 +71,10 @@ public class PbVoucherTagUniqueForCreateValidator implements Validator<Beneficia
 
     // Helper method to validate and populate errors
     private void validateAndPopulateErrors(List<ProjectBeneficiary> validProjectBeneficiaries, List<ProjectBeneficiary> existingProjectBeneficiaries, Map<ProjectBeneficiary, List<Error>> errorDetailsMap) {
+        List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getVoucherTag).collect(Collectors.toList());
         // Filter project beneficiaries that are valid and have invalid voucher tags
         List<ProjectBeneficiary> invalidEntities = validProjectBeneficiaries.stream().filter(notHavingErrors())
-                .filter(entity -> existingProjectBeneficiaries.contains(entity.getVoucherTag()))
+                .filter(entity -> existingVoucherTags.contains(entity.getVoucherTag()))
                 .collect(Collectors.toList());
 
         // For each invalid entity, create an error and populate error details
