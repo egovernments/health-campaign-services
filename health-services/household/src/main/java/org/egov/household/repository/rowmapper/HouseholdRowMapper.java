@@ -57,7 +57,7 @@ public class HouseholdRowMapper implements RowMapper<Household> {
                             .addressLine2(resultSet.getString("addressLine2"))
                             .landmark(resultSet.getString("landmark"))
                             .city(resultSet.getString("city"))
-                            .pincode(resultSet.getString("totalCount")) /*TODO remove this later*/
+                            .pincode(resultSet.getString("pinCode"))
                             .buildingName(resultSet.getString("buildingName"))
                             .street(resultSet.getString("street"))
                             .locality(resultSet.getString("localityCode") != null ?
