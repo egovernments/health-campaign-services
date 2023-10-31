@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
 import org.egov.transformer.Constants;
@@ -154,7 +155,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                         targets.add(objectMapper.treeToValue(target,Target.class));
 
                                     } catch (JsonProcessingException e) {
-                                        log.error("target object :"+target+ " could not be processed",e);
+                                        log.error("target object :" + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
                                     }
                                 }
                             }

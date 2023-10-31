@@ -94,8 +94,8 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
 
-            String facilityLevel = getFacilityLevel(facility);
-            String transactingFacilityLevel = getFacilityLevel(transactingFacility);
+            String facilityLevel = facility != null ? getFacilityLevel(facility) : null;
+            String transactingFacilityLevel = transactingFacility != null ? getFacilityLevel(transactingFacility) : null;
             Long facilityTarget = getFacilityTarget(facility);
 
             String facilityType = WAREHOUSE;
@@ -173,8 +173,12 @@ public abstract class StockTransformationService implements TransformationServic
         }
 
         private String getFacilityLevel(Facility facility) {
-            return facility.getUsage().equalsIgnoreCase(WAREHOUSE) ?
-                    (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
+            String facilityUsage = facility.getUsage();
+            if (facilityUsage != null) {
+                return WAREHOUSE.equalsIgnoreCase(facility.getUsage()) ?
+                        (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
+            }
+            return null;
         }
     }
 }

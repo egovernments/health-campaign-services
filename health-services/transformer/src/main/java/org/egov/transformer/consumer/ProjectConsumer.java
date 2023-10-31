@@ -44,7 +44,7 @@ public class ProjectConsumer {
                             ProjectRequest.class);
             transformationHandler.handle(request.getProjects(), Operation.PROJECT);
         } catch (Exception exception) {
-            log.error("error in project consumer", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

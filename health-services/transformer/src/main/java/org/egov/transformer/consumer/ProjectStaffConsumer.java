@@ -42,7 +42,7 @@ public class ProjectStaffConsumer {
                             ProjectStaff[].class));
             transformationHandler.handle(payloadList, Operation.PROJECT_STAFF);
         } catch (Exception exception) {
-            log.error("error in project staff bulk consumer", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project staff bulk consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

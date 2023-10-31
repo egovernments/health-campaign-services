@@ -76,7 +76,7 @@ public class ServiceDefinitionService {
                     request,
                     ServiceDefinitionResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching serviceDefinition list", ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching serviceDefinition list {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ServiceDefinition_FETCH_ERROR",
                     "error while fetching service details for id: " + serviceDefId);
         }

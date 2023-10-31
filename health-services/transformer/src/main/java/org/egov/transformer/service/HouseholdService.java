@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
@@ -49,7 +50,7 @@ public class HouseholdService {
                     request,
                     HouseholdBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching household", e);
+            log.error("error while fetching household {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("HOUSEHOLD_FETCH_ERROR",
                     "error while fetching household details for id: " + clientRefId);
         }
