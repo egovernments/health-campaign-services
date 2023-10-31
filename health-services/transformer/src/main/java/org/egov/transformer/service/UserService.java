@@ -7,6 +7,7 @@ import digit.models.coremodels.UserSearchRequest;
 import digit.models.coremodels.mdms.*;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -62,7 +63,7 @@ public class UserService {
             );
             return response.getUser();
         } catch (Exception e) {
-            log.error("Exception while searching users : ", e);
+            log.error("Exception while searching users : {}", ExceptionUtils.getStackTrace(e));
         }
         return new ArrayList<>();
     }
@@ -77,7 +78,7 @@ public class UserService {
             MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
             projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
         } catch (Exception e) {
-            log.error("Exception while fetching mdms roles : {}", e);
+            log.error("Exception while fetching mdms roles : {}", ExceptionUtils.getStackTrace(e));
         }
 
         HashMap<String,Integer> projectStaffRolesMap = new HashMap<>();
