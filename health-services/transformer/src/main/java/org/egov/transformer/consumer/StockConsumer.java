@@ -38,7 +38,7 @@ public class StockConsumer {
                             Stock[].class));
             transformationHandler.handle(payloadList, Operation.STOCK);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in stock consumer bulk create {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }
