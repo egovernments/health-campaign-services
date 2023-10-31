@@ -109,7 +109,7 @@ public class HouseholdService {
     }
 
     public Tuple<Long, List<Household>> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
-                                  Long lastChangedSince, Boolean includeDeleted, Boolean useCTE) {
+                                  Long lastChangedSince, Boolean includeDeleted) {
 
         String idFieldName = getIdFieldName(householdSearch);
         if (isSearchByIdOnly(householdSearch, idFieldName)) {
@@ -132,7 +132,7 @@ public class HouseholdService {
             if(Boolean.TRUE.equals(isProximityBasedSearch(householdSearch))) {
                 householdsTuple = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
             } else {
-                householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted, useCTE);
+                householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
             }
             log.info("households found for search, size: {}", householdsTuple.getY().size());
             return householdsTuple;

@@ -206,7 +206,7 @@ public class HouseholdApiController {
                                                                        @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted,
                                                                        @ApiParam(value = "Used to test performance", defaultValue = "false") @Valid @RequestParam(value = "useCte", required = false, defaultValue = "false") Boolean useCte) {
 
-        Tuple<Long, List<Household>> householdsTuple = householdService.search(request.getHousehold(), limit, offset, tenantId, lastChangedSince, includeDeleted, useCte);
+        Tuple<Long, List<Household>> householdsTuple = householdService.search(request.getHousehold(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         HouseholdBulkResponse response = HouseholdBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).totalCount(householdsTuple.getX()).households(householdsTuple.getY()).build();
 
