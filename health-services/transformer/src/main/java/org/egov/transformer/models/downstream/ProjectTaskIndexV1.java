@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.household.Household;
+import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.ProjectBeneficiary;
 
 import javax.validation.Valid;
@@ -88,5 +89,7 @@ public class ProjectTaskIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("syncedTime")
     private Long syncedTime;
+    @JsonProperty("additionalFields")
+    private AdditionalFields additionalFields;
 
 }
