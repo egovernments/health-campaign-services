@@ -155,7 +155,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                         targets.add(objectMapper.treeToValue(target,Target.class));
 
                                     } catch (JsonProcessingException e) {
-                                        log.error("target object :"+target+ " could not be processed {}", ExceptionUtils.getStackTrace(e));
+                                        log.error("target object :" + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
                                     }
                                 }
                             }
