@@ -119,6 +119,19 @@ public class AdvanceTableChartResponseHandler implements IResponseHandler {
             });
 
         });
+        if (chartNode.has(INCLUDE_CONSTANT_COLUMNS)) {
+            JsonNode constColumns = chartNode.get(INCLUDE_CONSTANT_COLUMNS);
+            Map<String, Plot> constPlotMap = new LinkedHashMap<>();
+            constColumns.forEach(item -> {
+                JsonNode value = aggregationNode.findValue(item.asText()).findValue("value");
+                Plot tempPlot = new Plot(item.asText(), value.asDouble(), "number");
+                constPlotMap.put(item.asText(), tempPlot);
+            });
+            for (String key : mappings.keySet()) {
+                Map<String, Plot> plotMap = mappings.get(key);
+                plotMap.putAll(constPlotMap);
+            }
+        }
         List<Data> finalDataList = dataList;
         mappings.entrySet().stream().forEach(plotMap -> {
             List<Plot> plotList = plotMap.getValue().values().stream().collect(Collectors.toList());

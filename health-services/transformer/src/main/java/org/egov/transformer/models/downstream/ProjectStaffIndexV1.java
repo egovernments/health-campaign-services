@@ -19,6 +19,10 @@ public class ProjectStaffIndexV1 {
     private String userId;
     @JsonProperty("projectId")
     private String projectId;
+    @JsonProperty("userName")
+    private String userName;
+    @JsonProperty("role")
+    private String role;
     @JsonProperty("province")
     private String province;
     @JsonProperty("district")

@@ -26,6 +26,10 @@ public class ProjectTaskIndexV1 {
     private String taskType;
     @JsonProperty("projectId")
     private String projectId;
+    @JsonProperty("userName")
+    private String userName;
+    @JsonProperty("role")
+    private String role;
     @JsonProperty("startDate")
     private Long startDate;
     @JsonProperty("endDate")
@@ -80,7 +84,9 @@ public class ProjectTaskIndexV1 {
     private String tenantId;
     @JsonProperty("clientAuditDetails")
     private @Valid AuditDetails clientAuditDetails;
+    @JsonProperty("syncedTimeStamp")
+    private String syncedTimeStamp;
     @JsonProperty("syncedTime")
-    private String syncedTime;
+    private Long syncedTime;
 
 }

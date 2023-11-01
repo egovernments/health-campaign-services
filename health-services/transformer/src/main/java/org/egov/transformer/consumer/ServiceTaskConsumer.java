@@ -42,7 +42,7 @@ public class ServiceTaskConsumer {
             List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
             transformationHandler.handle(collect, Operation.SERVICE);
         } catch (Exception exception) {
-            log.error("error in service task consumer", ExceptionUtils.getStackTrace(exception));
+            log.error("error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 

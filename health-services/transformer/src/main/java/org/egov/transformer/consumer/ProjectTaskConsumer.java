@@ -42,7 +42,7 @@ public class ProjectTaskConsumer {
                             Task[].class));
             transformationHandler.handle(payloadList, Operation.TASK);
         } catch (Exception exception) {
-            log.error("error in project task bulk consumer", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project task bulk consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

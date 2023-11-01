@@ -64,7 +64,7 @@ public class FacilityService {
             updateFacilitiesInCache(facilities);
             return facilities.isEmpty() ? null : facilities.get(0);
         } catch (Exception e) {
-            log.error("error while fetching facility", ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching facility {}", ExceptionUtils.getStackTrace(e));
             return null;
         }
     }

@@ -33,6 +33,10 @@ public class ServiceIndexV1 {
     private String projectId;
     @JsonProperty("serviceDefinitionId")
     private String serviceDefinitionId;
+    @JsonProperty("userName")
+    private String userName;
+    @JsonProperty("role")
+    private String role;
     @JsonProperty("province")
     private String province;
     @JsonProperty("district")
@@ -51,6 +55,8 @@ public class ServiceIndexV1 {
     private List<AttributeValue> attributes = new ArrayList<>();
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
+    @JsonProperty("syncedTimeStamp")
+    private String syncedTimeStamp;
     @JsonProperty("syncedTime")
-    private String syncedTime = null;
+    private Long syncedTime;
 }

@@ -103,7 +103,7 @@ public class BoundaryService {
                     RequestInfo.builder().build(),
                     LinkedHashMap.class);
         } catch (Exception e) {
-            log.error("error while calling boundary service", ExceptionUtils.getStackTrace(e));
+            log.error("error while calling boundary service: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("BOUNDARY_ERROR", "error while calling boundary service");
         }
         if (response != null) {
@@ -122,7 +122,7 @@ public class BoundaryService {
                             .readValue(str,
                                     Boundary[].class));
                 } catch (JsonProcessingException e) {
-                    log.error("error in paring json", ExceptionUtils.getStackTrace(e));
+                    log.error("error in paring json {}", ExceptionUtils.getStackTrace(e));
                     throw new CustomException("JSON_ERROR", "error in parsing json");
                 }
             }

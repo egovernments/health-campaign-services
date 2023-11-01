@@ -1,5 +1,8 @@
 package org.egov.project.util;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public class ProjectConstants {
     public static final String MASTER_TENANTS = "tenants";
     public static final String MDMS_TENANT_MODULE_NAME = "tenant";
@@ -13,4 +16,35 @@ public class ProjectConstants {
     public static final String SEMICOLON = ":";
     public static final String DOT = ".";
     public static final String PROJECT_PARENT_HIERARCHY_SEPERATOR = ".";
+    public static final String TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED";
+    public static final String TASK_NOT_ALLOWED_BENEFICIARY_REFUSED_RESOURCE_EMPTY_ERROR_MESSAGE = "Task not allowed as resources can not be provided when status is ";
+    public static final String TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE = "Task not allowed as resources can not be empty when status is not ";
+    public static final String OR = " OR ";
+    public enum TaskStatus {
+        BENEFICIARY_REFUSED("BENEFICIARY_REFUSED"),
+        BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+        BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE");
+        private String value;
+
+        TaskStatus(String value) {
+            this.value = value;
+        }
+
+        @Override
+        @JsonValue
+        public String toString() {
+            return String.valueOf(value);
+        }
+
+        @JsonCreator
+        public static TaskStatus fromValue(String text) {
+            for (TaskStatus status : TaskStatus.values()) {
+                if (String.valueOf(status.value).equals(text)) {
+                    return status;
+                }
+            }
+            return null;
+        }
+    }
+
 }

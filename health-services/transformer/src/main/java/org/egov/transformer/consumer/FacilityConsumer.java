@@ -40,7 +40,7 @@ public class FacilityConsumer {
                             Facility[].class));
             facilityService.updateFacilitiesInCache(facilities);
         } catch (Exception exception) {
-            log.error("error in facility consumer", ExceptionUtils.getStackTrace(exception));
+            log.error("error in facility consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }
