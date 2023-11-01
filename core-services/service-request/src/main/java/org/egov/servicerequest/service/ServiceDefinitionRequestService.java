@@ -4,7 +4,6 @@ import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.kafka.Producer;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
 import org.egov.servicerequest.validators.ServiceDefinitionRequestValidator;
-import org.egov.servicerequest.web.models.AttributeDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinitionRequest;
 import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
@@ -13,8 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -64,7 +61,6 @@ public class ServiceDefinitionRequestService {
         listOfServiceDefinitions.forEach(serviceDefinition -> {
             // Restore attribute values to native state
             enrichmentService.setAttributeDefinitionValuesBackToNativeState(serviceDefinition);
-            serviceDefinition.getAttributes().sort(Comparator.comparing(AttributeDefinition::getCode));
         });
 
         return listOfServiceDefinitions;
