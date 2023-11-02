@@ -19,6 +19,9 @@ import org.egov.project.validator.beneficiary.PbNullIdValidator;
 import org.egov.project.validator.beneficiary.PbProjectIdValidator;
 import org.egov.project.validator.beneficiary.PbRowVersionValidator;
 import org.egov.project.validator.beneficiary.PbUniqueEntityValidator;
+import org.egov.project.validator.beneficiary.PbUniqueTagsValidator;
+import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForCreateValidator;
+import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForUpdateValidator;
 import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +65,8 @@ public class ProjectBeneficiaryService {
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForUpdate = validator ->
             validator.getClass().equals(PbNullIdValidator.class)
                     || validator.getClass().equals(PbNonExistentEntityValidator.class)
+                    || validator.getClass().equals(PbUniqueTagsValidator.class)
+                    || validator.getClass().equals(PbVoucherTagUniqueForUpdateValidator.class)
                     || validator.getClass().equals(PbIsDeletedValidator.class)
                     || validator.getClass().equals(PbProjectIdValidator.class)
                     || validator.getClass().equals(BeneficiaryValidator.class)
@@ -70,7 +75,9 @@ public class ProjectBeneficiaryService {
 
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForCreate = validator ->
             validator.getClass().equals(PbProjectIdValidator.class)
-                    || validator.getClass().equals(BeneficiaryValidator.class);
+                    || validator.getClass().equals(BeneficiaryValidator.class)
+                    || validator.getClass().equals(PbUniqueTagsValidator.class)
+                    || validator.getClass().equals(PbVoucherTagUniqueForCreateValidator.class);
 
     private final Predicate<Validator<BeneficiaryBulkRequest, ProjectBeneficiary>> isApplicableForDelete = validator ->
             validator.getClass().equals(PbNullIdValidator.class)

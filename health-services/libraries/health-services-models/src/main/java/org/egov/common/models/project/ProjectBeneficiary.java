@@ -79,7 +79,7 @@ public class ProjectBeneficiary {
     @JsonIgnore
     private Boolean hasErrors = Boolean.FALSE;
 
-    @JsonProperty("voucherTag")
-    private String voucherTag;
+    @JsonProperty("tag")
+    private String tag;
 
 }
