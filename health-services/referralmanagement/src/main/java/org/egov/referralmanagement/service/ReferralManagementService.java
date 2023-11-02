@@ -1,16 +1,6 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.referralmanagement.Constants;
-import org.egov.referralmanagement.config.ReferralManagementConfiguration;
-import org.egov.referralmanagement.repository.ReferralRepository;
-import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
-import org.egov.referralmanagement.validator.RmFacilityEntitiesIdValidator;
-import org.egov.referralmanagement.validator.RmIsDeletedValidator;
-import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
-import org.egov.referralmanagement.validator.RmNullIdValidator;
-import org.egov.referralmanagement.validator.RmProjectEntitiesIdValidator;
-import org.egov.referralmanagement.validator.RmUniqueEntityValidator;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.referralmanagement.Referral;
@@ -20,6 +10,18 @@ import org.egov.common.models.referralmanagement.ReferralSearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
+import org.egov.referralmanagement.Constants;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.repository.ReferralRepository;
+import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
+import org.egov.referralmanagement.validator.RmIsDeletedValidator;
+import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
+import org.egov.referralmanagement.validator.RmNullIdValidator;
+import org.egov.referralmanagement.validator.RmProjectBeneficiaryIdValidator;
+import org.egov.referralmanagement.validator.RmRecipientIdValidator;
+import org.egov.referralmanagement.validator.RmReferrerIdValidator;
+import org.egov.referralmanagement.validator.RmSideEffectIdValidator;
+import org.egov.referralmanagement.validator.RmUniqueEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -54,12 +56,16 @@ public class ReferralManagementService {
     private final List<Validator<ReferralBulkRequest, Referral>> validators;
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
-            validator.getClass().equals(RmProjectEntitiesIdValidator.class)
-                || validator.getClass().equals(RmFacilityEntitiesIdValidator.class);
+            validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmReferrerIdValidator.class)
+                || validator.getClass().equals(RmRecipientIdValidator.class)
+                || validator.getClass().equals(RmSideEffectIdValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForUpdate = validator ->
-            validator.getClass().equals(RmProjectEntitiesIdValidator.class)
-                || validator.getClass().equals(RmFacilityEntitiesIdValidator.class)
+            validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmReferrerIdValidator.class)
+                || validator.getClass().equals(RmRecipientIdValidator.class)
+                || validator.getClass().equals(RmSideEffectIdValidator.class)
                 || validator.getClass().equals(RmNullIdValidator.class)
                 || validator.getClass().equals(RmIsDeletedValidator.class)
                 || validator.getClass().equals(RmUniqueEntityValidator.class)
@@ -67,7 +73,7 @@ public class ReferralManagementService {
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForDelete = validator ->
             validator.getClass().equals(RmNullIdValidator.class)
-                    || validator.getClass().equals(RmNonExistentEntityValidator.class);
+                || validator.getClass().equals(RmNonExistentEntityValidator.class);
 
 
     public ReferralManagementService(IdGenService idGenService, ReferralRepository referralRepository, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementEnrichmentService referralManagementEnrichmentService, List<Validator<ReferralBulkRequest, Referral>> validators) {
@@ -104,7 +110,7 @@ public class ReferralManagementService {
         } catch (Exception exception) {
             log.error("error occurred while creating referrals: {}", exception.getMessage());
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_SIDE_EFFECTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -137,7 +143,7 @@ public class ReferralManagementService {
         } catch (Exception exception) {
             log.error("error occurred while updating referrals", exception);
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_SIDE_EFFECTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -197,7 +203,7 @@ public class ReferralManagementService {
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_SIDE_EFFECTS);
+                    exception, Constants.SET_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -219,7 +225,7 @@ public class ReferralManagementService {
         log.info("validating request");
         Map<Referral, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                Constants.SET_SIDE_EFFECTS);
+                Constants.SET_REFERRALS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(Constants.VALIDATION_ERROR, errorDetailsMap.values().toString());

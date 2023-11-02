@@ -4,6 +4,7 @@ package org.egov.household.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.ds.Tuple;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdBulkResponse;
@@ -202,11 +203,12 @@ public class HouseholdApiController {
                                                                        @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
                                                                        @NotNull @Size(min = 2, max = 1000) @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
                                                                        @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
-                                                                       @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
+                                                                       @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted,
+                                                                       @ApiParam(value = "Used to test performance", defaultValue = "false") @Valid @RequestParam(value = "useCte", required = false, defaultValue = "false") Boolean useCte) {
 
-        List<Household> households = householdService.search(request.getHousehold(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        Tuple<Long, List<Household>> householdsTuple = householdService.search(request.getHousehold(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         HouseholdBulkResponse response = HouseholdBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).households(households).build();
+                .createResponseInfo(request.getRequestInfo(), true)).totalCount(householdsTuple.getX()).households(householdsTuple.getY()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

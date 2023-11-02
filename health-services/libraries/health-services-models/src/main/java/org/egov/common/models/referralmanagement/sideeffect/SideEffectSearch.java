@@ -1,6 +1,5 @@
 package org.egov.common.models.referralmanagement.sideeffect;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,18 +12,17 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class SideEffectSearch {
     @JsonProperty("id")
-    private List<String> id = null;
+    private List<String> id;
 
     @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId = null;
+    private List<String> clientReferenceId;
 
     @JsonProperty("taskId")
-    private String taskId = null;
+    private String taskId;
 
     @JsonProperty("taskClientReferenceId")
-    private String taskClientReferenceId = null;
+    private String taskClientReferenceId;
 
 }
