@@ -5,10 +5,6 @@ import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-r
 
 const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
   const { t } = useTranslation();
-  const search = useLocation().search;
-  const fromScreen = new URLSearchParams(search).get("from") || null;
-  const pathVar=location.pathname.replace(defaultPath+'/',"").split("?")?.[0];
-  const {masterName,moduleName,uniqueIdentifier} = Digit.Hooks.useQueryParams()
 
   const crumbs = [
     {

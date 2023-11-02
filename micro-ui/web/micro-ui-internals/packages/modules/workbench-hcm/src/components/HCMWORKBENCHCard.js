@@ -10,9 +10,9 @@ const ROLES = {
 
 // Mukta Overrriding the Works Home screen card
 const HCMWORKBENCHCard = () => {
-  // if (!Digit.Utils.didEmployeeHasAtleastOneRole(Object.values(ROLES).flatMap((e) => e))) {
-  //   return null;
-  // }
+  if (!Digit.Utils.didEmployeeHasAtleastOneRole(Object.values(ROLES).flatMap((e) => e))) {
+    return null;
+  }
 
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
@@ -28,16 +28,6 @@ const HCMWORKBENCHCard = () => {
       link: `/${window?.contextPath}/employee/workbench/localisation-search`,
       roles: ROLES.LOCALISATION,
     },
-    // {
-    //   label: t("Sample Create master"),
-    //   link: `/${window?.contextPath}/employee/workbench/mdms-add-v2?moduleName=common-masters&masterName=Sample`,
-    //   roles: ROLES.MDMS,
-    // },
-    // {
-    //   label: t("Sample Search master"),
-    //   link: `/${window?.contextPath}/employee/workbench/mdms-search-v2?masterName=common-masters&moduleName=Sample`,
-    //   roles: ROLES.MDMS,
-    // },
   ];
 
 
@@ -45,7 +35,7 @@ const HCMWORKBENCHCard = () => {
 
   const propsForModuleCard = {
     Icon: <WorksMgmtIcon />,
-    moduleName: t("ACTION_TEST_WORKBENCH"),
+    moduleName: t("ACTION_TEST_HCM_WORKBENCH"),
     kpis: [],
     links: links,
   };

@@ -5,7 +5,6 @@ import EmployeeApp from "./pages/employee";
 import { CustomisedHooks } from "./hooks";
 import { UICustomizations } from "./configs/UICustomizations";
 import HCMWORKBENCHCard from "./components/HCMWORKBENCHCard";
-import * as parsingUtils from "../src/utils/ParsingUtils";
 
 const HCMWorkbenchModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["workbench-hcm", "mdms", "schema"];
@@ -72,7 +71,7 @@ const setupLibraries = (Library, service, method) => {
 /* To Overide any existing config/middlewares  we need to use similar method */
 const updateCustomConfigs = () => {
   setupLibraries("Customizations", "commonUiConfig", { ...window?.Digit?.Customizations?.commonUiConfig, ...UICustomizations });
-  setupLibraries("Utils", "parsingUtils", { ...window?.Digit?.Utils?.parsingUtils, ...parsingUtils });
+  setupLibraries("Utils");
 };
 const initWorkbenchHCMComponents = () => {
   overrideHooks();
