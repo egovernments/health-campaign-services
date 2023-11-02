@@ -4,10 +4,10 @@ import { useRouteMatch } from "react-router-dom";
 import EmployeeApp from "./pages/employee";
 import { CustomisedHooks } from "./hooks";
 import { UICustomizations } from "./configs/UICustomizations";
-import WorkbenchHCMCard from "./components/WorkbenchHCMCard";
+import HCMWORKBENCHCard from "./components/HCMWORKBENCHCard";
 import * as parsingUtils from "../src/utils/ParsingUtils";
 
-const WorkbenchHCMModule = ({ stateCode, userType, tenants }) => {
+const HCMWorkbenchModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["workbench-hcm", "mdms", "schema"];
   const { path, url } = useRouteMatch();
   const language = Digit.StoreData.getCurrentLanguage();
@@ -29,8 +29,8 @@ const WorkbenchHCMModule = ({ stateCode, userType, tenants }) => {
 };
 
 const componentsToRegister = {
-  WorkbenchHCMModule,
-  WorkbenchHCMCard,
+  HCMWorkbenchModule,
+  HCMWORKBENCHCard,
 };
 
 const overrideHooks = () => {
@@ -74,7 +74,6 @@ const updateCustomConfigs = () => {
   setupLibraries("Customizations", "commonUiConfig", { ...window?.Digit?.Customizations?.commonUiConfig, ...UICustomizations });
   setupLibraries("Utils", "parsingUtils", { ...window?.Digit?.Utils?.parsingUtils, ...parsingUtils });
 };
-
 const initWorkbenchHCMComponents = () => {
   overrideHooks();
   updateCustomConfigs();

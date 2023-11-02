@@ -3,16 +3,16 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 const ROLES = {
-  LOCALISATION: ["EMPLOYEE", "SUPERUSER","EMPLOYEE_COMMON","LOC_ADMIN", "SYSTEM_ADMINISTRATOR"],
-  MDMS: ["MDMS_ADMIN", "EMPLOYEE", "SUPERUSER"],
-  DSS: ["STADMIN"],
+  LOCALISATION: ["EMPLOYEE", "SUPERUSER", "EMPLOYEE_COMMON", "LOC_ADMIN", "SYSTEM_ADMINISTRATOR"],
+  MDMS: ["MDMS_ADMIN", "EMPLOYEE", "SUPERUSER", "SYSTEM_ADMINISTRATOR"],
+  DSS: ["STADMIN", "SYSTEM_ADMINISTRATOR"],
 };
 
 // Mukta Overrriding the Works Home screen card
-const WorkbenchHCMCard = () => {
-  if (!Digit.Utils.didEmployeeHasAtleastOneRole(Object.values(ROLES).flatMap((e) => e))) {
-    return null;
-  }
+const HCMWORKBENCHCard = () => {
+  // if (!Digit.Utils.didEmployeeHasAtleastOneRole(Object.values(ROLES).flatMap((e) => e))) {
+  //   return null;
+  // }
 
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
@@ -40,6 +40,7 @@ const WorkbenchHCMCard = () => {
     // },
   ];
 
+
   links = links.filter((link) => (link?.roles && link?.roles?.length > 0 ? Digit.Utils.didEmployeeHasAtleastOneRole(link?.roles) : true));
 
   const propsForModuleCard = {
@@ -51,4 +52,4 @@ const WorkbenchHCMCard = () => {
   return <EmployeeModuleCard {...propsForModuleCard} />;
 };
 
-export default WorkbenchHCMCard;
+export default HCMWORKBENCHCard;

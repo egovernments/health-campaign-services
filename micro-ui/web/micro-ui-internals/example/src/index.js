@@ -9,7 +9,7 @@ import { initEngagementComponents } from "@egovernments/digit-ui-module-engageme
 import { initHRMSComponents } from "@egovernments/digit-ui-module-hrms";
 // import { initUtilitiesComponents } from  "@egovernments/digit-ui-module-utilities";
 import {initWorkbenchComponents} from "@egovernments/digit-ui-module-workbench";
-import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-workbench-hcm";
+import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-hcmworkbench";
 
 import "@egovernments/digit-ui-css/example/index.css";
 
@@ -22,7 +22,7 @@ const enabledModules = [
   "DSS",
   "HRMS",
   "Workbench",
-  "Workbench-hcm",
+  "HCMWORKBENCH",
   //  "Engagement", "NDSS","QuickPayLinks", "Payment",
   // "Utilities",
   //added to check fsm
