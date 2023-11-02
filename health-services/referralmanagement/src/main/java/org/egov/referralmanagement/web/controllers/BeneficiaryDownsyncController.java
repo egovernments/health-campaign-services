@@ -33,6 +33,9 @@ public class BeneficiaryDownsyncController {
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(request.getRequestInfo(), true))
                 .build();
+        
+        long offset = request.getDownsyncCriteria().getOffset();
+        long limit = request.getDownsyncCriteria().getLimit();
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body("{\n"
         		+ "  \"ResponseInfo\": {\n"
@@ -47,8 +50,8 @@ public class BeneficiaryDownsyncController {
         		+ "    \"DownsyncCriteria\": {\n"
         		+ "      \"locality\": \"string\",\n"
         		+ "      \"tenantId\": \"string\",\n"
-        		+ "      \"offset\": 0,\n"
-        		+ "      \"limit\": 10,\n"
+        		+ "      \"offset\": " + offset + ",\n"
+        		+ "      \"limit\": " + limit + ",\n"
         		+ "      \"lastSyncedTime\": 0,\n"
         		+ "      \"includeDeleted\": false,\n"
         		+ "      \"totalCount\": \"1\"\n"
