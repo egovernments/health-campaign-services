@@ -15,9 +15,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,22 +57,24 @@ public class HouseholdRepository extends GenericRepository<Household> {
             }
         }
 
-        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid, count(*) over() as totalCount  FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid, count(*) over() as totalCount  FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
 
-        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramMap);
+//        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramMap);
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
-        return new Tuple<>(totalCount, objFound);
+//        return new Tuple<>(totalCount, objFound);
+        return getTupleObject(objFound);
     }
 
     public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
         String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
+        query += ", count(*) over() as totalCount ";
         query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
@@ -90,12 +94,12 @@ public class HouseholdRepository extends GenericRepository<Household> {
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
-        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
+//        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
 
         query = query + "ORDER BY h.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
+        return getTupleObject(this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
     }
 
     /**
@@ -111,7 +115,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
      */
     public Tuple<Long, List<Household>> findByRadius(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Boolean includeDeleted) throws QueryBuilderException {
         String query = searchCriteriaWaypointQuery +
-                "SELECT * FROM (SELECT h.*, a.*, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid, " + calculateDistanceFromTwoWaypointsFormulaQuery + " \n" +
+                "SELECT * FROM (SELECT h.*, a.*, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid, count(*) over() as totalCount, " + calculateDistanceFromTwoWaypointsFormulaQuery + " \n" +
                 "FROM public.household h LEFT JOIN public.address a ON h.addressid = a.id AND h.tenantid = a.tenantid, cte_search_criteria_waypoint cte_scw ";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
@@ -129,11 +133,11 @@ public class HouseholdRepository extends GenericRepository<Household> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("distance", searchObject.getSearchRadius());
-        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
+//        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
         query = query + " ORDER BY distance ASC LIMIT :limit OFFSET :offset ";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
+        return getTupleObject(this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
     }
 
     private Long constructTotalCountCTEAndReturnResult(String query, Map<String, Object> paramsMap) {
@@ -146,5 +150,14 @@ public class HouseholdRepository extends GenericRepository<Household> {
         });
     }
 
+    private Tuple<Long, List<Household>> getTupleObject(List<Household> resultData) {
+        if(CollectionUtils.isEmpty(resultData)) {
+            return new Tuple(0L, Collections.emptyList());
+        }
+
+        Long totalCount = Long.valueOf(resultData.get(0).getAddress().getPincode());
+
+        return new Tuple<>(totalCount, resultData);
+    }
 
 }
