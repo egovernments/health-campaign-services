@@ -42,6 +42,7 @@ frontend/micro-ui/web/public/index.html
 # Changelog
 
 ```bash
+1.8.0-beta.14 added tour help styles
 1.8.0-beta.13 fixed the login text styling issue
 1.8.0-beta.1 styles for login dropdown and homepage dropdowns
 1.8.0-beta added workbench related css and some new Digit v2 constants based on em

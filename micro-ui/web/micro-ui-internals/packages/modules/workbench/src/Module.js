@@ -1,4 +1,4 @@
-import { Loader } from "@egovernments/digit-ui-react-components";
+import { Loader,TourProvider } from "@egovernments/digit-ui-react-components";
 import React from "react";
 import { useRouteMatch } from "react-router-dom";
 import EmployeeApp from "./pages/employee";
@@ -23,7 +23,9 @@ const WorkbenchModule = ({ stateCode, userType, tenants }) => {
     return <Loader />;
   }
 
-  return <EmployeeApp path={path} stateCode={stateCode} />;
+  return <TourProvider>
+    <EmployeeApp path={path} stateCode={stateCode} />
+  </TourProvider>
 };
 
 const componentsToRegister = {

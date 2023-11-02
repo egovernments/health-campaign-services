@@ -208,7 +208,8 @@ import {
   UploadIcon,
   FileIcon,
   DeleteIconv2,
-  InfoIconOutline
+  InfoIconOutline,
+  HelpOutlineIcon
 } from "./atoms/svgindex";
 import Table from "./atoms/Table";
 import TelePhone from "./atoms/TelePhone";
@@ -282,7 +283,17 @@ import CitizenConsentForm from "./atoms/CitizenConsentForm";
 // Importing From SVG Library
 import {SVG} from "./atoms/SVG";
 
+//Tutorial
+import Tutorial from "./hoc/Tutorial/Tutorial";
+import { useTourState,TourProvider } from "./hoc/Tutorial/TourProvider";
+import Help from "./hoc/Tutorial/Help";
+
 export {
+  HelpOutlineIcon,
+  Help,
+  Tutorial,
+  useTourState,
+  TourProvider,
   InputTextAmount,
   Button,
   ViewImages,

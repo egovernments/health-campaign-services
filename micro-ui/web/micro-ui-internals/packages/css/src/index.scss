@@ -111,6 +111,33 @@
 @import "./components/inboxv2/index.scss";
 @import "./components//sidebar.scss";
 
+.wbh-header-container {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  margin:1rem 0.5rem -0.5rem 0.3rem;
+}
+
+.wbh-header {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  margin:1rem 0.5rem -0.5rem 0.3rem;
+  .header-icon-container{
+    cursor: pointer;
+    h4{
+      margin:0px !important;
+    }
+    color:#f47738;
+    display: flex !important;
+    align-items: center;
+    svg {
+      margin:0 0 0 0.1rem;
+    }
+  }
+
+}
+
 .display-none {
   display: none;
 }
