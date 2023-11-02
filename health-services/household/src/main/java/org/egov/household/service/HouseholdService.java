@@ -117,7 +117,7 @@ public class HouseholdService {
                             .singletonList(householdSearch)),
                     householdSearch);
             Tuple<Long, List<Household>> householdsTuple = householdRepository.findById(ids,
-                            idFieldName, includeDeleted);
+                    idFieldName, includeDeleted);
             List<Household> households = householdsTuple.getY().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
@@ -129,7 +129,7 @@ public class HouseholdService {
         try {
             new Tuple<>(null, Collections.emptyList());
             Tuple<Long, List<Household>> householdsTuple;
-            if(isProximityBasedSearch(householdSearch)) {
+            if(Boolean.TRUE.equals(isProximityBasedSearch(householdSearch))) {
                 householdsTuple = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
             } else {
                 householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);

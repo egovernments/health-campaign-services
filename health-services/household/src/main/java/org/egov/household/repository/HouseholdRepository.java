@@ -70,7 +70,8 @@ public class HouseholdRepository extends GenericRepository<Household> {
     }
 
     public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id";
+        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
+        query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
@@ -138,7 +139,12 @@ public class HouseholdRepository extends GenericRepository<Household> {
     private Long constructTotalCountCTEAndReturnResult(String query, Map<String, Object> paramsMap) {
         String cteQuery = "WITH result_cte AS ("+query+"), totalCount_cte AS (SELECT COUNT(*) AS totalRows FROM result_cte) select * from totalCount_cte";
         return this.namedParameterJdbcTemplate.query(cteQuery, paramsMap, resultSet -> {
-            return resultSet.getLong("totalRows");
+            if(resultSet.next())
+                return resultSet.getLong("totalRows");
+            else
+                return 0L;
         });
     }
+
+
 }
