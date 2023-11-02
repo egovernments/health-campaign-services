@@ -143,6 +143,9 @@ public class Individual {
     @JsonProperty("userDetails")
     private UserDetails userDetails;
 
+    @JsonProperty("totalCount")
+    private Long totalCount;
+
 
     public Individual addAddressItem(Address addressItem) {
         if (this.address == null) {

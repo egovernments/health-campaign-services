@@ -203,7 +203,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private String getQueryForIndividual(IndividualSearch searchObject, Integer limit, Integer offset,
                                          String tenantId, Long lastChangedSince,
                                          Boolean includeDeleted, Map<String, Object> paramsMap) {
-        String query = "SELECT * FROM individual";
+        String query = "SELECT *, count(*) over() as totalCount FROM individual";
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
 
