@@ -5,7 +5,6 @@ import org.egov.common.models.project.ProjectBeneficiary;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
@@ -21,8 +20,8 @@ public class ValidatorUtils {
      */
     public static void validateUniqueTags(List<ProjectBeneficiary> validProjectBeneficiaries, Map<ProjectBeneficiary, List<Error>> errorDetailsMap) {
         // Group ProjectBeneficiaries by voucher tags
-        Map<String, List<ProjectBeneficiary>> map = validProjectBeneficiaries.stream().filter(projectBeneficiary -> projectBeneficiary.getVoucherTag() != null)
-                .collect(Collectors.groupingBy(ProjectBeneficiary::getVoucherTag));
+        Map<String, List<ProjectBeneficiary>> map = validProjectBeneficiaries.stream().filter(projectBeneficiary -> projectBeneficiary.getTag() != null)
+                .collect(Collectors.groupingBy(ProjectBeneficiary::getTag));
 
         // Find voucher tags with duplicates
         List<ProjectBeneficiary> duplicates = map.values().stream()

@@ -110,10 +110,10 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
 
         populateErrors(invalidEntities, errorDetailsMap);
 
-        List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getVoucherTag).collect(Collectors.toList());
+        List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getTag).collect(Collectors.toList());
         invalidEntities = validProjectBeneficiaries.stream()
                 .filter(notHavingErrors())
-                .filter(projectBeneficiary -> !existingProjectBeneficiaryMap.get(projectBeneficiary.getId()).getVoucherTag().equals(projectBeneficiary.getVoucherTag()))
+                .filter(projectBeneficiary -> !existingProjectBeneficiaryMap.get(projectBeneficiary.getId()).getTag().equals(projectBeneficiary.getTag()))
                 .filter(projectBeneficiary -> isInvalid(projectBeneficiary, existingVoucherTags))
                 .collect(Collectors.toList());
 
@@ -143,10 +143,10 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
      */
     private boolean isInvalid(ProjectBeneficiary entity, List<String> existingVoucherTags) {
         String id = entity.getId();
-        String voucherTag = entity.getVoucherTag();
+        String tag = entity.getTag();
 
-        // Check if an entity with the same ID exists in the map and has a different VoucherTag
-        return existingVoucherTags.contains(voucherTag);
+        // Check if an entity with the same ID exists in the map and has a different tag
+        return existingVoucherTags.contains(tag);
     }
 
 }

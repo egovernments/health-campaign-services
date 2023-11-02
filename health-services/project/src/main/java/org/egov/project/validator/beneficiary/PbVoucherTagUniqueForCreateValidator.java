@@ -71,10 +71,10 @@ public class PbVoucherTagUniqueForCreateValidator implements Validator<Beneficia
 
     // Helper method to validate and populate errors
     private void validateAndPopulateErrors(List<ProjectBeneficiary> validProjectBeneficiaries, List<ProjectBeneficiary> existingProjectBeneficiaries, Map<ProjectBeneficiary, List<Error>> errorDetailsMap) {
-        List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getVoucherTag).collect(Collectors.toList());
+        List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getTag).collect(Collectors.toList());
         // Filter project beneficiaries that are valid and have invalid voucher tags
         List<ProjectBeneficiary> invalidEntities = validProjectBeneficiaries.stream().filter(notHavingErrors())
-                .filter(entity -> existingVoucherTags.contains(entity.getVoucherTag()))
+                .filter(entity -> existingVoucherTags.contains(entity.getTag()))
                 .collect(Collectors.toList());
 
         // For each invalid entity, create an error and populate error details
@@ -89,7 +89,7 @@ public class PbVoucherTagUniqueForCreateValidator implements Validator<Beneficia
         // Extract voucher tags from valid project beneficiaries
         List<String> voucherTags = validProjectBeneficiaries.stream()
                 .filter(Objects::nonNull)
-                .map(ProjectBeneficiary::getVoucherTag)
+                .map(ProjectBeneficiary::getTag)
                 .collect(Collectors.toList());
 
         if(CollectionUtils.isEmpty(voucherTags))
@@ -99,7 +99,7 @@ public class PbVoucherTagUniqueForCreateValidator implements Validator<Beneficia
         List<ProjectBeneficiary> existingProjectBeneficiaries;
 
         // Build a search request to find existing voucher tags
-        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder().voucherTag(voucherTags).build();
+        ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder().tag(voucherTags).build();
 
         try {
             log.info("Fetching project beneficiary based on voucher tags");

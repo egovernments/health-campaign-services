@@ -49,7 +49,7 @@ public class ProjectBeneficiarySearch {
     @JsonProperty("dateOfRegistration")
     private Long dateOfRegistration = null;
 
-    @JsonProperty("voucherTag")
-    private List<String> voucherTag;
+    @JsonProperty("tag")
+    private List<String> tag;
 }
 
