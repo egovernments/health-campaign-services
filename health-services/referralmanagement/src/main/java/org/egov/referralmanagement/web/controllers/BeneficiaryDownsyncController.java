@@ -54,7 +54,7 @@ public class BeneficiaryDownsyncController {
         		+ "      \"limit\": " + limit + ",\n"
         		+ "      \"lastSyncedTime\": 0,\n"
         		+ "      \"includeDeleted\": false,\n"
-        		+ "      \"totalCount\": \"1000\"\n"
+        		+ "      \"totalCount\": \" " + offset+limit + "\"\n"
         		+ "    },\n"
         		+ "    \"Households\": [\n"
         		+ "      {\n"
