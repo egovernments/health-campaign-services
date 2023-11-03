@@ -24,7 +24,6 @@ import { UserService } from "./services/elements/User";
 import HrmsService from "./services/elements/HRMS";
 import { InboxGeneral } from "./services/elements/InboxService";
 import EventsServices from "./services/elements/Events";
-import IngestionService from "../../modules/workbench-hcm/src/services/Ingestion";
 
 
 import ShareFiles from "./services/molecules/ShareFiles";
@@ -72,7 +71,6 @@ const initLibraries = () => {
   setupLibraries("ComponentRegistryService", ComponentRegistryService);
   setupLibraries("StoreData", StoreData);
   setupLibraries("EventsServices", EventsServices);
-  setupLibraries("IngestionService", IngestionService);
 
   setupLibraries("InboxGeneral", InboxGeneral);
   setupLibraries("ShareFiles", ShareFiles);

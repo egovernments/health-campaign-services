@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { ActionBar, Header, Loader, SubmitBar, Toast} from "@egovernments/digit-ui-react-components";
-import IngestionService from '../../services/Ingestion';
 
 function FileDropArea ({ingestionType}) {
   const [isDragActive, setIsDragActive] = useState(false);
@@ -122,7 +121,6 @@ function FileDropArea ({ingestionType}) {
       switch (ingestionType) {
         case "Facility" : 
           const facilityResponse = await Digit.IngestionService.facility(formData);
-          console.log(facilityResponse, "ppppppopppipipi");
         break;
         case "OU" :
           const ouRes =await  Digit.IngestionService.ou(formData);
