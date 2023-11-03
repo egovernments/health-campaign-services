@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
-* BeneficiaryResponse
-*/
+ * BeneficiaryResponse
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
 
@@ -26,29 +26,29 @@ import java.util.List;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BeneficiaryBulkResponse {
-        @JsonProperty("ResponseInfo")
-      @NotNull
 
-  @Valid
-
-
+    @JsonProperty("ResponseInfo")
+    @NotNull
+    @Valid
     private ResponseInfo responseInfo = null;
 
-        @JsonProperty("ProjectBeneficiaries")
-    
-  @Valid
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
 
-
+    @JsonProperty("ProjectBeneficiaries")
+    @Valid
     private List<ProjectBeneficiary> projectBeneficiaries = null;
 
 
-        public BeneficiaryBulkResponse addProjectBeneficiaryItem(ProjectBeneficiary projectBeneficiaryItem) {
-            if (this.projectBeneficiaries == null) {
+    public BeneficiaryBulkResponse addProjectBeneficiaryItem(ProjectBeneficiary projectBeneficiaryItem) {
+        if (this.projectBeneficiaries == null) {
             this.projectBeneficiaries = new ArrayList<>();
-            }
+        }
         this.projectBeneficiaries.add(projectBeneficiaryItem);
         return this;
-        }
+    }
 
 }
 

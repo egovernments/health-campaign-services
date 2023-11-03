@@ -82,4 +82,7 @@ public class ProjectBeneficiary {
     @JsonProperty("tag")
     private String tag;
 
+    @JsonProperty("totalCount")
+    private Long totalCount;
+
 }
