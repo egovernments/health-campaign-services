@@ -46,6 +46,9 @@ public class HouseholdMemberSearch {
     @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = null;
 
+    @JsonProperty("clientReferenceId")
+    private List<String> clientReferenceId = null;
+
     @JsonProperty("tenantId")
     @Valid
     private String tenantId = null;
