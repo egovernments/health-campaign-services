@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ActionBar, Header, Loader, SubmitBar, Toast} from "@egovernments/digit-ui-react-components";
+import IngestionService from '../../services/Ingestion';
 
 function FileDropArea ({ingestionType}) {
   const [isDragActive, setIsDragActive] = useState(false);
@@ -92,8 +93,10 @@ function FileDropArea ({ingestionType}) {
       return; // Return early to prevent API call
     }
   }
+
+ 
   
-  const onsubmit = () => {
+  const onsubmit = async () => {
     if (droppedFile?.file == null) {
       setShowToast({
         label: "Please choose a file to ingest.",
@@ -102,19 +105,32 @@ function FileDropArea ({ingestionType}) {
       closeToast();
     }
     else {
+      const formData = new FormData();
+      // var file=droppedFile.file;
+    formData.append("file", droppedFile.file);
+    formData.append(
+    "DHIS2IngestionRequest",
+    JSON.stringify({
+    tenantId: Digit.ULBService.getCurrentTenantId(),
+    dataType: "Facility",
+    requestInfo: {
+      userInfo: Digit.UserService.getUser(),
+    },
+    })
+    );
 
       switch (ingestionType) {
         case "Facility" : 
-          const { isLoading: isFacilityLoading, Errors : facilityError, data: facilityRes } = Digit.IngestionService.facility(droppedFile.file);
-          setResponse(facilityRes);
+          const facilityResponse = await Digit.IngestionService.facility(formData);
+          console.log(facilityResponse, "ppppppopppipipi");
         break;
         case "OU" :
-          const { isLoading: isOULoading, Errors : ouError, data: ouRes } = Digit.IngestionService.ou(droppedFile.file);
+          const ouRes =await  Digit.IngestionService.ou(formData);
           setResponse(ouRes);
           break;
 
         case "User" :
-          const { isLoading: isUsersLoading, Errors : usersError, data: userRes } = Digit.IngestionService.user(droppedFile.file);
+          const  userRes  = await Digit.IngestionService.user(formData);
           setResponse(userRes);
           break;
 
