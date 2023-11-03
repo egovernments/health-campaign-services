@@ -66,7 +66,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
         }
 
-        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
+        String individualQuery = String.format(getQuery("SELECT *, count(*) over() as totalCount FROM individual WHERE %s IN (:ids)",
                 includeDeleted), idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
