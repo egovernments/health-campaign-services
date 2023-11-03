@@ -2,6 +2,7 @@ package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualBulkResponse;
@@ -163,7 +164,7 @@ class IndividualApiControllerTest {
                 any(String.class),
                 any(Long.class),
                 any(Boolean.class),
-                any(RequestInfo.class))).thenReturn(Collections.singletonList(responseIndividual));
+                any(RequestInfo.class))).thenReturn(SearchResponse.<Individual>builder().response(Collections.singletonList(responseIndividual)).build());
 
         MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType

@@ -5,6 +5,7 @@ import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.HouseholdMemberRequest;
@@ -134,22 +135,26 @@ public class HouseholdMemberService {
     }
 
 
-    public List<HouseholdMember> search(HouseholdMemberSearch householdMemberSearch, Integer limit, Integer offset, String tenantId,
-                                        Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<HouseholdMember> search(HouseholdMemberSearch householdMemberSearch, Integer limit, Integer offset, String tenantId,
+                                                  Long lastChangedSince, Boolean includeDeleted) {
 
         String idFieldName = getIdFieldName(householdMemberSearch);
         if (isSearchByIdOnly(householdMemberSearch, idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdMemberSearch)),
                     householdMemberSearch);
-            List<HouseholdMember> householdMembers = householdMemberRepository.findById(ids,
-                            idFieldName, includeDeleted).stream()
+            SearchResponse<HouseholdMember> searchResponse = householdMemberRepository.findById(ids,
+                    idFieldName, includeDeleted);
+            List<HouseholdMember> householdMembers = searchResponse.getResponse().stream()
                                 .filter(lastChangedSince(lastChangedSince))
                                 .filter(havingTenantId(tenantId))
                                 .filter(includeDeleted(includeDeleted))
                                 .collect(Collectors.toList());
             log.info("found {} household members for search by id", householdMembers.size());
-            return householdMembers;
+
+            searchResponse.setResponse(householdMembers);
+
+            return searchResponse;
         }
         try {
             return householdMemberRepository.find(householdMemberSearch, limit, offset,

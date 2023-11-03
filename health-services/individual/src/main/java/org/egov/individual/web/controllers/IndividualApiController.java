@@ -4,6 +4,7 @@ package org.egov.individual.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualBulkResponse;
@@ -89,15 +90,12 @@ public class IndividualApiController {
     @Min(0)
     @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
                                                                      @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @Size(min = 2, max = 1000) @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
-        List<Individual> individuals = individualService.search(request.getIndividual(), limit, offset, tenantId,
+        SearchResponse<Individual> searchResponse = individualService.search(request.getIndividual(), limit, offset, tenantId,
                 lastChangedSince, includeDeleted,request.getRequestInfo());
-        Long totalCount = individuals != null ? (
-                (individuals.get(0) != null && individuals.get(0).getTotalCount() != null)
-                                ? individuals.get(0).getTotalCount() : individuals.size()
-                            ) : 0L;
+
         IndividualBulkResponse response = IndividualBulkResponse.builder()
-                .individual(individuals)
-                .totalCount(totalCount)
+                .individual(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
                 .build();
         return ResponseEntity.status(HttpStatus.OK).body(response);

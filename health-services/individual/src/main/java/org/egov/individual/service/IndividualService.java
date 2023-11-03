@@ -7,6 +7,7 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.Role;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
@@ -224,7 +225,7 @@ public class IndividualService {
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
                 // find existing individuals from db
                 List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
-                        "id", false);
+                        "id", false).getResponse();
 
                 if (identifiersPresent) {
                     // extract existing identifiers (encrypted) from existing individuals
@@ -271,13 +272,15 @@ public class IndividualService {
                 .collect(Collectors.toList());
     }
 
-    public List<Individual> search(IndividualSearch individualSearch,
-                                   Integer limit,
-                                   Integer offset,
-                                   String tenantId,
-                                   Long lastChangedSince,
-                                   Boolean includeDeleted,
-                                   RequestInfo requestInfo) {
+    public SearchResponse<Individual> search(IndividualSearch individualSearch,
+                                             Integer limit,
+                                             Integer offset,
+                                             String tenantId,
+                                             Long lastChangedSince,
+                                             Boolean includeDeleted,
+                                             RequestInfo requestInfo) {
+        SearchResponse<Individual> searchResponse = null;
+
         String idFieldName = getIdFieldName(individualSearch);
         List<Individual> encryptedIndividualList = null;
         if (isSearchByIdOnly(individualSearch, idFieldName)) {
@@ -285,16 +288,22 @@ public class IndividualService {
                             .singletonList(individualSearch)),
                     individualSearch);
 
-            encryptedIndividualList = individualRepository.findById(ids, idFieldName, includeDeleted)
-                    .stream().filter(lastChangedSince(lastChangedSince))
+            searchResponse = individualRepository.findById(ids, idFieldName, includeDeleted);
+
+            encryptedIndividualList = searchResponse.getResponse().stream()
+                    .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             //decrypt
-            return (!encryptedIndividualList.isEmpty())
+            List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
                     ? individualEncryptionService.decrypt(encryptedIndividualList,
                     "IndividualDecrypt", requestInfo)
                     : encryptedIndividualList;
+
+            searchResponse.setResponse(decryptedIndividualList);
+
+            return searchResponse;
         }
         //encrypt search criteria
 
@@ -310,8 +319,9 @@ public class IndividualService {
                     .encrypt(individualSearch, "IndividualSearchEncrypt");
         }
         try {
-            encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
-                            lastChangedSince, includeDeleted).stream()
+            searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
+                    lastChangedSince, includeDeleted);
+            encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
@@ -319,11 +329,14 @@ public class IndividualService {
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
         }
         //decrypt
-        return (!encryptedIndividualList.isEmpty())
+        List<Individual> decryptedIndividualList =  (!encryptedIndividualList.isEmpty())
                 ? individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", requestInfo)
                 : encryptedIndividualList;
 
+        searchResponse.setResponse(decryptedIndividualList);
+
+        return searchResponse;
     }
 
     private Predicate<Individual> havingBoundaryCode(String boundaryCode, String wardCode) {

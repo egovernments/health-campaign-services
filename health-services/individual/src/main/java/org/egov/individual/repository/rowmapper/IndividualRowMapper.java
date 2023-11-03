@@ -77,7 +77,6 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                             .build())
                     .userUuid(resultSet.getString("userUuid"))
                     .clientAuditDetails(clientAuditDetails)
-                    .totalCount(resultSet.getLong("totalCount"))
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);

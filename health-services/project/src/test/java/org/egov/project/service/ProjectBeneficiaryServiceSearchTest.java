@@ -2,6 +2,7 @@ package org.egov.project.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
@@ -49,7 +50,7 @@ class ProjectBeneficiaryServiceSearchTest {
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProjectBeneficiaryFound() throws Exception {
         when(projectBeneficiaryRepository.find(any(ProjectBeneficiarySearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<ProjectBeneficiary>builder().build());
         ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
                 .id(Collections.singletonList("ID101")).projectId("some-id").build();
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder()
@@ -64,7 +65,7 @@ class ProjectBeneficiaryServiceSearchTest {
     @DisplayName("should return project beneficiary if search criteria is matched")
     void shouldReturnProjectStaffIfSearchCriteriaIsMatched() throws Exception {
         when(projectBeneficiaryRepository.find(any(ProjectBeneficiarySearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectBeneficiary);
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(projectBeneficiary).build());
         projectBeneficiary.add(ProjectBeneficiaryTestBuilder.builder().withId().withId().withAuditDetails().build());
         ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
                 .id(Collections.singletonList("ID101")).projectId("some-projectId").build();
@@ -72,9 +73,9 @@ class ProjectBeneficiaryServiceSearchTest {
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
 
-        List<ProjectBeneficiary> projectStaffs = projectBeneficiaryService.search(beneficiarySearchRequest, 10, 0, "default", null, false);
+        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(beneficiarySearchRequest, 10, 0, "default", null, false).getResponse();
 
-        assertEquals(1, projectStaffs.size());
+        assertEquals(1, projectBeneficiaries.size());
     }
 
     @Test
@@ -86,10 +87,10 @@ class ProjectBeneficiaryServiceSearchTest {
         BeneficiarySearchRequest projectStaffSearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(projectBeneficiaryRepository.findById(anyList(), anyBoolean(), anyString())).thenReturn(projectBeneficiary);
+        when(projectBeneficiaryRepository.findById(anyList(), anyString(),  anyBoolean())).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(projectBeneficiary).build());
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(projectStaffSearchRequest,
-                10, 0, null, null, true);
+                10, 0, null, null, true).getResponse();
 
         assertEquals(1, projectBeneficiaries.size());
     }

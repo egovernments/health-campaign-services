@@ -75,9 +75,6 @@ public class HouseholdMember{
     @Valid
     private AuditDetails clientAuditDetails = null;
 
-    @JsonProperty("totalCount")
-    private Long totalCount;
-
     @JsonIgnore
     private Boolean hasErrors = Boolean.FALSE;
 }

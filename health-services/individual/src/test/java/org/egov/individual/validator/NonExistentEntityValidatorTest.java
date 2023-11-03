@@ -2,6 +2,7 @@ package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.AddressType;
 import org.egov.common.models.individual.Identifier;
@@ -65,7 +66,10 @@ public class NonExistentEntityValidatorTest {
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
         List<Individual> existingIndividuals = new ArrayList<>();
         existingIndividuals.add(individual);
-        lenient().when(individualRepository.findById(anyList(), anyString(), eq(false))).thenReturn(existingIndividuals);
+        lenient().when(individualRepository.findById(anyList(), anyString(), eq(false))).thenReturn(SearchResponse.<Individual>builder()
+                .totalCount(Long.valueOf(existingIndividuals.size()))
+                .response(existingIndividuals)
+                .build());
         assertTrue(nonExistentEntityValidator.validate(individualBulkRequest).isEmpty());
 
     }
@@ -77,7 +81,7 @@ public class NonExistentEntityValidatorTest {
                         .withId("some-id")
                         .build())
                 .build();
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean())).thenReturn(Collections.emptyList());
+        when(individualRepository.findById(anyList(), anyString(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder().build());
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         errorDetailsMap = nonExistentEntityValidator.validate(individualBulkRequest);
         List<Error> errorList = errorDetailsMap.values().stream().flatMap(Collection::stream).collect(Collectors.toList());

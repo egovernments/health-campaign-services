@@ -1,5 +1,6 @@
 package org.egov.project.service;
 
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.service.IdGenService;
@@ -66,9 +67,9 @@ class ProjectBeneficiaryEnrichmentServiceUpdateTest {
     private void mockFindById() {
         lenient().when(projectBeneficiaryRepository.findById(
                 eq(projectBeneficiaryIds),
-                eq(false),
-                anyString())
-        ).thenReturn(request.getProjectBeneficiaries());
+                anyString(),
+                eq(false))
+        ).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(request.getProjectBeneficiaries()).build());
     }
 
     @Test

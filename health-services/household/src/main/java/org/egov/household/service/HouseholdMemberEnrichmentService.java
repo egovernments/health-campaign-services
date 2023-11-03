@@ -58,7 +58,7 @@ public class HouseholdMemberEnrichmentService {
         Map<String, HouseholdMember> hMap = getIdToObjMap(householdMembers);
         List<String> householdMemberIds = new ArrayList<>(hMap.keySet());
         List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
-                "id", false);
+                "id", false).getResponse();
         log.info("updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholdMembers, beneficiaryRequest);
         log.info("household Members updated successfully.");
@@ -72,7 +72,7 @@ public class HouseholdMemberEnrichmentService {
         log.info("getting houseHoldIds for householdMembers");
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
         log.info("finding households from householdService with ids: {}", houseHoldIds);
-        List<Household> householdList = householdService.findById(houseHoldIds, columnName, false).getY();
+        List<Household> householdList = householdService.findById(houseHoldIds, columnName, false).getResponse();
         log.info("getting method for householdList with columnName: {}", columnName);
         Method householdMethod = getIdMethod(householdList, columnName);
         log.info("getting Map of households");
