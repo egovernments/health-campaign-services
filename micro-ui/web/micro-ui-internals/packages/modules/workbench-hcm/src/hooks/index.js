@@ -1,4 +1,4 @@
-import utils from "../utils";
+import IngestionService from "../services/Ingestion";
 
 const UserService = {
 };
@@ -13,5 +13,6 @@ const Utils = {
 export const CustomisedHooks = {
   Hooks,
   UserService,
+  IngestionService,
   Utils,
 };

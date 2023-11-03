@@ -6,7 +6,7 @@ import { CustomisedHooks } from "./hooks";
 import { UICustomizations } from "./configs/UICustomizations";
 import HCMWORKBENCHCard from "./components/HCMWORKBENCHCard";
 
-const HCMWorkbenchModule = ({ stateCode, userType, tenants }) => {
+const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["workbench-hcm", "mdms", "schema"];
   const { path, url } = useRouteMatch();
   const language = Digit.StoreData.getCurrentLanguage();
@@ -28,7 +28,7 @@ const HCMWorkbenchModule = ({ stateCode, userType, tenants }) => {
 };
 
 const componentsToRegister = {
-  HCMWorkbenchModule,
+  HCMWORKBENCHModule,
   HCMWORKBENCHCard,
 };
 
