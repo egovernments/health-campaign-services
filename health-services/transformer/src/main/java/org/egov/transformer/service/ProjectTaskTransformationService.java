@@ -161,6 +161,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .clientAuditDetails(task.getClientAuditDetails())
                             .syncedTimeStamp(syncedTimeStamp)
                             .syncedTime(task.getAuditDetails().getCreatedTime())
+                            .additionalFields(task.getAdditionalFields())
                             .build()
             ).collect(Collectors.toList());
         }
