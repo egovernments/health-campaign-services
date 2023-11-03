@@ -19,14 +19,19 @@ const HCMWORKBENCHCard = () => {
 
   let links = [
     {
-      label: t("ACTION_TEST_MDMS"),
-      link: `/${window?.contextPath}/employee/workbench/manage-master-data`,
+      label: t("ACTION_TEST_FACILITY"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/facility`,
       roles: ROLES.MDMS,
     },
     {
-      label: t("ACTION_TEST_LOCALISATION"),
-      link: `/${window?.contextPath}/employee/workbench/localisation-search`,
-      roles: ROLES.LOCALISATION,
+      label: t("ACTION_TEST_USER"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/user`,
+      roles: ROLES.MDMS,
+    },
+    {
+      label: t("ACTION_TEST_OU"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/ou`,
+      roles: ROLES.MDMS,
     },
   ];
 

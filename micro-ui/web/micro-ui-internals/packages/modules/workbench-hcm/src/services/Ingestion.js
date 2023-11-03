@@ -1,4 +1,4 @@
-import { Request } from "../Utils/Request";
+import { Request } from "../utils/Request";
 
 const IngestionService = {
   facility: (file) => {
