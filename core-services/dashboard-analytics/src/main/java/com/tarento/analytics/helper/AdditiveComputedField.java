@@ -1,6 +1,8 @@
 package com.tarento.analytics.helper;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.tarento.analytics.dto.AggregateRequestDto;
 import com.tarento.analytics.dto.Data;
 import com.tarento.analytics.dto.Plot;
@@ -9,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -45,14 +48,23 @@ public class AdditiveComputedField implements IComputedField<Data> {
             for (String field: fields){
                 if(plotMap.containsKey(field)){
                     dataType = plotMap.get(field).getSymbol();
+                    if(chartNode.has(IS_CAPPED_BY_CAMPAIGN_PERIOD) && doesTextExistInArrayNode((ArrayNode) chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD), field)) continue;
                     total = total+ plotMap.get(field).getValue();
                 }
             }
             if(postAggrTheoryName != null && !postAggrTheoryName.isEmpty()) {
                 ComputeHelper computeHelper = computeHelperFactory.getInstance(postAggrTheoryName);
                 if (chartNode.has(IS_CAPPED_BY_CAMPAIGN_PERIOD)) {
-                    if(plotMap.containsKey(chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).get(0).asText())) {
-                        capTotal = capTotal + plotMap.get(chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).get(0).asText()).getValue();
+                    List<String> commonStrings = new ArrayList<>();
+                    chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).forEach(
+                            item -> {
+                                if (fields.contains(item.asText())) {
+                                    commonStrings.add(item.asText());
+                                }
+                            }
+                    );
+                    if(commonStrings.size()>0) {
+                        capTotal = commonStrings.stream().mapToDouble(commonString -> plotMap.get(commonString).getValue()).sum();
                     }
                 }
 
@@ -69,5 +81,15 @@ public class AdditiveComputedField implements IComputedField<Data> {
         }
 
     }
+    private static boolean doesTextExistInArrayNode(ArrayNode arrayNode, String searchText) {
+        for (JsonNode element : arrayNode) {
+            if (element.isTextual()) {
+                String text = element.asText();
+                if (text.equals(searchText)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
-
