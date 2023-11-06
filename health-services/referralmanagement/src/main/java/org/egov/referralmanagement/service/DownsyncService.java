@@ -172,7 +172,9 @@ public class DownsyncService {
         /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
         List<String> memeberids = jdbcTemplate.queryForList(memberIdsquery, paramMap, String.class);
 		
-        
+		if (CollectionUtils.isEmpty(memeberids))
+			return Collections.emptySet();
+
         HouseholdMemberSearch memberSearch = HouseholdMemberSearch.builder()
 		.id(memeberids)
 		.build();
