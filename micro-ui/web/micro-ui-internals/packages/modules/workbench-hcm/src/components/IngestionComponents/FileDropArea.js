@@ -26,9 +26,10 @@ function FileDropArea ({ingestionType}) {
 
   const handleDrop = (e) => {
     e.preventDefault();
-    setIsDragActive(false);
+    e.preventDefault();
+  setIsDragActive(false);
 
-    const files = e.dataTransfer.files;
+  const files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
 
     if (files.length === 1) {
       const file = files[0];
@@ -58,25 +59,6 @@ function FileDropArea ({ingestionType}) {
   const handleButtonClick = () => {
     fileInputRef.current.click();
   };
-
-  const handleFileInputChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const fileName = file.name;
-
-      // Read the contents of the selected file
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const fileContent = event.target.result;
-        setDroppedFile({ name: fileName, content: fileContent , file:file});
-
-        // Process the selected file content here (e.g., display it or make an API call).
-        console.log('Selected file content:', fileContent);
-      };
-      reader.readAsText(file);
-    }
-  };
-
   const handleRemoveFile = () => {
     setDroppedFile(null);
     // You can also perform any additional cleanup or actions here.
@@ -181,7 +163,7 @@ function FileDropArea ({ingestionType}) {
         ref={fileInputRef} 
         style={{ display: 'none' }} 
         accept=".csv"
-        onChange={handleFileInputChange} />
+        onChange={handleDrop} />
           </div>
         )}
         {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>}
