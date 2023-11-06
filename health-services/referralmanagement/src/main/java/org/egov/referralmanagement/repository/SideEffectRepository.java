@@ -1,14 +1,24 @@
 package org.egov.referralmanagement.repository;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.common.utils.CommonUtils.getIdList;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
-import org.egov.common.models.project.Task;
 import org.egov.common.producer.Producer;
 import org.egov.referralmanagement.repository.rowmapper.SideEffectRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,12 +27,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ReflectionUtils;
 
-import java.lang.reflect.Method;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static org.egov.common.utils.CommonUtils.getIdList;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
+import lombok.extern.slf4j.Slf4j;
 
 @Repository
 @Slf4j
@@ -63,7 +68,8 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
     }
 
     public List<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
-                                 Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+                                 Long lastChangedSince, Boolean includeDeleted) {
+    	
         String query = "SELECT * FROM side_effect ae  LEFT JOIN project_task pt ON ae.taskId = pt.id ";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
