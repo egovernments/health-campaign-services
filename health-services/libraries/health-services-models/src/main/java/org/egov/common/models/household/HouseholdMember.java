@@ -41,6 +41,10 @@ public class HouseholdMember{
     @Size(min = 2, max = 64)
     private String householdClientReferenceId = null;
 
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
+
     @JsonProperty("individualId")
     @Size(min = 2, max = 64)
     private String individualId = null;

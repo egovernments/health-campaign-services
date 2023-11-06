@@ -38,6 +38,9 @@ public class HouseholdMemberSearch   {
     @JsonProperty("individualId")
     private String individualId = null;
 
+    @JsonProperty("clientReferenceId")
+    private List<String> clientReferenceId = null;
+
     @JsonProperty("individualClientReferenceId")
     private String individualClientReferenceId = null;
 
