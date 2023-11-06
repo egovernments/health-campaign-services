@@ -10,14 +10,15 @@
   "workspaces": [
     "micro-ui-internals/packages/libraries",
     "micro-ui-internals/packages/react-components",
-    "micro-ui-internals/packages/modules/workbench"
-  ],
+    "micro-ui-internals/packages/modules/workbench",
+    "micro-ui-internals/packages/modules/workbench-hcm"  ],
   "homepage": "/workbench-ui",
   "dependencies": {
     "@egovernments/digit-ui-libraries": "1.8.0-beta",
     "@egovernments/digit-ui-module-workbench": "1.0.0-beta",
     "@egovernments/digit-ui-module-core": "1.8.0-beta.5",
     "@egovernments/digit-ui-module-hrms": "1.8.0-beta.2",
+    "@egovernments/digit-ui-module-hcmworkbench": "1.0.0",
     "@egovernments/digit-ui-react-components": "1.8.0-beta.1",
     "babel-loader": "8.1.0",
     "react": "17.0.2",

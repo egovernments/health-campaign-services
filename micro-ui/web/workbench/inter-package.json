@@ -5,7 +5,8 @@
   "workspaces": [
     "packages/libraries",
     "packages/react-components",
-    "packages/modules/workbench"
+    "packages/modules/workbench",
+    "packages/modules/workbench-hcm"
   ],
   "author": "JaganKumar <jagan.kumar@egov.org.in>",
   "license": "MIT",
@@ -39,6 +40,7 @@
     "buildD:common": "cd packages/modules/common && yarn build",
     "buildD:utilities": "cd packages/modules/utilities && yarn build",
     "buildD:engagement": "cd packages/modules/engagement && yarn build",
+    "build:workbench-hcm": "cd packages/modules/workbench-hcm && yarn build",
     "build:workbench": "cd packages/modules/workbench && yarn build",
     "deploy:jenkins": "./scripts/jenkins.sh",
     "clean": "rm -rf node_modules"
