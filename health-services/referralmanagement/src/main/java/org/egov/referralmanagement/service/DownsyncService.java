@@ -26,6 +26,8 @@ import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectBeneficiarySearch;
+import org.egov.common.models.project.TaskSearch;
+import org.egov.common.models.project.TaskSearchRequest;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralSearch;
 import org.egov.common.models.referralmanagement.ReferralSearchRequest;
@@ -68,7 +70,12 @@ public class DownsyncService {
 		this.referralService=referralService;
 		
 		}
-	
+
+		/**
+		 * 
+		 * @param downsyncRequest
+		 * @return Downsync
+		 */
 		public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) {
 
 			Downsync downsync = new Downsync();
@@ -115,6 +122,12 @@ public class DownsyncService {
 			return downsync;
 		}
 
+		/**
+		 * 
+		 * @param downsyncRequest
+		 * @param downsync
+		 * @return
+		 */
 		private List<String> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
 
 			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
@@ -260,6 +273,13 @@ public class DownsyncService {
 			return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
 		}
 
+		/**
+		 * 
+		 * @param downsyncRequest
+		 * @param downsync
+		 * @param beneficiaryClientRefIds
+		 * @return
+		 */
 		private List<String> searchTasks(DownsyncRequest downsyncRequest, Downsync downsync,
 				List<String> beneficiaryClientRefIds) {
 
@@ -281,13 +301,13 @@ public class DownsyncService {
 	        if(CollectionUtils.isEmpty(taskIds))
 	        	return Collections.emptyList();
 	        		
-	        ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
+	        TaskSearch search = TaskSearch.builder()
 					.id(taskIds)
 					.projectId(downsyncRequest.getDownsyncCriteria().getProjectId())
 					.build();
 			
-			BeneficiarySearchRequest searchRequest = BeneficiarySearchRequest.builder()
-					.projectBeneficiary(search)
+			TaskSearchRequest searchRequest = TaskSearchRequest.builder()
+					.task(search)
 					.requestInfo(requestInfo)
 					.build();
 			
@@ -297,6 +317,12 @@ public class DownsyncService {
 			return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
 		}
 
+		/**
+		 * 
+		 * @param downsyncRequest
+		 * @param downsync
+		 * @param taskClientRefIds
+		 */
 		private void searchSideEffect(DownsyncRequest downsyncRequest, Downsync downsync,
 				List<String> taskClientRefIds) {
 
