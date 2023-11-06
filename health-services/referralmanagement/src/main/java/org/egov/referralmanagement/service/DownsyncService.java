@@ -60,23 +60,35 @@ public class DownsyncService {
 		
 		
 		Downsync downsync = new Downsync();
+		
+		List<String> householdIds = null;
+		Set<String> individualIds = null;
+		List<String> beneficiaryUuids = null;
+		List<String> taskIds = null;
+		
 		downsync.setDownsyncCriteria(downsyncRequest.getDownsyncCriteria());
 		/* search household */
-		List<String> householdIds = searchHouseholds(downsyncRequest, downsync);
+		 householdIds = searchHouseholds(downsyncRequest, downsync);
 		
 		/* search household member using household ids */
-		Set<String> individualIds = searchMembers(downsyncRequest, downsync, householdIds);
+		individualIds = searchMembers(downsyncRequest, downsync, householdIds);
 		
-		/* search individuals using individual ids */
-		searchIndividuals(downsyncRequest, downsync, individualIds);
 		
-		/* search beneficiary using individual ids */
-		List<String> beneficiaryUuids = searchBeneficiaries(downsyncRequest, downsync, individualIds);
+		if(!CollectionUtils.isEmpty(individualIds)) {
+			
+			/* search individuals using individual ids */
+			searchIndividuals(downsyncRequest, downsync, individualIds);
+			
+			/* search beneficiary using individual ids */
+			beneficiaryUuids = searchBeneficiaries(downsyncRequest, downsync, individualIds);
+		}
 		
-		// search Tasks
-		List<Task> tasks = new ArrayList<>();
-		
-		List<String> taskIds = tasks.stream().map(Task::getId).collect(Collectors.toList());
+		/* search tasks using  benegiciary uuids */
+		if (!CollectionUtils.isEmpty(beneficiaryUuids)) {
+
+			List<Task> tasks = new ArrayList<>();
+			taskIds = tasks.stream().map(Task::getId).collect(Collectors.toList());
+		}
 		
 		// search side effect FIXME - tasks id array search not available
 		
@@ -194,8 +206,12 @@ public class DownsyncService {
         /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of beneficiary ids*/
         List<String> ids = jdbcTemplate.queryForList(beneficiaryIdQuery, paramMap, String.class);
 				
-		ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
+        if(CollectionUtils.isEmpty(ids))
+        	return Collections.emptyList();
+        		
+        ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
 				.id(ids)
+				.projectId(downsyncRequest.getDownsyncCriteria().getProjectId())
 				.build();
 		
 		BeneficiarySearchRequest searchRequest = BeneficiarySearchRequest.builder()
