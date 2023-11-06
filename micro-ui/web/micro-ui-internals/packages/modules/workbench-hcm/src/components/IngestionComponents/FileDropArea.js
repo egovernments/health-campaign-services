@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ActionBar, Header, Loader, SubmitBar, Toast} from "@egovernments/digit-ui-react-components";
 
 function FileDropArea ({ingestionType}) {
@@ -6,6 +6,7 @@ function FileDropArea ({ingestionType}) {
   const [droppedFile, setDroppedFile] = useState(null);
   const [showToast, setShowToast] = useState(false);
   const [response, setResponse] = useState(null);
+  const [isResponseLoading, setIsResponseLoading] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -64,18 +65,35 @@ function FileDropArea ({ingestionType}) {
     // You can also perform any additional cleanup or actions here.
   };
 
-  const isDroppedFileNul = () => {
-    if (droppedFile?.file == null) {
+
+  const responseToast = () => {
+    if (response?.jobStatus == "Completed") {
       setShowToast({
-        label: "Please choose a file to ingest.",
+        label: "ingested sucessfully",
+        isError: false,
+      });
+      closeToast();
+    }
+    else if (response?.jobStatus == "Partial Completed") {
+      setShowToast({
+        label: "Paritial ingestion done",
         isError: true,
       });
       closeToast();
-      return; // Return early to prevent API call
     }
+     else {
+      setShowToast({
+        label: "Ingestion failed",
+        isError: true,
+      });
+      closeToast();
+     }
   }
-
- 
+ useEffect (() => {
+  if (response) { // Check if response is not null or undefined
+    responseToast();
+  }
+ },[response])
   
   const onsubmit = async () => {
     if (droppedFile?.file == null) {
@@ -101,7 +119,9 @@ function FileDropArea ({ingestionType}) {
               },
             })
           );
-          const facilityResponse = await Digit.IngestionService.facility(formData);
+          const { data: facilityRes} = await Digit.IngestionService.facility(formData);
+          setResponse(facilityRes);
+
           break;
 
         case "OU":
@@ -129,7 +149,7 @@ function FileDropArea ({ingestionType}) {
               },
             })
           );
-          const userRes = await Digit.IngestionService.user(formData);
+          const {data: userRes} = await Digit.IngestionService.user(formData);
           setResponse(userRes);
           break;
 
@@ -141,7 +161,6 @@ function FileDropArea ({ingestionType}) {
           closeToast();
           return;
       }
-
     }
   }
 
