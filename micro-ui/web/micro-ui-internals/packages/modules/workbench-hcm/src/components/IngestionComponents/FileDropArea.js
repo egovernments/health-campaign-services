@@ -105,40 +105,59 @@ function FileDropArea ({ingestionType}) {
     }
     else {
       const formData = new FormData();
-      // var file=droppedFile.file;
-    formData.append("file", droppedFile.file);
-    formData.append(
-    "DHIS2IngestionRequest",
-    JSON.stringify({
-    tenantId: Digit.ULBService.getCurrentTenantId(),
-    dataType: "Facility",
-    requestInfo: {
-      userInfo: Digit.UserService.getUser(),
-    },
-    })
-    );
+      formData.append("file", droppedFile.file);
 
       switch (ingestionType) {
-        case "Facility" : 
+        case "Facility":
+          formData.append(
+            "DHIS2IngestionRequest",
+            JSON.stringify({
+              tenantId: Digit.ULBService.getCurrentTenantId(),
+              dataType: "Facility",
+              requestInfo: {
+                userInfo: Digit.UserService.getUser(),
+              },
+            })
+          );
           const facilityResponse = await Digit.IngestionService.facility(formData);
-        break;
-        case "OU" :
-          const ouRes =await  Digit.IngestionService.ou(formData);
+          break;
+
+        case "OU":
+          formData.append(
+            "DHIS2IngestionRequest",
+            JSON.stringify({
+              tenantId: Digit.ULBService.getCurrentTenantId(),
+              requestInfo: {
+                userInfo: Digit.UserService.getUser(),
+              },
+            })
+          );
+          const ouRes = await Digit.IngestionService.ou(formData);
           setResponse(ouRes);
           break;
 
-        case "User" :
-          const  userRes  = await Digit.IngestionService.user(formData);
+        case "User":
+          formData.append(
+            "DHIS2IngestionRequest",
+            JSON.stringify({
+              tenantId: Digit.ULBService.getCurrentTenantId(),
+              dataType: "Users",
+              requestInfo: {
+                userInfo: Digit.UserService.getUser(),
+              },
+            })
+          );
+          const userRes = await Digit.IngestionService.user(formData);
           setResponse(userRes);
           break;
 
-        default :
-        setShowToast({
-          label: "Unsupported ingestion type.",
-          isError: true,
-        });
-        closeToast();
-        return;
+        default:
+          setShowToast({
+            label: "Unsupported ingestion type.",
+            isError: true,
+          });
+          closeToast();
+          return;
       }
 
     }

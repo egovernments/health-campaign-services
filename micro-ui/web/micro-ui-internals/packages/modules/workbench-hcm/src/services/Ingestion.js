@@ -25,7 +25,7 @@ const IngestionService = {
         data: formData,
       },
       params:{
-      source: "API"
+      source: "EXCEL"
       },
     }),
   
@@ -40,7 +40,7 @@ const IngestionService = {
         data: formData,
       },
       params:{
-        source: "API"
+        source: "EXCEL"
         },
     })
   
