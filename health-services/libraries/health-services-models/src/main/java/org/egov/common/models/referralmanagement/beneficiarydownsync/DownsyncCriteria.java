@@ -16,6 +16,10 @@ public class DownsyncCriteria {
 	
 	private Long lastSyncedTime;
 	
+	private String projectId;
+	
+	private String tenantId;
+	
 	@Default
 	private Boolean includeDeleted = false;
 	

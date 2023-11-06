@@ -1,12 +1,13 @@
 package org.egov.referralmanagement.config;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 @Getter
 @Setter
@@ -68,4 +69,20 @@ public class ReferralManagementConfiguration {
 
     @Value("${egov.search.facility.url}")
     private String facilitySearchUrl;
+    
+    @Value("${egov.household.host}")
+    private String householdHost;
+
+    @Value("${egov.search.household.url}")
+    private String householdSearchUrl;
+    
+    @Value("${egov.search.household.member.url}")
+    private String householdMemberSearchUrl;
+    
+    @Value("${egov.individual.host}")
+    private String individualHost;
+
+    @Value("${egov.search.individual.url}")
+    private String individualSearchUrl;
+    
 }
