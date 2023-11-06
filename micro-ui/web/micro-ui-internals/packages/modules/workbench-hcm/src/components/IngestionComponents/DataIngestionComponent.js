@@ -3,7 +3,7 @@ import React from "react";
 import FileDropArea from "./FileDropArea";
 
 
-function Example({ingestionType}) {
+function DataIngestionComponent({ingestionType}) {
     return (
         <div className="ingestion-container">
             {/* <Header>{facility}</Header> */}
@@ -12,4 +12,4 @@ function Example({ingestionType}) {
     )
 }
 
-export default Example;
+export default DataIngestionComponent;

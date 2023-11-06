@@ -7,6 +7,8 @@ function FileDropArea ({ingestionType}) {
   const [showToast, setShowToast] = useState(false);
   const [response, setResponse] = useState(null);
   const [isResponseLoading, setIsResponseLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
 
   const fileInputRef = useRef(null);
 
@@ -25,8 +27,7 @@ function FileDropArea ({ingestionType}) {
     }, 5000);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
+  const handleFileInput = (e) => {
     e.preventDefault();
   setIsDragActive(false);
 
@@ -104,6 +105,9 @@ function FileDropArea ({ingestionType}) {
       closeToast();
     }
     else {
+
+      setIsLoading(true);
+      try{
       const formData = new FormData();
       formData.append("file", droppedFile.file);
 
@@ -162,12 +166,24 @@ function FileDropArea ({ingestionType}) {
           return;
       }
     }
+    catch(error){
+        // Handle errors here
+        console.error(error);
+        setShowToast({
+          label: "Error occurred during ingestion.",
+          isError: true,
+        });
+        closeToast();
+      } finally {
+        setIsLoading(false); // Set loading state to false when ingestion completes (either success or failure)
+      }
+  }
   }
 
   return (
     <div>
       <Header>{ingestionType} Ingestion</Header>
-      <div className={`drop-area ${isDragActive ? 'active' : ''}`} onDragEnter={handleDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      <div className={`drop-area ${isDragActive ? 'active' : ''}`} onDragEnter={handleDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={handleDragLeave} onDrop={handleFileInput}>
         {droppedFile ? (
           <div>
           <p className="drag-drop-tag">File: {droppedFile.name}</p>
@@ -182,10 +198,12 @@ function FileDropArea ({ingestionType}) {
         ref={fileInputRef} 
         style={{ display: 'none' }} 
         accept=".csv"
-        onChange={handleDrop} />
+        onChange={handleFileInput} />
           </div>
         )}
-        {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>}
+         {isLoading && <Loader message="Fetching data, please wait..." />} 
+      {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)} />}
+        {/* {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>} */}
       </div>
       <ActionBar>
       <SubmitBar label={"Submit"} 

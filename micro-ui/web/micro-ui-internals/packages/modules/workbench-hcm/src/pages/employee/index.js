@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { Switch, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
-import Example from "../../components/IngestionComponents/Example";
+import DataIngestionComponent from "../../components/IngestionComponents/DataIngestionComponent";
 
 const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
   const { t } = useTranslation();
@@ -62,9 +62,9 @@ const App = ({ path }) => {
       <Switch>
         <AppContainer className="workbench">
           <PrivateRoute path={`${path}/sample`} component={() => <div>Sample Screen loaded</div>} />
-          <PrivateRoute path={`${path}/facility`} component={() => <Example ingestionType={"Facility"} />} />
-          <PrivateRoute path={`${path}/user`} component={() => <Example ingestionType={"User"} />} />
-          <PrivateRoute path={`${path}/ou`} component={() => <Example ingestionType={"OU"} />} />
+          <PrivateRoute path={`${path}/facility`} component={() => <DataIngestionComponent ingestionType={"Facility"} />} />
+          <PrivateRoute path={`${path}/user`} component={() => <DataIngestionComponent ingestionType={"User"} />} />
+          <PrivateRoute path={`${path}/ou`} component={() => <DataIngestionComponent ingestionType={"OU"} />} />
 
         </AppContainer>
       </Switch>
