@@ -63,6 +63,7 @@ public class DownsyncService {
 		
 		List<String> householdIds = null;
 		Set<String> individualIds = null;
+		List<String> individualClientRefIds = null;
 		List<String> beneficiaryUuids = null;
 		List<String> taskIds = null;
 		
@@ -72,17 +73,18 @@ public class DownsyncService {
 		
 		/* search household member using household ids */
 		individualIds = searchMembers(downsyncRequest, downsync, householdIds);
+
 		
-		
-		if(!CollectionUtils.isEmpty(individualIds)) {
-			
+		if (!CollectionUtils.isEmpty(individualIds)) {
+
 			/* search individuals using individual ids */
-			searchIndividuals(downsyncRequest, downsync, individualIds);
-			
-			/* search beneficiary using individual ids */
-			beneficiaryUuids = searchBeneficiaries(downsyncRequest, downsync, individualIds);
+			individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualIds);
 		}
-		
+
+		if (!CollectionUtils.isEmpty(individualClientRefIds))
+			/* search beneficiary using individual ids */
+			beneficiaryUuids = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
+
 		/* search tasks using  benegiciary uuids */
 		if (!CollectionUtils.isEmpty(beneficiaryUuids)) {
 
@@ -130,7 +132,14 @@ public class DownsyncService {
 		return households.stream().map(Household::getId).collect(Collectors.toList());
 	}
 	
-	private void searchIndividuals(DownsyncRequest downsyncRequest, Downsync downsync, Set<String> individualIds) {
+	/**
+	 * 
+	 * @param downsyncRequest
+	 * @param downsync
+	 * @param individualIds
+	 * @return individual ClientReferenceIds
+	 */
+	private List<String> searchIndividuals(DownsyncRequest downsyncRequest, Downsync downsync, Set<String> individualIds) {
 		
 		DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 		RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -150,6 +159,8 @@ public class DownsyncService {
 		
 		List<Individual> individuals = restClient.fetchResult(url, searchRequest, IndividualBulkResponse.class).getIndividual();
 		downsync.setIndividuals(individuals);
+		
+		return individuals.stream().map(Individual::getClientReferenceId).collect(Collectors.toList());
 	}
 	
 	/**
@@ -191,7 +202,7 @@ public class DownsyncService {
 	}
 
 	
-	private List<String> searchBeneficiaries(DownsyncRequest downsyncRequest, Downsync downsync, Set<String> individualIds) {
+	private List<String> searchBeneficiaries(DownsyncRequest downsyncRequest, Downsync downsync, List<String> individualClientRefIds) {
 		
 		DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 		RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -200,10 +211,10 @@ public class DownsyncService {
 				.append(configs.getProjectBeneficiarySearchUrl());
 		url = appendUrlParams(url, criteria);
 		
-		String beneficiaryIdQuery = "SELECT id from PROJECT_BENEFICIARY where beneficiaryId IN (:beneficiaryIds)";
+		String beneficiaryIdQuery = "SELECT id from PROJECT_BENEFICIARY where beneficiaryclientreferenceid IN (:beneficiaryIds)";
 		
 		Map<String, Object> paramMap = new HashMap<>();
-        paramMap.put("beneficiaryIds", individualIds);
+        paramMap.put("beneficiaryIds", individualClientRefIds);
         
         /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of beneficiary ids*/
         List<String> ids = jdbcTemplate.queryForList(beneficiaryIdQuery, paramMap, String.class);
