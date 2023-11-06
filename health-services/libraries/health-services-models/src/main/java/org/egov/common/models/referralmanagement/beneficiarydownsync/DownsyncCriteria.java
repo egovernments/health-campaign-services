@@ -29,6 +29,6 @@ public class DownsyncCriteria {
 	@Default
 	private Integer limit = 50;
 	
-	private Integer totalCount;
+	private Long totalCount;
 }
 
