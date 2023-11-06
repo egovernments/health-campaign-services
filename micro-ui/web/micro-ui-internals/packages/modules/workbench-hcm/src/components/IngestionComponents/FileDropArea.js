@@ -121,7 +121,6 @@ function FileDropArea ({ingestionType}) {
           );
           const { data: facilityRes} = await Digit.IngestionService.facility(formData);
           setResponse(facilityRes);
-          console.log(facilityRes);
 
           break;
 
@@ -152,7 +151,6 @@ function FileDropArea ({ingestionType}) {
           );
           const {data: userRes} = await Digit.IngestionService.user(formData);
           setResponse(userRes);
-          console.log(userRes, "uuuuuuuuuuuuuuu");
           break;
 
         default:
