@@ -26,6 +26,8 @@ import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectBeneficiarySearch;
+import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskBulkResponse;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.models.project.TaskSearchRequest;
 import org.egov.common.models.referralmanagement.Referral;
@@ -209,13 +211,14 @@ public class DownsyncService {
 	        paramMap.put("householdIds", householdIds);
 	        
 	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
-	        List<String> memeberids = jdbcTemplate.queryForList(memberIdsquery, paramMap, String.class);
+	        List<String> memberids = jdbcTemplate.queryForList(memberIdsquery, paramMap, String.class);
 			
-			if (CollectionUtils.isEmpty(memeberids))
+			if (CollectionUtils.isEmpty(memberids))
 				return Collections.emptySet();
+			
 	
 	        HouseholdMemberSearch memberSearch = HouseholdMemberSearch.builder()
-					.id(memeberids)
+					.id(memberids)
 					.build();
 			
 	        HouseholdMemberSearchRequest searchRequest = HouseholdMemberSearchRequest.builder()
@@ -311,10 +314,10 @@ public class DownsyncService {
 					.requestInfo(requestInfo)
 					.build();
 			
-			List<ProjectBeneficiary> beneficiaries = restClient.fetchResult(url, searchRequest, BeneficiaryBulkResponse.class).getProjectBeneficiaries();
-			downsync.setProjectBeneficiaries(beneficiaries);
+			List<Task> tasks = restClient.fetchResult(url, searchRequest, TaskBulkResponse.class).getTasks();
+			downsync.setTasks(tasks);
 			
-			return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
+			return tasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
 		}
 
 		/**
