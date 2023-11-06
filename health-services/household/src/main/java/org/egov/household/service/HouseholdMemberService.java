@@ -159,7 +159,7 @@ public class HouseholdMemberService {
         try {
             return householdMemberRepository.find(householdMemberSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
-        } catch (QueryBuilderException e) {
+        } catch (Exception e) {
             log.error("error in building query for household member search", e);
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }

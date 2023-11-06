@@ -70,7 +70,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         return SearchResponse.<Household>builder().totalCount(totalCount).response(objFound).build();
     }
 
-    public SearchResponse<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+    public SearchResponse<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) {
         String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
         query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();

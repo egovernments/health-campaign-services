@@ -69,11 +69,11 @@ class HouseholdApiControllerTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().build()).build();
         when(householdService.search(any(HouseholdSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
+                anyInt(), anyString(), any(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
 
-//        mockMvc.perform(post("/v1/_search?limit=10&offset=0&tenantId=default").contentType(MediaType
-//                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdSearchRequest)))
-//                .andExpect(status().isOk());
+        mockMvc.perform(post("/v1/_search?limit=10&offset=0&tenantId=default").contentType(MediaType
+                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdSearchRequest)))
+                .andExpect(status().isOk());
     }
 
     @Test

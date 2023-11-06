@@ -99,7 +99,7 @@ class ProjectBeneficiaryEnrichmentServiceUpdateTest {
     void shouldFetchExistingRecordsUsingId() throws Exception {
         mockFindById();
         projectBeneficiaryEnrichmentService.update(request.getProjectBeneficiaries(), request);
-        verify(projectBeneficiaryRepository, times(1)).findById(anyList(), eq(false), anyString());
+        verify(projectBeneficiaryRepository, times(1)).findById(anyList(), anyString(), eq(false));
     }
 
     @Test

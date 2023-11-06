@@ -46,7 +46,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
                                                 Integer offset,
                                                 String tenantId,
                                                 Long lastChangedSince,
-                                                Boolean includeDeleted)  throws QueryBuilderException {
+                                                Boolean includeDeleted) {
 
         Map<String, Object> paramsMap = new HashMap<>();
         StringBuilder queryBuilder = new StringBuilder();

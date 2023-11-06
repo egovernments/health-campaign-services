@@ -85,7 +85,7 @@ class HouseholdMemberApiControllerTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .householdMemberSearch(HouseholdMemberSearch.builder().build()).build();
         when(householdMemberService.search(any(HouseholdMemberSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<HouseholdMember>builder().build());
+                anyInt(), anyString(), any(), anyBoolean())).thenReturn(SearchResponse.<HouseholdMember>builder().build());
 
         mockMvc.perform(post("/member/v1/_search?limit=10&offset=0&tenantId=default").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdMemberSearchRequest)))
