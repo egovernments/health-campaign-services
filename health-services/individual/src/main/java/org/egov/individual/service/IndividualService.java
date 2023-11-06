@@ -7,16 +7,15 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.Role;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkRequest;
-import org.egov.common.models.individual.IndividualRequest;
+import org.egov.common.models.individual.*;
 import org.egov.common.models.project.ApiOperation;
 import org.egov.common.models.user.UserRequest;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.EncryptionDecryptionUtil;
+import org.egov.individual.util.IndividualMigrationUtil;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
@@ -69,6 +68,9 @@ public class IndividualService {
     private final UserIntegrationService userIntegrationService;
 
     private final NotificationService notificationService;
+    private final IndividualMigrationUtil individualMigrationUtil;
+    private final EncryptionDecryptionUtil encryptionDecryptionUtil;
+
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -99,7 +101,7 @@ public class IndividualService {
                              EnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
-                             NotificationService notificationService) {
+                             NotificationService notificationService, IndividualMigrationUtil individualMigrationUtil, EncryptionDecryptionUtil encryptionDecryptionUtil) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -107,6 +109,8 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
+        this.individualMigrationUtil = individualMigrationUtil;
+        this.encryptionDecryptionUtil = encryptionDecryptionUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -298,17 +302,20 @@ public class IndividualService {
         }
         //encrypt search criteria
 
-        IndividualSearch encryptedIndividualSearch;
-        if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
-            encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
-        } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
-            encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
-        } else {
-            encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchEncrypt");
-        }
+        IndividualSearch encryptedIndividualSearch = individualSearch;
+//        if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
+//            encryptedIndividualSearch = individualEncryptionService
+//                    .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
+//        } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
+//            encryptedIndividualSearch = individualEncryptionService
+//                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+//        } else {
+//            encryptedIndividualSearch = individualEncryptionService
+//                    .encrypt(individualSearch, "IndividualSearchEncrypt");
+//        }
+        encryptedIndividualSearch = individualEncryptionService
+                .encrypt(individualSearch, "IndividualSearchEncrypt");
+
         try {
             encryptedIndividualList = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
                             lastChangedSince, includeDeleted).stream()
@@ -428,5 +435,9 @@ public class IndividualService {
                 return false;
         }
         return true;
+    }
+
+    public void migrate(RequestInfo requestInfo) {
+        individualMigrationUtil.migrate();
     }
 }
