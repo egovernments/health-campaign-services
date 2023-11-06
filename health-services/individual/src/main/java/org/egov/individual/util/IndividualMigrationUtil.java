@@ -31,6 +31,12 @@ public class IndividualMigrationUtil {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(query);
         for(Map<String,Object> row:rows){
             String id = (String)row.get("id");
+            String encryptionQuery = "Select isencrypted from individual_encryption where individualid = '"+id+"'";
+            List<Map<String, Object>> encryptionRows = jdbcTemplate.queryForList(encryptionQuery);
+
+            if(!(encryptionRows.isEmpty() ||encryptionRows.get(0).get("isencrypted").equals(false)))
+                continue;
+
             String addressQuery = "Select address.doorno,address.street,address.id From address INNER JOIN individual_address ON address.id = individual_address.addressid where individual_address.individualid = '"+id+"'";
             List<Map<String, Object>> addressRows = jdbcTemplate.queryForList(addressQuery);
 
@@ -39,10 +45,13 @@ public class IndividualMigrationUtil {
 
             Object encryptionObject = prepareEncryptObject(row,addressRows,identifierRows);
             Individual encryptedObject = encryptionDecryptionUtil.encryptObject(encryptionObject,INDIVIDUAL_ENCRYPT_KEY,Individual.class);
+
             String updateQuery = "UPDATE individual SET givenname = '"+encryptedObject.getName().getGivenName()+"',familyname ='"+encryptedObject.getName().getFamilyName()+"',othernames = '"+encryptedObject.getName().getOtherNames()+"',altcontactnumber ='"+encryptedObject.getAltContactNumber()+"',email ='"+encryptedObject.getEmail()+"',fathername ='"+encryptedObject.getFatherName()+"',husbandname ='"+encryptedObject.getHusbandName()+"',username ='"+encryptedObject.getUserDetails().getUsername()+"',password ='"+encryptedObject.getUserDetails().getPassword()+"' WHERE id ='"+id+"'";
             jdbcTemplate.update(updateQuery);
             String updateAddressQuery = "UPDATE address SET doorno = '"+encryptedObject.getAddress().get(0).getDoorNo()+"',street = '"+encryptedObject.getAddress().get(0).getStreet()+"' WHERE id = '"+encryptedObject.getAddress().get(0).getId()+"'";
             jdbcTemplate.update(updateAddressQuery);
+            String updateEncryptedQuery = "INSERT INTO individual_encryption(individualid,isencrypted) VALUES('"+id+"',true)";
+            jdbcTemplate.update(updateEncryptedQuery);
         }
     }
     private Object prepareEncryptObject(Map<String,Object> individual,List<Map<String,Object>> address, List<Map<String,Object>> identifier){
