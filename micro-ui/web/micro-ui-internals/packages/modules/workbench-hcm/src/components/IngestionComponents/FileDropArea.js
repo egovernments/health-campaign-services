@@ -33,7 +33,7 @@ function FileDropArea ({ingestionType}) {
 
   const files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
 
-    if (files.length === 1) {
+    if (files.length === 1 && droppedFile===null) {
       const file = files[0];
       const fileName = file.name;
   
@@ -134,7 +134,7 @@ function FileDropArea ({ingestionType}) {
             JSON.stringify({
               tenantId: Digit.ULBService.getCurrentTenantId(),
               requestInfo: {
-                userInfo: Digit.UserService.getUser(),
+                userInfo: Digit.UserService.getUser().info,
               },
             })
           );
