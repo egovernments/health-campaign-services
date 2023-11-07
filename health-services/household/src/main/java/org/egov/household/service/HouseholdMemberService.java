@@ -69,8 +69,7 @@ public class HouseholdMemberService {
                     || validator.getClass().equals(HmRowVersionValidator.class)
                     || validator.getClass().equals(HmUniqueEntityValidator.class)
                     || validator.getClass().equals(HmHouseholdValidator.class)
-                    || validator.getClass().equals(HmIndividualValidator.class)
-                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
+                    || validator.getClass().equals(HmIndividualValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
             validator.getClass().equals(HmHouseholdValidator.class)
