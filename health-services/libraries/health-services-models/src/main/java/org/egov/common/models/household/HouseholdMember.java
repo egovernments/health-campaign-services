@@ -43,6 +43,7 @@ public class HouseholdMember{
 
     @JsonProperty("clientReferenceId")
     @Size(min = 2, max = 64)
+    @NotNull
     private String clientReferenceId = null;
 
     @JsonProperty("individualId")
