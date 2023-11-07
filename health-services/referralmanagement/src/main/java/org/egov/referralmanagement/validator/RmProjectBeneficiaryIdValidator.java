@@ -87,8 +87,6 @@ public class RmProjectBeneficiaryIdValidator implements Validator<ReferralBulkRe
                     BeneficiaryBulkResponse.class
             );
             existingProjectBeneficiaries = beneficiaryBulkResponse.getProjectBeneficiaries();
-        } catch (QueryBuilderException e) {
-            existingProjectBeneficiaries = Collections.emptyList();
         } catch (Exception e) {
             throw new CustomException("Project Beneficiaries failed to fetch", "Exception : "+e.getMessage());
         }
