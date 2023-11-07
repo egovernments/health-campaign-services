@@ -36,7 +36,7 @@ public class HouseholdSearch {
 //    @JsonProperty("memberCount")
 //    private Integer memberCount = null;
 
-    @JsonProperty("localityCode")
+    @JsonProperty("boundaryCode")
     private String localityCode = null;
 }
 
