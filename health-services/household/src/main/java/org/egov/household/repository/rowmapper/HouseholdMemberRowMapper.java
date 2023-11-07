@@ -33,6 +33,7 @@ public class HouseholdMemberRowMapper implements RowMapper<HouseholdMember> {
             return HouseholdMember.builder()
                     .id(resultSet.getString("id"))
                     .householdId(resultSet.getString("householdId"))
+                    .clientReferenceId(resultSet.getString("clientReferenceId"))
                     .householdClientReferenceId(resultSet.getString("householdClientReferenceId"))
                     .individualClientReferenceId(resultSet.getString("individualClientReferenceId"))
                     .individualId(resultSet.getString("individualId"))
