@@ -405,6 +405,8 @@ public class DownsyncService {
 					  .append("&offset=")
 					  .append(criteria.getOffset())
 					  .append("&limit=")
-					  .append(criteria.getLimit());
+					  .append(criteria.getLimit())
+					  .append("&includeDeleted=")
+					  .append(criteria.getIncludeDeleted());
 		}
 	}
