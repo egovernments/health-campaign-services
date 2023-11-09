@@ -1,6 +1,22 @@
 package org.egov.referralmanagement.service;
 
-import lombok.extern.slf4j.Slf4j;
+
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.referralmanagement.Referral;
@@ -26,25 +42,12 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 public class ReferralManagementService {
+	
     private final IdGenService idGenService;
 
     private final ReferralRepository referralRepository;
@@ -155,7 +158,7 @@ public class ReferralManagementService {
                                  Integer offset,
                                  String tenantId,
                                  Long lastChangedSince,
-                                 Boolean includeDeleted) throws Exception {
+                                 Boolean includeDeleted) {
         log.info("received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {

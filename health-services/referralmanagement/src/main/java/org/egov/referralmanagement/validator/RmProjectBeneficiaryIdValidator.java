@@ -87,8 +87,6 @@ public class RmProjectBeneficiaryIdValidator implements Validator<ReferralBulkRe
                     BeneficiaryBulkResponse.class
             );
             existingProjectBeneficiaries = beneficiaryBulkResponse.getProjectBeneficiaries();
-        } catch (QueryBuilderException e) {
-            existingProjectBeneficiaries = Collections.emptyList();
         } catch (Exception e) {
             throw new CustomException("Project Beneficiaries failed to fetch", "Exception : "+e.getMessage());
         }
@@ -104,7 +102,7 @@ public class RmProjectBeneficiaryIdValidator implements Validator<ReferralBulkRe
         });
         List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                 (Objects.nonNull(entity.getProjectBeneficiaryClientReferenceId()) && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId()) )
-                        || (Objects.nonNull(entity.getProjectBeneficiaryClientReferenceId()) && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId()))
+                        || (Objects.nonNull(entity.getProjectBeneficiaryId()) && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId()))
         ).collect(Collectors.toList());
         invalidEntities.forEach(referral -> {
             Error error = getErrorForNonExistentEntity();
