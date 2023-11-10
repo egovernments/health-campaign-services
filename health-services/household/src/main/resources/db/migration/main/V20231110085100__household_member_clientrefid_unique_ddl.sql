@@ -1,0 +1,1 @@
+ALTER TABLE HOUSEHOLD_MEMBER ADD CONSTRAINT uk_household_member_client_reference_id UNIQUE (clientreferenceid);
