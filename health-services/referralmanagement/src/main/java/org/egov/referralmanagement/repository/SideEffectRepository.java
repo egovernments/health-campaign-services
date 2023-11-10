@@ -77,6 +77,8 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "ae.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "ae.clientReferenceId IN (:clientReferenceId)");
+        query = query.replace("projectBeneficiaryId IN (:projectBeneficiaryId)", "ae.projectBeneficiaryId IN (:projectBeneficiaryId)");
+        query = query.replace("projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)", "ae.projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)");
 
         query = query + " and ae.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {

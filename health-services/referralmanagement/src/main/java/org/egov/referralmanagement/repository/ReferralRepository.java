@@ -50,7 +50,11 @@ public class ReferralRepository extends GenericRepository<Referral> {
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "r.clientReferenceId IN (:clientReferenceId)");
         query = query.replace("projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)", "r.projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)");
         query = query.replace("projectBeneficiaryId IN (:projectBeneficiaryId)", "r.projectBeneficiaryId IN (:projectBeneficiaryId)");
-        
+        query = query.replace("sideEffectClientReferenceId IN (:sideEffectClientReferenceId)", "se.clientReferenceId IN (:sideEffectClientReferenceId)");
+        query = query.replace("sideEffectId IN (:sideEffectId)", "se.id IN (:sideEffectId)");
+        query = query.replace("referrerId IN (:referrerId)", "r.referrerId IN (:referrerId)");
+        query = query.replace("recipientId IN (:recipientId)", "r.recipientId IN (:recipientId)");
+
         query = query + " and r.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and r.isDeleted=:isDeleted ";
