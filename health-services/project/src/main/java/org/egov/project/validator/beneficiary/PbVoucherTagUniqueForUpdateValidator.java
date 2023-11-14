@@ -149,10 +149,21 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
         return existingVoucherTags.contains(tag);
     }
 
+    /**
+     * Checks if a ProjectBeneficiary entity is considered as updated based on its tag.
+     *
+     * @param entity                  The ProjectBeneficiary entity to check.
+     * @param existingProjectBeneficiaryMap A map containing existing ProjectBeneficiary entities based on their IDs.
+     * @return true if the entity is updated, false otherwise.
+     */
     private boolean isUpdated(ProjectBeneficiary entity, Map<String, ProjectBeneficiary> existingProjectBeneficiaryMap) {
         String id = entity.getId();
         String tag = entity.getTag();
+
+        // Retrieve the existing ProjectBeneficiary object to compare
         ProjectBeneficiary toCompareObject = existingProjectBeneficiaryMap.get(id);
+
+        // Check if the tag of the current entity is equal to the tag of the existing entity
         return (( toCompareObject.getTag() != null && toCompareObject.getTag().equals(tag) ) || ( tag != null && tag.equals(toCompareObject.getTag()) ));
     }
 }
