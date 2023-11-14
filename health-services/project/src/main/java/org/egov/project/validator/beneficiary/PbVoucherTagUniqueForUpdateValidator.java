@@ -113,7 +113,7 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
         List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getTag).collect(Collectors.toList());
         invalidEntities = validProjectBeneficiaries.stream()
                 .filter(notHavingErrors())
-                .filter(projectBeneficiary -> !existingProjectBeneficiaryMap.get(projectBeneficiary.getId()).getTag().equals(projectBeneficiary.getTag()))
+                .filter(projectBeneficiary -> isUpdated(projectBeneficiary, existingProjectBeneficiaryMap))
                 .filter(projectBeneficiary -> isInvalid(projectBeneficiary, existingVoucherTags))
                 .collect(Collectors.toList());
 
@@ -149,4 +149,10 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
         return existingVoucherTags.contains(tag);
     }
 
+    private boolean isUpdated(ProjectBeneficiary entity, Map<String, ProjectBeneficiary> existingProjectBeneficiaryMap) {
+        String id = entity.getId();
+        String tag = entity.getTag();
+        ProjectBeneficiary toCompareObject = existingProjectBeneficiaryMap.get(id);
+        return (( toCompareObject.getTag() != null && toCompareObject.getTag().equals(tag) ) || ( tag != null && tag.equals(toCompareObject.getTag()) ));
+    }
 }
