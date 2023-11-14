@@ -22,7 +22,9 @@ public class HouseholdMemberTestBuilder {
     }
 
     public HouseholdMemberTestBuilder withHouseholdIdAndIndividualId(){
-        this.builder.id("some-id").additionalFields(AdditionalFields.builder().build())
+        this.builder.id("some-id")
+                .clientReferenceId("some-client-reference-id")
+                .additionalFields(AdditionalFields.builder().build())
                 .rowVersion(1)
                 .isHeadOfHousehold(false)
                 .individualId("some-individual-id")
