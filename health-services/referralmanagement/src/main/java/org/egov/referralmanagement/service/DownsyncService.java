@@ -411,15 +411,16 @@ public class DownsyncService {
 	 * @return
 	 */
 	private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Boolean includeLimitOffset) {
+		url.append("?tenantId=")
+			.append(criteria.getTenantId())
+			.append("&includeDeleted=")
+			.append(criteria.getIncludeDeleted());
 		if(includeLimitOffset) {
 			url = url.append("&offset=")
 					.append(criteria.getOffset())
 					.append("&limit=")
 					.append(criteria.getLimit());
 		}
-		return url.append("?tenantId=")
-				.append(criteria.getTenantId())
-				.append("&includeDeleted=")
-				.append(criteria.getIncludeDeleted());
+		return url;
 	}
 }
