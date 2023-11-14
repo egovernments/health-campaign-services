@@ -137,7 +137,7 @@ public class DownsyncService {
 	
 			StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
 					.append(configs.getHouseholdSearchUrl());
-			householdUrl = appendUrlParams(householdUrl, criteria);
+			householdUrl = appendUrlParams(householdUrl, criteria, Boolean.TRUE);
 					
 			HouseholdSearch householdSearch = HouseholdSearch.builder()
 					.localityCode(criteria.getLocality())
@@ -399,14 +399,27 @@ public class DownsyncService {
 		 * @return
 		 */
 		private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria) {
-
-			return url.append("?tenantId=")
-					  .append(criteria.getTenantId())
-					  .append("&offset=")
-					  .append(criteria.getOffset())
-					  .append("&limit=")
-					  .append(criteria.getLimit())
-					  .append("&includeDeleted=")
-					  .append(criteria.getIncludeDeleted());
+			return appendUrlParams(url, criteria, Boolean.FALSE);
 		}
+
+	/**
+	 * append url params
+	 *
+	 * @param url
+	 * @param criteria
+	 * @param includeLimitOffset
+	 * @return
+	 */
+	private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Boolean includeLimitOffset) {
+		if(includeLimitOffset) {
+			url = url.append("&offset=")
+					.append(criteria.getOffset())
+					.append("&limit=")
+					.append(criteria.getLimit());
+		}
+		return url.append("?tenantId=")
+				.append(criteria.getTenantId())
+				.append("&includeDeleted=")
+				.append(criteria.getIncludeDeleted());
 	}
+}
