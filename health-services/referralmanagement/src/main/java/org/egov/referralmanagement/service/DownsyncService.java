@@ -137,7 +137,7 @@ public class DownsyncService {
 	
 			StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
 					.append(configs.getHouseholdSearchUrl());
-			householdUrl = appendUrlParams(householdUrl, criteria, Boolean.TRUE);
+			householdUrl = appendUrlParams(householdUrl, criteria, null, Boolean.TRUE);
 					
 			HouseholdSearch householdSearch = HouseholdSearch.builder()
 					.localityCode(criteria.getLocality())
@@ -174,7 +174,7 @@ public class DownsyncService {
 
 			StringBuilder url = new StringBuilder(configs.getIndividualHost())
 					.append(configs.getIndividualSearchUrl());
-			url = appendUrlParams(url, criteria);
+			url = appendUrlParams(url, criteria, individualIds.size());
 					
 			IndividualSearch individualSearch = IndividualSearch.builder()
 					.id(new ArrayList<>(individualIds))
@@ -203,13 +203,13 @@ public class DownsyncService {
 			StringBuilder memberUrl = new StringBuilder(configs.getHouseholdHost())
 					.append(configs.getHouseholdMemberSearchUrl());
 			
-			appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria());
-
 			String memberIdsquery = "SELECT id from HOUSEHOLD_MEMBER where householdId IN (:householdIds)";
 			
 			Map<String, Object> paramMap = new HashMap<>();
 	        paramMap.put("householdIds", householdIds);
-	        
+
+			appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 1000);
+
 	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
 	        List<String> memberids = jdbcTemplate.queryForList(memberIdsquery, paramMap, String.class);
 			
@@ -247,7 +247,7 @@ public class DownsyncService {
 
 			StringBuilder url = new StringBuilder(configs.getProjectHost())
 					.append(configs.getProjectBeneficiarySearchUrl());
-			url = appendUrlParams(url, criteria);
+			url = appendUrlParams(url, criteria, individualClientRefIds.size());
 			
 			String beneficiaryIdQuery = "SELECT id from PROJECT_BENEFICIARY where beneficiaryclientreferenceid IN (:beneficiaryIds)";
 			
@@ -291,7 +291,7 @@ public class DownsyncService {
 	
 			StringBuilder url = new StringBuilder(configs.getProjectHost())
 					.append(configs.getProjectTaskSearchUrl());
-			url = appendUrlParams(url, criteria);
+			url = appendUrlParams(url, criteria, 1000);
 			
 			String taskIdQuery = "SELECT id from PROJECT_TASK where projectBeneficiaryClientReferenceId IN (:beneficiaryClientRefIds)";
 			
@@ -354,8 +354,8 @@ public class DownsyncService {
 			
 			List<SideEffect> effects = sideEffectService.search(
 								effectSearchRequest,
-								criteria.getLimit(),
-								criteria.getOffset(),
+								1000,
+								0,
 								criteria.getTenantId(),
 								criteria.getLastSyncedTime(),
 								criteria.getIncludeDeleted());
@@ -380,8 +380,8 @@ public class DownsyncService {
 	
 			List<Referral> referrals = referralService.search(
 								searchRequest,
-								criteria.getLimit(),
-								criteria.getOffset(),
+								1000,
+								0,
 								criteria.getTenantId(),
 								criteria.getLastSyncedTime(),
 								criteria.getIncludeDeleted());
@@ -398,8 +398,8 @@ public class DownsyncService {
 		 * @param criteria
 		 * @return
 		 */
-		private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria) {
-			return appendUrlParams(url, criteria, Boolean.FALSE);
+		private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Integer limit) {
+			return appendUrlParams(url, criteria, limit, Boolean.FALSE);
 		}
 
 	/**
@@ -410,16 +410,20 @@ public class DownsyncService {
 	 * @param includeLimitOffset
 	 * @return
 	 */
-	private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Boolean includeLimitOffset) {
+	private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Integer limit,  Boolean includeLimitOffset) {
 		url.append("?tenantId=")
 			.append(criteria.getTenantId())
 			.append("&includeDeleted=")
-			.append(criteria.getIncludeDeleted());
+			.append(criteria.getIncludeDeleted())
+			.append("&limit=");
 		if(includeLimitOffset) {
-			url = url.append("&offset=")
-					.append(criteria.getOffset())
-					.append("&limit=")
-					.append(criteria.getLimit());
+			url.append(criteria.getLimit())
+				.append("&offset=")
+				.append(criteria.getOffset());
+		} else {
+			url.append(limit)
+				.append("&offset=")
+				.append(0);
 		}
 		return url;
 	}
