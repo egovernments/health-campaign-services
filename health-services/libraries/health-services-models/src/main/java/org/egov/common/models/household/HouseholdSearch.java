@@ -33,9 +33,6 @@ public class HouseholdSearch {
     @JsonProperty("clientReferenceId")
     private List<String> clientReferenceId = null;
 
-//    @JsonProperty("memberCount")
-//    private Integer memberCount = null;
-
     @JsonProperty("boundaryCode")
     private String localityCode = null;
 }
