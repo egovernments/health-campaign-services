@@ -1,6 +1,6 @@
 All notable changes to this module will be documented in this file.
 
-## 1.1.1 
+## 1.1.1 - 2023-11-15
 - Added tag in project beneficiary 
 
 ## 1.1.1-beta 19-10-2023
