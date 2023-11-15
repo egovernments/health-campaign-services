@@ -1,6 +1,6 @@
 All notable changes to this module will be documented in this file.
 
-## 1.0.11
+## 1.0.11 - 2023-11-15
 - Client reference id added for member of household
 - revert of household search change
 
