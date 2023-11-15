@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.1 - 2023-11-15
+  - Enhanced inventory flow for last mile delivery with QR code
+
 ## 1.1.1-beta
   - Enhanced Inventory flow for last mile delivery
 
