@@ -3,7 +3,7 @@ All notable changes to this module will be documented in this file.
 ## 1.1.1
 
 - Added total count for household
-- Added a field for HouseholdMember : clientReferenceId
+- Added a field for HouseholdMember-clientReferenceId
 
 ## 1.1.1-beta
 
