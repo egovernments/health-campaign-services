@@ -288,7 +288,10 @@ import Tutorial from "./hoc/Tutorial/Tutorial";
 import { useTourState,TourProvider } from "./hoc/Tutorial/TourProvider";
 import Help from "./hoc/Tutorial/Help";
 
+//View Composer
+import ViewComposer from "./hoc/ViewComposer";
 export {
+  ViewComposer,
   HelpOutlineIcon,
   Help,
   Tutorial,
