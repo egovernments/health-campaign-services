@@ -20,9 +20,9 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
+ * @author kanishq-egov
  * This class, PbVoucherTagUniqueValidator, is a Spring component that serves as a validator for ensuring the uniqueness
  * of voucher tags within a list of project beneficiaries. It implements the Validator interface, which allows it to
  * validate a BeneficiaryBulkRequest containing a list of ProjectBeneficiary objects. Any duplicate voucher tags within
@@ -110,11 +110,11 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
 
         populateErrors(invalidEntities, errorDetailsMap);
 
-        List<String> existingVoucherTags = existingProjectBeneficiaries.stream().map(ProjectBeneficiary::getTag).collect(Collectors.toList());
+        Map<String, ProjectBeneficiary> existingProjectBeneficiaryVoucherTagMap = existingProjectBeneficiaries.stream().filter(projectBeneficiary -> projectBeneficiary.getTag() != null).collect(Collectors.toMap(ProjectBeneficiary::getTag, projectBeneficiary -> projectBeneficiary));
         invalidEntities = validProjectBeneficiaries.stream()
                 .filter(notHavingErrors())
                 .filter(projectBeneficiary -> isUpdated(projectBeneficiary, existingProjectBeneficiaryMap))
-                .filter(projectBeneficiary -> isInvalid(projectBeneficiary, existingVoucherTags))
+                .filter(projectBeneficiary -> isInvalid(projectBeneficiary, existingProjectBeneficiaryVoucherTagMap))
                 .collect(Collectors.toList());
 
         populateErrors(invalidEntities, errorDetailsMap);
@@ -129,7 +129,7 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
     private void populateErrors(List<ProjectBeneficiary> invalidEntities, Map<ProjectBeneficiary, List<Error>> errorDetailsMap) {
         // For each invalid entity, create an error and populate error details
         invalidEntities.forEach(projectBeneficiary -> {
-            Error error = getErrorForUniqueEntity();
+            Error error = Error.builder().errorMessage("Project Beneficiary Tag Validation Failed").errorCode("INVALID_TAG").type(Error.ErrorType.NON_RECOVERABLE).exception(new CustomException("INVALID_TAG", "Project Beneficiary Tag Validation Failed")).build();
             populateErrorDetails(projectBeneficiary, error, errorDetailsMap);
         });
     }
@@ -137,16 +137,17 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
     /**
      * This method checks if a ProjectBeneficiary entity is invalid based on its voucher tag.
      *
-     * @param entity                        The ProjectBeneficiary entity to check.
-     * @param existingVoucherTags
+     * @param entity                              The ProjectBeneficiary entity to check.
+     * @param existingProjectBeneficiaryVoucherTagMap The map containing existing ProjectBeneficiary entities
+     *                                                indexed by their voucher tags.
      * @return true if the entity is invalid, false otherwise.
      */
-    private boolean isInvalid(ProjectBeneficiary entity, List<String> existingVoucherTags) {
+    private boolean isInvalid(ProjectBeneficiary entity, Map<String, ProjectBeneficiary> existingProjectBeneficiaryVoucherTagMap) {
         String id = entity.getId();
         String tag = entity.getTag();
 
         // Check if an entity with the same ID exists in the map and has a different tag
-        return existingVoucherTags.contains(tag);
+        return existingProjectBeneficiaryVoucherTagMap.keySet().contains(tag) && !existingProjectBeneficiaryVoucherTagMap.get(tag).getId().equals(id);
     }
 
     /**
@@ -161,9 +162,13 @@ public class PbVoucherTagUniqueForUpdateValidator implements Validator<Beneficia
         String tag = entity.getTag();
 
         // Retrieve the existing ProjectBeneficiary object to compare
-        ProjectBeneficiary toCompareObject = existingProjectBeneficiaryMap.get(id);
+        ProjectBeneficiary projectBeneficiaryFromSearch = existingProjectBeneficiaryMap.get(id);
+
+        // check if existing ProjectBeneficiary Tag is null or not and if it is null whether it is updated or not
+        if(projectBeneficiaryFromSearch.getTag() == null) return tag != null;
 
         // Check if the tag of the current entity is equal to the tag of the existing entity
-        return (( toCompareObject.getTag() != null && toCompareObject.getTag().equals(tag) ) || ( tag != null && tag.equals(toCompareObject.getTag()) ));
+        return ( !projectBeneficiaryFromSearch.getTag().equals(tag)
+                    || ( tag != null && !tag.equals(projectBeneficiaryFromSearch.getTag()) ));
     }
 }
