@@ -137,7 +137,7 @@ public class DownsyncService {
 	
 			StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
 					.append(configs.getHouseholdSearchUrl());
-			householdUrl = appendUrlParams(householdUrl, criteria);
+			householdUrl = 	appendUrlParams(householdUrl, criteria, null, null);
 					
 			HouseholdSearch householdSearch = HouseholdSearch.builder()
 					.localityCode(criteria.getLocality())
@@ -174,7 +174,7 @@ public class DownsyncService {
 
 			StringBuilder url = new StringBuilder(configs.getIndividualHost())
 					.append(configs.getIndividualSearchUrl());
-			url = appendUrlParams(url, criteria);
+			url = appendUrlParams(url, criteria, 0, individualIds.size());
 					
 			IndividualSearch individualSearch = IndividualSearch.builder()
 					.id(new ArrayList<>(individualIds))
@@ -203,13 +203,12 @@ public class DownsyncService {
 			StringBuilder memberUrl = new StringBuilder(configs.getHouseholdHost())
 					.append(configs.getHouseholdMemberSearchUrl());
 			
-			appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria());
-
 			String memberIdsquery = "SELECT id from HOUSEHOLD_MEMBER where householdId IN (:householdIds)";
 			
 			Map<String, Object> paramMap = new HashMap<>();
 	        paramMap.put("householdIds", householdIds);
-	        
+			appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, householdIds.size());
+
 	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
 	        List<String> memberids = jdbcTemplate.queryForList(memberIdsquery, paramMap, String.class);
 			
@@ -247,7 +246,7 @@ public class DownsyncService {
 
 			StringBuilder url = new StringBuilder(configs.getProjectHost())
 					.append(configs.getProjectBeneficiarySearchUrl());
-			url = appendUrlParams(url, criteria);
+			url = appendUrlParams(url, criteria, 0, individualClientRefIds.size());
 			
 			String beneficiaryIdQuery = "SELECT id from PROJECT_BENEFICIARY where beneficiaryclientreferenceid IN (:beneficiaryIds)";
 			
@@ -291,7 +290,6 @@ public class DownsyncService {
 	
 			StringBuilder url = new StringBuilder(configs.getProjectHost())
 					.append(configs.getProjectTaskSearchUrl());
-			url = appendUrlParams(url, criteria);
 			
 			String taskIdQuery = "SELECT id from PROJECT_TASK where projectBeneficiaryClientReferenceId IN (:beneficiaryClientRefIds)";
 			
@@ -300,7 +298,8 @@ public class DownsyncService {
 	        
 	        /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
 	        List<String> taskIds = jdbcTemplate.queryForList(taskIdQuery, paramMap, String.class);
-					
+	        url = appendUrlParams(url, criteria, 0, taskIds.size());
+	        
 	        if(CollectionUtils.isEmpty(taskIds))
 	        	return Collections.emptyList();
 	        		
@@ -333,13 +332,13 @@ public class DownsyncService {
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
 			// search side effect FIXME - tasks id array search not available
-			String taskIdQuery = "SELECT id from SIDE_EFFECT where taskClientReferenceId IN (:taskClientRefIds)";
+			String sEIdQuery = "SELECT id from SIDE_EFFECT where taskClientReferenceId IN (:taskClientRefIds)";
 			
 			Map<String, Object> paramMap = new HashMap<>();
 	        paramMap.put("taskClientRefIds", taskClientRefIds);
 	        
 	        /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-	        List<String> SEIds = jdbcTemplate.queryForList(taskIdQuery, paramMap, String.class);
+	        List<String> SEIds = jdbcTemplate.queryForList(sEIdQuery, paramMap, String.class);
 					
 	        if(CollectionUtils.isEmpty(SEIds))
 	        	return;
@@ -354,8 +353,8 @@ public class DownsyncService {
 			
 			List<SideEffect> effects = sideEffectService.search(
 								effectSearchRequest,
-								criteria.getLimit(),
-								criteria.getOffset(),
+								SEIds.size(),
+								0,
 								criteria.getTenantId(),
 								criteria.getLastSyncedTime(),
 								criteria.getIncludeDeleted());
@@ -380,8 +379,8 @@ public class DownsyncService {
 	
 			List<Referral> referrals = referralService.search(
 								searchRequest,
-								criteria.getLimit(),
-								criteria.getOffset(),
+								beneficiaryClientRefIds.size(),
+								0,
 								criteria.getTenantId(),
 								criteria.getLastSyncedTime(),
 								criteria.getIncludeDeleted());
@@ -391,22 +390,34 @@ public class DownsyncService {
 
 
 
-		/**
-		 * append url params
-		 * 
-		 * @param url
-		 * @param criteria
-		 * @return
-		 */
-		private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria) {
+	/**
+	 * append url params
+	 *
+	 * @param url
+	 * @param criteria
+	 * @param includeLimitOffset
+	 * @return
+	 */
+	private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Integer offset, Integer limit) {
+		
+		url.append("?tenantId=")
+			.append(criteria.getTenantId())
+			.append("&includeDeleted=")
+			.append(criteria.getIncludeDeleted())
+			.append("&limit=");
 
-			return url.append("?tenantId=")
-					  .append(criteria.getTenantId())
-					  .append("&offset=")
-					  .append(criteria.getOffset())
-					  .append("&limit=")
-					  .append(criteria.getLimit())
-					  .append("&includeDeleted=")
-					  .append(criteria.getIncludeDeleted());
-		}
+		if (null != limit)
+			url.append(limit);
+		else
+			url.append(criteria.getLimit());
+			
+		url.append("&offset=");
+		
+		if(null != offset) 
+			url.append(offset);
+		else 
+			url.append(criteria.getOffset());
+		
+		return url;
 	}
+}
