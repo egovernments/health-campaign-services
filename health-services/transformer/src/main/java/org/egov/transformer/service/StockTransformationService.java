@@ -137,6 +137,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .administrativeProvince(boundaryLabelToNameMap != null ?
                             boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                     .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
+                    .healthFacility(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .additionalFields(stock.getAdditionalFields())
                     .clientAuditDetails(stock.getClientAuditDetails())

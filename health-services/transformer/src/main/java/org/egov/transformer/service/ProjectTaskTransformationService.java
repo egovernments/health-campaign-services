@@ -145,6 +145,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .administrativeProvince(finalBoundaryLabelToNameMap != null ?
                                     finalBoundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                             .locality(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getLocality()) : null)
+                            .healthFacility(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
                             .village(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getVillage()) : null)
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
