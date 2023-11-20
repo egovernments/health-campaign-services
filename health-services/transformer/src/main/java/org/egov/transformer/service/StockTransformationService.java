@@ -122,7 +122,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .transactingFacilityId(stock.getTransactingPartyId())
                     .userName(userService.getUserName(users,stock.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(stock.getTenantId(),users))
-                    .transactingFacilityName(transactingFacility.getName())
+                    .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : stock.getTransactingPartyId())
                     .facilityType(facilityType)
                     .transactingFacilityType(transactingFacilityType)
                     .physicalCount(stock.getQuantity())
