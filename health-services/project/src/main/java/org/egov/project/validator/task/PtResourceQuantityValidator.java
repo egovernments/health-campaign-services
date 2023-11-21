@@ -1,5 +1,6 @@
 package org.egov.project.validator.task;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
@@ -9,6 +10,8 @@ import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.util.ProjectConstants;
 import org.egov.tracer.model.CustomException;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
@@ -24,6 +27,9 @@ import static org.egov.project.util.ProjectConstants.TASK_NOT_ALLOWED;
  *
  * @author kanishq-egov
  */
+@Component
+@Order(value = 3)
+@Slf4j
 public class PtResourceQuantityValidator implements Validator<TaskBulkRequest, Task> {
 
     private final ProjectConfiguration projectConfiguration;
