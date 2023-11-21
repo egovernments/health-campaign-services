@@ -5,7 +5,7 @@
     <artifactId>stock</artifactId>
     <packaging>jar</packaging>
     <name>stock</name>
-    <version>1.1.1-beta</version>
+    <version>1.1.1</version>
     <properties>
         <java.version>1.8</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
