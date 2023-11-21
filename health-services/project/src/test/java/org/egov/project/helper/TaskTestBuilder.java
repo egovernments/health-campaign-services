@@ -30,9 +30,9 @@ public class TaskTestBuilder {
                 .auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build())
                 .address(AddressTestBuilder.builder().withAddress().build())
                 .resources(Arrays.asList(TaskResource.builder().tenantId("default").isDelivered(false)
-                        .quantity(100L).productVariantId("v101").build(),
+                        .quantity(100.0).productVariantId("v101").build(),
                         TaskResource.builder().tenantId("default").isDelivered(false)
-                                .quantity(100L).productVariantId("v101").build()))
+                                .quantity(100.0).productVariantId("v101").build()))
                 .isDeleted(false).rowVersion(0).projectBeneficiaryId("some-id")
                 .projectId("some-id").createdBy("some-id")
                 .createdDate(100L).status("status").build();

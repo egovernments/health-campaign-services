@@ -183,4 +183,7 @@ public class ProjectConfiguration {
     @Value("${egov.user.id.validator}")
     private String egovUserIdValidator;
 
+    @Value("${project.task.resource.quantity.pattern}")
+    private String ProjectTaskResourceQuantityPattern;
+
 }
