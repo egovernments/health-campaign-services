@@ -19,7 +19,7 @@ public class TaskResourceRowMapper implements RowMapper<TaskResource> {
                 .tenantId(resultSet.getString("tenantId"))
                 .taskId(resultSet.getString("taskId"))
                 .productVariantId(resultSet.getString("productVariantId"))
-                .quantity(resultSet.getLong("quantity"))
+                .quantity(resultSet.getDouble("quantity"))
                 .isDelivered(resultSet.getBoolean("isDelivered"))
                 .deliveryComment(resultSet.getString("isDelivered"))
                 .clientReferenceId(resultSet.getString("clientReferenceId"))
