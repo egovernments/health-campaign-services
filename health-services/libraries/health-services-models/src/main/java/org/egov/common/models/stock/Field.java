@@ -35,7 +35,7 @@ public class Field   {
       @NotNull
 
 
-    @Size(min=1,max=10000)
+    @Size(max=10000)
 
     private String value = null;
 
