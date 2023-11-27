@@ -1,0 +1,9 @@
+ALTER TABLE INDIVIDUAL ALTER COLUMN givenname TYPE character varying(512);
+ALTER TABLE INDIVIDUAL ALTER COLUMN email TYPE character varying(512);
+ALTER TABLE INDIVIDUAL ALTER COLUMN password TYPE character varying(512);
+ALTER TABLE INDIVIDUAL ALTER COLUMN altcontactnumber TYPE character varying(64);
+ALTER TABLE INDIVIDUAL ALTER COLUMN fathername TYPE character varying(256);
+ALTER TABLE INDIVIDUAL ALTER COLUMN husbandname TYPE character varying(256);
+ALTER TABLE INDIVIDUAL ALTER COLUMN username TYPE character varying(128);
+ALTER TABLE ADDRESS ALTER COLUMN doorno TYPE character varying(128);
+ALTER TABLE ADDRESS ALTER COLUMN street TYPE character varying(512);

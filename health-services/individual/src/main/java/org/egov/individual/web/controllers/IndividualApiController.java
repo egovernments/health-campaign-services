@@ -3,6 +3,7 @@ package org.egov.individual.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
@@ -58,6 +59,13 @@ public class IndividualApiController {
         this.servletRequest = servletRequest;
         this.producer = producer;
         this.individualProperties = individualProperties;
+    }
+
+    @RequestMapping(value = "/v1/_migrate", method = RequestMethod.POST)
+    public ResponseEntity<ResponseInfo> migrateDatabaseForIndividual(@ApiParam @Valid RequestInfo requestInfo){
+        individualService.migrate(requestInfo);
+        ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(requestInfo, true);
+        return ResponseEntity.status(HttpStatus.OK).body(responseInfo);
     }
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
