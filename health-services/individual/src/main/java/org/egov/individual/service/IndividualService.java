@@ -438,6 +438,6 @@ public class IndividualService {
     }
 
     public void migrate(RequestInfo requestInfo) {
-        individualMigrationUtil.migrate();
+        individualMigrationUtil.migrate2(requestInfo);
     }
 }
