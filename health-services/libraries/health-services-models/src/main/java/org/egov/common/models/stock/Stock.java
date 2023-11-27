@@ -80,7 +80,7 @@ public class Stock {
     private String transactingPartyType = null;
 
     @JsonProperty("waybillNumber")
-    @Size(min = 2, max = 200)
+    @Size(max = 200)
     private String wayBillNumber = null;
 
     @JsonProperty("additionalFields")

@@ -21,7 +21,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.*;
+import static org.egov.transformer.Constants.DISTRICT_WAREHOUSE;
+import static org.egov.transformer.Constants.FACILITY_TARGET_KEY;
+import static org.egov.transformer.Constants.PROJECT;
+import static org.egov.transformer.Constants.SATELLITE_WAREHOUSE;
+import static org.egov.transformer.Constants.TYPE_KEY;
+import static org.egov.transformer.Constants.WAREHOUSE;
 
 @Slf4j
 public abstract class StockTransformationService implements TransformationService<Stock>{
@@ -102,7 +107,7 @@ public abstract class StockTransformationService implements TransformationServic
             String transactingFacilityType = WAREHOUSE;
 
             facilityType = getType(facilityType, facility);
-            transactingFacilityType = getType(transactingFacilityType, transactingFacility);
+            transactingFacilityType = transactingFacility != null ? getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
 
             List<User> users = userService.getUsers(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
@@ -117,7 +122,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .transactingFacilityId(stock.getTransactingPartyId())
                     .userName(userService.getUserName(users,stock.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(stock.getTenantId(),users))
-                    .transactingFacilityName(transactingFacility.getName())
+                    .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : stock.getTransactingPartyId())
                     .facilityType(facilityType)
                     .transactingFacilityType(transactingFacilityType)
                     .physicalCount(stock.getQuantity())
