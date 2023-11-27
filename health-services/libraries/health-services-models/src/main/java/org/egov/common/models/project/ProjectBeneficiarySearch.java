@@ -46,5 +46,8 @@ public class ProjectBeneficiarySearch {
 
     @JsonProperty("dateOfRegistration")
     private Long dateOfRegistration = null;
+
+    @JsonProperty("tag")
+    private List<String> tag = null;
 }
 
