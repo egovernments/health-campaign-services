@@ -65,5 +65,9 @@ public class TaskResource   {
     @Valid
     private AuditDetails auditDetails = null;
 
+    @JsonProperty("additionalFields")
+    @Valid
+    private AdditionalFields additionalFields = null;
+
 }
 
