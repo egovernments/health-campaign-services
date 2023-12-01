@@ -3,6 +3,7 @@ import { Switch, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 import DataIngestionComponent from "../../components/IngestionComponents/DataIngestionComponent";
+import ErrorViewPage from "./ErrorViewPage";
 
 const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
   const { t } = useTranslation();
@@ -29,6 +30,12 @@ const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
       path: `/${window?.contextPath}/employee/hcmworkbench/ou`,
       content: t("WORKBENCH_OU"),
       show: location.pathname.includes("/hcmworkbench/ou") ? true : false,
+
+    },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/view`,
+      content: t("View"),
+      show: location.pathname.includes("/hcmworkbench/view") ? true : false,
 
     },
     
@@ -65,6 +72,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/facility`} component={() => <DataIngestionComponent ingestionType={"Facility"} />} />
           <PrivateRoute path={`${path}/user`} component={() => <DataIngestionComponent ingestionType={"User"} />} />
           <PrivateRoute path={`${path}/ou`} component={() => <DataIngestionComponent ingestionType={"OU"} />} />
+          <PrivateRoute path={`${path}/view`} component={() => <ErrorViewPage  />} />
 
         </AppContainer>
       </Switch>
