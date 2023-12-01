@@ -3,6 +3,7 @@ import { Switch, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 import DataIngestionComponent from "../../components/IngestionComponents/DataIngestionComponent";
+import IngestionInbox from "./IngestionInbox";
 
 const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
   const { t } = useTranslation();
@@ -31,6 +32,24 @@ const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
       show: location.pathname.includes("/hcmworkbench/ou") ? true : false,
 
     },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/inbox`,
+      content: t("WORKBENCH_INBOX"),
+      show: location.pathname.includes("/hcmworkbench/inbox") ? true : false,
+
+    },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/boundary`,
+      content: t("WORKBENCH_BOUNDARY"),
+      show: location.pathname.includes("/hcmworkbench/boundary") ? true : false,
+
+    },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/project`,
+      content: t("WORKBENCH_PROJECT"),
+      show: location.pathname.includes("/hcmworkbench/project") ? true : false,
+
+    },
     
   ];
   return <BreadCrumb className="workbench-bredcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
@@ -52,7 +71,6 @@ const App = ({ path }) => {
       clearSessionFormDataView();
     }
   }, [location]);
-  console.log(path," ppppppppppppp")
   
   return (
     <React.Fragment>
@@ -65,6 +83,9 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/facility`} component={() => <DataIngestionComponent ingestionType={"Facility"} />} />
           <PrivateRoute path={`${path}/user`} component={() => <DataIngestionComponent ingestionType={"User"} />} />
           <PrivateRoute path={`${path}/ou`} component={() => <DataIngestionComponent ingestionType={"OU"} />} />
+          <PrivateRoute path={`${path}/inbox`} component={() => <IngestionInbox />} />
+          <PrivateRoute path={`${path}/boundary`} component={() => <DataIngestionComponent ingestionType={"Boundary"} />} />
+          <PrivateRoute path={`${path}/project`} component={() => <DataIngestionComponent ingestionType={"Project"} />} />
 
         </AppContainer>
       </Switch>

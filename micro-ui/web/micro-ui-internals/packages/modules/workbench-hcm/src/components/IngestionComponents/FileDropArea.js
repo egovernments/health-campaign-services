@@ -119,7 +119,7 @@ function FileDropArea ({ingestionType}) {
               tenantId: Digit.ULBService.getCurrentTenantId(),
               dataType: "Facility",
               requestInfo: {
-                userInfo: Digit.UserService.getUser(),
+                userInfo: Digit.UserService.getUser().info,
               },
             })
           );
@@ -156,6 +156,34 @@ function FileDropArea ({ingestionType}) {
           const {data: userRes} = await Digit.IngestionService.user(formData);
           setResponse(userRes);
           break;
+
+          case "Boundary":
+            formData.append(
+              "DHIS2IngestionRequest",
+              JSON.stringify({
+                tenantId: Digit.ULBService.getCurrentTenantId(),
+                requestInfo: {
+                  userInfo: Digit.UserService.getUser().info,
+                },
+              })
+            );
+            const boundaryRes = await Digit.IngestionService.boundary(formData);
+            setResponse(boundaryRes);
+            break;
+
+            case "Project":
+              formData.append(
+                "DHIS2IngestionRequest",
+                JSON.stringify({
+                  tenantId: Digit.ULBService.getCurrentTenantId(),
+                  requestInfo: {
+                    userInfo: Digit.UserService.getUser().info,
+                  },
+                })
+              );
+              const projectRes = await Digit.IngestionService.project(formData);
+              setResponse(projectRes);
+              break;
 
         default:
           setShowToast({
