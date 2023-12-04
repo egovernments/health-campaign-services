@@ -43,6 +43,7 @@ const IngestionService = {
         source: "EXCEL"
         },
     }),
+
     eventSearch: (searchParams) =>
     Request({
       url: "/hcm-moz-impl/v1/eventHistory/_search",
@@ -52,6 +53,38 @@ const IngestionService = {
       userService: true,
       params: searchParams,
     }),
+
+  
+    project: async (formData) => 
+    await Request({
+        url: "/hcm-moz-impl/v1/dhis2/project/ingest",
+        useCache: false,
+        method: "POST",
+        auth: true,
+        multipartFormData: true,
+        multipartData: {
+          data: formData,
+        },
+        params:{
+          source: "EXCEL"
+          },
+      }),
+  
+      boundary: async (formData) => 
+      await Request({
+          url: "/hcm-moz-impl/v1/dhis2/boundary/ingest",
+          useCache: false,
+          method: "POST",
+          auth: true,
+          multipartFormData: true,
+          multipartData: {
+            data: formData,
+          },
+          params:{
+            source: "EXCEL"
+            },
+        })
+
   
 };
 

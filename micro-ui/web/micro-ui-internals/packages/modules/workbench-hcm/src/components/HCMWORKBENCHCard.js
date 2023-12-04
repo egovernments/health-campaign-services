@@ -1,6 +1,7 @@
-import { EmployeeModuleCard, ArrowRightInbox, WorksMgmtIcon } from "@egovernments/digit-ui-react-components";
+import { WorksMgmtIcon } from "@egovernments/digit-ui-react-components";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { EmployeeModuleCard } from "@egovernments/digit-ui-react-components";
 
 const ROLES = {
   LOCALISATION: ["EMPLOYEE", "SUPERUSER", "EMPLOYEE_COMMON", "LOC_ADMIN", "SYSTEM_ADMINISTRATOR"],
@@ -31,6 +32,21 @@ const HCMWORKBENCHCard = () => {
     {
       label: t("ACTION_TEST_OU"),
       link: `/${window?.contextPath}/employee/hcmworkbench/ou`,
+      roles: ROLES.MDMS,
+    },
+    {
+      label: t("ACTION_TEST_INBOX"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/inbox`,
+      roles: ROLES.MDMS,
+    },
+    {
+      label: t("ACTION_TEST_BOUNDARY"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/boundary`,
+      roles: ROLES.MDMS,
+    },
+    {
+      label: t("ACTION_TEST_PROJECT"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/project`,
       roles: ROLES.MDMS,
     },
   ];
