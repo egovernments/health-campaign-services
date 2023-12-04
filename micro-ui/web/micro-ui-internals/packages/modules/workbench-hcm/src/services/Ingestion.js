@@ -43,6 +43,17 @@ const IngestionService = {
         source: "EXCEL"
         },
     }),
+
+    eventSearch: (searchParams) =>
+    Request({
+      url: "/hcm-moz-impl/v1/eventHistory/_search",
+      useCache: false,
+      method: "POST",
+      auth: true,
+      userService: true,
+      params: searchParams,
+    }),
+
   
     project: async (formData) => 
     await Request({
@@ -73,6 +84,7 @@ const IngestionService = {
             source: "EXCEL"
             },
         })
+
   
 };
 

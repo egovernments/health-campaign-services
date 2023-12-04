@@ -3,7 +3,11 @@ import { Switch, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 import DataIngestionComponent from "../../components/IngestionComponents/DataIngestionComponent";
+
+import ErrorViewPage from "./ErrorViewPage";
+
 import IngestionInbox from "./IngestionInbox";
+
 
 const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
   const { t } = useTranslation();
@@ -33,6 +37,11 @@ const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
 
     },
     {
+
+      path: `/${window?.contextPath}/employee/hcmworkbench/view`,
+      content: t("View"),
+      show: location.pathname.includes("/hcmworkbench/view") ? true : false,
+
       path: `/${window?.contextPath}/employee/hcmworkbench/inbox`,
       content: t("WORKBENCH_INBOX"),
       show: location.pathname.includes("/hcmworkbench/inbox") ? true : false,
@@ -48,6 +57,7 @@ const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
       path: `/${window?.contextPath}/employee/hcmworkbench/project`,
       content: t("WORKBENCH_PROJECT"),
       show: location.pathname.includes("/hcmworkbench/project") ? true : false,
+
 
     },
     
@@ -83,9 +93,13 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/facility`} component={() => <DataIngestionComponent ingestionType={"Facility"} />} />
           <PrivateRoute path={`${path}/user`} component={() => <DataIngestionComponent ingestionType={"User"} />} />
           <PrivateRoute path={`${path}/ou`} component={() => <DataIngestionComponent ingestionType={"OU"} />} />
+
+          <PrivateRoute path={`${path}/view`} component={() => <ErrorViewPage  />} />
+
           <PrivateRoute path={`${path}/inbox`} component={() => <IngestionInbox />} />
           <PrivateRoute path={`${path}/boundary`} component={() => <DataIngestionComponent ingestionType={"Boundary"} />} />
           <PrivateRoute path={`${path}/project`} component={() => <DataIngestionComponent ingestionType={"Project"} />} />
+
 
         </AppContainer>
       </Switch>
