@@ -1,22 +1,30 @@
 package org.egov.individual.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.jayway.jsonpath.JsonPath;
+import digit.models.coremodels.mdms.MasterDetail;
+import digit.models.coremodels.mdms.MdmsCriteria;
+import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.models.individual.Individual;
+import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.service.IndividualService;
+import org.egov.individual.repository.ServiceRequestRepository;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Instant;
+import java.util.*;
 
 @Component
 @Slf4j
@@ -25,15 +33,23 @@ public class IndividualMigrationUtil {
     private final JdbcTemplate jdbcTemplate;
     private final EncryptionDecryptionUtil encryptionDecryptionUtil;
     private final IndividualRepository individualRepository;
+    private final IndividualProperties individualProperties;
+    private final ServiceRequestRepository serviceRequestRepository;
+    private final ObjectMapper objectMapper;
     private static final String INDIVIDUAL_MIGRATION_ERROR = "INDIVIDUAL_MIGRATION_ERROR";
     private static final String USERNAME = "username";
     private static final String PASSWORD = "password";
-
+    private static final String SECURITY_POLICY_MASTER_NAME = "SecurityPolicy";
+    private static final String SECURITY_POLICY_MASTER_FILTER = "[?(@.model == '{}')]";
+    private static final String DATA_SECURITY_MASTER_NAME = "DataSecurity";
     @Autowired
-    public IndividualMigrationUtil(JdbcTemplate jdbcTemplate, EncryptionDecryptionUtil encryptionDecryptionUtil, IndividualRepository individualRepository) {
+    public IndividualMigrationUtil(JdbcTemplate jdbcTemplate, EncryptionDecryptionUtil encryptionDecryptionUtil, IndividualRepository individualRepository, IndividualProperties individualProperties, ServiceRequestRepository serviceRequestRepository, ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.encryptionDecryptionUtil = encryptionDecryptionUtil;
         this.individualRepository = individualRepository;
+        this.individualProperties = individualProperties;
+        this.serviceRequestRepository = serviceRequestRepository;
+        this.objectMapper = objectMapper;
     }
 
     public void migrate(){
@@ -107,22 +123,102 @@ public class IndividualMigrationUtil {
         individual.put("userDetails",userDetailsMap);
         return individual;
     }
+    public Object mDMSCall(RequestInfo requestInfo, String tenantId) {
+        log.info("MDMSUtils::mDMSCall");
+        MdmsCriteriaReq mdmsCriteriaReq = getMDMSRequest(requestInfo, tenantId);
+        return serviceRequestRepository.fetchResult(getMdmsSearchUrl(), mdmsCriteriaReq);
+    }
 
-    public void migrate2(RequestInfo requestInfo){
+    private StringBuilder getMdmsSearchUrl() {
+        log.info("MDMSUtils::getMdmsSearchUrl");
+        StringBuilder url = new StringBuilder();
+        url.append(individualProperties.getMdmsHost()).append(individualProperties.getMdmsEndpoint());
+        return url;
+    }
+
+    private MdmsCriteriaReq getMDMSRequest(RequestInfo requestInfo, String tenantId) {
+        log.info("MDMSUtils::getMDMSRequest");
+        MasterDetail securityPolicyMasterDetail = MasterDetail.builder().name(SECURITY_POLICY_MASTER_NAME).filter(
+                SECURITY_POLICY_MASTER_FILTER.replace("{}", INDIVIDUAL_ENCRYPT_KEY)).build();
+        ModuleDetail moduleDetail = ModuleDetail.builder().masterDetails(Collections.singletonList(securityPolicyMasterDetail)).moduleName(DATA_SECURITY_MASTER_NAME).build();
+        MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(Collections.singletonList(moduleDetail)).tenantId(tenantId).build();
+        return MdmsCriteriaReq.builder().requestInfo(requestInfo).mdmsCriteria(mdmsCriteria).build();
+    }
+
+    public void migrate2(RequestInfo requestInfo) {
         log.info("Migrating individual data started");
-        String countQuery = "SELECT count(*) FROM individual";
-        Integer count = jdbcTemplate.queryForObject(countQuery,Integer.class);
-        Integer batchSize = 100;
-        Integer offset = 0;
-        Integer totalBatches = count/batchSize;
-        if(count%batchSize!=0)
-            totalBatches++;
-        for(int i=0;i<totalBatches;i++){
-            String idQuery = "SELECT id FROM individual LIMIT "+batchSize+" OFFSET "+offset;
-            List<String> ids = jdbcTemplate.queryForList(idQuery,String.class);
-            List<Individual> individuals = individualRepository.findById(ids);
-
-            log.info(individuals.toString());
+        String idQuery = "SELECT id from individual";
+        List<String> ids = jdbcTemplate.queryForList(idQuery, String.class);
+        Object mdmsData = mDMSCall(requestInfo, individualProperties.getStateLevelTenantId());
+        Map<String,String> nameJsonPathMap = extractJsonPathMap(mdmsData);
+        for (String id : ids) {
+            String encryptionQuery = "SELECT ismigrated FROM individual_migration_for_encryption WHERE individualid = ?";
+            List<Map<String, Object>> encryptionRows;
+            try {
+                encryptionRows = jdbcTemplate.queryForList(encryptionQuery, id);
+            } catch (Exception e) {
+                throw new CustomException(INDIVIDUAL_MIGRATION_ERROR, "Error while fetching individual encryption status with id: " + id);
+            }
+            if (!(encryptionRows.isEmpty() || encryptionRows.get(0).get("ismigrated").equals(false)))
+                continue;
+            List<String> idsList = new ArrayList<>();
+            idsList.add(id);
+            IndividualSearch individualSearch = IndividualSearch.builder().id(idsList).build();
+            List<Individual> individual = null;
+            individual = individualRepository.find(individualSearch,100,0,"pg.citya", null,false);
+            Object hiddenObject = extractHiddenObject(individual.get(0), nameJsonPathMap);
+            individual.get(0).setHidden(hiddenObject);
+            Individual encryptedObject = encryptionDecryptionUtil.encryptObject(individual.get(0), INDIVIDUAL_ENCRYPT_KEY, Individual.class);
+            individualRepository.save(Collections.singletonList(encryptedObject),individualProperties.getUpdateIndividualTopic());
+            BigInteger migratedTime = BigInteger.valueOf(System.currentTimeMillis());
+            String updateEncryptedQuery = "INSERT INTO individual_migration_for_encryption(individualid,ismigrated,migratedtime) VALUES('"+id+"',true,'"+migratedTime+"')";
+            try {
+                jdbcTemplate.update(updateEncryptedQuery);
+            }catch (Exception e){
+                throw new CustomException(INDIVIDUAL_MIGRATION_ERROR,"Error while migrating individual with id: "+id);
+            }
         }
+    }
+
+    public Object extractHiddenObject(Individual individual, Map<String, String> nameJsonPathMap) {
+        ObjectNode hiddenObject = JsonNodeFactory.instance.objectNode();
+        Object individualObject = objectMapper.convertValue(individual, Object.class);
+        for (Map.Entry<String, String> entry : nameJsonPathMap.entrySet()) {
+            String attributeName = entry.getKey();
+            String jsonPath = "$." + entry.getValue();
+            jsonPath = jsonPath.replace("/", ".");
+            try {
+                Object value = JsonPath.read(individualObject, jsonPath);
+                hiddenObject.putPOJO(attributeName, value);
+            } catch (Exception e) {
+                // Handle the case where the JSONPath is not found in the Individual object
+                // You may want to log a warning or handle it based on your requirements
+                throw new CustomException(INDIVIDUAL_MIGRATION_ERROR,"Error while fetching json path from individual object");
+            }
+        }
+        return objectMapper.convertValue(hiddenObject, Object.class);
+    }
+
+    private JsonNode convertValue(Object value) {
+        // Optionally, you can add custom logic here to convert the value if needed
+        return objectMapper.convertValue(value, JsonNode.class);
+    }
+
+    public Map<String, String> extractJsonPathMap(Object mdmsData) {
+        String jsonPathForName = "$.MdmsRes.DataSecurity.SecurityPolicy[*].attributes[*].name";
+        String jsonPathForJsonPath = "$.MdmsRes.DataSecurity.SecurityPolicy[*].attributes[*].jsonPath";
+        List<String> names;
+        List<String> jsonPaths;
+        try{
+            names = JsonPath.read(mdmsData, jsonPathForName);
+            jsonPaths = JsonPath.read(mdmsData, jsonPathForJsonPath);
+        }catch (Exception e){
+            throw new CustomException(INDIVIDUAL_MIGRATION_ERROR,"Error while fetching json path from mdms data");
+        }
+        Map<String,String> nameJsonPathMap = new HashMap<>();
+        for(int i=0;i<names.size();i++){
+            nameJsonPathMap.put(names.get(i),jsonPaths.get(i));
+        }
+        return nameJsonPathMap;
     }
 }

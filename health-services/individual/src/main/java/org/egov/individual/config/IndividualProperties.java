@@ -80,4 +80,9 @@ public class IndividualProperties {
 
     @Value("${egov.localization.statelevel}")
     private Boolean isLocalizationStateLevel;
+    //MDMS
+    @Value("${egov.mdms.host}")
+    private String mdmsHost;
+    @Value("${egov.mdms.search.endpoint}")
+    private String mdmsEndpoint;
 }

@@ -137,6 +137,13 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 //encrypt PII data
+                Object mdmsData = individualMigrationUtil.mDMSCall(request.getRequestInfo(), request.getIndividuals().get(0).getTenantId());
+                Map<String,String> nameJsonPathMap = individualMigrationUtil.extractJsonPathMap(mdmsData);
+
+                for(Individual individual: validIndividuals){
+                    Object hidden = individualMigrationUtil.extractHiddenObject(individual, nameJsonPathMap);
+                    individual.setHidden(hidden);
+                }
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                 individualRepository.save(encryptedIndividualList,
@@ -202,7 +209,13 @@ public class IndividualService {
                 boolean identifiersPresent = validIndividuals.stream()
                         .anyMatch(individual -> individual.getIdentifiers() != null
                                 && !individual.getIdentifiers().isEmpty());
+                Object mdmsData = individualMigrationUtil.mDMSCall(request.getRequestInfo(), request.getIndividuals().get(0).getTenantId());
+                Map<String,String> nameJsonPathMap = individualMigrationUtil.extractJsonPathMap(mdmsData);
 
+                for(Individual individual: validIndividuals){
+                    Object hidden = individualMigrationUtil.extractHiddenObject(individual, nameJsonPathMap);
+                    individual.setHidden(hidden);
+                }
                 List<Individual> individualsToEncrypt = validIndividuals;
                 if (identifiersPresent) {
                     // get masked identifiers
