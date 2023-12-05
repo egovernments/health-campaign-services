@@ -1,7 +1,5 @@
 package org.egov.referralmanagement.repository;
 
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
@@ -9,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
@@ -23,7 +22,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ReflectionUtils;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
@@ -40,6 +39,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
 
     public List<Referral> find(ReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                Long lastChangedSince, Boolean includeDeleted) {
+
         String query = "SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.sideeffectclientreferenceid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
@@ -47,6 +47,8 @@ public class ReferralRepository extends GenericRepository<Referral> {
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "r.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "r.clientReferenceId IN (:clientReferenceId)");
+        query = query.replace("projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)", "r.projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)");
+        query = query.replace("projectBeneficiaryId IN (:projectBeneficiaryId)", "r.projectBeneficiaryId IN (:projectBeneficiaryId)");
 
         query = query + " and r.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {
