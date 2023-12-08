@@ -24,10 +24,7 @@ export const UICustomizations = {
         case "Ingestion Id":
           return (
             <span className="link">
-              {/* <Link to={`/${window.contextPath}/employee/hcmworkbench/ingestion-view?ingestionId=${value}`}>
-                {String(value ? (column.translate ? t(column.prefix ? `${column.prefix}${value}` : value) : value) : t("ES_COMMON_NA"))}
-              </Link> */}
-              {statusBasedNavigation(value)}
+              {statusBasedNavigation(row?.executionStatus, row?.jobID, value)}
             </span>
           );
 

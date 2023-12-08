@@ -2,13 +2,13 @@ import React from "react";
 import { Link } from "react-router-dom/cjs/react-router-dom.min";
 import { useTranslation } from "react-i18next";
 
-export const statusBasedNavigation = ( value ) => {
+export const statusBasedNavigation = ( ingestionStatus, jobid , value) => {
     const { t } = useTranslation();
 
     let linkTo = `/${window?.contextPath}/employee/hcmworkbench/inbox`;
 
-    if (value !== "Started") {
-        linkTo = `/${window?.contextPath}/employee/hcmworkbench/view?ingestionId=${value}`;
+    if (ingestionStatus !== "Completed") {
+        linkTo = `/${window?.contextPath}/employee/hcmworkbench/view?jobId=${jobid}`;
     }
 
     return (

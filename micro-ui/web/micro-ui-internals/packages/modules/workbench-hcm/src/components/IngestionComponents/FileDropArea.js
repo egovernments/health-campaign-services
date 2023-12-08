@@ -68,17 +68,11 @@ function FileDropArea ({ingestionType}) {
 
 
   const responseToast = () => {
-    if (response?.jobStatus == "Completed") {
+
+    if (response?.message != null ) {
       setShowToast({
-        label: "ingested sucessfully",
+        label: response?.message,
         isError: false,
-      });
-      closeToast();
-    }
-    else if (response?.jobStatus == "Partial Completed") {
-      setShowToast({
-        label: "Paritial ingestion done",
-        isError: true,
       });
       closeToast();
     }
