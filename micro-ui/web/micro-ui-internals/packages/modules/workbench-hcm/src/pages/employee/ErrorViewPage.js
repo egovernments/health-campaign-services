@@ -8,29 +8,24 @@ import { data } from "../../configs/ViewErrorConfig"
 const ErrorViewPage = () => {
     const { t } = useTranslation();
     const location = useLocation();
-    const { jobid } = Digit.Hooks.useQueryParams();
+    const { jobId } = Digit.Hooks.useQueryParams();
      // State to store the data from the API call
     const [allData, setData] = useState(null);
-    useEffect(() => {
+    useEffect(async () => {
       const searchParams = {
-        jobId: jobid,
+        jobId: jobId,
       };
-      Digit.IngestionService.eventSearch(searchParams)
-        .then((result, err) => {
-          if (err) {
-            console.error("Error fetching data:", err);
-            return;
-          }
-          setData(result);
-        })
-        .catch((error) => {
-          console.error("Error fetching data:", error);
-        });
+      const allData = await Digit.IngestionService.eventSearch(searchParams);
+      setData(allData);
     }, []);
+
+   
+
     // Render the data once it's available
     let config = null;
 
     config = data(allData);
+    console.log(allData);
     return (
        <React.Fragment>
       <Header className="works-header-view">{t("Error view page")}</Header>

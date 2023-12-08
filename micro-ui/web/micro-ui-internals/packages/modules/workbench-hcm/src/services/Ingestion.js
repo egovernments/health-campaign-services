@@ -44,8 +44,8 @@ const IngestionService = {
         },
     }),
 
-    eventSearch: (searchParams) =>
-    Request({
+    eventSearch: async (searchParams) =>
+    await Request({
       url: "/hcm-moz-impl/v1/eventHistory/_search",
       useCache: false,
       method: "POST",
