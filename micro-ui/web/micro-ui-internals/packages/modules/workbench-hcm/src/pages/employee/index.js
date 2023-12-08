@@ -39,7 +39,7 @@ const WorkbenchBreadCrumb = ({ location ,defaultPath}) => {
     {
 
       path: `/${window?.contextPath}/employee/hcmworkbench/view`,
-      content: t("View"),
+      content: t("WORKBENCH_VIEW"),
       show: location.pathname.includes("/hcmworkbench/view") ? true : false,
 
       path: `/${window?.contextPath}/employee/hcmworkbench/inbox`,

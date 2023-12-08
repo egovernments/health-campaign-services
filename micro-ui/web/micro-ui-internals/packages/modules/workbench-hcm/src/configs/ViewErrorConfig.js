@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+
 
 export const data = (data) => {
+  const { t } = useTranslation();
+
   const generateCards = () => {
     const cards = [];
    const eventHistory=data?.EventHistory;
@@ -11,13 +15,13 @@ export const data = (data) => {
       const dataSection = {
         type: "DATA",
         values: [
-          { key: "JobId", value:event?.jobId },
-          { key: "eventId", value:event?.eventId },
-          { key: "Url", value:event?.url },
-          { key: "Status", value:event?.status },
-          { key: "Message", value:event?.message },
-          { key: "IngestionNumber", value:event?.ingestionNumber },
-          { key: "FileStoreId", value:event?.fileStoreId },
+          { key: t("WORKBENCH_JOBID"), value:event?.jobId },
+          { key: t("WORKBENCH_EVENTID"), value:event?.eventId },
+          { key: t("WORKBENCH_URL"), value:event?.url },
+          { key: t("WORKBENCH_STATUS"), value:event?.status },
+          { key: t("WORKBENCH_MESSAGE"), value:event?.message },
+          { key: t("WORKBENCH_INGESTION_NUMBER"), value:event?.ingestionNumber },
+          { key: t("WOKRBENCH_FILESTOREID"), value:event?.fileStoreId },
         ],
       };
 

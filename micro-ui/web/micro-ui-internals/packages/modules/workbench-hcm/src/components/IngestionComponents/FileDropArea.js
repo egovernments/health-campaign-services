@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ActionBar, Header, Loader, SubmitBar, Toast} from "@egovernments/digit-ui-react-components";
+import { useTranslation } from "react-i18next";
+
 
 function FileDropArea ({ingestionType}) {
+  const { t } = useTranslation();
   const [isDragActive, setIsDragActive] = useState(false);
   const [droppedFile, setDroppedFile] = useState(null);
   const [showToast, setShowToast] = useState(false);
@@ -43,7 +46,7 @@ function FileDropArea ({ingestionType}) {
       } else {
         // Showing a toast message indicating that only CSV files are allowed.
         setShowToast({
-          label: "Only CSV files are allowed.",
+          label: t("WORKBENCH_ONLY_CSV_FILE"),
           isError: true,
         });
         closeToast();
@@ -51,7 +54,7 @@ function FileDropArea ({ingestionType}) {
     } else {
       // Showing a toast message indicating that only one file is allowed at a time.
       setShowToast({
-        label: "Only one file is allowed at a time.",
+        label: t("WORKBENCH_ONLY_ONE_FILE"),
         isError: true,
       });
       closeToast();
@@ -78,7 +81,7 @@ function FileDropArea ({ingestionType}) {
     }
      else {
       setShowToast({
-        label: "Ingestion failed",
+        label: t("WORKBENCH_INGESTION_FAILED"),
         isError: true,
       });
       closeToast();
@@ -93,7 +96,7 @@ function FileDropArea ({ingestionType}) {
   const onsubmit = async () => {
     if (droppedFile?.file == null) {
       setShowToast({
-        label: "Please choose a file to ingest.",
+        label: t("WORKBENCH_CHOOSE_FILE"),
         isError: true,
       });
       closeToast();
@@ -181,7 +184,7 @@ function FileDropArea ({ingestionType}) {
 
         default:
           setShowToast({
-            label: "Unsupported ingestion type.",
+            label: t("WORKBENCH_UNSUPPORTED_TYPE"),
             isError: true,
           });
           closeToast();
@@ -192,7 +195,7 @@ function FileDropArea ({ingestionType}) {
         // Handle errors here
         console.error(error);
         setShowToast({
-          label: "Error occurred during ingestion.",
+          label: t("WORKBENCH_ERROR_INGESTION"),
           isError: true,
         });
         closeToast();
@@ -204,17 +207,17 @@ function FileDropArea ({ingestionType}) {
 
   return (
     <div>
-      <Header>{ingestionType} Ingestion</Header>
+      <Header>{ingestionType} {t("WORKBENCH_INGESTION")}</Header>
       <div className={`drop-area ${isDragActive ? 'active' : ''}`} onDragEnter={handleDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={handleDragLeave} onDrop={handleFileInput}>
         {droppedFile ? (
           <div>
           <p className="drag-drop-tag">File: {droppedFile.name}</p>
-          <button className="remove-button" onClick={handleRemoveFile }>Remove</button>
+          <button className="remove-button" onClick={handleRemoveFile }>{t("WORKBENCH_REMOVE")}</button>
           </div>
         ) : (
           <div>
-          <p className="drag-drop-tag">Drag and drop your file here or</p>
-          <button className="upload-file-button" onClick={handleButtonClick}>Browse files</button>
+          <p className="drag-drop-tag">{t("WORKBENCH_DRAG_AND_DROP")}</p>
+          <button className="upload-file-button" onClick={handleButtonClick}>{t("WORKBENCH_BROWSE_FILES")}</button>
         <input 
         type="file" 
         ref={fileInputRef} 
@@ -228,7 +231,7 @@ function FileDropArea ({ingestionType}) {
         {/* {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>} */}
       </div>
       <ActionBar>
-      <SubmitBar label={"Submit"} 
+      <SubmitBar label={t("WORKBENCH_SUBMIT")} 
       onSubmit={onsubmit}
       />
       </ActionBar>

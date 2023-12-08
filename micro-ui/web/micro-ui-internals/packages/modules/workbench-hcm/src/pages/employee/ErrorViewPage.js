@@ -28,7 +28,7 @@ const ErrorViewPage = () => {
     console.log(allData);
     return (
        <React.Fragment>
-      <Header className="works-header-view">{t("Error view page")}</Header>
+      <Header className="works-header-view">{t("WORKBENCH_ERROR_VIEW_PAGE")}</Header>
      <ViewComposer data={config} isLoading={false}/>
     </React.Fragment>
     

@@ -20,32 +20,32 @@ const HCMWORKBENCHCard = () => {
 
   let links = [
     {
-      label: t("ACTION_TEST_FACILITY"),
+      label: t("WORKBENCH_FACILITY"),
       link: `/${window?.contextPath}/employee/hcmworkbench/facility`,
       roles: ROLES.MDMS,
     },
     {
-      label: t("ACTION_TEST_USER"),
+      label: t("WORKBENCH_USER"),
       link: `/${window?.contextPath}/employee/hcmworkbench/user`,
       roles: ROLES.MDMS,
     },
     {
-      label: t("ACTION_TEST_OU"),
+      label: t("WORKBENCH_OU"),
       link: `/${window?.contextPath}/employee/hcmworkbench/ou`,
       roles: ROLES.MDMS,
     },
     {
-      label: t("ACTION_TEST_INBOX"),
+      label: t("WORKBENCH_INBOX"),
       link: `/${window?.contextPath}/employee/hcmworkbench/inbox`,
       roles: ROLES.MDMS,
     },
     {
-      label: t("ACTION_TEST_BOUNDARY"),
+      label: t("WORKBENCH_BOUNDARY"),
       link: `/${window?.contextPath}/employee/hcmworkbench/boundary`,
       roles: ROLES.MDMS,
     },
     {
-      label: t("ACTION_TEST_PROJECT"),
+      label: t("WORKBENCH_PROJECT"),
       link: `/${window?.contextPath}/employee/hcmworkbench/project`,
       roles: ROLES.MDMS,
     },
@@ -56,7 +56,7 @@ const HCMWORKBENCHCard = () => {
 
   const propsForModuleCard = {
     Icon: <WorksMgmtIcon />,
-    moduleName: t("ACTION_TEST_HCM_WORKBENCH"),
+    moduleName: t("WORKBENCH_HCM_WORKBENCH"),
     kpis: [],
     links: links,
   };
