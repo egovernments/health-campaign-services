@@ -4,21 +4,21 @@ import { CustomisedHooks } from "./hooks";
 import { UICustomizations } from "./configs/UICustomizations";
 import HCMWORKBENCHCard from "./components/HCMWORKBENCHCard";
 import App from "./pages/employee";
+import { Loader } from "@egovernments/digit-ui-react-components";
 
 const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
-  const moduleCode = ["workbench-hcm", "mdms", "schema"];
+  const moduleCode = ["workbench-hcm"];
   const { path, url } = useRouteMatch();
-  console.log(path,"PPPPPPPPPPPPPP");
   const language = Digit.StoreData.getCurrentLanguage();
-  // const { isLoading, data: store } = Digit.Services.useStore({
-  //   stateCode,
-  //   moduleCode,
-  //   language,
-  // });
+  const { isLoading, data: store } = Digit.Services.useStore({
+    stateCode,
+    moduleCode,
+    language,
+  });
 
-  // if (isLoading) {
-  //   return <Loader />;
-  // }
+  if (isLoading) {
+    return <Loader />;
+  }
   if (userType === "employee") {
     return <App path={path} url={url} />;
   } else return null;

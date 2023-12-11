@@ -20,6 +20,11 @@ const HCMWORKBENCHCard = () => {
 
   let links = [
     {
+      label: t("WORKBENCH_INBOX"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/inbox`,
+      roles: ROLES.MDMS,
+    },
+    {
       label: t("WORKBENCH_FACILITY"),
       link: `/${window?.contextPath}/employee/hcmworkbench/facility`,
       roles: ROLES.MDMS,
@@ -34,11 +39,7 @@ const HCMWORKBENCHCard = () => {
       link: `/${window?.contextPath}/employee/hcmworkbench/ou`,
       roles: ROLES.MDMS,
     },
-    {
-      label: t("WORKBENCH_INBOX"),
-      link: `/${window?.contextPath}/employee/hcmworkbench/inbox`,
-      roles: ROLES.MDMS,
-    },
+  
     {
       label: t("WORKBENCH_BOUNDARY"),
       link: `/${window?.contextPath}/employee/hcmworkbench/boundary`,
