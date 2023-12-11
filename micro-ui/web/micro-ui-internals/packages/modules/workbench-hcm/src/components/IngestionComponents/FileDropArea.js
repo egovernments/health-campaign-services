@@ -68,7 +68,6 @@ function FileDropArea ({ingestionType}) {
     setDroppedFile(null);
     // You can also perform any additional cleanup or actions here.
   };
-  console.log(response, "sssss")
 
   const responseToast = () => {
 

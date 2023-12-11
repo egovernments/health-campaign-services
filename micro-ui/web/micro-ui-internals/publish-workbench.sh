@@ -23,6 +23,9 @@ cd "$BASEDIR/packages/react-components" && rm -rf dist && yarn && npm publish --
 msg "Building and publishing libraries"
 cd "$BASEDIR/packages/libraries" && rm -rf dist && yarn && npm publish --tag workbench-1.0
 
+msg "Building and publishing libraries"
+cd "$BASEDIR/packages/modules/workbench-hcm" &&   rm -rf dist && yarn&& npm publish --tag workbench-1.0
+
 
 
 # sleep 10
