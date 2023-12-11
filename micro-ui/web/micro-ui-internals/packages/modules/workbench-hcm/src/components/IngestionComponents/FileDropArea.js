@@ -68,7 +68,7 @@ function FileDropArea ({ingestionType}) {
     setDroppedFile(null);
     // You can also perform any additional cleanup or actions here.
   };
-
+  console.log(response, "sssss")
 
   const responseToast = () => {
 
@@ -79,6 +79,13 @@ function FileDropArea ({ingestionType}) {
       });
       closeToast();
     }
+   else if(response?.data?.ResponseInfo?.status == "Success"){
+    setShowToast({
+      label: "Success",
+      isError: false,
+    });
+    closeToast();
+   }
      else {
       setShowToast({
         label: t("WORKBENCH_INGESTION_FAILED"),

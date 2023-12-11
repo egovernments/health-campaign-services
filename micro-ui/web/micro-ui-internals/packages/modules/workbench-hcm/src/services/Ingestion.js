@@ -66,6 +66,7 @@ const IngestionService = {
           data: formData,
         },
         params:{
+          fileStoreId : "hjfrbjdbfh",
           source: "EXCEL"
           },
       }),
@@ -81,6 +82,7 @@ const IngestionService = {
             data: formData,
           },
           params:{
+            fileStoreId : "hjfrbjdbfh",
             source: "EXCEL"
             },
         })
