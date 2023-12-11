@@ -10,16 +10,19 @@ import java.util.stream.Collectors;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
-import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
+import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberBulkResponse;
 import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.models.household.HouseholdMemberSearchRequest;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.models.household.HouseholdSearchRequest;
 import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.IndividualSearchRequest;
+import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectBeneficiarySearch;
@@ -145,8 +148,8 @@ public class DownsyncService {
 				.requestInfo(requestInfo)
 				.build();
 
-		SearchResponse<Household> res = restClient.fetchResult(householdUrl, searchRequest, SearchResponse.class);
-		List<Household> households = res.getResponse();
+		HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
+		List<Household> households = res.getHouseholds();
 		downsync.setHouseholds(households);
 		downsync.getDownsyncCriteria().setTotalCount(res.getTotalCount());
 
@@ -182,7 +185,7 @@ public class DownsyncService {
 				.requestInfo(requestInfo)
 				.build();
 
-		List<Individual> individuals = restClient.fetchResult(url, searchRequest, SearchResponse.class).getResponse();
+		List<Individual> individuals = restClient.fetchResult(url, searchRequest, IndividualBulkResponse.class).getIndividual();
 		downsync.setIndividuals(individuals);
 
 		return individuals.stream().map(Individual::getClientReferenceId).collect(Collectors.toList());
@@ -222,7 +225,7 @@ public class DownsyncService {
 				.requestInfo(downsyncRequest.getRequestInfo())
 				.build();
 
-		List<HouseholdMember> members = restClient.fetchResult(memberUrl, searchRequest, SearchResponse.class).getResponse();
+		List<HouseholdMember> members = restClient.fetchResult(memberUrl, searchRequest, HouseholdMemberBulkResponse.class).getHouseholdMembers();
 		downsync.setHouseholdMembers(members);
 
 		return members.stream().map(HouseholdMember::getIndividualId).collect(Collectors.toSet());
@@ -266,7 +269,7 @@ public class DownsyncService {
 				.requestInfo(requestInfo)
 				.build();
 
-		List<ProjectBeneficiary> beneficiaries = restClient.fetchResult(url, searchRequest, SearchResponse.class).getResponse();
+		List<ProjectBeneficiary> beneficiaries = restClient.fetchResult(url, searchRequest, BeneficiaryBulkResponse.class).getProjectBeneficiaries();
 		downsync.setProjectBeneficiaries(beneficiaries);
 
 		return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
