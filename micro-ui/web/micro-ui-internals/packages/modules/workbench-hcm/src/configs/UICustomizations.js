@@ -12,6 +12,9 @@ export const UICustomizations = {
   IngestionConfig: {
     preProcess: (data) => {
       let ingestionSearchCriteria = data.body.IngestionSearchCriteria;
+      data.params= {
+        recordCount: data.state.tableForm.limit,
+      };
 
       const { ingestionType, ingestionStatus } = ingestionSearchCriteria;
       if (ingestionType?.code) ingestionSearchCriteria.ingestionType = ingestionType.code;
@@ -21,14 +24,14 @@ export const UICustomizations = {
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
       switch (key) {
-        case "Ingestion Id":
+        case "WORKBENCH_INGESTION_ID":
           return (
             <span className="link">
               {statusBasedNavigation(row?.executionStatus, row?.jobID, value)}
             </span>
           );
 
-        case "Created Time":
+        case "WORKBENCH_CREATED_TIME":
           return <span>{Digit.DateUtils.ConvertEpochToDate(value)}</span>;
 
         default:

@@ -40,13 +40,13 @@ function FileDropArea ({ingestionType}) {
       const file = files[0];
       const fileName = file.name;
   
-      // Check if the file is a CSV (text/csv)
-      if (file.type === 'text/csv') {
-          setDroppedFile({ name: fileName, file:file });
+  
+      if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        setDroppedFile({ name: fileName, file: file });
       } else {
-        // Showing a toast message indicating that only CSV files are allowed.
+        // Showing a toast message indicating that only EXCEL files are allowed.
         setShowToast({
-          label: t("WORKBENCH_ONLY_CSV_FILE"),
+          label: t("WORKBENCH_ONLY_EXCEL_FILE"),
           isError: true,
         });
         closeToast();
@@ -72,8 +72,11 @@ function FileDropArea ({ingestionType}) {
   const responseToast = () => {
 
     if (response?.message != null ) {
+      const toastMessage = "Your request has been forwarded and it's under progress";
+      const additionalMessage = `\nIngestion Number is ${response.ingestionNumber}. You can check in the inbox.`;
+      const completedMessage = toastMessage + additionalMessage;
       setShowToast({
-        label: response?.message,
+        label: completedMessage,
         isError: false,
       });
       closeToast();
@@ -113,89 +116,21 @@ function FileDropArea ({ingestionType}) {
       try{
       const formData = new FormData();
       formData.append("file", droppedFile.file);
+      formData.append(
+        "tenantId", Digit.ULBService.getCurrentTenantId()
+      );
+      formData.append(
+         "module", "pgr"
+      );
+      const data = await Digit.IngestionService.fileStore(formData);
 
-      switch (ingestionType) {
-        case "Facility":
-          formData.append(
-            "DHIS2IngestionRequest",
-            JSON.stringify({
-              tenantId: Digit.ULBService.getCurrentTenantId(),
-              dataType: "Facility",
-              requestInfo: {
-                userInfo: Digit.UserService.getUser().info,
-              },
-            })
-          );
-          const { data: facilityRes} = await Digit.IngestionService.facility(formData);
-          setResponse(facilityRes);
+        const searchParams = {
+          ingestionType: ingestionType,
+          fileStoreId: data?.data?.files[0]?.fileStoreId
+        };
+        const allData = await Digit.IngestionService.ingest(searchParams,Digit.ULBService.getCurrentTenantId());
+        setResponse(allData);
 
-          break;
-
-        case "OU":
-          formData.append(
-            "DHIS2IngestionRequest",
-            JSON.stringify({
-              tenantId: Digit.ULBService.getCurrentTenantId(),
-              requestInfo: {
-                userInfo: Digit.UserService.getUser().info,
-              },
-            })
-          );
-          const ouRes = await Digit.IngestionService.ou(formData);
-          setResponse(ouRes);
-          break;
-
-        case "User":
-          formData.append(
-            "DHIS2IngestionRequest",
-            JSON.stringify({
-              tenantId: Digit.ULBService.getCurrentTenantId(),
-              dataType: "Users",
-              requestInfo: {
-                userInfo: Digit.UserService.getUser(),
-              },
-            })
-          );
-          const {data: userRes} = await Digit.IngestionService.user(formData);
-          setResponse(userRes);
-          break;
-
-          case "Boundary":
-            formData.append(
-              "DHIS2IngestionRequest",
-              JSON.stringify({
-                tenantId: Digit.ULBService.getCurrentTenantId(),
-                requestInfo: {
-                  userInfo: Digit.UserService.getUser().info,
-                },
-              })
-            );
-            const boundaryRes = await Digit.IngestionService.boundary(formData);
-            setResponse(boundaryRes);
-            break;
-
-            case "Project":
-              formData.append(
-                "DHIS2IngestionRequest",
-                JSON.stringify({
-                  tenantId: Digit.ULBService.getCurrentTenantId(),
-                  requestInfo: {
-                    userInfo: Digit.UserService.getUser().info,
-                  },
-                })
-              );
-              const projectRes = await Digit.IngestionService.project(formData);
-              setResponse(projectRes);
-              break;
-
-        default:
-          setShowToast({
-            label: t("WORKBENCH_UNSUPPORTED_TYPE"),
-            isError: true,
-          });
-          closeToast();
-          return;
-      }
     }
     catch(error){
         // Handle errors here
@@ -225,10 +160,10 @@ function FileDropArea ({ingestionType}) {
           <p className="drag-drop-tag">{t("WORKBENCH_DRAG_AND_DROP")}</p>
           <button className="upload-file-button" onClick={handleButtonClick}>{t("WORKBENCH_BROWSE_FILES")}</button>
         <input 
-        type="file" 
-        ref={fileInputRef} 
-        style={{ display: 'none' }} 
-        accept=".csv"
+  type="file" 
+  ref={fileInputRef} 
+  style={{ display: 'none' }} 
+  accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"  
         onChange={handleFileInput} />
           </div>
         )}

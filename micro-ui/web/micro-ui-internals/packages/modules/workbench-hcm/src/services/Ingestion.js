@@ -85,7 +85,31 @@ const IngestionService = {
             fileStoreId : "hjfrbjdbfh",
             source: "EXCEL"
             },
-        })
+        }),
+        ingest: async (searchParams,tenantId) =>
+        await Request({
+          data:{tenantId:tenantId},
+          url: "/hcm-moz-impl/v1/ingest",
+          useCache: false,
+          method: "POST",
+          auth: true,
+          userService: true,
+          params: searchParams,
+        }),
+        fileStore: async (formData) => 
+        await Request({
+            url: "/filestore/v1/files",
+            useCache: false,
+            method: "POST",
+            auth: true,
+            multipartFormData: true,
+            multipartData: {
+              data: formData,
+            },
+          }),
+
+        
+
 
   
 };

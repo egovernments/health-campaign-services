@@ -90,15 +90,15 @@ const App = ({ path }) => {
       <Switch>
         <AppContainer className="workbench">
           <PrivateRoute path={`${path}/sample`} component={() => <div>Sample Screen loaded</div>} />
-          <PrivateRoute path={`${path}/facility`} component={() => <DataIngestionComponent ingestionType={"Facility"} />} />
-          <PrivateRoute path={`${path}/user`} component={() => <DataIngestionComponent ingestionType={"User"} />} />
+          <PrivateRoute path={`${path}/facility`} component={() => <DataIngestionComponent ingestionType={"facility"} />} />
+          <PrivateRoute path={`${path}/user`} component={() => <DataIngestionComponent ingestionType={"user"} />} />
           <PrivateRoute path={`${path}/ou`} component={() => <DataIngestionComponent ingestionType={"OU"} />} />
 
           <PrivateRoute path={`${path}/view`} component={() => <ErrorViewPage  />} />
 
           <PrivateRoute path={`${path}/inbox`} component={() => <IngestionInbox />} />
-          <PrivateRoute path={`${path}/boundary`} component={() => <DataIngestionComponent ingestionType={"Boundary"} />} />
-          <PrivateRoute path={`${path}/project`} component={() => <DataIngestionComponent ingestionType={"Project"} />} />
+          <PrivateRoute path={`${path}/boundary`} component={() => <DataIngestionComponent ingestionType={"boundary"} />} />
+          <PrivateRoute path={`${path}/project`} component={() => <DataIngestionComponent ingestionType={"project"} />} />
 
 
         </AppContainer>
