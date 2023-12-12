@@ -81,6 +81,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .role(userService.getStaffRole(projectStaff.getTenantId(),users))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
                     .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
+                    .healthFacility(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
                     .locality(boundaryLabelToNameMap.get(properties.getLocality()))
                     .village(boundaryLabelToNameMap.get(properties.getVillage()))
                     .createdTime(projectStaff.getAuditDetails().getCreatedTime())

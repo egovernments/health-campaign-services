@@ -83,6 +83,9 @@ public class TransformerProperties {
     @Value("${boundary.label.name.village}")
     private String Village;
 
+    @Value("${boundary.label.name.healthFacility}")
+    private String healthFacility;
+
     @Value("${boundary.label.name.administrativeProvince}")
     private String administrativeProvince;
 

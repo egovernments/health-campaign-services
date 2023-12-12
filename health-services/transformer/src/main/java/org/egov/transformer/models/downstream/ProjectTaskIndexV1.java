@@ -53,6 +53,8 @@ public class ProjectTaskIndexV1 {
     private String administrativeProvince;
     @JsonProperty("locality")
     private String locality;
+    @JsonProperty("healthFacility")
+    private String healthFacility;
     @JsonProperty("village")
     private String village;
     @JsonProperty("latitude")

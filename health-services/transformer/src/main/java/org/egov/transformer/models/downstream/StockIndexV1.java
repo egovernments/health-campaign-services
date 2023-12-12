@@ -72,6 +72,9 @@ public class StockIndexV1 {
     @JsonProperty("locality")
     private String locality;
 
+    @JsonProperty("healthFacility")
+    private String healthFacility;
+
     @JsonProperty("village")
     private String village;
 
