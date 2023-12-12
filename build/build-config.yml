@@ -121,3 +121,10 @@ config:
     build:
       - work-dir: "core-services/egov-notification-mail"
         image-name: "egov-notification-mail"
+  - name: "builds/health-campaign-services/core-services/attendance"
+    build:
+      - work-dir: "core-services/attendance"
+        image-name: "attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/attendance/src/main/resources/db"
+        image-name: "attendance-db"
