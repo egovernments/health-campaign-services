@@ -756,6 +756,9 @@ definitions:
       locality:
         type: string
         description: locality/boundary code from which all beneficiary has to be downloaded
+      totalCount:
+        type: [null,long]
+        description: totalCount
       tenantId:
         $ref: '#/parameters/tenantId'
       offset:
