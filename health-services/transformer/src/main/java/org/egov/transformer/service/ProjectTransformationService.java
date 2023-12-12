@@ -89,6 +89,9 @@ public abstract class ProjectTransformationService implements TransformationServ
             }
             isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
 
+            String projectTypeId = project.getProjectTypeId().toString();
+            String projectBeneficiaryType = projectService.getProjectBeneficiaryType(project.getTenantId(), projectTypeId);
+            String finalPbt = projectBeneficiaryType;
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
                         Long endDate = project.getEndDate();
@@ -116,6 +119,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                         return ProjectIndexV1.builder()
                                 .id(r.getId())
                                 .projectId(project.getId())
+                                .projectBeneficiaryType(finalPbt)
                                 .overallTarget(targetNo)
                                 .targetPerDay(targetPerDay)
                                 .campaignDurationInDays(campaignDurationInDays)

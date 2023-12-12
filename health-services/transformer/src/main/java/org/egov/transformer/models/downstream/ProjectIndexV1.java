@@ -17,6 +17,8 @@ public class ProjectIndexV1 {
     private String id;
     @JsonProperty("projectId")
     private String projectId;
+    @JsonProperty("projectBeneficiaryType")
+    private String projectBeneficiaryType;
     @JsonProperty("overallTarget")
     private Integer overallTarget;
     @JsonProperty("targetPerDay")

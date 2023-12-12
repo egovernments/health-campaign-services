@@ -122,6 +122,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
+            String projectId = task.getProjectId();
+            String projectTypeId = projectService.getProject(projectId, task.getTenantId()).getProjectTypeId();
+            String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
 
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()

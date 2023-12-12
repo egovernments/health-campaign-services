@@ -209,6 +209,16 @@ public class ProjectService {
                 transformerProperties.getMdmsModule(), filter);
         return convertToProjectTypeList(response);
     }
+    public String getProjectBeneficiaryType(String tenantId, String projectTypeId) {
+        String filter = "$[?(@.id == '" + projectTypeId + "')].beneficiaryType";
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+
+        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                transformerProperties.getMdmsModule(), filter);
+        return response.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES).get(0).asText();
+    }
 
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,
                                        String moduleName, String filter) {
