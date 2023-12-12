@@ -1,9 +1,5 @@
 package org.egov.referralmanagement.validator.sideeffect;
 
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
@@ -26,7 +23,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 
 /**
  *  Validate whether project beneficiary exist in db or not using project beneficiary id and project beneficiary client beneficiary id for SideEffect object
@@ -88,9 +87,15 @@ public class SeProjectBeneficiaryIdValidator implements Validator<SideEffectBulk
                     existingProjectBeneficiaryIds.add(projectBeneficiary.getId());
                     existingProjectBeneficiaryClientReferenceIds.add(projectBeneficiary.getClientReferenceId());
                 });
+                /**
+                 * for all the entities that do not have any error in previous validations
+                 * checking whether the project beneficiary client reference id is not null and exist in the db
+                 */
                 List<SideEffect> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                    !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId())
-                        && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId())
+                        ( Objects.nonNull(entity.getProjectBeneficiaryClientReferenceId())
+                                && !existingProjectBeneficiaryClientReferenceIds.contains(entity.getProjectBeneficiaryClientReferenceId()) )
+                        || ( Objects.nonNull(entity.getProjectBeneficiaryId())
+                                && !existingProjectBeneficiaryIds.contains(entity.getProjectBeneficiaryId()) )
                 ).collect(Collectors.toList());
                 invalidEntities.forEach(sideEffect -> {
                     Error error = getErrorForNonExistentEntity();

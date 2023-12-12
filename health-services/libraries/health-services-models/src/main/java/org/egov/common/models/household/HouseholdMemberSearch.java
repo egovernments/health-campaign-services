@@ -29,6 +29,9 @@ public class HouseholdMemberSearch   {
     @JsonProperty("id")
     private List<String> id = null;
 
+    @JsonProperty("clientReferenceId")
+    private List<String> clientReferenceId = null;
+
     @JsonProperty("householdId")
     private String householdId = null;
 

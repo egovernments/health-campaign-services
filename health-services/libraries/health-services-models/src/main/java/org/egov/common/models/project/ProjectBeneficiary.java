@@ -80,7 +80,6 @@ public class ProjectBeneficiary {
     private Boolean hasErrors = Boolean.FALSE;
 
     @JsonProperty("tag")
-    @Size(min=2)
     private String tag;
 
 }
