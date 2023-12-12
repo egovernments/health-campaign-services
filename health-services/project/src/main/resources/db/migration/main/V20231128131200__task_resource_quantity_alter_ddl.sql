@@ -1,0 +1,1 @@
+ALTER TABLE TASK_RESOURCE ALTER COLUMN quantity TYPE double precision;

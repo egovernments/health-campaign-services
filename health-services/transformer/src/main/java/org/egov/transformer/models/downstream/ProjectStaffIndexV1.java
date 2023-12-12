@@ -29,6 +29,8 @@ public class ProjectStaffIndexV1 {
     private String district;
     @JsonProperty("administrativeProvince")
     private String administrativeProvince;
+    @JsonProperty("healthFacility")
+    private String healthFacility;
     @JsonProperty("locality")
     private String locality;
     @JsonProperty("village")
