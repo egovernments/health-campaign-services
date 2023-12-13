@@ -37,6 +37,7 @@ import Hooks from "./hooks";
 import Utils from "./utils";
 import { subFormRegistry } from "./subFormRegistry";
 import AccessControlService from "./services/elements/Access";
+import { Request } from "./services/atoms/Utils/Request";
 
 const setupLibraries = (Library, props) => {
   window.Digit = window.Digit || {};
@@ -87,4 +88,4 @@ const initLibraries = () => {
   });
 };
 
-export { initLibraries, Enums, Hooks, subFormRegistry };
+export { initLibraries, Enums, Hooks, subFormRegistry ,Request};

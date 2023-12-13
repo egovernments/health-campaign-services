@@ -9,7 +9,7 @@
     "start": "react-scripts start"
   },
   "devDependencies": {
-    "@egovernments/digit-ui-libraries": "1.8.0-beta",
+    "@egovernments/digit-ui-libraries": "1.8.0-beta.2",
     "@egovernments/digit-ui-module-workbench": "1.0.0-beta.6",
     "@egovernments/digit-ui-module-hcmworkbench": "0.0.4",
     "@egovernments/digit-ui-module-dss": "1.8.0-beta",

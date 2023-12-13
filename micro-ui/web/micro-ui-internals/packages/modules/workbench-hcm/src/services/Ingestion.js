@@ -1,4 +1,4 @@
-import { Request } from "../utils/Request";
+import { Request } from "@egovernments/digit-ui-libraries";
 
 const IngestionService = {
   facility: async (formData) => 
