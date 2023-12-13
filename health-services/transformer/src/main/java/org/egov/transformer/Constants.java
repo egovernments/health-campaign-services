@@ -2,6 +2,14 @@ package org.egov.transformer;
 
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
+    String PROJECT_BENEFICIARY_TYPE = "projectBeneficiaryType";
+    String INDIVIDUAL = "INDIVIDUAL";
+    String HOUSEHOLD = "HOUSEHOLD";
+    String CYCLE_NUMBER = "cycleIndex";
+    String DOSE_NUMBER = "doseIndex";
+    String DELIVERY_STRATEGY = "deliveryStrategy";
+
+    String QUANTITY_WASTED = "quantityWasted";
 
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
 

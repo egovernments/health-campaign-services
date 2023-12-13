@@ -33,9 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
-import static org.egov.transformer.Constants.MDMS_RESPONSE;
-import static org.egov.transformer.Constants.PROJECT_TYPES;
+import static org.egov.transformer.Constants.*;
 
 @Component
 @Slf4j
@@ -214,10 +212,26 @@ public class ProjectService {
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_BENEFICIARY_TYPE,
+                    transformerProperties.getMdmsModule(), filter);
 
-        JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
-                transformerProperties.getMdmsModule(), filter);
-        return response.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES).get(0).asText();
+            if (response != null && response.has(transformerProperties.getMdmsModule())) {
+                JsonNode projectBeneficiaryTypeNode = response
+                        .get(transformerProperties.getMdmsModule())
+                        .withArray(PROJECT_BENEFICIARY_TYPE);
+
+                if (projectBeneficiaryTypeNode != null && projectBeneficiaryTypeNode.isArray() && projectBeneficiaryTypeNode.size() > 0) {
+                    return projectBeneficiaryTypeNode.get(0).asText();
+                }
+            }
+        } catch (Exception exception) {
+            log.error("error while fetching projectBeneficiaryType: {}", ExceptionUtils.getStackTrace(exception));
+        }
+
+// Return null if there is any issue
+        return null;
+
     }
 
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,

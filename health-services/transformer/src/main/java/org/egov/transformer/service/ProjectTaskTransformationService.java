@@ -3,8 +3,7 @@ package org.egov.transformer.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.Task;
+import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
@@ -15,10 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ProjectTaskTransformationService implements TransformationService<Task> {
@@ -141,7 +140,11 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .productVariant(r.getProductVariantId())
                             .isDelivered(r.getIsDelivered())
                             .quantity(r.getQuantity())
-                            .deliveredTo("HOUSEHOLD")
+                            .doseNumber(getDose(task))
+                            .cycleNumber(getCycle(task))
+                            .quantityWasted(getResourcesWasted(r))
+                            .deliveryStrategy(getDeliveryStrategy(task))
+                            .deliveredTo(projectBeneficiaryType)
                             .deliveryComments(r.getDeliveryComment() != null ? r.getDeliveryComment() : isMandateComment ? properties.getProgramMandateComment() : null)
                             .province(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getProvince()) : null)
                             .district(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getDistrict()) : null)
@@ -149,6 +152,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                                     finalBoundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                             .locality(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getLocality()) : null)
                             .village(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getVillage()) : null)
+                            .county(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getCounty()) : null)
+                            .community(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getCommunity()) : null)
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
                             .locationAccuracy(task.getAddress().getLocationAccuracy())
@@ -164,9 +169,63 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .clientAuditDetails(task.getClientAuditDetails())
                             .syncedTimeStamp(syncedTimeStamp)
                             .syncedTime(task.getAuditDetails().getCreatedTime())
-                            .additionalFields(task.getAdditionalFields())
+                            .additionalFields(INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType) ? null : task.getAdditionalFields())
                             .build()
             ).collect(Collectors.toList());
+        }
+
+        private Integer getDose(Task task) {
+            AdditionalFields taskAdditionalFields = task.getAdditionalFields();
+            if (taskAdditionalFields != null) {
+                return taskAdditionalFields.getFields().stream()
+                        .filter(field -> DOSE_NUMBER.equalsIgnoreCase(field.getKey()))
+                        .map(field -> field.getValue())
+                        .filter(Objects::nonNull)
+                        .map(Integer::valueOf)
+                        .findFirst()
+                        .orElse(null);
+            }
+            return null;
+        }
+
+        private Integer getCycle(Task task) {
+            AdditionalFields taskAdditionalFields = task.getAdditionalFields();
+            if (taskAdditionalFields != null) {
+                return taskAdditionalFields.getFields().stream()
+                        .filter(field -> CYCLE_NUMBER.equalsIgnoreCase(field.getKey()))
+                        .map(Field::getValue)
+                        .filter(Objects::nonNull)
+                        .map(Integer::valueOf)
+                        .findFirst()
+                        .orElse(null);
+            }
+            return null;
+        }
+        private String getDeliveryStrategy(Task task) {
+            AdditionalFields taskAdditionalFields = task.getAdditionalFields();
+            if (taskAdditionalFields != null) {
+                return taskAdditionalFields.getFields().stream()
+                        .filter(field -> DELIVERY_STRATEGY.equalsIgnoreCase(field.getKey()))
+                        .map(Field::getValue)
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
+            }
+            return null;
+        }
+
+        private Integer getResourcesWasted(TaskResource taskResource) {
+            AdditionalFields resourceAdditionalFields = taskResource.getAdditionalFields();
+            if (resourceAdditionalFields != null) {
+                return resourceAdditionalFields.getFields().stream()
+                        .filter(field -> QUANTITY_WASTED.equalsIgnoreCase(field.getKey()))
+                        .map(Field::getValue)
+                        .filter(Objects::nonNull)
+                        .map(Integer::valueOf)
+                        .findFirst()
+                        .orElse(0);
+            }
+            return 0;
         }
     }
 }

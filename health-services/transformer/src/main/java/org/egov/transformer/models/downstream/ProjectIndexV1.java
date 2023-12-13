@@ -43,6 +43,10 @@ public class ProjectIndexV1 {
     private String locality;
     @JsonProperty("village")
     private String village;
+    @JsonProperty("county")
+    private String county;
+    @JsonProperty("community")
+    private String community;
     @JsonProperty("createdBy")
     private String createdBy = null;
     @JsonProperty("lastModifiedBy")

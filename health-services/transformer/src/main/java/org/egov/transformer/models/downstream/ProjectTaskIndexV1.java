@@ -39,6 +39,14 @@ public class ProjectTaskIndexV1 {
     private String productVariant;
     @JsonProperty("quantity")
     private Double quantity;
+    @JsonProperty("doseNumber")
+    private Integer doseNumber;
+    @JsonProperty("cycleNumber")
+    private Integer cycleNumber;
+    @JsonProperty("quantityWasted")
+    private Integer quantityWasted;
+    @JsonProperty("deliveryStrategy")
+    private String deliveryStrategy;
     @JsonProperty("deliveredTo")
     private String deliveredTo;
     @JsonProperty("isDelivered")
@@ -55,6 +63,10 @@ public class ProjectTaskIndexV1 {
     private String locality;
     @JsonProperty("village")
     private String village;
+    @JsonProperty("county")
+    private String county;
+    @JsonProperty("community")
+    private String community;
     @JsonProperty("latitude")
     private Double latitude;
     @JsonProperty("longitude")

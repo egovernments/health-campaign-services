@@ -89,9 +89,9 @@ public abstract class ProjectTransformationService implements TransformationServ
             }
             isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
 
-            String projectTypeId = project.getProjectTypeId().toString();
+            String projectTypeId = project.getProjectTypeId();
             String projectBeneficiaryType = projectService.getProjectBeneficiaryType(project.getTenantId(), projectTypeId);
-            String finalPbt = projectBeneficiaryType;
+
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
                         Long endDate = project.getEndDate();
@@ -119,7 +119,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                         return ProjectIndexV1.builder()
                                 .id(r.getId())
                                 .projectId(project.getId())
-                                .projectBeneficiaryType(finalPbt)
+                                .projectBeneficiaryType(projectBeneficiaryType)
                                 .overallTarget(targetNo)
                                 .targetPerDay(targetPerDay)
                                 .campaignDurationInDays(campaignDurationInDays)
@@ -132,6 +132,8 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
                                 .locality(boundaryLabelToNameMap.get(properties.getLocality()))
                                 .village(boundaryLabelToNameMap.get(properties.getVillage()))
+                                .county(boundaryLabelToNameMap.get(properties.getCounty()))
+                                .community(boundaryLabelToNameMap.get(properties.getCommunity()))
                                 .createdTime(project.getAuditDetails().getCreatedTime())
                                 .createdBy(project.getAuditDetails().getCreatedBy())
                                 .lastModifiedTime(project.getAuditDetails().getLastModifiedTime())
