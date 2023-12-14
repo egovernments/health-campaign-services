@@ -432,7 +432,6 @@ export const UICustomizations = {
       return false;
     },
     preProcess: (data, additionalDetails) => {
-      debugger;
       const tenantId = Digit.ULBService.getCurrentTenantId();
       data.body.MdmsCriteria.tenantId = tenantId
 
