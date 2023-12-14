@@ -6,13 +6,13 @@ import { statusBasedNavigation } from "../utils/statusBasedNavigation";
 //create functions here based on module name set in mdms(eg->SearchProjectConfig)
 //how to call these -> Digit?.Customizations?.[masterName]?.[moduleName]
 // these functions will act as middlewares
-var Digit = window.Digit || {};
+// var Digit = window.Digit || {};
 
 export const UICustomizations = {
   IngestionConfig: {
     preProcess: (data) => {
       let ingestionSearchCriteria = data.body.IngestionSearchCriteria;
-      data.params= {
+      data.params = {
         recordCount: data.state.tableForm.limit,
       };
 
