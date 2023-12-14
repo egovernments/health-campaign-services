@@ -61,8 +61,29 @@ public class ReferralManagementConfiguration {
     @Value("${referralmanagement.referral.consumer.bulk.delete.topic}")
     private String deleteReferralBulkTopic;
 
+    @Value("${referralmanagement.hfreferral.kafka.create.topic}")
+    private String createHFReferralTopic;
+
+    @Value("${referralmanagement.hfreferral.kafka.update.topic}")
+    private String updateHFReferralTopic;
+
+    @Value("${referralmanagement.hfreferral.kafka.delete.topic}")
+    private String deleteHFReferralTopic;
+
+    @Value("${referralmanagement.hfreferral.consumer.bulk.create.topic}")
+    private String createHFReferralBulkTopic;
+
+    @Value("${referralmanagement.hfreferral.consumer.bulk.update.topic}")
+    private String updateHFReferralBulkTopic;
+
+    @Value("${referralmanagement.hfreferral.consumer.bulk.delete.topic}")
+    private String deleteHFReferralBulkTopic;
+
     @Value("${egov.search.project.staff.url}")
     private String projectStaffSearchUrl;
+
+    @Value("${egov.search.project.url}")
+    private String projectSearchUrl;
 
     @Value("${egov.facility.host}")
     private String facilityHost;
