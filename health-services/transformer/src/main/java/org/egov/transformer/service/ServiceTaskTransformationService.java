@@ -112,10 +112,11 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .role(userService.getStaffRole(service.getTenantId(),users))
                     .province(boundaryLabelToNameMap.get(properties.getProvince()))
                     .district(boundaryLabelToNameMap.get(properties.getDistrict()))
-                    .administrativeProvince(boundaryLabelToNameMap != null ?
-                            boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
+                    .administrativeProvince(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                     .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
+                    .county(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getCounty()) : null)
+                    .community(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getCommunity()) : null)
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())

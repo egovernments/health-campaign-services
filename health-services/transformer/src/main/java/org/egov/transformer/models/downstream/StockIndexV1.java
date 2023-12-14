@@ -75,6 +75,12 @@ public class StockIndexV1 {
     @JsonProperty("village")
     private String village;
 
+    @JsonProperty("county")
+    private String county;
+
+    @JsonProperty("community")
+    private String community;
+
     @JsonProperty("latitude")
     private Double latitude;
 
