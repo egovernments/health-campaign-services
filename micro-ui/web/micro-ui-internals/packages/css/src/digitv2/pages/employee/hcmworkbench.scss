@@ -47,3 +47,13 @@
     background-color: #f9fafc;
     color: #f47738;
   }
+
+  .action-bar {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+  
+    .action-bar-button {
+      margin-right: 0.5em;
+    }
+  }
