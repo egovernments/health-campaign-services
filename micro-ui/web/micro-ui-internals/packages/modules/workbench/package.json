@@ -1,6 +1,6 @@
 {
   "name": "@egovernments/digit-ui-module-workbench",
-  "version": "1.0.0-beta",
+  "version": "1.0.0-beta.6",
   "description": "Workbench",
   "main": "dist/index.js",
   "module": "dist/index.modern.js",
