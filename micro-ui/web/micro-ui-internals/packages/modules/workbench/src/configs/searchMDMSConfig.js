@@ -9,7 +9,7 @@ export const Config = {
     requestParam: {},
     requestBody: {
       MdmsCriteria: {
-        
+
       },
     },
     minParametersForSearchForm: 0,
@@ -22,12 +22,12 @@ export const Config = {
   sections: {
     search: {
       uiConfig: {
-        searchWrapperStyles:{
-          flexDirection:"column-reverse",
-          marginTop:"2rem",
-          alignItems:"center",
-          justifyContent:"end",
-          gridColumn:"4"
+        searchWrapperStyles: {
+          flexDirection: "column-reverse",
+          marginTop: "2rem",
+          alignItems: "center",
+          justifyContent: "end",
+          gridColumn: "4"
         },
         // submitContainerStyles:{
         //   flexDirection:"column-reverse",
@@ -43,7 +43,7 @@ export const Config = {
         defaultValues: {
           value: "",
           field: "",
-          isActive:{
+          isActive: {
             code: "WBH_COMMON_ALL",
             value: "all",
           }
@@ -177,8 +177,8 @@ export const Config = {
         enableGlobalSearch: false,
         enableColumnSort: true,
         resultsJsonPath: "mdms",
-        rowClassName:"table-row-mdms table-row-mdms-hover",
-        noColumnBorder:true
+        rowClassName: "table-row-mdms table-row-mdms-hover",
+        noColumnBorder: true
       },
       children: {},
       show: true,
