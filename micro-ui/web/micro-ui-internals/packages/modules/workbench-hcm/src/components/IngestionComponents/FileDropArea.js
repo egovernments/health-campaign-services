@@ -37,6 +37,9 @@ function FileDropArea ({ingestionType}) {
     }, 5000);
   };
 
+  function formatString(inputString) {
+    return inputString.charAt(0).toUpperCase() + inputString.slice(1).toLowerCase();
+  }
   const handleFileInput = (e) => {
     e.preventDefault();
   setIsDragActive(false);
@@ -172,7 +175,7 @@ function FileDropArea ({ingestionType}) {
 
   return (
     <div>
-      <Header>{ingestionType} {t("WORKBENCH_INGESTION")}</Header>
+      <Header>{formatString(ingestionType)} {t("WORKBENCH_INGESTION")}</Header>
       <div className={`drop-area ${isDragActive ? 'active' : ''}`} onDragEnter={handleDragEnter} onDragOver={(e) => e.preventDefault()} onDragLeave={handleDragLeave} onDrop={handleFileInput}>
         {droppedFile ? (
           <div>
