@@ -70,7 +70,6 @@ const setupLibraries = (Library, service, method) => {
 /* To Overide any existing config/middlewares  we need to use similar method */
 const updateCustomConfigs = () => {
   setupLibraries("Customizations", "commonUiConfig", { ...window?.Digit?.Customizations?.commonUiConfig, ...UICustomizations });
-  setupLibraries("Utils");
 };
 const initWorkbenchHCMComponents = () => {
   overrideHooks();
