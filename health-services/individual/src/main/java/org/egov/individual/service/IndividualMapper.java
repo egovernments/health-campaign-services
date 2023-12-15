@@ -35,6 +35,7 @@ public class IndividualMapper {
                 .dob(individual.getDateOfBirth())
                 .gender(individual.getGender() != null ? individual.getGender().name() : null)
                 .correspondenceAddress(addressLine1)
+                .permanentCity(addressLine1)
                 .emailId(individual.getEmail())
                 .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
