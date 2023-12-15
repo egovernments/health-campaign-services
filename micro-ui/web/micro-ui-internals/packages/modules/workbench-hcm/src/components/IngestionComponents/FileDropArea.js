@@ -18,8 +18,9 @@ function FileDropArea ({ingestionType}) {
 
 
   const fileInputRef = useRef(null);
+  const templateFile= useRef(null);
   const callInputClick = async (event) => {
-    fileInputRef.current.click();
+    templateFile.current.click();
   };
 
   const handleDragEnter = (e) => {
@@ -81,9 +82,9 @@ function FileDropArea ({ingestionType}) {
 
   const responseToast = () => {
 
-    if (response?.message != null ) {
+    if (response?.ResponseInfo?.status == "Success" ) {
       const toastMessage = "Your request has been forwarded and it's under progress";
-      const additionalMessage = `\nIngestion Number is ${response.ingestionNumber}. You can check in the inbox.`;
+      const additionalMessage = `\nIngestion Number is ${response?.ingestionNumber}. You can check in the inbox.`;
       const completedMessage = toastMessage + additionalMessage;
       setShowToast({
         label: completedMessage,
@@ -91,13 +92,6 @@ function FileDropArea ({ingestionType}) {
       });
       closeToast();
     }
-   else if(response?.data?.ResponseInfo?.status == "Success"){
-    setShowToast({
-      label: "Success",
-      isError: false,
-    });
-    closeToast();
-   }
      else {
       setShowToast({
         label: t("WORKBENCH_INGESTION_FAILED"),
@@ -205,7 +199,7 @@ function FileDropArea ({ingestionType}) {
         variation="secondary"
         onButtonClick={callInputClick}>
         </Button>
-        {<GenerateXlsx inputRef={fileInputRef} jsonData={returnApplicableJson(ingestionType)}/>}
+        {<GenerateXlsx inputRef={templateFile} jsonData={returnApplicableJson(ingestionType)}/>}
       <SubmitBar label={t("WORKBENCH_SUBMIT")} 
       onSubmit={onsubmit}
       />
