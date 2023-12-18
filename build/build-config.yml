@@ -71,6 +71,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
         image-name: "health-individual-db"
+  - name: "builds/health-campaign-services/health-services/health-attendance"
+    build:
+      - work-dir: "health-services/attendance"
+        image-name: "health-attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/attendance/src/main/resources/db"
+        image-name: "health-attendance-db"
   - name: "builds/health-campaign-services/health-services/household"
     build:
       - work-dir: "health-services/household"
