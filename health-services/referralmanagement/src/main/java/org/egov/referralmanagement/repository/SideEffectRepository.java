@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
@@ -68,7 +67,8 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
     }
 
     public List<SideEffect> find(SideEffectSearch searchObject, Integer limit, Integer offset, String tenantId,
-                                 Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+                                 Long lastChangedSince, Boolean includeDeleted) {
+
         String query = "SELECT * FROM side_effect ae  LEFT JOIN project_task pt ON ae.taskId = pt.id ";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,

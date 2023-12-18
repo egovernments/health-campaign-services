@@ -189,7 +189,7 @@ public class SideEffectService {
                                    Integer offset,
                                    String tenantId,
                                    Long lastChangedSince,
-                                   Boolean includeDeleted) throws Exception {
+                                   Boolean includeDeleted) {
         log.info("received request to search side effects");
         String idFieldName = getIdFieldName(sideEffectSearchRequest.getSideEffect());
         if (isSearchByIdOnly(sideEffectSearchRequest.getSideEffect(), idFieldName)) {

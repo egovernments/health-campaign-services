@@ -53,7 +53,7 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
 
         log.info("finding valid household ids from household service");
-        List<Household> validHouseHoldIds = householdService.findById(houseHoldIds, columnName, false);
+        List<Household> validHouseHoldIds = householdService.findById(houseHoldIds, columnName, false).getY();
 
         log.info("getting unique household ids from valid household ids");
         Set<String> uniqueHoldIds = getSet(validHouseHoldIds, columnName == "id" ? "getId": "getClientReferenceId");
