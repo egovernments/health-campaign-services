@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.service;
 
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -45,6 +46,7 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 @Service
 @Slf4j
 public class ReferralManagementService {
+
     private final IdGenService idGenService;
 
     private final ReferralRepository referralRepository;
@@ -155,7 +157,7 @@ public class ReferralManagementService {
                                  Integer offset,
                                  String tenantId,
                                  Long lastChangedSince,
-                                 Boolean includeDeleted) throws Exception {
+                                 Boolean includeDeleted) {
         log.info("received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
