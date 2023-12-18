@@ -7,12 +7,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.data.query.annotations.Exclude;
 import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.constraints.DecimalMax;
-import javax.validation.constraints.DecimalMin;
 import java.util.List;
 
 /**
@@ -41,25 +38,5 @@ public class HouseholdSearch {
 
     @JsonProperty("boundaryCode")
     private String localityCode = null;
-
-    @Exclude
-    @JsonProperty("latitude")
-    @DecimalMin("-90")
-    @DecimalMax("90")
-    private Double latitude = null;
-
-    @Exclude
-    @JsonProperty("longitude")
-    @DecimalMin("-180")
-    @DecimalMax("180")
-    private Double longitude = null;
-
-    /*
-     * @value unit of measurement in Kilometer
-     * */
-    @Exclude
-    @JsonProperty("searchRadius")
-    @DecimalMin("0")
-    private Double searchRadius = null;
 }
 

@@ -136,13 +136,7 @@ public class HouseholdService {
             return new Tuple<>(householdsTuple.getX(), households);
         }
         try {
-            new Tuple<>(null, Collections.emptyList());
-            Tuple<Long, List<Household>> householdsTuple;
-            if(Boolean.TRUE.equals(isProximityBasedSearch(householdSearch))) {
-                householdsTuple = householdRepository.findByRadius(householdSearch, limit, offset, tenantId, includeDeleted);
-            } else {
-                householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
-            }
+            Tuple<Long, List<Household>> householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
             log.info("households found for search, size: {}", householdsTuple.getY().size());
             return householdsTuple;
         } catch (QueryBuilderException e) {
@@ -246,7 +240,4 @@ public class HouseholdService {
         return new Tuple<>(validHouseholds, errorDetailsMap);
     }
 
-    private Boolean isProximityBasedSearch(HouseholdSearch householdSearch) {
-        return householdSearch.getLatitude() != null && householdSearch.getLongitude() != null && householdSearch.getSearchRadius() != null;
-    }
 }
