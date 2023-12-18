@@ -6,6 +6,7 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.ds.Tuple;
 import org.egov.common.models.household.Household;
 import org.egov.common.producer.Producer;
 import org.egov.household.repository.rowmapper.HouseholdRowMapper;
@@ -38,7 +39,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdRowMapper, Optional.of("household"));
     }
 
-    public List<Household> findById(List<String> ids, String columnName, Boolean includeDeleted) {
+    public Tuple<Long, List<Household>> findById(List<String> ids, String columnName, Boolean includeDeleted) {
         List<Household> objFound = findInCache(ids);
         if (!includeDeleted) {
             objFound = objFound.stream()
@@ -51,7 +52,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
             if (ids.isEmpty()) {
-                return objFound;
+                return new Tuple<>(Long.valueOf(objFound.size()), objFound);
             }
         }
 
@@ -62,13 +63,16 @@ public class HouseholdRepository extends GenericRepository<Household> {
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
 
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramMap);
+
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
-        return objFound;
+        return new Tuple<>(totalCount, objFound);
     }
 
-    public List<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id";
+    public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
+        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
+        query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
@@ -83,12 +87,27 @@ public class HouseholdRepository extends GenericRepository<Household> {
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY h.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
+
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
+
+        query = query + "ORDER BY h.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        return this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
     }
+
+    private Long constructTotalCountCTEAndReturnResult(String query, Map<String, Object> paramsMap) {
+        String cteQuery = "WITH result_cte AS ("+query+"), totalCount_cte AS (SELECT COUNT(*) AS totalRows FROM result_cte) select * from totalCount_cte";
+        return this.namedParameterJdbcTemplate.query(cteQuery, paramsMap, resultSet -> {
+            if(resultSet.next())
+                return resultSet.getLong("totalRows");
+            else
+                return 0L;
+        });
+    }
+
+
 }
