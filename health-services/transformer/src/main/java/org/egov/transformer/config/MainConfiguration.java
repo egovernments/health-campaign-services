@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.Task;
+import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.stock.Stock;
 import org.egov.tracer.config.TracerConfiguration;
 import org.egov.transformer.enums.Operation;
@@ -114,6 +115,18 @@ public class MainConfiguration {
     public Map<Operation, List<TransformationService<Stock>>> getOperationTransformationServiceMapForStock(
             List<TransformationService<Stock>> transformationServices) {
         Map<Operation, List<TransformationService<Stock>>> map =  transformationServices
+                .stream()
+                .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
+    }
+
+    @Bean
+    @Autowired
+    @Qualifier("referralTransformationServiceMap")
+    public Map<Operation, List<TransformationService<Referral>>> getOperationTransformationReferralMapForStock(
+            List<TransformationService<Referral>> transformationServices) {
+        Map<Operation, List<TransformationService<Referral>>> map =  transformationServices
                 .stream()
                 .collect(Collectors.groupingBy(TransformationService::getOperation));
         log.info(map.toString());

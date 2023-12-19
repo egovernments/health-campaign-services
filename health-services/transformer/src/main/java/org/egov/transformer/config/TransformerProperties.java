@@ -23,6 +23,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.service.task.index.v1.topic}")
     private String transformerProducerServiceTaskIndexV1Topic;
 
+    @Value("${transformer.producer.referral.index.v1.topic}") //TODO CHECK
+    private String transformerProducerReferralIndexV1Topic;
+
     @Value("${transformer.producer.bulk.project.index.v1.topic}")
     private String transformerProducerBulkProjectIndexV1Topic;
 
