@@ -21,7 +21,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.egov.transformer.Constants.HYPHEN;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ProjectTransformationService implements TransformationService<Project> {
@@ -63,13 +63,15 @@ public abstract class ProjectTransformationService implements TransformationServ
     static class ProjectIndexV1Transformer implements
             Transformer<Project, ProjectIndexV1> {
         private final ProjectService projectService;
+        private final ProductService productService;
         private final TransformerProperties properties;
         private final ObjectMapper objectMapper;
 
 
         @Autowired
-        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ObjectMapper objectMapper) {
+        ProjectIndexV1Transformer(ProjectService projectService, ProductService productService, TransformerProperties properties, ObjectMapper objectMapper) {
             this.projectService = projectService;
+            this.productService = productService;
             this.properties = properties;
             this.objectMapper = objectMapper;
         }
@@ -110,12 +112,12 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 project.getProjectTypeId());
                         String productVariant = null;
                         if (productVariants != null && !productVariants.isEmpty()) {
-                            productVariant = String.join(",", productVariants);
+                            productVariant = String.join(COMMA, productVariants);
                         }
                         if (r.getId() == null) {
                             r.setId(project.getId() + HYPHEN + r.getBeneficiaryType());
                         }
-
+                        String productVariantName = String.join(COMMA, productService.getProductVariantById(productVariants, project.getTenantId()));
                         return ProjectIndexV1.builder()
                                 .id(r.getId())
                                 .projectId(project.getId())
@@ -126,6 +128,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .startDate(project.getStartDate())
                                 .endDate(project.getEndDate())
                                 .productVariant(productVariant)
+                                .productName(productVariantName)
                                 .targetType(r.getBeneficiaryType())
                                 .province(boundaryLabelToNameMap.get(properties.getProvince()))
                                 .district(boundaryLabelToNameMap.get(properties.getDistrict()))

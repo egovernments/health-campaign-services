@@ -37,6 +37,8 @@ public class ProjectTaskIndexV1 {
     private Long endDate;
     @JsonProperty("productVariant")
     private String productVariant;
+    @JsonProperty("productName")
+    private String productName;
     @JsonProperty("quantity")
     private Double quantity;
     @JsonProperty("doseNumber")

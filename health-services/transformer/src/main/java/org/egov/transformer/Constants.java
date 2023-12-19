@@ -28,5 +28,6 @@ public interface Constants {
     String TOTAL_NO_CHECK = "totalNo";
     String TARGET_NO_CHECK = "targetNo";
     String HYPHEN = "-";
+    String COMMA = ",";
 
 }

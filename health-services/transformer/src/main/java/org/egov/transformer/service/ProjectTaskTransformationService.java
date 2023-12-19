@@ -64,14 +64,17 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final TransformerProperties properties;
         private final HouseholdService householdService;
         private final CommonUtils commonUtils;
+
+        private final ProductService productService;
         private UserService userService;
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService) {
+                                      HouseholdService householdService, CommonUtils commonUtils, ProductService productService, UserService userService) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
             this.commonUtils = commonUtils;
+            this.productService = productService;
             this.userService = userService;
         }
 
@@ -138,6 +141,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .role(userService.getStaffRole(task.getTenantId(),users))
                             .endDate(task.getActualEndDate())
                             .productVariant(r.getProductVariantId())
+                            .productName(productService.getProductVariantNameById(r.getProductVariantId(), tenantId))
                             .isDelivered(r.getIsDelivered())
                             .quantity(r.getQuantity())
                             .doseNumber(getDose(task))

@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -31,6 +33,8 @@ public class ProjectIndexV1 {
     private Long endDate;
     @JsonProperty("productVariant")
     private String productVariant;
+    @JsonProperty("productName")
+    private String productName;
     @JsonProperty("targetType")
     private String targetType;
     @JsonProperty("province")
