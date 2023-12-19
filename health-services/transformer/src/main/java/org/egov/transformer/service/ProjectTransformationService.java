@@ -76,6 +76,12 @@ public abstract class ProjectTransformationService implements TransformationServ
 
         @Override
         public List<ProjectIndexV1> transform(Project project) {
+            String tenantId = project.getTenantId();
+            String projectType = project.getProjectType();
+            String subProjectType = project.getProjectSubType();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId,"");
+            List<JsonNode> boundaryLevelVsLabel = StreamSupport
+                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
@@ -113,7 +119,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                             r.setId(project.getId() + HYPHEN + r.getBeneficiaryType());
                         }
 
-                        return ProjectIndexV1.builder()
+                        ProjectIndexV1 projectIndexV1 =  ProjectIndexV1.builder()
                                 .id(r.getId())
                                 .projectId(project.getId())
                                 .overallTarget(targetNo)
@@ -123,16 +129,21 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .endDate(project.getEndDate())
                                 .productVariant(productVariant)
                                 .targetType(r.getBeneficiaryType())
-                                .province(boundaryLabelToNameMap.get(properties.getProvince()))
-                                .district(boundaryLabelToNameMap.get(properties.getDistrict()))
-                                .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
-                                .locality(boundaryLabelToNameMap.get(properties.getLocality()))
-                                .village(boundaryLabelToNameMap.get(properties.getVillage()))
+                                .tenantId(tenantId)
+                                .projectType(projectType)
+                                .subProjectType(subProjectType)
                                 .createdTime(project.getAuditDetails().getCreatedTime())
                                 .createdBy(project.getAuditDetails().getCreatedBy())
                                 .lastModifiedTime(project.getAuditDetails().getLastModifiedTime())
                                 .lastModifiedBy(project.getAuditDetails().getLastModifiedBy())
                                 .build();
+                        //todo verify this
+                        boundaryLevelVsLabel.forEach(node->{
+                            if(node.get(Constants.LEVEL).asInt()>1){
+                                projectIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
+                            }
+                        });
+                        return projectIndexV1;
                     }
             ).collect(Collectors.toList());
         }
