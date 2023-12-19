@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 import org.egov.common.models.project.AdditionalFields;
 
 
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -21,6 +20,10 @@ public class HouseholdIndexV1 {
     private String id;
     @JsonProperty("projectId")
     private String projectId;
+    @JsonProperty("tenantId")
+    private String clientReferenceId;
+    @JsonProperty("clientReferenceId")
+    private String tenantId;
     @JsonProperty("additionalFields")
     private AdditionalFields additionalFields;
 }

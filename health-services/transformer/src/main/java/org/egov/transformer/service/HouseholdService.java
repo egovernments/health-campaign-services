@@ -12,6 +12,7 @@ import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
+import org.egov.transformer.producer.Producer;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -22,12 +23,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public class HouseholdService {
     private final TransformerProperties transformerProperties;
-
     private final ServiceRequestClient serviceRequestClient;
+    private final Producer producer;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
+        this.producer = producer;
     }
 
     public List<Household> searchHousehold(String clientRefId, String tenantId) {
@@ -60,15 +62,23 @@ public class HouseholdService {
     }
 
     public void transform(List<Household> payloadList) {
+        String topic = "";
         log.info("transforming for ids {}", payloadList.stream()
                 .map(Household::getId).collect(Collectors.toList()));
         List<HouseholdIndexV1> transformedPayloadList = payloadList.stream()
                 .map(this::transform)
                 .collect(Collectors.toList());
-        log.info("transformation successful");
+        if (!transformedPayloadList.isEmpty()) {
+            producer.push(topic, transformedPayloadList);
+            log.info("transformation successful");
+        }
     }
 
-    public HouseholdIndexV1 transform(Household household){
-        return HouseholdIndexV1.builder().build();
+    public HouseholdIndexV1 transform(Household household) {
+        return HouseholdIndexV1.builder()
+                .id(household.getId())
+                .tenantId(household.getTenantId())
+                .clientReferenceId(household.getClientReferenceId())
+                .build();
     }
 }
