@@ -61,7 +61,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
 
         private UserService userService;
         @Autowired
-        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties,UserService userService) {
+        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties, UserService userService) {
             this.projectService = projectService;
             this.properties = properties;
             this.userService = userService;
@@ -69,13 +69,13 @@ public abstract class ProjectStaffTransformationService implements Transformatio
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
             String tenantId = projectStaff.getTenantId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId,"");
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, "");
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-            List<User> users = userService.getUsers(projectStaff.getTenantId(),projectStaff.getUserId());
+            List<User> users = userService.getUsers(projectStaff.getTenantId(), projectStaff.getUserId());
             List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
             ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
@@ -89,9 +89,9 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .lastModifiedTime(projectStaff.getAuditDetails().getLastModifiedTime())
                     .build();
             //todo verify this
-            boundaryLevelVsLabel.forEach(node->{
-                if(node.get(Constants.LEVEL).asInt()>1){
-                    projectStaffIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
+            boundaryLevelVsLabel.forEach(node -> {
+                if (node.get(Constants.LEVEL).asInt() > 1) {
+                    projectStaffIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
                 }
             });
             projectStaffIndexV1List.add(projectStaffIndexV1);

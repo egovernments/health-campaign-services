@@ -91,7 +91,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
             }
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId,"");
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, "");
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
@@ -122,7 +122,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
             final Integer memberCount = numberOfMembers;
             final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
             final Household finalHousehold = household;
-            int deliveryCount = (int) Math.round((Double)(memberCount/ properties.getProgramMandateDividingFactor()));
+            int deliveryCount = (int) Math.round((Double) (memberCount / properties.getProgramMandateDividingFactor()));
             final boolean isMandateComment = deliveryCount > properties.getProgramMandateLimit();
 
             log.info("member count is {}", memberCount);
@@ -131,16 +131,16 @@ public abstract class ProjectTaskTransformationService implements Transformation
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
 
             return task.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r,task,finalBoundaryLabelToNameMap,boundaryLevelVsLabel,tenantId,users,isMandateComment,
-                            projectBeneficiaryClientReferenceId,memberCount,finalProjectBeneficiary,finalHousehold,syncedTimeStamp)
+                    transformTaskToProjectTaskIndex(r, task, finalBoundaryLabelToNameMap, boundaryLevelVsLabel, tenantId, users, isMandateComment,
+                            projectBeneficiaryClientReferenceId, memberCount, finalProjectBeneficiary, finalHousehold, syncedTimeStamp)
             ).collect(Collectors.toList());
         }
 
-        private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource,Task task,Map<String, String> finalBoundaryLabelToNameMap,
-                                                              List<JsonNode> boundaryLevelVsLabel,String tenantId,List<User> users,boolean isMandateComment,
-                                                              String projectBeneficiaryClientReferenceId,Integer memberCount,
-                                                              ProjectBeneficiary finalProjectBeneficiary,Household finalHousehold,String syncedTimeStamp){
-           ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
+        private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> finalBoundaryLabelToNameMap,
+                                                                   List<JsonNode> boundaryLevelVsLabel, String tenantId, List<User> users, boolean isMandateComment,
+                                                                   String projectBeneficiaryClientReferenceId, Integer memberCount,
+                                                                   ProjectBeneficiary finalProjectBeneficiary, Household finalHousehold, String syncedTimeStamp) {
+            ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
                     .clientReferenceId(taskResource.getClientReferenceId())
@@ -148,8 +148,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .taskType("DELIVERY")
                     .projectId(task.getProjectId())
                     .startDate(task.getActualStartDate())
-                    .userName(userService.getUserName(users,task.getAuditDetails().getCreatedBy()))
-                    .role(userService.getStaffRole(task.getTenantId(),users))
+                    .userName(userService.getUserName(users, task.getAuditDetails().getCreatedBy()))
+                    .role(userService.getStaffRole(task.getTenantId(), users))
                     .endDate(task.getActualEndDate())
                     .productVariant(taskResource.getProductVariantId())
                     .isDelivered(taskResource.getIsDelivered())
@@ -174,9 +174,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .additionalFields(task.getAdditionalFields())
                     .build();
             //todo verify this
-            boundaryLevelVsLabel.forEach(node->{
-                if(node.get(Constants.LEVEL).asInt()>1){
-                    projectTaskIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),finalBoundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText())==null? null: finalBoundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
+            boundaryLevelVsLabel.forEach(node -> {
+                if (node.get(Constants.LEVEL).asInt() > 1) {
+                    projectTaskIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
                 }
             });
             return projectTaskIndexV1;
