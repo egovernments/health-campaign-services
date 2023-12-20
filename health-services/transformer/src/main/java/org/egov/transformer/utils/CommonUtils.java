@@ -3,8 +3,11 @@ package org.egov.transformer.utils;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.transformer.config.TransformerProperties;
 import org.springframework.stereotype.Component;
-
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.format.DateTimeFormatter;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 
 @Slf4j
@@ -30,5 +33,28 @@ public class CommonUtils {
             log.error("Exception while transforming epochTime to timestamp: ",e);
         }
         return timeStamp;
+    }
+    public static int calculateAgeInMonthsFromDOB(Date dob) {
+        // Create a Calendar instance and set it to the current date
+        Calendar currentDate = Calendar.getInstance();
+
+        // Create a Calendar instance and set it to the date of birth
+        Calendar dobCalendar = Calendar.getInstance();
+        dobCalendar.setTime(dob);
+
+        // Calculate the difference in years and months
+        int years = currentDate.get(Calendar.YEAR) - dobCalendar.get(Calendar.YEAR);
+        int months = currentDate.get(Calendar.MONTH) - dobCalendar.get(Calendar.MONTH);
+
+        // Adjust for cases where the birth date hasn't occurred yet in the current year
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+
+        // Calculate the age in months
+        int ageInMonths = years * 12 + months;
+
+        return ageInMonths;
     }
 }

@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
@@ -16,8 +17,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -65,15 +68,17 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final TransformerProperties properties;
         private final HouseholdService householdService;
         private final CommonUtils commonUtils;
+        private final IndividualService individualService;
         private UserService userService;
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService) {
+                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService, IndividualService individualService) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
             this.commonUtils = commonUtils;
             this.userService = userService;
+            this.individualService = individualService;
         }
 
         @Override
@@ -101,7 +106,10 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
-
+            Map<String, Date> IndividualDOBs = new ConcurrentHashMap<>();
+            Map<String, Integer> IndividualAges = new ConcurrentHashMap<>();
+            projectBeneficiaries.forEach(projectBeneficiary1 -> IndividualDOBs.put(projectBeneficiary1.getClientReferenceId(),individualService.findIndividualByClientReferenceId(projectBeneficiary1.getClientReferenceId(), tenantId)));
+            projectBeneficiaries.forEach(projectBeneficiary1 -> IndividualAges.put(projectBeneficiary1.getClientReferenceId(),commonUtils.calculateAgeInMonthsFromDOB(IndividualDOBs.get(projectBeneficiary1.getClientReferenceId()))));
             if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
                 projectBeneficiary = projectBeneficiaries.get(0);
                 List<Household> households = householdService.searchHousehold(projectBeneficiary
@@ -161,6 +169,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .household(finalHousehold)
                             .clientAuditDetails(task.getClientAuditDetails())
                             .syncedTimeStamp(syncedTimeStamp)
+
+
                             .syncedTime(task.getAuditDetails().getCreatedTime())
                             .additionalFields(task.getAdditionalFields())
                             .build()
