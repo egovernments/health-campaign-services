@@ -1,0 +1,98 @@
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { Card, Header, Button, Loader } from "@egovernments/digit-ui-react-components";
+
+const ProjectChildrenComponent = (props) => {
+    const { t } = useTranslation();
+
+    const requestCriteria = {
+        url: "/project/v1/_search",
+        changeQueryName: props.projectId,
+        params: {
+            tenantId: "mz",
+            offset: 0,
+            limit: 100,
+            includeDescendants: true
+        },
+        body: {
+            Projects: [
+                {
+                    tenantId: "mz",
+                    id: props.projectId
+                }
+            ],
+            "apiOperation": "SEARCH"
+        }
+    };
+
+    const { isLoading, data: projectChildren } = Digit.Hooks.useCustomAPIHook(requestCriteria);
+
+    console.log("data", projectChildren);
+
+    const projectsArray = projectChildren?.Project || [];
+
+    const descendantsObject = {};
+
+    projectsArray.forEach(project => {
+        const descendantsArray = project.descendants || [];
+
+        descendantsArray.forEach(descendant => {
+            descendantsObject[descendant.id] = descendant;
+        });
+    });
+
+    console.log(descendantsObject);
+
+
+    const columns = [
+        { label: t("DESCENDANTS_PROJECT_NUMBER"), key: "descendants.projectNumber" },
+        { label: t("DESCENDANTS_PROJECT_NAME"), key: "descendants.name" },
+        { label: t("DESCENDANTS_PROJECT_TYPE"), key: "descendants.projectType" },
+        { label: t("DESCENDANTS_START_DATE"), key: "descendants.startDate" },
+        { label: t("DESCENDANTS_END_DATE"), key: "descendants.endDate" }
+    ];
+
+
+    if (isLoading) {
+        return <Loader></Loader>;
+    }
+
+    return (
+        <div className="override-card">
+            <Header className="works-header-view">{t("PROJECT_CHILDREN")}</Header>
+
+            <table className="table reports-table sub-work-table">
+                <thead>
+                    <tr>
+                        {columns.map((column, index) => (
+                            <th key={index}>{column.label}</th>
+                        ))}
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {projectsArray.map((project, rowIndex) => (
+                        <React.Fragment key={rowIndex}>
+                            <tr>
+                                {columns.map((column, columnIndex) => (
+                                    <td key={columnIndex}>
+                                        {column.key.includes("descendants.")
+                                            ? project.descendants.map((descendant, descIndex) => (
+                                                <div key={descIndex}>
+                                                    {descendant[column.key.split("descendants.")[1]]}
+                                                </div>
+                                            ))
+                                            : project[column.key]}
+                                    </td>
+                                ))}
+                            </tr>
+                        </React.Fragment>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+
+}
+
+export default ProjectChildrenComponent;

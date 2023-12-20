@@ -5,6 +5,9 @@ import { UICustomizations } from "./configs/UICustomizations";
 import HCMWORKBENCHCard from "./components/HCMWORKBENCHCard";
 import App from "./pages/employee";
 import { Loader } from "@egovernments/digit-ui-react-components";
+import ProjectBeneficiaryComponent from "./components/ProjectBeneficiaryComponent";
+import ProjectChildrenComponent from "./components/ProjectChildrenComponent";
+import ProjectStaffComponent from "./components/ProjectStaffComponent";
 
 const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["workbench-hcm"];
@@ -29,6 +32,9 @@ const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
 const componentsToRegister = {
   HCMWORKBENCHModule,
   HCMWORKBENCHCard,
+  ProjectBeneficiaryComponent,
+  ProjectChildrenComponent,
+  ProjectStaffComponent
 };
 
 const overrideHooks = () => {

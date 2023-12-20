@@ -81,7 +81,11 @@ module.exports = function (app) {
     "/muster-roll",
     "/individual",
     "/mdms-v2",
-    "/hcm-moz-impl"
+    "/hcm-moz-impl",
+    "/project",
+    "/project/staff/v1/_search",
+    "/project/v1/_search"
+
   ].forEach((location) => app.use(location, createProxy));
   ["/pb-egov-assets"].forEach((location) => app.use(location, assetsProxy));
   ["/mdms-v2/v2/_create"].forEach((location) => app.use(location, mdmsProxy));
