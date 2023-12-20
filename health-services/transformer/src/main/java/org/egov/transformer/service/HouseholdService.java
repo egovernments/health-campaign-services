@@ -62,7 +62,7 @@ public class HouseholdService {
     }
 
     public void transform(List<Household> payloadList) {
-        String topic = "";
+        String topic = transformerProperties.getTransformerProducerBulkHouseholdIndexV1Topic();
         log.info("transforming for ids {}", payloadList.stream()
                 .map(Household::getId).collect(Collectors.toList()));
         List<HouseholdIndexV1> transformedPayloadList = payloadList.stream()
