@@ -1,6 +1,8 @@
 package org.egov.transformer.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.project.ProjectStaff;
@@ -59,11 +61,14 @@ public abstract class ProjectStaffTransformationService implements Transformatio
         private final ProjectService projectService;
         private final TransformerProperties properties;
 
+        private final ObjectMapper objectMapper;
+
         private UserService userService;
         @Autowired
-        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties, UserService userService) {
+        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ObjectMapper objectMapper, UserService userService) {
             this.projectService = projectService;
             this.properties = properties;
+            this.objectMapper = objectMapper;
             this.userService = userService;
         }
         @Override
@@ -88,10 +93,14 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())
                     .lastModifiedTime(projectStaff.getAuditDetails().getLastModifiedTime())
                     .build();
+            if(projectStaffIndexV1.getBoundaryHierarchy()==null){
+                ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
+                projectStaffIndexV1.setBoundaryHierarchy(boundaryHierarchy);
+            }
             //todo verify this
             boundaryLevelVsLabel.forEach(node -> {
                 if (node.get(Constants.LEVEL).asInt() > 1) {
-                    projectStaffIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
+                    projectStaffIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null :  boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
                 }
             });
             projectStaffIndexV1List.add(projectStaffIndexV1);

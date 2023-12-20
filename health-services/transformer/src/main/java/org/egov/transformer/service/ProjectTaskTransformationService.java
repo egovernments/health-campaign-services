@@ -1,6 +1,8 @@
 package org.egov.transformer.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
@@ -70,14 +72,18 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final HouseholdService householdService;
         private final CommonUtils commonUtils;
         private UserService userService;
+
+        private final ObjectMapper objectMapper;
+
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService) {
+                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
             this.commonUtils = commonUtils;
             this.userService = userService;
+            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -173,10 +179,14 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .syncedTime(task.getAuditDetails().getCreatedTime())
                     .additionalFields(task.getAdditionalFields())
                     .build();
+            if (projectTaskIndexV1.getBoundaryHierarchy() == null) {
+                ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
+                projectTaskIndexV1.setBoundaryHierarchy(boundaryHierarchy);
+            }
             //todo verify this
             boundaryLevelVsLabel.forEach(node -> {
                 if (node.get(Constants.LEVEL).asInt() > 1) {
-                    projectTaskIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
+                    projectTaskIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
                 }
             });
             return projectTaskIndexV1;

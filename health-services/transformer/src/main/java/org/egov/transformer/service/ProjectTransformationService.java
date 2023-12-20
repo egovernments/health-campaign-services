@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Project;
@@ -137,16 +138,21 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .lastModifiedTime(project.getAuditDetails().getLastModifiedTime())
                                 .lastModifiedBy(project.getAuditDetails().getLastModifiedBy())
                                 .build();
+                        if (projectIndexV1.getBoundaryHierarchy() == null) {
+                            ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
+                            projectIndexV1.setBoundaryHierarchy(boundaryHierarchy);
+                        }
                         //todo verify this
                         boundaryLevelVsLabel.forEach(node -> {
                             if (node.get(Constants.LEVEL).asInt() > 1) {
-                                projectIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(Constants.INDEX_LABEL).asText()));
+                                projectIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null :  boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
                             }
                         });
                         return projectIndexV1;
                     }
             ).collect(Collectors.toList());
         }
+
         private void isValidTargetsAdditionalDetails(Project project, List<Target> targets, String fieldTarget, Set<String> fieldsToCheck, String beneficiaryType) {
             if(project.getAdditionalDetails()!=null){
                 JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
