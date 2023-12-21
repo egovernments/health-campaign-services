@@ -1,8 +1,13 @@
 package org.egov.transformer.service;
 
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
+import org.egov.common.models.project.Project;
+import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
@@ -14,11 +19,9 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
@@ -66,19 +69,22 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private final ServiceDefinitionService serviceDefinitionService;
         private final CommonUtils commonUtils;
         private UserService userService;
+
+        private final ObjectMapper objectMapper;
         @Autowired
-        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService) {
+        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
 
             this.projectService = projectService;
             this.properties = properties;
             this.serviceDefinitionService = serviceDefinitionService;
             this.commonUtils = commonUtils;
             this.userService = userService;
+            this.objectMapper = objectMapper;
         }
 
         @Override
         public List<ServiceIndexV1> transform(Service service) {
-
+            String tenantId = service.getTenantId();
             ServiceDefinition serviceDefinition = serviceDefinitionService.getServiceDefinition(service.getServiceDefId(), service.getTenantId());
             String[] parts = serviceDefinition.getCode().split("\\.");
             String projectName = parts[0];
@@ -89,7 +95,12 @@ public abstract class ServiceTaskTransformationService implements Transformation
             } else {
                 projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
             }
-            Map<String, String> boundaryLabelToNameMap = null;
+            Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+            Project project = projectService.getProject(projectId,tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
+            List<JsonNode> boundaryLevelVsLabel = StreamSupport
+                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             if (service.getAdditionalDetails() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
@@ -98,10 +109,11 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
 
+            Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
             List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
-            return Collections.singletonList(ServiceIndexV1.builder()
+            ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                     .id(service.getId())
                     .clientReferenceId(service.getClientId())
                     .projectId(projectId)
@@ -110,13 +122,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .checklistName(serviceDefinition.getCode())
                     .userName(userService.getUserName(users,service.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(service.getTenantId(),users))
-                    .province(boundaryLabelToNameMap.get(properties.getProvince()))
-                    .district(boundaryLabelToNameMap.get(properties.getDistrict()))
-                    .administrativeProvince(boundaryLabelToNameMap != null ?
-                            boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
-                    .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
-                    .healthFacility(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
-                    .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())
@@ -124,7 +129,17 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .attributes(service.getAttributes())
                     .syncedTime(service.getAuditDetails().getCreatedTime())
                     .syncedTimeStamp(syncedTimeStamp)
-                    .build());
+                    .build();
+            if (serviceIndexV1.getBoundaryHierarchy() == null) {
+                ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
+                serviceIndexV1.setBoundaryHierarchy(boundaryHierarchy);
+            }
+            boundaryLevelVsLabel.forEach(node -> {
+                if (node.get(Constants.LEVEL).asInt() > 1) {
+                    serviceIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
+                }
+            });
+            return Collections.singletonList(serviceIndexV1);
         }
     }
 }
