@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
@@ -74,7 +75,10 @@ public abstract class ProjectStaffTransformationService implements Transformatio
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
             String tenantId = projectStaff.getTenantId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, "");
+            String projectId = projectStaff.getProjectId();
+            Project project = projectService.getProject(projectId,tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Map<String, String> boundaryLabelToNameMap = projectService
@@ -84,7 +88,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
             List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
             ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
-                    .projectId(projectStaff.getProjectId())
+                    .projectId(projectId)
                     .userId(projectStaff.getUserId())
                     .userName(userService.getUserName(users,projectStaff.getUserId()))
                     .role(userService.getStaffRole(projectStaff.getTenantId(),users))
@@ -97,7 +101,6 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                 ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                 projectStaffIndexV1.setBoundaryHierarchy(boundaryHierarchy);
             }
-            //todo verify this
             boundaryLevelVsLabel.forEach(node -> {
                 if (node.get(Constants.LEVEL).asInt() > 1) {
                     projectStaffIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null :  boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));

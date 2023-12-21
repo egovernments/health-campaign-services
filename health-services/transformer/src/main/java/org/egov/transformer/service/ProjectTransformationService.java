@@ -80,7 +80,8 @@ public abstract class ProjectTransformationService implements TransformationServ
             String tenantId = project.getTenantId();
             String projectType = project.getProjectType();
             String subProjectType = project.getProjectSubType();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, "");
+            String projectTypeId = project.getProjectTypeId();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Map<String, String> boundaryLabelToNameMap = projectService
@@ -142,7 +143,6 @@ public abstract class ProjectTransformationService implements TransformationServ
                             ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                             projectIndexV1.setBoundaryHierarchy(boundaryHierarchy);
                         }
-                        //todo verify this
                         boundaryLevelVsLabel.forEach(node -> {
                             if (node.get(Constants.LEVEL).asInt() > 1) {
                                 projectIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null :  boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));

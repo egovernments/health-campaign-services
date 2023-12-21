@@ -222,7 +222,7 @@ public class ProjectService {
         }
     }
 
-    public JsonNode fetchBoundaryData(String tenantId,String filter) {
+    public JsonNode fetchBoundaryData(String tenantId,String filter,String projectTypeId) {
         List<JsonNode> projectTypes = new ArrayList<>();
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
@@ -231,8 +231,7 @@ public class ProjectService {
             JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                     transformerProperties.getMdmsModule(), filter);
             projectTypes = convertToProjectTypeJsonNodeList(response);
-            //todo configure this id
-            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get("id").asText().equals("dbd45c31-de9e-4e62-a9b6-abb818928fd1")).findFirst().get();
+            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
             return requiredProjectType.get(Constants.BOUNDARY_DATA);
         } catch (IOException e) {
             throw new RuntimeException(e);

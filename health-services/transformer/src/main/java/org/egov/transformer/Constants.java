@@ -25,5 +25,6 @@ public interface Constants {
     String INDEX_LABEL ="indexLabel";
     String BOUNDARY_HIERARCHY = "boundaryHierarchy";
     String BOUNDARY_DATA = "boundaryData";
+    String ID = "id";
 
 }

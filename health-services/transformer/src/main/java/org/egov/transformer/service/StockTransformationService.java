@@ -8,6 +8,7 @@ import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.AdditionalFields;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.Field;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
@@ -94,7 +95,10 @@ public abstract class StockTransformationService implements TransformationServic
         public List<StockIndexV1> transform(Stock stock) {
             Map<String, String> boundaryLabelToNameMap = new HashMap<>();
             String tenantId = stock.getTenantId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, "");
+            String projectId = stock.getReferenceId();
+            Project project = projectService.getProject(projectId,tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
@@ -159,7 +163,6 @@ public abstract class StockTransformationService implements TransformationServic
                 ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                 stockIndexV1.setBoundaryHierarchy(boundaryHierarchy);
             }
-            //todo verify this
             boundaryLevelVsLabel.forEach(node -> {
                 if (node.get(Constants.LEVEL).asInt() > 1) {
                     stockIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));

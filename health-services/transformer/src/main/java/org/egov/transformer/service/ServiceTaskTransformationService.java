@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
+import org.egov.common.models.project.Project;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -84,9 +85,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
         @Override
         public List<ServiceIndexV1> transform(Service service) {
             String tenantId = service.getTenantId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, "");
-            List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             ServiceDefinition serviceDefinition = serviceDefinitionService.getServiceDefinition(service.getServiceDefId(), service.getTenantId());
             String[] parts = serviceDefinition.getCode().split("\\.");
             String projectName = parts[0];
@@ -98,6 +96,11 @@ public abstract class ServiceTaskTransformationService implements Transformation
                 projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
             }
             Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+            Project project = projectService.getProject(projectId,tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
+            List<JsonNode> boundaryLevelVsLabel = StreamSupport
+                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             if (service.getAdditionalDetails() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
@@ -131,7 +134,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
                 ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                 serviceIndexV1.setBoundaryHierarchy(boundaryHierarchy);
             }
-            //todo verify this
             boundaryLevelVsLabel.forEach(node -> {
                 if (node.get(Constants.LEVEL).asInt() > 1) {
                     serviceIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskResource;
@@ -97,7 +98,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
             }
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, "");
+            Project project = projectService.getProject(task.getProjectId(),tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
@@ -183,7 +186,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                 projectTaskIndexV1.setBoundaryHierarchy(boundaryHierarchy);
             }
-            //todo verify this
             boundaryLevelVsLabel.forEach(node -> {
                 if (node.get(Constants.LEVEL).asInt() > 1) {
                     projectTaskIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
