@@ -29,6 +29,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.stock.index.v1.topic}")
     private String transformerProducerBulkStockIndexV1Topic;
 
+    @Value("${transformer.producer.bulk.household.index.v1.topic}")
+    private String transformerProducerBulkHouseholdIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
@@ -89,11 +92,8 @@ public class TransformerProperties {
     @Value("${boundary.label.name.village}")
     private String Village;
 
-    @Value("${boundary.label.name.county}")
-    private String county;
-
-    @Value("${boundary.label.name.community}")
-    private String community;
+    @Value("${boundary.label.name.healthFacility}")
+    private String healthFacility;
 
     @Value("${boundary.label.name.administrativeProvince}")
     private String administrativeProvince;

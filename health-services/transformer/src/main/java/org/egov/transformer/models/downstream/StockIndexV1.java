@@ -2,6 +2,7 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -60,20 +61,8 @@ public class StockIndexV1 {
     @JsonProperty("dateOfEntry")
     private Long dateOfEntry;
 
-    @JsonProperty("province")
-    private String province;
-
-    @JsonProperty("district")
-    private String district;
-
-    @JsonProperty("administrativeProvince")
-    private String administrativeProvince;
-
-    @JsonProperty("locality")
-    private String locality;
-
-    @JsonProperty("village")
-    private String village;
+    @JsonProperty("boundaryHierarchy")
+    private ObjectNode boundaryHierarchy;
 
     @JsonProperty("county")
     private String county;

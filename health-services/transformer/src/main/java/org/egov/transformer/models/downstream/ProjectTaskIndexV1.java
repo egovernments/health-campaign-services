@@ -2,6 +2,7 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -55,20 +56,12 @@ public class ProjectTaskIndexV1 {
     private boolean isDelivered;
     @JsonProperty("deliveryComments")
     private String deliveryComments;
-    @JsonProperty("province")
-    private String province;
-    @JsonProperty("district")
-    private String district;
-    @JsonProperty("administrativeProvince")
-    private String administrativeProvince;
-    @JsonProperty("locality")
-    private String locality;
-    @JsonProperty("village")
-    private String village;
-    @JsonProperty("county")
-    private String county;
-    @JsonProperty("community")
-    private String community;
+    @JsonProperty("boundaryHierarchy")
+    private ObjectNode boundaryHierarchy;
+    @JsonProperty("tenantId")
+    private String tenantId;
+    @JsonProperty("projectType")
+    private String projectType;
     @JsonProperty("latitude")
     private Double latitude;
     @JsonProperty("longitude")
@@ -95,8 +88,6 @@ public class ProjectTaskIndexV1 {
     private Household household;
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
-    @JsonProperty("tenantId")
-    private String tenantId;
     @JsonProperty("clientAuditDetails")
     private @Valid AuditDetails clientAuditDetails;
     @JsonProperty("syncedTimeStamp")

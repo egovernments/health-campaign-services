@@ -117,7 +117,7 @@ public class HouseholdService {
         return request.getHouseholds();
     }
 
-    public List<Household> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
+    public Tuple<Long, List<Household>> search(HouseholdSearch householdSearch, Integer limit, Integer offset, String tenantId,
                                   Long lastChangedSince, Boolean includeDeleted) {
 
         String idFieldName = getIdFieldName(householdSearch);
@@ -125,20 +125,20 @@ public class HouseholdService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdSearch)),
                     householdSearch);
-            List<Household> households = householdRepository.findById(ids,
-                            idFieldName, includeDeleted).stream()
+            Tuple<Long, List<Household>> householdsTuple = householdRepository.findById(ids,
+                    idFieldName, includeDeleted);
+            List<Household> households = householdsTuple.getY().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             log.info("households found for search by id, size: {}", households.size());
-            return households;
+            return new Tuple<>(householdsTuple.getX(), households);
         }
         try {
-            List<Household> households = householdRepository.find(householdSearch, limit, offset,
-                    tenantId, lastChangedSince, includeDeleted);
-            log.info("households found for search, size: {}", households.size());
-            return households;
+            Tuple<Long, List<Household>> householdsTuple = householdRepository.find(householdSearch, limit, offset, tenantId, lastChangedSince, includeDeleted);
+            log.info("households found for search, size: {}", householdsTuple.getY().size());
+            return householdsTuple;
         } catch (QueryBuilderException e) {
             log.error("error occurred while searching households", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
@@ -208,13 +208,13 @@ public class HouseholdService {
         return request.getHouseholds();
     }
 
-    public List<Household> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
+    public Tuple<Long, List<Household>> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
         log.info("finding Households by Ids: {} with columnName: {} and includeDeleted: {}",
                 houseHoldIds, columnName, includeDeleted);
         log.info("started finding Households by Ids");
-        List<Household> households = householdRepository.findById(houseHoldIds, columnName, includeDeleted);
-        log.info("finished finding Households by Ids. Found {} Households", households.size());
-        return households;
+        Tuple<Long, List<Household>> householdsTuple = householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+        log.info("finished finding Households by Ids. Found {} Households", householdsTuple.getY().size());
+        return householdsTuple;
     }
 
     public void putInCache(List<Household> households) {

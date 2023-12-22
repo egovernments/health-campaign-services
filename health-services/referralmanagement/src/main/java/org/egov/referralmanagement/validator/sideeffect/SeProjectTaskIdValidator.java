@@ -1,7 +1,6 @@
 package org.egov.referralmanagement.validator.sideeffect;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.Task;
@@ -18,7 +17,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,8 +81,6 @@ public class SeProjectTaskIdValidator implements Validator<SideEffectBulkRequest
                             TaskBulkResponse.class
                     );
                     existingTasks = taskBulkResponse.getTasks();
-                } catch (QueryBuilderException e) {
-                    existingTasks = Collections.emptyList();
                 } catch (Exception e) {
                     throw new CustomException("Project Task failed to fetch", "Exception : "+e.getMessage());
                 }

@@ -28,6 +28,12 @@ public interface Constants {
     String TOTAL_NO_CHECK = "totalNo";
     String TARGET_NO_CHECK = "targetNo";
     String HYPHEN = "-";
+    String LEVEL = "level";
+    String LABEL = "label";
+    String INDEX_LABEL ="indexLabel";
+    String BOUNDARY_HIERARCHY = "boundaryHierarchy";
+    String BOUNDARY_DATA = "boundaryData";
+    String ID = "id";
     String COMMA = ",";
 
 }
