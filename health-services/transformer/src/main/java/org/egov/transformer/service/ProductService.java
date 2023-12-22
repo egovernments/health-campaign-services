@@ -32,7 +32,7 @@ public class ProductService {
         this.serviceRequestClient = serviceRequestClient;
     }
 
-    public List<String> getProductVariantById(List<String> productVariantIds, String tenantId) {
+    public List<String> getProductVariantNames(List<String> productVariantIds, String tenantId) {
 
         List<String> productNames = new ArrayList<>();
 
@@ -41,17 +41,13 @@ public class ProductService {
                 log.info("Fetching Product Variant Name for the id: {} from transformer cache", productVariantId);
                 productNames.add(productVariantVsNameCache.get(productVariantId));
             } else {
-                productNames.add(getProductVariantNameById(productVariantId, tenantId));
+                productNames.add(fetchProductVariantNameFromService(productVariantId, tenantId));
             }
         });
         return productNames;
     }
 
-    public String getProductVariantNameById(String productVariantId, String tenantId) {
-        if (productVariantVsNameCache != null && productVariantVsNameCache.containsKey(productVariantId)) {
-            log.info("Fetching Product Variant Name for the id: {} from transformer cache", productVariantId);
-            return productVariantVsNameCache.get(productVariantId);
-        }
+    public String fetchProductVariantNameFromService(String productVariantId, String tenantId) {
         ProductVariantSearchRequest request = ProductVariantSearchRequest.builder()
                 .requestInfo(RequestInfo.builder().
                         userInfo(User.builder()
@@ -73,13 +69,14 @@ public class ProductService {
                     request,
                     ProductVariantResponse.class);
             if (response.getProductVariant().isEmpty()) {
-                log.info("No Product variant Found with Id:  {}", productVariantId);
+                log.info("No Product variant Found with Id: {}, returning variantId", productVariantId);
                 return productVariantId;
             }
-            productVariantVsNameCache.put(productVariantId, response.getProductVariant().get(0).getSku());
-            return response.getProductVariant().get(0).getSku();
+            String sku = response.getProductVariant().get(0).getSku();
+            productVariantVsNameCache.put(productVariantId, sku);
+            return sku;
         } catch (Exception e) {
-            log.error("error while fetching product variants in transformer {}", ExceptionUtils.getStackTrace(e));
+            log.error("PRODUCT_VARIANT_FETCH_ERROR in transformer: {}", ExceptionUtils.getStackTrace(e));
             return productVariantId;
         }
     }

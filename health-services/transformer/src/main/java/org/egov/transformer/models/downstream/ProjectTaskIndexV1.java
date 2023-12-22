@@ -13,6 +13,7 @@ import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.ProjectBeneficiary;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -56,6 +57,8 @@ public class ProjectTaskIndexV1 {
     private boolean isDelivered;
     @JsonProperty("deliveryComments")
     private String deliveryComments;
+    @JsonProperty("administrationStatus")
+    private String administrationStatus;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
     @JsonProperty("tenantId")
@@ -96,5 +99,7 @@ public class ProjectTaskIndexV1 {
     private Long syncedTime;
     @JsonProperty("additionalFields")
     private AdditionalFields additionalFields;
+    @JsonProperty("geoPoint")
+    private List<Double> geoPoint;
 
 }

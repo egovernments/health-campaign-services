@@ -106,52 +106,35 @@ public abstract class ProjectTaskTransformationService implements Transformation
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
 
-            // fetch project beenficiary and household
+            // fetch project beneficiary
             String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
             log.info("get member count for project beneficiary client reference id {}",
                     projectBeneficiaryClientReferenceId);
 
             ProjectBeneficiary projectBeneficiary = null;
-            Household household = null;
-            Integer numberOfMembers = 0;
 
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
 
             if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
                 projectBeneficiary = projectBeneficiaries.get(0);
-                List<Household> households = householdService.searchHousehold(projectBeneficiary
-                        .getBeneficiaryClientReferenceId(), tenantId);
-                if (!CollectionUtils.isEmpty(households)) {
-                    household = households.get(0);
-                    numberOfMembers = household.getMemberCount();
-                }
             }
-
-            final Integer memberCount = numberOfMembers;
             final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
-            final Household finalHousehold = household;
-            int deliveryCount = (int) Math.round((Double) (memberCount / properties.getProgramMandateDividingFactor()));
-            final boolean isMandateComment = deliveryCount > properties.getProgramMandateLimit();
-
-            log.info("member count is {}", memberCount);
 
             List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
-            String projectId = task.getProjectId();
-            String projectTypeId = projectService.getProject(projectId, task.getTenantId()).getProjectTypeId();
             String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
 
             return task.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, finalBoundaryLabelToNameMap, boundaryLevelVsLabel, tenantId, users, isMandateComment,
-                            projectBeneficiaryClientReferenceId, memberCount, finalProjectBeneficiary, finalHousehold, syncedTimeStamp)
+                    transformTaskToProjectTaskIndex(r, task, finalBoundaryLabelToNameMap, boundaryLevelVsLabel, tenantId, users,
+                            projectBeneficiaryClientReferenceId, finalProjectBeneficiary, syncedTimeStamp, projectBeneficiaryType)
             ).collect(Collectors.toList());
         }
 
         private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> finalBoundaryLabelToNameMap,
-                                                                   List<JsonNode> boundaryLevelVsLabel, String tenantId, List<User> users, boolean isMandateComment,
-                                                                   String projectBeneficiaryClientReferenceId, Integer memberCount,
-                                                                   ProjectBeneficiary finalProjectBeneficiary, Household finalHousehold, String syncedTimeStamp) {
+                                                                   List<JsonNode> boundaryLevelVsLabel, String tenantId, List<User> users,
+                                                                   String projectBeneficiaryClientReferenceId,
+                                                                   ProjectBeneficiary finalProjectBeneficiary, String syncedTimeStamp, String projectBeneficiaryType) {
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -159,15 +142,12 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .tenantId(tenantId)
                     .taskType("DELIVERY")
                     .projectId(task.getProjectId())
-                    .startDate(task.getActualStartDate())
                     .userName(userService.getUserName(users, task.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(task.getTenantId(), users))
-                    .endDate(task.getActualEndDate())
                     .productVariant(taskResource.getProductVariantId())
-                    .isDelivered(taskResource.getIsDelivered())
                     .quantity(taskResource.getQuantity())
-                    .deliveredTo("HOUSEHOLD")
-                    .deliveryComments(taskResource.getDeliveryComment() != null ? taskResource.getDeliveryComment() : isMandateComment ? properties.getProgramMandateComment() : null)
+                    .deliveredTo(projectBeneficiaryType)
+                    .deliveryComments(taskResource.getDeliveryComment())
                     .latitude(task.getAddress().getLatitude())
                     .longitude(task.getAddress().getLongitude())
                     .locationAccuracy(task.getAddress().getLocationAccuracy())
@@ -176,24 +156,60 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
                     .projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId)
-                    .isDeleted(task.getIsDeleted())
-                    .memberCount(memberCount)
-                    .projectBeneficiary(finalProjectBeneficiary)
-                    .household(finalHousehold)
-                    .clientAuditDetails(task.getClientAuditDetails())
                     .syncedTimeStamp(syncedTimeStamp)
                     .syncedTime(task.getAuditDetails().getCreatedTime())
-                    .additionalFields(task.getAdditionalFields())
+//                    .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .build();
+            List<String> variantList= new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
+            String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
+            projectTaskIndexV1.setProductName(productName);
             if (projectTaskIndexV1.getBoundaryHierarchy() == null) {
                 ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                 projectTaskIndexV1.setBoundaryHierarchy(boundaryHierarchy);
             }
-            boundaryLevelVsLabel.forEach(node -> {
-                if (node.get(Constants.LEVEL).asInt() > 1) {
-                    projectTaskIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
+            boundaryLevelVsLabel.stream()
+                    .filter(node -> node.get(LEVEL).asInt() > 1)
+                    .forEach(node -> {
+                        String label = node.get(INDEX_LABEL).asText();
+                        String name = Optional.ofNullable(finalBoundaryLabelToNameMap.get(node.get(LABEL).asText()))
+                                .orElse(null);
+                        projectTaskIndexV1.getBoundaryHierarchy().put(label, name);
+                    });
+
+            if (HOUSEHOLD.equalsIgnoreCase(projectBeneficiaryType)) {
+                //TODO for transforming QR code additionalDetails
+                projectTaskIndexV1.setAdditionalFields(task.getAdditionalFields());
+                List<Household> households = householdService.searchHousehold(finalProjectBeneficiary
+                        .getBeneficiaryClientReferenceId(), tenantId);
+                Household household = null;
+                Integer numberOfMembers = 0;
+                if (!CollectionUtils.isEmpty(households)) {
+                    household = households.get(0);
+                    numberOfMembers = household.getMemberCount();
                 }
-            });
+
+                final Integer memberCount = numberOfMembers;
+                log.info("member count is {}", memberCount);
+
+                final Household finalHousehold = household;
+                int deliveryCount = (int) Math.round((Double) (memberCount / properties.getProgramMandateDividingFactor()));
+                final boolean isMandateComment = deliveryCount > properties.getProgramMandateLimit();
+                projectTaskIndexV1.setDeliveryComments(taskResource.getDeliveryComment() != null ? taskResource.getDeliveryComment() : isMandateComment ? properties.getProgramMandateComment() : null);
+
+
+                projectTaskIndexV1.setProjectBeneficiary(finalProjectBeneficiary);
+                projectTaskIndexV1.setHousehold(finalHousehold);
+                projectTaskIndexV1.setMemberCount(memberCount);
+
+            } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
+
+                projectTaskIndexV1.setDoseNumber(getDose(task));
+                projectTaskIndexV1.setCycleNumber(getCycle(task));
+                projectTaskIndexV1.setDeliveryStrategy(getDeliveryStrategy(task));
+                projectTaskIndexV1.setQuantityWasted(getResourcesWasted(taskResource));
+                projectTaskIndexV1.setAdministrationStatus(task.getStatus());
+
+            }
             return projectTaskIndexV1;
         }
 

@@ -1,19 +1,15 @@
 package org.egov.transformer.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Address;
-import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.springframework.stereotype.Component;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -51,5 +47,4 @@ public class CommonUtils {
         geoPoints.add(address.getLatitude());
         return geoPoints;
     }
-
 }

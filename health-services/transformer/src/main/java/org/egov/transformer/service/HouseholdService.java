@@ -27,14 +27,12 @@ public class HouseholdService {
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
     private final Producer producer;
-    private final ObjectMapper objectMapper;
     private final CommonUtils commonUtils;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.producer = producer;
-        this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
     }
 

@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
-import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
@@ -65,42 +64,38 @@ public abstract class ProjectTransformationService implements TransformationServ
             Transformer<Project, ProjectIndexV1> {
         private final ProjectService projectService;
         private final ProductService productService;
-        private final TransformerProperties properties;
         private final ObjectMapper objectMapper;
 
 
         @Autowired
-        ProjectIndexV1Transformer(ProjectService projectService, ProductService productService, TransformerProperties properties, ObjectMapper objectMapper) {
+        ProjectIndexV1Transformer(ProjectService projectService, ProductService productService, ObjectMapper objectMapper) {
             this.projectService = projectService;
             this.productService = productService;
-            this.properties = properties;
             this.objectMapper = objectMapper;
         }
 
         @Override
         public List<ProjectIndexV1> transform(Project project) {
             String tenantId = project.getTenantId();
-            String projectType = project.getProjectType();
-            String subProjectType = project.getProjectSubType();
             String projectTypeId = project.getProjectTypeId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
             List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+                    .stream(mdmsBoundaryData.get(BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
+                    .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), tenantId);
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
-            Set<String> fieldsToCheck = new HashSet<>();
-            fieldsToCheck.add(Constants.BENEFICIARY_TYPE);
-            fieldsToCheck.add(Constants.TOTAL_NO_CHECK);
-            fieldsToCheck.add(Constants.TARGET_NO_CHECK);
+            Set<String> fieldsToCheck = new HashSet<>(Arrays.asList(
+                    BENEFICIARY_TYPE,
+                    TOTAL_NO_CHECK,
+                    TARGET_NO_CHECK
+            ));
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
             }
-            isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
+            isValidTargetsAdditionalDetails(project, targets, FIELD_TARGET, fieldsToCheck, BENEFICIARY_TYPE);
 
-            String projectTypeId = project.getProjectTypeId();
-            String projectBeneficiaryType = projectService.getProjectBeneficiaryType(project.getTenantId(), projectTypeId);
+            String projectBeneficiaryType = projectService.getProjectBeneficiaryType(tenantId, projectTypeId);
 
             return targets.stream().map(r -> {
                         Long startDate = project.getStartDate();
@@ -116,8 +111,8 @@ public abstract class ProjectTransformationService implements TransformationServ
                             }
                         }
 
-                        List<String> productVariants = projectService.getProducts(project.getTenantId(),
-                                project.getProjectTypeId());
+                        List<String> productVariants = projectService.getProducts(tenantId, project.getProjectTypeId());
+                        String productVariantName = String.join(COMMA, productService.getProductVariantNames(productVariants, project.getTenantId()));
                         String productVariant = null;
                         if (productVariants != null && !productVariants.isEmpty()) {
                             productVariant = String.join(COMMA, productVariants);
@@ -127,8 +122,6 @@ public abstract class ProjectTransformationService implements TransformationServ
                         }
 
                         ProjectIndexV1 projectIndexV1 = ProjectIndexV1.builder()
-                        String productVariantName = String.join(COMMA, productService.getProductVariantById(productVariants, project.getTenantId()));
-                        return ProjectIndexV1.builder()
                                 .id(r.getId())
                                 .projectId(project.getId())
                                 .projectBeneficiaryType(projectBeneficiaryType)
@@ -141,8 +134,8 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .productName(productVariantName)
                                 .targetType(r.getBeneficiaryType())
                                 .tenantId(tenantId)
-                                .projectType(projectType)
-                                .subProjectType(subProjectType)
+                                .projectType(project.getProjectType())
+                                .subProjectType(project.getProjectSubType())
                                 .createdTime(project.getAuditDetails().getCreatedTime())
                                 .createdBy(project.getAuditDetails().getCreatedBy())
                                 .lastModifiedTime(project.getAuditDetails().getLastModifiedTime())
@@ -152,36 +145,39 @@ public abstract class ProjectTransformationService implements TransformationServ
                             ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                             projectIndexV1.setBoundaryHierarchy(boundaryHierarchy);
                         }
-                        boundaryLevelVsLabel.forEach(node -> {
-                            if (node.get(Constants.LEVEL).asInt() > 1) {
-                                projectIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null :  boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
-                            }
-                        });
+                        boundaryLevelVsLabel.stream()
+                                .filter(node -> node.get(LEVEL).asInt() > 1)
+                                .forEach(node -> {
+                                    String label = node.get(INDEX_LABEL).asText();
+                                    String name = Optional.ofNullable(boundaryLabelToNameMap.get(node.get(LABEL).asText()))
+                                            .orElse(null);
+                                    projectIndexV1.getBoundaryHierarchy().put(label, name);
+                                });
                         return projectIndexV1;
                     }
             ).collect(Collectors.toList());
         }
 
         private void isValidTargetsAdditionalDetails(Project project, List<Target> targets, String fieldTarget, Set<String> fieldsToCheck, String beneficiaryType) {
-            if(project.getAdditionalDetails()!=null){
+            if (project.getAdditionalDetails() != null) {
                 JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
                 Set<String> beneficiaryTypes = targets.stream().map(Target::getBeneficiaryType).collect(Collectors.toSet());
-                if(additionalDetails.hasNonNull(fieldTarget)){
+                if (additionalDetails.hasNonNull(fieldTarget)) {
                     JsonNode targetArray = additionalDetails.get(fieldTarget);
-                    if(targetArray.isArray() && !targetArray.isEmpty()) {
-                        targetArray.forEach(target->{
+                    if (targetArray.isArray() && !targetArray.isEmpty()) {
+                        targetArray.forEach(target -> {
                             Iterator<String> fieldIterator = target.fieldNames();
                             Iterable<String> iterable = () -> fieldIterator;
                             Set<String> actualList = StreamSupport
                                     .stream(iterable.spliterator(), false)
                                     .collect(Collectors.toSet());
-                            if(actualList.containsAll(fieldsToCheck)){
-                                if(!beneficiaryTypes.contains(target.get(beneficiaryType).asText())){
+                            if (actualList.containsAll(fieldsToCheck)) {
+                                if (!beneficiaryTypes.contains(target.get(beneficiaryType).asText())) {
                                     try {
-                                        targets.add(objectMapper.treeToValue(target,Target.class));
+                                        targets.add(objectMapper.treeToValue(target, Target.class));
 
                                     } catch (JsonProcessingException e) {
-                                        log.error("target object :" + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
+                                        log.error("target object : " + target + " could not be processed {}", ExceptionUtils.getStackTrace(e));
                                     }
                                 }
                             }
