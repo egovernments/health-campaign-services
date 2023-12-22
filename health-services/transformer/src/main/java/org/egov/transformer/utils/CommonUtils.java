@@ -42,27 +42,15 @@ public class CommonUtils {
         return timeStamp;
     }
 
-    public List<ObjectNode> getGeoPoints(Address address) {
+    public List<Double> getGeoPoints(Address address) {
         if (address == null) {
             log.error("Address is null");
             throw new CustomException("GEO_POINT_FETCH_ERROR", "error in getting geo-points");
         }
-        List<String> pointsKey = new ArrayList<>(Arrays.asList("latitude", "longitude"));
-        return pointsKey.stream().map(point -> createGeoPoint(address, point)).collect(Collectors.toList());
+        List<Double> geoPoints = new ArrayList<>();
+        geoPoints.add(address.getLongitude());
+        geoPoints.add(address.getLatitude());
+        return geoPoints;
     }
 
-    private ObjectNode createGeoPoint(Address address, String key) {
-        ObjectNode geoPoint = objectMapper.createObjectNode();
-        switch (key) {
-            case "latitude": {
-                geoPoint.put(key, address.getLatitude());
-                break;
-            }
-            case "longitude": {
-                geoPoint.put(key, address.getLongitude());
-                break;
-            }
-        }
-        return geoPoint;
-    }
 }
