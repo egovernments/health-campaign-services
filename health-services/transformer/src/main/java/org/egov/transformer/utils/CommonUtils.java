@@ -42,7 +42,7 @@ public class CommonUtils {
         return timeStamp;
     }
 
-    public List<Double> getGeoPoints(Address address) {
+    public List<Double> getGeoPoint(Address address) {
         if (address == null || (address.getLongitude() == null && address.getLatitude() == null)) {
             return null;
         }

@@ -81,11 +81,9 @@ public class HouseholdService {
     }
 
     public HouseholdIndexV1 transform(Household household) {
-        HouseholdIndexV1 householdIndexV1 = HouseholdIndexV1.builder()
+         return HouseholdIndexV1.builder()
                 .household(household)
+                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .build();
-        householdIndexV1.getGeoPoints().set("geoPoints",
-                objectMapper.valueToTree(commonUtils.getGeoPoints(household.getAddress())));
-        return householdIndexV1;
     }
 }
