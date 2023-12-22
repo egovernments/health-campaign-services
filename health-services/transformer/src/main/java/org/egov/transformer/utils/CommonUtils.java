@@ -43,9 +43,8 @@ public class CommonUtils {
     }
 
     public List<Double> getGeoPoints(Address address) {
-        if (address == null) {
-            log.error("Address is null");
-            throw new CustomException("GEO_POINT_FETCH_ERROR", "error in getting geo-points");
+        if (address == null || (address.getLongitude() == null && address.getLatitude() == null)) {
+            return null;
         }
         List<Double> geoPoints = new ArrayList<>();
         geoPoints.add(address.getLongitude());
