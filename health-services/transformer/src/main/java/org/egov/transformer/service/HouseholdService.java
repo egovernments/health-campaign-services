@@ -76,9 +76,8 @@ public class HouseholdService {
 
     public HouseholdIndexV1 transform(Household household) {
         return HouseholdIndexV1.builder()
-                .id(household.getId())
-                .tenantId(household.getTenantId())
-                .clientReferenceId(household.getClientReferenceId())
+                .id("2434352523")
+                .household(household)
                 .build();
     }
 }

@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.household.Household;
 
 
 @Data
@@ -18,12 +18,6 @@ import org.egov.common.models.project.AdditionalFields;
 public class HouseholdIndexV1 {
     @JsonProperty("id")
     private String id;
-    @JsonProperty("projectId")
-    private String projectId;
-    @JsonProperty("tenantId")
-    private String clientReferenceId;
-    @JsonProperty("clientReferenceId")
-    private String tenantId;
-    @JsonProperty("additionalFields")
-    private AdditionalFields additionalFields;
+    @JsonProperty("household")
+    private Household household;
 }
