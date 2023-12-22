@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -13,6 +14,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -25,11 +27,15 @@ public class HouseholdService {
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
     private final Producer producer;
+    private final ObjectMapper objectMapper;
+    private final CommonUtils commonUtils;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.producer = producer;
+        this.objectMapper = objectMapper;
+        this.commonUtils = commonUtils;
     }
 
     public List<Household> searchHousehold(String clientRefId, String tenantId) {
@@ -75,9 +81,11 @@ public class HouseholdService {
     }
 
     public HouseholdIndexV1 transform(Household household) {
-        return HouseholdIndexV1.builder()
-                .id("2434352523")
+        HouseholdIndexV1 householdIndexV1 = HouseholdIndexV1.builder()
                 .household(household)
                 .build();
+        householdIndexV1.getGeoPoints().set("geoPoints",
+                objectMapper.valueToTree(commonUtils.getGeoPoints(household.getAddress())));
+        return householdIndexV1;
     }
 }
