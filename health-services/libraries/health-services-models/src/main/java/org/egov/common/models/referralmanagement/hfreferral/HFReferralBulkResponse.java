@@ -29,10 +29,10 @@ public class HFReferralBulkResponse {
     private List<HFReferral> hfReferrals;
 
     /**
-     * Add a Referral item to the list of Referrals in the bulk response.
+     * Add a HfReferral item to the list of HfReferrals in the bulk response.
      *
-     * @param hfReferralItem The Referral item to add to the response.
-     * @return The updated ReferralBulkResponse.
+     * @param hfReferralItem The HfReferral item to add to the response.
+     * @return The updated HFReferralBulkRequest.
      */
     public HFReferralBulkResponse addReferralItem(HFReferral hfReferralItem) {
         if(Objects.isNull(hfReferrals))
