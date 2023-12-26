@@ -84,7 +84,8 @@ module.exports = function (app) {
     "/hcm-moz-impl",
     "/project",
     "/project/staff/v1/_search",
-    "/project/v1/_search"
+    "/project/v1/_search",
+    "/facility/v1/_search"
 
   ].forEach((location) => app.use(location, createProxy));
   ["/pb-egov-assets"].forEach((location) => app.use(location, assetsProxy));

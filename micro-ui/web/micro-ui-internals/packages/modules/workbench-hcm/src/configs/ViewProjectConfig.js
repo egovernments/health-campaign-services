@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 export const data = (project) => {
   const { t } = useTranslation();
-  // console.log("data",project?.Project?.[0]?.id);
+
 
   return {
     cards: [
@@ -14,39 +14,39 @@ export const data = (project) => {
             values: [
               {
                 key: "WORKBENCH_PROJECT_NUMBER",
-                value: project?.Project?.[0]?.projectNumber,
+                value: project?.Project?.[0]?.projectNumber || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_NAME",
-                value: project?.Project?.[0]?.name,
+                value: project?.Project?.[0]?.name || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_TYPE",
-                value: project?.Project?.[0]?.projectType,
+                value: project?.Project?.[0]?.projectType || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_START_DATE",
-                value: Digit.DateUtils.ConvertEpochToDate(project?.Project?.[0]?.startDate),
+                value: Digit.DateUtils.ConvertEpochToDate(project?.Project?.[0]?.startDate) || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_END_DATE",
-                value: Digit.DateUtils.ConvertEpochToDate(project?.Project?.[0]?.endDate),
+                value: Digit.DateUtils.ConvertEpochToDate(project?.Project?.[0]?.endDate) || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_PRIMARY",
-                value: project?.Project?.[0]?.targets?.[0]?.beneficiaryType,
+                value: project?.Project?.[0]?.targets?.[0]?.beneficiaryType || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_PARENT_PROJECT_NUMBER",
-                value: project?.Project?.[0]?.ancestors?.[0]?.projectNumber || "null",
+                value: project?.Project?.[0]?.ancestors?.[0]?.projectNumber || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_PRIMARY_TARGET_NO",
-                value: project?.Project?.[0]?.targets?.[0]?.targetNo,
+                value: project?.Project?.[0]?.targets?.[0]?.targetNo || "NA",
               },
               {
                 key: "WORKBENCH_PROJECT_PRIMARY_TOTAL_NO",
-                value: project?.Project?.[0]?.targets?.[0]?.totalNo,
+                value: project?.Project?.[0]?.targets?.[0]?.totalNo || "NA",
               },
             ],
           },
@@ -60,34 +60,7 @@ export const data = (project) => {
             navigationKey: "card2",
             type: "COMPONENT",
             component: "ProjectBeneficiaryComponent",
-            props: { projectId: project?.Project?.[0]?.id },
-            // values: [
-            //   {
-            //     navigationKey: "card1",
-            //     sections: [
-            //       {
-            //         type: "DATA",
-            //         sectionHeader: { value: "WORKS_PROJECT_DETAILS", inlineStyles: {marginBottom : "16px", marginTop:"32px", fontSize: "24px"} },
-            //         values: [
-            //           {
-            //             key: "WORKS_ESTIMATE_TYPE",
-            //             value:  "ORIGINAL_ESTIMATE",
-            //           }
-            //         ],
-            //       },
-            //       {
-            //         type: "DATA",
-            //         sectionHeader: { value: "WORKS_LOCATION_DETAILS", inlineStyles: {marginBottom : "16px", marginTop:"32px", fontSize: "24px"} },
-            //         values: [
-            //           {
-            //             key: "WORKS_ESTIMATE_TYPE",
-            //             value:  "ORIGINAL_ESTIMATE",
-            //           }
-            //           ],
-            //       },
-            //     ],
-            //   }
-            // ]
+            props: {projectId : project?.Project?.[0]?.id},
           },
         ],
       },

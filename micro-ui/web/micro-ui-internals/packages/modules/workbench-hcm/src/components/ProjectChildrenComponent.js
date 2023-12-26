@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Card, Header, Button, Loader } from "@egovernments/digit-ui-react-components";
+import { Link } from "react-router-dom";
 
 const ProjectChildrenComponent = (props) => {
     const { t } = useTranslation();
@@ -27,10 +28,9 @@ const ProjectChildrenComponent = (props) => {
 
     const { isLoading, data: projectChildren } = Digit.Hooks.useCustomAPIHook(requestCriteria);
 
-    console.log("data", projectChildren);
-
     const projectsArray = projectChildren?.Project || [];
 
+    //converts the descendant array into the object
     const descendantsObject = {};
 
     projectsArray.forEach(project => {
@@ -41,58 +41,79 @@ const ProjectChildrenComponent = (props) => {
         });
     });
 
-    console.log(descendantsObject);
+    //converts the epoch to date
+    Object.values(descendantsObject).forEach(descendant => {
+        descendant.formattedStartDate = Digit.DateUtils.ConvertEpochToDate(descendant.startDate);
+        descendant.formattedEndDate = Digit.DateUtils.ConvertEpochToDate(descendant.endDate);
+    });
 
 
     const columns = [
         { label: t("DESCENDANTS_PROJECT_NUMBER"), key: "descendants.projectNumber" },
         { label: t("DESCENDANTS_PROJECT_NAME"), key: "descendants.name" },
         { label: t("DESCENDANTS_PROJECT_TYPE"), key: "descendants.projectType" },
-        { label: t("DESCENDANTS_START_DATE"), key: "descendants.startDate" },
-        { label: t("DESCENDANTS_END_DATE"), key: "descendants.endDate" }
+        { label: t("DESCENDANTS_START_DATE"), key: "descendants.formattedStartDate" },
+        { label: t("DESCENDANTS_END_DATE"), key: "descendants.formattedEndDate" }
     ];
-
 
     if (isLoading) {
         return <Loader></Loader>;
     }
-
-    return (
-        <div className="override-card">
+    if (!projectChildren?.Project[0]?.descendants) {
+        return (
+            <div>
             <Header className="works-header-view">{t("PROJECT_CHILDREN")}</Header>
+            <h1>{t("NO_PROJECT_CHILDREN")}</h1>
+            </div>
+        )
+    } else {
+        return (
+            <div className="override-card">
+                <Header className="works-header-view">{t("PROJECT_CHILDREN")}</Header>
+                <table className="table reports-table sub-work-table">
+                    <thead>
+                        <tr>
+                            {columns.map((column, index) => (
+                                <th key={index}>{column.label}</th>
+                            ))}
+                        </tr>
+                    </thead>
 
-            <table className="table reports-table sub-work-table">
-                <thead>
-                    <tr>
-                        {columns.map((column, index) => (
-                            <th key={index}>{column.label}</th>
-                        ))}
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {projectsArray.map((project, rowIndex) => (
-                        <React.Fragment key={rowIndex}>
-                            <tr>
+                    <tbody>
+                        {projectsArray.map((project, rowIndex) => (
+                            <tr key={rowIndex}>
                                 {columns.map((column, columnIndex) => (
                                     <td key={columnIndex}>
                                         {column.key.includes("descendants.")
-                                            ? project.descendants.map((descendant, descIndex) => (
+                                            ? project.descendants?.map((descendant, descIndex) => (
                                                 <div key={descIndex}>
-                                                    {descendant[column.key.split("descendants.")[1]]}
+                                                    {column.key.split("descendants.")[1] === "projectNumber" && descendant[column.key.split("descendants.")[1]] ? (
+                                                        <Link
+                                                            to={{
+                                                                pathname: window.location.pathname,
+                                                                search: `?tenantId=${descendant.tenantId}&projectNumber=${descendant.projectNumber}`,
+                                                            }}
+                                                            style={{ color: "#f37f12" }}
+                                                        >
+                                                            {descendant[column.key.split("descendants.")[1]]}
+                                                        </Link>
+                                                    ) : (
+                                                        descendant[column.key.split("descendants.")[1]] || "NA"
+                                                    )}
                                                 </div>
                                             ))
-                                            : project[column.key]}
+                                            : project[column.key] || "NA"}
                                     </td>
                                 ))}
                             </tr>
-                        </React.Fragment>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
+                        ))}
+                    </tbody>
 
+                </table>
+
+            </div>
+        );
+    }
 }
 
 export default ProjectChildrenComponent;

@@ -7,7 +7,6 @@ import DataIngestionComponent from "../../components/IngestionComponents/DataIng
 import ErrorViewPage from "./ErrorViewPage";
 
 import IngestionInbox from "./IngestionInbox";
-
 import ViewProject from "./ViewProject";
 
 const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
@@ -96,6 +95,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/project`} component={() => <DataIngestionComponent ingestionType={"project"} />} />
           <PrivateRoute path={`${path}/campaign-view`} component={() => <ViewProject />} />
           <PrivateRoute path={`${path}/microplan`} component={() => <DataIngestionComponent ingestionType={"microplan"} />} />
+
         </AppContainer>
       </Switch>
     </React.Fragment>

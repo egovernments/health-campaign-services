@@ -3,8 +3,6 @@ import { useTranslation } from "react-i18next";
 import { Card, Header, Button, Loader } from "@egovernments/digit-ui-react-components";
 import { data } from "../configs/ViewProjectConfig";
 
-console.log("projectConfig",data);
-
 const ProjectBeneficiaryComponent = (props) => {
     const { t } = useTranslation();
     
@@ -27,7 +25,6 @@ const ProjectBeneficiaryComponent = (props) => {
 
     const {isLoading, data: projectResource } = Digit.Hooks.useCustomAPIHook(requestCriteria);
 
-    console.log("resource",projectResource);
 
     const columns = [
         { label: t("PROJECT_RESOURCE_ID"), key: "id" },
@@ -48,8 +45,9 @@ const ProjectBeneficiaryComponent = (props) => {
     return (
         <div className="override-card">
             <Header className="works-header-view">{t("PROJECT_RESOURCE")}</Header>
-
-            
+            {projectResource?.ProjectResources.length ===0 ? (
+                <h1>{t("NO_PROJECT_RESOURCE")}</h1>
+            ) : (
             <table className="table reports-table sub-work-table">
                 <thead>
                     <tr>
@@ -65,22 +63,18 @@ const ProjectBeneficiaryComponent = (props) => {
                                 <td key={columnIndex}>
                                     {column.key.includes("resource.")
                                         ? row.resource[column.key.split("resource.")[1]]
-                                        : row[column.key]}
+                                        : row[column.key] || "NA"}
                                 </td>
                             ))}
                         </tr>
                     ))}
                 </tbody>
             </table>
+            
+            )}
 
         </div>
-
-
     )
-
-    // return (
-    //     null
-    // )
 }
 
 export default ProjectBeneficiaryComponent

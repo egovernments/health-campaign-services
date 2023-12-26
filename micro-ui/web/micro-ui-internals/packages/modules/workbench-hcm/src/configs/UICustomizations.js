@@ -51,6 +51,7 @@ export const UICustomizations = {
       return false;
     },
     preProcess: (data) => {
+      
       const location = useLocation();
       data.params = { ...data.params };
       const { masterName } = useParams();
@@ -155,6 +156,19 @@ export const UICustomizations = {
           selectConfig: {},
           textConfig: ["faciltyUsage", "localityCode", "storageCapacity", "id"],
         },
+        SearchProjectFacilityConfig: {
+          basePath: "ProjectFacility", 
+          pathConfig: {
+            id: "id[0]",
+            projectId: "projectId[0]",
+            facilityId: "facilityId[0]"
+          },
+          dateConfig: {
+          },
+          selectConfig: {
+          },
+          textConfig :["id","projectId","facilityId"]
+        }
       };
 
       const id = searchParams.get("config") || masterName;
@@ -200,15 +214,19 @@ export const UICustomizations = {
       return data;
     },
     additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      
       //here we can add multiple conditions
       //like if a cell is link then we return link
       //first we can identify which column it belongs to then we can return relevant result
       switch (key) {
-        case "MASTERS_WAGESEEKER_ID":
+        case "PROJECT_NUMBER":
+          
           return (
             <span className="link">
-              <Link to={`/${window.contextPath}/employee/masters/view-wageseeker?tenantId=${row?.tenantId}&individualId=${value}`}>
-                {String(value ? (column.translate ? t(column.prefix ? `${column.prefix}${value}` : value) : value) : t("ES_COMMON_NA"))}
+              <Link
+                to={`/${window.contextPath}/employee/hcmworkbench/campaign-view?tenantId=${row?.tenantId}&projectNumber=${row?.projectNumber}`}
+              >{row?.projectNumber}
+
               </Link>
             </span>
           );
