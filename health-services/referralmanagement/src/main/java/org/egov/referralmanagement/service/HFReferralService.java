@@ -101,7 +101,7 @@ public class HFReferralService {
                 log.info("processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.create(validReferrals, hfReferralRequest);
                 hfReferralRepository.save(validReferrals,
-                        referralManagementConfiguration.getCreateReferralTopic());
+                        referralManagementConfiguration.getCreateHFReferralTopic());
                 log.info("successfully created referrals");
             }
         } catch (Exception exception) {
@@ -134,7 +134,7 @@ public class HFReferralService {
                 log.info("processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.update(validReferrals, hfReferralRequest);
                 hfReferralRepository.save(validReferrals,
-                        referralManagementConfiguration.getUpdateReferralTopic());
+                        referralManagementConfiguration.getUpdateHFReferralTopic());
                 log.info("successfully updated bulk referrals");
             }
         } catch (Exception exception) {
@@ -194,7 +194,7 @@ public class HFReferralService {
                         .findById(referralIds, false);
                 hfReferralEnrichmentService.delete(existingReferrals, hfReferralRequest);
                 hfReferralRepository.save(existingReferrals,
-                        referralManagementConfiguration.getDeleteReferralTopic());
+                        referralManagementConfiguration.getDeleteHFReferralTopic());
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
