@@ -12,7 +12,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import static org.egov.common.utils.CommonUtils.validateForNullId;
-import static org.egov.referralmanagement.Constants.GET_REFERRALS;
+import static org.egov.referralmanagement.Constants.GET_HF_REFERRALS;
 
 
 @Component
@@ -22,6 +22,6 @@ public class HfrNullIdValidator implements Validator<HFReferralBulkRequest, HFRe
     @Override
     public Map<HFReferral, List<Error>> validate(HFReferralBulkRequest request) {
         log.info("validating for null id");
-        return validateForNullId(request, GET_REFERRALS);
+        return validateForNullId(request, GET_HF_REFERRALS);
     }
 }

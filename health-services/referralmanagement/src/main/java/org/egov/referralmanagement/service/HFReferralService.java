@@ -107,7 +107,7 @@ public class HFReferralService {
         } catch (Exception exception) {
             log.error("error occurred while creating referrals: {}", exception.getMessage());
             populateErrorDetails(hfReferralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_REFERRALS);
+                    exception, Constants.SET_HF_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -140,7 +140,7 @@ public class HFReferralService {
         } catch (Exception exception) {
             log.error("error occurred while updating referrals", exception);
             populateErrorDetails(hfReferralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_REFERRALS);
+                    exception, Constants.SET_HF_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -200,7 +200,7 @@ public class HFReferralService {
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);
             populateErrorDetails(hfReferralRequest, errorDetailsMap, validReferrals,
-                    exception, Constants.SET_REFERRALS);
+                    exception, Constants.SET_HF_REFERRALS);
         }
         handleErrors(errorDetailsMap, isBulk, Constants.VALIDATION_ERROR);
 
@@ -222,7 +222,7 @@ public class HFReferralService {
         log.info("validating request");
         Map<HFReferral, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
-                Constants.SET_REFERRALS);
+                Constants.SET_HF_REFERRALS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
             log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
             throw new CustomException(Constants.VALIDATION_ERROR, errorDetailsMap.values().toString());

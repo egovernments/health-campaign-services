@@ -48,10 +48,10 @@ public class HfrProjectIdValidator implements Validator<HFReferralBulkRequest, H
         Map<HFReferral, List<Error>> errorDetailsMap = new HashMap<>();
         List<HFReferral> entities = request.getHfReferrals();
         Map<String, List<HFReferral>> tenantIdReferralMap = entities.stream().collect(Collectors.groupingBy(HFReferral::getTenantId));
-        tenantIdReferralMap.forEach((tenantId, referralList) -> {
+        tenantIdReferralMap.forEach((tenantId, hfReferralList) -> {
             /** Get all the existing project in the hfReferral list from Project Service
              */
-            List<Project> existingProjects = getExistingProjects(tenantId, referralList, request);
+            List<Project> existingProjects = getExistingProjects(tenantId, hfReferralList, request);
             /** Validate project and populate error map if invalid entities are found
              */
             validateAndPopulateErrors(existingProjects, entities, errorDetailsMap);
@@ -90,7 +90,6 @@ public class HfrProjectIdValidator implements Validator<HFReferralBulkRequest, H
 
     private void validateAndPopulateErrors(List<Project> existingProjects, List<HFReferral> entities, Map<HFReferral, List<Error>> errorDetailsMap) {
         final List<String> existingProjectIds = new ArrayList<>();
-        final List<String> existingProjectClientReferenceIds = new ArrayList<>();
         existingProjects.forEach(project -> {
             existingProjectIds.add(project.getId());
         });

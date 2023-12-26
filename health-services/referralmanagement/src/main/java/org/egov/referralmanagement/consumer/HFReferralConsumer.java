@@ -30,7 +30,7 @@ public class HFReferralConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "${referralmanagement.hfrefferal.consumer.bulk.create.topic}")
+    @KafkaListener(topics = "${referralmanagement.hfreferral.consumer.bulk.create.topic}")
     public void bulkCreate(Map<String, Object> consumerRecord,
                                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -43,7 +43,7 @@ public class HFReferralConsumer {
         }
     }
 
-    @KafkaListener(topics = "${referralmanagement.hfrefferal.consumer.bulk.update.topic}")
+    @KafkaListener(topics = "${referralmanagement.hfreferral.consumer.bulk.update.topic}")
     public void bulkUpdate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
@@ -56,7 +56,7 @@ public class HFReferralConsumer {
         }
     }
 
-    @KafkaListener(topics = "${referralmanagement.hfrefferal.consumer.bulk.delete.topic}")
+    @KafkaListener(topics = "${referralmanagement.hfreferral.consumer.bulk.delete.topic}")
     public void bulkDelete(Map<String, Object> consumerRecord,
                                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
