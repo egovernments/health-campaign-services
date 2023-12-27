@@ -56,8 +56,7 @@ public class HFReferralService {
     private final List<Validator<HFReferralBulkRequest, HFReferral>> validators;
 
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForCreate = validator ->
-            validator.getClass().equals(HfrProjectIdValidator.class)
-                || validator.getClass().equals(HfrRowVersionValidator.class);
+            validator.getClass().equals(HfrProjectIdValidator.class);
 
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HfrProjectIdValidator.class)

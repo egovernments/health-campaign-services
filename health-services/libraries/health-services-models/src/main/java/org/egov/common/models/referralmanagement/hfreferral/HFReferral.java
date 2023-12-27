@@ -48,7 +48,6 @@ public class HFReferral {
     private String symptom;
 
     @JsonProperty("symptomSurveyId")
-    @NotNull
     @Size(min = 2, max = 100)
     private String symptomSurveyId;
 
