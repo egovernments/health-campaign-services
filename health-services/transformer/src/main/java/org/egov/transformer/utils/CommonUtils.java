@@ -50,7 +50,7 @@ public class CommonUtils {
             // get the methods required to read values from address object
             Method getLongitudeMethod = addressClass.getMethod("getLongitude");
             Method getLatitudeMethod = addressClass.getMethod("getLatitude");
-            
+
             //invoke methods to read values
             Double longitude = (Double) getLongitudeMethod.invoke(address);
             Double latitude = (Double) getLatitudeMethod.invoke(address);
@@ -66,7 +66,8 @@ public class CommonUtils {
             return geoPoint;
 
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            throw new CustomException("ERROR_IN_GEO_POINT_EXTRACTION", e.toString());
+            log.error("ERROR_IN_GEO_POINT_EXTRACTION : " + e);
+            return null;
         }
     }
 
