@@ -8,7 +8,7 @@ export const statusBasedNavigation = ( ingestionStatus, jobid , value) => {
     let linkTo = `/${window?.contextPath}/employee/hcmworkbench/inbox`;
 
     if (ingestionStatus !== "Completed") {
-        linkTo = `/${window?.contextPath}/employee/hcmworkbench/view?jobId=${jobid}`;
+        linkTo = `/${window?.contextPath}/employee/hcmworkbench/view?jobid=${jobid}`;
     }
 
     return (

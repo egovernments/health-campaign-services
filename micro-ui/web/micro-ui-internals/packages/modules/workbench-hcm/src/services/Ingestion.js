@@ -107,6 +107,15 @@ const IngestionService = {
               data: formData,
             },
           }),
+          fileStoreSearch: async (searchParams) => 
+          await Request({
+              url: "/filestore/v1/files/url",
+              useCache: false,
+              method: "GET",
+              auth: true,
+              userService: true,
+              params: searchParams,
+            }),
 
         
 
