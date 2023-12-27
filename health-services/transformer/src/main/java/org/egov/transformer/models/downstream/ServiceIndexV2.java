@@ -20,7 +20,21 @@ public class ServiceIndexV2 {
     private String supervisorLevel;
     @JsonProperty("checklistName")
     private String checklistName;
-    @JsonProperty("attribute")
-    private ObjectNode attribute;
+    @JsonProperty("ageGroup")
+    private String ageGroup;
+    @JsonProperty("childrenPresented")
+    private Object childrenPresented;
+    @JsonProperty("feverPositive")
+    private Object feverPositive;
+    @JsonProperty("feverNegative")
+    private Object feverNegative;
+    @JsonProperty("referredChildrenToAPE")
+    private Object referredChildrenToAPE;
+    @JsonProperty("referredChildrenPresentedToAPE")
+    private Object referredChildrenPresentedToAPE;
+    @JsonProperty("positiveMalaria")
+    private Object positiveMalaria;
+    @JsonProperty("negativeMalaria")
+    private Object negativeMalaria;
 
 }

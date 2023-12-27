@@ -22,9 +22,16 @@ public interface Constants {
     String HYPHEN = "-";
     String LEVEL = "level";
     String LABEL = "label";
-    String INDEX_LABEL ="indexLabel";
+    String INDEX_LABEL = "indexLabel";
     String BOUNDARY_HIERARCHY = "boundaryHierarchy";
     String BOUNDARY_DATA = "boundaryData";
     String ID = "id";
+    String CHILDREN_PRESENTED = "childrenPresented";
+    String FEVER_POSITIVE = "feverPositive";
+    String FEVER_NEGATIVE = "feverNegative";
+    String REFERRED_CHILDREN_TO_APE = "referredChildrenToAPE";
+    String REFERRED_CHILDREN_PRESENTED_TO_APE = "referredChildrenPresentedToAPE";
+    String POSITIVE_MALARIA = "positiveMalaria";
+    String NEGATIVE_MALARIA = "negativeMalaria";
 
 }

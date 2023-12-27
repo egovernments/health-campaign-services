@@ -107,9 +107,6 @@ public class TransformerProperties {
     @Value("${egov.timestamp.timeZone}")
     private String timeZone;
 
-    @Value("${service.attribute.code}")
-    private String attributesToCheck;
-
     @Value("${service.checklist.name}")
     private String checkListName;
 
