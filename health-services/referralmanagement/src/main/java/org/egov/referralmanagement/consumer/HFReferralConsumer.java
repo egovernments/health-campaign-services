@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
+import org.egov.referralmanagement.service.HFReferralService;
 import org.egov.referralmanagement.service.ReferralManagementService;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,14 +21,14 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class HFReferralConsumer {
 
-    private final ReferralManagementService referralManagementService;
+    private final HFReferralService hfReferralService;
 
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public HFReferralConsumer(ReferralManagementService referralManagementService,
+    public HFReferralConsumer(HFReferralService hfReferralService,
                               @Qualifier("objectMapper") ObjectMapper objectMapper) {
-        this.referralManagementService = referralManagementService;
+        this.hfReferralService = hfReferralService;
         this.objectMapper = objectMapper;
     }
 
@@ -34,10 +36,10 @@ public class HFReferralConsumer {
     public void bulkCreate(Map<String, Object> consumerRecord,
                                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            ReferralBulkRequest request = objectMapper.convertValue(consumerRecord, ReferralBulkRequest.class);
-            referralManagementService.create(request, true);
+            HFReferralBulkRequest request = objectMapper.convertValue(consumerRecord, HFReferralBulkRequest.class);
+            hfReferralService.create(request, true);
         } catch (Exception exception) {
-            log.error("Error in Referral consumer bulk create", exception);
+            log.error("Error in HFReferral consumer bulk create", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("HCM_REFERRAL_MANAGEMENT_REFERRAL_CREATE", exception.getMessage());
         }
@@ -47,10 +49,10 @@ public class HFReferralConsumer {
     public void bulkUpdate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            ReferralBulkRequest request = objectMapper.convertValue(consumerRecord, ReferralBulkRequest.class);
-            referralManagementService.update(request, true);
+            HFReferralBulkRequest request = objectMapper.convertValue(consumerRecord, HFReferralBulkRequest.class);
+            hfReferralService.update(request, true);
         } catch (Exception exception) {
-            log.error("Error in Referral consumer bulk update", exception);
+            log.error("Error in HFReferral consumer bulk update", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("HCM_REFERRAL_MANAGEMENT_REFERRAL_UPDATE", exception.getMessage());
         }
@@ -60,10 +62,10 @@ public class HFReferralConsumer {
     public void bulkDelete(Map<String, Object> consumerRecord,
                                                @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            ReferralBulkRequest request = objectMapper.convertValue(consumerRecord, ReferralBulkRequest.class);
-            referralManagementService.delete(request, true);
+            HFReferralBulkRequest request = objectMapper.convertValue(consumerRecord, HFReferralBulkRequest.class);
+            hfReferralService.delete(request, true);
         } catch (Exception exception) {
-            log.error("Error in Referral consumer bulk delete", exception);
+            log.error("Error in HFReferral consumer bulk delete", exception);
             log.error("Exception trace: ", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("HCM_REFERRAL_MANAGEMENT_REFERRAL_DELETE", exception.getMessage());
         }
