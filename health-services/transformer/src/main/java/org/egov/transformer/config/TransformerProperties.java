@@ -35,10 +35,10 @@ public class TransformerProperties {
     @Value("${egov.search.project.url}")
     private String projectSearchUrl;
 
-    @Value("${egov.project.host}")
+    @Value("${egov.individual.host}")
     private String individualHost;
 
-    @Value("${egov.search.project.url}")
+    @Value("${egov.search.individual.url}")
     private String individualSearchUrl;
 
     @Value("${egov.search.project.beneficiary.url}")
@@ -59,14 +59,14 @@ public class TransformerProperties {
     @Value("${egov.facility.host}")
     private String facilityHost;
 
-    @Value("${egov.product.host}")
-    private String productHost;
+//    @Value("${egov.product.host}")
+//    private String productHost;
 
     @Value("${egov.search.facility.url}")
     private String facilitySearchUrl;
 
-    @Value("${egov.search.product.url}")
-    private String productSearchUrl;
+//    @Value("${egov.search.product.url}")
+//    private String productSearchUrl;
 
     @Value("${egov.search.servicedefinition.url}")
     private String serviceDefinitionSearchUrl;

@@ -16,10 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -106,10 +104,14 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
-            Map<String, Date> IndividualDOBs = new ConcurrentHashMap<>();
-            Map<String, Integer> IndividualAges = new ConcurrentHashMap<>();
-            projectBeneficiaries.forEach(projectBeneficiary1 -> IndividualDOBs.put(projectBeneficiary1.getClientReferenceId(),individualService.findIndividualByClientReferenceId(projectBeneficiary1.getClientReferenceId(), tenantId)));
-            projectBeneficiaries.forEach(projectBeneficiary1 -> IndividualAges.put(projectBeneficiary1.getClientReferenceId(),commonUtils.calculateAgeInMonthsFromDOB(IndividualDOBs.get(projectBeneficiary1.getClientReferenceId()))));
+            String clientReferenceId = projectBeneficiaries.get(0).getClientReferenceId();
+            Date individualDOB = individualService.findIndividualByClientReferenceId(clientReferenceId, tenantId);
+
+            individualDOB = (individualDOB != null) ? individualDOB :null;
+            int individualAgeInMonths = (individualDOB != null)
+                    ? commonUtils.calculateAgeInMonthsFromDOB(individualDOB)
+                    : 0;
+            long individualDOBInEpoch= individualDOB!=null?individualDOB.getTime():0;
             if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
                 projectBeneficiary = projectBeneficiaries.get(0);
                 List<Household> households = householdService.searchHousehold(projectBeneficiary
@@ -134,6 +136,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
+                            .age(individualAgeInMonths)
+                            .dateOfBirth(individualDOBInEpoch)
                             .taskId(task.getId())
                             .clientReferenceId(r.getClientReferenceId())
                             .tenantId(tenantId)
@@ -153,7 +157,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .administrativeProvince(finalBoundaryLabelToNameMap != null ?
                                     finalBoundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                             .locality(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getLocality()) : null)
-                            .healthFacility(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
+//                            .healthFacility(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
                             .village(finalBoundaryLabelToNameMap != null ? finalBoundaryLabelToNameMap.get(properties.getVillage()) : null)
                             .latitude(task.getAddress().getLatitude())
                             .longitude(task.getAddress().getLongitude())
