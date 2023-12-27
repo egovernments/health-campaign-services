@@ -29,6 +29,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.stock.index.v1.topic}")
     private String transformerProducerBulkStockIndexV1Topic;
 
+    @Value("${transformer.producer.bulk.household.index.v1.topic}")
+    private String transformerProducerBulkHouseholdIndexV1Topic;
+
     @Value("${transformer.producer.service.index.v2.topic}")
     private String transformerProducerServiceIndexV2Topic;
 
