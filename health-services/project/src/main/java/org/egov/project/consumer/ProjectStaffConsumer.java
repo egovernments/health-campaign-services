@@ -35,7 +35,7 @@ public class ProjectStaffConsumer {
             ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
             return service.create(request, true);
         } catch (Exception exception) {
-            log.error("error in project staff consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project staff consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -47,7 +47,7 @@ public class ProjectStaffConsumer {
             ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
             return service.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project staff consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project staff consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -59,7 +59,7 @@ public class ProjectStaffConsumer {
             ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
             return service.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project staff consumer bulk delete", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project staff consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

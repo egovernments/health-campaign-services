@@ -102,7 +102,7 @@ public class PsUserIdValidator implements Validator<ProjectStaffBulkRequest, Pro
                     }
                 }
             } catch (Exception exception) {
-                log.error("error while validating users", ExceptionUtils.getStackTrace(exception));
+                log.error("error while validating users: {}", ExceptionUtils.getStackTrace(exception));
                 entities.stream().filter(notHavingErrors()).forEach(b -> {
                     Error error = getErrorForEntityWithNetworkError();
                     populateErrorDetails(b, error, errorDetailsMap);

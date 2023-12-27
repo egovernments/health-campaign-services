@@ -39,7 +39,7 @@ public class ProjectBeneficiaryConsumer {
             BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
             return projectBeneficiaryService.create(request, true);
         } catch (Exception exception) {
-            log.error("error in project beneficiary consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project beneficiary consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -51,7 +51,7 @@ public class ProjectBeneficiaryConsumer {
             BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
             return projectBeneficiaryService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project beneficiary consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project beneficiary consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -63,7 +63,7 @@ public class ProjectBeneficiaryConsumer {
             BeneficiaryBulkRequest request = objectMapper.convertValue(consumerRecord, BeneficiaryBulkRequest.class);
             return projectBeneficiaryService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project beneficiary consumer bulk delete", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project beneficiary consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

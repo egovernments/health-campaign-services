@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.project.Field;
 import org.egov.common.models.project.ProjectBeneficiary;
 
 import javax.validation.Valid;
@@ -43,14 +44,6 @@ public class ProjectTaskIndexV1 {
     private String productName;
     @JsonProperty("quantity")
     private Double quantity;
-    @JsonProperty("doseNumber")
-    private Integer doseNumber;
-    @JsonProperty("cycleNumber")
-    private Integer cycleNumber;
-    @JsonProperty("quantityWasted")
-    private Integer quantityWasted;
-    @JsonProperty("deliveryStrategy")
-    private String deliveryStrategy;
     @JsonProperty("deliveredTo")
     private String deliveredTo;
     @JsonProperty("isDelivered")
@@ -99,7 +92,7 @@ public class ProjectTaskIndexV1 {
     private Long syncedTime;
     @JsonProperty("additionalFields")
     private AdditionalFields additionalFields;
-    @JsonProperty("geoPoint")
-    private List<Double> geoPoint;
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 
 }

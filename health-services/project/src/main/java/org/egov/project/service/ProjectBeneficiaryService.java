@@ -165,7 +165,7 @@ public class ProjectBeneficiaryService {
                 log.info("successfully updated bulk project beneficiaries");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project beneficiaries", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while updating project beneficiaries: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(beneficiaryRequest, errorDetailsMap, validProjectBeneficiaries,
                     exception, SET_PROJECT_BENEFICIARIES);
         }

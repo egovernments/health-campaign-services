@@ -156,7 +156,7 @@ public class ProjectFacilityService {
                 log.info("successfully updated bulk project facility");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project facility", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while updating project facility: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 

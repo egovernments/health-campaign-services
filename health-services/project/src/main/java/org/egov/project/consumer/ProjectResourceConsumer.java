@@ -36,7 +36,7 @@ public class ProjectResourceConsumer {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.create(request, true);
         } catch (Exception exception) {
-            log.error("error in project resource consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project resource consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -48,7 +48,7 @@ public class ProjectResourceConsumer {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project resource consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project resource consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -60,7 +60,7 @@ public class ProjectResourceConsumer {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project resource consumer bulk delete", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project resource consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

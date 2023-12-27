@@ -108,8 +108,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             // fetch project beneficiary
             String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
-            log.info("get member count for project beneficiary client reference id {}",
-                    projectBeneficiaryClientReferenceId);
 
             ProjectBeneficiary projectBeneficiary = null;
 
@@ -158,7 +156,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId)
                     .syncedTimeStamp(syncedTimeStamp)
                     .syncedTime(task.getAuditDetails().getCreatedTime())
-//                    .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .build();
             List<String> variantList= new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
@@ -201,70 +198,47 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 projectTaskIndexV1.setHousehold(finalHousehold);
                 projectTaskIndexV1.setMemberCount(memberCount);
 
-            } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
-
-                projectTaskIndexV1.setDoseNumber(getDose(task));
-                projectTaskIndexV1.setCycleNumber(getCycle(task));
-                projectTaskIndexV1.setDeliveryStrategy(getDeliveryStrategy(task));
-                projectTaskIndexV1.setQuantityWasted(getResourcesWasted(taskResource));
-                projectTaskIndexV1.setAdministrationStatus(task.getStatus());
-
             }
+
+            projectTaskIndexV1.setAdministrationStatus(task.getStatus());
+            projectTaskIndexV1.setAdditionalDetails(addAdditionalDetails(task, taskResource));
             return projectTaskIndexV1;
         }
 
-        private Integer getDose(Task task) {
-            AdditionalFields taskAdditionalFields = task.getAdditionalFields();
-            if (taskAdditionalFields != null) {
-                return taskAdditionalFields.getFields().stream()
-                        .filter(field -> DOSE_NUMBER.equalsIgnoreCase(field.getKey()))
-                        .map(field -> field.getValue())
-                        .filter(Objects::nonNull)
-                        .map(Integer::valueOf)
-                        .findFirst()
-                        .orElse(null);
+
+
+        private ObjectNode addAdditionalDetails(Task task, TaskResource taskResource) {
+            ObjectNode additionalDetails = objectMapper.createObjectNode();
+
+            AdditionalFields additionalFields = task.getAdditionalFields();
+            if (additionalFields != null) {
+                additionalFields.getFields().forEach(field -> {
+                    String key = field.getKey();
+                    if (DOSE_NUMBER.equalsIgnoreCase(key) || CYCLE_NUMBER.equalsIgnoreCase(key)) {
+                        additionalDetails.put(key, getValue(key, additionalFields, Integer.class, null));
+                    }
+                    else {
+                        additionalDetails.put(key, field.getValue());
+                    }
+                });
             }
-            return null;
+            additionalDetails.put(QUANTITY_WASTED, getValue(QUANTITY_WASTED, taskResource.getAdditionalFields(), Integer.class, 0));
+
+            return additionalDetails;
         }
 
-        private Integer getCycle(Task task) {
-            AdditionalFields taskAdditionalFields = task.getAdditionalFields();
-            if (taskAdditionalFields != null) {
-                return taskAdditionalFields.getFields().stream()
-                        .filter(field -> CYCLE_NUMBER.equalsIgnoreCase(field.getKey()))
-                        .map(Field::getValue)
-                        .filter(Objects::nonNull)
-                        .map(Integer::valueOf)
-                        .findFirst()
-                        .orElse(null);
-            }
-            return null;
-        }
-        private String getDeliveryStrategy(Task task) {
-            AdditionalFields taskAdditionalFields = task.getAdditionalFields();
-            if (taskAdditionalFields != null) {
-                return taskAdditionalFields.getFields().stream()
-                        .filter(field -> DELIVERY_STRATEGY.equalsIgnoreCase(field.getKey()))
-                        .map(Field::getValue)
-                        .filter(Objects::nonNull)
-                        .findFirst()
-                        .orElse(null);
-            }
-            return null;
-        }
 
-        private Integer getResourcesWasted(TaskResource taskResource) {
-            AdditionalFields resourceAdditionalFields = taskResource.getAdditionalFields();
-            if (resourceAdditionalFields != null) {
-                return resourceAdditionalFields.getFields().stream()
-                        .filter(field -> QUANTITY_WASTED.equalsIgnoreCase(field.getKey()))
+        private <T> T getValue(String key, AdditionalFields additionalFields, Class<T> valueType, T defaultValue) {
+            if (additionalFields != null && additionalFields.getFields() != null) {
+                return additionalFields.getFields().stream()
+                        .filter(field -> key.equalsIgnoreCase(field.getKey()))
                         .map(Field::getValue)
                         .filter(Objects::nonNull)
-                        .map(Integer::valueOf)
+                        .map(valueType::cast)
                         .findFirst()
-                        .orElse(0);
+                        .orElse(defaultValue);
             }
-            return 0;
+            return defaultValue;
         }
     }
 }
