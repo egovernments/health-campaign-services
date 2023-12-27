@@ -16,6 +16,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.egov.transformer.Constants.*;
+
 @Service
 @Slf4j
 public class IndividualService {
@@ -50,10 +52,10 @@ public class IndividualService {
         IndividualBulkResponse response;
 
         Map<String, Object> individualDetails = new HashMap<>();
-        individualDetails.put("age", null);
-        individualDetails.put("gender", null);
-        individualDetails.put("dateOfBirth", null);
-        individualDetails.put("individualId", null);
+        individualDetails.put(AGE, null);
+        individualDetails.put(GENDER, null);
+        individualDetails.put(DATE_OF_BIRTH, null);
+        individualDetails.put(INDIVIDUAL_ID, null);
 
         try {
             response = serviceRequestClient.fetchResult(
@@ -65,10 +67,10 @@ public class IndividualService {
                     IndividualBulkResponse.class);
             Individual individual = response.getIndividual().get(0);
 
-            individualDetails.put("age", commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()));
-            individualDetails.put("gender", individual.getGender().toString());
-            individualDetails.put("individualId", individual.getIndividualId());
-            individualDetails.put("dateOfBirth", individual.getDateOfBirth().getTime());
+            individualDetails.put(AGE, commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()));
+            individualDetails.put(GENDER, individual.getGender().toString());
+            individualDetails.put(INDIVIDUAL_ID, individual.getIndividualId());
+            individualDetails.put(DATE_OF_BIRTH, individual.getDateOfBirth().getTime());
             return individualDetails;
         } catch (Exception e) {
             log.error("error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
