@@ -40,32 +40,30 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
     public List<HFReferral> find(HFReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                  Long lastChangedSince, Boolean includeDeleted) {
       
-        String query = "SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.sideeffectclientreferenceid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid";
+        String query = "SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.facilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
-        query = query.replace("id IN (:id)", "r.id IN (:id)");
-        query = query.replace("clientReferenceId IN (:clientReferenceId)", "r.clientReferenceId IN (:clientReferenceId)");
-        query = query.replace("projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)", "r.projectBeneficiaryClientReferenceId IN (:projectBeneficiaryClientReferenceId)");
-        query = query.replace("projectBeneficiaryId IN (:projectBeneficiaryId)", "r.projectBeneficiaryId IN (:projectBeneficiaryId)");
-        
-        query = query + " and r.tenantId=:tenantId ";
+        query = query.replace("id IN (:id)", "hf.id IN (:id)");
+        query = query.replace("clientReferenceId IN (:clientReferenceId)", "hf.clientReferenceId IN (:clientReferenceId)");
+
+        query = query + " and hf.tenantId=:tenantId ";
         if (Boolean.FALSE.equals(includeDeleted)) {
-            query = query + "and r.isDeleted=:isDeleted ";
+            query = query + "and hf.isDeleted=:isDeleted ";
         }
 
         if (lastChangedSince != null) {
-            query = query + "and r.lastModifiedTime>=:lastModifiedTime ";
+            query = query + "and hf.lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY r.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY hf.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        List<HFReferral> referralList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
-        return referralList;
+        List<HFReferral> hfReferralList = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        return hfReferralList;
     }
 
     public List<HFReferral> findById(List<String> ids, Boolean includeDeleted, String columnName) {
@@ -82,15 +80,15 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
             }
         }
 
-        String query = String.format("SELECT r.id, r.clientreferenceid, r.tenantid, r.projectbeneficiaryid, r.projectbeneficiaryclientreferenceid, r.referrerid, r.recipientid, r.recipienttype, r.reasons, r.sideeffectid, r.sideeffectclientreferenceid, r.createdby, r.createdtime, r.lastmodifiedby, r.lastmodifiedtime, r.clientcreatedby, r.clientcreatedtime, r.clientlastmodifiedby, r.clientlastmodifiedtime, r.rowversion, r.isdeleted, r.additionaldetails, se.id sId, se.clientreferenceid sClientReferenceId, se.tenantid sTenantId, se.taskid sTaskId, se.taskclientreferenceid sTaskClientReferenceId, se.projectbeneficiaryId sProjectBeneficiaryId, se.projectBeneficiaryClientReferenceId sProjectBeneficiaryClientReferenceId, se.symptoms sSymptoms, se.additionalDetails sAdditionalDetails, se.createdby sCreatedBy, se.createdtime sCreatedTime, se.lastmodifiedby sLastModifiedBy, se.lastmodifiedtime sLastModifiedTime, se.clientCreatedBy sClientCreatedBy, se.clientcreatedtime sClientCreatedTime, se.clientlastmodifiedby sClientLastModifiedBy, se.clientlastmodifiedtime sClientLastModifiedTime, se.rowversion sRowVersion, se.isdeleted sIsDeleted FROM referral r left join side_effect se on r.sideEffectClientReferenceid = se.clientreferenceid WHERE r.%s IN (:ids) ", columnName);
+        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.facilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf WHERE hf.%s IN (:ids) ", columnName);
         if (includeDeleted == null || !includeDeleted) {
-            query += " AND r.isDeleted = false ";
+            query += " AND hf.isDeleted = false ";
         }
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
-        List<HFReferral> referralList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+        List<HFReferral> hfReferralList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
-        objFound.addAll(referralList);
+        objFound.addAll(hfReferralList);
         putInCache(objFound);
         return objFound;
     }

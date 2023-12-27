@@ -1,4 +1,4 @@
-CREATE table IF NOT EXISTS health.hf_referral (
+CREATE table IF NOT EXISTS hf_referral (
     id character varying(64),
     clientreferenceid character varying(64),
     tenantid character varying(1000),

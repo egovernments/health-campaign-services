@@ -11,9 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectResponse;
-import org.egov.common.models.project.ProjectSearch;
-import org.egov.common.models.project.ProjectSearchRequest;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
 import org.egov.common.validator.Validator;
@@ -68,23 +67,28 @@ public class HfrProjectIdValidator implements Validator<HFReferralBulkRequest, H
         hfReferrals.forEach(hfReferral -> {
             addIgnoreNull(projectIdList, hfReferral.getProjectId());
         });
-        ProjectSearch projectSearch = ProjectSearch.builder()
-                .id(projectIdList.isEmpty() ? null : projectIdList.get(0))
-                .build();
-        try {
-            // using project search and fetching the valid ids.
-            ProjectResponse projectResponse = serviceRequestClient.fetchResult(
-                    new StringBuilder(referralManagementConfiguration.getProjectHost()
-                            + referralManagementConfiguration.getProjectSearchUrl()
-                            +"?limit=" + hfReferrals.size()
-                            + "&offset=0&tenantId=" + tenantId),
-                    ProjectSearchRequest.builder().requestInfo(request.getRequestInfo()).project(projectSearch).build(),
-                    ProjectResponse.class
-            );
-            existingProjects = projectResponse.getProject();
-        } catch (Exception e) {
-            throw new CustomException("Projects failed to fetch", "Exception : "+e.getMessage());
+        if(!projectIdList.isEmpty()) {
+            List<Project> projects = new ArrayList<>();
+            projectIdList.forEach(projectId -> projects.add(Project.builder().id(projectId).tenantId(tenantId).build()));
+            try {
+                // using project search and fetching the valid ids.
+                ProjectResponse projectResponse = serviceRequestClient.fetchResult(
+                        new StringBuilder(referralManagementConfiguration.getProjectHost()
+                                + referralManagementConfiguration.getProjectSearchUrl()
+                                +"?limit=" + hfReferrals.size()
+                                + "&offset=0&tenantId=" + tenantId),
+                        ProjectRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projects(projects)
+                                .build(),
+                        ProjectResponse.class
+                );
+                existingProjects = projectResponse.getProject();
+            } catch (Exception e) {
+                throw new CustomException("Projects failed to fetch", "Exception : "+e.getMessage());
+            }
         }
+
         return existingProjects;
     }
 
