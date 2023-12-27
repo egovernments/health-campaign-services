@@ -19,13 +19,14 @@ import org.egov.transformer.service.transformer.Transformer;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ProjectTaskTransformationService implements TransformationService<Task> {
@@ -71,17 +72,20 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final HouseholdService householdService;
+
+        private final IndividualService individualService;
         private final CommonUtils commonUtils;
-        private UserService userService;
+        private final UserService userService;
 
         private final ObjectMapper objectMapper;
 
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
+                                      HouseholdService householdService, IndividualService individualService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
+            this.individualService = individualService;
             this.commonUtils = commonUtils;
             this.userService = userService;
             this.objectMapper = objectMapper;
@@ -117,16 +121,23 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
-
-            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
-                projectBeneficiary = projectBeneficiaries.get(0);
-                List<Household> households = householdService.searchHousehold(projectBeneficiary
-                        .getBeneficiaryClientReferenceId(), tenantId);
-                if (!CollectionUtils.isEmpty(households)) {
-                    household = households.get(0);
-                    numberOfMembers = household.getMemberCount();
-                }
+            Map<String, Object> individualDetails = null;
+            if (projectBeneficiaries.size() > 0) {
+                individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiaries.get(0).getClientReferenceId(), tenantId);
             }
+
+            final Map<String, Object> finalIndividualDetails = individualDetails;
+
+
+//            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+//                projectBeneficiary = projectBeneficiaries.get(0);
+//                List<Household> households = householdService.searchHousehold(projectBeneficiary
+//                        .getBeneficiaryClientReferenceId(), tenantId);
+//                if (!CollectionUtils.isEmpty(households)) {
+//                    household = households.get(0);
+//                    numberOfMembers = household.getMemberCount();
+//                }
+//            }
 
             final Integer memberCount = numberOfMembers;
             final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
@@ -141,14 +152,14 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             return task.getResources().stream().map(r ->
                     transformTaskToProjectTaskIndex(r, task, finalBoundaryLabelToNameMap, boundaryLevelVsLabel, tenantId, users, isMandateComment,
-                            projectBeneficiaryClientReferenceId, memberCount, finalProjectBeneficiary, finalHousehold, syncedTimeStamp)
+                            projectBeneficiaryClientReferenceId, memberCount, finalProjectBeneficiary, finalHousehold, syncedTimeStamp, finalIndividualDetails)
             ).collect(Collectors.toList());
         }
 
         private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> finalBoundaryLabelToNameMap,
                                                                    List<JsonNode> boundaryLevelVsLabel, String tenantId, List<User> users, boolean isMandateComment,
                                                                    String projectBeneficiaryClientReferenceId, Integer memberCount,
-                                                                   ProjectBeneficiary finalProjectBeneficiary, Household finalHousehold, String syncedTimeStamp) {
+                                                                   ProjectBeneficiary finalProjectBeneficiary, Household finalHousehold, String syncedTimeStamp, Map<String, Object> individualDetails) {
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -156,10 +167,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .tenantId(tenantId)
                     .taskType("DELIVERY")
                     .projectId(task.getProjectId())
-                    .startDate(task.getActualStartDate())
                     .userName(userService.getUserName(users, task.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(task.getTenantId(), users))
-                    .endDate(task.getActualEndDate())
                     .productVariant(taskResource.getProductVariantId())
                     .isDelivered(taskResource.getIsDelivered())
                     .quantity(taskResource.getQuantity())
@@ -173,14 +182,15 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
                     .projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId)
-                    .isDeleted(task.getIsDeleted())
                     .memberCount(memberCount)
-                    .projectBeneficiary(finalProjectBeneficiary)
-                    .household(finalHousehold)
-                    .clientAuditDetails(task.getClientAuditDetails())
                     .syncedTimeStamp(syncedTimeStamp)
                     .syncedTime(task.getAuditDetails().getCreatedTime())
                     .additionalFields(task.getAdditionalFields())
+                    .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
+                    .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
+                    .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
+                    .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
+                    .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .build();
             if (projectTaskIndexV1.getBoundaryHierarchy() == null) {
                 ObjectNode boundaryHierarchy = objectMapper.createObjectNode();

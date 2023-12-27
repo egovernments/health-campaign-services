@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -69,6 +70,12 @@ public class CommonUtils {
             log.error("ERROR_IN_GEO_POINT_EXTRACTION : " + e);
             return null;
         }
+    }
+
+    public Integer calculateAgeInMonthsFromDOB(Date dob) {
+        Duration difference = Duration.between(dob.toInstant(), new Date().toInstant());
+        long totalDays = difference.toDays();
+        return (int) (totalDays / 30.42);
     }
 
 }
