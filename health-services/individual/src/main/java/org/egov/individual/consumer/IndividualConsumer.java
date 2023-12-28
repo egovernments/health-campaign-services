@@ -2,6 +2,7 @@ package org.egov.individual.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.individual.service.IndividualService;
@@ -38,7 +39,7 @@ public class IndividualConsumer {
             IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
             return individualService.create(request, true);
         } catch (Exception exception) {
-            log.error("error in individual consumer bulk create", exception);
+            log.error("error in individual consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -50,7 +51,7 @@ public class IndividualConsumer {
             IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
             return individualService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in individual consumer bulk update", exception);
+            log.error("error in individual consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -62,7 +63,7 @@ public class IndividualConsumer {
             IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
             return individualService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in individual consumer bulk delete", exception);
+            log.error("error in individual consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
