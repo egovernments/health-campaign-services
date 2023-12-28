@@ -27,4 +27,9 @@ public interface Constants {
     String BOUNDARY_DATA = "boundaryData";
     String ID = "id";
 
+    String AGE = "age";
+    String DATE_OF_BIRTH = "dateOfBirth";
+    String GENDER = "gender";
+    String INDIVIDUAL_ID = "individualId";
+
 }

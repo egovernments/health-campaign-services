@@ -4,6 +4,7 @@ package org.egov.individual.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.tracer.model.ServiceCallException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -35,10 +36,10 @@ public class ServiceRequestRepository {
         try {
             response = restTemplate.postForObject(uri.toString(), request, Map.class);
         } catch (HttpClientErrorException e) {
-            log.error("External Service threw an Exception: ", e);
+            log.error("External Service threw an Exception: {}", ExceptionUtils.getStackTrace(e));
             throw new ServiceCallException(e.getResponseBodyAsString());
         } catch (Exception e) {
-            log.error("Exception while fetching from searcher: ", e);
+            log.error("Exception while fetching from searcher: {}", ExceptionUtils.getStackTrace(e));
         }
 
         return response;
