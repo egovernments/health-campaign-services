@@ -12,7 +12,6 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,20 +26,17 @@ public class IndividualService {
     private final ServiceRequestClient serviceRequestClient;
 
 
-    private final ObjectMapper objectMapper;
     private final CommonUtils commonUtils;
 
-    public IndividualService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, CommonUtils commonUtils) {
+    public IndividualService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
-        this.objectMapper = objectMapper;
         this.commonUtils = commonUtils;
     }
 
 
 
     public Map findIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
-        clientReferenceId = "def23000-6d96-11ee-8bbb-4b7817e6c9cc";
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .individual(IndividualSearch.builder().clientReferenceId(Collections.singletonList(clientReferenceId)).build())
                 .requestInfo(RequestInfo.builder().

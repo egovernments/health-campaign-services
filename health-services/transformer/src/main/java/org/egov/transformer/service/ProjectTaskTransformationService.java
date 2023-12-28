@@ -19,6 +19,7 @@ import org.egov.transformer.service.transformer.Transformer;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.Collection;
 import java.util.List;
@@ -129,15 +130,15 @@ public abstract class ProjectTaskTransformationService implements Transformation
             final Map<String, Object> finalIndividualDetails = individualDetails;
 
 
-//            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
-//                projectBeneficiary = projectBeneficiaries.get(0);
-//                List<Household> households = householdService.searchHousehold(projectBeneficiary
-//                        .getBeneficiaryClientReferenceId(), tenantId);
-//                if (!CollectionUtils.isEmpty(households)) {
-//                    household = households.get(0);
-//                    numberOfMembers = household.getMemberCount();
-//                }
-//            }
+            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+                projectBeneficiary = projectBeneficiaries.get(0);
+                List<Household> households = householdService.searchHousehold(projectBeneficiary
+                        .getBeneficiaryClientReferenceId(), tenantId);
+                if (!CollectionUtils.isEmpty(households)) {
+                    household = households.get(0);
+                    numberOfMembers = household.getMemberCount();
+                }
+            }
 
             final Integer memberCount = numberOfMembers;
             final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
