@@ -53,6 +53,12 @@ public class TransformerProperties {
     @Value("${egov.search.household.url}")
     private String householdSearchUrl;
 
+    @Value("${egov.individual.host}")
+    private String individualHost;
+
+    @Value("${egov.search.individual.url}")
+    private String individualSearchUrl;
+
     @Value("${egov.location.host}")
     private String locationHost;
 

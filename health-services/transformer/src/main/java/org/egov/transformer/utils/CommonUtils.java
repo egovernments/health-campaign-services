@@ -2,14 +2,18 @@ package org.egov.transformer.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.household.Address;
+import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.springframework.stereotype.Component;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
 
 @Slf4j
 @Component
@@ -38,13 +42,40 @@ public class CommonUtils {
         return timeStamp;
     }
 
-    public List<Double> getGeoPoint(Address address) {
-        if (address == null || (address.getLongitude() == null && address.getLatitude() == null)) {
+    public List<Double> getGeoPoint(Object address) {
+        if (address == null) {
             return null;
         }
-        List<Double> geoPoints = new ArrayList<>();
-        geoPoints.add(address.getLongitude());
-        geoPoints.add(address.getLatitude());
-        return geoPoints;
+        try {
+            Class<?> addressClass = address.getClass();
+            // get the methods required to read values from address object
+            Method getLongitudeMethod = addressClass.getMethod("getLongitude");
+            Method getLatitudeMethod = addressClass.getMethod("getLatitude");
+
+            //invoke methods to read values
+            Double longitude = (Double) getLongitudeMethod.invoke(address);
+            Double latitude = (Double) getLatitudeMethod.invoke(address);
+
+            // Check if either longitude or latitude is null
+            if (longitude == null || latitude == null) {
+                return null;
+            }
+            List<Double> geoPoint = new ArrayList<>();
+            // set the values and return the same
+            geoPoint.add(longitude);
+            geoPoint.add(latitude);
+            return geoPoint;
+
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            log.error("ERROR_IN_GEO_POINT_EXTRACTION : " + e);
+            return null;
+        }
     }
+
+    public Integer calculateAgeInMonthsFromDOB(Date dob) {
+        Duration difference = Duration.between(dob.toInstant(), new Date().toInstant());
+        long totalDays = difference.toDays();
+        return (int) (totalDays / 30.42);
+    }
+
 }

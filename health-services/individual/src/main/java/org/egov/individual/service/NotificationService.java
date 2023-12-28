@@ -5,6 +5,7 @@ import digit.models.coremodels.RequestInfoWrapper;
 import digit.models.coremodels.SMSRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.individual.Constants;
@@ -173,7 +174,7 @@ public class NotificationService {
             codes = JsonPath.read(result, Constants.INDIVIDUAL_LOCALIZATION_CODES_JSONPATH);
             messages = JsonPath.read(result, Constants.INDIVIDUAL_LOCALIZATION_MSGS_JSONPATH);
         } catch (Exception e) {
-            log.error("Exception while fetching from localization: " + e);
+            log.error("Exception while fetching from localization: {}", ExceptionUtils.getStackTrace(e));
         }
         if (null != result) {
             for (int i = 0; i < codes.size(); i++) {

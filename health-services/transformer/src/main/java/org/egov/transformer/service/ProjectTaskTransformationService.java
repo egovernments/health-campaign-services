@@ -68,19 +68,22 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final HouseholdService householdService;
+
+        private final IndividualService individualService;
         private final CommonUtils commonUtils;
 
         private final ProductService productService;
-        private UserService userService;
+        private final UserService userService;
 
         private final ObjectMapper objectMapper;
 
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper, ProductService productService) {
+                                      HouseholdService householdService, IndividualService individualService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper, ProductService productService) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
+            this.individualService = individualService;
             this.commonUtils = commonUtils;
             this.productService = productService;
             this.userService = userService;
@@ -113,6 +116,13 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
+            Map<String, Object> individualDetails = null;
+            if (projectBeneficiaries.size() > 0) {
+                individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiaries.get(0).getClientReferenceId(), tenantId);
+            }
+
+            final Map<String, Object> finalIndividualDetails = individualDetails;
+
 
             if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
                 projectBeneficiary = projectBeneficiaries.get(0);
@@ -154,8 +164,15 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
                     .projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId)
+                    .memberCount(memberCount)
                     .syncedTimeStamp(syncedTimeStamp)
                     .syncedTime(task.getAuditDetails().getCreatedTime())
+                    .additionalFields(task.getAdditionalFields())
+                    .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
+                    .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
+                    .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
+                    .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
+                    .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .build();
             List<String> variantList= new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));

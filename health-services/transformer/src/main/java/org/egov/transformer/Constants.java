@@ -36,4 +36,9 @@ public interface Constants {
     String ID = "id";
     String COMMA = ",";
 
+    String AGE = "age";
+    String DATE_OF_BIRTH = "dateOfBirth";
+    String GENDER = "gender";
+    String INDIVIDUAL_ID = "individualId";
+
 }

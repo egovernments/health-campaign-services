@@ -34,10 +34,6 @@ public class ProjectTaskIndexV1 {
     private String userName;
     @JsonProperty("role")
     private String role;
-    @JsonProperty("startDate")
-    private Long startDate;
-    @JsonProperty("endDate")
-    private Long endDate;
     @JsonProperty("productVariant")
     private String productVariant;
     @JsonProperty("productName")
@@ -72,27 +68,29 @@ public class ProjectTaskIndexV1 {
     private Long createdTime;
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime;
-    @JsonProperty("isDeleted")
-    private boolean isDeleted;
     @JsonProperty("projectBeneficiaryClientReferenceId")
     private String projectBeneficiaryClientReferenceId;
     @JsonProperty("memberCount")
     private Integer memberCount;
-    @JsonProperty("projectBeneficiary")
-    private ProjectBeneficiary projectBeneficiary;
-    @JsonProperty("household")
-    private Household household;
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
-    @JsonProperty("clientAuditDetails")
-    private @Valid AuditDetails clientAuditDetails;
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
     @JsonProperty("syncedTime")
     private Long syncedTime;
+    @JsonProperty("dateOfBirth")
+    private Long dateOfBirth;
+    @JsonProperty("age")
+    private Integer age;
+    @JsonProperty("individualId")
+    private String individualId;
+    @JsonProperty("gender")
+    private String gender;
     @JsonProperty("additionalFields")
     private AdditionalFields additionalFields;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
+    @JsonProperty("geoPoint")
+    private List<Double> geoPoint;
 
 }
