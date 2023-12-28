@@ -74,6 +74,8 @@ public abstract class HouseholdMemberTransformationService implements Transforma
         @Override
         public List<HouseholdMemberIndexV1> transform(HouseholdMember householdMember) {
 
+            String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
+
 
             return Collections.singletonList(HouseholdMemberIndexV1.builder()
                     .householdMember(householdMember)
