@@ -2,6 +2,7 @@ package org.egov.individual.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.Role;
 import org.egov.common.contract.request.User;
@@ -51,10 +52,10 @@ public class EncryptionDecryptionUtil {
             }
             return encryptedObject;
         } catch (IOException | HttpClientErrorException | HttpServerErrorException | ResourceAccessException e) {
-            log.error("Error occurred while encrypting", e);
+            log.error("Error occurred while encrypting: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ENCRYPTION_ERROR", "Error occurred in encryption process");
         } catch (Exception e) {
-            log.error("Unknown Error occurred while encrypting", e);
+            log.error("Unknown Error occurred while encrypting: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("UNKNOWN_ERROR", "Unknown error occurred in encryption process");
         }
     }
@@ -92,10 +93,10 @@ public class EncryptionDecryptionUtil {
             }
             return decryptedObject;
         } catch (IOException | HttpClientErrorException | HttpServerErrorException | ResourceAccessException e) {
-            log.error("Error occurred while decrypting", e);
+            log.error("Error occurred while decrypting: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("DECRYPTION_SERVICE_ERROR", "Error occurred in decryption process");
         } catch (Exception e) {
-            log.error("Unknown Error occurred while decrypting", e);
+            log.error("Unknown Error occurred while decrypting: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("UNKNOWN_ERROR", "Unknown error occurred in decryption process");
         }
     }
