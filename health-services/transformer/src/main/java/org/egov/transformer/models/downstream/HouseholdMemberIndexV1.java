@@ -16,10 +16,12 @@ import org.egov.common.models.household.HouseholdMember;
 public class HouseholdMemberIndexV1  {
     @JsonProperty("householdMember")
     private HouseholdMember householdMember;
-    @JsonProperty("age")
-    private Integer age;
     @JsonProperty("dateOfBirth")
     private Long dateOfBirth;
+    @JsonProperty("age")
+    private Integer age;
+    @JsonProperty("individualId")
+    private String individualId;
     @JsonProperty("gender")
     private String gender;
 }

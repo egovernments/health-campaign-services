@@ -16,16 +16,17 @@ import java.util.stream.Collectors;
 import static org.egov.transformer.Constants.*;
 
 @Slf4j
-public abstract class HouseholdMemberTransformationService implements TransformationService<HouseholdMember>{
+public abstract class HouseholdMemberTransformationService implements TransformationService<HouseholdMember> {
     protected final HouseholdMemberTransformationService.HouseholdMemberIndexV1Transformer transformer;
 
     protected final Producer producer;
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
+
     protected HouseholdMemberTransformationService(HouseholdMemberIndexV1Transformer transformer,
-                                         Producer producer,
-                                         TransformerProperties properties, CommonUtils commonUtils) {
+                                                   Producer producer,
+                                                   TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
@@ -58,14 +59,15 @@ public abstract class HouseholdMemberTransformationService implements Transforma
 
         private final ProjectService projectService;
 
-        private final FacilityService facilityService;
+        private final IndividualService individualService;
         private final TransformerProperties properties;
         private final CommonUtils commonUtils;
         private UserService userService;
-        HouseholdMemberIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
-                                TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
+
+        HouseholdMemberIndexV1Transformer(ProjectService projectService, IndividualService individualService,
+                                          TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
             this.projectService = projectService;
-            this.facilityService = facilityService;
+            this.individualService = individualService;
             this.properties = properties;
             this.commonUtils = commonUtils;
             this.userService = userService;
@@ -75,13 +77,14 @@ public abstract class HouseholdMemberTransformationService implements Transforma
         public List<HouseholdMemberIndexV1> transform(HouseholdMember householdMember) {
 
             String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
-
+            Map individualDetails = individualService.findIndividualByClientReferenceId(individualClientReferenceId, householdMember.getTenantId());
 
             return Collections.singletonList(HouseholdMemberIndexV1.builder()
                     .householdMember(householdMember)
-//                  .gender("male")
-//                  .dateOfBirth("")
-//                  .age()
+                    .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
+                    .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
+                    .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
+                    .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
                     .build());
         }
 
