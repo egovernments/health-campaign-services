@@ -58,9 +58,8 @@ public class HouseholdService {
                     request,
                     HouseholdBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching household {}", ExceptionUtils.getStackTrace(e));
-            throw new CustomException("HOUSEHOLD_FETCH_ERROR",
-                    "error while fetching household details for id: " + clientRefId);
+            log.error("Error while fetching household for clientRefId: {}. ExceptionDetails: {}", clientRefId, ExceptionUtils.getStackTrace(e));
+            return Collections.emptyList();
         }
         return response.getHouseholds();
     }

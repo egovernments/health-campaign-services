@@ -215,25 +215,22 @@ public class ProjectService {
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
         try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_BENEFICIARY_TYPE,
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                     transformerProperties.getMdmsModule(), filter);
 
             if (response != null && response.has(transformerProperties.getMdmsModule())) {
                 JsonNode projectBeneficiaryTypeNode = response
                         .get(transformerProperties.getMdmsModule())
-                        .withArray(PROJECT_BENEFICIARY_TYPE);
+                        .withArray(PROJECT_TYPES);
 
                 if (projectBeneficiaryTypeNode != null && projectBeneficiaryTypeNode.isArray() && projectBeneficiaryTypeNode.size() > 0) {
                     return projectBeneficiaryTypeNode.get(0).asText();
                 }
             }
         } catch (Exception exception) {
-            log.error("error while fetching projectBeneficiaryType: {}", ExceptionUtils.getStackTrace(exception));
+            log.error("error while fetching projectBeneficiaryType from MDMS for projectTypeId: {}. ExceptionDetails {}",projectTypeId , ExceptionUtils.getStackTrace(exception));
         }
-
-// Return null if there is any issue
         return null;
-
     }
 
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,

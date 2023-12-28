@@ -3,17 +3,10 @@ package org.egov.transformer.models.downstream;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.models.household.Household;
-import org.egov.common.models.project.AdditionalFields;
-import org.egov.common.models.project.Field;
-import org.egov.common.models.project.ProjectBeneficiary;
-
-import javax.validation.Valid;
 import java.util.List;
 
 @Data
@@ -70,6 +63,8 @@ public class ProjectTaskIndexV1 {
     private Long lastModifiedTime;
     @JsonProperty("projectBeneficiaryClientReferenceId")
     private String projectBeneficiaryClientReferenceId;
+    @JsonProperty("householdId")
+    private String householdId;
     @JsonProperty("memberCount")
     private Integer memberCount;
     @JsonProperty("clientReferenceId")
@@ -86,8 +81,6 @@ public class ProjectTaskIndexV1 {
     private String individualId;
     @JsonProperty("gender")
     private String gender;
-    @JsonProperty("additionalFields")
-    private AdditionalFields additionalFields;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
     @JsonProperty("geoPoint")
