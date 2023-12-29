@@ -142,6 +142,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .userName(userService.getUserName(users, task.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(task.getTenantId(), users))
                     .productVariant(taskResource.getProductVariantId())
+                    .isDelivered(taskResource.getIsDelivered())
                     .quantity(taskResource.getQuantity())
                     .deliveredTo(projectBeneficiaryType)
                     .deliveryComments(taskResource.getDeliveryComment())
