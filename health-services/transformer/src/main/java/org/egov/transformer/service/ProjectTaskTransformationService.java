@@ -76,6 +76,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final UserService userService;
 
         private final ObjectMapper objectMapper;
+        private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(
+                DOSE_NUMBER, CYCLE_NUMBER, QUANTITY_WASTED
+        ));
 
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
@@ -158,7 +161,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .syncedTime(task.getAuditDetails().getCreatedTime())
                     .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .administrationStatus(task.getStatus())
-                    .additionalDetails(addAdditionalDetails(task, taskResource))
                     .build();
 
             List<String> variantList= new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
@@ -206,43 +208,30 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 projectTaskIndexV1.setGender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null);
             }
 
+            //adding to additional details  from additionalFields in task and task resource
+            ObjectNode additionalDetails = objectMapper.createObjectNode();
+            addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
+            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+            projectTaskIndexV1.setAdditionalDetails(additionalDetails);
+
             return projectTaskIndexV1;
         }
 
-
-
-        private ObjectNode addAdditionalDetails(Task task, TaskResource taskResource) {
-            ObjectNode additionalDetails = objectMapper.createObjectNode();
-
-            AdditionalFields additionalFields = task.getAdditionalFields();
-            if (additionalFields != null) {
-                additionalFields.getFields().forEach(field -> {
-                    String key = field.getKey();
-                    if (DOSE_NUMBER.equalsIgnoreCase(key) || CYCLE_NUMBER.equalsIgnoreCase(key)) {
-                        additionalDetails.put(key, getValue(key, additionalFields, Integer.class, null));
-                    }
-                    else {
+        private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+            additionalFields.getFields().forEach(field -> {
+                String key = field.getKey();
+                String value = field.getValue();
+                if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                    try {
+                        additionalDetails.put(key, Integer.valueOf(value));
+                    } catch (NumberFormatException e) {
+                        log.error("Invalid integer format for key '{}': value '{}'. Storing as a string.", key, value, e);
                         additionalDetails.put(key, field.getValue());
                     }
-                });
-            }
-            additionalDetails.put(QUANTITY_WASTED, getValue(QUANTITY_WASTED, taskResource.getAdditionalFields(), Integer.class, 0));
-
-            return additionalDetails;
-        }
-
-
-        private <T> T getValue(String key, AdditionalFields additionalFields, Class<T> valueType, T defaultValue) {
-            if (additionalFields != null && additionalFields.getFields() != null) {
-                return additionalFields.getFields().stream()
-                        .filter(field -> key.equalsIgnoreCase(field.getKey()))
-                        .map(Field::getValue)
-                        .filter(Objects::nonNull)
-                        .map(valueType::cast)
-                        .findFirst()
-                        .orElse(defaultValue);
-            }
-            return defaultValue;
+                } else {
+                    additionalDetails.put(key, field.getValue());
+                }
+            });
         }
     }
 }
