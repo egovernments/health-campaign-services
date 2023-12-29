@@ -64,12 +64,6 @@ public class StockIndexV1 {
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
 
-    @JsonProperty("county")
-    private String county;
-
-    @JsonProperty("community")
-    private String community;
-
     @JsonProperty("latitude")
     private Double latitude;
 
