@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
@@ -119,7 +120,7 @@ public class SideEffectService {
                 log.info("successfully created side effects");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating side effects: {}", exception.getMessage());
+            log.error("error occurred while creating side effects: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }
@@ -164,7 +165,7 @@ public class SideEffectService {
                 log.info("successfully updated bulk side effects");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating side effects", exception);
+            log.error("error occurred while updating side effects: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }
@@ -247,7 +248,7 @@ public class SideEffectService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(sideEffectRequest, errorDetailsMap, validSideEffects,
                     exception, Constants.SET_SIDE_EFFECTS);
         }

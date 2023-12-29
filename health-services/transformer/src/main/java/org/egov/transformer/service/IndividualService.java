@@ -37,6 +37,7 @@ public class IndividualService {
 
 
     public Map findIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
+        clientReferenceId = "def23000-6d96-11ee-8bbb-4b7817e6c9cc";
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .individual(IndividualSearch.builder().clientReferenceId(Collections.singletonList(clientReferenceId)).build())
                 .requestInfo(RequestInfo.builder().

@@ -94,7 +94,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getCreateFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
@@ -125,7 +125,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getUpdateFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 
@@ -156,7 +156,7 @@ public class FacilityService {
                 facilityRepository.save(validEntities, configuration.getDeleteFacilityTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_FACILITIES);
         }
 

@@ -2,6 +2,7 @@ package org.egov.referralmanagement.service;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.referralmanagement.Referral;
@@ -110,7 +111,7 @@ public class ReferralManagementService {
                 log.info("successfully created referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating referrals: {}", exception.getMessage());
+            log.error("error occurred while creating referrals: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }
@@ -143,7 +144,7 @@ public class ReferralManagementService {
                 log.info("successfully updated bulk referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating referrals", exception);
+            log.error("error occurred while updating referrals: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }
@@ -203,7 +204,7 @@ public class ReferralManagementService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }

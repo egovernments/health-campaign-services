@@ -39,7 +39,7 @@ public class HouseholdConsumer {
             HouseholdBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdBulkRequest.class);
             return householdService.create(request, true);
         } catch (Exception exception) {
-            log.error("error in household consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in household consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -51,7 +51,7 @@ public class HouseholdConsumer {
             HouseholdBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdBulkRequest.class);
             return householdService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in household consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("error in household consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -63,7 +63,7 @@ public class HouseholdConsumer {
             HouseholdBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdBulkRequest.class);
             return householdService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in household consumer bulk delete", ExceptionUtils.getStackTrace(exception));
+            log.error("error in household consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
