@@ -26,12 +26,12 @@ public interface Constants {
     String BOUNDARY_HIERARCHY = "boundaryHierarchy";
     String BOUNDARY_DATA = "boundaryData";
     String ID = "id";
-    String CHILDREN_PRESENTED = "childrenPresented";
-    String FEVER_POSITIVE = "feverPositive";
-    String FEVER_NEGATIVE = "feverNegative";
+    String CHILDREN_PRESENTED_US = "childrenPresentedUS";
+    String FEVER_POSITIVE_US = "feverPositiveUS";
+    String FEVER_NEGATIVE_US = "feverNegativeUS";
     String REFERRED_CHILDREN_TO_APE = "referredChildrenToAPE";
     String REFERRED_CHILDREN_PRESENTED_TO_APE = "referredChildrenPresentedToAPE";
-    String POSITIVE_MALARIA = "positiveMalaria";
-    String NEGATIVE_MALARIA = "negativeMalaria";
+    String POSITIVE_MALARIA_APE = "positiveMalariaAPE";
+    String NEGATIVE_MALARIA_APE = "negativeMalariaAPE";
 
 }

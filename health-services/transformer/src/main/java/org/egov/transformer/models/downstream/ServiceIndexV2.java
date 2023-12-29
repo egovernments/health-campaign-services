@@ -22,6 +22,22 @@ public class ServiceIndexV2 {
     private String checklistName;
     @JsonProperty("ageGroup")
     private String ageGroup;
+    @JsonProperty("createdTime")
+    private Long createdTime;
+    @JsonProperty("createdBy")
+    private String createdBy;
+    @JsonProperty("userName")
+    private String userName;
+    @JsonProperty("role")
+    private String role;
+    @JsonProperty("projectId")
+    private String projectId;
+    @JsonProperty("tenantId")
+    private String tenantId;
+    @JsonProperty("syncedTimeStamp")
+    private String syncedTimeStamp;
+    @JsonProperty("boundaryHierarchy")
+    private ObjectNode boundaryHierarchy;
     @JsonProperty("childrenPresented")
     private Object childrenPresented;
     @JsonProperty("feverPositive")
