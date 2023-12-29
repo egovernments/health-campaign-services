@@ -6,11 +6,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.Task;
-import org.egov.common.models.project.TaskResource;
 import org.egov.transformer.Constants;
+import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
@@ -21,11 +18,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ProjectTaskTransformationService implements TransformationService<Task> {
@@ -71,18 +68,24 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final HouseholdService householdService;
+
+        private final IndividualService individualService;
         private final CommonUtils commonUtils;
-        private UserService userService;
+
+        private final ProductService productService;
+        private final UserService userService;
 
         private final ObjectMapper objectMapper;
 
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
-                                      HouseholdService householdService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
+                                      HouseholdService householdService, IndividualService individualService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper, ProductService productService) {
             this.projectService = projectService;
             this.properties = properties;
             this.householdService = householdService;
+            this.individualService = individualService;
             this.commonUtils = commonUtils;
+            this.productService = productService;
             this.userService = userService;
             this.objectMapper = objectMapper;
         }
@@ -106,49 +109,29 @@ public abstract class ProjectTaskTransformationService implements Transformation
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
 
-            // fetch project beenficiary and household
             String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
-            log.info("get member count for project beneficiary client reference id {}",
-                    projectBeneficiaryClientReferenceId);
 
             ProjectBeneficiary projectBeneficiary = null;
-            Household household = null;
-            Integer numberOfMembers = 0;
 
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
 
             if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
                 projectBeneficiary = projectBeneficiaries.get(0);
-                List<Household> households = householdService.searchHousehold(projectBeneficiary
-                        .getBeneficiaryClientReferenceId(), tenantId);
-                if (!CollectionUtils.isEmpty(households)) {
-                    household = households.get(0);
-                    numberOfMembers = household.getMemberCount();
-                }
             }
-
-            final Integer memberCount = numberOfMembers;
             final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
-            final Household finalHousehold = household;
-            int deliveryCount = (int) Math.round((Double) (memberCount / properties.getProgramMandateDividingFactor()));
-            final boolean isMandateComment = deliveryCount > properties.getProgramMandateLimit();
-
-            log.info("member count is {}", memberCount);
 
             List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
-            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
+            String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
 
             return task.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, finalBoundaryLabelToNameMap, boundaryLevelVsLabel, tenantId, users, isMandateComment,
-                            projectBeneficiaryClientReferenceId, memberCount, finalProjectBeneficiary, finalHousehold, syncedTimeStamp)
+                    transformTaskToProjectTaskIndex(r, task, finalBoundaryLabelToNameMap, boundaryLevelVsLabel, tenantId, users, finalProjectBeneficiary, projectBeneficiaryType)
             ).collect(Collectors.toList());
         }
 
         private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> finalBoundaryLabelToNameMap,
-                                                                   List<JsonNode> boundaryLevelVsLabel, String tenantId, List<User> users, boolean isMandateComment,
-                                                                   String projectBeneficiaryClientReferenceId, Integer memberCount,
-                                                                   ProjectBeneficiary finalProjectBeneficiary, Household finalHousehold, String syncedTimeStamp) {
+                                                                   List<JsonNode> boundaryLevelVsLabel, String tenantId, List<User> users,
+                                                                   ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType) {
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -156,15 +139,13 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .tenantId(tenantId)
                     .taskType("DELIVERY")
                     .projectId(task.getProjectId())
-                    .startDate(task.getActualStartDate())
                     .userName(userService.getUserName(users, task.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(task.getTenantId(), users))
-                    .endDate(task.getActualEndDate())
                     .productVariant(taskResource.getProductVariantId())
                     .isDelivered(taskResource.getIsDelivered())
                     .quantity(taskResource.getQuantity())
-                    .deliveredTo("HOUSEHOLD")
-                    .deliveryComments(taskResource.getDeliveryComment() != null ? taskResource.getDeliveryComment() : isMandateComment ? properties.getProgramMandateComment() : null)
+                    .deliveredTo(projectBeneficiaryType)
+                    .deliveryComments(taskResource.getDeliveryComment())
                     .latitude(task.getAddress().getLatitude())
                     .longitude(task.getAddress().getLongitude())
                     .locationAccuracy(task.getAddress().getLocationAccuracy())
@@ -172,26 +153,96 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .createdBy(task.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
-                    .projectBeneficiaryClientReferenceId(projectBeneficiaryClientReferenceId)
-                    .isDeleted(task.getIsDeleted())
-                    .memberCount(memberCount)
-                    .projectBeneficiary(finalProjectBeneficiary)
-                    .household(finalHousehold)
-                    .clientAuditDetails(task.getClientAuditDetails())
-                    .syncedTimeStamp(syncedTimeStamp)
+                    .projectBeneficiaryClientReferenceId(task.getProjectBeneficiaryClientReferenceId())
+                    .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime()))
                     .syncedTime(task.getAuditDetails().getCreatedTime())
-                    .additionalFields(task.getAdditionalFields())
+                    .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
+                    .administrationStatus(task.getStatus())
+                    .additionalDetails(addAdditionalDetails(task, taskResource))
                     .build();
+
+            List<String> variantList= new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
+            String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
+            projectTaskIndexV1.setProductName(productName);
+
             if (projectTaskIndexV1.getBoundaryHierarchy() == null) {
                 ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
                 projectTaskIndexV1.setBoundaryHierarchy(boundaryHierarchy);
             }
-            boundaryLevelVsLabel.forEach(node -> {
-                if (node.get(Constants.LEVEL).asInt() > 1) {
-                    projectTaskIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
+            boundaryLevelVsLabel.stream()
+                    .filter(node -> node.get(LEVEL).asInt() > 1)
+                    .forEach(node -> {
+                        String label = node.get(INDEX_LABEL).asText();
+                        String name = Optional.ofNullable(finalBoundaryLabelToNameMap.get(node.get(LABEL).asText()))
+                                .orElse(null);
+                        projectTaskIndexV1.getBoundaryHierarchy().put(label, name);
+                    });
+
+            if (HOUSEHOLD.equalsIgnoreCase(projectBeneficiaryType)) {
+                log.info("fetching household details for HOUSEHOLD projectBeneficiaryType");
+                List<Household> households = householdService.searchHousehold(finalProjectBeneficiary
+                        .getBeneficiaryClientReferenceId(), tenantId);
+
+                Integer memberCount = 0;
+                if (!CollectionUtils.isEmpty(households)) {
+                    memberCount = households.get(0).getMemberCount();
+
+                    int deliveryCount = (int) Math.round((Double) (memberCount / properties.getProgramMandateDividingFactor()));
+                    final boolean isMandateComment = deliveryCount > properties.getProgramMandateLimit();
+
+                    projectTaskIndexV1.setDeliveryComments(taskResource.getDeliveryComment() != null ? taskResource.getDeliveryComment() : isMandateComment ? properties.getProgramMandateComment() : null);
+                    projectTaskIndexV1.setMemberCount(memberCount);
+                    projectTaskIndexV1.setHouseholdId(households.get(0).getId());
                 }
-            });
+            } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
+                log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");
+                Map<String, Object> individualDetails = (finalProjectBeneficiary != null) ?
+                        individualService.findIndividualByClientReferenceId(finalProjectBeneficiary.getClientReferenceId(), tenantId) :
+                        new HashMap<>();
+
+                projectTaskIndexV1.setAge(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null);
+                projectTaskIndexV1.setDateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null);
+                projectTaskIndexV1.setIndividualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null);
+                projectTaskIndexV1.setGender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null);
+            }
+
             return projectTaskIndexV1;
+        }
+
+
+
+        private ObjectNode addAdditionalDetails(Task task, TaskResource taskResource) {
+            ObjectNode additionalDetails = objectMapper.createObjectNode();
+
+            AdditionalFields additionalFields = task.getAdditionalFields();
+            if (additionalFields != null) {
+                additionalFields.getFields().forEach(field -> {
+                    String key = field.getKey();
+                    if (DOSE_NUMBER.equalsIgnoreCase(key) || CYCLE_NUMBER.equalsIgnoreCase(key)) {
+                        additionalDetails.put(key, getValue(key, additionalFields, Integer.class, null));
+                    }
+                    else {
+                        additionalDetails.put(key, field.getValue());
+                    }
+                });
+            }
+            additionalDetails.put(QUANTITY_WASTED, getValue(QUANTITY_WASTED, taskResource.getAdditionalFields(), Integer.class, 0));
+
+            return additionalDetails;
+        }
+
+
+        private <T> T getValue(String key, AdditionalFields additionalFields, Class<T> valueType, T defaultValue) {
+            if (additionalFields != null && additionalFields.getFields() != null) {
+                return additionalFields.getFields().stream()
+                        .filter(field -> key.equalsIgnoreCase(field.getKey()))
+                        .map(Field::getValue)
+                        .filter(Objects::nonNull)
+                        .map(valueType::cast)
+                        .findFirst()
+                        .orElse(defaultValue);
+            }
+            return defaultValue;
         }
     }
 }

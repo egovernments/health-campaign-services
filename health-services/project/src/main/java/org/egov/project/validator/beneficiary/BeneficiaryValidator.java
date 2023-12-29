@@ -189,7 +189,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 }
             }
         } catch (Exception e) {
-            log.error("error while fetching households list", ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching households list: {}", ExceptionUtils.getStackTrace(e));
             beneficiaryList.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);
@@ -284,7 +284,7 @@ public class BeneficiaryValidator implements Validator<BeneficiaryBulkRequest, P
                 }
             }
         } catch (Exception exception) {
-            log.error("error while fetching individuals list", exception);
+            log.error("error while fetching individuals list: {}", ExceptionUtils.getStackTrace(exception));
             beneficiaryList.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);

@@ -155,7 +155,7 @@ public class IndividualService {
                 }
             }
         } catch (CustomException exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
@@ -268,7 +268,7 @@ public class IndividualService {
                         properties.getUpdateIndividualTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
@@ -331,7 +331,7 @@ public class IndividualService {
                     .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
-            log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("database error occurred: {}", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
         }
         //decrypt
@@ -378,7 +378,7 @@ public class IndividualService {
                         properties.getDeleteIndividualTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validIndividuals, exception, SET_INDIVIDUALS);
         }
 
@@ -425,7 +425,7 @@ public class IndividualService {
                             encryptedIndividualList.size());
                 }
             } catch (Exception exception) {
-                log.error("error occurred while creating user", ExceptionUtils.getStackTrace(exception));
+                log.error("error occurred while creating user: {}", ExceptionUtils.getStackTrace(exception));
             }
         }
     }

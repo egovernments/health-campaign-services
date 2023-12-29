@@ -112,7 +112,7 @@ public class IndividualEncryptionService {
                             individualsList = individualRepository.find(individualSearch,null,
                                     null,tenantId,null,false);
                         } catch (Exception exception) {
-                            log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
+                            log.error("database error occurred: {}", ExceptionUtils.getStackTrace(exception));
                             throw new CustomException("DATABASE_ERROR", exception.getMessage());
                         }
                         if (!CollectionUtils.isEmpty(individualsList)) {

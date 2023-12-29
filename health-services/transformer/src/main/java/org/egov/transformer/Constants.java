@@ -2,6 +2,13 @@ package org.egov.transformer;
 
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
+    String INDIVIDUAL = "INDIVIDUAL";
+    String HOUSEHOLD = "HOUSEHOLD";
+    String CYCLE_NUMBER = "cycleIndex";
+    String DOSE_NUMBER = "doseIndex";
+    String DELIVERY_STRATEGY = "deliveryStrategy";
+
+    String QUANTITY_WASTED = "quantityWasted";
 
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
 
@@ -26,6 +33,11 @@ public interface Constants {
     String BOUNDARY_HIERARCHY = "boundaryHierarchy";
     String BOUNDARY_DATA = "boundaryData";
     String ID = "id";
+    String COMMA = ",";
+    String AGE = "age";
+    String DATE_OF_BIRTH = "dateOfBirth";
+    String GENDER = "gender";
+    String INDIVIDUAL_ID = "individualId";
     String CHILDREN_PRESENTED_US = "childrenPresentedUS";
     String FEVER_POSITIVE_US = "feverPositiveUS";
     String FEVER_NEGATIVE_US = "feverNegativeUS";

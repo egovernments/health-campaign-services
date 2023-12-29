@@ -39,7 +39,7 @@ public class ProjectTaskConsumer {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return projectTaskService.create(request, true);
         }  catch (Exception exception) {
-            log.error("error in project task consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project task consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -51,7 +51,7 @@ public class ProjectTaskConsumer {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return projectTaskService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project task consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project task consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -63,7 +63,7 @@ public class ProjectTaskConsumer {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return projectTaskService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project task consumer bulk delete", ExceptionUtils.getStackTrace(exception));
+            log.error("error in project task consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

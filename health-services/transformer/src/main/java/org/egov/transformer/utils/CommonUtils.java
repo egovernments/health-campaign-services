@@ -2,6 +2,7 @@ package org.egov.transformer.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.springframework.stereotype.Component;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -36,7 +38,7 @@ public class CommonUtils {
             timeStamp = dateFormat.format(date);
         } catch (Exception e) {
             log.error("EpochTime to be transformed :" + epochTime);
-            log.error("Exception while transforming epochTime to timestamp: ", e);
+            log.error("Exception while transforming epochTime to timestamp: {}", ExceptionUtils.getStackTrace(e));
         }
         return timeStamp;
     }
@@ -69,6 +71,12 @@ public class CommonUtils {
             log.error("ERROR_IN_GEO_POINT_EXTRACTION : " + e);
             return null;
         }
+    }
+
+    public Integer calculateAgeInMonthsFromDOB(Date dob) {
+        Duration difference = Duration.between(dob.toInstant(), new Date().toInstant());
+        long totalDays = difference.toDays();
+        return (int) (totalDays / 30.42);
     }
 
 }

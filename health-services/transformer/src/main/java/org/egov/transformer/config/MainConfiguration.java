@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.Task;
@@ -114,6 +115,17 @@ public class MainConfiguration {
     public Map<Operation, List<TransformationService<Stock>>> getOperationTransformationServiceMapForStock(
             List<TransformationService<Stock>> transformationServices) {
         Map<Operation, List<TransformationService<Stock>>> map =  transformationServices
+                .stream()
+                .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
+    }
+    @Bean
+    @Autowired
+    @Qualifier("householdMemberTransformationServiceMap")
+    public Map<Operation, List<TransformationService<HouseholdMember>>> getOperationTransformationServiceMapForHouseholdMember(
+            List<TransformationService<HouseholdMember>> transformationServices) {
+        Map<Operation, List<TransformationService<HouseholdMember>>> map =  transformationServices
                 .stream()
                 .collect(Collectors.groupingBy(TransformationService::getOperation));
         log.info(map.toString());

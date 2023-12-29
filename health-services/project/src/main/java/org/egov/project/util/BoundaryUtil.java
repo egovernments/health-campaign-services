@@ -65,7 +65,7 @@ public class BoundaryUtil {
                 response = Optional.ofNullable(serviceRequestRepository.fetchResult(uri,
                         RequestInfoWrapper.builder().requestInfo(requestInfo).build(), LinkedHashMap.class));
             } catch (Exception e) {
-                log.error("error while calling boundary service", ExceptionUtils.getStackTrace(e));
+                log.error("error while calling boundary service: {}", ExceptionUtils.getStackTrace(e));
                 throw new CustomException("BOUNDARY_ERROR", "error while calling boundary service");
             }
 

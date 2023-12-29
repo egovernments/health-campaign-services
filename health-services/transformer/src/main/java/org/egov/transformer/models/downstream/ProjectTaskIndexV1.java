@@ -3,16 +3,11 @@ package org.egov.transformer.models.downstream;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.models.household.Household;
-import org.egov.common.models.project.AdditionalFields;
-import org.egov.common.models.project.ProjectBeneficiary;
-
-import javax.validation.Valid;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -32,12 +27,10 @@ public class ProjectTaskIndexV1 {
     private String userName;
     @JsonProperty("role")
     private String role;
-    @JsonProperty("startDate")
-    private Long startDate;
-    @JsonProperty("endDate")
-    private Long endDate;
     @JsonProperty("productVariant")
     private String productVariant;
+    @JsonProperty("productName")
+    private String productName;
     @JsonProperty("quantity")
     private Double quantity;
     @JsonProperty("deliveredTo")
@@ -46,6 +39,8 @@ public class ProjectTaskIndexV1 {
     private boolean isDelivered;
     @JsonProperty("deliveryComments")
     private String deliveryComments;
+    @JsonProperty("administrationStatus")
+    private String administrationStatus;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
     @JsonProperty("tenantId")
@@ -66,25 +61,29 @@ public class ProjectTaskIndexV1 {
     private Long createdTime;
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime;
-    @JsonProperty("isDeleted")
-    private boolean isDeleted;
     @JsonProperty("projectBeneficiaryClientReferenceId")
     private String projectBeneficiaryClientReferenceId;
+    @JsonProperty("householdId")
+    private String householdId;
     @JsonProperty("memberCount")
     private Integer memberCount;
-    @JsonProperty("projectBeneficiary")
-    private ProjectBeneficiary projectBeneficiary;
-    @JsonProperty("household")
-    private Household household;
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
-    @JsonProperty("clientAuditDetails")
-    private @Valid AuditDetails clientAuditDetails;
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
     @JsonProperty("syncedTime")
     private Long syncedTime;
-    @JsonProperty("additionalFields")
-    private AdditionalFields additionalFields;
+    @JsonProperty("dateOfBirth")
+    private Long dateOfBirth;
+    @JsonProperty("age")
+    private Integer age;
+    @JsonProperty("individualId")
+    private String individualId;
+    @JsonProperty("gender")
+    private String gender;
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
+    @JsonProperty("geoPoint")
+    private List<Double> geoPoint;
 
 }

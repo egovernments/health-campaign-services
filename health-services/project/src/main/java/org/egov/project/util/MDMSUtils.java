@@ -48,7 +48,7 @@ public class MDMSUtils {
         try {
             result = serviceRequestRepository.fetchResult(getMdmsSearchUrl(), mdmsCriteriaReq, LinkedHashMap.class);
         } catch (Exception e) {
-            log.error("error while calling mdms", ExceptionUtils.getStackTrace(e));
+            log.error("error while calling mdms: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("MDMS_ERROR", "error while calling mdms");
         }
         return result;

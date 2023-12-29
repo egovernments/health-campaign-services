@@ -109,7 +109,7 @@ public class HouseholdService {
                 log.info("successfully created {} households", validEntities.size());
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating households", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while creating households: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
@@ -140,7 +140,7 @@ public class HouseholdService {
             log.info("households found for search, size: {}", householdsTuple.getY().size());
             return householdsTuple;
         } catch (QueryBuilderException e) {
-            log.error("error occurred while searching households", ExceptionUtils.getStackTrace(e));
+            log.error("error occurred while searching households: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
@@ -166,7 +166,7 @@ public class HouseholdService {
                 log.info("successfully updated households");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating households: " + ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while updating households: {}" , ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 
@@ -200,7 +200,7 @@ public class HouseholdService {
                 log.info("Households saved to delete topic");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting households: ", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while deleting households: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_HOUSEHOLDS);
         }
 

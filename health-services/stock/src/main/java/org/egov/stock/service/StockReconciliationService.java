@@ -115,7 +115,7 @@ public class StockReconciliationService {
                 }
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK_RECONCILIATION);
         }
 
@@ -147,7 +147,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getUpdateStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 
@@ -180,7 +180,7 @@ public class StockReconciliationService {
                 stockRepository.save(validTasks, configuration.getDeleteStockReconciliationTopic());
             }
         } catch (Exception exception) {
-            log.error("error occurred", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_STOCK_RECONCILIATION);
         }
 

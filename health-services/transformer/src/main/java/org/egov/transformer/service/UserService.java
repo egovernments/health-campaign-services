@@ -78,7 +78,7 @@ public class UserService {
             MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
             projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
         } catch (Exception e) {
-            log.error("Exception while fetching mdms roles : {}", ExceptionUtils.getStackTrace(e));
+            log.error("Exception while fetching mdms roles: {}", ExceptionUtils.getStackTrace(e));
         }
 
         HashMap<String,Integer> projectStaffRolesMap = new HashMap<>();
