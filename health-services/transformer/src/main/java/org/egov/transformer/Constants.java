@@ -29,15 +29,21 @@ public interface Constants {
     String HYPHEN = "-";
     String LEVEL = "level";
     String LABEL = "label";
-    String INDEX_LABEL ="indexLabel";
+    String INDEX_LABEL = "indexLabel";
     String BOUNDARY_HIERARCHY = "boundaryHierarchy";
     String BOUNDARY_DATA = "boundaryData";
     String ID = "id";
     String COMMA = ",";
-
     String AGE = "age";
     String DATE_OF_BIRTH = "dateOfBirth";
     String GENDER = "gender";
     String INDIVIDUAL_ID = "individualId";
+    String CHILDREN_PRESENTED_US = "childrenPresentedUS";
+    String FEVER_POSITIVE_US = "feverPositiveUS";
+    String FEVER_NEGATIVE_US = "feverNegativeUS";
+    String REFERRED_CHILDREN_TO_APE = "referredChildrenToAPE";
+    String REFERRED_CHILDREN_PRESENTED_TO_APE = "referredChildrenPresentedToAPE";
+    String POSITIVE_MALARIA_APE = "positiveMalariaAPE";
+    String NEGATIVE_MALARIA_APE = "negativeMalariaAPE";
 
 }

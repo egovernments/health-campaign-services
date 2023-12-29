@@ -35,6 +35,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.household.index.v1.topic}")
     private String transformerProducerBulkHouseholdIndexV1Topic;
 
+    @Value("${transformer.producer.service.index.v2.topic}")
+    private String transformerProducerServiceIndexV2Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
@@ -118,6 +121,9 @@ public class TransformerProperties {
 
     @Value("${egov.timestamp.timeZone}")
     private String timeZone;
+
+    @Value("${referral.service.checklist.name}")
+    private String checkListName;
 
 
 }
