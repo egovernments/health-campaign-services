@@ -38,19 +38,19 @@ public class ServiceIndexV2 {
     private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
-    @JsonProperty("childrenPresented")
-    private Object childrenPresented;
-    @JsonProperty("feverPositive")
-    private Object feverPositive;
-    @JsonProperty("feverNegative")
-    private Object feverNegative;
+    @JsonProperty("childrenPresentedUS")
+    private Object childrenPresentedUS;
+    @JsonProperty("feverPositiveUS")
+    private Object feverPositiveUS;
+    @JsonProperty("feverNegativeUS")
+    private Object feverNegativeUS;
     @JsonProperty("referredChildrenToAPE")
     private Object referredChildrenToAPE;
     @JsonProperty("referredChildrenPresentedToAPE")
     private Object referredChildrenPresentedToAPE;
-    @JsonProperty("positiveMalaria")
-    private Object positiveMalaria;
-    @JsonProperty("negativeMalaria")
-    private Object negativeMalaria;
+    @JsonProperty("positiveMalariaAPE")
+    private Object positiveMalariaAPE;
+    @JsonProperty("negativeMalariaAPE")
+    private Object negativeMalariaAPE;
 
 }

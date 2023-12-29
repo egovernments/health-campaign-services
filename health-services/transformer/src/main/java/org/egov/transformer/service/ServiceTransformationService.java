@@ -135,15 +135,15 @@ public class ServiceTransformationService {
     private static void setAttributeValue(ServiceIndexV2 serviceIndexV2, Object value, String question) {
         switch (question) {
             case Constants.CHILDREN_PRESENTED_US: {
-                serviceIndexV2.setChildrenPresented(value);
+                serviceIndexV2.setChildrenPresentedUS(value);
                 break;
             }
             case Constants.FEVER_POSITIVE_US: {
-                serviceIndexV2.setFeverPositive(value);
+                serviceIndexV2.setFeverPositiveUS(value);
                 break;
             }
             case Constants.FEVER_NEGATIVE_US: {
-                serviceIndexV2.setFeverNegative(value);
+                serviceIndexV2.setFeverNegativeUS(value);
                 break;
             }
             case Constants.REFERRED_CHILDREN_TO_APE: {
@@ -155,11 +155,11 @@ public class ServiceTransformationService {
                 break;
             }
             case Constants.POSITIVE_MALARIA_APE: {
-                serviceIndexV2.setPositiveMalaria(value);
+                serviceIndexV2.setPositiveMalariaAPE(value);
                 break;
             }
             case Constants.NEGATIVE_MALARIA_APE: {
-                serviceIndexV2.setNegativeMalaria(value);
+                serviceIndexV2.setNegativeMalariaAPE(value);
                 break;
             }
         }

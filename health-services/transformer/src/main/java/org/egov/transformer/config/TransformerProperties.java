@@ -122,7 +122,7 @@ public class TransformerProperties {
     @Value("${egov.timestamp.timeZone}")
     private String timeZone;
 
-    @Value("${service.checklist.name}")
+    @Value("${referral.service.checklist.name}")
     private String checkListName;
 
 
