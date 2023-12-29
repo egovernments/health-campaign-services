@@ -34,7 +34,7 @@ public class StockConsumer {
             StockBulkRequest request = objectMapper.convertValue(consumerRecord, StockBulkRequest.class);
             return service.create(request, true);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk create", ExceptionUtils.getStackTrace(exception));
+            log.error("error in stock consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -46,7 +46,7 @@ public class StockConsumer {
             StockBulkRequest request = objectMapper.convertValue(consumerRecord, StockBulkRequest.class);
             return service.update(request, true);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk update", ExceptionUtils.getStackTrace(exception));
+            log.error("error in stock consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -58,7 +58,7 @@ public class StockConsumer {
             StockBulkRequest request = objectMapper.convertValue(consumerRecord, StockBulkRequest.class);
             return service.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk delete", ExceptionUtils.getStackTrace(exception));
+            log.error("error in stock consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

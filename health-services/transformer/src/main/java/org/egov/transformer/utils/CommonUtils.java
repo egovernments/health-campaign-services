@@ -2,6 +2,7 @@ package org.egov.transformer.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.springframework.stereotype.Component;
@@ -37,7 +38,7 @@ public class CommonUtils {
             timeStamp = dateFormat.format(date);
         } catch (Exception e) {
             log.error("EpochTime to be transformed :" + epochTime);
-            log.error("Exception while transforming epochTime to timestamp: ", e);
+            log.error("Exception while transforming epochTime to timestamp: {}", ExceptionUtils.getStackTrace(e));
         }
         return timeStamp;
     }
