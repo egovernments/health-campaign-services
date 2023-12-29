@@ -302,7 +302,7 @@ public class ProjectEnrichment {
         try {
             return idGenService.getIdList(requestInfo, tenantId, idKey, idformat, count);
         } catch (Exception exception) {
-            log.error("error while calling id gen service", ExceptionUtils.getStackTrace(exception));
+            log.error("error while calling id gen service: {}", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("IDGEN_ERROR",
                     String.format("error while calling id gen service for %s", idformat));
         }

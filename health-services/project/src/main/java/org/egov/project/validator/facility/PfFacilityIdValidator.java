@@ -99,7 +99,7 @@ public class PfFacilityIdValidator implements Validator<ProjectFacilityBulkReque
                     FacilityBulkResponse.class);
             return response.getFacilities().stream().map(Facility::getId).collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("error while fetching facility list", ExceptionUtils.getStackTrace(e));
+            log.error("error while fetching facility list: {}", ExceptionUtils.getStackTrace(e));
             projectFacilities.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);

@@ -78,7 +78,6 @@ public abstract class StockTransformationService implements TransformationServic
         private final TransformerProperties properties;
         private final CommonUtils commonUtils;
         private UserService userService;
-
         private final ObjectMapper objectMapper;
 
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,

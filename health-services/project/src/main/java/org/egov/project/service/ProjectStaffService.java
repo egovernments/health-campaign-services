@@ -156,7 +156,7 @@ public class ProjectStaffService {
                 log.info("successfully updated bulk project staff");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project staff", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while updating project staff: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STAFF);
         }
 

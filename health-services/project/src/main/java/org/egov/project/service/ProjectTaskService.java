@@ -172,7 +172,7 @@ public class ProjectTaskService {
                 log.info("successfully updated bulk project tasks");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project tasks", ExceptionUtils.getStackTrace(exception));
+            log.error("error occurred while updating project tasks: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validTasks, exception, SET_TASKS);
         }
 
@@ -250,7 +250,7 @@ public class ProjectTaskService {
             return projectTaskRepository.find(taskSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
         } catch (QueryBuilderException e) {
-            log.error("error in building query", ExceptionUtils.getStackTrace(e));
+            log.error("error in building query: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
