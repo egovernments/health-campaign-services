@@ -1,11 +1,10 @@
 package org.egov.transformer.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
-import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.models.downstream.SideEffectsIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
@@ -15,7 +14,11 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.egov.transformer.Constants.AGE;
+import static org.egov.transformer.Constants.DATE_OF_BIRTH;
 
 @Slf4j
 public abstract class SideEffectTransformationService implements TransformationService<SideEffect>{
@@ -57,6 +60,7 @@ public abstract class SideEffectTransformationService implements TransformationS
         private final SideEffectService sideEffectService;
         private final TransformerProperties properties;
         private final ObjectMapper objectMapper;
+        private IndividualService individualService;
 
         @Autowired
         SideEffectIndexV1Transformer(SideEffectService sideEffectService, TransformerProperties properties, ObjectMapper objectMapper) {
@@ -69,6 +73,8 @@ public abstract class SideEffectTransformationService implements TransformationS
         public List<SideEffectsIndexV1> transform(SideEffect sideEffect) {
             String tenantId = sideEffect.getTenantId();
             List<SideEffectsIndexV1> sideEffectsIndexV1List = new ArrayList<>();
+            ObjectNode boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTaskClientRefId(sideEffect.getTaskClientReferenceId(),tenantId);
+            Map individualDetails = individualService.findIndividualByClientReferenceId(sideEffect.getClientReferenceId(), tenantId);
             SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                     .id(sideEffect.getId())
                     .tenantId(sideEffect.getTenantId())
@@ -76,6 +82,9 @@ public abstract class SideEffectTransformationService implements TransformationS
                     .taskId(sideEffect.getTaskId())
                     .taskClientReferenceId(sideEffect.getTaskClientReferenceId())
                     .projectBeneficiaryId(sideEffect.getProjectBeneficiaryId())
+                    .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
+                    .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
+                    .boundaryHierarchy(boundaryHierarchy)
                     .projectBeneficiaryClientReferenceId(sideEffect.getProjectBeneficiaryClientReferenceId())
                     .symptoms(sideEffect.getSymptoms())
                     .isDeleted(sideEffect.getIsDeleted())
@@ -83,7 +92,8 @@ public abstract class SideEffectTransformationService implements TransformationS
                     .auditDetails(sideEffect.getAuditDetails())
                     .clientAuditDetails(sideEffect.getClientAuditDetails())
                     .build();
-            return null;
+            sideEffectsIndexV1List.add(sideEffectsIndexV1);
+            return sideEffectsIndexV1List;
         }
     }
 }
