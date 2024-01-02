@@ -89,7 +89,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
             return findByRadius(query, searchObject, includeDeleted, paramsMap);
         }
         if (searchObject.getIdentifier() == null) {
-            Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+            String queryWithoutLimit = query.replace("ORDER BY id ASC LIMIT :limit OFFSET :offset", "");
+            Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
                 enrichIndividuals(individuals, includeDeleted);
