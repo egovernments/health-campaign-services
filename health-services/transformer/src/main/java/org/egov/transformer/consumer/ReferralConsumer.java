@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.egov.common.models.referralmanagement.sideeffect.*;
+import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.ReferralRequest;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.handler.TransformationHandler;
+import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,29 +22,28 @@ import java.util.stream.Collectors;
 
 @Component
 @Slf4j
-public class SideEffectConsumer {
-
-    private final TransformationHandler<SideEffect> transformationHandler;
+public class ReferralConsumer {
+    private final TransformationHandler<Referral> transformationHandler;
 
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public SideEffectConsumer(TransformationHandler<SideEffect> transformationHandler,
+    public ReferralConsumer(TransformationHandler<Referral> transformationHandler,
                               @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.transformationHandler = transformationHandler;
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}"})
-    public void consumeSideEffect(ConsumerRecord<String, Object> payload,
+    @KafkaListener(topics = {"${transformer.consumer.create.referral.topic}"})
+    public void consumeReferral(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            List<SideEffectRequest> payloadList = Arrays.asList(objectMapper
-                    .readValue((String) payload.value(), SideEffectRequest.class));
-            List<SideEffect> collect = payloadList.stream().map(p -> p.getSideEffect()).collect(Collectors.toList());
-            transformationHandler.handle(collect, Operation.SIDE_EFFECT);
+            List<ReferralRequest> payloadList = Arrays.asList(objectMapper
+                    .readValue((String) payload.value(), ReferralRequest.class));
+            List<Referral> collect = payloadList.stream().map(p -> p.getReferral()).collect(Collectors.toList());
+            transformationHandler.handle(collect, Operation.REFERRAL);
         } catch (Exception exception) {
-            log.error("error in side effect consumer {}", ExceptionUtils.getStackTrace(exception));
+            log.error("error in referral consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }
