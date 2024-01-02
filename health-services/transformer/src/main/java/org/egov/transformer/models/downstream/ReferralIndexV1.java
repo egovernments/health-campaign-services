@@ -26,6 +26,7 @@ public class ReferralIndexV1 {
     private String individualId;
     @JsonProperty("gender")
     private String gender;
+    @JsonProperty("reasons")
     private List<String> reasons;
     @JsonProperty("clientLastModifiedTime")
     private Long clientLastModifiedTime;
