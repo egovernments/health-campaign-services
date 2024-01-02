@@ -3,14 +3,14 @@ package org.egov.transformer.models.downstream;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.transformer.models.upstream.AttributeValue;
 
 
-import java.util.ArrayList;
+import javax.validation.Valid;
 import java.util.List;
 
 @Data
@@ -38,6 +38,12 @@ public class SideEffectsIndexV1 {
     @JsonProperty("projectBeneficiaryClientReferenceId")
     private String projectBeneficiaryClientReferenceId;
 
+    @JsonProperty("dateOfBirth")
+    private Long dateOfBirth;
+
+    @JsonProperty("age")
+    private Integer age;
+
     @JsonProperty("symptoms")
     private List<String> symptoms;
 
@@ -51,12 +57,14 @@ public class SideEffectsIndexV1 {
     private Integer rowVersion;
 
     @JsonProperty("auditDetails")
-    private ObjectNode auditDetails;
+    private AuditDetails auditDetails;
 
     @JsonProperty("clientAuditDetails")
-    private ObjectNode clientAuditDetails;
+    private AuditDetails clientAuditDetails;
 
-    @JsonProperty("additionalFields")
-    private ObjectNode additionalFields;
+    @JsonProperty("boundaryHierarchy")
+    private ObjectNode boundaryHierarchy;
 
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 }
