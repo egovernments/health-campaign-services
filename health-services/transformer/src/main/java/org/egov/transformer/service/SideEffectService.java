@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
+import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
@@ -44,7 +45,7 @@ public class SideEffectService {
         this.projectService = projectService;
         this.objectMapper = objectMapper;
     }
-    public ObjectNode getBoundaryHierarchyFromTaskClientRefId(String taskClientReferenceId, String tenantId){
+    public List<Task> getTaskFromTaskClientReferenceId(String taskClientReferenceId, String tenantId){
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .task(TaskSearch.builder().clientReferenceId(Collections.singletonList(taskClientReferenceId)).build())
                 .requestInfo(RequestInfo.builder().
@@ -54,7 +55,6 @@ public class SideEffectService {
                         .build())
                 .build();
         TaskBulkResponse response;
-        ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
         try {
             response = serviceRequestClient.fetchResult(
                     new StringBuilder(properties.getProjectHost()
@@ -63,37 +63,42 @@ public class SideEffectService {
                             + "&offset=0&tenantId=" + tenantId),
                     taskSearchRequest,
                     TaskBulkResponse.class);
-            Task task = response.getTasks().get(0);
-            Map<String, String> boundaryLabelToNameMap = null;
-            if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
-                boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
-            } else {
-                boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
-            }
-            Project project = projectService.getProject(task.getProjectId(),tenantId);
-            String projectTypeId = project.getProjectTypeId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
-            List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-            log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-            Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
-
-            boundaryLevelVsLabel.stream()
-                    .filter(node -> node.get(LEVEL).asInt() > 1)
-                    .forEach(node -> {
-                        String label = node.get(INDEX_LABEL).asText();
-                        String name = Optional.ofNullable(finalBoundaryLabelToNameMap.get(node.get(LABEL).asText()))
-                                .orElse(null);
-                        boundaryHierarchy.put(label, name);
-                    });
 
         } catch (Exception e) {
             log.error("error while fetching Task Details: {}", ExceptionUtils.getStackTrace(e));
+            throw new CustomException("TASK_FETCH_ERROR",
+                    "error while fetching task details for id: " + taskClientReferenceId);
         }
 
+        return response.getTasks();
+    }
 
+    public ObjectNode getBoundaryHierarchyFromTask(Task task,String tenantId){
+        ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
+        Map<String, String> boundaryLabelToNameMap = null;
+        if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
+            boundaryLabelToNameMap = projectService
+                    .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
+        } else {
+            boundaryLabelToNameMap = projectService
+                    .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
+        }
+        Project project = projectService.getProject(task.getProjectId(),tenantId);
+        String projectTypeId = project.getProjectTypeId();
+        JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
+        List<JsonNode> boundaryLevelVsLabel = StreamSupport
+                .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+        log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+        Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
+
+        boundaryLevelVsLabel.stream()
+                .filter(node -> node.get(LEVEL).asInt() > 1)
+                .forEach(node -> {
+                    String label = node.get(INDEX_LABEL).asText();
+                    String name = Optional.ofNullable(finalBoundaryLabelToNameMap.get(node.get(LABEL).asText()))
+                            .orElse(null);
+                    boundaryHierarchy.put(label, name);
+                });
         return boundaryHierarchy;
     }
 }

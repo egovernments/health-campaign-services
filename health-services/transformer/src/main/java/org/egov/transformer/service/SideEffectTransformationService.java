@@ -2,6 +2,8 @@ package org.egov.transformer.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -10,6 +12,7 @@ import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,6 +64,7 @@ public abstract class SideEffectTransformationService implements TransformationS
         private final TransformerProperties properties;
         private final ObjectMapper objectMapper;
         private IndividualService individualService;
+        private ProjectService projectService;
 
         @Autowired
         SideEffectIndexV1Transformer(SideEffectService sideEffectService, TransformerProperties properties, ObjectMapper objectMapper) {
@@ -73,8 +77,20 @@ public abstract class SideEffectTransformationService implements TransformationS
         public List<SideEffectsIndexV1> transform(SideEffect sideEffect) {
             String tenantId = sideEffect.getTenantId();
             List<SideEffectsIndexV1> sideEffectsIndexV1List = new ArrayList<>();
-            ObjectNode boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTaskClientRefId(sideEffect.getTaskClientReferenceId(),tenantId);
-            Map individualDetails = individualService.findIndividualByClientReferenceId(sideEffect.getClientReferenceId(), tenantId);
+            Task task = null;
+            ProjectBeneficiary projectBeneficiary = null;
+            List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
+            if(!CollectionUtils.isEmpty(taskList)){
+                task = taskList.get(0);
+            }
+            List<ProjectBeneficiary> projectBeneficiaries = projectService
+                    .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
+
+            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+                projectBeneficiary = projectBeneficiaries.get(0);
+            }
+            ObjectNode boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task,tenantId);
+            Map individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                     .id(sideEffect.getId())
                     .tenantId(sideEffect.getTenantId())
