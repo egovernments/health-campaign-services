@@ -26,7 +26,7 @@ public class SideEffectIndexV1TransformationService extends SideEffectTransforma
 
     @Override
     public String getTopic() {
-        return properties.getTransformerProducerBulkProjectStaffIndexV1Topic();
+        return properties.getTransformerProducerSideEffectIndexV1Topic();
     }
 
 }
