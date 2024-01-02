@@ -19,6 +19,7 @@ import java.util.List;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SideEffectsIndexV1 {
+
     @JsonProperty("id")
     private String id;
 

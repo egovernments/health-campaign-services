@@ -7,9 +7,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.sideeffect.*;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.handler.TransformationHandler;
-import org.egov.transformer.models.upstream.Service;
-import org.egov.transformer.models.upstream.ServiceRequest;
-import org.egov.transformer.service.ReferralService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,15 +20,15 @@ import java.util.stream.Collectors;
 
 @Component
 @Slf4j
-public class ReferralConsumer {
+public class SideEffectConsumer {
 
     private final TransformationHandler<SideEffect> transformationHandler;
 
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public ReferralConsumer(TransformationHandler<SideEffect> transformationHandler,
-                            @Qualifier("objectMapper") ObjectMapper objectMapper) {
+    public SideEffectConsumer(TransformationHandler<SideEffect> transformationHandler,
+                              @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.transformationHandler = transformationHandler;
         this.objectMapper = objectMapper;
     }
