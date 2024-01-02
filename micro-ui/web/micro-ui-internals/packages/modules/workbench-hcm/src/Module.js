@@ -8,6 +8,8 @@ import { Loader } from "@egovernments/digit-ui-react-components";
 import ProjectBeneficiaryComponent from "./components/ProjectBeneficiaryComponent";
 import ProjectChildrenComponent from "./components/ProjectChildrenComponent";
 import ProjectStaffComponent from "./components/ProjectStaffComponent";
+import FacilityComponent from "./components/FacilityComponent";
+import ProductDeliveryComponent from "./components/ProductDeliveryComponent";
 
 const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["workbench-hcm"];
@@ -34,7 +36,9 @@ const componentsToRegister = {
   HCMWORKBENCHCard,
   ProjectBeneficiaryComponent,
   ProjectChildrenComponent,
-  ProjectStaffComponent
+  ProjectStaffComponent,
+  FacilityComponent,
+  ProductDeliveryComponent
 };
 
 const overrideHooks = () => {
