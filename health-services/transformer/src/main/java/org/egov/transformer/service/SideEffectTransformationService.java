@@ -92,21 +92,10 @@ public abstract class SideEffectTransformationService implements TransformationS
             ObjectNode boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task,tenantId);
             Map individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
-                    .id(sideEffect.getId())
-                    .tenantId(sideEffect.getTenantId())
-                    .clientReferenceId(sideEffect.getClientReferenceId())
-                    .taskId(sideEffect.getTaskId())
-                    .taskClientReferenceId(sideEffect.getTaskClientReferenceId())
-                    .projectBeneficiaryId(sideEffect.getProjectBeneficiaryId())
+                    .sideEffect(sideEffect)
                     .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                     .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                     .boundaryHierarchy(boundaryHierarchy)
-                    .projectBeneficiaryClientReferenceId(sideEffect.getProjectBeneficiaryClientReferenceId())
-                    .symptoms(sideEffect.getSymptoms())
-                    .isDeleted(sideEffect.getIsDeleted())
-                    .rowVersion(sideEffect.getRowVersion())
-                    .auditDetails(sideEffect.getAuditDetails())
-                    .clientAuditDetails(sideEffect.getClientAuditDetails())
                     .build();
             sideEffectsIndexV1List.add(sideEffectsIndexV1);
             return sideEffectsIndexV1List;
