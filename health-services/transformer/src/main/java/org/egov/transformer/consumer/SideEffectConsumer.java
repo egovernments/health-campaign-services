@@ -33,7 +33,7 @@ public class SideEffectConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}"})
+    @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}","${transformer.consumer.update.side.effect.topic}"})
     public void consumeSideEffect(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
