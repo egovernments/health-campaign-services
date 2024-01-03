@@ -12,7 +12,7 @@ import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.utils.CommonUtils;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.egov.common.models.project.*;
 
 
@@ -26,7 +26,7 @@ import java.util.stream.StreamSupport;
 import static org.egov.transformer.Constants.*;
 
 
-@Component
+@Service
 @Slf4j
 public class SideEffectService {
 
@@ -38,8 +38,8 @@ public class SideEffectService {
 
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
-    public SideEffectService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils, ProjectService projectService, ObjectMapper objectMapper) {
-        this.properties = transformerProperties;
+    public SideEffectService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils, ProjectService projectService, ObjectMapper objectMapper) {
+        this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.commonUtils = commonUtils;
         this.projectService = projectService;

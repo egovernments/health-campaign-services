@@ -18,7 +18,7 @@ public class SideEffectTransformationHandler implements TransformationHandler<Si
     private final Map<Operation, List<TransformationService<SideEffect>>> operationTransformationServiceMap;
 
     @Autowired
-    public SideEffectTransformationHandler(@Qualifier("sideEffectTransformationServiceMap")
+    public SideEffectTransformationHandler(@Qualifier("referralTransformationServiceMap")
                                          Map<Operation, List<TransformationService<SideEffect>>> operationTransformationServiceMap) {
         this.operationTransformationServiceMap = operationTransformationServiceMap;
     }

@@ -38,9 +38,6 @@ public class TransformerProperties {
     @Value("${transformer.producer.side.effect.index.v1.topic}")
     private String transformerProducerSideEffectIndexV1Topic;
 
-    @Value("${transformer.producer.referral.index.v1.topic}")
-    private String transformerProducerReferralIndexV1Topic;
-
     @Value("${egov.project.host}")
     private String projectHost;
 
