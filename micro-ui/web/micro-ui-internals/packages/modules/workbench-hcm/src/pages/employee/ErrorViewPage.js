@@ -11,23 +11,56 @@ const ErrorViewPage = () => {
     const { jobid } = Digit.Hooks.useQueryParams();
      // State to store the data from the API call
     const [allData, setData] = useState(null);
-    const [ingestionNumber, setIngestionNumber] = useState(null);
-    useEffect(async () => {
-      const searchParams = {
-        jobId: jobid,
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    useEffect(() => {
+      // Create a variable to track whether the component is mounted
+      let isMounted = true;
+    
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const searchParams = {
+            jobId: jobid,
+          };
+    
+          const fetchedData = await Digit.IngestionService.eventSearch(searchParams);
+    
+          // Check if the component is still mounted before updating state
+          if (isMounted) {
+            setData(fetchedData);
+          }
+    
+        } catch (error) {
+          // Check if the component is still mounted before updating state
+          if (isMounted) {
+            setError(error);
+          }
+        } finally {
+          // Check if the component is still mounted before updating state
+          if (isMounted) {
+            setLoading(false);
+          }
+        }
       };
-      
-      const allData = await Digit.IngestionService.eventSearch(searchParams);
-      setData(allData);
-      setIngestionNumber(allData);
-    },[jobid]);
+    
+      // Fetch data when the component mounts
+      fetchData();
+    
+      // Cleanup function to set isMounted to false when the component is unmounted
+      return () => {
+        isMounted = false;
+      };
+    }, [jobid]); // Add jobid as a dependency if it's being used in fetchData
+    
+
     const downloadExcel = async ()=>{
       const searchParams = {
         tenantId: Digit.ULBService.getCurrentTenantId(),
         fileStoreIds: allData?.EventHistory[0]?.fileStoreId
       }
       const fileStoreData = await Digit.IngestionService.fileStoreSearch(searchParams);
-      console.log(allData?.EventHistory[0]?.fileStoreId);
+
       downloadFile(fileStoreData?.fileStoreIds[0]?.url, 'Download.xlsx');
 
 
@@ -38,7 +71,7 @@ const ErrorViewPage = () => {
       link.href = url;
       link.download = fileName||'download.xlsx';
       link.target = '_blank';
-      console.log(link.download);
+
     
       // Append the link to the document
       document.body.appendChild(link);
@@ -53,6 +86,9 @@ const ErrorViewPage = () => {
    
 
     // Render the data once it's available
+    if(loading){
+      <Loader />
+    }
     let config = null;
 
     config = data(allData);

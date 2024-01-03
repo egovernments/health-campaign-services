@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 export const data = (project) => {
   const { t } = useTranslation();
 
-
   return {
     cards: [
       {
@@ -60,7 +59,7 @@ export const data = (project) => {
             navigationKey: "card2",
             type: "COMPONENT",
             component: "ProjectBeneficiaryComponent",
-            props: {projectId : project?.Project?.[0]?.id},
+            props: { projectId: project?.Project?.[0]?.id },
           },
         ],
       },
@@ -72,7 +71,7 @@ export const data = (project) => {
 
             type: "COMPONENT",
             component: "ProjectStaffComponent",
-            props: { projectId: project?.Project?.[0]?.id },
+            props: { projectId: project?.Project?.[0]?.id, ...project },
           },
         ],
       },
@@ -88,6 +87,18 @@ export const data = (project) => {
           },
         ],
       },
+      {
+        navigationKey: "card4",
+        sections: [
+          {
+            navigationKey: "card4",
+
+            type: "COMPONENT",
+            component: "FacilityComponent",
+            props: { projectId: project?.Project?.[0]?.id },
+          },
+        ],
+      }
     ],
     apiResponse: {},
     additionalDetails: {},
@@ -109,6 +120,11 @@ export const data = (project) => {
           active: true,
           code: "Children",
         },
+        {
+          name: "card4",
+          active: true,
+          code: "Facility",
+        }
       ],
       activeByDefault: "card1",
     },
