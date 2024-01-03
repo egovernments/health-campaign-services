@@ -55,62 +55,64 @@ const ProjectChildrenComponent = (props) => {
     { label: t("DESCENDANTS_END_DATE"), key: "descendants.formattedEndDate" },
   ];
 
-  if (isLoading) {
-    return <Loader></Loader>;
-  }
-  if (!projectChildren?.Project[0]?.descendants) {
-    return (
-      <div>
-        <Header className="works-header-view">{t("PROJECT_CHILDREN")}</Header>
-        <h1>{t("NO_PROJECT_CHILDREN")}</h1>
-      </div>
-    );
-  } else {
-    return (
-      <div className="override-card">
-        <Header className="works-header-view">{t("PROJECT_CHILDREN")}</Header>
-        <table className="table reports-table sub-work-table">
-          <thead>
-            <tr>
-              {columns.map((column, index) => (
-                <th key={index}>{column.label}</th>
-              ))}
-            </tr>
-          </thead>
+    if (isLoading) {
+        return <Loader></Loader>;
+    }
+    if (!projectChildren?.Project[0]?.descendants) {
+        return (
+            <div>
+                <Header className="works-header-view">{t("PROJECT_CHILDREN")}</Header>
+                <h1>{t("NO_PROJECT_CHILDREN")}</h1>
+            </div>
+        )
+    } else {
+        return (
+            <div className="override-card">
+                <Header className="works-header-view">{t("PROJECT_CHILDREN")}</Header>
+                <table className="table reports-table sub-work-table">
+                    <thead>
+                        <tr>
+                            {columns.map((column, index) => (
+                                <th key={index}>{column.label}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {projectsArray.map((project, rowIndex) => (
+                            <React.Fragment key={rowIndex}>
+                                {project.descendants?.map((descendant, descIndex) => (
+                                    <tr key={`${rowIndex}-${descIndex}`}>
+                                        {columns.map((column, columnIndex) => (
+                                            <td key={columnIndex}>
+                                                <div>
+                                                    {column.key.split("descendants.")[1] === "projectNumber" && descendant[column.key.split("descendants.")[1]] ? (
+                                                        <Link
+                                                            to={{
+                                                                pathname: window.location.pathname,
+                                                                search: `?tenantId=${descendant.tenantId}&projectNumber=${descendant.projectNumber}`,
+                                                            }}
+                                                            style={{ color: "#f37f12" , textDecoration: "none" }}
+                                                        >
+                                                            {descendant[column.key.split("descendants.")[1]]}
+                                                        </Link>
+                                                    ) : (
+                                                        descendant[column.key.split("descendants.")[1]] || "NA"
+                                                    )}
+                                                </div>
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </React.Fragment>
+                        ))}
+                    </tbody>
 
-          <tbody>
-            {projectsArray.map((project, rowIndex) => (
-              <tr key={rowIndex}>
-                {columns.map((column, columnIndex) => (
-                  <td key={columnIndex}>
-                    {column.key.includes("descendants.")
-                      ? project.descendants?.map((descendant, descIndex) => (
-                          <div key={descIndex}>
-                            {column.key.split("descendants.")[1] === "projectNumber" && descendant[column.key.split("descendants.")[1]] ? (
-                              <Link
-                                to={{
-                                  pathname: window.location.pathname,
-                                  search: `?tenantId=${descendant.tenantId}&projectNumber=${descendant.projectNumber}`,
-                                }}
-                                style={{ color: "#f37f12" }}
-                              >
-                                {descendant[column.key.split("descendants.")[1]]}
-                              </Link>
-                            ) : (
-                              descendant[column.key.split("descendants.")[1]] || "NA"
-                            )}
-                          </div>
-                        ))
-                      : project[column.key] || "NA"}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-};
+
+                </table>
+
+            </div>
+        );
+    }
+}
 
 export default ProjectChildrenComponent;

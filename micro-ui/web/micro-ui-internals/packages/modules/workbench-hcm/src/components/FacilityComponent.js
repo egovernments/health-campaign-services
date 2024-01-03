@@ -5,32 +5,61 @@ import { data } from "../configs/ViewProjectConfig";
 
 const FacilityComponent = (props) => {
     const { t } = useTranslation();
-    
+
     const requestCriteria = {
-        url: "/facility/v1/_search",
-        changeQueryName:props.projectId,
+        url: "/project/facility/v1/_search",
+        changeQueryName: props.projectId,
         params: {
-            tenantId : "mz",
+            tenantId: "mz",
             offset: 0,
             limit: 10,
         },
-        
+
         body: {
-            Facility: {
-                
+            ProjectFacility: {
+                "projectId": [props.projectId]
             },
         }
     };
 
-    const {isLoading, data: facility } = Digit.Hooks.useCustomAPIHook(requestCriteria);
+    const { isLoading, data: projectFacility } = Digit.Hooks.useCustomAPIHook(requestCriteria);
+
+
+    const facilityRequestCriteria = {
+        url: "/facility/v1/_search",
+        changeQueryName: projectFacility?.ProjectFacilities?.[0]?.facilityId,
+        params: {
+            tenantId: "mz",
+            offset: 0,
+            limit: 10,
+        },
+
+        body: {
+            Facility: {
+                "id": [projectFacility?.ProjectFacilities?.[0]?.facilityId]
+            },
+        }
+    };
+
+    const { isLoadingFacilty, data: Facility } = Digit.Hooks.useCustomAPIHook(facilityRequestCriteria);
+
+    const updatedProjectFacility = projectFacility?.ProjectFacilities.map(row => {
+        const facilityData = Facility?.Facilities?.find(facility => facility.id === row.facilityId);
+        return {
+            ...row,
+            storageCapacity: facilityData?.storageCapacity || "NA",
+            name: facilityData?.name || "NA",
+            usage: facilityData?.usage || "NA",
+            address: facilityData?.address || "NA",
+        };
+    });
 
     const columns = [
-        { label: t("FACILITY_ID"), key: "id" },
-        { label: t("CLIENT_REFERENCE_ID"), key: "clientReferenceId" },
-        { label: t("IS_DELETED"), key: "isDeleted" },
-        { label: t("NAME"), key: "name" },
+        { label: t("FACILITY_ID"), key: "facilityId" },
+        { label: t("PROJECT_FACILITY_ID"), key: "id" },
         { label: t("STORAGE_CAPACITY"), key: "storageCapacity" },
-        { label: t("USAGE"), key: "usage"}
+        { label: t("FACILITY_NAME"), key: "name" },
+        { label: t("FACILITY_USAGE"), key: "usage" }
     ];
 
 
@@ -41,7 +70,7 @@ const FacilityComponent = (props) => {
     return (
         <div className="override-card">
             <Header className="works-header-view">{t("FACILITY")}</Header>
-            {facility?.Facilities.length === 0 ? (
+            {updatedProjectFacility?.length === 0 ? (
                 <h1>{t("NO_FACILITY")}</h1>
             ) : (
                 <table className="table reports-table sub-work-table">
@@ -53,13 +82,12 @@ const FacilityComponent = (props) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {facility?.Facilities.map((row, rowIndex) => (
+                        {updatedProjectFacility?.map((row, rowIndex) => (
                             <tr key={rowIndex}>
                                 {columns.map((column, columnIndex) => (
-                                   <td key={columnIndex}>
-                                   {column.key === "isDeleted" ? String(row[column.key]) :
-                                       (column.key === "storageCapacity" ? (row[column.key] === 0 ? 0 : row[column.key]) : row[column.key] || "NA")}
-                               </td>
+                                    <td key={columnIndex}>
+                                        {row[column.key] || "NA"}
+                                    </td>
                                 ))}
                             </tr>
                         ))}
@@ -69,7 +97,7 @@ const FacilityComponent = (props) => {
             }
 
         </div>
-        
+
     )
 }
 
