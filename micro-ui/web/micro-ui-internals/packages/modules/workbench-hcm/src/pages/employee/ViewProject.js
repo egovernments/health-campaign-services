@@ -46,9 +46,8 @@ const ViewProject = () => {
           ...(projectId ? { id: projectId } : { projectNumber }),
         },
       ],
-    apiOperation: "SEARCH",
+      apiOperation: "SEARCH",
     },
-
   };
 
   const closeToast = () => {
@@ -140,4 +139,3 @@ const ViewProject = () => {
   );
 };
 export default ViewProject;
-
