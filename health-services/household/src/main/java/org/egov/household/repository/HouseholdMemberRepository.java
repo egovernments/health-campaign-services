@@ -84,7 +84,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
-        List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(queryBuilder.toString(), paramsMap, this.rowMapper);
 
         return SearchResponse.<HouseholdMember>builder().totalCount(totalCount).response(householdMembers).build();
     }

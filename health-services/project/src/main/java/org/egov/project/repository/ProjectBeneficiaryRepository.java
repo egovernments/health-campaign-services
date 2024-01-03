@@ -83,7 +83,7 @@ public class ProjectBeneficiaryRepository extends GenericRepository<ProjectBenef
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
-        List<ProjectBeneficiary> projectBeneficiaries = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        List<ProjectBeneficiary> projectBeneficiaries = this.namedParameterJdbcTemplate.query(queryBuilder.toString(), paramsMap, this.rowMapper);
 
         return SearchResponse.<ProjectBeneficiary>builder().totalCount(totalCount).response(projectBeneficiaries).build();
     }
