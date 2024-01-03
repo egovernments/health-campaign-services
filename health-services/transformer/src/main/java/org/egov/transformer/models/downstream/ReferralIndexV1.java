@@ -1,12 +1,21 @@
 package org.egov.transformer.models.downstream;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.egov.common.models.referralmanagement.Referral;
 
 import java.util.List;
 
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ReferralIndexV1 {
     @JsonProperty("referral")
     private Referral referral;
@@ -20,6 +29,8 @@ public class ReferralIndexV1 {
     private String role;
     @JsonProperty("age")
     private Integer age;
+    @JsonProperty("boundaryHierarchy")
+    private ObjectNode boundaryHierarchy;
     @JsonProperty("facilityName")
     private String facilityName;
     @JsonProperty("individualId")

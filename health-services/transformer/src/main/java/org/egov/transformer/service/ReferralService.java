@@ -1,11 +1,15 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.referralmanagement.Referral;
+import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 
 import org.egov.transformer.models.downstream.ReferralIndexV1;
@@ -17,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 import static org.egov.transformer.Constants.INDIVIDUAL_ID;
@@ -59,15 +64,22 @@ public class ReferralService {
 
     public ReferralIndexV1 transform(Referral referral) {
         List<User> users = userService.getUsers(referral.getTenantId(), referral.getAuditDetails().getCreatedBy());
-
         String tenantId = referral.getTenantId();
         ProjectBeneficiary projectBeneficiary = getProjectBeneficiary(referral, tenantId);
         Map<String, Object> individualDetails = (projectBeneficiary != null) ?
                 individualService.findIndividualByClientReferenceId(projectBeneficiary.getClientReferenceId(), tenantId) :
                 new HashMap<>();
         Facility facility = facilityService.findFacilityById(referral.getRecipientId(), tenantId);
-
-        return ReferralIndexV1.builder()
+        String projectId = projectBeneficiary.getProjectId();
+        Project project = projectService.getProject(projectId, tenantId);
+        String projectTypeId = project.getProjectTypeId();
+        JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
+        List<JsonNode> boundaryLevelVsLabel = StreamSupport
+                .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+        Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+        boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, referral.getTenantId());
+        Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
+        ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
                 .userName(userService.getUserName(users, referral.getAuditDetails().getCreatedBy()))
@@ -79,12 +91,21 @@ public class ReferralService {
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                 .clientLastModifiedTime(referral.getClientAuditDetails().getLastModifiedTime())
                 .build();
+        if (referralIndexV1.getBoundaryHierarchy() == null) {
+            ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
+            referralIndexV1.setBoundaryHierarchy(boundaryHierarchy);
+        }
+        boundaryLevelVsLabel.forEach(node -> {
+            if (node.get(Constants.LEVEL).asInt() > 1) {
+                referralIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
+            }
+        });
+        return referralIndexV1;
     }
 
     private ProjectBeneficiary getProjectBeneficiary(Referral referral, String tenantId) {
         String projectBeneficiaryClientReferenceId = referral.getProjectBeneficiaryClientReferenceId();
-        ProjectBeneficiary projectBeneficiary = null;
-
+        ProjectBeneficiary projectBeneficiary = new ProjectBeneficiary();
         List<ProjectBeneficiary> projectBeneficiaries = projectService
                 .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
 

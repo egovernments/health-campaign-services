@@ -25,7 +25,8 @@ public class ReferralConsumer {
         this.referralService = referralService;
     }
 
-    @KafkaListener(topics = { "${transformer.consumer.create.referral.topic}"})
+    @KafkaListener(topics = {"${transformer.consumer.create.referral.topic}",
+            "${transformer.consumer.update.referral.topic}"})
     public void consumeReferral(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
