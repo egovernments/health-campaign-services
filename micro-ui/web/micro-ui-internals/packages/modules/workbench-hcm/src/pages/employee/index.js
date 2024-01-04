@@ -29,11 +29,6 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
       show: location.pathname.includes("/hcmworkbench/user") ? true : false,
     },
     {
-      path: `/${window?.contextPath}/employee/hcmworkbench/ou`,
-      content: t("WORKBENCH_OU"),
-      show: location.pathname.includes("/hcmworkbench/ou") ? true : false,
-    },
-    {
       path: `/${window?.contextPath}/employee/hcmworkbench/view`,
       content: t("WORKBENCH_VIEW"),
       show: location.pathname.includes("/hcmworkbench/view") ? true : false,
@@ -88,7 +83,6 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/sample`} component={() => <div>Sample Screen loaded</div>} />
           <PrivateRoute path={`${path}/facility`} component={() => <DataIngestionComponent ingestionType={"facility"} />} />
           <PrivateRoute path={`${path}/user`} component={() => <DataIngestionComponent ingestionType={"user"} />} />
-          <PrivateRoute path={`${path}/ou`} component={() => <DataIngestionComponent ingestionType={"OU"} />} />
           <PrivateRoute path={`${path}/view`} component={() => <ErrorViewPage />} />
           <PrivateRoute path={`${path}/inbox`} component={() => <IngestionInbox />} />
           <PrivateRoute path={`${path}/boundary`} component={() => <DataIngestionComponent ingestionType={"boundary"} />} />
