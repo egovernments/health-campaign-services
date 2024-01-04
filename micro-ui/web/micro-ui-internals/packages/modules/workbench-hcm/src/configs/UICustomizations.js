@@ -231,6 +231,17 @@ export const UICustomizations = {
             </span>
           );
 
+          case "PROJECT_ID":
+          return (
+            <span className="link">
+              <Link
+                to={`/${window.contextPath}/employee/hcmworkbench/campaign-view?tenantId=${row?.tenantId}&projectId=${row?.projectId}`}
+              >{row?.projectId}
+
+              </Link>
+            </span>
+          );
+
         case "MASTERS_SOCIAL_CATEGORY":
           return value ? <span style={{ whiteSpace: "nowrap" }}>{String(t(`MASTERS_${value}`))}</span> : t("ES_COMMON_NA");
 
