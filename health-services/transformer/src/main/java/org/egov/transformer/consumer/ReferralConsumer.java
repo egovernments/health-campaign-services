@@ -7,6 +7,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.transformer.handler.TransformationHandler;
 import org.egov.transformer.service.ReferralService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -19,7 +21,8 @@ public class ReferralConsumer {
     private final TransformationHandler<Referral> transformationHandler;
     private final ReferralService referralService;
 
-    public ReferralConsumer(ObjectMapper objectMapper, TransformationHandler<Referral> transformationHandler, ReferralService referralService) {
+    @Autowired
+    public ReferralConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, TransformationHandler<Referral> transformationHandler, ReferralService referralService) {
         this.objectMapper = objectMapper;
         this.transformationHandler = transformationHandler;
         this.referralService = referralService;
