@@ -67,10 +67,12 @@ public abstract class SideEffectTransformationService implements TransformationS
         private ProjectService projectService;
 
         @Autowired
-        SideEffectIndexV1Transformer(SideEffectService sideEffectService, TransformerProperties properties, ObjectMapper objectMapper) {
+        SideEffectIndexV1Transformer(SideEffectService sideEffectService, TransformerProperties properties, ObjectMapper objectMapper,ProjectService projectService,IndividualService individualService) {
             this.sideEffectService = sideEffectService;
             this.properties = properties;
             this.objectMapper = objectMapper;
+            this.individualService = individualService;
+            this.projectService = projectService;
         }
 
         @Override
@@ -91,6 +93,7 @@ public abstract class SideEffectTransformationService implements TransformationS
             }
             ObjectNode boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task,tenantId);
             Map individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
+            log.info("individualDetails {}",individualDetails);
             SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                     .sideEffect(sideEffect)
                     .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
@@ -98,6 +101,7 @@ public abstract class SideEffectTransformationService implements TransformationS
                     .boundaryHierarchy(boundaryHierarchy)
                     .build();
             sideEffectsIndexV1List.add(sideEffectsIndexV1);
+            log.info("sideEffectsIndexV1List {}",sideEffectsIndexV1List);
             return sideEffectsIndexV1List;
         }
     }
