@@ -35,12 +35,6 @@ const HCMWORKBENCHCard = () => {
       roles: ROLES.MDMS,
     },
     {
-      label: t("WORKBENCH_OU"),
-      link: `/${window?.contextPath}/employee/hcmworkbench/ou`,
-      roles: ROLES.MDMS,
-    },
-  
-    {
       label: t("WORKBENCH_BOUNDARY"),
       link: `/${window?.contextPath}/employee/hcmworkbench/boundary`,
       roles: ROLES.MDMS,

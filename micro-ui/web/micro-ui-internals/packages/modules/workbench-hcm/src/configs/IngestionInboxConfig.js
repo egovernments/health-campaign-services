@@ -61,10 +61,6 @@ const IngestionInboxConfig = () => {
                 },
                 options: [
                     {
-                      code: "Organisation Units Ingestion",
-                      name: "WORKBENCH_OU_INGESTION"
-                    },
-                    {
                         code : "Facilities Ingestion",
                         name : "WORKBENCH_FACILITY_INGESTION"
                     },
@@ -127,8 +123,13 @@ const IngestionInboxConfig = () => {
         uiConfig: {
           links: [
             {
-              text: "WORKBENCH_OU",
-              url: "/employee/hcmworkbench/ou",
+              text: "WORKBENCH_BOUNDARY",
+              url: "/employee/hcmworkbench/boundary",
+              roles: ["SYSTEM_ADMINISTRATOR"],
+            },
+            {
+              text: "WORKBENCH_PROJECT",
+              url: "/employee/hcmworkbench/project",
               roles: ["SYSTEM_ADMINISTRATOR"],
             },
             {
@@ -140,17 +141,8 @@ const IngestionInboxConfig = () => {
               text: "WORKBENCH_FACILITY",
               url: "/employee/hcmworkbench/facility",
               roles: ["SYSTEM_ADMINISTRATOR"],
-            },
-            {
-              text: "WORKBENCH_BOUNDARY",
-              url: "/employee/hcmworkbench/boundary",
-              roles: ["SYSTEM_ADMINISTRATOR"],
-            },
-            {
-              text: "WORKBENCH_PROJECT",
-              url: "/employee/hcmworkbench/project",
-              roles: ["SYSTEM_ADMINISTRATOR"],
             }
+
           ],
         },
         children: {},
