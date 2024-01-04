@@ -35,6 +35,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.household.index.v1.topic}")
     private String transformerProducerBulkHouseholdIndexV1Topic;
 
+    @Value("${transformer.producer.referral.index.v1.topic}")
+    private String transformerProducerReferralIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
