@@ -76,7 +76,7 @@ public class SideEffectService {
     public ObjectNode getBoundaryHierarchyFromTask(Task task,String tenantId){
         ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
         Map<String, String> boundaryLabelToNameMap = null;
-        if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
+        if (task.getAddress()!=null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
         } else {

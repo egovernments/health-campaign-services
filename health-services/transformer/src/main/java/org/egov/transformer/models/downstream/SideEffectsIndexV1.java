@@ -28,4 +28,9 @@ public class SideEffectsIndexV1 {
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
 
+    @JsonProperty("individualId")
+    private String individualId;
+
+    @JsonProperty("gender")
+    private String gender;
 }

@@ -1,10 +1,13 @@
 package org.egov.transformer.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.jayway.jsonpath.internal.filter.ValueNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
+import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.SideEffectsIndexV1;
@@ -14,14 +17,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.AGE;
-import static org.egov.transformer.Constants.DATE_OF_BIRTH;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class SideEffectTransformationService implements TransformationService<SideEffect>{
@@ -81,24 +80,36 @@ public abstract class SideEffectTransformationService implements TransformationS
             List<SideEffectsIndexV1> sideEffectsIndexV1List = new ArrayList<>();
             Task task = null;
             ProjectBeneficiary projectBeneficiary = null;
+            Map individualDetails = new HashMap<>();
+            ObjectNode boundaryHierarchy = null;
             List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
             if(!CollectionUtils.isEmpty(taskList)){
                 task = taskList.get(0);
             }
-            List<ProjectBeneficiary> projectBeneficiaries = projectService
-                    .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
+            if(task!=null){
+                try {
+                    boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task,tenantId);
+                } catch (Exception e){
+                    log.error("error while fetching Boundary Details: {}", ExceptionUtils.getStackTrace(e));
+                }
+                List<ProjectBeneficiary> projectBeneficiaries = projectService
+                        .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
 
-            if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
-                projectBeneficiary = projectBeneficiaries.get(0);
+                if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
+                    projectBeneficiary = projectBeneficiaries.get(0);
+                }
             }
-            ObjectNode boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task,tenantId);
-            Map individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
-            log.info("individualDetails {}",individualDetails);
+            if(projectBeneficiary!=null){
+                individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
+            }
+
             SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                     .sideEffect(sideEffect)
                     .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                     .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                     .boundaryHierarchy(boundaryHierarchy)
+                    .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
+                    .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
                     .build();
             sideEffectsIndexV1List.add(sideEffectsIndexV1);
             log.info("sideEffectsIndexV1List {}",sideEffectsIndexV1List);
