@@ -67,7 +67,7 @@ public class ReferralService {
         String tenantId = referral.getTenantId();
         ProjectBeneficiary projectBeneficiary = getProjectBeneficiary(referral, tenantId);
         Map<String, Object> individualDetails = (projectBeneficiary != null) ?
-                individualService.findIndividualByClientReferenceId(projectBeneficiary.getClientReferenceId(), tenantId) :
+                individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId) :
                 new HashMap<>();
         Facility facility = facilityService.findFacilityById(referral.getRecipientId(), tenantId);
         String projectId = projectBeneficiary.getProjectId();
