@@ -33,14 +33,16 @@ public class SideEffectConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}","${transformer.consumer.update.side.effect.topic}"})
+    @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}"})
     public void consumeSideEffect(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            List<SideEffectRequest> payloadList = Arrays.asList(objectMapper
-                    .readValue((String) payload.value(), SideEffectRequest.class));
-            List<SideEffect> collect = payloadList.stream().map(p -> p.getSideEffect()).collect(Collectors.toList());
-            transformationHandler.handle(collect, Operation.SIDE_EFFECT);
+            log.info("payload {}",payload);
+            List<SideEffect> payloadList = Arrays.asList(objectMapper
+                    .readValue((String) payload.value(),
+                            SideEffect[].class));
+            log.info("payloadList {}",payloadList);
+            transformationHandler.handle(payloadList, Operation.SIDE_EFFECT);
         } catch (Exception exception) {
             log.error("error in side effect consumer {}", ExceptionUtils.getStackTrace(exception));
         }
