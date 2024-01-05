@@ -35,6 +35,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.household.index.v1.topic}")
     private String transformerProducerBulkHouseholdIndexV1Topic;
 
+    @Value("${transformer.producer.side.effect.index.v1.topic}")
+    private String transformerProducerSideEffectIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
@@ -43,6 +46,9 @@ public class TransformerProperties {
 
     @Value("${egov.search.project.url}")
     private String projectSearchUrl;
+
+    @Value("${egov.search.project.task.url}")
+    private String projectTaskSearchUrl;
 
     @Value("${egov.search.product.variant.url}")
     private String productVariantSearchUrl;
