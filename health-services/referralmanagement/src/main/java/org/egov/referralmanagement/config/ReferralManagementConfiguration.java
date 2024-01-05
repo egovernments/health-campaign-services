@@ -82,6 +82,9 @@ public class ReferralManagementConfiguration {
     @Value("${egov.search.project.staff.url}")
     private String projectStaffSearchUrl;
 
+    @Value("${egov.search.project.facility.url}")
+    private String projectFacilitySearchUrl;
+
     @Value("${egov.search.project.url}")
     private String projectSearchUrl;
 

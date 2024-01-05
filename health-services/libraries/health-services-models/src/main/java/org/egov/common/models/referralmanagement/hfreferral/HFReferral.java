@@ -38,9 +38,9 @@ public class HFReferral {
     @Size(min = 2, max = 64)
     private String projectId;
 
-    @JsonProperty("facilityId")
+    @JsonProperty("projectFacilityId")
     @Size(min = 2, max = 64)
-    private String facilityId;
+    private String projectFacilityId;
 
     @JsonProperty("symptom")
     @NotNull

@@ -41,7 +41,7 @@ public class HFReferralRowMapper implements RowMapper<HFReferral> {
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .tenantId(resultSet.getString("tenantid"))
                     .projectId(resultSet.getString("projectid"))
-                    .facilityId(resultSet.getString("facilityid"))
+                    .projectFacilityId(resultSet.getString("projectfacilityid"))
                     .symptom(resultSet.getString("symptom"))
                     .symptomSurveyId(resultSet.getString("symptomsurveyid"))
                     .beneficiaryId(resultSet.getString("beneficiaryid"))

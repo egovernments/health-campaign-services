@@ -40,7 +40,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
     public List<HFReferral> find(HFReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                  Long lastChangedSince, Boolean includeDeleted) {
       
-        String query = "SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.facilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf";
+        String query = "SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf";
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject,
                 QueryFieldChecker.isNotNull, paramsMap);
@@ -80,7 +80,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
             }
         }
 
-        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.facilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf WHERE hf.%s IN (:ids) ", columnName);
+        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from hf_referral hf WHERE hf.%s IN (:ids) ", columnName);
         if (includeDeleted == null || !includeDeleted) {
             query += " AND hf.isDeleted = false ";
         }
