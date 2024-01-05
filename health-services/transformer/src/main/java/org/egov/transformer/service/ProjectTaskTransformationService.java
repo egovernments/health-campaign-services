@@ -199,7 +199,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
             } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
                 log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");
                 Map<String, Object> individualDetails = (finalProjectBeneficiary != null) ?
-                        individualService.findIndividualByClientReferenceId(finalProjectBeneficiary.getClientReferenceId(), tenantId) :
+                        individualService.findIndividualByClientReferenceId(finalProjectBeneficiary.getBeneficiaryClientReferenceId(), tenantId) :
                         new HashMap<>();
 
                 projectTaskIndexV1.setAge(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null);

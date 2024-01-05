@@ -77,7 +77,11 @@ public class ReferralService {
             JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
             boundaryLevelVsLabel = StreamSupport
                     .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-            boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, referral.getTenantId());
+            if (individualDetails.containsKey(ADDRESS_CODE)) {
+                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap((String) individualDetails.get(ADDRESS_CODE), tenantId);
+            } else {
+                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, referral.getTenantId());
+            }
         }
 
         Facility facility = facilityService.findFacilityById(referral.getRecipientId(), tenantId);

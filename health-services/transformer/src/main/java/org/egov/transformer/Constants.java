@@ -38,6 +38,7 @@ public interface Constants {
     String DATE_OF_BIRTH = "dateOfBirth";
     String GENDER = "gender";
     String INDIVIDUAL_ID = "individualId";
+    String ADDRESS_CODE = "addressLocalityCode";
     String CHILDREN_PRESENTED_US = "childrenPresentedUS";
     String FEVER_POSITIVE_US = "feverPositiveUS";
     String FEVER_NEGATIVE_US = "feverNegativeUS";
