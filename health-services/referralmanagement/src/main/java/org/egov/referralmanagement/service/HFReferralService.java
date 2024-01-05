@@ -24,6 +24,7 @@ import org.egov.referralmanagement.service.enrichment.HFReferralEnrichmentServic
 import org.egov.referralmanagement.validator.hfreferral.HfrIsDeletedValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrNullIdValidator;
+import org.egov.referralmanagement.validator.hfreferral.HfrProjectFacilityIdValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrProjectIdValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrRowVersionValidator;
 import org.egov.referralmanagement.validator.hfreferral.HfrUniqueEntityValidator;
@@ -56,10 +57,12 @@ public class HFReferralService {
     private final List<Validator<HFReferralBulkRequest, HFReferral>> validators;
 
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForCreate = validator ->
-            validator.getClass().equals(HfrProjectIdValidator.class);
+            validator.getClass().equals(HfrProjectIdValidator.class)
+                || validator.getClass().equals(HfrProjectFacilityIdValidator.class);
 
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HfrProjectIdValidator.class)
+                || validator.getClass().equals(HfrProjectFacilityIdValidator.class)
                 || validator.getClass().equals(HfrNullIdValidator.class)
                 || validator.getClass().equals(HfrIsDeletedValidator.class)
                 || validator.getClass().equals(HfrUniqueEntityValidator.class)
