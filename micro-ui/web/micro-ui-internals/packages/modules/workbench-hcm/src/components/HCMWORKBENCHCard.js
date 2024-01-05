@@ -44,13 +44,22 @@ const HCMWORKBENCHCard = () => {
       link: `/${window?.contextPath}/employee/hcmworkbench/project`,
       roles: ROLES.MDMS,
     },
+    {
+      label: t("WORKBENCH_MASTER"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/master/master-landing-screen`,
+      roles: ROLES.MDMS,
+    },
+    {
+      label: t("WORKBENCH_USER"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/master/user-landing-screen`,
+      roles: ROLES.MDMS,
+    },
     // {
     //   label: t("WORKBENCH_MICROPLAN"),
     //   link: `/${window?.contextPath}/employee/hcmworkbench/microplan`,
     //   roles: ROLES.MDMS,
     // },
   ];
-
 
   links = links.filter((link) => (link?.roles && link?.roles?.length > 0 ? Digit.Utils.didEmployeeHasAtleastOneRole(link?.roles) : true));
 
