@@ -115,27 +115,26 @@
   display: flex !important;
   align-items: center;
   justify-content: space-between;
-  margin:1rem 0.5rem -0.5rem 0.3rem;
+  margin: 1rem 0.5rem -0.5rem 0.3rem;
 }
 
 .wbh-header {
   display: flex !important;
   align-items: center;
   justify-content: space-between;
-  margin:1rem 0.5rem -0.5rem 0.3rem;
-  .header-icon-container{
+  margin: 1rem 0.5rem -0.5rem 0.3rem;
+  .header-icon-container {
     cursor: pointer;
-    h4{
-      margin:0px !important;
+    h4 {
+      margin: 0px !important;
     }
-    color:#f47738;
+    color: #f47738;
     display: flex !important;
     align-items: center;
     svg {
-      margin:0 0 0 0.1rem;
+      margin: 0 0 0 0.1rem;
     }
   }
-
 }
 
 .display-none {
@@ -146,10 +145,15 @@
   padding: unset !important;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-size: inherit;
-  font-weight: inherit; }
-
+  font-weight: inherit;
+}
 
 .flex-one {
   @apply flex-1;
@@ -294,7 +298,7 @@ h1, h2, h3, h4, h5, h6 {
 
 input[readonly] {
   @apply border-grey-dark !important;
-  background-color:  theme(digitv2.lightTheme.background);
+  background-color: theme(digitv2.lightTheme.background);
   border-color: theme(digitv2.lightTheme.text-color-secondary);
   color: theme(digitv2.lightTheme.text-color-secondary);
 }
@@ -362,7 +366,6 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
-
 
 .static {
   @apply flex flex-col;
