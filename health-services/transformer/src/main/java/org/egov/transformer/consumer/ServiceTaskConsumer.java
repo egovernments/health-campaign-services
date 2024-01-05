@@ -8,6 +8,7 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.handler.TransformationHandler;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceRequest;
+import org.egov.transformer.service.ServiceTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -26,11 +27,14 @@ public class ServiceTaskConsumer {
 
     private final ObjectMapper objectMapper;
 
+    private final ServiceTransformationService serviceTransformationService;
+
     @Autowired
     public ServiceTaskConsumer(TransformationHandler<Service> transformationHandler,
-                                @Qualifier("objectMapper") ObjectMapper objectMapper) {
+                               @Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTransformationService serviceTransformationService) {
         this.transformationHandler = transformationHandler;
         this.objectMapper = objectMapper;
+        this.serviceTransformationService = serviceTransformationService;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.service.topic}"})
@@ -41,6 +45,7 @@ public class ServiceTaskConsumer {
                     .readValue((String) payload.value(), ServiceRequest.class));
             List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
             transformationHandler.handle(collect, Operation.SERVICE);
+            serviceTransformationService.transform(collect);
         } catch (Exception exception) {
             log.error("error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
         }

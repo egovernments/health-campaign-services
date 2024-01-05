@@ -35,6 +35,12 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.household.index.v1.topic}")
     private String transformerProducerBulkHouseholdIndexV1Topic;
 
+    @Value("${transformer.producer.side.effect.index.v1.topic}")
+    private String transformerProducerSideEffectIndexV1Topic;
+
+    @Value("${transformer.producer.service.index.v2.topic}")
+    private String transformerProducerServiceIndexV2Topic;
+
     @Value("${transformer.producer.referral.index.v1.topic}")
     private String transformerProducerReferralIndexV1Topic;
 
@@ -46,6 +52,9 @@ public class TransformerProperties {
 
     @Value("${egov.search.project.url}")
     private String projectSearchUrl;
+
+    @Value("${egov.search.project.task.url}")
+    private String projectTaskSearchUrl;
 
     @Value("${egov.search.product.variant.url}")
     private String productVariantSearchUrl;
@@ -121,6 +130,9 @@ public class TransformerProperties {
 
     @Value("${egov.timestamp.timeZone}")
     private String timeZone;
+
+    @Value("${referral.service.checklist.name}")
+    private String checkListName;
 
 
 }
