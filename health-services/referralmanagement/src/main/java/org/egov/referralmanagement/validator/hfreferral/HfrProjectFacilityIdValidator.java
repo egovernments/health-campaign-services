@@ -44,7 +44,7 @@ public class HfrProjectFacilityIdValidator implements Validator<HFReferralBulkRe
 
     @Override
     public Map<HFReferral, List<Error>> validate(HFReferralBulkRequest request) {
-        log.info("validating project  id");
+        log.info("validating project facility id");
         Map<HFReferral, List<Error>> errorDetailsMap = new HashMap<>();
         List<HFReferral> entities = request.getHfReferrals();
         Map<String, List<HFReferral>> tenantIdReferralMap = entities.stream().collect(Collectors.groupingBy(HFReferral::getTenantId));
@@ -63,7 +63,7 @@ public class HfrProjectFacilityIdValidator implements Validator<HFReferralBulkRe
     }
 
     private List<ProjectFacility> getExistingProjects(String tenantId, List<HFReferral> hfReferrals, HFReferralBulkRequest request) {
-        List<ProjectFacility> existingProjectFacilities = null;
+        List<ProjectFacility> existingProjectFacilities = new ArrayList<>();
         final List<String> projectFacilityIdList = new ArrayList<>();
         hfReferrals.forEach(hfReferral -> {
             addIgnoreNull(projectFacilityIdList, hfReferral.getProjectFacilityId());
@@ -95,13 +95,13 @@ public class HfrProjectFacilityIdValidator implements Validator<HFReferralBulkRe
         return existingProjectFacilities;
     }
 
-    private void validateAndPopulateErrors(List<ProjectFacility> existingProjects, List<HFReferral> entities, Map<HFReferral, List<Error>> errorDetailsMap) {
-        final List<String> existingProjectIds = new ArrayList<>();
-        existingProjects.forEach(project -> {
-            existingProjectIds.add(project.getId());
+    private void validateAndPopulateErrors(List<ProjectFacility> existingProjectFacilities, List<HFReferral> entities, Map<HFReferral, List<Error>> errorDetailsMap) {
+        final List<String> existingProjectFacilityIds = new ArrayList<>();
+        existingProjectFacilities.forEach(projectFacility -> {
+            existingProjectFacilityIds.add(projectFacility.getId());
         });
         List<HFReferral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
-                Objects.nonNull(entity.getProjectId()) && !existingProjectIds.contains(entity.getProjectId())
+                Objects.nonNull(entity.getProjectFacilityId()) && !existingProjectFacilityIds.contains(entity.getProjectFacilityId())
         ).collect(Collectors.toList());
         invalidEntities.forEach(hfReferral -> {
             Error error = getErrorForNonExistentEntity();
