@@ -28,7 +28,7 @@ public class HouseholdMemberConsumer {
         this.transformationHandler = transformationHandler;
     }
 
-    @KafkaListener(topics = { "${transformer.consumer.save.household.member.topic}","{$transformer.consumer.update.household.member.topic}",
+    @KafkaListener(topics = { "${transformer.consumer.save.household.member.topic}","${transformer.consumer.update.household.member.topic}",
             })
     public void consumeHouseholdMember(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
