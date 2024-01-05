@@ -210,8 +210,12 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             //adding to additional details  from additionalFields in task and task resource
             ObjectNode additionalDetails = objectMapper.createObjectNode();
-            addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
-            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+            if (task.getAdditionalFields() != null) {
+                addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
+            }
+            if (taskResource.getAdditionalFields() != null) {
+                addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+            }
             projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
             return projectTaskIndexV1;
