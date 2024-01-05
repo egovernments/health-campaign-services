@@ -14,6 +14,7 @@ import org.egov.transformer.config.TransformerProperties;
 
 import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 
@@ -27,6 +28,7 @@ import static org.egov.transformer.Constants.*;
 import static org.egov.transformer.Constants.INDIVIDUAL_ID;
 
 @Slf4j
+@Component
 public class ReferralService {
 
     private final TransformerProperties transformerProperties;

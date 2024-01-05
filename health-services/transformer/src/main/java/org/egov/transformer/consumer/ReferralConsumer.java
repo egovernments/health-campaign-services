@@ -12,19 +12,19 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.List;
 @Slf4j
+@Component
 public class ReferralConsumer {
     private final ObjectMapper objectMapper;
-    private final TransformationHandler<Referral> transformationHandler;
     private final ReferralService referralService;
 
     @Autowired
-    public ReferralConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, TransformationHandler<Referral> transformationHandler, ReferralService referralService) {
+    public ReferralConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ReferralService referralService) {
         this.objectMapper = objectMapper;
-        this.transformationHandler = transformationHandler;
         this.referralService = referralService;
     }
 
