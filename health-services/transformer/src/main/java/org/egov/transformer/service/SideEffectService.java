@@ -74,7 +74,6 @@ public class SideEffectService {
     }
 
     public ObjectNode getBoundaryHierarchyFromTask(Task task,String tenantId){
-        ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
         Map<String, String> boundaryLabelToNameMap = null;
         if (task.getAddress()!=null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
@@ -85,20 +84,7 @@ public class SideEffectService {
         }
         Project project = projectService.getProject(task.getProjectId(),tenantId);
         String projectTypeId = project.getProjectTypeId();
-        JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
-        List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
         log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-        Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
-
-        boundaryLevelVsLabel.stream()
-                .filter(node -> node.get(LEVEL).asInt() > 1)
-                .forEach(node -> {
-                    String label = node.get(INDEX_LABEL).asText();
-                    String name = Optional.ofNullable(finalBoundaryLabelToNameMap.get(node.get(LABEL).asText()))
-                            .orElse(null);
-                    boundaryHierarchy.put(label, name);
-                });
-        return boundaryHierarchy;
+        return (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
     }
 }

@@ -14,6 +14,7 @@ import org.egov.transformer.config.TransformerProperties;
 
 import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -39,8 +40,10 @@ public class ReferralService {
     private final IndividualService individualService;
     private final FacilityService facilityService;
 
+    private final CommonUtils commonUtils;
+
     public ReferralService(TransformerProperties transformerProperties,
-                           ObjectMapper objectMapper, Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService) {
+                           ObjectMapper objectMapper, Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.objectMapper = objectMapper;
         this.producer = producer;
@@ -48,6 +51,7 @@ public class ReferralService {
         this.projectService = projectService;
         this.individualService = individualService;
         this.facilityService = facilityService;
+        this.commonUtils = commonUtils;
     }
 
     public void transform(List<Referral> payloadList) {
@@ -68,15 +72,12 @@ public class ReferralService {
         ProjectBeneficiary projectBeneficiary = getProjectBeneficiary(referral, tenantId);
         Map<String, Object> individualDetails = new HashMap<>();
         Map<String, String> boundaryLabelToNameMap = new HashMap<>();
-        List<JsonNode> boundaryLevelVsLabel = null;
+        String projectTypeId = null;
         if (projectBeneficiary != null) {
             individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             String projectId = projectBeneficiary.getProjectId();
             Project project = projectService.getProject(projectId, tenantId);
-            String projectTypeId = project.getProjectTypeId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
-            boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+            projectTypeId = project.getProjectTypeId();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap((String) individualDetails.get(ADDRESS_CODE), tenantId);
             } else {
@@ -86,6 +87,7 @@ public class ReferralService {
 
         Facility facility = facilityService.findFacilityById(referral.getRecipientId(), tenantId);
         Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
+        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
@@ -96,17 +98,8 @@ public class ReferralService {
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                 .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
+                .boundaryHierarchy(boundaryHierarchy)
                 .build();
-
-        if (boundaryLevelVsLabel != null) {
-            ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
-            referralIndexV1.setBoundaryHierarchy(boundaryHierarchy);
-            boundaryLevelVsLabel.forEach(node -> {
-                if (node.get(Constants.LEVEL).asInt() > 1) {
-                    referralIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(), finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
-                }
-            });
-        }
 
         return referralIndexV1;
     }

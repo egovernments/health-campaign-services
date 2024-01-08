@@ -1,7 +1,6 @@
 package org.egov.transformer.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
@@ -75,19 +74,15 @@ public abstract class StockTransformationService implements TransformationServic
         private final ProjectService projectService;
 
         private final FacilityService facilityService;
-        private final TransformerProperties properties;
         private final CommonUtils commonUtils;
-        private UserService userService;
-        private final ObjectMapper objectMapper;
+        private final UserService userService;
 
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
-                                TransformerProperties properties, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
+                                CommonUtils commonUtils, UserService userService) {
             this.projectService = projectService;
             this.facilityService = facilityService;
-            this.properties = properties;
             this.commonUtils = commonUtils;
             this.userService = userService;
-            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -111,8 +106,8 @@ public abstract class StockTransformationService implements TransformationServic
                             .getBoundaryLabelToNameMapByProjectId(stock.getReferenceId(), stock.getTenantId());
                 }
             }
-            Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
-            String facilityLevel = facility != null ? getFacilityLevel(facility) : null;
+            ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
+            String facilityLevel =getFacilityLevel(facility);
             String transactingFacilityLevel = transactingFacility != null ? getFacilityLevel(transactingFacility) : null;
             Long facilityTarget = getFacilityTarget(facility);
 
@@ -157,16 +152,9 @@ public abstract class StockTransformationService implements TransformationServic
                     .facilityLevel(facilityLevel)
                     .transactingFacilityLevel(transactingFacilityLevel)
                     .facilityTarget(facilityTarget)
+                    .boundaryHierarchy(boundaryHierarchy)
                     .build();
-            if (stockIndexV1.getBoundaryHierarchy() == null) {
-                ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
-                stockIndexV1.setBoundaryHierarchy(boundaryHierarchy);
-            }
-            boundaryLevelVsLabel.forEach(node -> {
-                if (node.get(Constants.LEVEL).asInt() > 1) {
-                    stockIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
-                }
-            });
+
             return Collections.singletonList(stockIndexV1);
         }
 

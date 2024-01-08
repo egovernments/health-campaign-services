@@ -86,7 +86,7 @@ public abstract class SideEffectTransformationService implements TransformationS
             if(!CollectionUtils.isEmpty(taskList)){
                 task = taskList.get(0);
             }
-            if(task!=null){
+            if(task != null){
                 try {
                     boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task,tenantId);
                 } catch (Exception e){

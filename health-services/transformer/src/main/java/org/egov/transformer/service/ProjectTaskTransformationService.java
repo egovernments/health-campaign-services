@@ -126,7 +126,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
 
-
             return task.getResources().stream().map(r ->
                     transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, users, finalProjectBeneficiary, projectBeneficiaryType)
             ).collect(Collectors.toList());
