@@ -44,7 +44,7 @@ public class HFReferral {
 
     @JsonProperty("symptom")
     @NotNull
-    @Size(min = 2, max = 500)
+    @Size(min = 2, max = 256)
     private String symptom;
 
     @JsonProperty("symptomSurveyId")
@@ -52,15 +52,15 @@ public class HFReferral {
     private String symptomSurveyId;
 
     @JsonProperty("beneficiaryId")
-    @Size(max=1000)
+    @Size(max=100)
     private String beneficiaryId;
 
     @JsonProperty("referralCode")
-    @Size(max=1000)
+    @Size(max=100)
     private String referralCode;
 
     @JsonProperty("nationalLevelId")
-    @Size(max=1000)
+    @Size(max=100)
     private String nationalLevelId;
 
     @JsonProperty("isDeleted")
