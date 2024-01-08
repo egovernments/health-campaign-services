@@ -65,7 +65,7 @@ public class IndividualService {
             individualDetails.put(GENDER, individual.getGender().toString());
             individualDetails.put(INDIVIDUAL_ID, individual.getIndividualId());
             individualDetails.put(DATE_OF_BIRTH, individual.getDateOfBirth().getTime());
-            if (individual.getAddress() != null && individual.getAddress().get(0).getLocality().getCode() != null) {
+            if (individual.getAddress() != null && !individual.getAddress().isEmpty() && individual.getAddress().get(0).getLocality() != null && individual.getAddress().get(0).getLocality().getCode() != null) {
                 individualDetails.put(ADDRESS_CODE, individual.getAddress().get(0).getLocality().getCode());
             }
 

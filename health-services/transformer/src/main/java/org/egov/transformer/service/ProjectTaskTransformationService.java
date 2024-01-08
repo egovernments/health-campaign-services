@@ -223,7 +223,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
             });
         }
         private Task constructTaskResourceIfNull(Task task) {
-            if (task.getResources() == null) {
+            if (task.getResources() == null || task.getResources().isEmpty()) {
                 TaskResource taskResource = new TaskResource();
                 taskResource.setId(task.getStatus() + HYPHEN + task.getId());
                 taskResource.setClientReferenceId(task.getStatus() + HYPHEN + task.getClientReferenceId());
