@@ -62,7 +62,7 @@ const MasterComponent = () => {
                       }}
                     >
                       <div className="master-icon">{IconComp}</div>
-                      {ele.code}
+                      {t(Digit.Utils.locale.getTransformedLocale(`${screen}_${ele.code}`))}
                     </a>
                   </Card>
                 </div>
