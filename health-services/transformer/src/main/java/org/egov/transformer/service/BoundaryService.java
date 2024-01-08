@@ -57,8 +57,7 @@ public class BoundaryService {
             List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
             if(boundaryList.isEmpty()) return null;
             log.info("no cached boundary tree, adding current tree into the cache");
-            BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
-            cachedBoundaryTree = boundaryTree;
+            cachedBoundaryTree = generateTree(boundaryList.get(0));
             return search(cachedBoundaryTree, code);
         }
         else {
@@ -70,8 +69,7 @@ public class BoundaryService {
                 List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
                 if(boundaryList.isEmpty()) return null;
                 log.info("boundary code {} not in cached tree, generating new tree", code);
-                BoundaryTree boundaryTree = generateTree(boundaryList.get(0));
-                cachedBoundaryTree = boundaryTree;
+                cachedBoundaryTree = generateTree(boundaryList.get(0));
                 return search(cachedBoundaryTree, code);
             }
         }

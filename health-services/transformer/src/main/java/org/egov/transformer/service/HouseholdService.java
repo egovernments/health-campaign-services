@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -9,7 +8,6 @@ import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.models.household.HouseholdSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
@@ -78,9 +76,9 @@ public class HouseholdService {
     }
 
     public HouseholdIndexV1 transform(Household household) {
-         return HouseholdIndexV1.builder()
+        return HouseholdIndexV1.builder()
                 .household(household)
-                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
+                .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .build();
     }
 }

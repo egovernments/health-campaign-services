@@ -57,27 +57,17 @@ public abstract class HouseholdMemberTransformationService implements Transforma
     static class HouseholdMemberIndexV1Transformer implements
             Transformer<HouseholdMember, HouseholdMemberIndexV1> {
 
-        private final ProjectService projectService;
-
         private final IndividualService individualService;
-        private final TransformerProperties properties;
-        private final CommonUtils commonUtils;
-        private UserService userService;
 
-        HouseholdMemberIndexV1Transformer(ProjectService projectService, IndividualService individualService,
-                                          TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
-            this.projectService = projectService;
+        HouseholdMemberIndexV1Transformer(IndividualService individualService) {
             this.individualService = individualService;
-            this.properties = properties;
-            this.commonUtils = commonUtils;
-            this.userService = userService;
         }
 
         @Override
         public List<HouseholdMemberIndexV1> transform(HouseholdMember householdMember) {
 
             String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
-            Map individualDetails = individualService.findIndividualByClientReferenceId(individualClientReferenceId, householdMember.getTenantId());
+            Map<String, Object> individualDetails = individualService.findIndividualByClientReferenceId(individualClientReferenceId, householdMember.getTenantId());
 
             return Collections.singletonList(HouseholdMemberIndexV1.builder()
                     .householdMember(householdMember)

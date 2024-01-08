@@ -51,19 +51,16 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
-    private final HouseholdService householdService;
-
 //    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService, HouseholdService householdService) {
+                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.boundaryService = boundaryService;
         this.mdmsService = mdmsService;
-        this.householdService = householdService;
     }
 
     public Project getProject(String projectId, String tenantId) {

@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -35,8 +34,7 @@ public class IndividualService {
     }
 
 
-
-    public Map<String ,Object> findIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
+    public Map<String, Object> findIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .individual(IndividualSearch.builder().clientReferenceId(Collections.singletonList(clientReferenceId)).build())
                 .requestInfo(RequestInfo.builder().

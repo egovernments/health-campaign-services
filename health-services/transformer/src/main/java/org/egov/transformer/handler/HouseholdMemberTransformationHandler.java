@@ -3,7 +3,6 @@ package org.egov.transformer.handler;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.transformer.enums.Operation;
-import org.egov.transformer.models.downstream.HouseholdMemberIndexV1;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
