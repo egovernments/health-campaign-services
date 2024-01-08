@@ -38,6 +38,8 @@ export const data = (project) => {
               {
                 key: "WORKBENCH_PROJECT_PARENT_PROJECT_NUMBER",
                 value: project?.Project?.[0]?.ancestors?.[0]?.projectNumber || "NA",
+                isLink:true,
+                to:`campaign-view?tenantId=mz&projectNumber=${project?.Project?.[0]?.ancestors?.[0]?.projectNumber}`
               },
               {
                 key: "WORKBENCH_PROJECT_PRIMARY_TARGET_NO",
@@ -46,6 +48,14 @@ export const data = (project) => {
               {
                 key: "WORKBENCH_PROJECT_PRIMARY_TOTAL_NO",
                 value: project?.Project?.[0]?.targets?.[0]?.totalNo || "NA",
+              },
+              {
+                key: "WORKBENCH_PROJECT_BOUNDARY",
+                value: project?.Project?.[0]?.address?.boundary || "NA",
+              },
+              {
+                key: "WORKBENCH_PROJECT_BOUNDARY_TYPE",
+                value: project?.Project?.[0]?.address?.boundaryType || "NA",
               },
             ],
           },
