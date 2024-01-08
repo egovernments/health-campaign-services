@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.service.ProjectService;

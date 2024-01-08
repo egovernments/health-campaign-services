@@ -112,6 +112,4 @@ public class StockIndexV1 {
     @JsonProperty("facilityTarget")
     private Long facilityTarget;
 
-    @JsonProperty("clientAuditDetails")
-    private @Valid AuditDetails clientAuditDetails;
 }

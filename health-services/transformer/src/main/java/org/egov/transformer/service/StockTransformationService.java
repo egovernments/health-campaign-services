@@ -146,7 +146,6 @@ public abstract class StockTransformationService implements TransformationServic
                     .longitude(facility.getAddress() != null ? facility.getAddress().getLongitude() : null)
                     .latitude(facility.getAddress() != null ? facility.getAddress().getLatitude() : null)
                     .additionalFields(stock.getAdditionalFields())
-                    .clientAuditDetails(stock.getClientAuditDetails())
                     .syncedTimeStamp(syncedTimeStamp)
                     .syncedTime(stock.getAuditDetails().getCreatedTime())
                     .facilityLevel(facilityLevel)

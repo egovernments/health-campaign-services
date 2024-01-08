@@ -1,12 +1,10 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
-import org.egov.transformer.Constants;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -20,7 +18,6 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
@@ -126,7 +123,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
 
-            return task.getResources().stream().map(r ->
+            Task constructedTask = constructTaskResourceIfNull(task);
+
+            return constructedTask.getResources().stream().map(r ->
                     transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, users, finalProjectBeneficiary, projectBeneficiaryType)
             ).collect(Collectors.toList());
         }
@@ -223,5 +222,44 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 }
             });
         }
+        private Task constructTaskResourceIfNull(Task task) {
+            if (task.getResources() == null) {
+                TaskResource taskResource = new TaskResource();
+                taskResource.setId(task.getStatus() + HYPHEN + task.getId());
+                taskResource.setClientReferenceId(task.getStatus() + HYPHEN + task.getClientReferenceId());
+                taskResource.setIsDelivered(false);
+                taskResource.setDeliveryComment(null);
+
+                AdditionalFields taskAdditionalFields = task.getAdditionalFields();
+
+                if (taskAdditionalFields != null && !taskAdditionalFields.getFields().isEmpty()) {
+                    List<Field> fields = taskAdditionalFields.getFields();
+
+                    String productVariantId = getFieldStringValue(fields, PRODUCT_VARIANT_ID);
+                    String taskStatus = getFieldStringValue(fields, TASK_STATUS);
+
+                    taskResource.setProductVariantId(productVariantId);
+
+                    if (BENEFICIARY_REFERRED.equalsIgnoreCase(taskStatus) && productVariantId != null) {
+                        taskResource.setQuantity(RE_ADMINISTERED_DOSES);
+                        taskResource.setDeliveryComment(ADMINISTRATION_NOT_SUCCESSFUL);
+                    }
+                } else {
+                    taskResource.setQuantity(null);
+                    taskResource.setProductVariantId(null);
+                }
+
+                task.setResources(Collections.singletonList(taskResource));
+            }
+            return task;
+        }
+        private String getFieldStringValue(List<Field> fields, String key) {
+            Optional<Field> field = fields.stream()
+                    .filter(field1 -> key.equalsIgnoreCase(field1.getKey()))
+                    .findFirst();
+            return field.map(Field::getValue).orElse(null);
+        }
+
     }
+
 }

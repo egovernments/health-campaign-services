@@ -59,18 +59,13 @@ public abstract class ProjectStaffTransformationService implements Transformatio
     static class ProjectStaffIndexV1Transformer implements
             Transformer<ProjectStaff, ProjectStaffIndexV1> {
         private final ProjectService projectService;
-        private final TransformerProperties properties;
-
-        private final ObjectMapper objectMapper;
 
         private final UserService userService;
 
         private final CommonUtils commonUtils;
         @Autowired
-        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils) {
+        ProjectStaffIndexV1Transformer(ProjectService projectService, UserService userService, CommonUtils commonUtils) {
             this.projectService = projectService;
-            this.properties = properties;
-            this.objectMapper = objectMapper;
             this.userService = userService;
             this.commonUtils = commonUtils;
         }

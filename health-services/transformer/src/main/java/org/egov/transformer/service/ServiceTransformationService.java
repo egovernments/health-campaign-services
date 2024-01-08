@@ -101,6 +101,7 @@ public class ServiceTransformationService {
                         .userName(userService.getUserName(users, service.getAuditDetails().getCreatedBy()))
                         .role(userService.getStaffRole(service.getTenantId(), users))
                         .createdTime(service.getAuditDetails().getCreatedTime())
+                        .syncedTime(service.getAuditDetails().getCreatedTime())
                         .createdBy(service.getAuditDetails().getCreatedBy())
                         .syncedTimeStamp(syncedTimeStamp)
                         .boundaryHierarchy(boundaryHierarchy)
@@ -128,28 +129,24 @@ public class ServiceTransformationService {
                 serviceIndexV2.setChildrenPresentedUS(value);
                 break;
             }
-            case Constants.FEVER_POSITIVE_US: {
-                serviceIndexV2.setFeverPositiveUS(value);
+            case Constants.MALARIA_POSITIVE_US: {
+                serviceIndexV2.setMalariaPositiveUS(value);
                 break;
             }
-            case Constants.FEVER_NEGATIVE_US: {
-                serviceIndexV2.setFeverNegativeUS(value);
+            case Constants.MALARIA_NEGATIVE_US: {
+                serviceIndexV2.setMalariaNegativeUS(value);
                 break;
             }
-            case Constants.REFERRED_CHILDREN_TO_APE: {
-                serviceIndexV2.setReferredChildrenToAPE(value);
+            case Constants.CHILDREN_PRESENTED_APE: {
+                serviceIndexV2.setChildrenPresentedAPE(value);
                 break;
             }
-            case Constants.REFERRED_CHILDREN_PRESENTED_TO_APE: {
-                serviceIndexV2.setReferredChildrenPresentedToAPE(value);
+            case Constants.MALARIA_POSITIVE_APE: {
+                serviceIndexV2.setMalariaPositiveAPE(value);
                 break;
             }
-            case Constants.POSITIVE_MALARIA_APE: {
-                serviceIndexV2.setPositiveMalariaAPE(value);
-                break;
-            }
-            case Constants.NEGATIVE_MALARIA_APE: {
-                serviceIndexV2.setNegativeMalariaAPE(value);
+            case Constants.MALARIA_NEGATIVE_APE: {
+                serviceIndexV2.setMalariaNegativeAPE(value);
                 break;
             }
         }
@@ -167,21 +164,19 @@ public class ServiceTransformationService {
 
     private static void getGroup1Map(Map<String, String> codeVsQuestionMappingGroup1) {
         codeVsQuestionMappingGroup1.put("SM1", Constants.CHILDREN_PRESENTED_US);
-        codeVsQuestionMappingGroup1.put("SM3", Constants.FEVER_POSITIVE_US);
-        codeVsQuestionMappingGroup1.put("SM5", Constants.FEVER_NEGATIVE_US);
-        codeVsQuestionMappingGroup1.put("SM7", Constants.REFERRED_CHILDREN_TO_APE);
-        codeVsQuestionMappingGroup1.put("SM9", Constants.REFERRED_CHILDREN_PRESENTED_TO_APE);
-        codeVsQuestionMappingGroup1.put("SM11", Constants.POSITIVE_MALARIA_APE);
-        codeVsQuestionMappingGroup1.put("SM13", Constants.NEGATIVE_MALARIA_APE);
+        codeVsQuestionMappingGroup1.put("SM3", Constants.MALARIA_POSITIVE_US);
+        codeVsQuestionMappingGroup1.put("SM5", Constants.MALARIA_NEGATIVE_US);
+        codeVsQuestionMappingGroup1.put("SM7", Constants.CHILDREN_PRESENTED_APE);
+        codeVsQuestionMappingGroup1.put("SM9", Constants.MALARIA_POSITIVE_APE);
+        codeVsQuestionMappingGroup1.put("SM11", Constants.MALARIA_NEGATIVE_APE);
     }
 
     private static void getGroup2Map(Map<String, String> codeVsQuestionMappingGroup2) {
         codeVsQuestionMappingGroup2.put("SM2", Constants.CHILDREN_PRESENTED_US);
-        codeVsQuestionMappingGroup2.put("SM4", Constants.FEVER_POSITIVE_US);
-        codeVsQuestionMappingGroup2.put("SM6", Constants.FEVER_NEGATIVE_US);
-        codeVsQuestionMappingGroup2.put("SM8", Constants.REFERRED_CHILDREN_TO_APE);
-        codeVsQuestionMappingGroup2.put("SM10", Constants.REFERRED_CHILDREN_PRESENTED_TO_APE);
-        codeVsQuestionMappingGroup2.put("SM12", Constants.POSITIVE_MALARIA_APE);
-        codeVsQuestionMappingGroup2.put("SM14", Constants.NEGATIVE_MALARIA_APE);
+        codeVsQuestionMappingGroup2.put("SM4", Constants.MALARIA_POSITIVE_US);
+        codeVsQuestionMappingGroup2.put("SM6", Constants.MALARIA_NEGATIVE_US);
+        codeVsQuestionMappingGroup2.put("SM8", Constants.CHILDREN_PRESENTED_APE);
+        codeVsQuestionMappingGroup2.put("SM10", Constants.MALARIA_POSITIVE_APE);
+        codeVsQuestionMappingGroup2.put("SM12", Constants.MALARIA_NEGATIVE_APE);
     }
 }

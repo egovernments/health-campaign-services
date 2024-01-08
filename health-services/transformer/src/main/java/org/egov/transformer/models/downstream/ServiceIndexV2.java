@@ -34,23 +34,23 @@ public class ServiceIndexV2 {
     private String projectId;
     @JsonProperty("tenantId")
     private String tenantId;
+    @JsonProperty("syncedTime")
+    private Long syncedTime;
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
     @JsonProperty("childrenPresentedUS")
     private Object childrenPresentedUS;
-    @JsonProperty("feverPositiveUS")
-    private Object feverPositiveUS;
-    @JsonProperty("feverNegativeUS")
-    private Object feverNegativeUS;
-    @JsonProperty("referredChildrenToAPE")
-    private Object referredChildrenToAPE;
-    @JsonProperty("referredChildrenPresentedToAPE")
-    private Object referredChildrenPresentedToAPE;
-    @JsonProperty("positiveMalariaAPE")
-    private Object positiveMalariaAPE;
-    @JsonProperty("negativeMalariaAPE")
-    private Object negativeMalariaAPE;
+    @JsonProperty("malariaPositiveUS")
+    private Object malariaPositiveUS;
+    @JsonProperty("malariaNegativeUS")
+    private Object malariaNegativeUS;
+    @JsonProperty("childrenPresentedAPE")
+    private Object childrenPresentedAPE;
+    @JsonProperty("malariaPositiveAPE")
+    private Object malariaPositiveAPE;
+    @JsonProperty("malariaNegativeAPE")
+    private Object malariaNegativeAPE;
 
 }

@@ -10,6 +10,13 @@ public interface Constants {
 
     String QUANTITY_WASTED = "quantityWasted";
 
+    Double RE_ADMINISTERED_DOSES = 2.0;
+
+    String BENEFICIARY_REFERRED = "BENEFICIARY_REFERRED";
+    String TASK_STATUS = "taskStatus";
+    String PRODUCT_VARIANT_ID = "productVariantId";
+    String ADMINISTRATION_NOT_SUCCESSFUL = "ADMINISTRATION_NOT_SUCCESSFUL";
+
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
 
     String MDMS_RESPONSE = "MdmsRes";
@@ -40,11 +47,10 @@ public interface Constants {
     String INDIVIDUAL_ID = "individualId";
     String ADDRESS_CODE = "addressLocalityCode";
     String CHILDREN_PRESENTED_US = "childrenPresentedUS";
-    String FEVER_POSITIVE_US = "feverPositiveUS";
-    String FEVER_NEGATIVE_US = "feverNegativeUS";
-    String REFERRED_CHILDREN_TO_APE = "referredChildrenToAPE";
-    String REFERRED_CHILDREN_PRESENTED_TO_APE = "referredChildrenPresentedToAPE";
-    String POSITIVE_MALARIA_APE = "positiveMalariaAPE";
-    String NEGATIVE_MALARIA_APE = "negativeMalariaAPE";
+    String MALARIA_POSITIVE_US = "malariaPositiveUS";
+    String MALARIA_NEGATIVE_US = "malariaNegativeUS";
+    String CHILDREN_PRESENTED_APE = "childrenPresentedAPE";
+    String MALARIA_POSITIVE_APE = "malariaPositiveAPE";
+    String MALARIA_NEGATIVE_APE = "malariaNegativeAPE";
 
 }
