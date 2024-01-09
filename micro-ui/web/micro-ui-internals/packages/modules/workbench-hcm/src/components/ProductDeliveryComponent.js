@@ -24,7 +24,6 @@ const ProductDeliveryComponent = (props) => {
     };
 
     const {isLoading, data: product } = Digit.Hooks.useCustomAPIHook(requestCriteria);
-    // console.log("product",product);
 
 
     const columns = [

@@ -88,6 +88,7 @@ Syntax for the FormComposersV2
 # Changelog
 
 ```bash
+1.8.0-beta.5 added file type excel in multiUploadWrapper
 1.8.0-beta.1 fixed some topbar issues
 1.8.0-beta workbench base version beta release
 1.7.0 urban 2.9

@@ -45,6 +45,10 @@ const HCMWORKBENCHCard = () => {
       roles: ROLES.MDMS,
     },
     {
+      label: t("WORKBENCH_CREATE_CAMPAIGN"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/campaign`,
+    },
+      {
       label: t("WORKBENCH_MASTER"),
       link: `/${window?.contextPath}/employee/hcmworkbench/master/master-landing-screen`,
       roles: ROLES.MDMS,
