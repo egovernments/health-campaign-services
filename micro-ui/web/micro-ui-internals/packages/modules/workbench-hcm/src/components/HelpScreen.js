@@ -52,9 +52,9 @@ const HelpScreen = () => {
             return (
               <div className="help-screen-body">
                 <Header> {t(Digit.Utils.locale.getTransformedLocale(`${screen}_${ele.data.screen}`))}</Header>
-                <CardLabel>{ele.data.message}</CardLabel>
+                <CardLabel>{t(ele.data.message)}</CardLabel>
                 {types ? (
-                  <a href={`mailto:${ele.data.link}`}>{t(Digit.Utils.locale.getTransformedLocale(`${screen}_LINK`))}</a>
+                  <a href={`mailto:${ele.data.link}?subject=${ele.data.screen}`}>{t(Digit.Utils.locale.getTransformedLocale(`${screen}_LINK`))}</a>
                 ) : (
                   <a
                     onClick={() => {

@@ -70,16 +70,8 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
       query: `landingscreen=${screen}`,
       show: location.pathname.includes("/hcmworkbench/master") ? true : false,
     },
-    {
-      path: `/${window?.contextPath}/employee/hcmworkbench/help-screen`,
-      content: t("WORKBENCH_HELP_SCREEN"),
-      show: location.pathname.includes("/hcmworkbench/help-screen") ? true : false,
-    },
-    {
-      path: `/${window?.contextPath}/employee/hcmworkbench/help-screen/basic-setup`,
-      content: t("WORKBENCH_HELP_SCREEN_BASIC_SETUP"),
-      show: location.pathname.includes("/hcmworkbench/help-screen/basic-setup") ? true : false,
-    },
+    
+
   ];
   return <BreadCrumb className="workbench-bredcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
 };
