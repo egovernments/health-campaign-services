@@ -18,12 +18,13 @@ const ProjectStaffComponent = (props) => {
         userId: null,
         id: null,
     });
+    
 
     const userId = Digit.UserService.getUser().info.uuid;
 
     const [showPopup, setShowPopup] = useState(false);
 
-    const { tenantId, projectId } = Digit.Hooks.useQueryParams();
+    const { tenantId } = Digit.Hooks.useQueryParams();
 
     const requestCriteria = {
         url: "/project/staff/v1/_search",
@@ -49,15 +50,12 @@ const ProjectStaffComponent = (props) => {
     const isValidTimestamp = (timestamp) => timestamp !== 0 && !isNaN(timestamp);
 
     //to convert epoch to date and to convert isDeleted boolean to string
-    projectStaff?.ProjectStaff.forEach(row => {
-        row.formattedStartDate = isValidTimestamp(row.startDate)
-            ? Digit.DateUtils.ConvertEpochToDate(row.startDate)
-            : "NA";
-        row.formattedEndDate = isValidTimestamp(row.endDate)
-            ? Digit.DateUtils.ConvertEpochToDate(row.endDate)
-            : "NA";
-        row.isDeleted = row.isDeleted ? "Yes" : "No";
-    });
+    const dateConversion = projectStaff?.ProjectStaff.forEach((row) => {
+        row.formattedStartDate = isValidTimestamp(row.startDate) ? Digit.DateUtils.ConvertEpochToDate(row.startDate) : "NA";
+        row.formattedEndDate = isValidTimestamp(row.endDate) ? Digit.DateUtils.ConvertEpochToDate(row.endDate) : "NA";
+        row.isDeleted = row.isDeleted ? true : false;
+      });
+    
 
 
     useEffect(() => {
@@ -203,7 +201,7 @@ const ProjectStaffComponent = (props) => {
                         ProjectStaff: {
                             tenantId,
                             userId: userId,
-                            projectId: projectId,
+                            projectId: props?.projectId,
                             startDate: props?.Project[0]?.startDate,
                             endDate: props?.Project[0]?.endDate,
                         },
@@ -224,39 +222,39 @@ const ProjectStaffComponent = (props) => {
 
     const handleProjectStaffDelete = async (projectId, staffId, id, confirmed) => {
         try {
-            setShowPopup(false);
-            if (confirmed) {
-                await mutationDelete.mutate(
-                    {
-                        body: {
-                            ProjectStaff: {
-                                tenantId,
-                                id,
-                                userId: staffId,
-                                projectId: projectId,
-                                ...deletionDetails,
-                            },
-                        },
-                    },
-                    {
-                        onSuccess: () => {
-                            closeToast();
-                            refetch();
-                            setShowToast({ key: "success", label: "WBH_PROJECT_STAFF_DELETED_SUCESSFULLY" });
-                        },
-                        onError: (resp) => {
-                            const label = resp?.response?.data?.Errors?.[0]?.code;
-                            setShowToast({ isError: true, label });
-                            refetch();
-                        },
-                    }
-                );
-            }
+          setShowPopup(false);
+          if (confirmed) {
+            await mutationDelete.mutate(
+              {
+                body: {
+                  ProjectStaff: {
+                    tenantId,
+                    id,
+                    userId: staffId,
+                    projectId: projectId,
+                    ...deletionDetails,
+                  },
+                },
+              },
+              {
+                onSuccess: () => {
+                  closeToast();
+                  refetch();
+                  setShowToast({ key: "success", label: "WBH_PROJECT_STAFF_DELETED_SUCESSFULLY" });
+                },
+                onError: (resp) => {
+                  const label = resp?.response?.data?.Errors?.[0]?.code;
+                  setShowToast({ isError: true, label });
+                  refetch();
+                },
+              }
+            );
+          }
         } catch (error) {
-            setShowToast({ label: "WBH_PROJECT_STAFF_DELETION_FAILED", isError: true });
-            setShowModal(false);
+          setShowToast({ label: "WBH_PROJECT_STAFF_DELETION_FAILED", isError: true });
+          setShowModal(false);
         }
-    };
+      };
 
     if (isLoading && isUserSearchLoading) {
         return <Loader></Loader>;
@@ -264,82 +262,90 @@ const ProjectStaffComponent = (props) => {
 
     return (
         <div className="override-card">
-            <Header className="works-header-view">{t("PROJECT_STAFF")}</Header>
-
-            {mappedProjectStaff?.length === 0 ? <h1>{t("NO_PROJECT_STAFF")}</h1> :
-                <div>
-                    <Button label={t("WBH_ADD_PROJECT_STAFF")} type="button" variation={"secondary"} onButtonClick={() => setShowModal(true)} />
-                    {showModal && (
-                        <ProjectStaffModal
-                            t={t}
-                            userName={userName}
-                            onSearch={handleSearch}
-                            onChange={handleInputChange}
-                            searchResult={showResult}
-                            onSubmit={handleProjectStaffSubmit}
-                            onClose={closeModal}
-                            heading={"WBH_ASSIGN_PROJECT_STAFF"}
+          <Header className="works-header-view">{t("PROJECT_STAFF")}</Header>
+    
+          <div>
+            <Button label={t("WBH_ADD_PROJECT_STAFF")} type="button" variation={"secondary"} onButtonClick={() => setShowModal(true)} />
+            {showModal && (
+              <ProjectStaffModal
+                t={t}
+                userName={userName}
+                onSearch={handleSearch}
+                onChange={handleInputChange}
+                searchResult={showResult}
+                onSubmit={handleProjectStaffSubmit}
+                onClose={closeModal}
+                heading={"WBH_ASSIGN_PROJECT_STAFF"}
+                isDisabled={!showResult || showResult.length === 0} // Set isDisabled based on the condition
+              />
+            )}
+            {showPopup && (
+              <ConfirmationDialog
+                t={t}
+                heading={"WBH_DELETE_POPUP_HEADER"}
+                closeModal={closeModal}
+                onSubmit={(confirmed) => handleProjectStaffDelete(deletionDetails.projectId, deletionDetails.userId, deletionDetails.id, confirmed)}
+              />
+            )}
+    
+            {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>}
+    
+            {mappedProjectStaff?.length > 0 ? (
+              <table className="table reports-table sub-work-table">
+                <thead>
+                  <tr>
+                    {columns?.map((column, index) => (
+                      <th key={index}>{column?.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {mappedProjectStaff?.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {columns?.map((column, columnIndex) => (
+                        <td key={columnIndex}>
+                          {column?.render
+                            ? column?.render(row)
+                            : column?.key === "userInfo.roles"
+                            ? row?.userInfo?.roles
+                                .slice(0, 2)
+                                .map((role) => role.name)
+                                .join(", ") // to show 2 roles
+                            : column?.key.includes(".")
+                            ? getNestedPropertyValue(row, column?.key)
+                            : row[column.key] || "NA"}
+                        </td>
+                      ))}
+                      <td>
+                        <Button
+                          label={`${t("WBH_DELETE_ACTION")}`}
+                          type="button"
+                          variation="secondary"
+                          icon={<SVG.Delete width={"28"} height={"28"} />}
+                          onButtonClick={() => {
+                            setDeletionDetails({
+                              projectId: row.projectId,
+                              userId: row.userId,
+                              id: row.id,
+                              ...row,
+                            });
+                            setShowPopup(true);
+                          }}
                         />
-                    )}
-                    {showPopup && (
-                        <ConfirmationDialog
-                            t={t}
-                            heading={"WBH_DELETE_POPUP_HEADER"}
-                            closeModal={closeModal}
-                            onSubmit={(confirmed) => handleProjectStaffDelete(deletionDetails.projectId, deletionDetails.userId, deletionDetails.id, confirmed)}
-                        />
-                    )}
-
-                    {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>}
-
-                    <table className="table reports-table sub-work-table">
-                        <thead>
-                            <tr>
-                                {columns?.map((column, index) => (
-                                    <th key={index}>{column?.label}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {mappedProjectStaff?.map((row, rowIndex) => (
-                                <tr key={rowIndex}>
-                                    {columns?.map((column, columnIndex) => (
-                                        <td key={columnIndex}>
-                                            {column?.render
-                                                ? column?.render(row)
-                                                : column?.key === "userInfo.roles"
-                                                    ? row?.userInfo?.roles.slice(0, 2).map(role => role.name).join(', ') // to show 2 roles
-                                                    : column?.key.includes('.')
-                                                        ? getNestedPropertyValue(row, column?.key)
-                                                        : row[column.key] || "NA"}
-                                        </td>
-                                    ))}
-                                    <td>
-                                        <Button
-                                            label={`${t("WBH_DELETE_ACTION")}`}
-                                            type="button"
-                                            variation="secondary"
-                                            icon={<SVG.Delete width={"28"} height={"28"} />}
-                                            onButtonClick={() => {
-                                                setDeletionDetails({
-                                                    projectId: row.projectId,
-                                                    userId: row.userId,
-                                                    id: row.id,
-                                                    ...row,
-                                                });
-                                                setShowPopup(true);
-                                            }}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-            }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ textAlign: "center" }}>
+                <h1>{t("NO_PROJECT_STAFF")}</h1>
+              </div>
+            )}
+          </div>
         </div>
-    );
-};
+      );
+    };
+    
 
 export default ProjectStaffComponent;

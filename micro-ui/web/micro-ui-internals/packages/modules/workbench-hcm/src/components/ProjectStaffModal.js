@@ -1,7 +1,7 @@
 import { Button, Modal, TextInput, Close, CloseSvg, Card, BreakLine } from "@egovernments/digit-ui-react-components";
 import React, { useState } from "react";
 
-const ProjectStaffModal = ({ t, onClose, heading, onCancel, onSubmit, userName, onSearch, searchResult, onChange }) => {
+const ProjectStaffModal = ({ t, onClose, heading, onCancel, onSubmit, userName, onSearch, searchResult, onChange, isDisabled }) => {
   const CloseBtn = (props) => {
     return (
       <div onClick={props?.onClick} style={props?.isMobileView ? { padding: 5 } : null}>
@@ -27,9 +27,10 @@ const ProjectStaffModal = ({ t, onClose, heading, onCancel, onSubmit, userName, 
       actionCancelLabel={t("CORE_COMMON_CANCEL")}
       actionCancelOnSubmit={onClose}
       actionSaveOnSubmit={onSubmit}
+      isDisabled={isDisabled}
     >
       <Card style={{ boxShadow: "none" }}>
-        <TextInput name={"name"} placeholder={"Search by name"} value={userName} onChange={onChange} />
+        <TextInput name={"name"} placeholder={`${t("WBH_SEARCH_BY_NAME")}`} value={userName} onChange={onChange} />
         <Button label={`${t("WBH_ACTION_SEARCH")}`} type="button" variation="primary" onButtonClick={onSearch} />
         <BreakLine />
         <TextInput name={"name"} value={searchResult} />
