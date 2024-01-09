@@ -125,22 +125,22 @@ const IngestionInboxConfig = () => {
             {
               text: "WORKBENCH_BOUNDARY",
               url: "/employee/hcmworkbench/boundary",
-              roles: ["SYSTEM_ADMINISTRATOR"],
+              roles: ["SYSTEM_ADMINISTRATOR","CAMPAIGN_ADMIN"],
             },
             {
               text: "WORKBENCH_PROJECT",
               url: "/employee/hcmworkbench/project",
-              roles: ["SYSTEM_ADMINISTRATOR"],
+              roles: ["SYSTEM_ADMINISTRATOR","CAMPAIGN_ADMIN"],
             },
             {
               text: "WORKBENCH_USER",
               url: "/employee/hcmworkbench/user",
-              roles: ["SYSTEM_ADMINISTRATOR"],
+              roles: ["SYSTEM_ADMINISTRATOR","CAMPAIGN_ADMIN"],
             },
             {
               text: "WORKBENCH_FACILITY",
               url: "/employee/hcmworkbench/facility",
-              roles: ["SYSTEM_ADMINISTRATOR"],
+              roles: ["SYSTEM_ADMINISTRATOR","CAMPAIGN_ADMIN"],
             }
 
           ],
