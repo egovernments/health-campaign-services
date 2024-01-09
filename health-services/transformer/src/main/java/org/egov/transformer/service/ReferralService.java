@@ -22,6 +22,7 @@ import org.springframework.util.CollectionUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -84,8 +85,12 @@ public class ReferralService {
                 boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, referral.getTenantId());
             }
         }
+        String facilityName = Optional.of(referral)
+                .filter(r -> FACILITY.equalsIgnoreCase(r.getRecipientType()))
+                .map(r -> facilityService.findFacilityById(r.getRecipientId(), tenantId))
+                .map(Facility::getName)
+                .orElse(DEFAULT_FACILITY_NAME);
 
-        Facility facility = facilityService.findFacilityById(referral.getRecipientId(), tenantId);
         Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
@@ -93,7 +98,7 @@ public class ReferralService {
                 .tenantId(referral.getTenantId())
                 .userName(userService.getUserName(users, referral.getAuditDetails().getCreatedBy()))
                 .role(userService.getStaffRole(referral.getTenantId(), users))
-                .facilityName(facility.getName())
+                .facilityName(facilityName)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                 .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)

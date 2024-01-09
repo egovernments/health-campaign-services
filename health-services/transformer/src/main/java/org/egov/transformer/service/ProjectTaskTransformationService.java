@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
@@ -214,8 +215,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     try {
                         additionalDetails.put(key, Integer.valueOf(value));
                     } catch (NumberFormatException e) {
-                        log.error("Invalid integer format for key '{}': value '{}'. Storing as a string.", key, value, e);
-                        additionalDetails.put(key, field.getValue());
+                        log.error("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value, e);
+                        additionalDetails.put(key, (JsonNode) null);
                     }
                 } else {
                     additionalDetails.put(key, field.getValue());

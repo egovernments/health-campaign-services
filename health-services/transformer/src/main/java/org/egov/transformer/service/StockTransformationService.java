@@ -92,12 +92,10 @@ public abstract class StockTransformationService implements TransformationServic
             String projectId = stock.getReferenceId();
             Project project = projectService.getProject(projectId,tenantId);
             String projectTypeId = project.getProjectTypeId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
-            List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
             Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
-            if (facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
+            if (facility != null && facility.getAddress() != null &&  facility.getAddress().getLocality() != null
+                    && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
             } else {
@@ -107,14 +105,14 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-            String facilityLevel =getFacilityLevel(facility);
+            String facilityLevel = facility != null ? getFacilityLevel(facility): null;
             String transactingFacilityLevel = transactingFacility != null ? getFacilityLevel(transactingFacility) : null;
-            Long facilityTarget = getFacilityTarget(facility);
+            Long facilityTarget = facility != null ? getFacilityTarget(facility): null;
 
             String facilityType = WAREHOUSE;
             String transactingFacilityType = WAREHOUSE;
 
-            facilityType = getType(facilityType, facility);
+            facilityType = facility != null ? getType(facilityType, facility): facilityType;
             transactingFacilityType = transactingFacility != null ? getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
 
             List<User> users = userService.getUsers(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
@@ -126,7 +124,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .tenantId(stock.getTenantId())
                     .productVariant(stock.getProductVariantId())
                     .facilityId(stock.getFacilityId())
-                    .facilityName(facility.getName())
+                    .facilityName(facility != null ? facility.getName() : stock.getFacilityId())
                     .transactingFacilityId(stock.getTransactingPartyId())
                     .userName(userService.getUserName(users, stock.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(stock.getTenantId(), users))
@@ -143,8 +141,6 @@ public abstract class StockTransformationService implements TransformationServic
                     .createdBy(stock.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())
-                    .longitude(facility.getAddress() != null ? facility.getAddress().getLongitude() : null)
-                    .latitude(facility.getAddress() != null ? facility.getAddress().getLatitude() : null)
                     .additionalFields(stock.getAdditionalFields())
                     .syncedTimeStamp(syncedTimeStamp)
                     .syncedTime(stock.getAuditDetails().getCreatedTime())

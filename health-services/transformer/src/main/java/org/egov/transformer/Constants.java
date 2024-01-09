@@ -1,5 +1,7 @@
 package org.egov.transformer;
 
+import org.apache.kafka.common.protocol.types.Field;
+
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
     String INDIVIDUAL = "INDIVIDUAL";
@@ -25,6 +27,7 @@ public interface Constants {
 
     String PROJECT = "PROJECT";
     String WAREHOUSE = "WAREHOUSE";
+    String FACILITY = "FACILITY";
     String DISTRICT_WAREHOUSE = "DISTRICT_WAREHOUSE";
     String SATELLITE_WAREHOUSE = "SATELLITE_WAREHOUSE";
     String TYPE_KEY = "type";
@@ -52,5 +55,6 @@ public interface Constants {
     String CHILDREN_PRESENTED_APE = "childrenPresentedAPE";
     String MALARIA_POSITIVE_APE = "malariaPositiveAPE";
     String MALARIA_NEGATIVE_APE = "malariaNegativeAPE";
+    String DEFAULT_FACILITY_NAME = "APS";
 
 }

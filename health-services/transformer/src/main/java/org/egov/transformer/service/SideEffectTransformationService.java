@@ -1,13 +1,10 @@
 package org.egov.transformer.service;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jayway.jsonpath.internal.filter.ValueNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
-import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.SideEffectsIndexV1;
@@ -60,16 +57,12 @@ public abstract class SideEffectTransformationService implements TransformationS
     @Component
     static class SideEffectIndexV1Transformer implements Transformer<SideEffect, SideEffectsIndexV1> {
         private final SideEffectService sideEffectService;
-        private final TransformerProperties properties;
-        private final ObjectMapper objectMapper;
-        private IndividualService individualService;
-        private ProjectService projectService;
+        private final IndividualService individualService;
+        private final ProjectService projectService;
 
         @Autowired
-        SideEffectIndexV1Transformer(SideEffectService sideEffectService, TransformerProperties properties, ObjectMapper objectMapper,ProjectService projectService,IndividualService individualService) {
+        SideEffectIndexV1Transformer(SideEffectService sideEffectService, ProjectService projectService, IndividualService individualService) {
             this.sideEffectService = sideEffectService;
-            this.properties = properties;
-            this.objectMapper = objectMapper;
             this.individualService = individualService;
             this.projectService = projectService;
         }
@@ -80,7 +73,7 @@ public abstract class SideEffectTransformationService implements TransformationS
             List<SideEffectsIndexV1> sideEffectsIndexV1List = new ArrayList<>();
             Task task = null;
             ProjectBeneficiary projectBeneficiary = null;
-            Map individualDetails = new HashMap<>();
+            Map<String, Object> individualDetails = new HashMap<>();
             ObjectNode boundaryHierarchy = null;
             List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
             if(!CollectionUtils.isEmpty(taskList)){
