@@ -58,6 +58,21 @@ const HCMWORKBENCHCard = () => {
       link: `/${window?.contextPath}/employee/hcmworkbench/master/user-landing-screen`,
       roles: ROLES.MDMS,
     },
+    {
+      label: t("WORKBENCH_HELP_SCREEN_BASIC_SETUP"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/help-screen/basic-setup`,
+      roles: ROLES.MDMS,
+    },
+    {
+      label: t("WORKBENCH_HELP_SCREEN_CHECKLIST"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/help-screen/check-list`,
+      roles: ROLES.MDMS,
+    },
+    {
+      label: t("WORKBENCH_HELP_SCREEN_CODED_USER"),
+      link: `/${window?.contextPath}/employee/hcmworkbench/help-screen/coded-user`,
+      roles: ROLES.MDMS,
+    },
     // {
     //   label: t("WORKBENCH_MICROPLAN"),
     //   link: `/${window?.contextPath}/employee/hcmworkbench/microplan`,

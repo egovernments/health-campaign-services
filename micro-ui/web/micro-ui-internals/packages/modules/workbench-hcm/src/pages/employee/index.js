@@ -11,6 +11,7 @@ import ViewProject from "./ViewProject";
 import CreateCampaign from "./CreateCampaign";
 
 import MasterComponent from "../../components/MasterComponent";
+import HelpScreen from "../../components/HelpScreen";
 
 
 const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
@@ -69,6 +70,16 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
       query: `landingscreen=${screen}`,
       show: location.pathname.includes("/hcmworkbench/master") ? true : false,
     },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/help-screen`,
+      content: t("WORKBENCH_HELP_SCREEN"),
+      show: location.pathname.includes("/hcmworkbench/help-screen") ? true : false,
+    },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/help-screen/basic-setup`,
+      content: t("WORKBENCH_HELP_SCREEN_BASIC_SETUP"),
+      show: location.pathname.includes("/hcmworkbench/help-screen/basic-setup") ? true : false,
+    },
   ];
   return <BreadCrumb className="workbench-bredcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
 };
@@ -108,6 +119,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/microplan`} component={() => <DataIngestionComponent ingestionType={"microplan"} />} />
           <PrivateRoute path={`${path}/campaign`} component={() => <CreateCampaign />} />
           <PrivateRoute path={`${path}/master/:screen`} component={() => <MasterComponent />} />
+          <PrivateRoute path={`${path}/help-screen/:screen`} component={() => <HelpScreen />} />
         </AppContainer>
       </Switch>
     </React.Fragment>

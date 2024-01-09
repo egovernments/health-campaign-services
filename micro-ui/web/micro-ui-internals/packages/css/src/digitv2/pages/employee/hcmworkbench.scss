@@ -179,3 +179,13 @@
     }
   }
 }
+
+.help-screen-container {
+  .help-screen-body {
+    a {
+      cursor: pointer;
+      color: theme(digitv2.lightTheme.primary);
+      text-decoration: none;
+    }
+  }
+}
