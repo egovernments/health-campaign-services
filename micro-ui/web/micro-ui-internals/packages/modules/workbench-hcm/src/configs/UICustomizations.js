@@ -97,7 +97,7 @@ export const UICustomizations = {
           },
           dateConfig: {},
           selectConfig: {},
-          textConfig: ["productId", "sku", "variation"],
+          textConfig: ["productId", "sku", "variation" , "id"],
         },
         SearchProjectBeneficiaryConfig: {
           basePath: "ProjectBeneficiary",
@@ -109,7 +109,7 @@ export const UICustomizations = {
             dateOfRegistration: "daystart",
           },
           selectConfig: {},
-          textConfig: ["beneficiaryId", "projectId"],
+          textConfig: ["beneficiaryId", "projectId" , "id" , "clientReferenceId"],
         },
         SearchProjectStaffConfig: {
           basePath: "ProjectStaff",
@@ -121,7 +121,7 @@ export const UICustomizations = {
             endDate: "dayend",
           },
           selectConfig: {},
-          textConfig: ["projectId", "userId"],
+          textConfig: ["projectId", "userId" , "id"],
         },
         SearchProjectResourceConfig: {
           basePath: "ProjectResource",
@@ -130,7 +130,7 @@ export const UICustomizations = {
           },
           dateConfig: {},
           selectConfig: {},
-          textConfig: [],
+          textConfig: ["id"],
         },
         SearchProjectTaskConfig: {
           basePath: "Task",
@@ -145,7 +145,7 @@ export const UICustomizations = {
             actualStartDate: "daystart",
           },
           selectConfig: {},
-          textConfig: ["projectId", "localityCode", "projectBeneficiaryId", "status"],
+          textConfig: ["projectId", "localityCode", "projectBeneficiaryId", "status" , "id" ,"clientReferenceId"],
         },
         SearchFacilityConfig: {
           basePath: "Facility",

@@ -3,6 +3,12 @@ import { useTranslation } from "react-i18next";
 
 export const data = (project) => {
   const { t } = useTranslation();
+  const ancestor = project?.Project?.[0]?.ancestors;
+  const lastAncestor = ancestor?.length  > 0 ? ancestor[ancestor?.length - 1] : { projectNumber: "NA" };
+  const isLink = ancestor?.length > 0 ? true: false;
+  // const to = isLink
+  //   ? `campaign-view?tenantId=mz&projectNumber=${ancestor?.length.projectNumber}`
+  //   : undefined;
 
   return {
     cards: [
@@ -37,9 +43,9 @@ export const data = (project) => {
               },
               {
                 key: "WORKBENCH_PROJECT_PARENT_PROJECT_NUMBER",
-                value: project?.Project?.[0]?.ancestors?.[0]?.projectNumber || "NA",
-                isLink:true,
-                to:`campaign-view?tenantId=mz&projectNumber=${project?.Project?.[0]?.ancestors?.[0]?.projectNumber}`
+                value: ancestor?.length > 0 ? ancestor[ancestor?.length - 1]?.projectNumber : "NA",
+                isLink: ancestor?.length > 0 ? true : false,
+                to: isLink? `campaign-view?tenantId=mz&projectNumber=${ancestor[ancestor?.length - 1].projectNumber}` : undefined
               },
               {
                 key: "WORKBENCH_PROJECT_PRIMARY_TARGET_NO",
@@ -61,7 +67,6 @@ export const data = (project) => {
           },
         ],
       },
-
       {
         navigationKey: "card2",
         sections: [
