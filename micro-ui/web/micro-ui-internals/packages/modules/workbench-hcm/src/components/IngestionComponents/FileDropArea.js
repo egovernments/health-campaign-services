@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ActionBar, Button, Header, Loader, SubmitBar, Toast} from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import GenerateXlsx from '../GenerateXlsx';
+import { useHistory } from "react-router-dom";
 import { facilityJsonData } from '../../constants/facilityJsonData';
 import { oujsonData } from '../../constants/ouJsonData';
 import { userJsonData } from '../../constants/userJsonData';
@@ -9,6 +10,7 @@ import { userJsonData } from '../../constants/userJsonData';
 
 function FileDropArea ({ingestionType}) {
   const { t } = useTranslation();
+  const history = useHistory();
   const [isDragActive, setIsDragActive] = useState(false);
   const [droppedFile, setDroppedFile] = useState(null);
   const [showToast, setShowToast] = useState(false);
@@ -134,6 +136,11 @@ function FileDropArea ({ingestionType}) {
         };
         const allData = await Digit.IngestionService.ingest(searchParams,Digit.ULBService.getCurrentTenantId());
         setResponse(allData);
+
+        history.push({
+          pathname: `/${window.contextPath}/employee/hcmworkbench/response`,
+          state: { responseData: allData }
+        });
 
     }
     catch(error){

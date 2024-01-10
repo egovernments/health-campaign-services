@@ -3,6 +3,7 @@ import { Switch, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 import DataIngestionComponent from "../../components/IngestionComponents/DataIngestionComponent";
+import IngestionResponse from "../employee/ResponsePage";
 
 import ErrorViewPage from "./ErrorViewPage";
 
@@ -38,7 +39,8 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
       path: `/${window?.contextPath}/employee/hcmworkbench/view`,
       content: t("WORKBENCH_VIEW"),
       show: location.pathname.includes("/hcmworkbench/view") ? true : false,
-
+    },
+    {
       path: `/${window?.contextPath}/employee/hcmworkbench/inbox`,
       content: t("WORKBENCH_INBOX"),
       show: location.pathname.includes("/hcmworkbench/inbox") ? true : false,
@@ -109,9 +111,13 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/project`} component={() => <DataIngestionComponent ingestionType={"project"} />} />
           <PrivateRoute path={`${path}/campaign-view`} component={() => <ViewProject />} />
           <PrivateRoute path={`${path}/microplan`} component={() => <DataIngestionComponent ingestionType={"microplan"} />} />
+
+          <PrivateRoute path={`${path}/response`} component={() => <IngestionResponse />} />
+
           <PrivateRoute path={`${path}/campaign`} component={() => <CreateCampaign />} />
           <PrivateRoute path={`${path}/master/:screen`} component={() => <MasterComponent />} />
           <PrivateRoute path={`${path}/help-screen/:screen`} component={() => <HelpScreen />} />
+
         </AppContainer>
       </Switch>
     </React.Fragment>
