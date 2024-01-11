@@ -23,6 +23,11 @@ public class ReferralBulkResponse {
     @Valid
     private ResponseInfo responseInfo;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
+
     @JsonProperty("Referrals")
     @NotNull
     @Valid

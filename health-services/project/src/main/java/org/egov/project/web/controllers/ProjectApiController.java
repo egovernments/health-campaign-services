@@ -403,9 +403,9 @@ public class ProjectApiController {
                                                                     @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                     @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) {
 
-        List<Task> households = projectTaskService.search(request.getTask(), limit, offset, tenantId, lastChangedSince, includeDeleted);
+        SearchResponse<Task> taskSearchResponse = projectTaskService.search(request.getTask(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         TaskBulkResponse response = TaskBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).tasks(households).build();
+                .createResponseInfo(request.getRequestInfo(), true)).tasks(taskSearchResponse.getResponse()).totalCount(taskSearchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

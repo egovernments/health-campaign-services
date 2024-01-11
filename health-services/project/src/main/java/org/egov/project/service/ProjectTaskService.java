@@ -1,10 +1,17 @@
 package org.egov.project.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.models.project.TaskRequest;
@@ -19,24 +26,18 @@ import org.egov.project.repository.ProjectTaskRepository;
 import org.egov.project.service.enrichment.ProjectTaskEnrichmentService;
 import org.egov.project.validator.task.PtIsDeletedSubEntityValidator;
 import org.egov.project.validator.task.PtIsDeletedValidator;
+import org.egov.project.validator.task.PtIsResouceEmptyValidator;
 import org.egov.project.validator.task.PtNonExistentEntityValidator;
 import org.egov.project.validator.task.PtNullIdValidator;
 import org.egov.project.validator.task.PtProductVariantIdValidator;
 import org.egov.project.validator.task.PtProjectBeneficiaryIdValidator;
 import org.egov.project.validator.task.PtProjectIdValidator;
-import org.egov.project.validator.task.PtIsResouceEmptyValidator;
 import org.egov.project.validator.task.PtRowVersionValidator;
 import org.egov.project.validator.task.PtUniqueEntityValidator;
 import org.egov.project.validator.task.PtUniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -216,8 +217,8 @@ public class ProjectTaskService {
         return new Tuple<>(validTasks, errorDetailsMap);
     }
 
-    public List<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
-                             Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
+                                 Long lastChangedSince, Boolean includeDeleted) {
 
         log.info("received request to search project task");
 
@@ -228,12 +229,13 @@ public class ProjectTaskService {
                             .singletonList(taskSearch)),
                     taskSearch);
             log.info("fetching project tasks with ids: {}", ids);
-            return projectTaskRepository.findById(ids,
-                            idFieldName, includeDeleted).stream()
+            SearchResponse<Task> searchResponse = projectTaskRepository.findById(ids,
+                            idFieldName, includeDeleted);
+            return SearchResponse.<Task>builder().response(searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toList())).totalCount(searchResponse.getTotalCount()).build();
         }
 
         try {

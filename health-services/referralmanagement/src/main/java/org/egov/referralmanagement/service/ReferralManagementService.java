@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.models.referralmanagement.ReferralRequest;
@@ -152,12 +153,12 @@ public class ReferralManagementService {
         return validReferrals;
     }
 
-    public List<Referral> search(ReferralSearchRequest referralSearchRequest,
-                                 Integer limit,
-                                 Integer offset,
-                                 String tenantId,
-                                 Long lastChangedSince,
-                                 Boolean includeDeleted) {
+    public SearchResponse<Referral> search(ReferralSearchRequest referralSearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted) {
         log.info("received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
@@ -166,11 +167,12 @@ public class ReferralManagementService {
                             .singletonList(referralSearchRequest.getReferral())),
                     referralSearchRequest.getReferral());
             log.info("fetching referrals with ids: {}", ids);
-            return referralRepository.findById(ids, includeDeleted, idFieldName).stream()
+            List<Referral> referrals = referralRepository.findById(ids, idFieldName, includeDeleted).getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            return SearchResponse.<Referral>builder().response(referrals).build();
         }
         log.info("searching referrals using criteria");
         return referralRepository.find(referralSearchRequest.getReferral(),

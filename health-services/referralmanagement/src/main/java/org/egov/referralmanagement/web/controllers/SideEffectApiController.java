@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.web.controllers;
 
 import io.swagger.annotations.ApiParam;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.service.SideEffectService;
 import org.egov.common.contract.response.ResponseInfo;
@@ -86,9 +87,10 @@ public class SideEffectApiController {
                                                                            @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                            @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
 
-        List<SideEffect> sideEffects = sideEffectService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        SearchResponse<SideEffect> sideEffectSearchResponse = sideEffectService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
         SideEffectBulkResponse response = SideEffectBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).sideEffects(sideEffects).build();
+                .createResponseInfo(request.getRequestInfo(), true)).sideEffects(sideEffectSearchResponse.getResponse())
+                .totalCount(sideEffectSearchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

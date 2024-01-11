@@ -350,7 +350,7 @@ public class DownsyncService {
                 0,
                 criteria.getTenantId(),
                 criteria.getLastSyncedTime(),
-                criteria.getIncludeDeleted());
+                criteria.getIncludeDeleted()).getResponse();
 
         downsync.setSideEffects(effects);
     }
@@ -376,7 +376,7 @@ public class DownsyncService {
                 0,
                 criteria.getTenantId(),
                 criteria.getLastSyncedTime(),
-                criteria.getIncludeDeleted());
+                criteria.getIncludeDeleted()).getResponse();
 
         downsync.setReferrals(referrals);
     }
