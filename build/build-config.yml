@@ -36,6 +36,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/project/src/main/resources/db"
         image-name: "project-db"
+  - name: "builds/health-campaign-services/health-services/health-project"
+    build:
+      - work-dir: "health-services/project"
+        image-name: "health-project"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/project/src/main/resources/db"
+        image-name: "health-project-db"
   - name: "builds/health-campaign-services/health-services/referralmanagement"
     build:
       - work-dir: "health-services/referralmanagement"
@@ -57,6 +64,20 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
         image-name: "individual-db"
+  - name: "builds/health-campaign-services/health-services/health-individual"
+    build:
+      - work-dir: "health-services/individual"
+        image-name: "health-individual"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/individual/src/main/resources/db"
+        image-name: "health-individual-db"
+  - name: "builds/health-campaign-services/health-services/health-attendance"
+    build:
+      - work-dir: "health-services/attendance"
+        image-name: "health-attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/attendance/src/main/resources/db"
+        image-name: "health-attendance-db"
   - name: "builds/health-campaign-services/health-services/household"
     build:
       - work-dir: "health-services/household"
@@ -68,7 +89,7 @@ config:
     build:
       - work-dir: "core-services/error-handler"
         image-name: "error-handler"
-        dockerfile: "build/maven/Dockerfile"        
+        dockerfile: "build/maven/Dockerfile"
   - name: "builds/health-campaign-services/core-services/dashboard-analytics"
     build:
       - work-dir: "core-services/dashboard-analytics"
@@ -118,6 +139,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/pgr-services/src/main/resources/db"
         image-name: "pgr-services-db"
+  - name: "builds/health-campaign-services/core-services/health-pgr-services"
+    build:
+      - work-dir: "core-services/pgr-services"
+        image-name: "health-pgr-services"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/pgr-services/src/main/resources/db"
+        image-name: "health-pgr-services-db"
   - name: "builds/health-campaign-services/core-services/user-otp"
     build:
       - work-dir: "core-services/user-otp"
@@ -126,3 +154,10 @@ config:
     build:
       - work-dir: "core-services/egov-notification-mail"
         image-name: "egov-notification-mail"
+  - name: "builds/health-campaign-services/core-services/attendance"
+    build:
+      - work-dir: "core-services/attendance"
+        image-name: "attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/attendance/src/main/resources/db"
+        image-name: "attendance-db"
