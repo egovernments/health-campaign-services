@@ -206,7 +206,7 @@ function FileDropArea ({ingestionType}) {
         variation="secondary"
         onButtonClick={callInputClick}>
         </Button>
-        {<GenerateXlsx inputRef={templateFile} jsonData={returnApplicableJson(ingestionType)}/>}
+        {<GenerateXlsx inputRef={templateFile} jsonData={returnApplicableJson(ingestionType)} ingestionType={ingestionType} />}
       <SubmitBar label={t("WORKBENCH_SUBMIT")} 
       onSubmit={onsubmit}
       />
