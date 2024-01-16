@@ -13,16 +13,12 @@ const ProjectStaffComponent = (props) => {
   const [userName, setUserName] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [showResult, setShowResult] = useState("");
+  const [userId, setUserId] = useState("");
   const [deletionDetails, setDeletionDetails] = useState({
     projectId: null,
     userId: null,
     id: null,
   });
-
-  const [showDepartment, setShowDepartment] = useState("");
-
-  const userId = Digit.UserService.getUser().info.uuid;
-
   const [showPopup, setShowPopup] = useState(false);
 
   const { tenantId } = Digit.Hooks.useQueryParams();
@@ -110,8 +106,10 @@ const ProjectStaffComponent = (props) => {
     return path.split(".").reduce((acc, key) => (acc && acc[key] ? acc[key] : "NA"), obj);
   }
 
+  const hrmsContextPath = window?.globalConfigs?.getConfig("HRMS_CONTEXT_PATH");
+
   const searchCriteria = {
-    url: "/egov-hrms/employees/_search",
+    url: `/${hrmsContextPath}/employees/_search`,
 
     config: {
       enable: true,
@@ -133,13 +131,8 @@ const ProjectStaffComponent = (props) => {
         {
           onSuccess: async (data) => {
             if (data?.Employees && data?.Employees?.length > 0) {
-              setShowResult(data?.Employees[0]?.jurisdictions?.[0]);
-              const employeeDepartment = data?.Employees[0]?.assignments[0]?.department || [];
-              if (employeeDepartment.length > 0) {
-                setShowDepartment(employeeDepartment);
-              } else {
-                setShowDepartment("NA");
-              }
+              setShowResult(data?.Employees[0]);
+              setUserId(data?.Employees[0]?.user?.uuid);
             } else {
               setShowToast({ label: "WBH_USER_NOT_FOUND", isError: true });
               setTimeout(() => setShowToast(null), 5000);
@@ -175,6 +168,7 @@ const ProjectStaffComponent = (props) => {
     setShowPopup(false);
     setUserName("");
     setShowResult("");
+    setUserId("");
   };
 
   const closeToast = () => {
@@ -192,6 +186,7 @@ const ProjectStaffComponent = (props) => {
     const label = resp?.response?.data?.Errors?.[0]?.code;
     setShowToast({ isError: true, label });
     refetch();
+    closeModal();
   };
   const handleProjectStaffSubmit = async () => {
     try {
@@ -275,7 +270,6 @@ const ProjectStaffComponent = (props) => {
             searchResult={showResult}
             onSubmit={handleProjectStaffSubmit}
             onClose={closeModal}
-            showDepartment={showDepartment}
             heading={"WBH_ASSIGN_PROJECT_STAFF"}
             isDisabled={!showResult || showResult.length === 0} // Set isDisabled based on the condition
           />
