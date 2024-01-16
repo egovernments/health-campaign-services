@@ -88,7 +88,8 @@ module.exports = function (app) {
     "/facility/v1/_search",
     "/product/v1/_search",
     "/product/variant/v1/_search",
-    "/hcm-bff/bulk/_transform"
+    "/hcm-bff/bulk/_transform",
+    "/hcm-bff/hcm/_processmicroplan"
 
   ].forEach((location) => app.use(location, createProxy));
   ["/pb-egov-assets"].forEach((location) => app.use(location, assetsProxy));

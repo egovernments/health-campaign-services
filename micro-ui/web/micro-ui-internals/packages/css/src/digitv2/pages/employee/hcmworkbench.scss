@@ -189,3 +189,37 @@
     }
   }
 }
+
+
+.card-details {
+  background-color:#fafafa;
+  position: relative;
+  width: -webkit-fill-available;
+}
+
+.CloseButton {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  cursor: pointer;
+}
+
+.startNumber{
+  padding-top: 25px;
+  display: flex;
+}
+.endNumber{
+  display: flex;
+}
+.start{
+  min-width: fit-content;
+  padding-right: 20px;
+}
+.end{
+  min-width: fit-content;
+  padding-right: 35px;
+}
+.workbench-add-row-detail-btn{
+  margin-bottom: 15px
+}
+

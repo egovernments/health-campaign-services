@@ -9,6 +9,8 @@ import ProjectBeneficiaryComponent from "./components/ProjectBeneficiaryComponen
 import ProjectChildrenComponent from "./components/ProjectChildrenComponent";
 import ProjectStaffComponent from "./components/ProjectStaffComponent";
 import FacilityComponent from "./components/FacilityComponent";
+import RowDetails from "./components/RowDetails";
+
 
 const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["workbench-hcm"];
@@ -36,7 +38,8 @@ const componentsToRegister = {
   ProjectBeneficiaryComponent,
   ProjectChildrenComponent,
   ProjectStaffComponent,
-  FacilityComponent
+  FacilityComponent,
+  RowDetails
 };
 
 const overrideHooks = () => {

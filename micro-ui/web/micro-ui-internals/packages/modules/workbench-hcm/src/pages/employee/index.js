@@ -1,16 +1,13 @@
 import React, { useEffect } from "react";
-import { Switch, useLocation, useParams,useRouteMatch } from "react-router-dom";
+import { Switch, useLocation, useParams, useRouteMatch } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 import DataIngestionComponent from "../../components/IngestionComponents/DataIngestionComponent";
 import IngestionResponse from "../employee/ResponsePage";
-
 import ErrorViewPage from "./ErrorViewPage";
-
 import IngestionInbox from "./IngestionInbox";
 import ViewProject from "./ViewProject";
 import CreateCampaign from "./CreateCampaign";
-
 import MasterComponent from "../../components/MasterComponent";
 import HelpScreen from "../../components/HelpScreen";
 
@@ -37,15 +34,30 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
         return null;
     }
   };
-  
 
   const isShow = location.pathname.includes("/hcmworkbench/master");
+
+  const isShow2 = [
+    "/hcmworkbench/campaign",
+    "/hcmworkbench/boundary",
+    "/hcmworkbench/facility"
+  ].some(pattern => location.pathname.includes(pattern));
 
   const crumbs = [
     {
       path: `/${window?.contextPath}/employee`,
       content: t("WORKBENCH_HOME"),
       show: true,
+    },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/master/master-landing-screen`,
+      content: t("WORKBENCH_MASTER"),
+      show: isShow2 ? true: false
+    },
+    {
+      path: `/${window?.contextPath}/employee/utilities/search/commonHCMUiConfig/SearchProjectConfig`,
+      content: t("WORKBENCH_SEARCH_PROJECT"),
+      show: isShow2 ? location.pathname.includes("/hcmworkbench/campaign-view") : false,
     },
     {
       path: `/${window?.contextPath}/employee/hcmworkbench/facility`,
@@ -83,25 +95,21 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
       show: location.pathname.includes("/hcmworkbench/microplan") ? true : false,
     },
     {
-
-      path: `/${window?.contextPath}/employee/hcmworkbench/campaign`,
-      content: t("WORKBENCH_CREATE_CAMPAIGN"),
-      show: location.pathname.includes("/hcmworkbench/campaign") ? true : false,
-    },
-    {
-
       path: `/${window?.contextPath}/employee/hcmworkbench/campaign-view`,
       content: t("WORKBENCH_VIEW_PROJECT"),
-      show: location.pathname.includes("/hcmworkbench/campaign-view") ? true : false,
+      show: location.pathname.includes("/hcmworkbench/campaign-view") ? true : false, 
     },
-      {
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/campaign`,
+      content: t("WORKBENCH_CREATE_CAMPAIGN"),
+      show: location.pathname.includes("/hcmworkbench/campaign") && !(location.pathname.includes("/hcmworkbench/campaign-view")) ? true : false,
+    },
+    {
       path: `/${window?.contextPath}/employee/hcmworkbench/master`,
       content: masterContent(),
       query: `landingscreen=${screenValue}`,
       show: isShow ? true : false,
     },
-    
-
   ];
   return <BreadCrumb className="workbench-bredcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
 };
@@ -139,13 +147,10 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/project`} component={() => <DataIngestionComponent ingestionType={"project"} />} />
           <PrivateRoute path={`${path}/campaign-view`} component={() => <ViewProject />} />
           <PrivateRoute path={`${path}/microplan`} component={() => <DataIngestionComponent ingestionType={"microplan"} />} />
-
           <PrivateRoute path={`${path}/response`} component={() => <IngestionResponse />} />
-
           <PrivateRoute path={`${path}/campaign`} component={() => <CreateCampaign />} />
           <PrivateRoute path={`${path}/master/:screen`} component={() => <MasterComponent />} />
           <PrivateRoute path={`${path}/help-screen/:screen`} component={() => <HelpScreen />} />
-
         </AppContainer>
       </Switch>
     </React.Fragment>
