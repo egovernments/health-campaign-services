@@ -18,8 +18,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+
+import static org.egov.transformer.Constants.HYPHEN;
 
 
 @Slf4j
@@ -29,6 +32,7 @@ public class CommonUtils {
     private final TransformerProperties properties;
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
+    private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
         this.properties = properties;
@@ -84,16 +88,39 @@ public class CommonUtils {
     }
 
     public JsonNode getBoundaryHierarchy(String tenantId, String projectTypeId, Map<String, String> boundaryLabelToNameMap) {
-        JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
-        List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+        List<JsonNode> boundaryLevelVsLabel = null;
         ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
-        boundaryLevelVsLabel.forEach(node -> {
-            if (node.get(Constants.LEVEL).asInt() > 1) {
-                boundaryHierarchy.put(node.get(Constants.INDEX_LABEL).asText(),boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null :  boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
+        try {
+            String cacheKey = tenantId + HYPHEN + projectTypeId;
+            if (boundaryLevelVsLabelCache.containsKey(cacheKey)) {
+                boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(tenantId + "-" + projectTypeId);
+                log.info("fetching boundaryLevelVsLabel from cache for projectTypeId: {}", projectTypeId);
+            } else {
+                JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
+                boundaryLevelVsLabel = StreamSupport
+                        .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+                boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
             }
-        });
-        return boundaryHierarchy;
+
+            boundaryLevelVsLabel.forEach(node -> {
+                if (node.get(Constants.LEVEL).asInt() > 1) {
+                    boundaryHierarchy.put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
+                }
+            });
+            return boundaryHierarchy;
+        } catch (Exception e) {
+            log.error("Error while fetching boundaryHierarchy for projectTypeId: {}", projectTypeId);
+            log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap.toString());
+        }
+        return convertMapToJson(boundaryLabelToNameMap);
+
+    }
+    private JsonNode convertMapToJson(Map<String, String> map) {
+        ObjectNode jsonNode = objectMapper.createObjectNode();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            jsonNode.put(entry.getKey(), entry.getValue());
+        }
+        return jsonNode;
     }
 
 }

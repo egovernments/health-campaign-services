@@ -22,12 +22,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.egov.transformer.Constants.DISTRICT_WAREHOUSE;
-import static org.egov.transformer.Constants.FACILITY_TARGET_KEY;
-import static org.egov.transformer.Constants.PROJECT;
-import static org.egov.transformer.Constants.SATELLITE_WAREHOUSE;
-import static org.egov.transformer.Constants.TYPE_KEY;
-import static org.egov.transformer.Constants.WAREHOUSE;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class StockTransformationService implements TransformationService<Stock> {
@@ -76,13 +71,14 @@ public abstract class StockTransformationService implements TransformationServic
         private final FacilityService facilityService;
         private final CommonUtils commonUtils;
         private final UserService userService;
-
+        private final ProductService productService;
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
-                                CommonUtils commonUtils, UserService userService) {
+                                CommonUtils commonUtils, UserService userService, ProductService productService) {
             this.projectService = projectService;
             this.facilityService = facilityService;
             this.commonUtils = commonUtils;
             this.userService = userService;
+            this.productService = productService;
         }
 
         @Override
@@ -117,12 +113,15 @@ public abstract class StockTransformationService implements TransformationServic
 
             List<User> users = userService.getUsers(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
+            List<String> variantList= new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
+            String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
 
             StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                     .id(stock.getId())
                     .clientReferenceId(stock.getClientReferenceId())
                     .tenantId(stock.getTenantId())
                     .productVariant(stock.getProductVariantId())
+                    .productName(productName)
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility != null ? facility.getName() : stock.getFacilityId())
                     .transactingFacilityId(stock.getTransactingPartyId())
@@ -149,7 +148,6 @@ public abstract class StockTransformationService implements TransformationServic
                     .facilityTarget(facilityTarget)
                     .boundaryHierarchy(boundaryHierarchy)
                     .build();
-
             return Collections.singletonList(stockIndexV1);
         }
 
