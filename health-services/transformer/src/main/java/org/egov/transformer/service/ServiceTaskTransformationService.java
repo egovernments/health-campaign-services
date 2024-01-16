@@ -98,9 +98,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
             Map<String, String> boundaryLabelToNameMap = new HashMap<>();
             Project project = projectService.getProject(projectId,tenantId);
             String projectTypeId = project.getProjectTypeId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
-            List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             if (service.getAdditionalDetails() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
@@ -108,8 +105,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                 boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-
-            Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
+            ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
             List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
@@ -129,16 +125,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .attributes(service.getAttributes())
                     .syncedTime(service.getAuditDetails().getCreatedTime())
                     .syncedTimeStamp(syncedTimeStamp)
+                    .boundaryHierarchy(boundaryHierarchy)
                     .build();
-            if (serviceIndexV1.getBoundaryHierarchy() == null) {
-                ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
-                serviceIndexV1.setBoundaryHierarchy(boundaryHierarchy);
-            }
-            boundaryLevelVsLabel.forEach(node -> {
-                if (node.get(Constants.LEVEL).asInt() > 1) {
-                    serviceIndexV1.getBoundaryHierarchy().put(node.get(Constants.INDEX_LABEL).asText(),finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : finalBoundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
-                }
-            });
             return Collections.singletonList(serviceIndexV1);
         }
     }
