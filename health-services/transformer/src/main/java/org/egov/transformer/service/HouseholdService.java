@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -13,10 +14,12 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.utils.CommonUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -25,12 +28,20 @@ public class HouseholdService {
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
     private final Producer producer;
+    private final UserService userService;
+    private final ProjectService projectService;
+
+    private final String projectTypeId;
+
     private final CommonUtils commonUtils;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, CommonUtils commonUtils) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, @Value("${egov.projectTypeId}") String projectTypeId, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.producer = producer;
+        this.userService = userService;
+        this.projectService = projectService;
+        this.projectTypeId = projectTypeId;
         this.commonUtils = commonUtils;
     }
 
@@ -76,9 +87,21 @@ public class HouseholdService {
     }
 
     public HouseholdIndexV1 transform(Household household) {
+        Map<String, String> boundaryLabelToNameMap = null;
+        if (household.getAddress().getLocality() != null && household.getAddress().getLocality().getCode() != null) {
+            boundaryLabelToNameMap = projectService
+                    .getBoundaryLabelToNameMap(household.getAddress().getLocality().getCode(), household.getTenantId());
+        } else {
+            boundaryLabelToNameMap = null;
+        }
+        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(household.getTenantId(), projectTypeId, boundaryLabelToNameMap);
+        List<User> users = userService.getUsers(household.getTenantId(), household.getAuditDetails().getCreatedBy());
         return HouseholdIndexV1.builder()
                 .household(household)
+                .userName(userService.getUserName(users, household.getAuditDetails().getCreatedBy()))
+                .role(userService.getStaffRole(household.getTenantId(), users))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
+                .boundaryHierarchy(boundaryHierarchy)
                 .build();
     }
 }
