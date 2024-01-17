@@ -121,7 +121,6 @@ public class CommonUtils {
     static {
         ObjectMapper tempObjectMapper = new ObjectMapper();
         List<JsonNode> tempBoundaryVsLabel = new ArrayList<>();
-        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 0, null, null));
         tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 1, "Country", "country"));
         tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 2, "Provincia", "province"));
         tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 3, "Distrito", "district"));
