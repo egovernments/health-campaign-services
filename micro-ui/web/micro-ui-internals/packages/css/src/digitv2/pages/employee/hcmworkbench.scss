@@ -192,7 +192,7 @@
 
 
 .card-details {
-  background-color:#fafafa;
+  background-color:#fafafa !important;
   position: relative;
   width: -webkit-fill-available;
 }
@@ -213,11 +213,11 @@
 }
 .start{
   min-width: fit-content;
-  padding-right: 20px;
+  padding-right: 1.2rem;
 }
 .end{
   min-width: fit-content;
-  padding-right: 35px;
+  padding-right: 1.55rem;
 }
 .workbench-add-row-detail-btn{
   margin-bottom: 15px
