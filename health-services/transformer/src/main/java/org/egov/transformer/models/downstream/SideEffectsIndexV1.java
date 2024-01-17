@@ -33,4 +33,7 @@ public class SideEffectsIndexV1 {
 
     @JsonProperty("gender")
     private String gender;
+
+    @JsonProperty("symptoms")
+    private String symptoms;
 }
