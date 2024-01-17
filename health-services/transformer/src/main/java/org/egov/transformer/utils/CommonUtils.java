@@ -86,13 +86,16 @@ public class CommonUtils {
     }
 
     public JsonNode getBoundaryHierarchy(String tenantId, String projectTypeId, Map<String, String> boundaryLabelToNameMap) {
+       if(boundaryLabelToNameMap.isEmpty() || boundaryLabelToNameMap == null){
+           return null;
+       }
         List<JsonNode> boundaryLevelVsLabel = null;
         ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
         try {
             if (projectTypeId != null) {
                 String cacheKey = tenantId + HYPHEN + projectTypeId;
                 if (boundaryLevelVsLabelCache.containsKey(cacheKey)) {
-                    boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(tenantId + "-" + projectTypeId);
+                    boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(cacheKey);
                     log.info("Fetching boundaryLevelVsLabel from cache for projectTypeId: {}", projectTypeId);
                 } else {
                     JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
