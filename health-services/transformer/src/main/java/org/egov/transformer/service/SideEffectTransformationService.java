@@ -103,6 +103,7 @@ public abstract class SideEffectTransformationService implements TransformationS
                     .boundaryHierarchy(boundaryHierarchy)
                     .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                     .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
+                    .symptoms(String.join(COMMA, sideEffect.getSymptoms()))
                     .build();
             sideEffectsIndexV1List.add(sideEffectsIndexV1);
             log.info("sideEffectsIndexV1List {}",sideEffectsIndexV1List);
