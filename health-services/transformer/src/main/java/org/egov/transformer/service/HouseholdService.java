@@ -9,6 +9,8 @@ import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.models.household.HouseholdSearchRequest;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
@@ -30,18 +32,14 @@ public class HouseholdService {
     private final Producer producer;
     private final UserService userService;
     private final ProjectService projectService;
-
-    private final String projectTypeId;
-
     private final CommonUtils commonUtils;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, @Value("${egov.projectTypeId}") String projectTypeId, CommonUtils commonUtils) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;
-        this.projectTypeId = projectTypeId;
         this.commonUtils = commonUtils;
     }
 
@@ -88,6 +86,13 @@ public class HouseholdService {
 
     public HouseholdIndexV1 transform(Household household) {
         Map<String, String> boundaryLabelToNameMap = null;
+        String projectTypeId = null;
+        String userId = household.getAuditDetails().getCreatedBy();
+        ProjectStaff projectStaff = projectService.searchProjectStaff(userId, household.getTenantId());
+        if (projectStaff != null) {
+            Project project = projectService.getProject(projectStaff.getProjectId(), household.getTenantId());
+            projectTypeId = project != null ? project.getProjectTypeId() : null;
+        }
         if (household.getAddress().getLocality() != null && household.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMap(household.getAddress().getLocality().getCode(), household.getTenantId());
@@ -98,7 +103,7 @@ public class HouseholdService {
         List<User> users = userService.getUsers(household.getTenantId(), household.getAuditDetails().getCreatedBy());
         return HouseholdIndexV1.builder()
                 .household(household)
-                .userName(userService.getUserName(users, household.getAuditDetails().getCreatedBy()))
+                .userName(userService.getUserName(users, userId))
                 .role(userService.getStaffRole(household.getTenantId(), users))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
