@@ -89,7 +89,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             return findByRadius(query, searchObject, includeDeleted, paramsMap);
         }
         if (searchObject.getIdentifier() == null) {
-            String queryWithoutLimit = query.replace("ORDER BY id ASC LIMIT :limit OFFSET :offset", "");
+            String queryWithoutLimit = query.replace("ORDER BY createdTime DESC LIMIT :limit OFFSET :offset", "");
             Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
@@ -274,7 +274,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND userId=:userId ";
             paramsMap.put("userId", String.valueOf(searchObject.getUserId()));
         }
-        query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY createdTime DESC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
