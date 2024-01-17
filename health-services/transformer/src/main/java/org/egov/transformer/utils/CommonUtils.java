@@ -10,20 +10,18 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.egov.transformer.Constants.HYPHEN;
-
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Component
@@ -91,36 +89,58 @@ public class CommonUtils {
         List<JsonNode> boundaryLevelVsLabel = null;
         ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
         try {
-            String cacheKey = tenantId + HYPHEN + projectTypeId;
-            if (boundaryLevelVsLabelCache.containsKey(cacheKey)) {
-                boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(tenantId + "-" + projectTypeId);
-                log.info("fetching boundaryLevelVsLabel from cache for projectTypeId: {}", projectTypeId);
-            } else {
-                JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
-                boundaryLevelVsLabel = StreamSupport
-                        .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-                boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
-            }
-
-            boundaryLevelVsLabel.forEach(node -> {
-                if (node.get(Constants.LEVEL).asInt() > 1) {
-                    boundaryHierarchy.put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()) == null ? null : boundaryLabelToNameMap.get(node.get(Constants.LABEL).asText()));
+            if (projectTypeId != null) {
+                String cacheKey = tenantId + HYPHEN + projectTypeId;
+                if (boundaryLevelVsLabelCache.containsKey(cacheKey)) {
+                    boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(tenantId + "-" + projectTypeId);
+                    log.info("Fetching boundaryLevelVsLabel from cache for projectTypeId: {}", projectTypeId);
+                } else {
+                    JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
+                    boundaryLevelVsLabel = StreamSupport
+                            .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+                    boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
                 }
-            });
-            return boundaryHierarchy;
+            } else {
+                boundaryLevelVsLabel = getDefaultBoundaryVsLabel();
+            }
         } catch (Exception e) {
             log.error("Error while fetching boundaryHierarchy for projectTypeId: {}", projectTypeId);
             log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap.toString());
+            boundaryLevelVsLabel = getDefaultBoundaryVsLabel();
         }
-        return convertMapToJson(boundaryLabelToNameMap);
-
+        boundaryLevelVsLabel.forEach(node -> {
+            if (node.get(LEVEL).asInt() > 1) {
+                boundaryHierarchy.put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(LABEL).asText()) == null ? null : boundaryLabelToNameMap.get(node.get(LABEL).asText()));
+            }
+        });
+        return boundaryHierarchy;
     }
-    private JsonNode convertMapToJson(Map<String, String> map) {
-        ObjectNode jsonNode = objectMapper.createObjectNode();
-        for (Map.Entry<String, String> entry : map.entrySet()) {
-            jsonNode.put(entry.getKey(), entry.getValue());
-        }
-        return jsonNode;
+
+    private static final List<JsonNode> DEFAULT_BOUNDARY_VS_LABEL;
+
+    static {
+        ObjectMapper tempObjectMapper = new ObjectMapper();
+        List<JsonNode> tempBoundaryVsLabel = new ArrayList<>();
+        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 1, "Country", "country"));
+        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 2, "Provincia", "province"));
+        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 3, "Distrito", "district"));
+        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 4, "Posto Administrativo", "administrativeProvince"));
+        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 5, "Localidade", "locality"));
+        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 6, "Aldeia", "village"));
+
+        DEFAULT_BOUNDARY_VS_LABEL = Collections.unmodifiableList(tempBoundaryVsLabel);
+    }
+
+    private static JsonNode createBoundaryLevel(ObjectMapper mapper, int level, String label, String indexLabel) {
+        ObjectNode boundaryLevel = mapper.createObjectNode();
+        boundaryLevel.put(LEVEL, level);
+        boundaryLevel.put(LABEL, label);
+        boundaryLevel.put(INDEX_LABEL, indexLabel);
+        return boundaryLevel;
+    }
+
+    public static List<JsonNode> getDefaultBoundaryVsLabel() {
+        return DEFAULT_BOUNDARY_VS_LABEL;
     }
 
 }

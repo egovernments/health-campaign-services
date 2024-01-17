@@ -56,6 +56,9 @@ public class TransformerProperties {
     @Value("${egov.search.project.task.url}")
     private String projectTaskSearchUrl;
 
+    @Value("${egov.search.project.staff.url}")
+    private String projectStaffSearchUrl;
+
     @Value("${egov.search.product.variant.url}")
     private String productVariantSearchUrl;
 
