@@ -1,7 +1,7 @@
 package org.egov.transformer.handler;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.service.TransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,22 +14,20 @@ import java.util.Map;
 
 @Component
 @Slf4j
-public class HouseholdMemberTransformationHandler implements TransformationHandler<HouseholdMember> {
-
-    private final Map<Operation, List<TransformationService<HouseholdMember>>> operationTransformationServiceMap;
+public class SideEffectTransformationHandler implements TransformationHandler<SideEffect>{
+    private final Map<Operation, List<TransformationService<SideEffect>>> operationTransformationServiceMap;
 
     @Autowired
-    public HouseholdMemberTransformationHandler(@Qualifier("householdMemberTransformationServiceMap")
-                                      Map<Operation, List<TransformationService<HouseholdMember>>> operationTransformationServiceMap) {
+    public SideEffectTransformationHandler(@Qualifier("sideEffectTransformationServiceMap")
+                                         Map<Operation, List<TransformationService<SideEffect>>> operationTransformationServiceMap) {
         this.operationTransformationServiceMap = operationTransformationServiceMap;
     }
 
     @Override
-    public void handle(List<HouseholdMember> payloadList, Operation operation) {
+    public void handle(List<SideEffect> payloadList, Operation operation) {
         operationTransformationServiceMap.entrySet().stream()
                 .filter(e -> e.getKey().equals(operation))
                 .map(Map.Entry::getValue)
                 .flatMap(Collection::stream).forEach(es -> es.transform(payloadList));
     }
-
 }

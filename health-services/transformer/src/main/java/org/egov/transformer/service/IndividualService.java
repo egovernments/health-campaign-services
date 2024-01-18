@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -35,8 +34,7 @@ public class IndividualService {
     }
 
 
-
-    public Map findIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
+    public Map<String, Object> findIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .individual(IndividualSearch.builder().clientReferenceId(Collections.singletonList(clientReferenceId)).build())
                 .requestInfo(RequestInfo.builder().
@@ -67,6 +65,11 @@ public class IndividualService {
             individualDetails.put(GENDER, individual.getGender().toString());
             individualDetails.put(INDIVIDUAL_ID, individual.getIndividualId());
             individualDetails.put(DATE_OF_BIRTH, individual.getDateOfBirth().getTime());
+            if (individual.getAddress() != null && !individual.getAddress().isEmpty()
+                    && individual.getAddress().get(0).getLocality() != null
+                    && individual.getAddress().get(0).getLocality().getCode() != null) {
+                individualDetails.put(ADDRESS_CODE, individual.getAddress().get(0).getLocality().getCode());
+            }
             return individualDetails;
         } catch (Exception e) {
             log.error("error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));

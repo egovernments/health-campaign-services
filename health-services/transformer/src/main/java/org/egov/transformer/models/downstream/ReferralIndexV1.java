@@ -7,8 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import org.egov.common.models.household.Household;
+import org.egov.common.models.referralmanagement.Referral;
 
 import java.util.List;
 
@@ -17,15 +16,25 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdIndexV1 {
-    @JsonProperty("household")
-    private Household household;
+public class ReferralIndexV1 {
+    @JsonProperty("referral")
+    private Referral referral;
+    @JsonProperty("tenantId")
+    private String tenantId;
+    @JsonProperty("dateOfBirth")
+    private Long dateOfBirth;
     @JsonProperty("userName")
     private String userName;
     @JsonProperty("role")
     private String role;
+    @JsonProperty("age")
+    private Integer age;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
-    @JsonProperty("geoPoint")
-    private List<Double> geoPoint;
+    @JsonProperty("facilityName")
+    private String facilityName;
+    @JsonProperty("individualId")
+    private String individualId;
+    @JsonProperty("gender")
+    private String gender;
 }

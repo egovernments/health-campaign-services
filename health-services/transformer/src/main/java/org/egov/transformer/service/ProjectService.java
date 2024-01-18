@@ -12,13 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.models.project.BeneficiaryBulkResponse;
-import org.egov.common.models.project.BeneficiarySearchRequest;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.ProjectBeneficiarySearch;
-import org.egov.common.models.project.ProjectRequest;
-import org.egov.common.models.project.ProjectResponse;
+import org.egov.common.models.project.*;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
 import org.egov.transformer.boundary.BoundaryNode;
@@ -51,19 +45,16 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
-    private final HouseholdService householdService;
-
 //    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService, HouseholdService householdService) {
+                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
         this.boundaryService = boundaryService;
         this.mdmsService = mdmsService;
-        this.householdService = householdService;
     }
 
     public Project getProject(String projectId, String tenantId) {
@@ -143,10 +134,10 @@ public class ProjectService {
 
         ProjectRequest request = ProjectRequest.builder()
                 .requestInfo(RequestInfo.builder().
-                userInfo(User.builder()
-                        .uuid("transformer-uuid")
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
                         .build())
-                .build())
                 .projects(Collections.singletonList(Project.builder().id(projectId).tenantId(tenantId).build()))
                 .build();
 
@@ -176,7 +167,7 @@ public class ProjectService {
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
-                .projectBeneficiary( ProjectBeneficiarySearch.builder().
+                .projectBeneficiary(ProjectBeneficiarySearch.builder().
                         clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build())
                 .build();
         BeneficiaryBulkResponse response;
@@ -209,6 +200,7 @@ public class ProjectService {
                 transformerProperties.getMdmsModule(), filter);
         return convertToProjectTypeList(response);
     }
+
     public String getProjectBeneficiaryType(String tenantId, String projectTypeId) {
         String filter = "$[?(@.id == '" + projectTypeId + "')].beneficiaryType";
         RequestInfo requestInfo = RequestInfo.builder()
@@ -228,7 +220,7 @@ public class ProjectService {
                 }
             }
         } catch (Exception exception) {
-            log.error("error while fetching projectBeneficiaryType from MDMS for projectTypeId: {}. ExceptionDetails {}",projectTypeId , ExceptionUtils.getStackTrace(exception));
+            log.error("error while fetching projectBeneficiaryType from MDMS for projectTypeId: {}. ExceptionDetails {}", projectTypeId, ExceptionUtils.getStackTrace(exception));
         }
         return null;
     }
@@ -243,7 +235,7 @@ public class ProjectService {
         }
     }
 
-    public JsonNode fetchBoundaryData(String tenantId,String filter,String projectTypeId) {
+    public JsonNode fetchBoundaryData(String tenantId, String filter, String projectTypeId) {
         List<JsonNode> projectTypes = new ArrayList<>();
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
@@ -271,11 +263,12 @@ public class ProjectService {
         return objectMapper.readValue(projectTypesNode.traverse(), new TypeReference<List<JsonNode>>() {
         });
     }
+
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
                                            String moduleName, String filter) {
         MasterDetail masterDetail = new MasterDetail();
         masterDetail.setName(masterName);
-        if(filter!=null && !filter.isEmpty()) {
+        if (filter != null && !filter.isEmpty()) {
             masterDetail.setFilter(filter);
         }
         List<MasterDetail> masterDetailList = new ArrayList<>();
@@ -293,4 +286,36 @@ public class ProjectService {
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
     }
+
+    public ProjectStaff searchProjectStaff(String userId, String tenantId) {
+
+        ProjectStaffRequest request = ProjectStaffRequest.builder()
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectStaff(ProjectStaff.builder().userId(userId).tenantId(tenantId).build())
+                .build();
+
+        ProjectStaffBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectStaffSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    ProjectStaffBulkResponse.class);
+        } catch (Exception e) {
+            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
+
+            return null;
+        }
+        return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
+    }
+
+
 }

@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
-import org.egov.transformer.Constants;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -20,7 +19,6 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
@@ -76,6 +74,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private final UserService userService;
 
         private final ObjectMapper objectMapper;
+        private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(
+                DOSE_NUMBER, CYCLE_NUMBER, QUANTITY_WASTED
+        ));
 
         @Autowired
         ProjectTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties,
@@ -103,9 +104,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
             }
             Project project = projectService.getProject(task.getProjectId(),tenantId);
             String projectTypeId = project.getProjectTypeId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null,projectTypeId);
-            List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
 
@@ -124,13 +122,16 @@ public abstract class ProjectTaskTransformationService implements Transformation
             List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
 
-            return task.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, finalBoundaryLabelToNameMap, boundaryLevelVsLabel, tenantId, users, finalProjectBeneficiary, projectBeneficiaryType)
+            ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
+
+            Task constructedTask = constructTaskResourceIfNull(task);
+
+            return constructedTask.getResources().stream().map(r ->
+                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, users, finalProjectBeneficiary, projectBeneficiaryType)
             ).collect(Collectors.toList());
         }
 
-        private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> finalBoundaryLabelToNameMap,
-                                                                   List<JsonNode> boundaryLevelVsLabel, String tenantId, List<User> users,
+    private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId, List<User> users,
                                                                    ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType) {
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
@@ -158,25 +159,12 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .syncedTime(task.getAuditDetails().getCreatedTime())
                     .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .administrationStatus(task.getStatus())
-                    .additionalDetails(addAdditionalDetails(task, taskResource))
+                    .boundaryHierarchy(boundaryHierarchy)
                     .build();
 
             List<String> variantList= new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
             projectTaskIndexV1.setProductName(productName);
-
-            if (projectTaskIndexV1.getBoundaryHierarchy() == null) {
-                ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
-                projectTaskIndexV1.setBoundaryHierarchy(boundaryHierarchy);
-            }
-            boundaryLevelVsLabel.stream()
-                    .filter(node -> node.get(LEVEL).asInt() > 1)
-                    .forEach(node -> {
-                        String label = node.get(INDEX_LABEL).asText();
-                        String name = Optional.ofNullable(finalBoundaryLabelToNameMap.get(node.get(LABEL).asText()))
-                                .orElse(null);
-                        projectTaskIndexV1.getBoundaryHierarchy().put(label, name);
-                    });
 
             if (HOUSEHOLD.equalsIgnoreCase(projectBeneficiaryType)) {
                 log.info("fetching household details for HOUSEHOLD projectBeneficiaryType");
@@ -197,7 +185,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
             } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
                 log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");
                 Map<String, Object> individualDetails = (finalProjectBeneficiary != null) ?
-                        individualService.findIndividualByClientReferenceId(finalProjectBeneficiary.getClientReferenceId(), tenantId) :
+                        individualService.findIndividualByClientReferenceId(finalProjectBeneficiary.getBeneficiaryClientReferenceId(), tenantId) :
                         new HashMap<>();
 
                 projectTaskIndexV1.setAge(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null);
@@ -206,43 +194,73 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 projectTaskIndexV1.setGender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null);
             }
 
+            //adding to additional details  from additionalFields in task and task resource
+            ObjectNode additionalDetails = objectMapper.createObjectNode();
+            if (task.getAdditionalFields() != null) {
+                addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
+            }
+            if (taskResource.getAdditionalFields() != null) {
+                addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+            }
+            projectTaskIndexV1.setAdditionalDetails(additionalDetails);
+
             return projectTaskIndexV1;
         }
 
-
-
-        private ObjectNode addAdditionalDetails(Task task, TaskResource taskResource) {
-            ObjectNode additionalDetails = objectMapper.createObjectNode();
-
-            AdditionalFields additionalFields = task.getAdditionalFields();
-            if (additionalFields != null) {
-                additionalFields.getFields().forEach(field -> {
-                    String key = field.getKey();
-                    if (DOSE_NUMBER.equalsIgnoreCase(key) || CYCLE_NUMBER.equalsIgnoreCase(key)) {
-                        additionalDetails.put(key, getValue(key, additionalFields, Integer.class, null));
+        private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+            additionalFields.getFields().forEach(field -> {
+                String key = field.getKey();
+                String value = field.getValue();
+                if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                    try {
+                        additionalDetails.put(key, Integer.valueOf(value));
+                    } catch (NumberFormatException e) {
+                        log.error("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value, e);
+                        additionalDetails.put(key, (JsonNode) null);
                     }
-                    else {
-                        additionalDetails.put(key, field.getValue());
+                } else {
+                    additionalDetails.put(key, field.getValue());
+                }
+            });
+        }
+        private Task constructTaskResourceIfNull(Task task) {
+            if (task.getResources() == null || task.getResources().isEmpty()) {
+                TaskResource taskResource = new TaskResource();
+                taskResource.setId(task.getStatus() + HYPHEN + task.getId());
+                taskResource.setClientReferenceId(task.getStatus() + HYPHEN + task.getClientReferenceId());
+                taskResource.setIsDelivered(false);
+                taskResource.setDeliveryComment(null);
+
+                AdditionalFields taskAdditionalFields = task.getAdditionalFields();
+
+                if (taskAdditionalFields != null && !taskAdditionalFields.getFields().isEmpty()) {
+                    List<Field> fields = taskAdditionalFields.getFields();
+
+                    String productVariantId = getFieldStringValue(fields, PRODUCT_VARIANT_ID);
+                    String taskStatus = getFieldStringValue(fields, TASK_STATUS);
+
+                    taskResource.setProductVariantId(productVariantId);
+
+                    if (BENEFICIARY_REFERRED.equalsIgnoreCase(taskStatus) && productVariantId != null) {
+                        taskResource.setQuantity(RE_ADMINISTERED_DOSES);
+                        taskResource.setDeliveryComment(ADMINISTRATION_NOT_SUCCESSFUL);
                     }
-                });
+                } else {
+                    taskResource.setQuantity(null);
+                    taskResource.setProductVariantId(null);
+                }
+
+                task.setResources(Collections.singletonList(taskResource));
             }
-            additionalDetails.put(QUANTITY_WASTED, getValue(QUANTITY_WASTED, taskResource.getAdditionalFields(), Integer.class, 0));
-
-            return additionalDetails;
+            return task;
+        }
+        private String getFieldStringValue(List<Field> fields, String key) {
+            Optional<Field> field = fields.stream()
+                    .filter(field1 -> key.equalsIgnoreCase(field1.getKey()))
+                    .findFirst();
+            return field.map(Field::getValue).orElse(null);
         }
 
-
-        private <T> T getValue(String key, AdditionalFields additionalFields, Class<T> valueType, T defaultValue) {
-            if (additionalFields != null && additionalFields.getFields() != null) {
-                return additionalFields.getFields().stream()
-                        .filter(field -> key.equalsIgnoreCase(field.getKey()))
-                        .map(Field::getValue)
-                        .filter(Objects::nonNull)
-                        .map(valueType::cast)
-                        .findFirst()
-                        .orElse(defaultValue);
-            }
-            return defaultValue;
-        }
     }
+
 }

@@ -40,6 +40,9 @@ public class StockIndexV1 {
     @JsonProperty("productVariant")
     private String productVariant;
 
+    @JsonProperty("productName")
+    private String productName;
+
     @JsonProperty("physicalCount")
     private Integer physicalCount;
 
@@ -112,6 +115,4 @@ public class StockIndexV1 {
     @JsonProperty("facilityTarget")
     private Long facilityTarget;
 
-    @JsonProperty("clientAuditDetails")
-    private @Valid AuditDetails clientAuditDetails;
 }

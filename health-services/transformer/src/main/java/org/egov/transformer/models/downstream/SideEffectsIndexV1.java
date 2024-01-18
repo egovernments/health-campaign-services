@@ -7,25 +7,33 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import org.egov.common.models.household.Household;
-
-import java.util.List;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdIndexV1 {
-    @JsonProperty("household")
-    private Household household;
-    @JsonProperty("userName")
-    private String userName;
-    @JsonProperty("role")
-    private String role;
+public class SideEffectsIndexV1 {
+
+    @JsonProperty("sideEffect")
+    private SideEffect sideEffect;
+
+    @JsonProperty("dateOfBirth")
+    private Long dateOfBirth;
+
+    @JsonProperty("age")
+    private Integer age;
+
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
-    @JsonProperty("geoPoint")
-    private List<Double> geoPoint;
+
+    @JsonProperty("individualId")
+    private String individualId;
+
+    @JsonProperty("gender")
+    private String gender;
+
+    @JsonProperty("symptoms")
+    private String symptoms;
 }
