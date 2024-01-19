@@ -15,6 +15,7 @@ public class AttendanceLogQueryBuilder {
 
     private static final String ATTENDANCE_LOG_SELECT_QUERY = " SELECT log.id as logid, " +
             "log.individual_id as logIndividualId, " +
+            "log.clientreferenceid as logClientReferenceId, " +
             "log.tenantId as logTenantId, " +
             "log.register_id as logRegisterId, " +
             "log.status as logStatus, " +
@@ -25,6 +26,10 @@ public class AttendanceLogQueryBuilder {
             "log.lastmodifiedby as logLastModifiedBy, " +
             "log.createdtime as logCreatedTime, " +
             "log.lastmodifiedtime as logLastModifiedTime, " +
+            "log.clientcreatedby as logClientCreatedBy, " +
+            "log.clientlastmodifiedby as logClientLastModifiedBy, " +
+            "log.clientcreatedtime as logClientCreatedTime, " +
+            "log.clientlastmodifiedtime as logClientLastModifiedTime, " +
             "doc.id as docId, " +
             "doc.filestore_id as docFileStoreId, " +
             "doc.document_type as docDocumentType, " +

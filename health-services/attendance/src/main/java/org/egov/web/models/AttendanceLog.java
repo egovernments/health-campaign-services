@@ -26,6 +26,9 @@ public class AttendanceLog {
     @JsonProperty("id")
     private String id = null;
 
+    @JsonProperty("clientReferenceId")
+    private String clientReferenceId = null;
+
     @JsonProperty("registerId")
     private String registerId = null;
 
@@ -50,6 +53,9 @@ public class AttendanceLog {
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
+
+    @JsonProperty("clientAuditDetails")
+    private AuditDetails clientAuditDetails = null;
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
