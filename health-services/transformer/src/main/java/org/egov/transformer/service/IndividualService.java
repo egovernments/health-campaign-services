@@ -63,7 +63,7 @@ public class IndividualService {
 
             individualDetails.put(AGE, commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()));
             individualDetails.put(GENDER, individual.getGender().toString());
-            individualDetails.put(INDIVIDUAL_ID, individual.getIndividualId());
+            individualDetails.put(INDIVIDUAL_ID, clientReferenceId);
             individualDetails.put(DATE_OF_BIRTH, individual.getDateOfBirth().getTime());
             if (individual.getAddress() != null && !individual.getAddress().isEmpty()
                     && individual.getAddress().get(0).getLocality() != null
