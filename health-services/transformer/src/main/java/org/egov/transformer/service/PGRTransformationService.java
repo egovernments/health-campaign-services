@@ -49,6 +49,7 @@ public class PGRTransformationService {
         PGRIndex pgrIndex = PGRIndex.builder()
                 .service(service)
                 .build();
+        pgrIndexList.add(pgrIndex);
     }
 
 }
