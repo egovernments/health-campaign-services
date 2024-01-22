@@ -115,7 +115,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .projectId(projectId)
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
-                    .checklistName(serviceDefinition.getCode())
+                    .checklistName(parts[1])
                     .userName(userService.getUserName(users,service.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(service.getTenantId(),users))
                     .createdTime(service.getAuditDetails().getCreatedTime())

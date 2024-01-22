@@ -90,11 +90,12 @@ public class ServiceTransformationService {
         getAttributeCodeMappings(attributeCodeToQuestionAgeGroup);
         if (checkListName.trim().equals(checkListToFilter)) {
             String finalProjectId = projectId;
+            String checklistName = serviceDefinition.getCode().split("\\.")[1];
             attributeCodeToQuestionAgeGroup.forEach((key, value) -> {
                 ServiceIndexV2 serviceIndexV2 = ServiceIndexV2.builder()
                         .id(service.getId())
                         .supervisorLevel(supervisorLevel)
-                        .checklistName(checkListName)
+                        .checklistName(checklistName)
                         .ageGroup(key)
                         .tenantId(tenantId)
                         .projectId(finalProjectId)
