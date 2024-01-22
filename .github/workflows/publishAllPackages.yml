@@ -2,7 +2,7 @@ name: Node.js Publish UI Packages
 
 on:
   push:
-    branches: [ 'develop','dev-hcm' ]
+    branches: [ 'develop','base-hcm-workbench' ]
     paths:
       - 'micro-ui/web/micro-ui-internals/**'
     
