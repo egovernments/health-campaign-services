@@ -5,6 +5,11 @@ on:
     branches: [ 'develop' ,'dev-hcm']
     paths:
       - 'micro-ui/web/micro-ui-internals/**'
+    
+  pull_request:
+    branches: 
+      - 'dev-hcm'
+      # Push events to branches matching refs/heads/mona/octocat
 
 jobs:
   build:
