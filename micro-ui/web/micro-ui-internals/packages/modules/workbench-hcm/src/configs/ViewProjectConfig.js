@@ -6,9 +6,6 @@ export const data = (project) => {
   const ancestor = project?.Project?.[0]?.ancestors;
   const lastAncestor = ancestor?.length  > 0 ? ancestor[ancestor?.length - 1] : { projectNumber: "NA" };
   const isLink = ancestor?.length > 0 ? true: false;
-  // const to = isLink
-  //   ? `campaign-view?tenantId=mz&projectNumber=${ancestor?.length.projectNumber}`
-  //   : undefined;
 
   return {
     cards: [
@@ -98,7 +95,7 @@ export const data = (project) => {
 
             type: "COMPONENT",
             component: "ProjectChildrenComponent",
-            props: { projectId: project?.Project?.[0]?.id },
+            props: { projectId: project?.Project?.[0]?.id, ...project },
           },
         ],
       },

@@ -22,6 +22,9 @@ const ProjectBeneficiaryComponent = (props) => {
                 projectId: props.projectId
             },
             // apiOperation: "SEARCH"
+        },
+        config:{
+            enabled: props.projectId ? true: false
         }
     };
 
@@ -48,6 +51,9 @@ const ProjectBeneficiaryComponent = (props) => {
             ProductVariant: {
                 "id": userIds
             },
+        },
+        config:{
+            enabled: userIds.length>0 ? true: false
         }
     };
 
@@ -73,6 +79,9 @@ const ProjectBeneficiaryComponent = (props) => {
             Product: {
                 "id": productIds
             },
+        },
+        config:{
+            enabled: productIds.length>0 ? true: false
         }
     };
 
@@ -105,6 +114,7 @@ const ProjectBeneficiaryComponent = (props) => {
             };
         }
     });
+
 
     const isValidTimestamp = (timestamp) => timestamp !== 0 && !isNaN(timestamp);
 
@@ -154,9 +164,6 @@ const ProjectBeneficiaryComponent = (props) => {
         // Check if the value exists, otherwise return 'NA'
         return value !== undefined ? value.toString() : "NA";
     };
-
-
-
 
     if (isLoading) {
         return <Loader></Loader>;

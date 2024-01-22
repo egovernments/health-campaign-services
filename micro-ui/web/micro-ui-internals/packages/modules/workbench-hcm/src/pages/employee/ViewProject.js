@@ -48,6 +48,9 @@ const ViewProject = () => {
       ],
       apiOperation: "SEARCH",
     },
+    config: {
+      enabled: projectId || projectNumber ? true: false
+    }
   };
 
   const closeToast = () => {

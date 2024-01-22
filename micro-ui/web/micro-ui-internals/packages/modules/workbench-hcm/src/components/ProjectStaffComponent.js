@@ -32,7 +32,7 @@ const ProjectStaffComponent = (props) => {
       limit: 10,
     },
     config: {
-      enable: data?.horizontalNav?.configNavItems[0].code === "Project Resource" ? true : false,
+      enabled: props.projectId ? true : false,
     },
     body: {
       ProjectStaff: {
@@ -65,6 +65,9 @@ const ProjectStaffComponent = (props) => {
     body: {
       tenantId: "mz",
       uuid: userIds,
+    },
+    config: {
+      enabled: userIds.length > 0 ? true : false,
     },
   };
 
@@ -110,7 +113,6 @@ const ProjectStaffComponent = (props) => {
 
   const searchCriteria = {
     url: `/${hrmsContextPath}/employees/_search`,
-
     config: {
       enable: true,
     },

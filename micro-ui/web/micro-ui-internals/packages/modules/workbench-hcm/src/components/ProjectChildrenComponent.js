@@ -2,10 +2,10 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Card, Header, Button, Loader } from "@egovernments/digit-ui-react-components";
 import { Link } from "react-router-dom";
+import { data } from "../configs/ViewProjectConfig"; 
 
 const ProjectChildrenComponent = (props) => {
     const { t } = useTranslation();
-
     const requestCriteria = {
         url: "/project/v1/_search",
         changeQueryName: props.projectId,
@@ -24,6 +24,9 @@ const ProjectChildrenComponent = (props) => {
             ],
             apiOperation: "SEARCH",
         },
+        config:{
+            enabled: props.projectId ? true: false
+        }
     };
 
     const { isLoading, data: projectChildren } = Digit.Hooks.useCustomAPIHook(requestCriteria);

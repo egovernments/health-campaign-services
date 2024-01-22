@@ -19,6 +19,9 @@ const FacilityComponent = (props) => {
             ProjectFacility: {
                 "projectId": [props.projectId]
             },
+        },
+        config:{
+            enabled: props.projectId? true: false
         }
     };
 
@@ -33,11 +36,13 @@ const FacilityComponent = (props) => {
             offset: 0,
             limit: 10,
         },
-
         body: {
             Facility: {
                 "id": [projectFacility?.ProjectFacilities?.[0]?.facilityId]
             },
+        },
+        config:{
+            enabled:projectFacility?.ProjectFacilities?.[0]?.facilityId? true: false
         }
     };
 

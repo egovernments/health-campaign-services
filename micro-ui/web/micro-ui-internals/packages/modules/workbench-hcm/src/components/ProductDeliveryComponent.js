@@ -16,10 +16,11 @@ const ProductDeliveryComponent = (props) => {
         },
         
         body: {
-            Product: {
-                
+            Product: {   
             },
-            // apiOperation: "SEARCH"
+        },
+        config:{
+            enabled: props.projectId ? true: false
         }
     };
 
