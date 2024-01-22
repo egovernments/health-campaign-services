@@ -35,7 +35,7 @@ public class PGRTransformationService {
 
     public void transform(List<Service> pgrList) {
         List<PGRIndex> pgrIndexList = new ArrayList<>();
-        String topic = transformerProperties.getTransformerConsumerCreatePgrTopic();
+        String topic = transformerProperties.getTransformerProducerCreatePgrTopic();
         pgrList.forEach(service -> {
             transform(service, pgrIndexList);
         });
