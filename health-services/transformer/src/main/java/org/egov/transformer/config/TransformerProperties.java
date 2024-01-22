@@ -41,6 +41,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.service.index.v2.topic}")
     private String transformerProducerServiceIndexV2Topic;
 
+    @Value("${transformer.consumer.create.pgr.topic}")
+    private String transformerConsumerCreatePgrTopic;
+
     @Value("${transformer.producer.referral.index.v1.topic}")
     private String transformerProducerReferralIndexV1Topic;
 
