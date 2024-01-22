@@ -134,7 +134,7 @@ const ProjectStaffComponent = (props) => {
           onSuccess: async (data) => {
             if (data?.Employees && data?.Employees?.length > 0) {
               setShowResult(data?.Employees[0]);
-              setUserId(data?.Employees[0]?.user?.uuid);
+              setUserId(data?.Employees[0]?.user?.userServiceUuid);
             } else {
               setShowToast({ label: "WBH_USER_NOT_FOUND", isError: true });
               setTimeout(() => setShowToast(null), 5000);
