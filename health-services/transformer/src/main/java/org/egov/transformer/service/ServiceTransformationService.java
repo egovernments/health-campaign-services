@@ -158,8 +158,8 @@ public class ServiceTransformationService {
         Map<String, String> codeVsQuestionMappingGroup2 = new HashMap<>();
         getGroup1Map(codeVsQuestionMappingGroup1);
         getGroup2Map(codeVsQuestionMappingGroup2);
-        attributeCodeToQuestionAgeGroup.put("3-12 months", codeVsQuestionMappingGroup1);
-        attributeCodeToQuestionAgeGroup.put("13-59 months", codeVsQuestionMappingGroup2);
+        attributeCodeToQuestionAgeGroup.put("3-11 months", codeVsQuestionMappingGroup1);
+        attributeCodeToQuestionAgeGroup.put("12-59 months", codeVsQuestionMappingGroup2);
     }
 
     private static void getGroup1Map(Map<String, String> codeVsQuestionMappingGroup1) {

@@ -79,10 +79,25 @@ public class CommonUtils {
         }
     }
 
-    public Integer calculateAgeInMonthsFromDOB(Date dob) {
-        Duration difference = Duration.between(dob.toInstant(), new Date().toInstant());
-        long totalDays = difference.toDays();
-        return (int) (totalDays / 30.42);
+
+    public Integer calculateAgeInMonthsFromDOB(Date birthDate) {
+        Calendar currentDate = Calendar.getInstance();
+
+        Calendar birthCalendar = Calendar.getInstance();
+        birthCalendar.setTime(birthDate);
+
+        // Calculate the difference in years, months, and days
+        int years = currentDate.get(Calendar.YEAR) - birthCalendar.get(Calendar.YEAR);
+        int months = currentDate.get(Calendar.MONTH) - birthCalendar.get(Calendar.MONTH);
+
+        // If the birth date hasn't occurred this year yet,
+        // reduce the years
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+        // Calculate the age in months
+        return years * 12 + months;
     }
 
     public JsonNode getBoundaryHierarchy(String tenantId, String projectTypeId, Map<String, String> boundaryLabelToNameMap) {
