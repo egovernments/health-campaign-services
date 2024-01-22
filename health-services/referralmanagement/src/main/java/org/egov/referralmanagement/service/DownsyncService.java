@@ -109,7 +109,9 @@ public class DownsyncService {
 			if (!CollectionUtils.isEmpty(individualClientRefIds)) {
 				/* search beneficiary using individual ids */
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
-				beneficiaryClientRefIds.addAll(searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds));
+				if (CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
+					beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds);
+				}
 			}
 
 			if (!CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
