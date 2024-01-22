@@ -82,6 +82,8 @@ public class DownsyncService {
 
 			Downsync downsync = new Downsync();
 
+			List<Household> households = null;
+			List<String> householdClientRefIds = null;
 			List<String> householdIds = null;
 			Set<String> individualIds = null;
 			List<String> individualClientRefIds = null;
@@ -90,7 +92,9 @@ public class DownsyncService {
 
 			downsync.setDownsyncCriteria(downsyncRequest.getDownsyncCriteria());
 			/* search household */
-			householdIds = searchHouseholds(downsyncRequest, downsync);
+			households = searchHouseholds(downsyncRequest, downsync);
+			householdIds = households.stream().map(Household::getId).collect(Collectors.toList());
+			householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
 
 			if (!CollectionUtils.isEmpty(householdIds))
 				/* search household member using household ids */
@@ -105,6 +109,7 @@ public class DownsyncService {
 			if (!CollectionUtils.isEmpty(individualClientRefIds)) {
 				/* search beneficiary using individual ids */
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
+				beneficiaryClientRefIds.addAll(searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds));
 			}
 
 			if (!CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
@@ -130,7 +135,7 @@ public class DownsyncService {
 		 * @param downsync
 		 * @return
 		 */
-		private List<String> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
+		private List<Household> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
 
 			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -156,7 +161,7 @@ public class DownsyncService {
 			if(CollectionUtils.isEmpty(households))
 				return Collections.emptyList();
 			
-			return households.stream().map(Household::getId).collect(Collectors.toList());
+			return households;
 		}
 
 		/**
