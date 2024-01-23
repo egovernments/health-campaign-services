@@ -88,6 +88,7 @@ public class DownsyncService {
 			Set<String> individualIds = null;
 			List<String> individualClientRefIds = null;
 			List<String> beneficiaryClientRefIds = null;
+			List<String> householdBeneficiaryClientRefIds = null;
 			List<String> taskClientRefIds = null;
 
 			downsync.setDownsyncCriteria(downsyncRequest.getDownsyncCriteria());
@@ -109,8 +110,11 @@ public class DownsyncService {
 			if (!CollectionUtils.isEmpty(individualClientRefIds)) {
 				/* search beneficiary using individual ids */
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
+				householdBeneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds);
 				if (CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
-					beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds);
+					beneficiaryClientRefIds = householdBeneficiaryClientRefIds;
+				} else if(!CollectionUtils.isEmpty(householdBeneficiaryClientRefIds)) {
+					beneficiaryClientRefIds.addAll(householdBeneficiaryClientRefIds);
 				}
 			}
 
