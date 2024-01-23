@@ -110,6 +110,10 @@ public class DownsyncService {
 			if (!CollectionUtils.isEmpty(individualClientRefIds)) {
 				/* search beneficiary using individual ids */
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
+			}
+
+			if (!CollectionUtils.isEmpty(householdClientRefIds)) {
+				/* search beneficiary using household ids */
 				householdBeneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds);
 				if (CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
 					beneficiaryClientRefIds = householdBeneficiaryClientRefIds;
