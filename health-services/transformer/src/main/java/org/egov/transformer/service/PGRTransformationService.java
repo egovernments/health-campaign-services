@@ -50,7 +50,7 @@ public class PGRTransformationService {
                 .map(Address::getLocality)
                 .map(Boundary::getCode);
         if (localityCode.isPresent()) {
-            boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(String.valueOf(localityCode), service.getTenantId());
+            boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(localityCode.get(), service.getTenantId());
         }
 
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, null, boundaryLabelToNameMap);
