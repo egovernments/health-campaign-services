@@ -1,21 +1,25 @@
 package org.egov.transformer.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import digit.models.coremodels.mdms.*;
 import lombok.extern.slf4j.Slf4j;
+import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
+import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.service.MdmsService;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -30,18 +34,23 @@ public class CommonUtils {
     private final TransformerProperties properties;
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
+    private final MdmsService mdmsService;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
 
-    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
+    private static Map<String, String> transformerLocalizations = new HashMap<>();
+
+    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, MdmsService mdmsService) {
         this.properties = properties;
         this.projectService = projectService;
         this.objectMapper = objectMapper;
+        this.mdmsService = mdmsService;
     }
 
-    public  String getMDMSTransformerLocalizations (String text) {
-
-
-        return text;
+    public  String getMDMSTransformerLocalizations (String text, String tenantId) {
+        if (transformerLocalizations.containsKey(text)) {
+            return transformerLocalizations.get(text);
+        }
+        return fetchLocalizationsFromMdms(text, tenantId);
     }
     public String getTimeStampFromEpoch(long epochTime) {
         String timeStamp = "";
@@ -164,6 +173,50 @@ public class CommonUtils {
 
     public static List<JsonNode> getDefaultBoundaryVsLabel() {
         return DEFAULT_BOUNDARY_VS_LABEL;
+    }
+
+    private String fetchLocalizationsFromMdms(String text, String tenantId) {
+        JSONArray transformerLocalizationsArray = new JSONArray();
+
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, TRANSFORMER_LOCALIZATIONS, properties.getTransformerLocalizationsMdmsModule(), "");
+        try {
+            MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            transformerLocalizationsArray = mdmsResponse.getMdmsRes().get(properties.getTransformerLocalizationsMdmsModule())
+                    .get(TRANSFORMER_LOCALIZATIONS);
+            ObjectMapper objectMapper = new ObjectMapper();
+            transformerLocalizationsArray.forEach(item -> {
+                Map map = objectMapper.convertValue(item, new TypeReference<Map>() {});
+                transformerLocalizations.put((String) map.get("text"), (String) map.get("translatedText"));
+            });
+        } catch (Exception e) {
+            log.error("error while fetching TRANFORMER_LOCALIZATIONS from MDMS: {}", ExceptionUtils.getStackTrace(e));
+        }
+        return transformerLocalizations.getOrDefault(text, text);
+    }
+    private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
+                                           String moduleName, String filter) {
+        MasterDetail masterDetail = new MasterDetail();
+        masterDetail.setName(masterName);
+        if (filter != null && !filter.isEmpty()) {
+            masterDetail.setFilter(filter);
+        }
+        List<MasterDetail> masterDetailList = new ArrayList<>();
+        masterDetailList.add(masterDetail);
+        ModuleDetail moduleDetail = new ModuleDetail();
+        moduleDetail.setMasterDetails(masterDetailList);
+        moduleDetail.setModuleName(moduleName);
+        List<ModuleDetail> moduleDetailList = new ArrayList<>();
+        moduleDetailList.add(moduleDetail);
+        MdmsCriteria mdmsCriteria = new MdmsCriteria();
+        mdmsCriteria.setTenantId(tenantId.split("\\.")[0]);
+        mdmsCriteria.setModuleDetails(moduleDetailList);
+        MdmsCriteriaReq mdmsCriteriaReq = new MdmsCriteriaReq();
+        mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
+        mdmsCriteriaReq.setRequestInfo(requestInfo);
+        return mdmsCriteriaReq;
     }
 
 }

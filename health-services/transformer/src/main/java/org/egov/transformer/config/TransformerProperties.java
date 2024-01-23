@@ -104,6 +104,9 @@ public class TransformerProperties {
     @Value("${project.mdms.module}")
     private String mdmsModule;
 
+    @Value("${transformer.localizations.mdms.module}")
+    private String transformerLocalizationsMdmsModule;
+
     @Value("${project.staff.role.mdms.module}")
     private String projectStaffRolesMdmsModule;
 

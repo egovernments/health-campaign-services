@@ -32,7 +32,7 @@ public class PGRConsumer {
         this.pgrTransformationService = pgrTransformationService;
     }
 
-    @KafkaListener(topics = {"${transformer.consumer.create.pgr.topic}"})
+    @KafkaListener(topics = {"${transformer.consumer.create.pgr.topic}", "${transformer.consumer.update.pgr.topic}"})
     public void consumeServiceTask(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

@@ -55,13 +55,14 @@ public class PGRTransformationService {
 
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, null, boundaryLabelToNameMap);
 
-//        commonUtils
 
         PGRIndex pgrIndex = PGRIndex.builder()
                 .service(service)
                 .boundaryHierarchy(boundaryHierarchy)
                 .build();
         service.setAddress(null);
+        service.setApplicationStatus(commonUtils.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
+        service.setServiceCode(commonUtils.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
         pgrIndexList.add(pgrIndex);
     }
 
