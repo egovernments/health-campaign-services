@@ -17,5 +17,7 @@ import org.egov.transformer.models.pgr.Service;
 public class PGRIndex {
     @JsonProperty("service")
     private Service service;
+    @JsonProperty("boundaryHierarchy")
+    private ObjectNode boundaryHierarchy;
 
 }

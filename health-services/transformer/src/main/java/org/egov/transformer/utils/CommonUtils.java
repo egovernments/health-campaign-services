@@ -38,6 +38,11 @@ public class CommonUtils {
         this.objectMapper = objectMapper;
     }
 
+    public  String getMDMSTransformerLocalizations (String text) {
+
+
+        return text;
+    }
     public String getTimeStampFromEpoch(long epochTime) {
         String timeStamp = "";
         String timeZone = properties.getTimeZone();
