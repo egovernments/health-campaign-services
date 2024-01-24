@@ -11,6 +11,7 @@ import ProjectStaffComponent from "./components/ProjectStaffComponent";
 import FacilityComponent from "./components/FacilityComponent";
 import RowDetails from "./components/RowDetails";
 
+import TargetComponent from "./components/TargetComponent";
 
 const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["workbench-hcm"];
@@ -28,9 +29,7 @@ const HCMWORKBENCHModule = ({ stateCode, userType, tenants }) => {
   if (userType === "employee") {
     return <App path={path} url={url} />;
   } else return null;
-
 };
-
 
 const componentsToRegister = {
   HCMWORKBENCHModule,
@@ -39,7 +38,8 @@ const componentsToRegister = {
   ProjectChildrenComponent,
   ProjectStaffComponent,
   FacilityComponent,
-  RowDetails
+  RowDetails,
+  TargetComponent,
 };
 
 const overrideHooks = () => {

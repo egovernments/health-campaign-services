@@ -6,40 +6,42 @@ import ProjectStaffModal from "./ProjectStaffModal";
 import ConfirmationDialog from "./ConfirmationDialog";
 
 const ProjectStaffComponent = (props) => {
-  const { t } = useTranslation();
-  const [userIds, setUserIds] = useState([]);
-  const [userInfoMap, setUserInfoMap] = useState({});
-  const [showModal, setShowModal] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [showToast, setShowToast] = useState(false);
-  const [showResult, setShowResult] = useState("");
-  const [userId, setUserId] = useState("");
-  const [deletionDetails, setDeletionDetails] = useState({
-    projectId: null,
-    userId: null,
-    id: null,
-  });
-  const [showPopup, setShowPopup] = useState(false);
+    const { t } = useTranslation();
+    const [userIds, setUserIds] = useState([]);
+    const [userInfoMap, setUserInfoMap] = useState({});
+    const [showModal, setShowModal] = useState(false);
+    const [userName, setUserName] = useState("");
+    const [showToast, setShowToast] = useState(false);
+    const [showResult, setShowResult] = useState("");
+    const [deletionDetails, setDeletionDetails] = useState({
+        projectId: null,
+        userId: null,
+        id: null,
+    });
 
-  const { tenantId } = Digit.Hooks.useQueryParams();
+    const userId = Digit.UserService.getUser().info.uuid;
 
-  const requestCriteria = {
-    url: "/project/staff/v1/_search",
-    changeQueryName: props.projectId,
-    params: {
-      tenantId: "mz",
-      offset: 0,
-      limit: 10,
-    },
-    config: {
-      enabled: props.projectId ? true : false,
-    },
-    body: {
-      ProjectStaff: {
-        projectId: props.projectId,
-      },
-    },
-  };
+    const [showPopup, setShowPopup] = useState(false);
+
+    const { tenantId, projectId } = Digit.Hooks.useQueryParams();
+
+    const requestCriteria = {
+        url: "/project/staff/v1/_search",
+        changeQueryName: props.projectId,
+        params: {
+            tenantId: "mz",
+            offset: 0,
+            limit: 10,
+        },
+        config: {
+            enable: data?.horizontalNav?.configNavItems[0].code === "Project Resource" ? true : false,
+        },
+        body: {
+            ProjectStaff: {
+                projectId: props.projectId,
+            },
+        },
+    };
 
   const { isLoading, data: projectStaff, refetch } = Digit.Hooks.useCustomAPIHook(requestCriteria);
 
@@ -60,16 +62,13 @@ const ProjectStaffComponent = (props) => {
     }
   }, [projectStaff]);
 
-  const userRequestCriteria = {
-    url: "/user/_search",
-    body: {
-      tenantId: "mz",
-      uuid: userIds,
-    },
-    config: {
-      enabled: userIds.length > 0 ? true : false,
-    },
-  };
+    const userRequestCriteria = {
+        url: "/user/_search",
+        body: {
+            "tenantId": "mz",
+            "uuid": userIds
+        }
+    };
 
   const { isLoading: isUserSearchLoading, data: userInfo } = Digit.Hooks.useCustomAPIHook(userRequestCriteria);
 
@@ -105,47 +104,46 @@ const ProjectStaffComponent = (props) => {
     // { label: t("ACTIONS") },
   ];
 
-  function getNestedPropertyValue(obj, path) {
-    return path.split(".").reduce((acc, key) => (acc && acc[key] ? acc[key] : "NA"), obj);
-  }
+    function getNestedPropertyValue(obj, path) {
+        return path.split('.').reduce((acc, key) => (acc && acc[key]) ? acc[key] : "NA", obj);
+    }
 
-  const hrmsContextPath = window?.globalConfigs?.getConfig("HRMS_CONTEXT_PATH");
 
-  const searchCriteria = {
-    url: `/${hrmsContextPath}/employees/_search`,
-    config: {
-      enable: true,
-    },
-  };
+    const searchCriteria = {
+        url: "/egov-hrms/employees/_search",
+
+        config: {
+            enable: true,
+        },
+    };
 
   const mutationHierarchy = Digit.Hooks.useCustomAPIMutationHook(searchCriteria);
 
-  const handleSearch = async () => {
-    try {
-      await mutationHierarchy.mutate(
-        {
-          params: {
-            codes: userName,
-            tenantId,
-          },
-          body: {},
-        },
-        {
-          onSuccess: async (data) => {
-            if (data?.Employees && data?.Employees?.length > 0) {
-              setShowResult(data?.Employees[0]);
-              setUserId(data?.Employees[0]?.user?.userServiceUuid);
-            } else {
-              setShowToast({ label: "WBH_USER_NOT_FOUND", isError: true });
-              setTimeout(() => setShowToast(null), 5000);
-            }
-          },
+    const handleSearch = async () => {
+        try {
+            await mutationHierarchy.mutate(
+                {
+                    params: {
+                        codes: userName,
+                        tenantId,
+                    },
+                    body: {},
+                },
+                {
+                    onSuccess: async (data) => {
+                        if (data?.Employees && data?.Employees?.length > 0) {
+                            setShowResult(data?.Employees[0]?.code);
+                        } else {
+                            setShowToast({ label: "WBH_USER_NOT_FOUND", isError: true });
+                            setTimeout(() => setShowToast(null), 5000);
+                        }
+                    },
+                }
+            );
+        } catch (error) {
+            throw error;
         }
-      );
-    } catch (error) {
-      throw error;
-    }
-  };
+    };
 
   const handleInputChange = (event) => {
     setUserName(event.target.value);
@@ -163,15 +161,14 @@ const ProjectStaffComponent = (props) => {
     config: false,
   };
 
-  const mutation = Digit.Hooks.useCustomAPIMutationHook(reqCriteria);
-  const mutationDelete = Digit.Hooks.useCustomAPIMutationHook(reqDeleteCriteria);
-  const closeModal = () => {
-    setShowModal(false);
-    setShowPopup(false);
-    setUserName("");
-    setShowResult("");
-    setUserId("");
-  };
+    const mutation = Digit.Hooks.useCustomAPIMutationHook(reqCriteria);
+    const mutationDelete = Digit.Hooks.useCustomAPIMutationHook(reqDeleteCriteria);
+    const closeModal = () => {
+        setShowModal(false);
+        setShowPopup(false);
+        setUserName("");
+        setShowResult("");
+    };
 
   const closeToast = () => {
     setTimeout(() => {
@@ -179,36 +176,35 @@ const ProjectStaffComponent = (props) => {
     }, 5000);
   };
 
-  const onSuccess = () => {
-    closeToast();
-    refetch();
-    setShowToast({ key: "success", label: "WBH_PROJECT_STAFF_ADDED_SUCESSFULLY" });
-  };
-  const onError = (resp) => {
-    const label = resp?.response?.data?.Errors?.[0]?.code;
-    setShowToast({ isError: true, label });
-    refetch();
-    closeModal();
-  };
-  const handleProjectStaffSubmit = async () => {
-    try {
-      await mutation.mutate(
-        {
-          body: {
-            ProjectStaff: {
-              tenantId,
-              userId: userId,
-              projectId: props?.projectId,
-              startDate: props?.Project[0]?.startDate,
-              endDate: props?.Project[0]?.endDate,
-            },
-          },
-        },
-        {
-          onError,
-          onSuccess,
-        }
-      );
+    const onSuccess = () => {
+        closeToast();
+        refetch();
+        setShowToast({ key: "success", label: "WBH_PROJECT_STAFF_ADDED_SUCESSFULLY" });
+    };
+    const onError = (resp) => {
+        const label = resp?.response?.data?.Errors?.[0]?.code;
+        setShowToast({ isError: true, label });
+        refetch();
+    };
+    const handleProjectStaffSubmit = async () => {
+        try {
+            await mutation.mutate(
+                {
+                    body: {
+                        ProjectStaff: {
+                            tenantId,
+                            userId: userId,
+                            projectId: projectId,
+                            startDate: props?.Project[0]?.startDate,
+                            endDate: props?.Project[0]?.endDate,
+                        },
+                    },
+                },
+                {
+                    onError,
+                    onSuccess,
+                }
+            );
 
       setShowModal(false);
     } catch (error) {

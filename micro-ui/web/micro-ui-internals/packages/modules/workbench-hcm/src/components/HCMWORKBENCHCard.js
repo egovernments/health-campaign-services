@@ -82,7 +82,7 @@ const HCMWORKBENCHCard = () => {
     // {
     //   label: t("WORKBENCH_USER"),
     //   link: `/${window?.contextPath}/employee/hcmworkbench/user`,
-    //   roles: ROLES.HCM,
+  //   roles: ROLES.HCM,
     // },
     // {
     //   label: t("WORKBENCH_BOUNDARY"),

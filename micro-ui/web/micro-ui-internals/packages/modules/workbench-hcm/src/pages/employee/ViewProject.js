@@ -1,20 +1,47 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useLocation } from "react-router-dom";
-import { Header, Card, Loader, ViewComposer, ActionBar, SubmitBar, Toast } from "@egovernments/digit-ui-react-components";
+import { Header, Card, Loader, ViewComposer, ActionBar, SubmitBar, Toast, Menu } from "@egovernments/digit-ui-react-components";
 import { data } from "../../configs/ViewProjectConfig";
 import AssignCampaign from "../../components/AssignCampaign";
+import AssignTarget from "../../components/AssignTarget";
 
 const ViewProject = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const [showEditDateModal, setShowEditDateModal] = useState(false);
+
+  const [showTargetModal, setShowTargetModal] = useState(false);
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [selectedAction, setSelectedAction] = useState(null);
+  const [displayMenu, setDisplayMenu] = useState(false);
 
   const { tenantId, projectNumber, projectId } = Digit.Hooks.useQueryParams();
 
+  const [formData, setFormData] = useState({
+    beneficiaryType: "",
+    totalNo: 0,
+    targetNo: 0,
+  });
+  function onActionSelect(action) {
+    setSelectedAction(action);
+    if (action === "DATE") {
+      setShowEditDateModal(true);
+    } else if (action === "TARGET") {
+      setShowTargetModal(true);
+    } else {
+      setShowEditDateModal(false);
+      setShowTargetModal(false);
+
+      setSelectedAction(null);
+    }
+    setDisplayMenu(false);
+  }
+
+  let ACTIONS = ["DATE", "TARGET"];
   const handleDateChange = (date, type) => {
     if (type === "startDate") {
       setStartDate(date);
@@ -37,7 +64,7 @@ const ViewProject = () => {
       tenantId,
       offset: 0,
       limit: 100,
-      includeAncestors: true,
+      // includeAncestors: true,
     },
     body: {
       Projects: [
@@ -49,8 +76,8 @@ const ViewProject = () => {
       apiOperation: "SEARCH",
     },
     config: {
-      enabled: projectId || projectNumber ? true: false
-    }
+      enabled: projectId || projectNumber ? true : false,
+    },
   };
 
   const closeToast = () => {
@@ -60,13 +87,13 @@ const ViewProject = () => {
   };
 
   //fetching the project data
-  const { data: project } = Digit.Hooks.useCustomAPIHook(requestCriteria);
+  const { data: project, refetch } = Digit.Hooks.useCustomAPIHook(requestCriteria);
 
   // Render the data once it's available
   let config = null;
 
-  const reqProjectUpdate = {
-    url: "/project/v1/_update",
+  const reqProjectCreate = {
+    url: "/project/v1/_create",
     params: {},
     body: {},
     config: {
@@ -74,7 +101,7 @@ const ViewProject = () => {
     },
   };
 
-  const mutation = Digit.Hooks.useCustomAPIMutationHook(reqProjectUpdate);
+  const mutation = Digit.Hooks.useCustomAPIMutationHook(reqProjectCreate);
 
   const handleAssignCampaignSubmit = async () => {
     try {
@@ -102,13 +129,15 @@ const ViewProject = () => {
             onSuccess: () => {
               setShowToast({ label: `${t("WBH_DATES_UPDATED_SUCCESS")}` });
               setShowEditDateModal(false);
+              refetch();
               closeToast();
             },
           }
         );
       }
-    } catch {
-      throw error;
+    } catch (error) {
+      setShowToast({ label: "WBH_DATES_UPDATED_FAILED", isError: true });
+      // setShowTargetModal(false);
     }
   };
 
@@ -116,6 +145,58 @@ const ViewProject = () => {
 
   const handleOnCancel = () => {
     setShowEditDateModal(false);
+    setShowTargetModal(false);
+  };
+
+  const reqCriteria = {
+    url: "/project/v1/_create",
+    config: false,
+  };
+
+  const mutationTarget = Digit.Hooks.useCustomAPIMutationHook(reqCriteria);
+
+  const onSuccess = () => {
+    closeToast();
+    refetch();
+    setShowToast({ key: "success", label: "WBH_PROJECT_TARGET_ADDED_SUCESSFULLY" });
+  };
+  const onError = (resp) => {
+    const label = resp?.response?.data?.Errors?.[0]?.code;
+    setShowToast({ isError: true, label });
+    refetch();
+  };
+
+  const handleProjectTargetSubmit = async () => {
+    const targets = {
+      beneficiaryType: formData?.beneficiaryType,
+      totalNo: Number(formData?.totalNo),
+      targetNo: Number(formData?.targetNo),
+      isDeleted: false,
+    };
+
+    const projectTarget = project?.Project?.[0];
+
+    await mutation.mutate(
+      {
+        body: {
+          Projects: [
+            {
+              ...projectTarget,
+              targets: [...projectTarget?.targets, targets],
+            },
+          ],
+        },
+      },
+      {
+        onError,
+        onSuccess,
+      }
+    );
+    setShowTargetModal(false);
+  };
+
+  const handleOnChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
@@ -134,8 +215,22 @@ const ViewProject = () => {
           onSubmit={handleAssignCampaignSubmit}
         />
       )}
+      {showTargetModal && (
+        <AssignTarget
+          t={t}
+          isEdit={false}
+          onClose={() => setShowTargetModal(false)}
+          heading={"WBH_CAMPAIGN_ASSIGNMENT_TARGET"}
+          onCancel={handleOnCancel}
+          onSubmitTarget={handleProjectTargetSubmit}
+          onChange={handleOnChange}
+        />
+      )}
+
       <ActionBar>
-        <SubmitBar label={t("WBH_ASSIGN_CAMPAIGN")} onSubmit={() => setShowEditDateModal(true)} />
+        {displayMenu ? <Menu localeKeyPrefix={"WBH_ASSIGN_CAMPAIGN"} options={ACTIONS} t={t} onSelect={onActionSelect} /> : null}
+
+        <SubmitBar label={t("ES_COMMON_TAKE_ACTION")} onSubmit={() => setDisplayMenu(!displayMenu)} />
       </ActionBar>
       {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>}
     </React.Fragment>

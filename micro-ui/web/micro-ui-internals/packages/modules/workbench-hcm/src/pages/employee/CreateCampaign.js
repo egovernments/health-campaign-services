@@ -1,4 +1,4 @@
-import { Loader, FormComposerV2, Header, Toast, MultiUploadWrapper, Button, Close } from "@egovernments/digit-ui-react-components";
+import { Loader, FormComposerV2, Header, Toast, MultiUploadWrapper, Button, Close, LogoutIcon } from "@egovernments/digit-ui-react-components";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory } from "react-router-dom";
@@ -81,9 +81,9 @@ const CreateCampaign = () => {
           component: "RowDetails",
           label: "ROW_DETAILS",
           disable: false,
-          "customProps": {
-          "module": "HCM"
-        },
+          customProps: {
+            module: "HCM",
+          },
           populators: {
             name: "rowDetails",
             // optionsKey: "code",
@@ -116,6 +116,9 @@ const CreateCampaign = () => {
         body: {
           HCMConfig: {
             tenantId: Digit.ULBService.getCurrentTenantId(),
+            campaignName: data?.campaignName,
+            projectType: data?.projectType?.code,
+            projectTypeId: data?.projectType?.id,
             fileStoreId: data?.upload?.[0]?.[1]?.fileStoreId?.fileStoreId,
             campaignType: data?.campaignType?.campaignType,
             selectedRows: (data?.rowDetails || []).map((row) => ({
@@ -139,12 +142,12 @@ const CreateCampaign = () => {
     );
   };
   const handleMutation = async (params, campaignType) => {
-    params.body.HCMConfig.campaignType=campaignType;
+    params.body.HCMConfig.campaignType = campaignType;
     await mutation.mutate(
       {
         ...params,
         body: {
-          ...params.body
+          ...params.body,
         },
       },
       {
@@ -154,7 +157,7 @@ const CreateCampaign = () => {
         },
       }
     );
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   };
   const onSubmit2 = async (data) => {
     const commonParams = {
@@ -162,6 +165,9 @@ const CreateCampaign = () => {
       body: {
         HCMConfig: {
           tenantId: Digit.ULBService.getCurrentTenantId(),
+          campaignName: data?.campaignName,
+          projectType: data?.projectType?.code,
+          projectTypeId: data?.projectType?.id,
           fileStoreId: data?.upload?.[0]?.[1]?.fileStoreId?.fileStoreId,
           selectedRows: (data?.rowDetails || []).map((row) => ({
             startRow: row.startRow,
@@ -170,7 +176,7 @@ const CreateCampaign = () => {
         },
       },
     };
-  
+
     if (data?.campaignType?.campaignType === "MicroPlanBoundaryProvincia") {
       await handleMutation(commonParams, data?.campaignType?.campaignType);
       await handleMutation(commonParams, "MicroPlanBoundaryPostoAdministrativo");
@@ -190,25 +196,24 @@ const CreateCampaign = () => {
     <div>
       <Header>{t("WORKBENCH_CREATE_CAMPAIGN")}</Header>
       {formConfigs.map((formConfig, index) => (
-        <div key = {index}>
+        <div key={index}>
           {formConfigs.length > 1 && (
-              <div className="deleteConfig" onClick={() => handleDeleteForm(index)}>
-                <Close />
-              </div>
-            )}
-        <FormComposerV2
-          key={index}
-          label="WORKBENCH_CREATE_CAMPAIGN"
-          config={formConfig.map((config) => ({ ...config }))}
-          defaultValues={{}}
-          // onSubmit={onSubmit}
-          onSubmit={onSubmit2}
-
-          // onSubmit={(data) => onSubmit(data, createMutation())}
-          fieldStyle={{ marginRight: 0 }}
-          noBreakLine={true}
-          cardClassName={"page-padding-fix"}
-        />
+            <div className="deleteConfig" onClick={() => handleDeleteForm(index)}>
+              <Close />
+            </div>
+          )}
+          <FormComposerV2
+            key={index}
+            label="WORKBENCH_CREATE_CAMPAIGN"
+            config={formConfig.map((config) => ({ ...config }))}
+            defaultValues={{}}
+            // onSubmit={onSubmit}
+            onSubmit={onSubmit2}
+            // onSubmit={(data) => onSubmit(data, createMutation())}
+            fieldStyle={{ marginRight: 0 }}
+            noBreakLine={true}
+            cardClassName={"page-padding-fix"}
+          />
         </div>
       ))}
       {showToast && <Toast error={showToast?.isError} label={showToast?.label} isDleteBtn={"true"} onClose={() => setShowToast(false)} />}
