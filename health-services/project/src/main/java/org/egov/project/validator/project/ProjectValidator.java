@@ -212,9 +212,11 @@ public class ProjectValidator {
             if (StringUtils.isBlank(project.getId()) && StringUtils.isBlank(project.getProjectType())
                     && StringUtils.isBlank(project.getName()) && StringUtils.isBlank(project.getProjectNumber())
                     && StringUtils.isBlank(project.getProjectSubType())
+                    && StringUtils.isBlank(project.getParent())
                     && (project.getStartDate() == null || project.getStartDate() == 0)
                     && (project.getEndDate() == null || project.getEndDate() == 0)
                     && (createdFrom == null || createdFrom == 0)
+                    && (project.getAddress() == null || StringUtils.isBlank(project.getAddress().getBoundaryType()))
                     && (project.getAddress() == null || StringUtils.isBlank(project.getAddress().getBoundary()))) {
                 log.error("Any one project search field is required for Project Search");
                 throw new CustomException("PROJECT_SEARCH_FIELDS", "Any one project search field is required");
