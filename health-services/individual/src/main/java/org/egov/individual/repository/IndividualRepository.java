@@ -1,5 +1,16 @@
 package org.egov.individual.repository;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+
+import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
@@ -23,18 +34,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
-
-import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
@@ -217,7 +216,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query.replace(tableName + " AND", tableName + " WHERE ");
         }
         if (searchObject.getIndividualName() != null) {
-            query = query + "AND givenname LIKE :individualName ";
+            query = query + "AND givenname ILIKE :individualName ";
             paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
         }
         if (searchObject.getGender() != null) {
