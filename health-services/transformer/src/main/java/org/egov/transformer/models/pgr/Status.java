@@ -7,31 +7,31 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * status of the Property
  */
 public enum Status {
-  
-  ACTIVE("ACTIVE"),
-  
-  INACTIVE("INACTIVE");
 
-  private String value;
+    ACTIVE("ACTIVE"),
 
-  Status(String value) {
-    this.value = value;
-  }
+    INACTIVE("INACTIVE");
 
-  @Override
-  @JsonValue
-  public String toString() {
-    return String.valueOf(value);
-  }
+    private String value;
 
-  @JsonCreator
-  public static Status fromValue(String text) {
-    for (Status b : Status.values()) {
-      if (String.valueOf(b.value).equals(text)) {
-        return b;
-      }
+    Status(String value) {
+        this.value = value;
     }
-    return null;
-  }
+
+    @Override
+    @JsonValue
+    public String toString() {
+        return String.valueOf(value);
+    }
+
+    @JsonCreator
+    public static Status fromValue(String text) {
+        for (Status b : Status.values()) {
+            if (String.valueOf(b.value).equals(text)) {
+                return b;
+            }
+        }
+        return null;
+    }
 }
 

@@ -10,7 +10,6 @@ public enum Operation {
     STOCK("STOCK"),
     HOUSEHOLD_MEMBER("HOUSEHOLD_MEMBER"),
     SERVICE("SERVICE"),
-    PGR("PGR"),
     SIDE_EFFECT("SIDE_EFFECT"),
     REFERRAL("REFERRAL");
 

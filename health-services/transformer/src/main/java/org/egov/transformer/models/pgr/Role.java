@@ -6,7 +6,7 @@ import lombok.*;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * minimal representation of the Roles in the system to be carried along in UserInfo with RequestHeader meta data. Actual authorization service to extend this to have more role related attributes 
+ * minimal representation of the Roles in the system to be carried along in UserInfo with RequestHeader meta data. Actual authorization service to extend this to have more role related attributes
  */
 @ApiModel(description = "minimal representation of the Roles in the system to be carried along in UserInfo with RequestHeader meta data. Actual authorization service to extend this to have more role related attributes ")
 @Validated
@@ -17,18 +17,18 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Role   {
-        @JsonProperty("name")
-        private String name = null;
+public class Role {
+    @JsonProperty("name")
+    private String name = null;
 
-        @JsonProperty("code")
-        private String code = null;
+    @JsonProperty("code")
+    private String code = null;
 
-        @JsonProperty("tenantId")
-        private String tenantId = null;
+    @JsonProperty("tenantId")
+    private String tenantId = null;
 
-        @JsonProperty("description")
-        private String description = null;
+    @JsonProperty("description")
+    private String description = null;
 
 
 }

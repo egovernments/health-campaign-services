@@ -21,20 +21,20 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ServiceRequest   {
+public class ServiceRequest {
 
-        @NotNull
-        @JsonProperty("RequestInfo")
-        private RequestInfo requestInfo = null;
+    @NotNull
+    @JsonProperty("RequestInfo")
+    private RequestInfo requestInfo = null;
 
-        @Valid
-        @NonNull
-        @JsonProperty("service")
-        private Service service = null;
+    @Valid
+    @NonNull
+    @JsonProperty("service")
+    private Service service = null;
 
-        @Valid
-        @JsonProperty("workflow")
-        private Workflow workflow = null;
+    @Valid
+    @JsonProperty("workflow")
+    private Workflow workflow = null;
 
 
 }

@@ -52,7 +52,7 @@ public class PGRTransformationService {
         if (localityCode.isPresent()) {
             boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(localityCode.get(), service.getTenantId());
         }
-
+        //TODO change below logic to fetch default boundaryHierarchy using tenantId if we can't fetch projectTypeId
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, null, boundaryLabelToNameMap);
 
 
@@ -60,7 +60,7 @@ public class PGRTransformationService {
                 .service(service)
                 .boundaryHierarchy(boundaryHierarchy)
                 .build();
-        service.setAddress(null);
+        service.setAddress(null); //explicitly setting it to null as it is not needed
         service.setApplicationStatus(commonUtils.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
         service.setServiceCode(commonUtils.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
         pgrIndexList.add(pgrIndex);

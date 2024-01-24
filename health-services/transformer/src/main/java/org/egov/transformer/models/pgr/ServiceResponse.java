@@ -20,21 +20,21 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ServiceResponse   {
-        @JsonProperty("responseInfo")
-        private ResponseInfo responseInfo = null;
+public class ServiceResponse {
+    @JsonProperty("responseInfo")
+    private ResponseInfo responseInfo = null;
 
-        @JsonProperty("ServiceWrappers")
-        private List<ServiceWrapper> serviceWrappers = null;
-        
-        @JsonProperty("complaintsResolved")
-        private int complaintsResolved;
+    @JsonProperty("ServiceWrappers")
+    private List<ServiceWrapper> serviceWrappers = null;
 
-        @JsonProperty("averageResolutionTime")
-        private int averageResolutionTime;
+    @JsonProperty("complaintsResolved")
+    private int complaintsResolved;
 
-        @JsonProperty("complaintTypes")
-        private int complaintTypes;
+    @JsonProperty("averageResolutionTime")
+    private int averageResolutionTime;
+
+    @JsonProperty("complaintTypes")
+    private int complaintTypes;
 
 
 }

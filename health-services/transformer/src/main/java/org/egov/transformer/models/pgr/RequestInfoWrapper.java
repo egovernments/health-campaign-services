@@ -14,8 +14,8 @@ import javax.validation.Valid;
 @Builder
 public class RequestInfoWrapper {
 
-	@NonNull
-	@Valid
-	@JsonProperty("RequestInfo")
-	private RequestInfo requestInfo;
+    @NonNull
+    @Valid
+    @JsonProperty("RequestInfo")
+    private RequestInfo requestInfo;
 }

@@ -12,7 +12,7 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
 /**
- * Instance of Service request raised for a particular service. As per extension propsed in the Service definition \&quot;attributes\&quot; carry the input values requried by metadata definition in the structure as described by the corresponding schema.  * Any one of &#39;address&#39; or &#39;(lat and lang)&#39; or &#39;addressid&#39; is mandatory 
+ * Instance of Service request raised for a particular service. As per extension propsed in the Service definition \&quot;attributes\&quot; carry the input values requried by metadata definition in the structure as described by the corresponding schema.  * Any one of &#39;address&#39; or &#39;(lat and lang)&#39; or &#39;addressid&#39; is mandatory
  */
 @ApiModel(description = "Instance of Service request raised for a particular service. As per extension propsed in the Service definition \"attributes\" carry the input values requried by metadata definition in the structure as described by the corresponding schema.  * Any one of 'address' or '(lat and lang)' or 'addressid' is mandatory ")
 @Validated
@@ -23,66 +23,66 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Service   {
+public class Service {
 
-        @JsonProperty("active")
-        private boolean active = true;
+    @JsonProperty("active")
+    private boolean active = true;
 
-        @JsonProperty("user")
-        private User user = null;
+    @JsonProperty("user")
+    private User user = null;
 
-        @SafeHtml
-        @JsonProperty("id")
-        private String id = null;
+    @SafeHtml
+    @JsonProperty("id")
+    private String id = null;
 
-        @NotNull
-        @SafeHtml
-        @JsonProperty("tenantId")
-        private String tenantId = null;
+    @NotNull
+    @SafeHtml
+    @JsonProperty("tenantId")
+    private String tenantId = null;
 
-        @NotNull
-        @SafeHtml
-        @JsonProperty("serviceCode")
-        private String serviceCode = null;
+    @NotNull
+    @SafeHtml
+    @JsonProperty("serviceCode")
+    private String serviceCode = null;
 
-        @SafeHtml
-        @JsonProperty("serviceRequestId")
-        private String serviceRequestId = null;
+    @SafeHtml
+    @JsonProperty("serviceRequestId")
+    private String serviceRequestId = null;
 
-        @SafeHtml
-        @JsonProperty("description")
-        private String description = null;
+    @SafeHtml
+    @JsonProperty("description")
+    private String description = null;
 
-        @SafeHtml
-        @JsonProperty("accountId")
-        private String accountId = null;
+    @SafeHtml
+    @JsonProperty("accountId")
+    private String accountId = null;
 
-        @Max(5)
-        @Min(0)
-        @JsonProperty("rating")
-        private Integer rating ;
+    @Max(5)
+    @Min(0)
+    @JsonProperty("rating")
+    private Integer rating;
 
-        @JsonProperty("additionalDetail")
-        private Object additionalDetail = null;
+    @JsonProperty("additionalDetail")
+    private Object additionalDetail = null;
 
-        @SafeHtml
-        @JsonProperty("applicationStatus")
-        private String applicationStatus = null;
+    @SafeHtml
+    @JsonProperty("applicationStatus")
+    private String applicationStatus = null;
 
-        @NotNull
-        @SafeHtml
-        @JsonProperty("source")
-        private String source = null;
+    @NotNull
+    @SafeHtml
+    @JsonProperty("source")
+    private String source = null;
 
-        @Valid
-        @NotNull
-        @JsonProperty("address")
-        private Address address = null;
+    @Valid
+    @NotNull
+    @JsonProperty("address")
+    private Address address = null;
 
-        @JsonProperty("auditDetails")
-        private AuditDetails auditDetails = null;
+    @JsonProperty("auditDetails")
+    private AuditDetails auditDetails = null;
 
-        @JsonProperty("selfComplaint")
-        private Boolean selfComplaint;
+    @JsonProperty("selfComplaint")
+    private Boolean selfComplaint;
 }
 

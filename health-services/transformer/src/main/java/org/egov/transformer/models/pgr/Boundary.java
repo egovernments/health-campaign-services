@@ -21,45 +21,45 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Boundary   {
+public class Boundary {
 
-        @NotNull
-        @SafeHtml
-        @JsonProperty("code")
-        private String code = null;
+    @NotNull
+    @SafeHtml
+    @JsonProperty("code")
+    private String code = null;
 
-        @SafeHtml
-        @JsonProperty("name")
-        private String name = null;
+    @SafeHtml
+    @JsonProperty("name")
+    private String name = null;
 
-        @SafeHtml
-        @JsonProperty("label")
-        private String label = null;
+    @SafeHtml
+    @JsonProperty("label")
+    private String label = null;
 
-        @SafeHtml
-        @JsonProperty("latitude")
-        private String latitude = null;
+    @SafeHtml
+    @JsonProperty("latitude")
+    private String latitude = null;
 
-        @SafeHtml
-        @JsonProperty("longitude")
-        private String longitude = null;
+    @SafeHtml
+    @JsonProperty("longitude")
+    private String longitude = null;
 
-        @JsonProperty("children")
-        @Valid
-        private List<Boundary> children = null;
+    @JsonProperty("children")
+    @Valid
+    private List<Boundary> children = null;
 
-        @SafeHtml
-        @JsonProperty("materializedPath")
-        private String materializedPath = null;
+    @SafeHtml
+    @JsonProperty("materializedPath")
+    private String materializedPath = null;
 
 
-        public Boundary addChildrenItem(Boundary childrenItem) {
-            if (this.children == null) {
+    public Boundary addChildrenItem(Boundary childrenItem) {
+        if (this.children == null) {
             this.children = new ArrayList<>();
-            }
+        }
         this.children.add(childrenItem);
         return this;
-        }
+    }
 
 }
 

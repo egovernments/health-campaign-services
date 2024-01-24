@@ -42,7 +42,7 @@ public class RequestSearchCriteria {
 
     @JsonProperty("sortOrder")
     private SortOrder sortOrder;
-  
+
     @JsonProperty("locality")
     private Set<String> locality;
 
@@ -89,9 +89,9 @@ public class RequestSearchCriteria {
     @JsonProperty("accountId")
     private String accountId;
 
-    public boolean isEmpty(){
-        return (this.tenantId==null && this.serviceCode==null && this.mobileNumber==null && this.serviceRequestId==null
-        && this.applicationStatus==null && this.ids==null && this.userIds==null && this.locality==null);
+    public boolean isEmpty() {
+        return (this.tenantId == null && this.serviceCode == null && this.mobileNumber == null && this.serviceRequestId == null
+                && this.applicationStatus == null && this.ids == null && this.userIds == null && this.locality == null);
     }
 
 }

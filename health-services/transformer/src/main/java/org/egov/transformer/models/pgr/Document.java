@@ -18,25 +18,25 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Document   {
-        @SafeHtml
-        @JsonProperty("id")
-        private String id = null;
+public class Document {
+    @SafeHtml
+    @JsonProperty("id")
+    private String id = null;
 
-        @SafeHtml
-        @JsonProperty("documentType")
-        private String documentType = null;
+    @SafeHtml
+    @JsonProperty("documentType")
+    private String documentType = null;
 
-        @SafeHtml
-        @JsonProperty("fileStoreId")
-        private String fileStoreId = null;
+    @SafeHtml
+    @JsonProperty("fileStoreId")
+    private String fileStoreId = null;
 
-        @SafeHtml
-        @JsonProperty("documentUid")
-        private String documentUid = null;
+    @SafeHtml
+    @JsonProperty("documentUid")
+    private String documentUid = null;
 
-        @JsonProperty("additionalDetails")
-        private Object additionalDetails = null;
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
 
 
 }

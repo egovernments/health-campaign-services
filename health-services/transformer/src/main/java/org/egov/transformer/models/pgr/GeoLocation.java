@@ -15,15 +15,15 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class GeoLocation   {
-        @JsonProperty("latitude")
-        private Double latitude = null;
+public class GeoLocation {
+    @JsonProperty("latitude")
+    private Double latitude = null;
 
-        @JsonProperty("longitude")
-        private Double longitude = null;
+    @JsonProperty("longitude")
+    private Double longitude = null;
 
-        @JsonProperty("additionalDetails")
-        private Object additionalDetails = null;
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
 
 
 }

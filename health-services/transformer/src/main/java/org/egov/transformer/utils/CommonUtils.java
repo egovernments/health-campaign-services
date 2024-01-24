@@ -48,6 +48,7 @@ public class CommonUtils {
 
     public  String getMDMSTransformerLocalizations (String text, String tenantId) {
         if (transformerLocalizations.containsKey(text)) {
+            log.info("Fetching localization from transformerLocalization: {}", text);
             return transformerLocalizations.get(text);
         }
         return fetchLocalizationsFromMdms(text, tenantId);
@@ -147,7 +148,7 @@ public class CommonUtils {
         });
         return boundaryHierarchy;
     }
-
+    //TODO fetching default boundary level vs label has to be handled for multi campaigns happening same time
     private static final List<JsonNode> DEFAULT_BOUNDARY_VS_LABEL;
 
     static {
