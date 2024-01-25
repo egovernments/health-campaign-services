@@ -40,7 +40,13 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
   const isShow2 = [
     "/hcmworkbench/campaign",
     "/hcmworkbench/boundary",
-    "/hcmworkbench/facility"
+    "/hcmworkbench/facility",
+    "/project-landing-screen",
+  ].some(pattern => location.pathname.includes(pattern));
+
+  const isShow3 = [
+    "/hcmworkbench/user",
+    "/hcmworkbench/help-screen/coded-user"
   ].some(pattern => location.pathname.includes(pattern));
 
   const crumbs = [
@@ -55,6 +61,11 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
       show: isShow2 ? true: false
     },
     {
+      path: `/${window?.contextPath}/employee/hcmworkbench/master/user-landing-screen`,
+      content: t("WORKBENCH_USER"),
+      show: isShow3 ? true: false
+    },
+    {
       path: `/${window?.contextPath}/employee/utilities/search/commonHCMUiConfig/SearchProjectConfig`,
       content: t("WORKBENCH_SEARCH_PROJECT"),
       show: isShow2 ? location.pathname.includes("/hcmworkbench/campaign-view") : false,
@@ -66,8 +77,13 @@ const WorkbenchBreadCrumb = ({ location, defaultPath }) => {
     },
     {
       path: `/${window?.contextPath}/employee/hcmworkbench/user`,
-      content: t("WORKBENCH_USER"),
+      content: t("WORKBENCH_NAMED_USER"),
       show: location.pathname.includes("/hcmworkbench/user") ? true : false,
+    },
+    {
+      path: `/${window?.contextPath}/employee/hcmworkbench/help-screen/coded-user`,
+      content: t("WORKBENCH_CODED_USER"),
+      show: location.pathname.includes("/hcmworkbench/help-screen/coded-user") ? true : false,
     },
     {
       path: `/${window?.contextPath}/employee/hcmworkbench/view`,
