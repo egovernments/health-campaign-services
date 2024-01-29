@@ -72,6 +72,7 @@ public abstract class StockTransformationService implements TransformationServic
         private final CommonUtils commonUtils;
         private final UserService userService;
         private final ProductService productService;
+
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
                                 CommonUtils commonUtils, UserService userService, ProductService productService) {
             this.projectService = projectService;
@@ -86,11 +87,11 @@ public abstract class StockTransformationService implements TransformationServic
             Map<String, String> boundaryLabelToNameMap = new HashMap<>();
             String tenantId = stock.getTenantId();
             String projectId = stock.getReferenceId();
-            Project project = projectService.getProject(projectId,tenantId);
+            Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
             Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
-            if (facility != null && facility.getAddress() != null &&  facility.getAddress().getLocality() != null
+            if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                     && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stock.getTenantId());
@@ -101,19 +102,18 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-            String facilityLevel = facility != null ? getFacilityLevel(facility): null;
+            String facilityLevel = facility != null ? getFacilityLevel(facility) : null;
             String transactingFacilityLevel = transactingFacility != null ? getFacilityLevel(transactingFacility) : null;
-            Long facilityTarget = facility != null ? getFacilityTarget(facility): null;
+            Long facilityTarget = facility != null ? getFacilityTarget(facility) : null;
 
             String facilityType = WAREHOUSE;
             String transactingFacilityType = WAREHOUSE;
 
-            facilityType = facility != null ? getType(facilityType, facility): facilityType;
+            facilityType = facility != null ? getType(facilityType, facility) : facilityType;
             transactingFacilityType = transactingFacility != null ? getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
 
-            List<User> users = userService.getUsers(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
-            List<String> variantList= new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
+            List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
             Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
 

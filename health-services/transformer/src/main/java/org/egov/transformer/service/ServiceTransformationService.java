@@ -80,7 +80,6 @@ public class ServiceTransformationService {
         }
         log.info("boundary labels {}", boundaryLabelToNameMap.toString());
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-        List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
         // populate them from env

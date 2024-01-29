@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.egov.transformer.Constants.PROJECT_STAFF_ROLES;
+
 @Slf4j
 @Service
 public class UserService {
@@ -33,6 +34,7 @@ public class UserService {
     private static Map<String, List<User>> userIdVsUsersCache = new ConcurrentHashMap<>();
     private static Map<String, String> userIdVsUserRoleCache = new ConcurrentHashMap<>();
     private static Map<String, Map<String, String>> userIdVsUserInfoCache = new ConcurrentHashMap<>();
+
     @Autowired
     public UserService(ServiceRequestClient restRepo,
                        @Value("${egov.user.host}") String host,
@@ -46,84 +48,84 @@ public class UserService {
     }
 
 
-    public Map<String, String> getUserInfo(String tenantId, String userId){
+    public Map<String, String> getUserInfo(String tenantId, String userId) {
         List<User> users;
         Map<String, String> userMap = new HashMap<>();
         Map<String, String> userDetailsMap = new HashMap<>();
         String userName = null;
         String role;
 
-        if(userIdVsUserInfoCache.containsKey(userId)){
-            log.info("fetching from userIdVsUserInfoCache for userId: "+userId);
+        if (userIdVsUserInfoCache.containsKey(userId)) {
+            log.info("fetching from userIdVsUserInfoCache for userId: " + userId);
             userDetailsMap = userIdVsUserInfoCache.get(userId);
             return userDetailsMap;
-        }
-        else{
+        } else {
             users = getUsers(tenantId, userId);
-            if(users.isEmpty()){
-                log.info("unable to fetch users for userId: "+userId);
-                userMap.put("userName",userId);
-                userMap.put("role",null);
+            if (users.isEmpty()) {
+                log.info("unable to fetch users for userId: " + userId);
+                userMap.put("userName", userId);
+                userMap.put("role", null);
                 return userMap;
             }
             userName = users.get(0).getUserName();
             role = getStaffRole(tenantId, users);
-            userMap.put("userName",userName);
-            userMap.put("role",role);
+            userMap.put("userName", userName);
+            userMap.put("role", role);
             userIdVsUserInfoCache.put(userId, userMap);
             return userMap;
         }
     }
-    public List<User> getUsers(String tenantId, String userId){
-            UserSearchRequest searchRequest = new UserSearchRequest();
-            RequestInfo requestInfo = RequestInfo.builder()
-                    .userInfo(User.builder().uuid("transformer-uuid").build())
-                    .build();
-            List<String> Ids = new ArrayList<>();
-            Ids.add(userId);
-            searchRequest.setRequestInfo(requestInfo);
-            searchRequest.setTenantId(tenantId);
-            searchRequest.setUuid(Ids);
-            try {
-                UserDetailResponse response = restRepo.fetchResult(
-                        new StringBuilder(host + searchUrl),
-                        searchRequest,
-                        UserDetailResponse.class
-                );
-                return response.getUser();
-            } catch (Exception e) {
-                log.error("Exception while searching users : {}", ExceptionUtils.getStackTrace(e));
-            }
-            return new ArrayList<>();
+
+    public List<User> getUsers(String tenantId, String userId) {
+        UserSearchRequest searchRequest = new UserSearchRequest();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        List<String> Ids = new ArrayList<>();
+        Ids.add(userId);
+        searchRequest.setRequestInfo(requestInfo);
+        searchRequest.setTenantId(tenantId);
+        searchRequest.setUuid(Ids);
+        try {
+            UserDetailResponse response = restRepo.fetchResult(
+                    new StringBuilder(host + searchUrl),
+                    searchRequest,
+                    UserDetailResponse.class
+            );
+            return response.getUser();
+        } catch (Exception e) {
+            log.error("Exception while searching users : {}", ExceptionUtils.getStackTrace(e));
+        }
+        return new ArrayList<>();
     }
 
     public HashMap<String, Integer> getProjectStaffRoles(String tenantId) {
-            RequestInfo requestInfo = RequestInfo.builder()
-                    .userInfo(User.builder().uuid("transformer-uuid").build())
-                    .build();
-            MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, PROJECT_STAFF_ROLES, moduleName);
-            JSONArray projectStaffRoles = new JSONArray();
-            try {
-                MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
-                projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
-            } catch (Exception e) {
-                log.error("Exception while fetching mdms roles: {}", ExceptionUtils.getStackTrace(e));
-            }
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, PROJECT_STAFF_ROLES, moduleName);
+        JSONArray projectStaffRoles = new JSONArray();
+        try {
+            MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
+        } catch (Exception e) {
+            log.error("Exception while fetching mdms roles: {}", ExceptionUtils.getStackTrace(e));
+        }
 
-            HashMap<String, Integer> projectStaffRolesMap = new HashMap<>();
-            ObjectMapper objectMapper = new ObjectMapper();
-            projectStaffRoles.forEach(role -> {
-                LinkedHashMap<String, Object> map = objectMapper.convertValue(role, new TypeReference<LinkedHashMap>() {
-                });
-                projectStaffRolesMap.put((String) map.get("code"), (Integer) map.get("rank"));
+        HashMap<String, Integer> projectStaffRolesMap = new HashMap<>();
+        ObjectMapper objectMapper = new ObjectMapper();
+        projectStaffRoles.forEach(role -> {
+            LinkedHashMap<String, Object> map = objectMapper.convertValue(role, new TypeReference<LinkedHashMap>() {
             });
-            return projectStaffRolesMap;
+            projectStaffRolesMap.put((String) map.get("code"), (Integer) map.get("rank"));
+        });
+        return projectStaffRolesMap;
     }
 
-    public String getStaffRole(String tenantId, List<User> users){
+    public String getStaffRole(String tenantId, List<User> users) {
 
         List<String> userRoles = new ArrayList<>();
-        if(users != null && users.size() > 0){
+        if (users != null && users.size() > 0) {
             users.get(0).getRoles().forEach(role -> userRoles.add(role.getCode()));
         }
 
@@ -131,7 +133,7 @@ public class UserService {
         String roleByRank = null;
         int minValue = Integer.MAX_VALUE;
 
-        if(userRoles.size() > 0){
+        if (userRoles.size() > 0) {
             for (String element : userRoles) {
                 if (projectStaffRolesMap.containsKey(element)) {
                     int value = projectStaffRolesMap.get(element);
@@ -145,12 +147,13 @@ public class UserService {
         return roleByRank;
     }
 
-    public String getUserName (List<User> users, String userId){
-        if (users!= null && users.size()>0){
+    public String getUserName(List<User> users, String userId) {
+        if (users != null && users.size() > 0) {
             return users.get(0).getUserName();
         }
         return userId;
     }
+
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
                                            String moduleName) {
         MasterDetail masterDetail = new MasterDetail();

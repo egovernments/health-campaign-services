@@ -63,22 +63,23 @@ public abstract class ProjectStaffTransformationService implements Transformatio
         private final UserService userService;
 
         private final CommonUtils commonUtils;
+
         @Autowired
         ProjectStaffIndexV1Transformer(ProjectService projectService, UserService userService, CommonUtils commonUtils) {
             this.projectService = projectService;
             this.userService = userService;
             this.commonUtils = commonUtils;
         }
+
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
             String tenantId = projectStaff.getTenantId();
             String projectId = projectStaff.getProjectId();
-            Project project = projectService.getProject(projectId,tenantId);
+            Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-//            List<User> users = userService.getUsers(projectStaff.getTenantId(), projectStaff.getUserId());
             Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
             List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
             ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()

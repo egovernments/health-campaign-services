@@ -100,7 +100,6 @@ public class HouseholdService {
             boundaryLabelToNameMap = null;
         }
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(household.getTenantId(), projectTypeId, boundaryLabelToNameMap);
-        List<User> users = userService.getUsers(household.getTenantId(), household.getAuditDetails().getCreatedBy());
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
 
         return HouseholdIndexV1.builder()

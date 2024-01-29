@@ -102,7 +102,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
             }
-            Project project = projectService.getProject(task.getProjectId(),tenantId);
+            Project project = projectService.getProject(task.getProjectId(), tenantId);
             String projectTypeId = project.getProjectTypeId();
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
@@ -119,7 +119,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
             }
             final ProjectBeneficiary finalProjectBeneficiary = projectBeneficiary;
 
-            List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
 
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
@@ -127,13 +126,13 @@ public abstract class ProjectTaskTransformationService implements Transformation
             Task constructedTask = constructTaskResourceIfNull(task);
 
             return constructedTask.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, users, finalProjectBeneficiary, projectBeneficiaryType)
+                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType)
             ).collect(Collectors.toList());
         }
 
-    private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId, List<User> users,
+        private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId,
                                                                    ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType) {
-        Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
+            Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
 
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
@@ -164,7 +163,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .boundaryHierarchy(boundaryHierarchy)
                     .build();
 
-            List<String> variantList= new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
+            List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
             projectTaskIndexV1.setProductName(productName);
 
@@ -225,6 +224,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 }
             });
         }
+
         private Task constructTaskResourceIfNull(Task task) {
             if (task.getResources() == null || task.getResources().isEmpty()) {
                 TaskResource taskResource = new TaskResource();
@@ -256,6 +256,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
             }
             return task;
         }
+
         private String getFieldStringValue(List<Field> fields, String key) {
             Optional<Field> field = fields.stream()
                     .filter(field1 -> key.equalsIgnoreCase(field1.getKey()))

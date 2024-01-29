@@ -68,7 +68,6 @@ public class ReferralService {
     }
 
     public ReferralIndexV1 transform(Referral referral) {
-        List<User> users = userService.getUsers(referral.getTenantId(), referral.getAuditDetails().getCreatedBy());
         String tenantId = referral.getTenantId();
         ProjectBeneficiary projectBeneficiary = getProjectBeneficiary(referral, tenantId);
         Map<String, Object> individualDetails = new HashMap<>();

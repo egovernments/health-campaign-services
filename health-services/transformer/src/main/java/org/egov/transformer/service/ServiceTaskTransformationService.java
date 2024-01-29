@@ -32,6 +32,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
+
     @Autowired
     protected ServiceTaskTransformationService(ServiceTaskTransformationService.ServiceTaskIndexV1Transformer transformer,
                                                Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
@@ -71,6 +72,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private UserService userService;
 
         private final ObjectMapper objectMapper;
+
         @Autowired
         ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
 
@@ -96,7 +98,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                 projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
             }
             Map<String, String> boundaryLabelToNameMap = new HashMap<>();
-            Project project = projectService.getProject(projectId,tenantId);
+            Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
             if (service.getAdditionalDetails() != null) {
                 boundaryLabelToNameMap = projectService
@@ -106,7 +108,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-            List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
             Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
 
@@ -119,8 +120,6 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .checklistName(parts[1])
                     .userName(userInfoMap.get("userName"))
                     .role(userInfoMap.get("role"))
-                    .userName(userService.getUserName(users,service.getAuditDetails().getCreatedBy()))
-                    .role(userService.getStaffRole(service.getTenantId(),users))
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())
