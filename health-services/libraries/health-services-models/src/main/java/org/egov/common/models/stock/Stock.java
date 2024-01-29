@@ -51,6 +51,7 @@ public class Stock {
 
     @JsonProperty("quantity")
     @NotNull
+    @Size(min = 1)
     private Integer quantity;
 
     /* project id in-case of health */ 
@@ -58,12 +59,14 @@ public class Stock {
     private String referenceId;
 
     @JsonProperty("referenceIdType")
+    @NotNull(message = "referenceIdType must be PROJECT or OTHER")
+    @Valid
     @Size(min=2, max=64)
-    private String referenceIdType;
+    private ReferenceIdType referenceIdType;
 
     // transaction fields 
     @JsonProperty("transactionType")
-    @NotNull
+    @NotNull(message = "transactionType must be either RECEIVED or DISPATCHED")
     @Valid
     private TransactionType transactionType;
 
@@ -79,7 +82,7 @@ public class Stock {
     @JsonProperty("senderType")
     @NotNull
     @Size(min=2, max=64)
-    private String senderType;
+    private SenderReceiverType senderType;
     
     @JsonProperty("receiverId")
     @NotNull
@@ -89,7 +92,7 @@ public class Stock {
     @JsonProperty("receiverType")
     @NotNull
     @Size(min=2, max=64)
-    private String receiverType;
+    private SenderReceiverType receiverType;
 
     @JsonProperty("wayBillNumber")
     @Size(min = 2, max = 200)
