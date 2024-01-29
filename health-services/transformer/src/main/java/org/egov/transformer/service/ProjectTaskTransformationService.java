@@ -133,6 +133,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
     private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId, List<User> users,
                                                                    ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType) {
+        Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
+
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -140,8 +142,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .tenantId(tenantId)
                     .taskType("DELIVERY")
                     .projectId(task.getProjectId())
-                    .userName(userService.getUserName(users, task.getAuditDetails().getCreatedBy()))
-                    .role(userService.getStaffRole(task.getTenantId(), users))
+                    .userName(userInfoMap.get("userName"))
+                    .role(userInfoMap.get("role"))
                     .productVariant(taskResource.getProductVariantId())
                     .isDelivered(taskResource.getIsDelivered())
                     .quantity(taskResource.getQuantity())
