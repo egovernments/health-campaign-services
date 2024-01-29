@@ -61,7 +61,6 @@ public class Stock {
     @JsonProperty("referenceIdType")
     @NotNull(message = "referenceIdType must be PROJECT or OTHER")
     @Valid
-    @Size(min=2, max=64)
     private ReferenceIdType referenceIdType;
 
     // transaction fields 
