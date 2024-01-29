@@ -87,6 +87,7 @@ public class ServiceTransformationService {
         String checkListToFilter = transformerProperties.getCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
         Map<String, Map<String, String>> attributeCodeToQuestionAgeGroup = new HashMap<>();
+        Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         getAttributeCodeMappings(attributeCodeToQuestionAgeGroup);
         if (checkListName.trim().equals(checkListToFilter)) {
             String finalProjectId = projectId;
@@ -99,8 +100,8 @@ public class ServiceTransformationService {
                         .ageGroup(key)
                         .tenantId(tenantId)
                         .projectId(finalProjectId)
-                        .userName(userService.getUserName(users, service.getAuditDetails().getCreatedBy()))
-                        .role(userService.getStaffRole(service.getTenantId(), users))
+                        .userName(userInfoMap.get("userName"))
+                        .role(userInfoMap.get("role"))
                         .createdTime(service.getAuditDetails().getCreatedTime())
                         .syncedTime(service.getAuditDetails().getCreatedTime())
                         .createdBy(service.getAuditDetails().getCreatedBy())

@@ -108,6 +108,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
             List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
+            Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
 
             ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                     .id(service.getId())
@@ -116,6 +117,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(parts[1])
+                    .userName(userInfoMap.get("userName"))
+                    .role(userInfoMap.get("role"))
                     .userName(userService.getUserName(users,service.getAuditDetails().getCreatedBy()))
                     .role(userService.getStaffRole(service.getTenantId(),users))
                     .createdTime(service.getAuditDetails().getCreatedTime())
