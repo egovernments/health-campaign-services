@@ -31,7 +31,8 @@ public class UserService {
     private final MdmsService mdmsService;
     private final String moduleName;
     private static Map<String, List<User>> userIdVsUsersCache = new ConcurrentHashMap<>();
-    private static Map<String, HashMap<String, Integer>> tenantIdVsProjectStaffRolesCache = new ConcurrentHashMap<>();
+    private static Map<String, String> userIdVsUserRoleCache = new ConcurrentHashMap<>();
+    private static Map<String, Map<String, String>> userIdVsUserInfoCache = new ConcurrentHashMap<>();
     @Autowired
     public UserService(ServiceRequestClient restRepo,
                        @Value("${egov.user.host}") String host,
@@ -44,11 +45,36 @@ public class UserService {
         this.moduleName = moduleName;
     }
 
-    public List<User> getUsers(String tenantId, String userId){
-        if(userIdVsUsersCache.containsKey(userId)){
-            return userIdVsUsersCache.get(userId);
+
+    public Map<String, String> getUserInfo(String tenantId, String userId){
+        List<User> users;
+        Map<String, String> userMap = new HashMap<>();
+        Map<String, String> userDetailsMap = new HashMap<>();
+        String userName = null;
+        String role;
+
+        if(userIdVsUserInfoCache.containsKey(userId)){
+            log.info("fetching from userIdVsUserInfoCache for userId: "+userId);
+            userDetailsMap = userIdVsUserInfoCache.get(userId);
+            return userDetailsMap;
         }
-        else {
+        else{
+            users = getUsers(tenantId, userId);
+            if(users.isEmpty()){
+                log.info("unable to fetch users for userId: "+userId);
+                userMap.put("userName",userId);
+                userMap.put("role",null);
+                return userMap;
+            }
+            userName = users.get(0).getUserName();
+            role = getStaffRole(tenantId, users);
+            userMap.put("userName",userName);
+            userMap.put("role",role);
+            userIdVsUserInfoCache.put(userId, userMap);
+            return userMap;
+        }
+    }
+    public List<User> getUsers(String tenantId, String userId){
             UserSearchRequest searchRequest = new UserSearchRequest();
             RequestInfo requestInfo = RequestInfo.builder()
                     .userInfo(User.builder().uuid("transformer-uuid").build())
@@ -64,19 +90,14 @@ public class UserService {
                         searchRequest,
                         UserDetailResponse.class
                 );
-                userIdVsUsersCache.put(tenantId, response.getUser());
                 return response.getUser();
             } catch (Exception e) {
                 log.error("Exception while searching users : {}", ExceptionUtils.getStackTrace(e));
             }
             return new ArrayList<>();
-        }
     }
 
     public HashMap<String, Integer> getProjectStaffRoles(String tenantId) {
-        if (tenantIdVsProjectStaffRolesCache.containsKey(tenantId)) {
-            return tenantIdVsProjectStaffRolesCache.get(tenantId);
-        } else {
             RequestInfo requestInfo = RequestInfo.builder()
                     .userInfo(User.builder().uuid("transformer-uuid").build())
                     .build();
@@ -96,9 +117,7 @@ public class UserService {
                 });
                 projectStaffRolesMap.put((String) map.get("code"), (Integer) map.get("rank"));
             });
-            tenantIdVsProjectStaffRolesCache.put(tenantId, projectStaffRolesMap);
             return projectStaffRolesMap;
-        }
     }
 
     public String getStaffRole(String tenantId, List<User> users){

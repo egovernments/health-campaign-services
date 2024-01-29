@@ -78,14 +78,15 @@ public abstract class ProjectStaffTransformationService implements Transformatio
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-            List<User> users = userService.getUsers(projectStaff.getTenantId(), projectStaff.getUserId());
+//            List<User> users = userService.getUsers(projectStaff.getTenantId(), projectStaff.getUserId());
+            Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
             List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
             ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
                     .projectId(projectId)
                     .userId(projectStaff.getUserId())
-                    .userName(userService.getUserName(users,projectStaff.getUserId()))
-                    .role(userService.getStaffRole(projectStaff.getTenantId(),users))
+                    .userName(userInfoMap.get("userName"))
+                    .role(userInfoMap.get("role"))
                     .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                     .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())
