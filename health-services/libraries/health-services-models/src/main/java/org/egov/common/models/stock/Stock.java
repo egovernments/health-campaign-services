@@ -80,8 +80,8 @@ public class Stock {
     private String senderId;
 
     @JsonProperty("senderType")
-    @NotNull
-    @Size(min=2, max=64)
+    @NotNull(message = "Sender Type can be either WAREHOUSE or STAFF")
+    @Valid
     private SenderReceiverType senderType;
     
     @JsonProperty("receiverId")
@@ -90,8 +90,8 @@ public class Stock {
     private String receiverId;
 
     @JsonProperty("receiverType")
-    @NotNull
-    @Size(min=2, max=64)
+    @NotNull(message = "Receiver Type can be either WAREHOUSE or STAFF")
+    @Valid
     private SenderReceiverType receiverType;
 
     @JsonProperty("wayBillNumber")

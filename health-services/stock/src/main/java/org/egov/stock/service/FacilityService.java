@@ -25,6 +25,7 @@ import org.egov.common.models.facility.FacilitySearchRequest;
 import org.egov.common.models.project.ProjectFacilityBulkResponse;
 import org.egov.common.models.project.ProjectFacilitySearch;
 import org.egov.common.models.project.ProjectFacilitySearchRequest;
+import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.stock.config.StockConfiguration;
@@ -97,10 +98,10 @@ public class FacilityService {
 
 				Stock stock = (Stock) entity;
 
-				if (stock.getSenderType().equalsIgnoreCase(WAREHOUSE)) {
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType())) {
 					facilityIds.add(stock.getSenderId());
 				}
-				if (stock.getReceiverType().equalsIgnoreCase(WAREHOUSE)) {
+				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType())) {
 					facilityIds.add(stock.getReceiverId());
 				}
 			}
