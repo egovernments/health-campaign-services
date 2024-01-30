@@ -20,6 +20,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.egov.transformer.Constants.ROLE;
+import static org.egov.transformer.Constants.USERNAME;
+
 @Slf4j
 @Component
 public class ServiceTransformationService {
@@ -99,8 +102,8 @@ public class ServiceTransformationService {
                         .ageGroup(key)
                         .tenantId(tenantId)
                         .projectId(finalProjectId)
-                        .userName(userInfoMap.get("userName"))
-                        .role(userInfoMap.get("role"))
+                        .userName(userInfoMap.get(USERNAME))
+                        .role(userInfoMap.get(ROLE))
                         .createdTime(service.getAuditDetails().getCreatedTime())
                         .syncedTime(service.getAuditDetails().getCreatedTime())
                         .createdBy(service.getAuditDetails().getCreatedBy())

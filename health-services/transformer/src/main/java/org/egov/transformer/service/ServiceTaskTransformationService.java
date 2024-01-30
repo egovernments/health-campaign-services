@@ -23,6 +23,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.egov.transformer.Constants.ROLE;
+import static org.egov.transformer.Constants.USERNAME;
+
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
 
@@ -118,8 +121,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(parts[1])
-                    .userName(userInfoMap.get("userName"))
-                    .role(userInfoMap.get("role"))
+                    .userName(userInfoMap.get(USERNAME))
+                    .role(userInfoMap.get(ROLE))
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())

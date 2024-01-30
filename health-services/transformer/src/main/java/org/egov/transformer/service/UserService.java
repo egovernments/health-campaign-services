@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.egov.transformer.Constants.PROJECT_STAFF_ROLES;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Service
@@ -31,8 +31,6 @@ public class UserService {
     private final String searchUrl;
     private final MdmsService mdmsService;
     private final String moduleName;
-    private static Map<String, List<User>> userIdVsUsersCache = new ConcurrentHashMap<>();
-    private static Map<String, String> userIdVsUserRoleCache = new ConcurrentHashMap<>();
     private static Map<String, Map<String, String>> userIdVsUserInfoCache = new ConcurrentHashMap<>();
 
     @Autowired
@@ -63,14 +61,14 @@ public class UserService {
             users = getUsers(tenantId, userId);
             if (users.isEmpty()) {
                 log.info("unable to fetch users for userId: " + userId);
-                userMap.put("userName", userId);
-                userMap.put("role", null);
+                userMap.put(USERNAME, userId);
+                userMap.put(ROLE, null);
                 return userMap;
             }
             userName = users.get(0).getUserName();
             role = getStaffRole(tenantId, users);
-            userMap.put("userName", userName);
-            userMap.put("role", role);
+            userMap.put(USERNAME, userName);
+            userMap.put(ROLE, role);
             userIdVsUserInfoCache.put(userId, userMap);
             return userMap;
         }
