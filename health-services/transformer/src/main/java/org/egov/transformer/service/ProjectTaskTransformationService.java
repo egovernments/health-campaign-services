@@ -216,7 +216,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     try {
                         additionalDetails.put(key, Integer.valueOf(value));
                     } catch (NumberFormatException e) {
-                        log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value, e);
+                        log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
                         additionalDetails.put(key, (JsonNode) null);
                     }
                 } else {

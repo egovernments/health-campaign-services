@@ -41,6 +41,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.service.index.v2.topic}")
     private String transformerProducerServiceIndexV2Topic;
 
+    @Value("${transformer.producer.create.pgr.topic}")
+    private String transformerProducerCreatePgrTopic;
+
     @Value("${transformer.producer.referral.index.v1.topic}")
     private String transformerProducerReferralIndexV1Topic;
 
@@ -100,6 +103,9 @@ public class TransformerProperties {
 
     @Value("${project.mdms.module}")
     private String mdmsModule;
+
+    @Value("${transformer.localizations.mdms.module}")
+    private String transformerLocalizationsMdmsModule;
 
     @Value("${project.staff.role.mdms.module}")
     private String projectStaffRolesMdmsModule;
