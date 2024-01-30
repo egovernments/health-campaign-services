@@ -99,4 +99,10 @@ public class AttendanceLogService {
         log.info("Attendance logs updated successfully for register ["+registerId+"]");
         return attendanceLogResponse;
     }
+
+    public void putInCache(List<AttendanceLog> referrals) {
+        log.info("putting {} Attendance Logs in cache", referrals.size());
+
+        log.info("successfully put Attendance Logs in cache");
+    }
 }
