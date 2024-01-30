@@ -56,7 +56,7 @@ public class AttendanceLogApiController {
     public ResponseEntity<ResponseInfo> attendanceLogV1BulkCreatePost(@ApiParam(value = "", allowableValues = "application/json") @RequestHeader(value = "Content-Type", required = false) String contentType, @ApiParam(value = "") @Valid @RequestBody AttendanceLogRequest attendanceLogRequest) {
         attendanceLogRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         attendanceLogService.putInCache(attendanceLogRequest.getAttendance());
-        producer.push(attendanceLogConfiguration.getCreateAttendanceLogBulkTopic(), request);
+        producer.push(attendanceLogConfiguration.getCreateAttendanceLogBulkTopic(), attendanceLogRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(responseInfoFactory.createResponseInfoFromRequestInfo(attendanceLogRequest.getRequestInfo(), true));
     }
     @RequestMapping(value = "/_search", method = RequestMethod.POST)
@@ -75,7 +75,7 @@ public class AttendanceLogApiController {
     public ResponseEntity<ResponseInfo> attendanceLogV1BulkUpdatePost(@ApiParam(value = "", allowableValues = "application/json") @RequestHeader(value = "Content-Type", required = false) String contentType, @ApiParam(value = "") @Valid @RequestBody AttendanceLogRequest attendanceLogRequest) {
         attendanceLogRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         attendanceLogService.putInCache(attendanceLogRequest.getAttendance());
-        producer.push(attendanceLogConfiguration.getUpdateAttendanceLogBulkTopic(), request);
+        producer.push(attendanceLogConfiguration.getUpdateAttendanceLogBulkTopic(), attendanceLogRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(responseInfoFactory.createResponseInfoFromRequestInfo(attendanceLogRequest.getRequestInfo(), true));
     }
 
