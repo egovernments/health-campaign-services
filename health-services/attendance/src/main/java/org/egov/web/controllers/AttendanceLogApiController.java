@@ -52,7 +52,7 @@ public class AttendanceLogApiController {
         return new ResponseEntity<AttendanceLogResponse>(attendanceLogResponse, HttpStatus.OK);
     }
 
-    @RequestMapping(value = "/v1/bulk/_create", method = RequestMethod.POST)
+    @RequestMapping(value = "/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> attendanceLogV1BulkCreatePost(@ApiParam(value = "", allowableValues = "application/json") @RequestHeader(value = "Content-Type", required = false) String contentType, @ApiParam(value = "") @Valid @RequestBody AttendanceLogRequest attendanceLogRequest) {
         attendanceLogRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         attendanceLogService.putInCache(attendanceLogRequest.getAttendance());
@@ -71,7 +71,7 @@ public class AttendanceLogApiController {
         return new ResponseEntity<AttendanceLogResponse>(attendanceLogResponse, HttpStatus.OK);
     }
 
-    @RequestMapping(value = "/v1/bulk/_update", method = RequestMethod.POST)
+    @RequestMapping(value = "/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> attendanceLogV1BulkUpdatePost(@ApiParam(value = "", allowableValues = "application/json") @RequestHeader(value = "Content-Type", required = false) String contentType, @ApiParam(value = "") @Valid @RequestBody AttendanceLogRequest attendanceLogRequest) {
         attendanceLogRequest.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
         attendanceLogService.putInCache(attendanceLogRequest.getAttendance());
