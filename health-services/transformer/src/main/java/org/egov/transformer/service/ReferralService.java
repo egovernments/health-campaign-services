@@ -68,7 +68,6 @@ public class ReferralService {
     }
 
     public ReferralIndexV1 transform(Referral referral) {
-        List<User> users = userService.getUsers(referral.getTenantId(), referral.getAuditDetails().getCreatedBy());
         String tenantId = referral.getTenantId();
         ProjectBeneficiary projectBeneficiary = getProjectBeneficiary(referral, tenantId);
         Map<String, Object> individualDetails = new HashMap<>();
@@ -93,11 +92,12 @@ public class ReferralService {
 
         Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
+        Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
-                .userName(userService.getUserName(users, referral.getAuditDetails().getCreatedBy()))
-                .role(userService.getStaffRole(referral.getTenantId(), users))
+                .userName(userInfoMap.get(USERNAME))
+                .role(userInfoMap.get(ROLE))
                 .facilityName(facilityName)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)

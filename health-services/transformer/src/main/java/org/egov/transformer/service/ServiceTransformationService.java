@@ -20,6 +20,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.egov.transformer.Constants.ROLE;
+import static org.egov.transformer.Constants.USERNAME;
+
 @Slf4j
 @Component
 public class ServiceTransformationService {
@@ -80,13 +83,13 @@ public class ServiceTransformationService {
         }
         log.info("boundary labels {}", boundaryLabelToNameMap.toString());
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-        List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
         // populate them from env
         String checkListToFilter = transformerProperties.getCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
         Map<String, Map<String, String>> attributeCodeToQuestionAgeGroup = new HashMap<>();
+        Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         getAttributeCodeMappings(attributeCodeToQuestionAgeGroup);
         if (checkListName.trim().equals(checkListToFilter)) {
             String finalProjectId = projectId;
@@ -99,8 +102,8 @@ public class ServiceTransformationService {
                         .ageGroup(key)
                         .tenantId(tenantId)
                         .projectId(finalProjectId)
-                        .userName(userService.getUserName(users, service.getAuditDetails().getCreatedBy()))
-                        .role(userService.getStaffRole(service.getTenantId(), users))
+                        .userName(userInfoMap.get(USERNAME))
+                        .role(userInfoMap.get(ROLE))
                         .createdTime(service.getAuditDetails().getCreatedTime())
                         .syncedTime(service.getAuditDetails().getCreatedTime())
                         .createdBy(service.getAuditDetails().getCreatedBy())

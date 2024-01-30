@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.egov.transformer.Constants.ROLE;
+import static org.egov.transformer.Constants.USERNAME;
+
 @Component
 @Slf4j
 public class HouseholdService {
@@ -100,11 +103,12 @@ public class HouseholdService {
             boundaryLabelToNameMap = null;
         }
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(household.getTenantId(), projectTypeId, boundaryLabelToNameMap);
-        List<User> users = userService.getUsers(household.getTenantId(), household.getAuditDetails().getCreatedBy());
+        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
+
         return HouseholdIndexV1.builder()
                 .household(household)
-                .userName(userService.getUserName(users, userId))
-                .role(userService.getStaffRole(household.getTenantId(), users))
+                .userName(userInfoMap.get(USERNAME))
+                .role(userInfoMap.get(ROLE))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
                 .build();

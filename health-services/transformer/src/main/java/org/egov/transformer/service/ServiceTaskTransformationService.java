@@ -23,6 +23,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.egov.transformer.Constants.ROLE;
+import static org.egov.transformer.Constants.USERNAME;
+
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
 
@@ -32,6 +35,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
 
     protected final TransformerProperties properties;
     protected final CommonUtils commonUtils;
+
     @Autowired
     protected ServiceTaskTransformationService(ServiceTaskTransformationService.ServiceTaskIndexV1Transformer transformer,
                                                Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
@@ -71,6 +75,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private UserService userService;
 
         private final ObjectMapper objectMapper;
+
         @Autowired
         ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
 
@@ -96,7 +101,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                 projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
             }
             Map<String, String> boundaryLabelToNameMap = new HashMap<>();
-            Project project = projectService.getProject(projectId,tenantId);
+            Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
             if (service.getAdditionalDetails() != null) {
                 boundaryLabelToNameMap = projectService
@@ -106,8 +111,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-            List<User> users = userService.getUsers(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
+            Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
 
             ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                     .id(service.getId())
@@ -116,8 +121,8 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
                     .checklistName(parts[1])
-                    .userName(userService.getUserName(users,service.getAuditDetails().getCreatedBy()))
-                    .role(userService.getStaffRole(service.getTenantId(),users))
+                    .userName(userInfoMap.get(USERNAME))
+                    .role(userInfoMap.get(ROLE))
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())

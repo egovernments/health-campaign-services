@@ -18,6 +18,9 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.egov.transformer.Constants.ROLE;
+import static org.egov.transformer.Constants.USERNAME;
+
 @Slf4j
 public abstract class ProjectStaffTransformationService implements TransformationService<ProjectStaff> {
     protected final ProjectStaffIndexV1Transformer transformer;
@@ -63,29 +66,31 @@ public abstract class ProjectStaffTransformationService implements Transformatio
         private final UserService userService;
 
         private final CommonUtils commonUtils;
+
         @Autowired
         ProjectStaffIndexV1Transformer(ProjectService projectService, UserService userService, CommonUtils commonUtils) {
             this.projectService = projectService;
             this.userService = userService;
             this.commonUtils = commonUtils;
         }
+
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
             String tenantId = projectStaff.getTenantId();
             String projectId = projectStaff.getProjectId();
-            Project project = projectService.getProject(projectId,tenantId);
+            Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-            List<User> users = userService.getUsers(projectStaff.getTenantId(), projectStaff.getUserId());
+            Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
             List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
             ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
                     .projectId(projectId)
                     .userId(projectStaff.getUserId())
-                    .userName(userService.getUserName(users,projectStaff.getUserId()))
-                    .role(userService.getStaffRole(projectStaff.getTenantId(),users))
+                    .userName(userInfoMap.get(USERNAME))
+                    .role(userInfoMap.get(ROLE))
                     .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                     .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())
