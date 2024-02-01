@@ -12,6 +12,7 @@ import org.egov.config.AttendanceServiceConfiguration;
 import org.egov.repository.ServiceRequestRepository;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.HttpClientErrorException;
@@ -35,6 +36,7 @@ public class IndividualServiceUtil {
     private AttendanceServiceConfiguration config;
 
     @Autowired
+    @Qualifier("objectMapper")
     private ObjectMapper mapper;
 
     @Autowired

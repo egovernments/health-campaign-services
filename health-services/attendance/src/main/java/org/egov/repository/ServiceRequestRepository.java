@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.ServiceCallException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class ServiceRequestRepository {
 
     @Autowired
+    @Qualifier("objectMapper")
     private ObjectMapper mapper;
 
     @Autowired
