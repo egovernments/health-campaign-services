@@ -47,6 +47,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.referral.index.v1.topic}")
     private String transformerProducerReferralIndexV1Topic;
 
+    @Value("${transformer.producer.attendance.log.index.v1.topic}")
+    private String transformerProducerAttendanceLogIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
