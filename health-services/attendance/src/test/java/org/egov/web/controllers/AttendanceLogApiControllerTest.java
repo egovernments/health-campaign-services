@@ -6,7 +6,7 @@ import org.egov.Main;
 import org.egov.TestConfiguration;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.helper.AttendanceLogRequestTestBuilder;
-import org.egov.kafka.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.repository.AttendanceLogRepository;
 import org.egov.service.AttendanceLogService;
 import org.egov.util.ResponseInfoFactory;

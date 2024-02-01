@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.config.AttendanceLogConfiguration;
-import org.egov.kafka.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.service.AttendanceLogService;
 import org.egov.util.ResponseInfoFactory;
 import org.egov.web.models.AttendanceLogRequest;
