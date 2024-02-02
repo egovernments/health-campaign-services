@@ -220,19 +220,4 @@ public class CommonUtils {
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
     }
-
-    public String getTimeStampFromEpoch(BigDecimal time) {
-        String timeStamp = "";
-        String timeZone = properties.getTimeZone();
-        try {
-            Date date = new Date(String.valueOf(time));
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone(timeZone));
-            timeStamp = dateFormat.format(date);
-        } catch (Exception e) {
-            log.info("EpochTime to be transformed :" + time);
-            log.info("Exception while transforming epochTime to timestamp: {}", ExceptionUtils.getStackTrace(e));
-        }
-        return timeStamp;
-    }
 }

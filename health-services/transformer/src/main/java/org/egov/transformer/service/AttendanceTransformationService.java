@@ -72,7 +72,7 @@ public class AttendanceTransformationService {
                 .givenName(individualName.getGivenName())
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
-                .attendanceTime(commonUtils.getTimeStampFromEpoch(attendanceLog.getTime()))
+                .attendanceTime(commonUtils.getTimeStampFromEpoch(attendanceLog.getTime().longValue()))
                 .build();
         return attendanceLogIndexV1;
     }
