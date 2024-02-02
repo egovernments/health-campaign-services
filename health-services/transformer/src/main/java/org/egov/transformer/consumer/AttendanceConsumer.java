@@ -35,9 +35,8 @@ public class AttendanceConsumer {
     public void consumeAttendanceLog(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            List<AttendanceLog> payloadList = Arrays.asList(objectMapper
-                    .readValue((String) payload.value(),
-                            AttendanceLog[].class));
+            AttendanceLogRequest attendanceLogRequest =objectMapper.readValue((String) payload.value(), AttendanceLogRequest.class);
+            List<AttendanceLog> payloadList = attendanceLogRequest.getAttendance();
             attendanceTransformationService.transform(payloadList);
         } catch (Exception exception) {
             log.error("error in referral consumer {}", ExceptionUtils.getStackTrace(exception));

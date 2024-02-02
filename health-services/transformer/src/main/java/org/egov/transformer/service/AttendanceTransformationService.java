@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.individual.Name;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.attendance.AttendanceLog;
+import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.downstream.AttendanceLogIndexV1;
 import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.egov.transformer.producer.Producer;
@@ -61,8 +63,16 @@ public class AttendanceTransformationService {
     }
 
     public AttendanceLogIndexV1 transform(AttendanceLog attendanceLog) {
+        Name individualName = individualService.getIndividualNameById(attendanceLog.getIndividualId(), attendanceLog.getTenantId());
+        Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
                 .attendanceLog(attendanceLog)
+                .nameObject(individualName)
+                .familyName(individualName.getFamilyName())
+                .givenName(individualName.getGivenName())
+                .userName(userInfoMap.get(USERNAME))
+                .role(userInfoMap.get(ROLE))
+                .attendanceTime(commonUtils.getTimeStampFromEpoch(attendanceLog.getTime()))
                 .build();
         return attendanceLogIndexV1;
     }

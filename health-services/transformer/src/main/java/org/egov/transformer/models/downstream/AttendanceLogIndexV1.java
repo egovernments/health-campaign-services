@@ -7,7 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.Name;
 import org.egov.transformer.models.attendance.AttendanceLog;
+import org.egov.transformer.models.attendance.AttendanceRegister;
 
 @Data
 @AllArgsConstructor
@@ -17,4 +20,16 @@ import org.egov.transformer.models.attendance.AttendanceLog;
 public class AttendanceLogIndexV1 {
     @JsonProperty("attendanceLog")
     private AttendanceLog attendanceLog;
+    @JsonProperty("givenName")
+    private String givenName;
+    @JsonProperty("familyName")
+    private String familyName;
+    @JsonProperty("nameObject")
+    private Name nameObject;
+    @JsonProperty("userName")
+    private String userName;
+    @JsonProperty("role")
+    private String role;
+    @JsonProperty("attendanceTime")
+    private String attendanceTime;
 }
