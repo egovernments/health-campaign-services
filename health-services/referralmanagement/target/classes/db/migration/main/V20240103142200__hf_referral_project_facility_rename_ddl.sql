@@ -1,1 +1,0 @@
-ALTER TABLE hf_referral RENAME COLUMN facilityid to projectfacilityid;

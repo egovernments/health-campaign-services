@@ -28,7 +28,12 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.SideEffectRepository;
 import org.egov.referralmanagement.service.enrichment.SideEffectEnrichmentService;
-import org.egov.referralmanagement.validator.sideeffect.*;
+import org.egov.referralmanagement.validator.sideeffect.SeIsDeletedValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeNonExistentEntityValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeNullIdValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeProjectBeneficiaryIdValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeProjectTaskIdValidator;
+import org.egov.referralmanagement.validator.sideeffect.SeUniqueEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -60,13 +65,11 @@ public class SideEffectService {
                 || validator.getClass().equals(SeNullIdValidator.class)
                 || validator.getClass().equals(SeIsDeletedValidator.class)
                 || validator.getClass().equals(SeUniqueEntityValidator.class)
-                || validator.getClass().equals(SeNonExistentEntityValidator.class)
-                || validator.getClass().equals(SeRowVersionValidator.class);
+                || validator.getClass().equals(SeNonExistentEntityValidator.class);
 
     private final Predicate<Validator<SideEffectBulkRequest, SideEffect>> isApplicableForDelete = validator ->
             validator.getClass().equals(SeNullIdValidator.class)
-                || validator.getClass().equals(SeNonExistentEntityValidator.class)
-                || validator.getClass().equals(SeRowVersionValidator.class);
+                || validator.getClass().equals(SeNonExistentEntityValidator.class);
     
     @Autowired
     public SideEffectService(

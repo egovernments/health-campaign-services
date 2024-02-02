@@ -30,7 +30,14 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.ReferralRepository;
 import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
-import org.egov.referralmanagement.validator.*;
+import org.egov.referralmanagement.validator.RmIsDeletedValidator;
+import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
+import org.egov.referralmanagement.validator.RmNullIdValidator;
+import org.egov.referralmanagement.validator.RmProjectBeneficiaryIdValidator;
+import org.egov.referralmanagement.validator.RmRecipientIdValidator;
+import org.egov.referralmanagement.validator.RmReferrerIdValidator;
+import org.egov.referralmanagement.validator.RmSideEffectIdValidator;
+import org.egov.referralmanagement.validator.RmUniqueEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
@@ -65,13 +72,11 @@ public class ReferralManagementService {
                 || validator.getClass().equals(RmNullIdValidator.class)
                 || validator.getClass().equals(RmIsDeletedValidator.class)
                 || validator.getClass().equals(RmUniqueEntityValidator.class)
-                || validator.getClass().equals(RmNonExistentEntityValidator.class)
-                || validator.getClass().equals(RmRowVersionValidator.class);
+                || validator.getClass().equals(RmNonExistentEntityValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForDelete = validator ->
             validator.getClass().equals(RmNullIdValidator.class)
-                || validator.getClass().equals(RmNonExistentEntityValidator.class)
-                || validator.getClass().equals(RmRowVersionValidator.class);
+                || validator.getClass().equals(RmNonExistentEntityValidator.class);
 
 
     public ReferralManagementService(IdGenService idGenService, ReferralRepository referralRepository, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementEnrichmentService referralManagementEnrichmentService, List<Validator<ReferralBulkRequest, Referral>> validators) {
