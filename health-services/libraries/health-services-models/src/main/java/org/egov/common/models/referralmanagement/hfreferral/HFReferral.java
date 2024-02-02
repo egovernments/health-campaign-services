@@ -1,6 +1,5 @@
 package org.egov.common.models.referralmanagement.hfreferral;
 
-import java.util.List;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -13,7 +12,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.project.AdditionalFields;
-import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 
 @Data
 @NoArgsConstructor

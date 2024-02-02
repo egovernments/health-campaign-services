@@ -1,21 +1,20 @@
 package org.egov.common.models.stock;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
-
-import org.springframework.validation.annotation.Validated;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Stock
@@ -51,7 +50,7 @@ public class Stock {
 
     @JsonProperty("quantity")
     @NotNull
-    @Size(min = 1)
+    @Min(value = 1)
     private Integer quantity;
 
     /* project id in-case of health */ 
