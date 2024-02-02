@@ -51,7 +51,6 @@ export const UICustomizations = {
       return false;
     },
     preProcess: (data) => {
-      
       const location = useLocation();
       data.params = { ...data.params };
       const { masterName } = useParams();
@@ -63,13 +62,14 @@ export const UICustomizations = {
           pathConfig: {
             // id: "id[0]",
             tenantId: "tenantId",
+            boundary: "address.boundary"
           },
           dateConfig: {
             endDate: "dayend",
             startDate: "daystart",
           },
           selectConfig: {},
-          textConfig: ["id", "tenantId", "name", "projectNumber", "projectSubType", "projectType"],
+          textConfig: ["id", "tenantId", "name", "projectNumber", "boundary", "projectType"],
         },
         SearchProductConfig: {
           basePath: "Product",
@@ -145,7 +145,7 @@ export const UICustomizations = {
             actualStartDate: "daystart",
           },
           selectConfig: {},
-          textConfig: ["projectId", "localityCode", "projectBeneficiaryId", "status" , "id" ,"clientReferenceId"],
+          textConfig: ["projectId", "localityCode", "projectBeneficiaryId", "status", "id", "clientReferenceId"],
         },
         SearchFacilityConfig: {
           basePath: "Facility",
@@ -157,18 +157,16 @@ export const UICustomizations = {
           textConfig: ["faciltyUsage", "localityCode", "storageCapacity", "id"],
         },
         SearchProjectFacilityConfig: {
-          basePath: "ProjectFacility", 
+          basePath: "ProjectFacility",
           pathConfig: {
             id: "id[0]",
             projectId: "projectId[0]",
-            facilityId: "facilityId[0]"
+            facilityId: "facilityId[0]",
           },
-          dateConfig: {
-          },
-          selectConfig: {
-          },
-          textConfig :["id","projectId","facilityId"]
-        }
+          dateConfig: {},
+          selectConfig: {},
+          textConfig: ["id", "projectId", "facilityId"],
+        },
       };
 
       const id = searchParams.get("config") || masterName;
@@ -242,24 +240,48 @@ export const UICustomizations = {
             </span>
           );
 
-        case "MASTERS_SOCIAL_CATEGORY":
-          return value ? <span style={{ whiteSpace: "nowrap" }}>{String(t(`MASTERS_${value}`))}</span> : t("ES_COMMON_NA");
+        case "PROJECT_CREATED_TIME":
+          const todayEpochStart = new Date();
 
-        case "CORE_COMMON_PROFILE_CITY":
-          return value ? <span style={{ whiteSpace: "nowrap" }}>{String(t(Digit.Utils.locale.getCityLocale(value)))}</span> : t("ES_COMMON_NA");
+          const createdEpochTime = row.auditDetails.createdTime;
+          const createdDateString = Digit.Utils.date.convertEpochToDate(createdEpochTime);
 
-        case "MASTERS_WARD":
-          return value ? (
-            <span style={{ whiteSpace: "nowrap" }}>{String(t(Digit.Utils.locale.getMohallaLocale(value, row?.tenantId)))}</span>
-          ) : (
-            t("ES_COMMON_NA")
-          );
+          // Assuming createdDateString is in the format "DD/MM/YYYY"
+          const [day, month, year] = createdDateString.split("/").map(Number);
+          const currentTime = new Date(year, month - 1, day); 
 
-        case "MASTERS_LOCALITY":
-          return value ? (
-            <span style={{ whiteSpace: "break-spaces" }}>{String(t(Digit.Utils.locale.getMohallaLocale(value, row?.tenantId)))}</span>
-          ) : (
-            t("ES_COMMON_NA")
+          const timeDifference = todayEpochStart.getTime() - currentTime.getTime();
+
+          const daysAgo = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+
+          return (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {daysAgo < 1 && (
+                <span
+                  style={{
+                    position: "relative",
+                    top: "0",
+                    right: "0",
+                    background: "green",
+                    color: "white",
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    marginRight: "1px",
+                    marginLeft: "90px",
+                    width: "fit-content",
+                  }}
+                >
+                  {`${t("HCM_VIEW_NEW")}`}
+                </span>
+              )}
+              <span>{Digit.Utils.date.convertEpochToDate(row.auditDetails.createdTime)}</span>
+            </div>
           );
         default:
           return t("ES_COMMON_NA");

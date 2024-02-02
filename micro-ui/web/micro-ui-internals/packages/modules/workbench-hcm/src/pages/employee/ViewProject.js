@@ -149,7 +149,7 @@ const ViewProject = () => {
   };
 
   const reqCriteria = {
-    url: "/project/v1/_create",
+    url: "/project/v1/_update",
     config: false,
   };
 
@@ -176,7 +176,7 @@ const ViewProject = () => {
 
     const projectTarget = project?.Project?.[0];
 
-    await mutation.mutate(
+    await mutationTarget.mutate(
       {
         body: {
           Projects: [

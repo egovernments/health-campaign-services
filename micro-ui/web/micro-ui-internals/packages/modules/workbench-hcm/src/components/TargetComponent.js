@@ -34,30 +34,45 @@ const TargetComponent = (props) => {
     { label: t("WBH_BENEFICIARY_TYPE"), key: "beneficiaryType" },
     { label: t("WBH_TOTAL_NUMBER"), key: "totalNo" },
     { label: t("WBH_TARGET_NUMBER"), key: "targetNo" },
-    { label: t("WBH_ACTIONS"), key: "actions" },
+    // { label: t("WBH_ACTIONS"), key: "actions" },
   ];
 
-  const handleEditButtonClick = (index) => {
-    setFormData(props.targets[index]);
-    setShowModal(true);
-  };
+  // const handleEditButtonClick = (index) => {
+  //   // const updatedTargets = [...props.targets[index]];
+  //   console.log(props.targets[index].isDeleted);
+  //   setFormData(props.targets[index]);
+  //   setShowModal(true);
+  // };
+
+  // const handleEditButtonClick = (index) => {
+  //   const updatedTarget = { ...props.targets[index], isDeleted: true };
+  
+  //   console.log(updatedTarget); // It should print true
+  
+  //   setFormData(updatedTarget);
+  //   setShowModal(true);
+  // };
+  
+
 
   const reqCriteria = {
     url: "/project/v1/_update",
+    config: false
   };
+
+
+  const mutation = Digit.Hooks.useCustomAPIMutationHook(reqCriteria);
+  // const { refetch } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
   const onSuccess = () => {
     closeToast();
-    refetch();
+    // refetch();
     setShowToast({ key: "success", label: "WBH_PROJECT_TARGET_EDITED_SUCESSFULLY" });
   };
   const onError = (resp) => {
     const label = resp?.response?.data?.Errors?.[0]?.code;
     setShowToast({ isError: true, label });
-    refetch();
   };
-
-  const mutation = Digit.Hooks.useCustomAPIMutationHook(reqCriteria);
 
   const handleSubmitTarget = async () => {
     const targets = {
@@ -73,6 +88,8 @@ const TargetComponent = (props) => {
     if (targetIndex !== -1) {
       // If the target exists, update it
       const updatedTargets = [...props.project.targets.slice(0, targetIndex), targets, ...props.project.targets.slice(targetIndex + 1)];
+      // const updatedTargets = [...props.project.targets];
+      updatedTargets[targetIndex] = targets;
 
       const updatedProject = {
         ...props?.project,
