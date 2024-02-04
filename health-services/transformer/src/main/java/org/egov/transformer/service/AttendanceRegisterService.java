@@ -43,7 +43,7 @@ public class AttendanceRegisterService {
 
 
     public AttendanceRegister findAttendanceRegisterById(List registerIds, String tenantId, String createdUserUuid) {
-        Long userServiceId = Long.valueOf(userService.getUserInfo(createdUserUuid, tenantId).get(ID));
+        Long userServiceId = Long.valueOf(userService.getUserInfo(tenantId, createdUserUuid).get(ID));
         AttendanceRegisterSearchCriteria attendanceRegisterSearchCriteria = AttendanceRegisterSearchCriteria.builder()
                 .ids(registerIds).tenantId(tenantId).build();
         RequestInfo requestInfo = RequestInfo.builder()

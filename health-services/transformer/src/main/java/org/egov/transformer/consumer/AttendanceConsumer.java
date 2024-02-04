@@ -39,7 +39,7 @@ public class AttendanceConsumer {
             List<AttendanceLog> payloadList = attendanceLogRequest.getAttendance();
             attendanceTransformationService.transform(payloadList);
         } catch (Exception exception) {
-            log.error("error in referral consumer {}", ExceptionUtils.getStackTrace(exception));
+            log.error("error in attendance consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }
