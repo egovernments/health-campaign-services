@@ -1,27 +1,19 @@
 package org.egov.transformer.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.facility.Facility;
 import org.egov.common.models.individual.Name;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.referralmanagement.Referral;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.attendance.AttendanceLog;
 import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.downstream.AttendanceLogIndexV1;
-import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -39,8 +31,10 @@ public class AttendanceTransformationService {
 
     private final CommonUtils commonUtils;
 
+    private final AttendanceRegisterService attendanceRegisterService;
+
     public AttendanceTransformationService(TransformerProperties transformerProperties,
-                                           ObjectMapper objectMapper, Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, CommonUtils commonUtils) {
+                                           ObjectMapper objectMapper, Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService) {
         this.transformerProperties = transformerProperties;
         this.objectMapper = objectMapper;
         this.producer = producer;
@@ -48,6 +42,7 @@ public class AttendanceTransformationService {
         this.projectService = projectService;
         this.individualService = individualService;
         this.commonUtils = commonUtils;
+        this.attendanceRegisterService = attendanceRegisterService;
     }
 
     public void transform(List<AttendanceLog> payloadList) {
@@ -63,6 +58,7 @@ public class AttendanceTransformationService {
     }
 
     public AttendanceLogIndexV1 transform(AttendanceLog attendanceLog) {
+        AttendanceRegister attendanceRegister = attendanceRegisterService.findAttendanceRegisterById(Collections.singletonList(attendanceLog.getRegisterId()), attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
         Name individualName = individualService.getIndividualNameById(attendanceLog.getIndividualId(), attendanceLog.getTenantId());
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
@@ -73,6 +69,7 @@ public class AttendanceTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
                 .attendanceTime(commonUtils.getTimeStampFromEpoch(attendanceLog.getTime().longValue()))
+                .attendanceRegister(attendanceRegister)
                 .build();
         return attendanceLogIndexV1;
     }

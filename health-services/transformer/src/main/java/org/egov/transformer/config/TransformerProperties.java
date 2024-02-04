@@ -53,6 +53,12 @@ public class TransformerProperties {
     @Value("${egov.project.host}")
     private String projectHost;
 
+    @Value("${egov.attendance.host}")
+    private String attendanceHost;
+
+    @Value("${egov.search.attendance.register.url}")
+    private String attendanceRegisterSearchUrl;
+
     @Value("${egov.product.host}")
     private String productHost;
 

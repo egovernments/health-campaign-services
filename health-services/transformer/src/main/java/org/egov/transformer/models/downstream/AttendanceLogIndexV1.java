@@ -32,4 +32,6 @@ public class AttendanceLogIndexV1 {
     private String role;
     @JsonProperty("attendanceTime")
     private String attendanceTime;
+    @JsonProperty("attendanceRegister")
+    private AttendanceRegister attendanceRegister;
 }

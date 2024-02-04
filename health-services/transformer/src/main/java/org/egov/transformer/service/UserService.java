@@ -63,12 +63,14 @@ public class UserService {
                 log.info("unable to fetch users for userId: " + userId);
                 userMap.put(USERNAME, userId);
                 userMap.put(ROLE, null);
+                userMap.put(ID, null);
                 return userMap;
             }
             userName = users.get(0).getUserName();
             role = getStaffRole(tenantId, users);
             userMap.put(USERNAME, userName);
             userMap.put(ROLE, role);
+            userMap.put(ID, String.valueOf(users.get(0).getId()));
             userIdVsUserInfoCache.put(userId, userMap);
             return userMap;
         }
