@@ -50,6 +50,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.attendance.log.index.v1.topic}")
     private String transformerProducerAttendanceLogIndexV1Topic;
 
+    @Value("${transformer.producer.attendance.register.index.v1.topic}")
+    private String transformerProducerAttendanceRegisterIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 

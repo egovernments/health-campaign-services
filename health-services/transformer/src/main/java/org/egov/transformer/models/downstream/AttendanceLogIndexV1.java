@@ -24,14 +24,19 @@ public class AttendanceLogIndexV1 {
     private String givenName;
     @JsonProperty("familyName")
     private String familyName;
-    @JsonProperty("nameObject")
-    private Name nameObject;
+    @JsonProperty("attendeeName")
+    private Name attendeeName;
     @JsonProperty("userName")
     private String userName;
     @JsonProperty("role")
     private String role;
     @JsonProperty("attendanceTime")
     private String attendanceTime;
-    @JsonProperty("attendanceRegister")
-    private AttendanceRegister attendanceRegister;
+    @JsonProperty("registerServiceCode")
+    private String registerServiceCode;
+    @JsonProperty("registerName")
+    private String registerName;
+    @JsonProperty("registerNumber")
+    private String registerNumber;
+
 }

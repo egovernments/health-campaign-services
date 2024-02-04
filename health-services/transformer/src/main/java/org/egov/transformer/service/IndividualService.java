@@ -103,7 +103,7 @@ public class IndividualService {
             return individual.getName();
         } catch (Exception e) {
             log.error("error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
-            return new Name();
+            return null;
         }
 
     }
