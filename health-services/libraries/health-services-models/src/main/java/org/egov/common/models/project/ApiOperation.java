@@ -16,6 +16,8 @@ public enum ApiOperation {
   
   DELETE("DELETE");
 
+  LINK("LINK");
+
   private String value;
 
   ApiOperation(String value) {
