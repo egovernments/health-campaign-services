@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -231,6 +232,10 @@ public class EnrichmentService {
             identifiers.add(Identifier.builder()
                     .identifierType(SYSTEM_GENERATED)
                     .identifierId(individual.getId())
+                    .clientReferenceId(individual.getClientReferenceId() == null ||
+                            individual.getClientReferenceId().isEmpty()
+                            ? UUID.randomUUID().toString()
+                            : individual.getClientReferenceId())
                     .build());
             individual.setIdentifiers(identifiers);
         }
