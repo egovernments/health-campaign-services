@@ -29,7 +29,7 @@ public class StockTestBuilder {
         	.senderId("sender-id")
         	.receiverId("receiver-id")
         	.productVariantId("pv-id")
-            .quantity(0)
+            .quantity(1)
         	.referenceId("reference-id")
             .referenceIdType(ReferenceIdType.PROJECT)
             .rowVersion(1)
