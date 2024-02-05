@@ -232,10 +232,7 @@ public class EnrichmentService {
             identifiers.add(Identifier.builder()
                     .identifierType(SYSTEM_GENERATED)
                     .identifierId(individual.getId())
-                    .clientReferenceId(individual.getClientReferenceId() == null ||
-                            individual.getClientReferenceId().isEmpty()
-                            ? UUID.randomUUID().toString()
-                            : individual.getClientReferenceId())
+                    .clientReferenceId(individual.getClientReferenceId())
                     .build());
             individual.setIdentifiers(identifiers);
         }
