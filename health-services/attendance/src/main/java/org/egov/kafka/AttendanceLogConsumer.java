@@ -30,6 +30,7 @@ public class AttendanceLogConsumer {
     @KafkaListener(topics = "${attendance.log.kafka.consumer.bulk.create.topic}")
     public void bulkCreate(Map<String, Object> consumerRecord,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        System.out.println("kafka listener started");
         try {
             AttendanceLogRequest request = objectMapper.convertValue(consumerRecord, AttendanceLogRequest.class);
             attendanceLogService.createAttendanceLog(request);
