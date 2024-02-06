@@ -273,3 +273,18 @@ serviceMaps:
             - jsonPath: $.*.userId
             - jsonPath: $.*.userUuid
             - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Updates userId, userUuid and userDetails received from user-service into an individual
+      fromTopic: update-user-details-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE individual SET userId=?, userUuid=?, username = ?, password = ?, type = ? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.userId
+            - jsonPath: $.*.userUuid
+            - jsonPath: $.*.userDetails.username
+            - jsonPath: $.*.userDetails.password
+            - jsonPath: $.*.userDetails.type
+            - jsonPath: $.*.id
