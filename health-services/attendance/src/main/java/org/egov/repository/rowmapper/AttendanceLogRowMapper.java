@@ -48,7 +48,7 @@ public class AttendanceLogRowMapper implements ResultSetExtractor<List<Attendanc
             String lastmodifiedby = rs.getString("logLastModifiedBy");
             Long createdtime = rs.getLong("logCreatedTime");
             Long lastmodifiedtime = rs.getLong("logLastModifiedTime");
-            String clientcreatedby = rs.getString("logcClientCreatedBy");
+            String clientcreatedby = rs.getString("logClientCreatedBy");
             String clientlastmodifiedby = rs.getString("logClientLastModifiedBy");
             Long clientcreatedtime = rs.getLong("logClientCreatedTime");
             Long clientlastmodifiedtime = rs.getLong("logClientLastModifiedTime");
