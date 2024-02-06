@@ -432,7 +432,7 @@ public class IndividualService {
                     User user = userList.get(0);
                     userIntegrationService.enrichIndividualObjectWitUserDetails(userList.get(0), encryptedIndividualList);
                     individualRepository.save(encryptedIndividualList,
-                            properties.getUpdateUserDetailsTopic());
+                            properties.getUpdateIndividualTopic());
                     log.info("successfully updated user details for {} individuals",
                             encryptedIndividualList.size());
                 }
