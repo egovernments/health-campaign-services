@@ -2,7 +2,7 @@ package org.egov.transformer;
 
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
-
+    String TIME_STAMP_SPLIT = "T";
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
 
     String MDMS_RESPONSE = "MdmsRes";

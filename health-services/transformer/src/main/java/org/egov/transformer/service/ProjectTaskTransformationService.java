@@ -5,6 +5,7 @@ import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
+import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -123,7 +125,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
             List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
             List<String> taskDates = new ArrayList<>();
-            taskDates.add(syncedTimeStamp.substring(0, syncedTimeStamp.indexOf('T')));
+            taskDates.add(syncedTimeStamp.substring(0, syncedTimeStamp.indexOf(Constants.TIME_STAMP_SPLIT)));
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
