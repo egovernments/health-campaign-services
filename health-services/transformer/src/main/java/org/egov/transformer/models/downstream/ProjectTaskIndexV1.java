@@ -12,6 +12,7 @@ import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.ProjectBeneficiary;
 
 import javax.validation.Valid;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -35,6 +36,8 @@ public class ProjectTaskIndexV1 {
     private Long startDate;
     @JsonProperty("endDate")
     private Long endDate;
+    @JsonProperty("taskDates")
+    private List<String> taskDates;
     @JsonProperty("productVariant")
     private String productVariant;
     @JsonProperty("quantity")

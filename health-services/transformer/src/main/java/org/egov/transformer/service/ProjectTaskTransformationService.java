@@ -132,7 +132,8 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             List<User> users = userService.getUsers(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
-
+            List<String> taskDates = new ArrayList<>();
+            taskDates.add(syncedTimeStamp.substring(0, syncedTimeStamp.indexOf('T')));
             return task.getResources().stream().map(r ->
                     ProjectTaskIndexV1.builder()
                             .id(r.getId())
@@ -144,6 +145,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .taskType("DELIVERY")
                             .projectId(task.getProjectId())
                             .startDate(task.getActualStartDate())
+                            .taskDates(taskDates)
                             .userName(userService.getUserName(users,task.getAuditDetails().getCreatedBy()))
                             .role(userService.getStaffRole(task.getTenantId(),users))
                             .endDate(task.getActualEndDate())
