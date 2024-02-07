@@ -1,11 +1,8 @@
 package org.egov.individual.service;
 
-import digit.models.coremodels.UserSearchRequest;
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.contract.request.User;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
@@ -151,21 +148,7 @@ public class IndividualService {
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
         // integrate with user service create call
-        for(Individual individual: decryptedIndividualList)
-        {
-            if(individual.getLinkToHrms()) {
-                try {
-                    integrateWithUserService(request, Collections.singletonList(individual), ApiOperation.LINK);
-                }
-                catch (Exception e)
-                {
-                    throw new CustomException("ERROR_WHILE_LINKING_TO_HRMS",e.getMessage());
-                }
-            }
-            else
-                integrateWithUserService(request, Collections.singletonList(individual), ApiOperation.CREATE);
-        }
-
+        integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
         return decryptedIndividualList;
     }
 
@@ -419,24 +402,7 @@ public class IndividualService {
                             properties.getUpdateUserIdTopic());
                     log.info("successfully created user for {} individuals",
                             encryptedIndividualList.size());
-                }
-                else if (apiOperation.equals(ApiOperation.LINK)) {
-                    UserSearchRequest userSearchRequest = new UserSearchRequest();
-                    userSearchRequest = userIntegrationService.enrichUserSearchRequest(encryptedIndividualList.get(0),request.getRequestInfo());
-
-                    List<User> userList = userIntegrationService.searchUser(userSearchRequest);
-                    if(userList.isEmpty())
-                    {
-                        throw new CustomException("INVALID_USER_DETAILS","No user found with the provided details");
-                    }
-                    User user = userList.get(0);
-                    userIntegrationService.enrichIndividualObjectWitUserDetails(userList.get(0), encryptedIndividualList);
-                    individualRepository.save(encryptedIndividualList,
-                            properties.getUpdateIndividualTopic());
-                    log.info("successfully updated user details for {} individuals",
-                            encryptedIndividualList.size());
-                }
-                else {
+                } else {
                     userIntegrationService.deleteUser(encryptedIndividualList,
                             request.getRequestInfo());
                     log.info("successfully soft deleted user for {} individuals",
@@ -444,13 +410,9 @@ public class IndividualService {
                 }
             } catch (Exception exception) {
                 log.error("error occurred while creating user", exception);
-                if(apiOperation.equals(ApiOperation.LINK))
-                {
-                throw new CustomException("ERROR_OCCURRED_WHILE_LINKING",exception.getMessage());}
             }
         }
     }
-
     Boolean isSmsEnabledForRole(IndividualRequest request) {
         if (CollectionUtils.isEmpty(properties.getSmsDisabledRoles()))
             return true;
