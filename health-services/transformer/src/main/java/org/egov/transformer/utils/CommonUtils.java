@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -219,5 +220,4 @@ public class CommonUtils {
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
     }
-
 }

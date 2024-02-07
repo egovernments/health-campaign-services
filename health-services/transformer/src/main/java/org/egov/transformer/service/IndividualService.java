@@ -77,4 +77,34 @@ public class IndividualService {
         }
 
     }
+
+    public Name getIndividualNameById(String id, String tenantId) {
+        IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
+                .individual(IndividualSearch.builder().id(Collections.singletonList(id)).build())
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .build();
+        IndividualBulkResponse response;
+
+
+        try {
+            response = serviceRequestClient.fetchResult(
+                    new StringBuilder(properties.getIndividualHost()
+                            + properties.getIndividualSearchUrl()
+                            + "?limit=1"
+                            + "&offset=0&tenantId=" + tenantId),
+                    individualSearchRequest,
+                    IndividualBulkResponse.class);
+            Individual individual = response.getIndividual().get(0);
+
+            return individual.getName();
+        } catch (Exception e) {
+            log.error("error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
+            return null;
+        }
+
+    }
 }

@@ -32,6 +32,8 @@ public class UserService {
     private final MdmsService mdmsService;
     private final String moduleName;
     private static Map<String, Map<String, String>> userIdVsUserInfoCache = new ConcurrentHashMap<>();
+    private static final int MAX_RETRY_COUNT = 10;
+    private static final int RETRY_DELAY_MS = 5000;
 
     @Autowired
     public UserService(ServiceRequestClient restRepo,
@@ -63,12 +65,14 @@ public class UserService {
                 log.info("unable to fetch users for userId: " + userId);
                 userMap.put(USERNAME, userId);
                 userMap.put(ROLE, null);
+                userMap.put(ID, null);
                 return userMap;
             }
             userName = users.get(0).getUserName();
             role = getStaffRole(tenantId, users);
             userMap.put(USERNAME, userName);
             userMap.put(ROLE, role);
+            userMap.put(ID, String.valueOf(users.get(0).getId()));
             userIdVsUserInfoCache.put(userId, userMap);
             return userMap;
         }
@@ -145,11 +149,18 @@ public class UserService {
         return roleByRank;
     }
 
-    public String getUserName(List<User> users, String userId) {
-        if (users != null && users.size() > 0) {
-            return users.get(0).getUserName();
+    public Long getUserServiceId(String tenantId, String userId) {
+        Map<String, String> userMap = getUserInfo(tenantId, userId);
+        if (userMap.containsKey(ID) && userMap.get(ID) != null) {
+            return Long.valueOf(userMap.get(ID));
         }
-        return userId;
+        List<User> users = retryGetUsers(tenantId, userId);
+
+        if (!users.isEmpty()) {
+            return users.get(0).getId();
+        }
+
+        return null;
     }
 
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
@@ -170,5 +181,29 @@ public class UserService {
         mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
+    }
+
+    private List<User> retryGetUsers(String tenantId, String userId) {
+        int retryCount = 0;
+        List<User> users = getUsers(tenantId, userId);
+
+        while (users.isEmpty() && retryCount < MAX_RETRY_COUNT) {
+            log.info("Retrying fetching user for userid: {}, RETRY_COUNT: {} - MAX_RETRY_COUNT: {}, DELAY: {}", userId, retryCount, MAX_RETRY_COUNT, RETRY_DELAY_MS);
+            try {
+                Thread.sleep(RETRY_DELAY_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            users = getUsers(tenantId, userId);
+            retryCount++;
+        }
+        Map<String, String> userMap = new HashMap<>();
+        userMap.put(ID, userId);
+        userMap.put(ROLE, getStaffRole(tenantId, users));
+        userMap.put(USERNAME, users.get(0).getUserName());
+        userIdVsUserInfoCache.put(userId, userMap);
+
+        return users;
     }
 }
