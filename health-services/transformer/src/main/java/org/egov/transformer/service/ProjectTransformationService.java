@@ -13,6 +13,7 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -66,12 +67,14 @@ public abstract class ProjectTransformationService implements TransformationServ
         private final TransformerProperties properties;
         private final ObjectMapper objectMapper;
 
+        protected final CommonUtils commonUtils;
 
         @Autowired
-        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ObjectMapper objectMapper) {
+        ProjectIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ObjectMapper objectMapper,CommonUtils commonUtils) {
             this.projectService = projectService;
             this.properties = properties;
             this.objectMapper = objectMapper;
+            this.commonUtils = commonUtils;
         }
 
         @Override
@@ -86,6 +89,12 @@ public abstract class ProjectTransformationService implements TransformationServ
             fieldsToCheck.add(Constants.TARGET_NO_CHECK);
             if (targets == null || targets.isEmpty()) {
                 return Collections.emptyList();
+            }
+            List<String> taskDates = new ArrayList<>();
+            Long startDateEpoch=project.getStartDate();
+            Long endDateEpoch=project.getEndDate();
+            for (long timestamp = startDateEpoch; timestamp <= endDateEpoch; timestamp += 86400000) {
+                taskDates.add(commonUtils.getTimeStampFromEpoch(timestamp).substring(0, 10));
             }
             isValidTargetsAdditionalDetails(project, targets, Constants.FIELD_TARGET, fieldsToCheck, Constants.BENEFICIARY_TYPE);
 
@@ -113,7 +122,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                             r.setId(project.getId() + HYPHEN + r.getBeneficiaryType());
                         }
 
-                        return ProjectIndexV1.builder()
+                    return ProjectIndexV1.builder()
                                 .id(r.getId())
                                 .projectId(project.getId())
                                 .overallTarget(targetNo)
@@ -121,6 +130,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .campaignDurationInDays(campaignDurationInDays)
                                 .startDate(project.getStartDate())
                                 .endDate(project.getEndDate())
+                                .taskDates(taskDates)
                                 .productVariant(productVariant)
                                 .targetType(r.getBeneficiaryType())
                                 .province(boundaryLabelToNameMap.get(properties.getProvince()))

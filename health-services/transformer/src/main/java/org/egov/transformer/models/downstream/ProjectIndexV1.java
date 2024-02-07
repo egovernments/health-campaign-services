@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -27,6 +29,8 @@ public class ProjectIndexV1 {
     private Long startDate;
     @JsonProperty("endDate")
     private Long endDate;
+    @JsonProperty("taskDates")
+    private List<String> taskDates;
     @JsonProperty("productVariant")
     private String productVariant;
     @JsonProperty("targetType")
