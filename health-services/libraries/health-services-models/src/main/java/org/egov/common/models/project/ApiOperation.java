@@ -14,9 +14,7 @@ public enum ApiOperation {
   
   UPDATE("UPDATE"),
   
-  DELETE("DELETE"),
-
-  LINK("LINK");
+  DELETE("DELETE");
 
   private String value;
 

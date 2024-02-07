@@ -143,8 +143,6 @@ public class Individual {
     @JsonProperty("userDetails")
     private UserDetails userDetails;
 
-    @JsonProperty("linkToHrms")
-    private Boolean linkToHrms = Boolean.FALSE;
 
     public Individual addAddressItem(Address addressItem) {
         if (this.address == null) {
