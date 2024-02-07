@@ -39,10 +39,6 @@ public class StockIndexV1 {
     @JsonProperty("productVariant")
     private String productVariant;
 
-    @JsonProperty("productName")
-    private String productName;
-
-
     @JsonProperty("physicalCount")
     private Integer physicalCount;
 
@@ -75,6 +71,9 @@ public class StockIndexV1 {
 
     @JsonProperty("locality")
     private String locality;
+
+    @JsonProperty("healthFacility")
+    private String healthFacility;
 
     @JsonProperty("village")
     private String village;
