@@ -164,7 +164,7 @@ config:
   - name: "builds/health-campaign-services/core-services/egov-hrms"
     build:
       - work-dir: "core-services/egov-hrms"
-        image-name: "egov-hrms"
+        image-name: "health-hrms"
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
-        image-name: "egov-hrms-db"
+        image-name: "health-hrms-db"
