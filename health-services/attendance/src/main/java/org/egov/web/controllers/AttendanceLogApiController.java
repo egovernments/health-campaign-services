@@ -10,6 +10,7 @@ import org.egov.util.ResponseInfoFactory;
 import org.egov.web.models.AttendanceLogRequest;
 import org.egov.web.models.AttendanceLogResponse;
 import org.egov.web.models.AttendanceLogSearchCriteria;
+import org.egov.web.models.AttendanceLogSearchRequest;
 import org.egov.web.models.RequestInfoWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -60,8 +61,15 @@ public class AttendanceLogApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(responseInfoFactory.createResponseInfoFromRequestInfo(attendanceLogRequest.getRequestInfo(), true));
     }
     @RequestMapping(value = "/_search", method = RequestMethod.POST)
-    public ResponseEntity<AttendanceLogResponse> attendanceLogV1SearchPOST(@Valid @ModelAttribute AttendanceLogSearchCriteria searchCriteria, @ApiParam(value = "") @Valid @RequestBody RequestInfoWrapper requestInfoWrapper) {
-        AttendanceLogResponse attendanceLogResponse = attendanceLogService.searchAttendanceLog(requestInfoWrapper, searchCriteria);
+    public ResponseEntity<AttendanceLogResponse> attendanceLogV1SearchPOST(@Valid @ModelAttribute AttendanceLogSearchCriteria searchCriteria, @ApiParam(value = "") @Valid @RequestBody AttendanceLogSearchRequest attendanceLogSearchRequest) {
+        AttendanceLogResponse attendanceLogResponse = attendanceLogService.searchAttendanceLog(
+                RequestInfoWrapper.builder()
+                        .requestInfo(attendanceLogSearchRequest.getRequestInfo())
+                        .build(),
+                attendanceLogSearchRequest.getAttendanceLogSearchCriteria() != null
+                        ? attendanceLogSearchRequest.getAttendanceLogSearchCriteria()
+                        : searchCriteria
+        );
         return new ResponseEntity<AttendanceLogResponse>(attendanceLogResponse, HttpStatus.OK);
     }
 
