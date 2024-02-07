@@ -22,6 +22,8 @@ public class HouseholdIndexV1 {
     private Household household;
     @JsonProperty("userName")
     private String userName;
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
     @JsonProperty("role")
     private String role;
     @JsonProperty("boundaryHierarchy")

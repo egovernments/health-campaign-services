@@ -25,6 +25,8 @@ public class ProjectTaskIndexV1 {
     private String projectId;
     @JsonProperty("userName")
     private String userName;
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
     @JsonProperty("role")
     private String role;
     @JsonProperty("productVariant")

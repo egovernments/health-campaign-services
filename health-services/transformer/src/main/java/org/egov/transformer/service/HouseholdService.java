@@ -24,8 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.ROLE;
-import static org.egov.transformer.Constants.USERNAME;
+import static org.egov.transformer.Constants.*;
 
 @Component
 @Slf4j
@@ -109,6 +108,7 @@ public class HouseholdService {
                 .household(household)
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
+                .nameOfUser(userInfoMap.get(NAME))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
                 .build();

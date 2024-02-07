@@ -50,6 +50,7 @@ public interface Constants {
     String DATE_OF_BIRTH = "dateOfBirth";
     String GENDER = "gender";
     String USERNAME = "userName";
+    String NAME = "name";
     String ROLE = "role";
     String INDIVIDUAL_ID = "individualId";
     String ADDRESS_CODE = "addressLocalityCode";

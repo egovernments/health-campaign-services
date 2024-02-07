@@ -64,6 +64,7 @@ public class UserService {
             if (users.isEmpty()) {
                 log.info("unable to fetch users for userId: " + userId);
                 userMap.put(USERNAME, userId);
+                userMap.put(NAME, null);
                 userMap.put(ROLE, null);
                 userMap.put(ID, null);
                 return userMap;
@@ -71,6 +72,7 @@ public class UserService {
             userName = users.get(0).getUserName();
             role = getStaffRole(tenantId, users);
             userMap.put(USERNAME, userName);
+            userMap.put(NAME, users.get(0).getName());
             userMap.put(ROLE, role);
             userMap.put(ID, String.valueOf(users.get(0).getId()));
             userIdVsUserInfoCache.put(userId, userMap);

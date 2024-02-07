@@ -142,6 +142,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .taskType("DELIVERY")
                     .projectId(task.getProjectId())
                     .userName(userInfoMap.get(USERNAME))
+                    .nameOfUser(userInfoMap.get(NAME))
                     .role(userInfoMap.get(ROLE))
                     .productVariant(taskResource.getProductVariantId())
                     .isDelivered(taskResource.getIsDelivered())
