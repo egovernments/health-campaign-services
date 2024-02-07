@@ -115,7 +115,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .administrativeProvince(boundaryLabelToNameMap != null ?
                             boundaryLabelToNameMap.get(properties.getAdministrativeProvince()) : null)
                     .locality(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getLocality()) : null)
-//                    .healthFacility(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
+                    .healthFacility(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getHealthFacility()) : null)
                     .village(boundaryLabelToNameMap != null ? boundaryLabelToNameMap.get(properties.getVillage()) : null)
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .createdBy(service.getAuditDetails().getCreatedBy())

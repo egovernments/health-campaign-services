@@ -73,16 +73,16 @@ public abstract class StockTransformationService implements TransformationServic
         private final ProjectService projectService;
 
         private final FacilityService facilityService;
-//        private final ProductService productService;
+        private final ProductService productService;
 
         private final TransformerProperties properties;
         private final CommonUtils commonUtils;
         private UserService userService;
-        StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
+        StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,ProductService productService,
                                 TransformerProperties properties, CommonUtils commonUtils, UserService userService) {
             this.projectService = projectService;
             this.facilityService = facilityService;
-//            this.productService = productService;
+            this.productService = productService;
             this.properties = properties;
             this.commonUtils = commonUtils;
             this.userService = userService;
@@ -91,7 +91,7 @@ public abstract class StockTransformationService implements TransformationServic
         @Override
         public List<StockIndexV1> transform(Stock stock) {
             Map<String, String> boundaryLabelToNameMap = null;
-//            String productName = productService.findProductById(stock.getProductVariantId(), stock.getTenantId())!=null? productService.findProductById(stock.getProductVariantId(), stock.getTenantId()):null;
+            String productName = productService.findProductById(stock.getProductVariantId(), stock.getTenantId())!=null? productService.findProductById(stock.getProductVariantId(), stock.getTenantId()):null;
             Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
             Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
             if (facility.getAddress().getLocality() != null && facility.getAddress().getLocality().getCode() != null) {
@@ -122,7 +122,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .clientReferenceId(stock.getClientReferenceId())
                     .tenantId(stock.getTenantId())
                     .productVariant(stock.getProductVariantId())
-//                    .productName(productName)
+                    .productName(productName)
                     .facilityId(stock.getFacilityId())
                     .facilityName(facility.getName())
                     .transactingFacilityId(stock.getTransactingPartyId())

@@ -84,10 +84,6 @@ public class ProjectTaskIndexV1 {
     private ProjectBeneficiary projectBeneficiary;
     @JsonProperty("household")
     private Household household;
-    @JsonProperty("age")
-    private int age;
-    @JsonProperty("dateOfBirth")
-    private long dateOfBirth;
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
     @JsonProperty("tenantId")
