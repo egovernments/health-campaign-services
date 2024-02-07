@@ -37,4 +37,11 @@ public class StaffRepository {
         List<StaffPermission> attendanceStaffList = jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());
         return attendanceStaffList;
     }
+
+    public List<StaffPermission> getFirstStaff(StaffSearchCriteria searchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = queryBuilder.appendOrderLimit(queryBuilder.getAttendanceStaffSearchQuery(searchCriteria, preparedStmtList));
+        List<StaffPermission> attendanceStaffList = jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());
+        return attendanceStaffList;
+    }
 }

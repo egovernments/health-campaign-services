@@ -102,6 +102,14 @@ public class AttendanceServiceConfiguration {
     @Value("${works.individual.search.endpoint}")
     private String individualSearchEndpoint;
 
+    //HRMS Service
+    @Value("${egov.hrms.host}")
+    private String hrmsHost;
+
+    @Value("${egov.hrms.search.endpoint}")
+    private String hrmsEndPoint;
+
+
 }
 
 

@@ -4,13 +4,14 @@ import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.service.StaffService;
 import org.egov.tracer.model.CustomException;
+import org.egov.util.HRMSUtil;
 import org.egov.util.IndividualServiceUtil;
 import org.egov.util.MDMSUtils;
-import org.egov.web.models.AttendanceRegister;
-import org.egov.web.models.AttendeeCreateRequest;
-import org.egov.web.models.AttendeeDeleteRequest;
-import org.egov.web.models.IndividualEntry;
+import org.egov.web.models.*;
+import org.egov.web.models.Hrms.Assignment;
+import org.egov.web.models.Hrms.Employee;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -31,6 +32,11 @@ public class AttendeeServiceValidator {
 
     @Autowired
     private IndividualServiceUtil individualServiceUtil;
+
+    @Autowired
+    private HRMSUtil hrmsUtil;
+    @Autowired
+    private StaffService staffService;
 
     public void validateAttendeeCreateRequestParameters(AttendeeCreateRequest attendeeCreateRequest) {
         List<IndividualEntry> attendeeList = attendeeCreateRequest.getAttendees();
@@ -373,6 +379,62 @@ public class AttendeeServiceValidator {
 
         if (CollectionUtils.isEmpty(tenantRes))
             errorMap.put("INVALID_TENANT", "The tenant: " + tenantId + " is not present in MDMS");
+    }
+
+    public void validateAttendeeReporter(AttendeeCreateRequest attendeeCreateRequest) {
+        Map<String, String> errorMap = new HashMap<>();
+
+        //extracting all registerIDs coming in the request
+        List<String> registerIds = attendeeCreateRequest.getAttendees().stream()
+                .map(IndividualEntry::getRegisterId)
+                .collect(Collectors.toList());
+
+        //creating a registerId to First Staff Map
+        Map<String, StaffPermission> registerIdToFirstStaffMap = staffService.fetchRegisterIdtoFirstStaffMap(registerIds);
+        String tenantId = attendeeCreateRequest.getAttendees().get(0).getTenantId();
+
+        //Fetching all the attendees's uuids for hrms search
+        List<String> userUuids = attendeeCreateRequest.getAttendees().stream()
+                .map(IndividualEntry::getIndividualId)
+                .collect(Collectors.toList());
+
+        //getting the employee List from HRMS Search based on the attendee's uuids
+        List<Employee> employeeList = hrmsUtil.getEmployee(tenantId, userUuids, attendeeCreateRequest.getRequestInfo());
+
+        List<IndividualEntry> validIndividualEntries = new ArrayList<>();
+
+        //looping through attendees for validating their reporters
+        for (IndividualEntry entry : attendeeCreateRequest.getAttendees()) {
+            try {
+                Optional<Employee> employee = employeeList.stream()
+                        .filter(emp -> entry.getIndividualId().equals(emp.getUuid()))
+                        .findFirst();
+
+                if (employee.isPresent() && employee.get() == null) {
+                    //throw validation error if hrms did not return an employee for the attendee individualId
+                    throw new CustomException("HRMS_EMPLOYEE_NOT_FOUND", "Employee not present in HRMS for the individual ID - " + entry.getIndividualId());
+                }
+
+                //fetch reportingTo uuids from employees assignments
+                List<String> reportingToList = employee.get().getAssignments().stream()
+                        .map(Assignment::getReportingTo)
+                        .filter(reportingTo -> reportingTo != null && !reportingTo.isEmpty())
+                        .collect(Collectors.toList());
+
+                //fetch the first staff's User Id
+                String reportersUuid = registerIdToFirstStaffMap.get(entry.getRegisterId()).getUserId();
+
+                if (!reportingToList.contains(reportersUuid)) {
+                    throw new CustomException("REPORTING_STAFF_INCORRECT_FOR_ATTENDEE", "Attendees reporting uuid does not match with for attendee uuid - " + entry.getIndividualId());
+                }
+                validIndividualEntries.add(entry);
+            }
+            catch (Exception e)
+            {
+                log.error("REPORTING_STAFF_INCORRECT_FOR_ATTENDEE", "Attendees reporting uuid does not match with for attendee uuid - " + entry.getIndividualId());
+            }
+        }
+        attendeeCreateRequest.setAttendees(validIndividualEntries);
     }
 }
 
