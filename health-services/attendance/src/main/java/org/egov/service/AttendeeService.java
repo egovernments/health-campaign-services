@@ -57,8 +57,8 @@ public class AttendeeService {
         log.info("validating create attendee request parameters");
         attendeeServiceValidator.validateAttendeeCreateRequestParameters(attendeeCreateRequest);
 
-        //validate whether attendees have the correct reporting staff
-        attendeeServiceValidator.validateAttendeeReporter(attendeeCreateRequest);
+        //validate whether attendees are project staff and whether attendees have the correct reporting staff
+        attendeeServiceValidator.validateAttendeeDetails(attendeeCreateRequest);
 
         //extract registerIds and attendee IndividualIds from client request
         String tenantId = attendeeCreateRequest.getAttendees().get(0).getTenantId();

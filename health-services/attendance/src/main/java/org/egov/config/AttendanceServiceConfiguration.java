@@ -109,7 +109,12 @@ public class AttendanceServiceConfiguration {
     @Value("${egov.hrms.search.endpoint}")
     private String hrmsEndPoint;
 
+    //Project Service
+    @Value("${egov.project.host}")
+    private String projectHost;
 
+    @Value("${egov.project.staff.search.endpoint}")
+    private String projectStaffSearchEndpoint;
 }
 
 

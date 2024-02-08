@@ -175,12 +175,12 @@ public class StaffService {
         return staffIds;
     }
 
-    public Map<String, StaffPermission> fetchRegisterIdtoFirstStaffMap(List<String> registerIds) {
+    public Map<String, StaffPermission> fetchRegisterIdtoFirstStaffMap(String tenantId, List<String> registerIds) {
         Map<String, StaffPermission> registerIdToFirstStaffMap = new HashMap<>(); //mapping of registerId to the first StaffPermission for each unique registerId
 
         for ( String registerId  : registerIds) {
             if (!registerIdToFirstStaffMap.containsKey(registerId)) {
-                StaffSearchCriteria staffSearchCriteria = StaffSearchCriteria.builder().registerIds(Collections.singletonList(registerId)).build();
+                StaffSearchCriteria staffSearchCriteria = StaffSearchCriteria.builder().tenantId(tenantId).registerIds(Collections.singletonList(registerId)).build();
 
                 List<StaffPermission> staffPermissionList = staffRepository.getFirstStaff(staffSearchCriteria);
 

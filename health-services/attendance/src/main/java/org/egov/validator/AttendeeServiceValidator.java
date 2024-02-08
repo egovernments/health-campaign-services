@@ -4,11 +4,16 @@ import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffSearch;
+import org.egov.config.AttendanceServiceConfiguration;
+import org.egov.repository.RegisterRepository;
 import org.egov.service.StaffService;
 import org.egov.tracer.model.CustomException;
 import org.egov.util.HRMSUtil;
 import org.egov.util.IndividualServiceUtil;
 import org.egov.util.MDMSUtils;
+import org.egov.util.ProjectStaffUtil;
 import org.egov.web.models.*;
 import org.egov.web.models.Hrms.Assignment;
 import org.egov.web.models.Hrms.Employee;
@@ -20,8 +25,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.egov.util.AttendanceServiceConstants.MASTER_TENANTS;
-import static org.egov.util.AttendanceServiceConstants.MDMS_TENANT_MODULE_NAME;
+import static org.egov.util.AttendanceServiceConstants.*;
 
 @Component
 @Slf4j
@@ -37,6 +41,12 @@ public class AttendeeServiceValidator {
     private HRMSUtil hrmsUtil;
     @Autowired
     private StaffService staffService;
+
+    @Autowired
+    private AttendanceServiceConfiguration config;
+
+    @Autowired
+    private ProjectStaffUtil projectStaffUtil;
 
     public void validateAttendeeCreateRequestParameters(AttendeeCreateRequest attendeeCreateRequest) {
         List<IndividualEntry> attendeeList = attendeeCreateRequest.getAttendees();
@@ -381,17 +391,28 @@ public class AttendeeServiceValidator {
             errorMap.put("INVALID_TENANT", "The tenant: " + tenantId + " is not present in MDMS");
     }
 
-    public void validateAttendeeReporter(AttendeeCreateRequest attendeeCreateRequest) {
-        Map<String, String> errorMap = new HashMap<>();
+    /**
+     * Function that validates whether attendees are project staff and whether attendees have the correct reporting staff
+     *
+     * @param attendeeCreateRequest
+     * @return
+     */
+
+    public void validateAttendeeDetails(AttendeeCreateRequest attendeeCreateRequest) {
+        String tenantId = attendeeCreateRequest.getAttendees().get(0).getTenantId();
+        RequestInfo requestInfo = attendeeCreateRequest.getRequestInfo();
+        List<IndividualEntry> validIndividualEntries = new ArrayList<>();
 
         //extracting all registerIDs coming in the request
         List<String> registerIds = attendeeCreateRequest.getAttendees().stream()
                 .map(IndividualEntry::getRegisterId)
                 .collect(Collectors.toList());
 
-        //creating a registerId to First Staff Map
-        Map<String, StaffPermission> registerIdToFirstStaffMap = staffService.fetchRegisterIdtoFirstStaffMap(registerIds);
-        String tenantId = attendeeCreateRequest.getAttendees().get(0).getTenantId();
+        //creating a register Id to First Staff Map
+        Map<String, StaffPermission> registerIdToFirstStaffMap = staffService.fetchRegisterIdtoFirstStaffMap(tenantId,registerIds);
+
+        //fetching a register Id to Project Id Map
+        Map<String, String > registerIdVsProjectIdMap = projectStaffUtil.getregisterIdVsProjectIdMap(tenantId, registerIds, requestInfo);
 
         //Fetching all the attendees's uuids for hrms search
         List<String> userUuids = attendeeCreateRequest.getAttendees().stream()
@@ -399,13 +420,21 @@ public class AttendeeServiceValidator {
                 .collect(Collectors.toList());
 
         //getting the employee List from HRMS Search based on the attendee's uuids
-        List<Employee> employeeList = hrmsUtil.getEmployee(tenantId, userUuids, attendeeCreateRequest.getRequestInfo());
+        List<Employee> employeeList = hrmsUtil.getEmployee(tenantId, userUuids, requestInfo);
 
-        List<IndividualEntry> validIndividualEntries = new ArrayList<>();
-
-        //looping through attendees for validating their reporters
+        //looping through attendees for validating their details
         for (IndividualEntry entry : attendeeCreateRequest.getAttendees()) {
             try {
+
+                String projectId = registerIdVsProjectIdMap.get(entry.getRegisterId());
+                ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().staffId(entry.getIndividualId()).projectId(projectId).build();
+
+                List<ProjectStaff> projectStaffList = projectStaffUtil.getProjectStaff(entry.getTenantId(), projectStaffSearch, requestInfo);
+
+                if(projectStaffList.isEmpty()) {
+                    //throw validation error if attendee doesn't belong to the attendance register's project
+                    throw new CustomException("ATTENDEE_NOT_REGISTERED_AS_PROJECT_STAFF", "StaffId: " + projectStaffSearch.getStaffId());
+                }
                 Optional<Employee> employee = employeeList.stream()
                         .filter(emp -> entry.getIndividualId().equals(emp.getUuid()))
                         .findFirst();
@@ -425,13 +454,14 @@ public class AttendeeServiceValidator {
                 String reportersUuid = registerIdToFirstStaffMap.get(entry.getRegisterId()).getUserId();
 
                 if (!reportingToList.contains(reportersUuid)) {
+                    //throw validation error if attendee's reportingTo is not First Staff of the Register
                     throw new CustomException("REPORTING_STAFF_INCORRECT_FOR_ATTENDEE", "Attendees reporting uuid does not match with for attendee uuid - " + entry.getIndividualId());
                 }
                 validIndividualEntries.add(entry);
             }
             catch (Exception e)
             {
-                log.error("REPORTING_STAFF_INCORRECT_FOR_ATTENDEE", "Attendees reporting uuid does not match with for attendee uuid - " + entry.getIndividualId());
+                log.error(e.getMessage());
             }
         }
         attendeeCreateRequest.setAttendees(validIndividualEntries);
