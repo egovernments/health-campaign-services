@@ -10,7 +10,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.household.HouseholdSearch;
 
 @Data
 @NoArgsConstructor
@@ -24,7 +23,7 @@ public class AttendanceLogSearchRequest {
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("attendanceLogSearch")
+    @JsonProperty("attendance")
     @Valid
     private AttendanceLogSearchCriteria attendanceLogSearchCriteria = null;
 }
