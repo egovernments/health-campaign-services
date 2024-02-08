@@ -375,12 +375,12 @@ public class AttendanceLogServiceValidator {
 
             // Verify TenantId association with register
             validateTenantIdAssociationWithRegisterId(attendanceRegisters.get(0), searchCriteria.getTenantId());
+
+            // Verify the Logged-in user is associated to the given register.
+            String individualId = individualServiceUtil.getIndividualDetailsFromUserId(requestInfoWrapper.getRequestInfo().getUserInfo().getId(), requestInfoWrapper.getRequestInfo(), searchCriteria.getTenantId()).get(0).getId();
+
+            validateLoggedInUser(individualId, searchCriteria.getRegisterId());
         }
-
-        // Verify the Logged-in user is associated to the given register.
-        String individualId = individualServiceUtil.getIndividualDetailsFromUserId(requestInfoWrapper.getRequestInfo().getUserInfo().getId(), requestInfoWrapper.getRequestInfo(), searchCriteria.getTenantId()).get(0).getId();
-        validateLoggedInUser(individualId, searchCriteria.getRegisterId());
-
         log.info("Attendance log search request validated successfully");
     }
 
