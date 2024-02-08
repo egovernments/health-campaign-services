@@ -47,21 +47,14 @@ public class CommonUtils {
         this.mdmsService = mdmsService;
     }
 
-    public List<String> getProjectDatesList (Long startDateEpoch, Long endDateEpoch) {
-        List<String> dates = new ArrayList<>();
-        for (long timestamp = startDateEpoch; timestamp <= 2 * DAY_MILLIS + endDateEpoch; timestamp += DAY_MILLIS) {
-            dates.add(getTimeStampFromEpoch(timestamp).split(TIME_STAMP_SPLIT)[0]);
-        }
-        return dates;
-    }
-
-    public  String getMDMSTransformerLocalizations (String text, String tenantId) {
+    public String getMDMSTransformerLocalizations(String text, String tenantId) {
         if (transformerLocalizations.containsKey(text)) {
             log.info("Fetching localization from transformerLocalization: {}", text);
             return transformerLocalizations.get(text);
         }
         return fetchLocalizationsFromMdms(text, tenantId);
     }
+
     public String getTimeStampFromEpoch(long epochTime) {
         String timeStamp = "";
         String timeZone = properties.getTimeZone();
@@ -125,30 +118,29 @@ public class CommonUtils {
     }
 
     public JsonNode getBoundaryHierarchy(String tenantId, String projectTypeId, Map<String, String> boundaryLabelToNameMap) {
-       if(boundaryLabelToNameMap.isEmpty() || boundaryLabelToNameMap == null){
-           return null;
-       }
+        if (boundaryLabelToNameMap == null || boundaryLabelToNameMap.isEmpty()) {
+            return null;
+        }
         List<JsonNode> boundaryLevelVsLabel = null;
         ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
         try {
-            if (projectTypeId != null) {
-                String cacheKey = tenantId + HYPHEN + projectTypeId;
-                if (boundaryLevelVsLabelCache.containsKey(cacheKey)) {
-                    boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(cacheKey);
-                    log.info("Fetching boundaryLevelVsLabel from cache for projectTypeId: {}", projectTypeId);
-                } else {
-                    JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
-                    boundaryLevelVsLabel = StreamSupport
-                            .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-                    boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
-                }
+            String cacheKey = (projectTypeId != null) ? tenantId + HYPHEN + projectTypeId : tenantId;
+            if (boundaryLevelVsLabelCache.containsKey(cacheKey)) {
+                boundaryLevelVsLabel = boundaryLevelVsLabelCache.get(cacheKey);
+                log.info("Fetching boundaryLevelVsLabel from cache for projectTypeId: {}", projectTypeId);
             } else {
-                boundaryLevelVsLabel = getDefaultBoundaryVsLabel();
+                JsonNode mdmsBoundaryData = (projectTypeId != null) ? projectService.fetchBoundaryData(tenantId, null, projectTypeId) :
+                        projectService.fetchBoundaryDataByTenant(tenantId, null);
+                boundaryLevelVsLabel = StreamSupport
+                        .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+                boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
             }
         } catch (Exception e) {
             log.error("Error while fetching boundaryHierarchy for projectTypeId: {}", projectTypeId);
             log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap.toString());
-            boundaryLevelVsLabel = getDefaultBoundaryVsLabel();
+            JsonNode mdmsBoundaryData = projectService.fetchBoundaryDataByTenant(tenantId, null);
+            boundaryLevelVsLabel = StreamSupport
+                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
         }
         boundaryLevelVsLabel.forEach(node -> {
             if (node.get(LEVEL).asInt() > 1) {
@@ -157,33 +149,7 @@ public class CommonUtils {
         });
         return boundaryHierarchy;
     }
-    //TODO fetching default boundary level vs label has to be handled for multi campaigns happening same time
-    private static final List<JsonNode> DEFAULT_BOUNDARY_VS_LABEL;
 
-    static {
-        ObjectMapper tempObjectMapper = new ObjectMapper();
-        List<JsonNode> tempBoundaryVsLabel = new ArrayList<>();
-        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 1, "Country", "country"));
-        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 2, "Provincia", "province"));
-        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 3, "Distrito", "district"));
-        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 4, "Posto Administrativo", "administrativeProvince"));
-        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 5, "Localidade", "locality"));
-        tempBoundaryVsLabel.add(createBoundaryLevel(tempObjectMapper, 6, "Aldeia", "village"));
-
-        DEFAULT_BOUNDARY_VS_LABEL = Collections.unmodifiableList(tempBoundaryVsLabel);
-    }
-
-    private static JsonNode createBoundaryLevel(ObjectMapper mapper, int level, String label, String indexLabel) {
-        ObjectNode boundaryLevel = mapper.createObjectNode();
-        boundaryLevel.put(LEVEL, level);
-        boundaryLevel.put(LABEL, label);
-        boundaryLevel.put(INDEX_LABEL, indexLabel);
-        return boundaryLevel;
-    }
-
-    public static List<JsonNode> getDefaultBoundaryVsLabel() {
-        return DEFAULT_BOUNDARY_VS_LABEL;
-    }
 
     private String fetchLocalizationsFromMdms(String text, String tenantId) {
         JSONArray transformerLocalizationsArray = new JSONArray();
@@ -198,7 +164,8 @@ public class CommonUtils {
                     .get(TRANSFORMER_LOCALIZATIONS);
             ObjectMapper objectMapper = new ObjectMapper();
             transformerLocalizationsArray.forEach(item -> {
-                Map map = objectMapper.convertValue(item, new TypeReference<Map>() {});
+                Map map = objectMapper.convertValue(item, new TypeReference<Map>() {
+                });
                 transformerLocalizations.put((String) map.get("text"), (String) map.get("translatedText"));
             });
         } catch (Exception e) {
@@ -206,6 +173,7 @@ public class CommonUtils {
         }
         return transformerLocalizations.getOrDefault(text, text);
     }
+
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
                                            String moduleName, String filter) {
         MasterDetail masterDetail = new MasterDetail();
