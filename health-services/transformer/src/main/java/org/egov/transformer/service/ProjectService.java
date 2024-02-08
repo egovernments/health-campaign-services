@@ -254,7 +254,6 @@ public class ProjectService {
     }
 
     public JsonNode fetchBoundaryDataByTenant(String tenantId, String filter) {
-        List<JsonNode> boundaryLevelVsLabel = null;
         List<JsonNode> projectTypes = new ArrayList<>();
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
@@ -263,11 +262,13 @@ public class ProjectService {
             JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                     transformerProperties.getMdmsModule(), filter);
             projectTypes = convertToProjectTypeJsonNodeList(response);
-            JsonNode boundaryData = projectTypes.get(0).get(Constants.BOUNDARY_DATA);
-//            boundaryLevelVsLabel = StreamSupport
-//                    .stream(boundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-
-            return boundaryData;
+            for (JsonNode projectType : projectTypes) {
+                JsonNode boundaryData = projectType.get(Constants.BOUNDARY_DATA);
+                if (boundaryData != null) {
+                    return boundaryData;
+                }
+            }
+            return null;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -145,8 +145,10 @@ public class CommonUtils {
             log.error("Error while fetching boundaryHierarchy for projectTypeId: {}", projectTypeId);
             log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap.toString());
             JsonNode mdmsBoundaryData = projectService.fetchBoundaryDataByTenant(tenantId, null);
-            boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+            if (mdmsBoundaryData != null && mdmsBoundaryData.has(Constants.BOUNDARY_HIERARCHY)) {
+                boundaryLevelVsLabel = StreamSupport
+                        .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+            }
         }
         boundaryLevelVsLabel.forEach(node -> {
             if (node.get(LEVEL).asInt() > 1) {
