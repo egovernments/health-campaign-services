@@ -47,6 +47,14 @@ public class CommonUtils {
         this.mdmsService = mdmsService;
     }
 
+    public List<String> getProjectDatesList (Long startDateEpoch, Long endDateEpoch) {
+        List<String> dates = new ArrayList<>();
+        for (long timestamp = startDateEpoch; timestamp <= 2 * DAY_MILLIS + endDateEpoch; timestamp += DAY_MILLIS) {
+            dates.add(getTimeStampFromEpoch(timestamp).split(TIME_STAMP_SPLIT)[0]);
+        }
+        return dates;
+    }
+
     public  String getMDMSTransformerLocalizations (String text, String tenantId) {
         if (transformerLocalizations.containsKey(text)) {
             log.info("Fetching localization from transformerLocalization: {}", text);

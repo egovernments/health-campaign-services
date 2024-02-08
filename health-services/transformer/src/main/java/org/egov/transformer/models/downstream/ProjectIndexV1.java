@@ -42,6 +42,8 @@ public class ProjectIndexV1 {
     private ObjectNode boundaryHierarchy;
     @JsonProperty("tenantId")
     private String tenantId;
+    @JsonProperty("taskDates")
+    private List<String> taskDates;
     @JsonProperty("projectType")
     private String projectType;
     @JsonProperty("subProjectType")
