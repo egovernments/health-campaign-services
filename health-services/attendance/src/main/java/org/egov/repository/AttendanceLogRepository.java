@@ -45,7 +45,7 @@ public class AttendanceLogRepository extends GenericRepository<AttendanceLog> {
     public List<AttendanceLog> getAttendanceLogs(AttendanceLogSearchCriteria searchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         if(!StringUtils.isBlank(searchCriteria.getRegisterId())) log.info("Fetching Attendance Log list. RegisterId ["+searchCriteria.getRegisterId()+"]");
-        if(!CollectionUtils.isEmpty(searchCriteria.getClientReferenceIds())) log.info("Fetching Attendance Log list. ClientReferenceIds "+searchCriteria.getClientReferenceIds());
+        if(!CollectionUtils.isEmpty(searchCriteria.getClientReferenceId())) log.info("Fetching Attendance Log list. ClientReferenceIds "+searchCriteria.getClientReferenceId());
         String query = queryBuilder.getAttendanceLogSearchQuery(searchCriteria, preparedStmtList);
         log.info("Query build successfully");
         List<AttendanceLog> attendanceLogList = jdbcTemplate.query(query, rowMapper, preparedStmtList.toArray());

@@ -398,7 +398,7 @@ public class AttendanceLogServiceValidator {
             log.error("Attendance log search, Tenant is mandatory");
             throw new CustomException("TENANT_ID", "Tenant is mandatory");
         }
-        if (StringUtils.isBlank(searchCriteria.getRegisterId()) && CollectionUtils.isEmpty(searchCriteria.getClientReferenceIds())) {
+        if (StringUtils.isBlank(searchCriteria.getRegisterId()) && CollectionUtils.isEmpty(searchCriteria.getClientReferenceId())) {
             log.error("Attendance log search, RegisterId or ClientReferenceId is mandatory");
             throw new CustomException("REGISTER_ID_OR_CLIENT_REFERENCE_ID", "RegisterId or ClientReferenceId is mandatory");
         }
