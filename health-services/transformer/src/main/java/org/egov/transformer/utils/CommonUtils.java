@@ -150,6 +150,9 @@ public class CommonUtils {
                         .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             }
         }
+        if (boundaryLevelVsLabel == null) {
+            return null;
+        }
         boundaryLevelVsLabel.forEach(node -> {
             if (node.get(LEVEL).asInt() > 1) {
                 boundaryHierarchy.put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(LABEL).asText()) == null ? null : boundaryLabelToNameMap.get(node.get(LABEL).asText()));
