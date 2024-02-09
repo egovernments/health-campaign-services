@@ -37,8 +37,7 @@ public class ProjectStaffSearch   {
     private String tenantId = null;
 
     @JsonProperty("staffId")
-    @Size(min=2,max=64) 
-    private String staffId = null;
+    private List<String> staffId = null;
 
     @JsonProperty("projectId")
     @Size(min=2,max=64)
