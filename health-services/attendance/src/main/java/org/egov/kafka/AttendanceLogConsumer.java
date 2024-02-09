@@ -9,6 +9,7 @@ import org.egov.service.AttendanceLogService;
 import org.egov.tracer.model.CustomException;
 import org.egov.web.models.AttendanceLogRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -38,7 +39,7 @@ public class AttendanceLogConsumer {
         }
     }
 
-    @KafkaListener(topics = "${attendance.log.kafka.consumer.bulk.create.topic}")
+    @KafkaListener(topics = "${attendance.log.kafka.consumer.bulk.update.topic}")
     public void bulkUpdate(Map<String, Object> consumerRecord,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {

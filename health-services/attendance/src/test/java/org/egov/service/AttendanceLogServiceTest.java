@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.config.AttendanceServiceConfiguration;
 import org.egov.enrichment.AttendanceLogEnrichment;
 import org.egov.helper.AttendanceLogRequestTestBuilder;
-import org.egov.kafka.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.repository.AttendanceLogRepository;
 import org.egov.tracer.model.CustomException;
 import org.egov.util.ResponseInfoFactory;

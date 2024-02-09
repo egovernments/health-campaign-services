@@ -17,6 +17,9 @@ public class AttendanceLogSearchCriteria {
     @JsonProperty("ids")
     private List<String> ids;
 
+    @JsonProperty("clientReferenceId")
+    private List<String> clientReferenceId;
+
     @JsonProperty("tenantId")
     private String tenantId;
 

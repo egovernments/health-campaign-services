@@ -57,6 +57,13 @@ public class AttendanceLogQueryBuilder {
             addToPreparedStatement(preparedStmtList, ids);
         }
 
+        List<String> clientReferenceIds = criteria.getClientReferenceId();
+        if (clientReferenceIds != null && !clientReferenceIds.isEmpty()) {
+            addClauseIfRequired(query, preparedStmtList);
+            query.append(" log.clientreferenceid IN (").append(createQuery(clientReferenceIds)).append(")");
+            addToPreparedStatement(preparedStmtList, clientReferenceIds);
+        }
+
         if (StringUtils.isNotBlank(criteria.getTenantId())) {
             addClauseIfRequired(query, preparedStmtList);
             query.append(" log.tenantid=? ");

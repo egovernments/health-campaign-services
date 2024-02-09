@@ -130,7 +130,7 @@ public class AttendanceLogServiceValidatorTest {
     @DisplayName("Method validateAttendanceLogRequest: RequestInfo object with UserInfo but without Attendance Log Time")
     @Test
     public void validateCreateAttendanceLogRequest_validateAttendanceLogRequest_11(){
-        AttendanceLogRequest attendanceLogRequest = AttendanceLogRequestTestBuilder.builder().withRequestInfo().attendanceLogWithoutTime().build();;
+        AttendanceLogRequest attendanceLogRequest = AttendanceLogRequestTestBuilder.builder().withRequestInfo().attendanceLogWithoutTime().build();
         CustomException exception = assertThrows(CustomException.class, ()-> ReflectionTestUtils.invokeMethod(attendanceLogServiceValidator, "validateAttendanceLogRequest", attendanceLogRequest));
         assertTrue(exception.toString().contains("Attendance time is mandatory"));
     }

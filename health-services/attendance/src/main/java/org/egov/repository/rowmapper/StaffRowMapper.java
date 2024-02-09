@@ -7,6 +7,7 @@ import org.egov.tracer.model.CustomException;
 import org.egov.web.models.StaffPermission;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ import java.util.Map;
 public class StaffRowMapper implements ResultSetExtractor<List<StaffPermission>> {
 
     @Autowired
+    @Qualifier("objectMapper")
     private ObjectMapper mapper;
 
     @Override

@@ -11,6 +11,7 @@ import org.egov.web.models.Document;
 import org.egov.web.models.Status;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,7 @@ import java.util.*;
 public class AttendanceLogRowMapper implements ResultSetExtractor<List<AttendanceLog>> {
 
     @Autowired
+    @Qualifier("objectMapper")
     private ObjectMapper mapper;
 
     @Override
@@ -46,7 +48,7 @@ public class AttendanceLogRowMapper implements ResultSetExtractor<List<Attendanc
             String lastmodifiedby = rs.getString("logLastModifiedBy");
             Long createdtime = rs.getLong("logCreatedTime");
             Long lastmodifiedtime = rs.getLong("logLastModifiedTime");
-            String clientcreatedby = rs.getString("logcClientCreatedBy");
+            String clientcreatedby = rs.getString("logClientCreatedBy");
             String clientlastmodifiedby = rs.getString("logClientLastModifiedBy");
             Long clientcreatedtime = rs.getLong("logClientCreatedTime");
             Long clientlastmodifiedtime = rs.getLong("logClientLastModifiedTime");
