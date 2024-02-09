@@ -13,6 +13,7 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -65,13 +66,15 @@ public abstract class ProjectTransformationService implements TransformationServ
         private final ProjectService projectService;
         private final ProductService productService;
         private final ObjectMapper objectMapper;
+        private final CommonUtils commonUtils;
 
 
         @Autowired
-        ProjectIndexV1Transformer(ProjectService projectService, ProductService productService, ObjectMapper objectMapper) {
+        ProjectIndexV1Transformer(ProjectService projectService, ProductService productService, ObjectMapper objectMapper, CommonUtils commonUtils) {
             this.projectService = projectService;
             this.productService = productService;
             this.objectMapper = objectMapper;
+            this.commonUtils = commonUtils;
         }
 
         @Override
@@ -134,6 +137,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .productName(productVariantName)
                                 .targetType(r.getBeneficiaryType())
                                 .tenantId(tenantId)
+                                .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
                                 .projectType(project.getProjectType())
                                 .subProjectType(project.getProjectSubType())
                                 .createdTime(project.getAuditDetails().getCreatedTime())
