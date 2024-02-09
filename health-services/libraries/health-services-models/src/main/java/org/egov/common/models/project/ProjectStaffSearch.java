@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.Size;
@@ -24,6 +25,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
+@Table(name="project_staff")
 public class ProjectStaffSearch   {
 
 
