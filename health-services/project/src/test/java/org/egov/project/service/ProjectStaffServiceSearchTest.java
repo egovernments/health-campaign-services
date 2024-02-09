@@ -50,7 +50,7 @@ class ProjectStaffServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
                 .thenReturn(Collections.emptyList());
         ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
-                .id(Collections.singletonList("ID101")).staffId("some-user-id").build();
+                .id(Collections.singletonList("ID101")).staffId(Collections.singletonList("some-user-id")).build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
