@@ -1,5 +1,12 @@
 package org.egov.project.service;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
@@ -7,6 +14,7 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.models.project.ProjectResourceRequest;
+import org.egov.common.models.project.ProjectResourceSearchRequest;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectResourceRepository;
@@ -19,16 +27,8 @@ import org.egov.project.validator.resource.PrProjectIdValidator;
 import org.egov.project.validator.resource.PrRowVersionValidator;
 import org.egov.project.validator.resource.PrUniqueCombinationValidator;
 import org.egov.project.validator.resource.PrUniqueEntityValidator;
-import org.egov.project.web.models.ProjectResourceSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;

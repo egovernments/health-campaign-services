@@ -5,6 +5,7 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiaryRequest;
 import org.egov.common.models.project.BeneficiaryResponse;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.producer.Producer;
 import org.egov.project.TestConfiguration;
@@ -16,8 +17,8 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectBeneficiarySearch;
+
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;

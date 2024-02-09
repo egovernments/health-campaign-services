@@ -1,6 +1,13 @@
 package org.egov.project.web.controllers;
 
 
+import java.util.List;
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
@@ -8,6 +15,7 @@ import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiaryRequest;
 import org.egov.common.models.project.BeneficiaryResponse;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectFacility;
@@ -15,6 +23,7 @@ import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.models.project.ProjectFacilityBulkResponse;
 import org.egov.common.models.project.ProjectFacilityRequest;
 import org.egov.common.models.project.ProjectFacilityResponse;
+import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectResponse;
 import org.egov.common.models.project.ProjectStaff;
@@ -22,6 +31,7 @@ import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.models.project.ProjectStaffBulkResponse;
 import org.egov.common.models.project.ProjectStaffRequest;
 import org.egov.common.models.project.ProjectStaffResponse;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.models.project.TaskBulkResponse;
@@ -36,9 +46,6 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,13 +55,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
 @Controller
