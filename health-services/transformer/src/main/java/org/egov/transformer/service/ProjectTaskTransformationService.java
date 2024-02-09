@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.User;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
@@ -95,7 +94,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
         public List<ProjectTaskIndexV1> transform(Task task) {
             Map<String, String> boundaryLabelToNameMap = null;
             String tenantId = task.getTenantId();
-            if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
+            if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
                         .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
             } else {
@@ -133,7 +132,10 @@ public abstract class ProjectTaskTransformationService implements Transformation
         private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId,
                                                                    ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType) {
             Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
-
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
+            String createdTimeStamp = commonUtils.getTimeStampFromEpoch(task.getClientAuditDetails().getCreatedTime());
+            String[] syncedDate = syncedTimeStamp.split(TIME_STAMP_SPLIT);
+            String[] createdDate = createdTimeStamp.split(TIME_STAMP_SPLIT);
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -157,7 +159,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
                     .projectBeneficiaryClientReferenceId(task.getProjectBeneficiaryClientReferenceId())
-                    .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime()))
+                    .syncedTimeStamp(syncedTimeStamp)
+                    .createdDate(createdDate[0])
+                    .syncedDate(syncedDate[0])
                     .syncedTime(task.getAuditDetails().getCreatedTime())
                     .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .administrationStatus(task.getStatus())

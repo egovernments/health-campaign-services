@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -24,6 +24,8 @@ public class ProjectStaffIndexV1 {
     private String userName;
     @JsonProperty("role")
     private String role;
+    @JsonProperty("taskDates")
+    private List<String> taskDates;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
     @JsonProperty("tenantId")

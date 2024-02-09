@@ -73,6 +73,10 @@ public class ProjectTaskIndexV1 {
     private String clientReferenceId;
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
+    @JsonProperty("syncedDate")
+    private String syncedDate;
+    @JsonProperty("createdDate")
+    private String createdDate;
     @JsonProperty("syncedTime")
     private Long syncedTime;
     @JsonProperty("dateOfBirth")

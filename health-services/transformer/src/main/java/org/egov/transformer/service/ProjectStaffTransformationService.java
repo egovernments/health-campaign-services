@@ -91,6 +91,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .userId(projectStaff.getUserId())
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
+                    .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
                     .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                     .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())

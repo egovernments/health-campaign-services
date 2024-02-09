@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
@@ -246,6 +247,28 @@ public class ProjectService {
             projectTypes = convertToProjectTypeJsonNodeList(response);
             JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
             return requiredProjectType.get(Constants.BOUNDARY_DATA);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public JsonNode fetchBoundaryDataByTenant(String tenantId, String filter) {
+        List<JsonNode> projectTypes = new ArrayList<>();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                    transformerProperties.getMdmsModule(), filter);
+            projectTypes = convertToProjectTypeJsonNodeList(response);
+            for (JsonNode projectType : projectTypes) {
+                JsonNode boundaryData = projectType.get(Constants.BOUNDARY_DATA);
+                if (boundaryData != null) {
+                    return boundaryData;
+                }
+            }
+            return null;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
