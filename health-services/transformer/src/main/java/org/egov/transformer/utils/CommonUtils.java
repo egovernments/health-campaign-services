@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,11 +57,27 @@ public class CommonUtils {
     }
     public List<String> getProjectDatesList (Long startDateEpoch, Long endDateEpoch) {
         List<String> dates = new ArrayList<>();
-        for (long timestamp = startDateEpoch; timestamp <= 2 * DAY_MILLIS + endDateEpoch; timestamp += DAY_MILLIS) {
-            dates.add(getTimeStampFromEpoch(timestamp).split(TIME_STAMP_SPLIT)[0]);
+        for (long timestamp = startDateEpoch; timestamp <= DAY_MILLIS + endDateEpoch; timestamp += DAY_MILLIS) {
+            dates.add(getDateFromEpoch(timestamp));
         }
         return dates;
     }
+
+    public String getDateFromEpoch(long epochTime) {
+        String dateFromEpoch = "";
+        String timeZone = properties.getTimeZone();
+        try {
+            Date date = new Date(epochTime);
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone(timeZone));
+            dateFromEpoch = dateFormat.format(date);
+        } catch (Exception e) {
+            log.error("EpochTime to be transformed :" + epochTime);
+            log.error("Exception while transforming epochTime to date: {}", ExceptionUtils.getStackTrace(e));
+        }
+        return dateFromEpoch;
+    }
+
     public String getTimeStampFromEpoch(long epochTime) {
         String timeStamp = "";
         String timeZone = properties.getTimeZone();
