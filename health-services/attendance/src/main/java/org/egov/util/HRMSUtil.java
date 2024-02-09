@@ -9,6 +9,7 @@ import org.egov.repository.ServiceRequestRepository;
 import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Hrms.Employee;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -25,6 +26,7 @@ public class HRMSUtil {
     private AttendanceServiceConfiguration config;
 
     @Autowired
+    @Qualifier("objectMapper")
     private ObjectMapper mapper;
 
     private String HRMS_EMPLOYEE_JSONPATH = "$.Employees.*";

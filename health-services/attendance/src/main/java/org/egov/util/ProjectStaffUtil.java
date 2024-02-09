@@ -13,6 +13,7 @@ import org.egov.web.models.AttendanceRegister;
 import org.egov.web.models.AttendanceRegisterSearchCriteria;
 import org.egov.web.models.Hrms.Employee;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -32,6 +33,7 @@ public class ProjectStaffUtil {
     private ServiceRequestRepository serviceRequestRepository;
 
     @Autowired
+    @Qualifier("objectMapper")
     private ObjectMapper mapper;
 
     @Autowired
