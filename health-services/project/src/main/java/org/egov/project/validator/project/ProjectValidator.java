@@ -16,12 +16,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -350,7 +349,7 @@ public class ProjectValidator {
             log.error("The project records that you are trying to update does not exists in the system");
             throw new CustomException("INVALID_PROJECT_MODIFY", "The records that you are trying to update does not exists in the system");
         }
-
+        Long currentTimestamp = Instant.now().toEpochMilli();
         for (Project project: projectsFromRequest) {
             Project projectFromDB = projectsFromDB.stream().filter(p -> p.getId().equals(project.getId())).findFirst().orElse(null);
 
@@ -359,11 +358,34 @@ public class ProjectValidator {
                 throw new CustomException("INVALID_PROJECT_MODIFY", "The project id " + project.getId() + " that you are trying to update does not exists for the project");
             }
 
+            validateStartDateAndEndDateAgainstDB(project, projectFromDB, currentTimestamp);
+
             validateUpdateTargetAgainstDB(project, projectFromDB);
 
             validateUpdateDocumentAgainstDB(project, projectFromDB);
 
             validateUpdateAddressAgainstDB(project, projectFromDB);
+        }
+    }
+
+    /**
+     * Validates the start and end dates of a project against the database and current timestamp.
+     *
+     * @param project          The project object containing the new start and end dates.
+     * @param projectFromDB    The project object retrieved from the database for comparison.
+     * @param currentTimestamp The current timestamp.
+     */
+    private void validateStartDateAndEndDateAgainstDB(Project project, Project projectFromDB, Long currentTimestamp) {
+        // Check if the project start date is not null, different from the one in the database, and before the current timestamp
+        if(project.getStartDate() != null && project.getStartDate().compareTo(projectFromDB.getStartDate()) != 0 && project.getStartDate().compareTo(currentTimestamp) < 0) {
+            log.error("The project start date that you are trying to update can not be updated as the project has already started.");
+            throw new CustomException("INVALID_PROJECT_MODIFY", "The project start date that you are trying to update can not be updated as the project has already started.");
+        }
+
+        // Check if the project end date is not null, different from the one in the database, not zero, and before the current timestamp
+        if(project.getEndDate() != null && project.getEndDate() != 0 && project.getEndDate().compareTo(projectFromDB.getEndDate()) < 0 && project.getEndDate().compareTo(currentTimestamp) < 0) {
+            log.error("The project end date that you are trying to update can not be updated as the project has already ended.");
+            throw new CustomException("INVALID_PROJECT_MODIFY", "The project end date that you are trying to update can not be updated as the project has already ended.");
         }
     }
 
