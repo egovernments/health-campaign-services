@@ -377,7 +377,7 @@ public class ProjectValidator {
      */
     private void validateStartDateAndEndDateAgainstDB(Project project, Project projectFromDB, Long currentTimestamp) {
         // Check if the project start date is not null, different from the one in the database, and before the current timestamp
-        if(project.getStartDate() != null && project.getStartDate().compareTo(projectFromDB.getStartDate()) != 0 && project.getStartDate().compareTo(currentTimestamp) < 0) {
+        if(project.getStartDate() != null && project.getStartDate().compareTo(projectFromDB.getStartDate()) != 0 && projectFromDB.getStartDate().compareTo(currentTimestamp) < 0) {
             log.error("The project start date that you are trying to update can not be updated as the project has already started.");
             throw new CustomException("INVALID_PROJECT_MODIFY", "The project start date that you are trying to update can not be updated as the project has already started.");
         }
