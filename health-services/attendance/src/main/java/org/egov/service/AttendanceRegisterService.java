@@ -307,7 +307,7 @@ public class AttendanceRegisterService {
                 log.info("Fetching register from db for project : " + project.getId());
                 List<AttendanceRegister> registers = searchAttendanceRegister(
                         requestInfoWrapper,
-                        AttendanceRegisterSearchCriteria.builder().referenceId(project.getId()).build()
+                        AttendanceRegisterSearchCriteria.builder().referenceId(project.getId()).tenantId(project.getTenantId()).build()
                 );
                 if(CollectionUtils.isEmpty(registers)) return;
 
