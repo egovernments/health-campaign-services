@@ -28,6 +28,7 @@ public class AttendanceRegisterConsumer {
     public void projectUpdate(Map<String, Object> consumerRecord,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
+            log.info("Attendance Register Consumer Started for project update.");
             ProjectRequest projectRequest = objectMapper.convertValue(consumerRecord, ProjectRequest.class);
             attendanceRegisterService.updateAttendanceRegister(RequestInfoWrapper.builder().requestInfo(projectRequest.getRequestInfo()).build(), projectRequest.getProjects());
         } catch (Exception exception) {

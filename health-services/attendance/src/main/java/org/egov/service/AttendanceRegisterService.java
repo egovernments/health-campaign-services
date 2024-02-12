@@ -299,11 +299,12 @@ public class AttendanceRegisterService {
     }
 
     public void updateAttendanceRegister(RequestInfoWrapper requestInfoWrapper, List<Project> projects) {
-        if(CollectionUtils.isEmpty(projects)) {
+        if(!CollectionUtils.isEmpty(projects)) {
             List<AttendanceRegister> updatedRegisters = new ArrayList<>();
             projects.forEach(project -> {
                 BigDecimal projectStartDate = BigDecimal.valueOf(project.getStartDate());
                 BigDecimal projectEndDate = BigDecimal.valueOf(project.getEndDate());
+                log.info("Fetching register from db for project : " + project.getId());
                 List<AttendanceRegister> registers = searchAttendanceRegister(
                         requestInfoWrapper,
                         AttendanceRegisterSearchCriteria.builder().referenceId(project.getId()).build()
@@ -312,12 +313,12 @@ public class AttendanceRegisterService {
 
                 registers.forEach(attendanceRegister -> {
                     Boolean isUpdated = false;
-                    if(attendanceRegister.getStartDate().compareTo(projectStartDate) < 0) {
-                        //update register start date to project start date
-                        attendanceRegister.setStartDate(projectStartDate);
-                        isUpdated = true;
-                    }
-                    if(attendanceRegister.getEndDate().compareTo(projectEndDate) > 0) {
+//                    if(attendanceRegister.getStartDate().compareTo(projectStartDate) < 0) {
+//                        //update register start date to project start date
+//                        attendanceRegister.setStartDate(projectStartDate);
+//                        isUpdated = true;
+//                    }
+                    if(attendanceRegister.getEndDate().compareTo(projectEndDate) < 0) {
                         // update register end date to project end date
                         attendanceRegister.setEndDate(projectEndDate);
                         isUpdated = true;
@@ -330,7 +331,7 @@ public class AttendanceRegisterService {
                             .requestInfo(requestInfoWrapper.getRequestInfo())
                             .build();
                     registerEnrichment.enrichRegisterOnUpdate(attendanceRegisterRequest, updatedRegisters);
-                    log.info("Enriched with register Number, Ids and AuditDetails");
+                    log.info("Pushing update attendance register request to kafka");
                     producer.push(attendanceServiceConfiguration.getUpdateAttendanceRegisterTopic(), attendanceRegisterRequest);
                     log.info("Pushed update attendance register request to kafka");
                 }
