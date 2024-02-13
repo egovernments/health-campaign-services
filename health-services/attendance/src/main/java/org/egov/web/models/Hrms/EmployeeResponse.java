@@ -40,94 +40,32 @@
 
 package org.egov.web.models.Hrms;
 
-import digit.models.coremodels.AuditDetails;
-import lombok.*;
-import org.hibernate.validator.constraints.NotEmpty;
-import org.hibernate.validator.constraints.SafeHtml;
-import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-import java.util.ArrayList;
 import java.util.List;
 
-@Validated
+import org.egov.common.contract.response.ResponseInfo;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+@Builder
 @AllArgsConstructor
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
 @Setter
 @ToString
-@Builder
-public class Employee {
+public class EmployeeResponse {
 
-    private Long id;
+	@JsonProperty("ResponseInfo")
+	private ResponseInfo responseInfo;
 
-    @SafeHtml
-    @Size(max = 1024)
-    private String uuid;
-
-    @SafeHtml
-    @Size(min = 1, max = 256)
-    private String code;
-
-    @SafeHtml
-    @Size(max = 250)
-    private String employeeStatus;
-
-    @SafeHtml
-    @NotNull
-    @Size(max = 250)
-    private String employeeType;
-
-    private Long dateOfAppointment;
-
-    @Valid
-    @NotEmpty
-    @Size(min = 1,max = 50)
-    private List<Jurisdiction> jurisdictions = new ArrayList<>();
-
-
-    @Valid
-    private List<Assignment> assignments = new ArrayList<>();
-
-    @Valid
-    @Size(max=25)
-    private List<ServiceHistory> serviceHistory = new ArrayList<>();
-
-
-    private Boolean IsActive;
-
-    @Valid
-    @Size(max=25)
-    private List<EducationalQualification> education = new ArrayList<>();
-
-    @Valid
-    @Size(max=25)
-    private List<DepartmentalTest> tests = new ArrayList<>();
-
-    @SafeHtml
-    @NotNull
-    @Size(max = 250)
-    private String tenantId;
-
-    @Valid
-    @Size(max=50)
-    private List<EmployeeDocument> documents = new ArrayList<>();
-
-    @Valid
-    private List<DeactivationDetails> deactivationDetails = new ArrayList<>();
-
-    private List<ReactivationDetails> reactivationDetails = new ArrayList<>();
-
-    private AuditDetails auditDetails;
-
-    private Boolean reActivateEmployee;
-    
-    @Valid
-    @NotNull
-    private User user;
-
+	@JsonProperty("Employees")
+	private List<Employee> employees;
 
 }

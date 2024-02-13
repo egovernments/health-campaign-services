@@ -422,12 +422,16 @@ public class AttendeeServiceValidator {
         //getting the employee List from HRMS Search based on the attendee's uuids
         List<Employee> employeeList = hrmsUtil.getEmployee(tenantId, userUuids, requestInfo);
 
+        Map<String, Employee> individualIdVsEmployeeMap = employeeList.stream()
+                .collect(Collectors.toMap(Employee::getUuid, emp -> emp));
+
         //looping through attendees for validating their details
         for (IndividualEntry entry : attendeeCreateRequest.getAttendees()) {
             try {
 
                 String projectId = registerIdVsProjectIdMap.get(entry.getRegisterId());
-                ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().staffId(entry.getIndividualId()).projectId(projectId).build();
+                String projectStaffUuid = individualIdVsEmployeeMap.get(entry.getIndividualId()).getUser().getUserServiceUuid();
+                ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().staffId(Collections.singletonList(projectStaffUuid)).projectId(projectId).build();
 
                 List<ProjectStaff> projectStaffList = projectStaffUtil.getProjectStaff(entry.getTenantId(), projectStaffSearch, requestInfo);
 
@@ -435,17 +439,13 @@ public class AttendeeServiceValidator {
                     //throw validation error if attendee doesn't belong to the attendance register's project
                     throw new CustomException("ATTENDEE_NOT_REGISTERED_AS_PROJECT_STAFF", "StaffId: " + projectStaffSearch.getStaffId());
                 }
-                Optional<Employee> employee = employeeList.stream()
-                        .filter(emp -> entry.getIndividualId().equals(emp.getUuid()))
-                        .findFirst();
 
-                if (employee.isPresent() && employee.get() == null) {
-                    //throw validation error if hrms did not return an employee for the attendee individualId
+                if (!individualIdVsEmployeeMap.containsKey(entry.getIndividualId())) {
                     throw new CustomException("HRMS_EMPLOYEE_NOT_FOUND", "Employee not present in HRMS for the individual ID - " + entry.getIndividualId());
                 }
 
                 //fetch reportingTo uuids from employees assignments
-                List<String> reportingToList = employee.get().getAssignments().stream()
+                List<String> reportingToList = individualIdVsEmployeeMap.get(entry.getIndividualId()).getAssignments().stream()
                         .map(Assignment::getReportingTo)
                         .filter(reportingTo -> reportingTo != null && !reportingTo.isEmpty())
                         .collect(Collectors.toList());

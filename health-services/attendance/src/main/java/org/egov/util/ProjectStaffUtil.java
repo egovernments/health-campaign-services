@@ -1,19 +1,20 @@
 package org.egov.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.project.*;
+import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkResponse;
+import org.egov.common.models.project.ProjectStaffSearch;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.config.AttendanceServiceConfiguration;
 import org.egov.repository.RegisterRepository;
-import org.egov.repository.ServiceRequestRepository;
-import org.egov.tracer.model.CustomException;
+
 import org.egov.web.models.AttendanceRegister;
 import org.egov.web.models.AttendanceRegisterSearchCriteria;
-import org.egov.web.models.Hrms.Employee;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -30,14 +31,10 @@ public class ProjectStaffUtil {
     private AttendanceServiceConfiguration config;
 
     @Autowired
-    private ServiceRequestRepository serviceRequestRepository;
-
-    @Autowired
-    @Qualifier("objectMapper")
-    private ObjectMapper mapper;
-
-    @Autowired
     private RegisterRepository registerRepository;
+
+    @Autowired
+    private ServiceRequestClient serviceRequestClient;
 
 
     /**
@@ -51,16 +48,9 @@ public class ProjectStaffUtil {
 
         StringBuilder url = getProjectStaffURL(tenantId);
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(projectStaffSearch).requestInfo(requestInfo).build();
-        Object res = serviceRequestRepository.fetchResult(url, projectStaffSearchRequest);
+//        ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(projectStaffSearch).requestInfo(requestInfo).build();
+        ProjectStaffBulkResponse projectStaffBulkResponse = serviceRequestClient.fetchResult(url, projectStaffSearchRequest, ProjectStaffBulkResponse.class);
 
-        ProjectStaffBulkResponse projectStaffBulkResponse = null;
-
-        try {
-              projectStaffBulkResponse = mapper.convertValue(res, ProjectStaffBulkResponse.class);
-        }
-        catch (Exception e){
-            throw new CustomException("PARSING_ERROR","Failed to parse Project Staff response");
-        }
         return projectStaffBulkResponse.getProjectStaff();
 
     }

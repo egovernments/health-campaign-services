@@ -1,18 +1,18 @@
 package org.egov.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.config.AttendanceServiceConfiguration;
 import org.egov.repository.ServiceRequestRepository;
 import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Hrms.Employee;
+import org.egov.web.models.Hrms.EmployeeResponse;
 import org.egov.web.models.RequestInfoWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 
@@ -25,6 +25,9 @@ public class HRMSUtil {
 
     @Autowired
     private AttendanceServiceConfiguration config;
+
+    @Autowired
+    private ServiceRequestClient serviceRequestClient;
 
     @Autowired
     @Qualifier("objectMapper")
@@ -41,19 +44,9 @@ public class HRMSUtil {
     public List<Employee> getEmployee(String tenantId, List<String> uuids, RequestInfo requestInfo){
 
         StringBuilder url = getHRMSURI(tenantId, uuids);
-        Object res = serviceRequestRepository.fetchResult(url, RequestInfoWrapper.builder().requestInfo(requestInfo).build());
 
-        Employee employee;
-        List<Employee> employeeList;
-
-        try {
-//            employee = mapper.convertValue(res, Employee.class);
-            employeeList = JsonPath.read(res, HRMS_EMPLOYEE_JSONPATH);
-        }
-        catch (Exception e){
-            throw new CustomException("PARSING_ERROR","Failed to parse HRMS response");
-        }
-
+        EmployeeResponse employeeResponse = serviceRequestClient.fetchResult(url, RequestInfoWrapper.builder().requestInfo(requestInfo).build(), EmployeeResponse.class);
+        List<Employee> employeeList = employeeResponse.getEmployees();
         if(employeeList.isEmpty())
             throw new CustomException("NO_EMPLOYEE_FOUND_FOR_INDIVIDUALID","The Employees with uuid: "+uuids.toString()+" is not found");
 
