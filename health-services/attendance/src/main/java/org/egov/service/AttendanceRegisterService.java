@@ -313,11 +313,6 @@ public class AttendanceRegisterService {
 
                 registers.forEach(attendanceRegister -> {
                     Boolean isUpdated = false;
-//                    if(attendanceRegister.getStartDate().compareTo(projectStartDate) < 0) {
-//                        //update register start date to project start date
-//                        attendanceRegister.setStartDate(projectStartDate);
-//                        isUpdated = true;
-//                    }
                     if(attendanceRegister.getEndDate().compareTo(projectEndDate) < 0) {
                         // update register end date to project end date
                         attendanceRegister.setEndDate(projectEndDate);
