@@ -5,17 +5,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 /**
  * Validator class to check if senderId and receiverId are equal in a list of Stock entities.
  */
+@Component
+@Order(value = 6)
+@Slf4j
 public class SSenderIdReceiverIdEqualsValidator implements Validator<StockBulkRequest, Stock> {
 
     /**
@@ -29,6 +35,7 @@ public class SSenderIdReceiverIdEqualsValidator implements Validator<StockBulkRe
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
         List<Stock> entities = stockBulkRequest.getStock();
         List<Stock> invalidEntities = new ArrayList<>();
+        log.info("validating whether sender id and receiver id are same");
 
         // Iterate through each Stock entity in the list
         entities.forEach(stock -> {
