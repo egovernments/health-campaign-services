@@ -461,7 +461,7 @@ public class AttendeeServiceValidator {
             }
             catch (Exception e)
             {
-                log.error(e.getMessage());
+                log.error(e.toString());
             }
         }
         attendeeCreateRequest.setAttendees(validIndividualEntries);
