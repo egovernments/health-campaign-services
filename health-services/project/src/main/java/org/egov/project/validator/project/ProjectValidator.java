@@ -16,7 +16,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -350,6 +353,16 @@ public class ProjectValidator {
             throw new CustomException("INVALID_PROJECT_MODIFY", "The records that you are trying to update does not exists in the system");
         }
         Long currentTimestamp = Instant.now().toEpochMilli();
+        // Calculate the timestamp for midnight (12:00 AM) of the next date, plus 24 hours, in UTC
+        Instant nextDateInstantUTC = Instant.ofEpochMilli(currentTimestamp)
+                .plus(Duration.ofDays(1))  // Add 1 day to get the next date
+                .atZone(ZoneOffset.UTC)
+                .toLocalDate()  // Extract the date part
+                .atStartOfDay(ZoneOffset.UTC)  // Set the time to midnight
+                .toInstant()// Convert to Instant
+                .plus(Duration.ofDays(1));  // Add 1 day
+
+        Long nextDateTimestampUTC = nextDateInstantUTC.toEpochMilli();
         for (Project project: projectsFromRequest) {
             Project projectFromDB = projectsFromDB.stream().filter(p -> p.getId().equals(project.getId())).findFirst().orElse(null);
 
@@ -358,7 +371,7 @@ public class ProjectValidator {
                 throw new CustomException("INVALID_PROJECT_MODIFY", "The project id " + project.getId() + " that you are trying to update does not exists for the project");
             }
 
-            validateStartDateAndEndDateAgainstDB(project, projectFromDB, currentTimestamp);
+            validateStartDateAndEndDateAgainstDB(project, projectFromDB, currentTimestamp, nextDateTimestampUTC);
 
             validateUpdateTargetAgainstDB(project, projectFromDB);
 
@@ -371,21 +384,51 @@ public class ProjectValidator {
     /**
      * Validates the start and end dates of a project against the database and current timestamp.
      *
-     * @param project          The project object containing the new start and end dates.
-     * @param projectFromDB    The project object retrieved from the database for comparison.
-     * @param currentTimestamp The current timestamp.
+     * @param project               The project object containing the new start and end dates.
+     * @param projectFromDB         The project object retrieved from the database for comparison.
+     * @param currentTimestamp      The current timestamp.
+     * @param nextDateTimestampUTC  The nextDateTimestamp
      */
-    private void validateStartDateAndEndDateAgainstDB(Project project, Project projectFromDB, Long currentTimestamp) {
-        // Check if the project start date is not null, different from the one in the database, and before the current timestamp
-        if(project.getStartDate() != null && project.getStartDate().compareTo(projectFromDB.getStartDate()) != 0 && projectFromDB.getStartDate().compareTo(currentTimestamp) < 0) {
-            log.error("The project start date that you are trying to update can not be updated as the project has already started.");
-            throw new CustomException("INVALID_PROJECT_MODIFY", "The project start date that you are trying to update can not be updated as the project has already started.");
+    private void validateStartDateAndEndDateAgainstDB(Project project, Project projectFromDB, Long currentTimestamp, Long nextDateTimestampUTC) {
+        String errorMessage = "";
+        // Check if the project start date is not null and whether it's different from the one in the database
+        if (project.getStartDate() != null) {
+            // Check if the project start date is different from the one in the database
+            if(project.getStartDate().compareTo(projectFromDB.getStartDate()) != 0) {
+                // Check if the project start date is before the current timestamp or within 24 hours from the next date's midnight
+                if (projectFromDB.getStartDate().compareTo(currentTimestamp) < 0) {
+                    errorMessage = "The project start date cannot be updated as the project has already started.";
+                } else if(project.getStartDate().compareTo(nextDateTimestampUTC) < 0) {
+                    errorMessage = "The project start date cannot be updated as it should be at least 24 hours in advance from the current time and start after the next day onwards.";
+                }
+            }
+        } else {
+            errorMessage = "The project start date cannot be updated as it is null.";
+        }
+        // If there's an error message, log it and throw a CustomException
+        if(!errorMessage.trim().isEmpty()) {
+            log.error(errorMessage);
+            throw new CustomException("INVALID_PROJECT_MODIFY", errorMessage);
         }
 
-        // Check if the project end date is not null, different from the one in the database, not zero, and before the current timestamp
-        if(project.getEndDate() != null && project.getEndDate() != 0 && project.getEndDate().compareTo(projectFromDB.getEndDate()) < 0 && project.getEndDate().compareTo(currentTimestamp) < 0) {
-            log.error("The project end date that you are trying to update can not be updated as the project has already ended.");
-            throw new CustomException("INVALID_PROJECT_MODIFY", "The project end date that you are trying to update can not be updated as the project has already ended.");
+        errorMessage = "";
+        // Check if the project end date is not null and whether it's different from the one in the database
+        if(project.getEndDate() != null) {
+            // Check if the project end date is before the current timestamp or within 24 hours from the next date's midnight
+            if(project.getEndDate().compareTo(projectFromDB.getEndDate()) < 0) {
+                if (project.getEndDate().compareTo(currentTimestamp) < 0) {
+                    errorMessage = "The project end date cannot be updated as it has already ended. The project end date cannot be decreased to a past date.";
+                } else if (project.getEndDate().compareTo(nextDateTimestampUTC) < 0) {
+                    errorMessage = "The project end date cannot be updated as it should be at least 24 hours in advance from the current time and start after the next day onwards.";
+                }
+            }
+        } else {
+            errorMessage = "The project end date cannot be updated as it is null.";
+        }
+        // If there's an error message, log it and throw a CustomException
+        if(!errorMessage.trim().isEmpty()) {
+            log.error(errorMessage);
+            throw new CustomException("INVALID_PROJECT_MODIFY", errorMessage);
         }
     }
 
