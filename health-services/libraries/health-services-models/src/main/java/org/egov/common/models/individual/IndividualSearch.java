@@ -84,6 +84,6 @@ public class IndividualSearch   {
     private Long userId;
 
     @JsonProperty("userUuid")
-    private Long userUuid;
+    private String userUuid;
 }
 
