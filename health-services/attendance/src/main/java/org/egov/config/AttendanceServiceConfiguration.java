@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.List;
 import java.util.TimeZone;
 
 @Component
@@ -115,6 +116,20 @@ public class AttendanceServiceConfiguration {
 
     @Value("${egov.project.staff.search.endpoint}")
     private String projectStaffSearchEndpoint;
+
+    @Value("${egov.project.search.endpoint}")
+    private String projectSearchEndpoint;
+
+    @Value("${project.supervisor.roles}")
+    private List<String> projectSupervisorRoles;
+
+    @Value("${project.staff.kafka.create.topic}")
+    private List<String> projectStaffSaveTopic;
+
+    @Value("${project.staff.consumer.bulk.create.topic}")
+    private List<String> projectStaffBulkSaveTopic;
+
+
 }
 
 
