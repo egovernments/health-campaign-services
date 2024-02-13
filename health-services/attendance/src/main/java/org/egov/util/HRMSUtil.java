@@ -8,6 +8,7 @@ import org.egov.config.AttendanceServiceConfiguration;
 import org.egov.repository.ServiceRequestRepository;
 import org.egov.tracer.model.CustomException;
 import org.egov.web.models.Hrms.Employee;
+import org.egov.web.models.RequestInfoWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -40,7 +41,7 @@ public class HRMSUtil {
     public List<Employee> getEmployee(String tenantId, List<String> uuids, RequestInfo requestInfo){
 
         StringBuilder url = getHRMSURI(tenantId, uuids);
-        Object res = serviceRequestRepository.fetchResult(url, requestInfo);
+        Object res = serviceRequestRepository.fetchResult(url, RequestInfoWrapper.builder().requestInfo(requestInfo).build());
 
         Employee employee;
         List<Employee> employeeList;
