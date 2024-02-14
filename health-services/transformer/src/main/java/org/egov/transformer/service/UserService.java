@@ -7,6 +7,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 //import org.egov.transformer.models.user.RequestInfo;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.user.UserSearchResponseContent;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,7 @@ public class UserService {
 
     private final String searchUrl;
 
-    private final ProjectStaffRoles projectStaffRoles;
+    private final CommonUtils commonUtils;
     private static Map<String, Map<String, String>> userIdVsUserInfoCache = new ConcurrentHashMap<>();
     private static final int MAX_RETRY_COUNT = 10;
     private static final int RETRY_DELAY_MS = 5000;
@@ -34,12 +35,12 @@ public class UserService {
     @Autowired
     public UserService(ServiceRequestClient restRepo,
                        @Value("${egov.user.host}") String host,
-                       @Value("${egov.search.user.url}") String searchUrl, ProjectStaffRoles projectStaffRoles) {
+                       @Value("${egov.search.user.url}") String searchUrl, CommonUtils commonUtils) {
 
         this.restRepo = restRepo;
         this.host = host;
         this.searchUrl = searchUrl;
-        this.projectStaffRoles = projectStaffRoles;
+        this.commonUtils = commonUtils;
     }
 
 
@@ -107,7 +108,7 @@ public class UserService {
             users.get(0).getRoles().forEach(role -> userRoles.add(role.getCode()));
         }
 
-        HashMap<String, Integer> projectStaffRolesMap = projectStaffRoles.getProjectStaffRoles(tenantId);
+        HashMap<String, Integer> projectStaffRolesMap = commonUtils.getProjectStaffRoles(tenantId);
         String roleByRank = null;
         int minValue = Integer.MAX_VALUE;
 
