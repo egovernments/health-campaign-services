@@ -47,7 +47,7 @@ public class ProjectStaffConsumer {
         try {
             log.info("Listening to topic "+ topic);
             ProjectStaffBulkRequest projectStaffBulkRequest = null;
-            if(Objects.equals(topic, "save-project-staff-topic")) {
+            if(Objects.equals(topic, config.getProjectStaffSaveTopic())) {
                 ProjectStaffRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffRequest.class);
                 projectStaffBulkRequest = ProjectStaffBulkRequest.builder().projectStaff(Collections.singletonList(request.getProjectStaff())).requestInfo(request.getRequestInfo()).build();
             }
