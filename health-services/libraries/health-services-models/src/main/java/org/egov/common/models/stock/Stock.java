@@ -1,7 +1,6 @@
 package org.egov.common.models.stock;
 
 import javax.validation.Valid;
-import javax.validation.constraints.Digits;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
@@ -10,12 +9,14 @@ import javax.validation.constraints.Size;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.validator.IntegerValidator;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -54,7 +55,7 @@ public class Stock {
     @NotNull
     @Min(value = 1, message = "Minimum value cannot be less than 1")
     @Max(value = Integer.MAX_VALUE, message = "Value exceeds maximum allowable limit")
-    @Digits(integer = Integer.MAX_VALUE, fraction = 0, message = "Value cannot be in decimal")
+    @JsonDeserialize(using = IntegerValidator.class)
     private Integer quantity;
 
     /* project id in-case of health */ 
