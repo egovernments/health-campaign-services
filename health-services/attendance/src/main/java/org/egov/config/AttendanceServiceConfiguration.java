@@ -1,5 +1,8 @@
 package org.egov.config;
 
+import java.util.TimeZone;
+import javax.annotation.PostConstruct;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -7,9 +10,6 @@ import org.egov.tracer.config.TracerConfiguration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
-
-import javax.annotation.PostConstruct;
-import java.util.TimeZone;
 
 @Component
 @Data
@@ -101,6 +101,9 @@ public class AttendanceServiceConfiguration {
     private String individualHost;
     @Value("${works.individual.search.endpoint}")
     private String individualSearchEndpoint;
+
+    @Value("${attendance.register.first.staff.insert.enabled:true}")
+    private Boolean registerFirstStaffInsertEnabled;
 
 }
 

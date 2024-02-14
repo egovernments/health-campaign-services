@@ -65,7 +65,7 @@ public class RegisterEnrichment {
             attendanceRegisters.get(i).setAuditDetails(auditDetails);
             log.info("Enriched register " + attendanceRegisters.get(i).getId() + " with Audit details");
             // User who creates the register, by default gets enrolled as the first staff for that register.
-            enrichRegisterFirstStaff(attendanceRegisters.get(i), requestInfo, auditDetails);
+            if(config.getRegisterFirstStaffInsertEnabled()) enrichRegisterFirstStaff(attendanceRegisters.get(i), requestInfo, auditDetails);
         }
     }
 
