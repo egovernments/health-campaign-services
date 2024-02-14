@@ -40,7 +40,7 @@ public class ProjectStaffConsumer {
     @Autowired
     private AttendanceServiceConfiguration config;
 
-    @KafkaListener(topics = {"${project.staff.kafka.create.topic}"})
+    @KafkaListener(topics = "${project.staff.kafka.create.topic}")
     public void bulkStaffCreate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
