@@ -115,4 +115,10 @@ public class StockIndexV1 {
     @JsonProperty("facilityTarget")
     private Long facilityTarget;
 
+    @JsonProperty("taskDates")
+    private String taskDates;
+
+    @JsonProperty("syncedDate")
+    private String syncedDate;
+
 }

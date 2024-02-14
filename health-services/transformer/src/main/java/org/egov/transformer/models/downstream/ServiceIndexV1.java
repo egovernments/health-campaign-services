@@ -51,4 +51,6 @@ public class ServiceIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("syncedTime")
     private Long syncedTime;
+    @JsonProperty("taskDates")
+    private String taskDates;
 }
