@@ -37,4 +37,8 @@ public class ReferralIndexV1 {
     private String individualId;
     @JsonProperty("gender")
     private String gender;
+    @JsonProperty("taskDates")
+    private String taskDates;
+    @JsonProperty("syncedDate")
+    private String syncedDate;
 }
