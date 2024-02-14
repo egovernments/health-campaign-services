@@ -1,5 +1,8 @@
 package org.egov.config;
 
+import java.util.TimeZone;
+import javax.annotation.PostConstruct;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,9 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.util.List;
-import java.util.TimeZone;
 
 @Component
 @Data
@@ -103,6 +104,9 @@ public class AttendanceServiceConfiguration {
     @Value("${works.individual.search.endpoint}")
     private String individualSearchEndpoint;
 
+    @Value("${attendance.register.first.staff.insert.enabled:true}")
+    private Boolean registerFirstStaffInsertEnabled;
+
     //HRMS Service
     @Value("${egov.hrms.host}")
     private String hrmsHost;
@@ -131,7 +135,6 @@ public class AttendanceServiceConfiguration {
 
     @Value("${project.staff.consumer.bulk.create.topic}")
     private List<String> projectStaffBulkSaveTopic;
-
 
 }
 
