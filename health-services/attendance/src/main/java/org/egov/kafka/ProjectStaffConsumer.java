@@ -41,7 +41,7 @@ public class ProjectStaffConsumer {
     private AttendanceServiceConfiguration config;
 
     @KafkaListener(topics = {"${project.staff.kafka.create.topic}"})
-    public void bulkCreate(Map<String, Object> consumerRecord,
+    public void bulkStaffCreate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             log.info("Listening to topic "+ topic);
