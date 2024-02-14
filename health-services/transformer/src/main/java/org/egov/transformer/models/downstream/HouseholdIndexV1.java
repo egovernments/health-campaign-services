@@ -24,6 +24,10 @@ public class HouseholdIndexV1 {
     private String userName;
     @JsonProperty("nameOfUser")
     private String nameOfUser;
+    @JsonProperty("taskDates")
+    private String taskDates;
+    @JsonProperty("syncedDate")
+    private String syncedDate;
     @JsonProperty("role")
     private String role;
     @JsonProperty("boundaryHierarchy")

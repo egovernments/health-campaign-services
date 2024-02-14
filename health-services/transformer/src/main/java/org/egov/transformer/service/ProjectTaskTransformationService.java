@@ -155,6 +155,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .longitude(task.getAddress().getLongitude())
                     .locationAccuracy(task.getAddress().getLocationAccuracy())
                     .createdTime(task.getClientAuditDetails().getCreatedTime())
+                    .taskDates(commonUtils.getDateFromEpoch(task.getClientAuditDetails().getLastModifiedTime()))
                     .createdBy(task.getAuditDetails().getCreatedBy())
                     .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
                     .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())

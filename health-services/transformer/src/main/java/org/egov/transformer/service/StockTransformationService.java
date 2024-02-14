@@ -112,7 +112,7 @@ public abstract class StockTransformationService implements TransformationServic
             facilityType = facility != null ? getType(facilityType, facility) : facilityType;
             transactingFacilityType = transactingFacility != null ? getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
 
-            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getLastModifiedTime());
             List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
             Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
@@ -138,12 +138,14 @@ public abstract class StockTransformationService implements TransformationServic
                             stock.getDateOfEntry() : stock.getAuditDetails().getLastModifiedTime())
                     .createdTime(stock.getClientAuditDetails().getCreatedTime())
                     .dateOfEntry(stock.getDateOfEntry())
-                    .createdBy(stock.getAuditDetails().getCreatedBy())
+                    .createdBy(stock.getClientAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getClientAuditDetails().getLastModifiedTime())
-                    .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())
+                    .lastModifiedBy(stock.getClientAuditDetails().getLastModifiedBy())
                     .additionalFields(stock.getAdditionalFields())
                     .syncedTimeStamp(syncedTimeStamp)
-                    .syncedTime(stock.getAuditDetails().getCreatedTime())
+                    .syncedTime(stock.getAuditDetails().getLastModifiedTime())
+                    .taskDates(commonUtils.getDateFromEpoch(stock.getClientAuditDetails().getLastModifiedTime()))
+                    .syncedDate(commonUtils.getDateFromEpoch(stock.getAuditDetails().getLastModifiedTime()))
                     .facilityLevel(facilityLevel)
                     .transactingFacilityLevel(transactingFacilityLevel)
                     .facilityTarget(facilityTarget)

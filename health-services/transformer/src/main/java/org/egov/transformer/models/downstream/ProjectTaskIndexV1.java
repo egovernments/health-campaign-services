@@ -91,5 +91,7 @@ public class ProjectTaskIndexV1 {
     private ObjectNode additionalDetails;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
+    @JsonProperty("taskDates")
+    private String taskDates;
 
 }

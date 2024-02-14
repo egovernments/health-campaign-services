@@ -124,6 +124,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
                     .createdTime(service.getAuditDetails().getCreatedTime())
+                    .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())
