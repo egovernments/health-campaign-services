@@ -446,7 +446,7 @@ public class AttendeeServiceValidator {
                 if(reportersEmployeeList.isEmpty())
                     throw new CustomException("FAILED_TO_FETCH_REPORTERS_UUID", "Failed to fetch reporters hrms uuid for userserviceId - " + reportersUuid);
 
-                if (!reportingToList.contains(reportersEmployeeList.get(0).getUuid())) {
+                if (!reportingToList.contains(reportersEmployeeList.get(0).getUser().getUserServiceUuid())) {
                     //throw validation error if attendee's reportingTo is not First Staff of the Register
                     throw new CustomException("REPORTING_STAFF_INCORRECT_FOR_ATTENDEE", "Attendees reporting uuid does not match with for attendee uuid - " + entry.getIndividualId());
                 }
