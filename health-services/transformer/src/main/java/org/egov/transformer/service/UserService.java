@@ -4,7 +4,6 @@ import org.egov.transformer.models.user.UserSearchRequest;
 import org.egov.transformer.models.user.UserSearchResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-//import org.egov.transformer.models.user.RequestInfo;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.user.UserSearchResponseContent;
 import org.egov.transformer.utils.CommonUtils;
@@ -82,7 +81,6 @@ public class UserService {
         UserSearchRequest searchRequest = new UserSearchRequest();
         List<String> Ids = new ArrayList<>();
         Ids.add(userId);
-//        searchRequest.setRequestInfo(requestInfo);
         searchRequest.setTenantId(tenantId);
         searchRequest.setUuid(Ids);
         try {
@@ -91,9 +89,9 @@ public class UserService {
                     searchRequest,
                     UserSearchResponse.class
             );
-            UserSearchResponseContent responseContent = response.getUserSearchResponseContent().get(0);
-            if (responseContent != null) {
-                return Collections.singletonList(responseContent);
+            List<UserSearchResponseContent> responseContent = response.getUserSearchResponseContent();
+            if (responseContent != null && !responseContent.isEmpty()) {
+                return Collections.singletonList(responseContent.get(0));
             } else {
                 return new ArrayList<>();
             }
@@ -108,7 +106,7 @@ public class UserService {
     public String getStaffRole(String tenantId, List<UserSearchResponseContent> users) {
 
         List<String> userRoles = new ArrayList<>();
-        if (users != null && users.size() > 0) {
+        if (users != null && !users.isEmpty()) {
             users.get(0).getRoles().forEach(role -> userRoles.add(role.getCode()));
         }
 
