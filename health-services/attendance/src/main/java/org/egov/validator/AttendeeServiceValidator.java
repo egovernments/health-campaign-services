@@ -429,17 +429,6 @@ public class AttendeeServiceValidator {
         for (IndividualEntry entry : attendeeCreateRequest.getAttendees()) {
             try {
 
-                String projectId = registerIdVsProjectIdMap.get(entry.getRegisterId());
-                String projectStaffUuid = individualIdVsEmployeeMap.get(entry.getIndividualId()).getUser().getUserServiceUuid();
-                ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().staffId(Collections.singletonList(projectStaffUuid)).projectId(projectId).build();
-
-                List<ProjectStaff> projectStaffList = projectStaffUtil.getProjectStaff(entry.getTenantId(), projectStaffSearch, requestInfo);
-
-                if(projectStaffList.isEmpty()) {
-                    //throw validation error if attendee doesn't belong to the attendance register's project
-                    throw new CustomException("ATTENDEE_NOT_REGISTERED_AS_PROJECT_STAFF", "StaffId: " + projectStaffSearch.getStaffId());
-                }
-
                 if (!individualIdVsEmployeeMap.containsKey(entry.getIndividualId())) {
                     throw new CustomException("HRMS_EMPLOYEE_NOT_FOUND", "Employee not present in HRMS for the individual ID - " + entry.getIndividualId());
                 }
@@ -453,7 +442,11 @@ public class AttendeeServiceValidator {
                 //fetch the first staff's User Id
                 String reportersUuid = registerIdToFirstStaffMap.get(entry.getRegisterId()).getUserId();
 
-                if (!reportingToList.contains(reportersUuid)) {
+                List<Employee> reportersEmployeeList = hrmsUtil.getEmployee(tenantId, Collections.singletonList(reportersUuid), requestInfo);
+                if(reportersEmployeeList.isEmpty())
+                    throw new CustomException("FAILED_TO_FETCH_REPORTERS_UUID", "Failed to fetch reporters hrms uuid for userserviceId - " + reportersUuid);
+
+                if (!reportingToList.contains(reportersEmployeeList.get(0).getUuid())) {
                     //throw validation error if attendee's reportingTo is not First Staff of the Register
                     throw new CustomException("REPORTING_STAFF_INCORRECT_FOR_ATTENDEE", "Attendees reporting uuid does not match with for attendee uuid - " + entry.getIndividualId());
                 }
