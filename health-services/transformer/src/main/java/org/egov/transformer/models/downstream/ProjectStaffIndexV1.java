@@ -22,6 +22,8 @@ public class ProjectStaffIndexV1 {
     private String projectId;
     @JsonProperty("userName")
     private String userName;
+    @JsonProperty("userAddress")
+    private String userAddress;
     @JsonProperty("role")
     private String role;
     @JsonProperty("taskDates")

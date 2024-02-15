@@ -29,8 +29,8 @@ public class ProjectTaskIndexV1 {
     private String nameOfUser;
     @JsonProperty("role")
     private String role;
-    @JsonProperty("userCity")
-    private String userCity;
+    @JsonProperty("userAddress")
+    private String userAddress;
     @JsonProperty("productVariant")
     private String productVariant;
     @JsonProperty("productName")

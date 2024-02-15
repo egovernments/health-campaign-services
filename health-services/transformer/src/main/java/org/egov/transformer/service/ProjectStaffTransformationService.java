@@ -18,8 +18,7 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.ROLE;
-import static org.egov.transformer.Constants.USERNAME;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ProjectStaffTransformationService implements TransformationService<ProjectStaff> {
@@ -91,6 +90,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .userId(projectStaff.getUserId())
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
+                    .userAddress(userInfoMap.get(CITY))
                     .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
                     .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                     .createdBy(projectStaff.getAuditDetails().getCreatedBy())

@@ -109,6 +109,7 @@ public class HouseholdService {
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
                 .nameOfUser(userInfoMap.get(NAME))
+                .userAddress(userInfoMap.get(CITY))
                 .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))

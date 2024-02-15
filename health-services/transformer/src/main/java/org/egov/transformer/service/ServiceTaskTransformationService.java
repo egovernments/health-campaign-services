@@ -23,8 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.egov.transformer.Constants.ROLE;
-import static org.egov.transformer.Constants.USERNAME;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
@@ -123,6 +122,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .checklistName(parts[1])
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
+                    .userAddress(userInfoMap.get(CITY))
                     .createdTime(service.getAuditDetails().getCreatedTime())
                     .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                     .createdBy(service.getAuditDetails().getCreatedBy())

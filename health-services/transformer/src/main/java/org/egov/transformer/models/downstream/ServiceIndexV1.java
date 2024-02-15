@@ -37,6 +37,8 @@ public class ServiceIndexV1 {
     private String userName;
     @JsonProperty("role")
     private String role;
+    @JsonProperty("userAddress")
+    private String userAddress;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
     @JsonProperty("tenantId")
