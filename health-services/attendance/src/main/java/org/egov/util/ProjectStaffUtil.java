@@ -58,7 +58,7 @@ public class ProjectStaffUtil {
     {
         String tenantId = projectStaff.getTenantId();
 
-        log.info("Match Found");
+        log.info("Match Found for Supervisor Role");
         Project projectsearch = Project.builder().id(projectStaff.getProjectId()).tenantId(tenantId).build();
         List<Project> projectList = getProject(tenantId,projectsearch,requestInfo);
         if(projectList.isEmpty())
@@ -67,6 +67,7 @@ public class ProjectStaffUtil {
         Project project = projectList.get(0);
 
         AttendanceRegister attendanceRegister = AttendanceRegister.builder().tenantId(tenantId)
+                .name(project.getName())
                 .referenceId(projectStaff.getProjectId())
                 .serviceCode(String.valueOf(UUID.randomUUID()))
                 .startDate(BigDecimal.valueOf(project.getStartDate()))
@@ -92,6 +93,7 @@ public class ProjectStaffUtil {
 
     public void enrollAttendeetoRegister(ProjectStaff projectStaff, RequestInfo requestInfo, Individual individual)
     {
+        log.info("Match Found for Attendee Role");
         String tenantId = projectStaff.getTenantId();
 
         List<Employee> employeeList = hrmsUtil.getEmployee(tenantId,Collections.singletonList(individual.getId()),requestInfo);
