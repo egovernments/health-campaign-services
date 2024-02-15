@@ -27,6 +27,8 @@ public class ReferralIndexV1 {
     private String userName;
     @JsonProperty("role")
     private String role;
+    @JsonProperty("userAddress")
+    private String userAddress;
     @JsonProperty("age")
     private Integer age;
     @JsonProperty("boundaryHierarchy")

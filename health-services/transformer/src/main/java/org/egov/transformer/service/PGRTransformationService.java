@@ -14,20 +14,24 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 
+import static org.egov.transformer.Constants.*;
+
 @Slf4j
 @Component
 public class PGRTransformationService {
 
     private final ProjectService projectService;
+    private final UserService userService;
     private final TransformerProperties transformerProperties;
     private final Producer producer;
     private final CommonUtils commonUtils;
     private static final HashMap<String, String> translations = null;
 
 
-    public PGRTransformationService(ProjectService projectService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils) {
+    public PGRTransformationService(ProjectService projectService, UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils) {
 
         this.projectService = projectService;
+        this.userService = userService;
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
@@ -52,17 +56,23 @@ public class PGRTransformationService {
         if (localityCode.isPresent()) {
             boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(localityCode.get(), service.getTenantId());
         }
-        //TODO change below logic to fetch default boundaryHierarchy using tenantId if we can't fetch projectTypeId
+
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, null, boundaryLabelToNameMap);
 
+        Map<String, String> userInfoMap = userService.getUserInfo(tenantId, service.getAuditDetails().getCreatedBy());
 
-        PGRIndex pgrIndex = PGRIndex.builder()
-                .service(service)
-                .boundaryHierarchy(boundaryHierarchy)
-                .build();
         service.setAddress(null); //explicitly setting it to null as it is not needed
         service.setApplicationStatus(commonUtils.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
         service.setServiceCode(commonUtils.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
+
+        PGRIndex pgrIndex = PGRIndex.builder()
+                .service(service)
+                .userName(userInfoMap.get(USERNAME))
+                .role(userInfoMap.get(ROLE))
+                .userAddress(userInfoMap.get(CITY))
+                .boundaryHierarchy(boundaryHierarchy)
+                .build();
+
         pgrIndexList.add(pgrIndex);
     }
 

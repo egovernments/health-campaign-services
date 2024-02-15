@@ -98,6 +98,7 @@ public class ReferralService {
                 .tenantId(referral.getTenantId())
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
+                .userAddress(userInfoMap.get(CITY))
                 .facilityName(facilityName)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)

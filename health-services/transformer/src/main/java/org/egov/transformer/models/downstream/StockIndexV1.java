@@ -61,6 +61,9 @@ public class StockIndexV1 {
     @JsonProperty("role")
     private String role;
 
+    @JsonProperty("userAddress")
+    private String userAddress;
+
     @JsonProperty("dateOfEntry")
     private Long dateOfEntry;
 

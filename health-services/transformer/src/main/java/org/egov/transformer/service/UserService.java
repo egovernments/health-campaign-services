@@ -63,7 +63,7 @@ public class UserService {
                 userMap.put(NAME, null);
                 userMap.put(ROLE, null);
                 userMap.put(ID, null);
-                userMap.put("city", null);
+                userMap.put(CITY, null);
                 return userMap;
             }
             userName = users.get(0).getUserName();
@@ -72,7 +72,7 @@ public class UserService {
             userMap.put(NAME, users.get(0).getName());
             userMap.put(ROLE, role);
             userMap.put(ID, String.valueOf(users.get(0).getId()));
-            userMap.put("city", users.get(0).getCorrespondenceAddress());
+            userMap.put(CITY, users.get(0).getCorrespondenceAddress());
             userIdVsUserInfoCache.put(userId, userMap);
             return userMap;
         }
@@ -91,8 +91,12 @@ public class UserService {
                     searchRequest,
                     UserSearchResponse.class
             );
-            return Collections.singletonList(response.getUserSearchResponseContent().get(0));
-//            return response.getUserSearchResponseContent().get(0);
+            UserSearchResponseContent responseContent = response.getUserSearchResponseContent().get(0);
+            if (responseContent != null) {
+                return Collections.singletonList(responseContent);
+            } else {
+                return new ArrayList<>();
+            }
         } catch (Exception e) {
             log.error("Exception while searching users : {}", ExceptionUtils.getStackTrace(e));
         }
