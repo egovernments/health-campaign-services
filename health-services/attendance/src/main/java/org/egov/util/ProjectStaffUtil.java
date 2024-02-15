@@ -72,6 +72,7 @@ public class ProjectStaffUtil {
                 .serviceCode(String.valueOf(UUID.randomUUID()))
                 .startDate(BigDecimal.valueOf(project.getStartDate()))
                 .endDate(BigDecimal.valueOf(project.getEndDate()))
+                .status(Status.ACTIVE)
                 .build();
         AttendanceRegisterRequest request = AttendanceRegisterRequest.builder().attendanceRegister(Collections.singletonList(attendanceRegister)).requestInfo(requestInfo).build();
         AttendanceRegisterRequest enrichedAttendanceRegisterRequest = attendanceRegisterService.createAttendanceRegister(request);
