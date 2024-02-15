@@ -14,8 +14,9 @@ public class IntegerValidator extends JsonDeserializer<Integer> {
     public Integer deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JacksonException {
         String value = jsonParser.getText();
         if(!Pattern.matches("\\d+",value)){
-            throw new JsonMappingException("Value must be an Integer");
+            throw new JsonMappingException("Quantity value must be an Integer");
         }
         return Integer.valueOf(value);
     }
 }
+
