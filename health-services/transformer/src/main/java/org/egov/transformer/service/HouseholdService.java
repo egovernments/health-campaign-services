@@ -16,7 +16,6 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.utils.CommonUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;

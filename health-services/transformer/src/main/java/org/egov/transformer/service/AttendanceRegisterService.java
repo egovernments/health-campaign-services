@@ -10,7 +10,6 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.attendance.AttendanceRegisterRequest;
 import org.egov.transformer.models.attendance.AttendanceRegisterResponse;
-import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
