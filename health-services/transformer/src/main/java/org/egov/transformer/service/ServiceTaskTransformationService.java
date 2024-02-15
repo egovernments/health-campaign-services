@@ -1,13 +1,10 @@
 package org.egov.transformer.service;
 
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.User;
 import org.egov.common.models.project.Project;
-import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
@@ -21,10 +18,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
-import static org.egov.transformer.Constants.ROLE;
-import static org.egov.transformer.Constants.USERNAME;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
@@ -123,7 +118,9 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .checklistName(parts[1])
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
+                    .userAddress(userInfoMap.get(CITY))
                     .createdTime(service.getAuditDetails().getCreatedTime())
+                    .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())

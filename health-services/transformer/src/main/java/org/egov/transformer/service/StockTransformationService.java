@@ -1,15 +1,12 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.AdditionalFields;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Stock;
-import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.StockIndexV1;
@@ -20,7 +17,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
@@ -112,7 +108,7 @@ public abstract class StockTransformationService implements TransformationServic
             facilityType = facility != null ? getType(facilityType, facility) : facilityType;
             transactingFacilityType = transactingFacility != null ? getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
 
-            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getCreatedTime());
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getLastModifiedTime());
             List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
             Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
@@ -128,6 +124,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .transactingFacilityId(stock.getTransactingPartyId())
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
+                    .userAddress(userInfoMap.get(CITY))
                     .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : stock.getTransactingPartyId())
                     .facilityType(facilityType)
                     .transactingFacilityType(transactingFacilityType)
@@ -138,12 +135,14 @@ public abstract class StockTransformationService implements TransformationServic
                             stock.getDateOfEntry() : stock.getAuditDetails().getLastModifiedTime())
                     .createdTime(stock.getClientAuditDetails().getCreatedTime())
                     .dateOfEntry(stock.getDateOfEntry())
-                    .createdBy(stock.getAuditDetails().getCreatedBy())
+                    .createdBy(stock.getClientAuditDetails().getCreatedBy())
                     .lastModifiedTime(stock.getClientAuditDetails().getLastModifiedTime())
-                    .lastModifiedBy(stock.getAuditDetails().getLastModifiedBy())
+                    .lastModifiedBy(stock.getClientAuditDetails().getLastModifiedBy())
                     .additionalFields(stock.getAdditionalFields())
                     .syncedTimeStamp(syncedTimeStamp)
-                    .syncedTime(stock.getAuditDetails().getCreatedTime())
+                    .syncedTime(stock.getAuditDetails().getLastModifiedTime())
+                    .taskDates(commonUtils.getDateFromEpoch(stock.getClientAuditDetails().getLastModifiedTime()))
+                    .syncedDate(commonUtils.getDateFromEpoch(stock.getAuditDetails().getLastModifiedTime()))
                     .facilityLevel(facilityLevel)
                     .transactingFacilityLevel(transactingFacilityLevel)
                     .facilityTarget(facilityTarget)

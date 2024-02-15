@@ -37,6 +37,8 @@ public class ServiceIndexV1 {
     private String userName;
     @JsonProperty("role")
     private String role;
+    @JsonProperty("userAddress")
+    private String userAddress;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
     @JsonProperty("tenantId")
@@ -51,4 +53,6 @@ public class ServiceIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("syncedTime")
     private Long syncedTime;
+    @JsonProperty("taskDates")
+    private String taskDates;
 }

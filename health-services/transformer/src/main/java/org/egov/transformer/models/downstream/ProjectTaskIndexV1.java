@@ -29,6 +29,8 @@ public class ProjectTaskIndexV1 {
     private String nameOfUser;
     @JsonProperty("role")
     private String role;
+    @JsonProperty("userAddress")
+    private String userAddress;
     @JsonProperty("productVariant")
     private String productVariant;
     @JsonProperty("productName")
@@ -91,5 +93,7 @@ public class ProjectTaskIndexV1 {
     private ObjectNode additionalDetails;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
+    @JsonProperty("taskDates")
+    private String taskDates;
 
 }

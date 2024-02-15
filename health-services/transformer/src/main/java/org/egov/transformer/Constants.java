@@ -54,6 +54,8 @@ public interface Constants {
     String USERNAME = "userName";
     String NAME = "name";
     String ROLE = "role";
+
+    String CITY = "city";
     String INDIVIDUAL_ID = "individualId";
     String ADDRESS_CODE = "addressLocalityCode";
     String CHILDREN_PRESENTED_US = "childrenPresentedUS";

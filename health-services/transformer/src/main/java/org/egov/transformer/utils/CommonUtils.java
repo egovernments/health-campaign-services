@@ -10,7 +10,6 @@ import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.service.MdmsService;
@@ -19,8 +18,6 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +37,8 @@ public class CommonUtils {
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
 
     private static Map<String, String> transformerLocalizations = new HashMap<>();
+
+    private static Map<String, JSONArray> projectStaffRolesCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, MdmsService mdmsService) {
         this.properties = properties;
@@ -222,5 +221,36 @@ public class CommonUtils {
         mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
+    }
+
+    public HashMap<String, Integer> getProjectStaffRoles(String tenantId) {
+        String moduleName = properties.getProjectStaffRolesMdmsModule();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, PROJECT_STAFF_ROLES, moduleName, null);
+        JSONArray projectStaffRoles = new JSONArray();
+        try {
+            String cacheKey = tenantId;
+            if (projectStaffRolesCache.containsKey(cacheKey)) {
+                projectStaffRoles = projectStaffRolesCache.get(cacheKey);
+                log.info("Fetching projectStaffRoles from cache for tenantId: {}", tenantId);
+            }
+            else {
+                MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+                projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
+                projectStaffRolesCache.put(cacheKey, projectStaffRoles);
+            }
+        } catch (Exception e) {
+            log.error("Exception while fetching mdms roles: {}", ExceptionUtils.getStackTrace(e));
+        }
+        ObjectMapper objectMapper = new ObjectMapper();
+        HashMap<String, Integer> projectStaffRolesMap = new HashMap<>();
+        projectStaffRoles.forEach(role -> {
+            LinkedHashMap<String, Object> map = objectMapper.convertValue(role, new TypeReference<LinkedHashMap>() {
+            });
+            projectStaffRolesMap.put((String) map.get("code"), (Integer) map.get("rank"));
+        });
+        return projectStaffRolesMap;
     }
 }

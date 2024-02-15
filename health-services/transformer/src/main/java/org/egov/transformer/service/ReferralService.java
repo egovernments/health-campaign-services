@@ -1,15 +1,12 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.referralmanagement.Referral;
-import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 
 import org.egov.transformer.models.downstream.ReferralIndexV1;
@@ -24,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 import static org.egov.transformer.Constants.INDIVIDUAL_ID;
@@ -98,12 +94,15 @@ public class ReferralService {
                 .tenantId(referral.getTenantId())
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
+                .userAddress(userInfoMap.get(CITY))
                 .facilityName(facilityName)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                 .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                 .boundaryHierarchy(boundaryHierarchy)
+                .taskDates(commonUtils.getDateFromEpoch(referral.getClientAuditDetails().getLastModifiedTime()))
+                .syncedDate(commonUtils.getDateFromEpoch(referral.getAuditDetails().getLastModifiedTime()))
                 .build();
 
         return referralIndexV1;

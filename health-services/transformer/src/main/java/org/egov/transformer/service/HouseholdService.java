@@ -16,7 +16,6 @@ import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.utils.CommonUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -109,6 +108,9 @@ public class HouseholdService {
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
                 .nameOfUser(userInfoMap.get(NAME))
+                .userAddress(userInfoMap.get(CITY))
+                .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
+                .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
                 .build();

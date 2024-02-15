@@ -3,7 +3,6 @@ package org.egov.transformer.models.downstream;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -61,6 +60,9 @@ public class StockIndexV1 {
     @JsonProperty("role")
     private String role;
 
+    @JsonProperty("userAddress")
+    private String userAddress;
+
     @JsonProperty("dateOfEntry")
     private Long dateOfEntry;
 
@@ -114,5 +116,11 @@ public class StockIndexV1 {
 
     @JsonProperty("facilityTarget")
     private Long facilityTarget;
+
+    @JsonProperty("taskDates")
+    private String taskDates;
+
+    @JsonProperty("syncedDate")
+    private String syncedDate;
 
 }

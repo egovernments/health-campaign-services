@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
@@ -46,7 +45,6 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
-//    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
