@@ -130,11 +130,8 @@ public class AttendanceServiceConfiguration {
     @Value("${project.attendee.roles}")
     private List<String> projectAttendeeRoles;
 
-    @Value("${project.staff.kafka.create.topic}")
-    private List<String> projectStaffSaveTopic;
-
-    @Value("${project.staff.consumer.bulk.create.topic}")
-    private List<String> projectStaffBulkSaveTopic;
+    @Value("${project.staff.attendance.topic}")
+    private String projectStaffAttendanceTopic;
 
 }
 

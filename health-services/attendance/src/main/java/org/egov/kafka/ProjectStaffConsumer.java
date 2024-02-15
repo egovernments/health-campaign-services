@@ -1,17 +1,21 @@
 package org.egov.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.models.project.ProjectStaffRequest;
 import org.egov.config.AttendanceServiceConfiguration;
 import org.egov.tracer.model.CustomException;
 import org.egov.util.IndividualServiceUtil;
 import org.egov.util.ProjectStaffUtil;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -40,47 +44,49 @@ public class ProjectStaffConsumer {
     @Autowired
     private AttendanceServiceConfiguration config;
 
-    @KafkaListener(topics = "${project.staff.kafka.create.topic}")
+    @KafkaListener(topics = "${project.staff.attendance.topic}")
     public void bulkStaffCreate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             log.info("Listening to topic "+ topic);
-            ProjectStaffRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffRequest.class);
-            ProjectStaff projectStaff = request.getProjectStaff();
+            ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
 
-            try {
-                RequestInfo requestInfo = request.getRequestInfo();
-
-                String staffUserUuid = projectStaff.getUserId();
-                String tenantId = projectStaff.getTenantId();
-
-                IndividualSearch individualSearch = IndividualSearch.builder().userUuid(staffUserUuid).build();
-                List<Individual> individualList = individualServiceUtil.getIndividualDetailsFromSearchCriteria(individualSearch, requestInfo, tenantId);
-
-                if (individualList.isEmpty())
-                    throw new CustomException("INVALID_STAFF_ID", "No Individual found for the given staff Uuid - " + staffUserUuid);
-                Individual individual = individualList.get(0);
-
-                List<Role> roleList = individual.getUserDetails().getRoles();
-                List<String> roleCodeList = roleList.stream()
-                        .map(Role::getCode)
-                        .collect(Collectors.toList());
-
-                boolean matchFoundForSupervisorRoles = roleCodeList.stream()
-                        .anyMatch(config.getProjectSupervisorRoles()::contains);
-
-                boolean matchFoundForAttendeeRoles = roleCodeList.stream()
-                        .anyMatch(config.getProjectAttendeeRoles()::contains);
-
-                if (matchFoundForSupervisorRoles)
-                    projectStaffUtil.createRegistryForSupervisor(projectStaff, requestInfo, individual);
-
-                if (matchFoundForAttendeeRoles)
-                    projectStaffUtil.enrollAttendeetoRegister(projectStaff, requestInfo, individual);
-            }
-            catch (Exception e)
+            for(ProjectStaff projectStaff : request.getProjectStaff() )
             {
-                log.error(e.toString());
+                try {
+                    RequestInfo requestInfo = request.getRequestInfo();
+
+                    String staffUserUuid = projectStaff.getUserId();
+                    String tenantId = projectStaff.getTenantId();
+
+                    IndividualSearch individualSearch = IndividualSearch.builder().userUuid(staffUserUuid).build();
+                    List<Individual> individualList = individualServiceUtil.getIndividualDetailsFromSearchCriteria(individualSearch, requestInfo, tenantId);
+
+                    if (individualList.isEmpty())
+                        throw new CustomException("INVALID_STAFF_ID", "No Individual found for the given staff Uuid - " + staffUserUuid);
+                    Individual individual = individualList.get(0);
+
+                    List<Role> roleList = individual.getUserDetails().getRoles();
+                    List<String> roleCodeList = roleList.stream()
+                            .map(Role::getCode)
+                            .collect(Collectors.toList());
+
+                    boolean matchFoundForSupervisorRoles = roleCodeList.stream()
+                            .anyMatch(config.getProjectSupervisorRoles()::contains);
+
+                    boolean matchFoundForAttendeeRoles = roleCodeList.stream()
+                            .anyMatch(config.getProjectAttendeeRoles()::contains);
+
+                    if (matchFoundForSupervisorRoles)
+                        projectStaffUtil.createRegistryForSupervisor(projectStaff, requestInfo, individual);
+
+                    if (matchFoundForAttendeeRoles)
+                        projectStaffUtil.enrollAttendeetoRegister(projectStaff, requestInfo, individual);
+                }
+                catch (Exception e)
+                {
+                    log.error(e.toString());
+                }
             }
 
         } catch (Exception exception) {
