@@ -16,7 +16,7 @@ import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.models.core.validator.IntegerValidator;
+import org.egov.common.models.core.validator.CustomIntegerDeserializer;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -55,7 +55,7 @@ public class Stock {
     @NotNull
     @Min(value = 1, message = "Minimum value cannot be less than 1")
     @Max(value = Integer.MAX_VALUE, message = "Value exceeds maximum allowable limit")
-    @JsonDeserialize(using = IntegerValidator.class)
+    @JsonDeserialize(using = CustomIntegerDeserializer.class)
     private Integer quantity;
 
     /* project id in-case of health */ 
