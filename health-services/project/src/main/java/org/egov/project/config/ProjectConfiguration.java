@@ -186,4 +186,6 @@ public class ProjectConfiguration {
     @Value("${project.task.resource.quantity.pattern}")
     private String ProjectTaskResourceQuantityPattern;
 
+    @Value("${project.task.resource.quantity.message}")
+    private String ProjectTaskResourceQuantityMessage;
 }
