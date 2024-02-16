@@ -175,6 +175,13 @@ public class StaffService {
         return staffIds;
     }
 
+    /**
+     * Creates a map of attendance registerId and its first staff enrolled.
+     *
+     * @param tenantId
+     * @param registerIds
+     * @return
+     */
     public Map<String, StaffPermission> fetchRegisterIdtoFirstStaffMap(String tenantId, List<String> registerIds) {
         Map<String, StaffPermission> registerIdToFirstStaffMap = new HashMap<>(); //mapping of registerId to the first StaffPermission for each unique registerId
 

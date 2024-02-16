@@ -54,11 +54,20 @@ public class ProjectStaffUtil {
     private AttendeeService attendeeService;
 
 
-    public void createRegistryForSupervisor(ProjectStaff projectStaff, RequestInfo requestInfo, Individual individual)
-    {
+    /**
+     * Creates a registry for a supervisor based on the provided project staff, request info, and individual.
+     * Enrolls the first staff member in the registry.
+     *
+     * @param projectStaff The project staff information
+     * @param requestInfo  The request information
+     * @param individual   The individual information
+     */
+    public void createRegistryForSupervisor(ProjectStaff projectStaff, RequestInfo requestInfo, Individual individual) {
         String tenantId = projectStaff.getTenantId();
 
         log.info("Match Found for Supervisor Role");
+
+        // Get the project details
         Project projectsearch = Project.builder().id(projectStaff.getProjectId()).tenantId(tenantId).build();
         List<Project> projectList = getProject(tenantId,projectsearch,requestInfo);
         if(projectList.isEmpty())
@@ -66,6 +75,7 @@ public class ProjectStaffUtil {
 
         Project project = projectList.get(0);
 
+        // Create an attendance register for the project
         AttendanceRegister attendanceRegister = AttendanceRegister.builder().tenantId(tenantId)
                 .name(project.getName())
                 .referenceId(projectStaff.getProjectId())
@@ -77,61 +87,72 @@ public class ProjectStaffUtil {
         AttendanceRegisterRequest request = AttendanceRegisterRequest.builder().attendanceRegister(Collections.singletonList(attendanceRegister)).requestInfo(requestInfo).build();
         AttendanceRegisterRequest enrichedAttendanceRegisterRequest = attendanceRegisterService.createAttendanceRegister(request);
 
-        //enroll Staff
-        if(enrichedAttendanceRegisterRequest.getAttendanceRegister().isEmpty())
-            throw new CustomException("UNABLE_TO_CREATE_REGISTER","Unable to create Register with Project ID - "+projectStaff.getProjectId());
+        // Enroll the first staff member in the registry
+        if (enrichedAttendanceRegisterRequest.getAttendanceRegister().isEmpty())
+            throw new CustomException("UNABLE_TO_CREATE_REGISTER", "Unable to create Register with Project ID - " + projectStaff.getProjectId());
 
         String attendanceRegisterId = enrichedAttendanceRegisterRequest.getAttendanceRegister().get(0).getId();
         StaffPermission staffPermission = StaffPermission.builder().registerId(attendanceRegisterId).userId(individual.getId()).tenantId(tenantId).build();
         StaffPermissionRequest staffPermissionRequest = StaffPermissionRequest.builder().staff(Collections.singletonList(staffPermission)).requestInfo(requestInfo).build();
 
-        StaffPermissionRequest enrichedRequest = staffService.createAttendanceStaff(staffPermissionRequest,false);
-        if(enrichedRequest.getStaff().isEmpty())
-            throw new CustomException("UNABLE_TO_ENROLL_FIRST_STAFF","Unable to enroll first staff with Staff ID - "+individual.getId());
-        log.info("Staff Successfully enrolled with Staff Id - "+ individual.getId());
-
+        StaffPermissionRequest enrichedRequest = staffService.createAttendanceStaff(staffPermissionRequest, false);
+        if (enrichedRequest.getStaff().isEmpty())
+            throw new CustomException("UNABLE_TO_ENROLL_FIRST_STAFF", "Unable to enroll first staff with Staff ID - " + individual.getId());
+        log.info("Staff Successfully enrolled with Staff Id - " + individual.getId());
     }
 
-    public void enrollAttendeetoRegister(ProjectStaff projectStaff, RequestInfo requestInfo, Individual individual)
-    {
+    /**
+     * Enrolls an attendee to a register based on the provided project staff, request info, and individual.
+     *
+     * @param projectStaff The project staff information
+     * @param requestInfo  The request information
+     * @param individual   The individual information
+     */
+    public void enrollAttendeetoRegister(ProjectStaff projectStaff, RequestInfo requestInfo, Individual individual) {
         log.info("Match Found for Attendee Role");
         String tenantId = projectStaff.getTenantId();
 
-        List<Employee> employeeList = hrmsUtil.getEmployee(tenantId,Collections.singletonList(individual.getId()),requestInfo);
-        if(employeeList.isEmpty())
-            throw new CustomException("NO_EMPLOYEE_FOUND","No Employee found for Individual Id - "+individual.getId());
+        // Get the employee details for the individual
+        List<Employee> employeeList = hrmsUtil.getEmployee(tenantId, Collections.singletonList(individual.getId()), requestInfo);
+        if (employeeList.isEmpty())
+            throw new CustomException("NO_EMPLOYEE_FOUND", "No Employee found for Individual Id - " + individual.getId());
 
+        // Get the reportingToUuid for the employee
         String reportingToUuid;
-        if(!employeeList.get(0).getAssignments().isEmpty())
+        if (!employeeList.get(0).getAssignments().isEmpty())
             reportingToUuid = employeeList.get(0).getAssignments().get(0).getReportingTo();
         else
-            throw new CustomException("INDIVIDUAL_REPORTING_TO_INVALID","Did not find reportingTo Uuid in HRMS Employee object");
+            throw new CustomException("INDIVIDUAL_REPORTING_TO_INVALID", "Did not find reportingTo Uuid in HRMS Employee object");
 
+        // Get the individual details for the reportingToUuid
         IndividualSearch individualSearch = IndividualSearch.builder().userUuid(reportingToUuid).build();
-        List<Individual> individualList = individualServiceUtil.getIndividualDetailsFromSearchCriteria(individualSearch,requestInfo, tenantId);
+        List<Individual> individualList = individualServiceUtil.getIndividualDetailsFromSearchCriteria(individualSearch, requestInfo, tenantId);
 
-        if(individualList.isEmpty())
-            throw new CustomException("INVALID_STAFF_ID","No Individual found for the reportingTo Uuid - "+reportingToUuid);
+        if (individualList.isEmpty())
+            throw new CustomException("INVALID_STAFF_ID", "No Individual found for the reportingTo Uuid - " + reportingToUuid);
 
-        Individual reportingToIndividual=individualList.get(0);
+        Individual reportingToIndividual = individualList.get(0);
 
+        // Get the attendance registers for the project and staff
         AttendanceRegisterSearchCriteria searchCriteria = AttendanceRegisterSearchCriteria.builder().staffId(reportingToIndividual.getId()).referenceId(projectStaff.getProjectId()).build();
         List<AttendanceRegister> attendanceRegisters = registerRepository.getRegister(searchCriteria);
 
-        if(attendanceRegisters.isEmpty())
-            throw new CustomException("NO_REGISTER_FOUND","No Register found with project Id - "+projectStaff.getProjectId() + "and Staff Id - "+ reportingToIndividual.getId());
+        if (attendanceRegisters.isEmpty())
+            throw new CustomException("NO_REGISTER_FOUND", "No Register found with project Id - " + projectStaff.getProjectId() + "and Staff Id - " + reportingToIndividual.getId());
 
         String registerId = attendanceRegisters.get(0).getId();
 
+        // Enroll the attendee to the register
         IndividualEntry individualEntry = IndividualEntry.builder().individualId(individual.getId()).registerId(registerId).tenantId(projectStaff.getTenantId()).build();
         AttendeeCreateRequest attendeeCreateRequest = AttendeeCreateRequest.builder().attendees(Collections.singletonList(individualEntry)).requestInfo(requestInfo).build();
         AttendeeCreateRequest enrichedAttendeeCreateRequest = attendeeService.createAttendee(attendeeCreateRequest);
 
-        if(enrichedAttendeeCreateRequest.getAttendees().isEmpty())
-            throw new CustomException("UNABLE_TO_ENROLL_ATTENDEE","Unable to enroll attendee with the given criteria");
+        if (enrichedAttendeeCreateRequest.getAttendees().isEmpty())
+            throw new CustomException("UNABLE_TO_ENROLL_ATTENDEE", "Unable to enroll attendee with the given criteria");
 
-        log.info("Successfully created Attendee with Attendee Id - "+individual.getId());
+        log.info("Successfully created Attendee with Attendee Id - " + individual.getId());
     }
+
 
     /**
      * Gets the Employee for the given list of uuids and tenantId of employees

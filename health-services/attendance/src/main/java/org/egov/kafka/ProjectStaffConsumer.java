@@ -48,17 +48,18 @@ public class ProjectStaffConsumer {
     public void bulkStaffCreate(Map<String, Object> consumerRecord,
                                          @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            log.info("Listening to topic "+ topic);
+            // Convert the received Kafka message into a ProjectStaffBulkRequest object
             ProjectStaffBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectStaffBulkRequest.class);
 
-            for(ProjectStaff projectStaff : request.getProjectStaff() )
-            {
+            // Iterate over the ProjectStaff objects in the request
+            for (ProjectStaff projectStaff : request.getProjectStaff()) {
                 try {
                     RequestInfo requestInfo = request.getRequestInfo();
 
                     String staffUserUuid = projectStaff.getUserId();
                     String tenantId = projectStaff.getTenantId();
 
+                    // Search for the individual details using the user UUID
                     IndividualSearch individualSearch = IndividualSearch.builder().userUuid(staffUserUuid).build();
                     List<Individual> individualList = individualServiceUtil.getIndividualDetailsFromSearchCriteria(individualSearch, requestInfo, tenantId);
 
@@ -71,15 +72,19 @@ public class ProjectStaffConsumer {
                             .map(Role::getCode)
                             .collect(Collectors.toList());
 
+                    // Check if the individual has any supervisor roles
                     boolean matchFoundForSupervisorRoles = roleCodeList.stream()
                             .anyMatch(config.getProjectSupervisorRoles()::contains);
 
+                    // Check if the individual has any attendee roles
                     boolean matchFoundForAttendeeRoles = roleCodeList.stream()
                             .anyMatch(config.getProjectAttendeeRoles()::contains);
 
+                    // If the individual has supervisor roles, create a registry for supervisor
                     if (matchFoundForSupervisorRoles)
                         projectStaffUtil.createRegistryForSupervisor(projectStaff, requestInfo, individual);
 
+                    // If the individual has attendee roles, enroll the attendee to register
                     if (matchFoundForAttendeeRoles)
                         projectStaffUtil.enrollAttendeetoRegister(projectStaff, requestInfo, individual);
                 }

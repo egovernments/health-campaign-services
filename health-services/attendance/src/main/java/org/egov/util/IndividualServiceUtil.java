@@ -115,6 +115,14 @@ public class IndividualServiceUtil {
         return response.getIndividual();
     }
 
+    /**
+     * Retrieves individual details based on the provided search criteria and request information.
+     *
+     * @param individualSearch The search criteria for retrieving individual details
+     * @param requestInfo      The request information
+     * @param tenantId         The ID of the tenant
+     * @return A list of individual details matching the search criteria
+     */
     public List<Individual> getIndividualDetailsFromSearchCriteria(IndividualSearch individualSearch, RequestInfo requestInfo, String tenantId) {
         String uri = getSearchURLWithParams(multiStateInstanceUtil.getStateLevelTenant(tenantId)).toUriString();
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()

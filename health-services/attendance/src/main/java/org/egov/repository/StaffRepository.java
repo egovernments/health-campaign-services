@@ -38,6 +38,12 @@ public class StaffRepository {
         return attendanceStaffList;
     }
 
+    /**
+     * Retrieves a list of staff permissions based on the provided search criteria.
+     *
+     * @param searchCriteria The criteria to use for searching staff permissions
+     * @return A list of staff permissions
+     */
     public List<StaffPermission> getFirstStaff(StaffSearchCriteria searchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.appendOrderLimit(queryBuilder.getAttendanceStaffSearchQuery(searchCriteria, preparedStmtList));
