@@ -185,6 +185,11 @@ public class ProjectValidator {
                 log.error("Start date should be less than end date");
                 errorMap.put("INVALID_DATE", "Start date should be less than end date");
             }
+            if (project.getStartDate() != null && project.getEndDate() != null && project.getEndDate() != 0
+                    && project.getEndDate().compareTo(Instant.ofEpochMilli(project.getStartDate()).plus(Duration.ofDays(1)).toEpochMilli()) >= 0) {
+                log.error("Start date and end date difference should at least be 1 day.");
+                errorMap.put("INVALID_DATE", "Start date and end date difference should at least be 1 day.");
+            }
             if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary()) && StringUtils.isBlank(project.getAddress().getBoundaryType()) ) {
                 log.error("Boundary Type is mandatory if boundary is present  in Project request body");
                 errorMap.put("BOUNDARY", "Boundary Type is mandatory if boundary is present in Project request body");
