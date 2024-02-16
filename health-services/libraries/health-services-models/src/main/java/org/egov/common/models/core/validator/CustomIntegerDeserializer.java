@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.egov.tracer.model.CustomException;
 
 // Custom deserializer for Integer values
 public class CustomIntegerDeserializer extends StdDeserializer<Integer> {
@@ -26,8 +27,9 @@ public class CustomIntegerDeserializer extends StdDeserializer<Integer> {
         JsonNode node = jsonParser.getCodec().readTree(jsonParser);
         System.out.println(node.toString());
         if(node.asLong() > Integer.MAX_VALUE){
-            throw new IllegalArgumentException("Value exceeds permitted maximum value");
+            throw new CustomException("INVALID_INPUT","Value must be an Integer");
         }
+
         // Parse the quantity as an integer
         int quantity = node.asInt();
 
@@ -35,6 +37,7 @@ public class CustomIntegerDeserializer extends StdDeserializer<Integer> {
         if ((double) quantity != Double.parseDouble(node.asText())) {
             throw new JsonParseException(jsonParser, "Quantity must be an integer");
         }
+
         // Return the parsed quantity
         return quantity;
     }

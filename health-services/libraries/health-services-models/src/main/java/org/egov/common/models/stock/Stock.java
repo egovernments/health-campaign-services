@@ -55,7 +55,6 @@ public class Stock {
     @NotNull
     @Min(value = 1, message = "Minimum value cannot be less than 1")
     @Max(value = Integer.MAX_VALUE, message = "Value exceeds maximum allowable limit")
-    @JsonDeserialize(using = CustomIntegerDeserializer.class)
     private Integer quantity;
 
     /* project id in-case of health */ 
