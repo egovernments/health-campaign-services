@@ -184,8 +184,8 @@ public class ProjectConfiguration {
     private String egovUserIdValidator;
 
     @Value("${project.task.resource.quantity.pattern}")
-    private String ProjectTaskResourceQuantityPattern;
+    private String projectTaskResourceQuantityPattern;
 
-    @Value("${project.task.resource.quantity.message}")
-    private String ProjectTaskResourceQuantityMessage;
+    @Value("${project.task.resource.quantity.invalid-error-message}")
+    private String projectTaskResourceQuantityInvalidErrorMessage;
 }

@@ -73,12 +73,13 @@ public class PtResourceQuantityValidator implements Validator<TaskBulkRequest, T
                         ).collect(Collectors.toList());
 
                 // Check if there are invalid task resources
+                log.info("validating quantity");
                 if(!invalidTaskResouces.isEmpty()) {
                     Error error = Error.builder()
-                            .errorMessage(ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_QUANTITY_INVALID_ERROR_MESSAGE)
+                            .errorMessage(projectConfiguration.getProjectTaskResourceQuantityInvalidErrorMessage())
                             .errorCode(TASK_NOT_ALLOWED)
                             .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException(TASK_NOT_ALLOWED, ProjectConstants.TASK_NOT_ALLOWED_RESOURCE_QUANTITY_INVALID_ERROR_MESSAGE))
+                            .exception(new CustomException(TASK_NOT_ALLOWED, projectConfiguration.getProjectTaskResourceQuantityInvalidErrorMessage()))
                             .build();
 
                     // Populate error details for the task in the map

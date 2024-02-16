@@ -2,10 +2,8 @@ package org.egov.project.util;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import org.egov.project.config.ProjectConfiguration;
 
 public class ProjectConstants {
-    private static ProjectConfiguration projectConfiguration;
     public static final String MASTER_TENANTS = "tenants";
     public static final String MDMS_TENANT_MODULE_NAME = "tenant";
     public static final String MDMS_COMMON_MASTERS_MODULE_NAME = "common-masters";
@@ -20,7 +18,6 @@ public class ProjectConstants {
     public static final String PROJECT_PARENT_HIERARCHY_SEPERATOR = ".";
     public static final String TASK_NOT_ALLOWED = "TASK_NOT_ALLOWED";
     public static final String TASK_NOT_ALLOWED_BENEFICIARY_REFUSED_RESOURCE_EMPTY_ERROR_MESSAGE = "Task not allowed as resources can not be provided when " + TaskStatus.BENEFICIARY_REFUSED;
-    public static final String TASK_NOT_ALLOWED_RESOURCE_QUANTITY_INVALID_ERROR_MESSAGE = projectConfiguration.getProjectTaskResourceQuantityMessage();
     public static final String TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE = "Task not allowed as resources can not be empty when ";
     public enum TaskStatus {
         BENEFICIARY_REFUSED("BENEFICIARY_REFUSED");
