@@ -34,35 +34,6 @@ public class HouseholdService {
         this.objectMapper = objectMapper;
     }
 
-    public List<Household> searchHousehold(String clientRefId, String tenantId) {
-        HouseholdSearchRequest request = HouseholdSearchRequest.builder()
-                .requestInfo(RequestInfo.builder().
-                        userInfo(User.builder()
-                                .uuid("transformer-uuid")
-                                .build())
-                        .build())
-                .household(HouseholdSearch.builder().
-                        clientReferenceId(Collections.singletonList(clientRefId)).build())
-                .build();
-        HouseholdBulkResponse response;
-        try {
-            StringBuilder uri = new StringBuilder();
-            uri.append(transformerProperties.getHouseholdHost())
-                    .append(transformerProperties.getHouseholdSearchUrl())
-                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
-                    .append("&offset=0")
-                    .append("&tenantId=").append(tenantId);
-            response = serviceRequestClient.fetchResult(uri,
-                    request,
-                    HouseholdBulkResponse.class);
-        } catch (Exception e) {
-            log.error("error while fetching household {}", ExceptionUtils.getStackTrace(e));
-            throw new CustomException("HOUSEHOLD_FETCH_ERROR",
-                    "error while fetching household details for id: " + clientRefId);
-        }
-        return response.getHouseholds();
-    }
-
     public void transform(List<Household> payloadList) {
         String topic = transformerProperties.getTransformerProducerBulkHouseholdIndexV1Topic();
         log.info("transforming for ids {}", payloadList.stream()
