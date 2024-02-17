@@ -158,7 +158,7 @@ public class CommonUtils {
                 boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
             }
         } catch (Exception e) {
-            log.error("Error while fetching boundaryHierarchy for projectTypeId: {}", projectTypeId);
+            log.error("Error while fetching boundaryHierarchy for projectTypeId: {}, Error: {}", projectTypeId, ExceptionUtils.getStackTrace(e));
             log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap.toString());
             JsonNode mdmsBoundaryData = projectService.fetchBoundaryDataByTenant(tenantId, null);
             if (mdmsBoundaryData != null && mdmsBoundaryData.has(Constants.BOUNDARY_HIERARCHY)) {

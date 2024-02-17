@@ -25,5 +25,7 @@ public class PGRIndex {
     private String userAddress;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
+    @JsonProperty("taskDates")
+    private String taskDates;
 
 }
