@@ -1,4 +1,5 @@
 package org.egov.transformer.service;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -10,6 +11,7 @@ import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.SideEffectsIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -20,7 +22,7 @@ import java.util.stream.Collectors;
 import static org.egov.transformer.Constants.*;
 
 @Slf4j
-public abstract class SideEffectTransformationService implements TransformationService<SideEffect>{
+public abstract class SideEffectTransformationService implements TransformationService<SideEffect> {
     protected final SideEffectIndexV1Transformer transformer;
 
     protected final Producer producer;
@@ -29,14 +31,14 @@ public abstract class SideEffectTransformationService implements TransformationS
 
     @Autowired
     protected SideEffectTransformationService(SideEffectTransformationService.SideEffectIndexV1Transformer transformer,
-                                               Producer producer, TransformerProperties properties) {
+                                              Producer producer, TransformerProperties properties) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
     }
 
     @Override
-    public void transform(List<SideEffect> payloadList){
+    public void transform(List<SideEffect> payloadList) {
         log.info("transforming for ids {}", payloadList.stream()
                 .map(SideEffect::getId).collect(Collectors.toList()));
         List<SideEffectsIndexV1> transformedPayloadList = payloadList.stream()
@@ -54,17 +56,22 @@ public abstract class SideEffectTransformationService implements TransformationS
     public Operation getOperation() {
         return Operation.SIDE_EFFECT;
     }
+
     @Component
     static class SideEffectIndexV1Transformer implements Transformer<SideEffect, SideEffectsIndexV1> {
         private final SideEffectService sideEffectService;
         private final IndividualService individualService;
         private final ProjectService projectService;
+        private final UserService userService;
+        private final CommonUtils commonUtils;
 
         @Autowired
-        SideEffectIndexV1Transformer(SideEffectService sideEffectService, ProjectService projectService, IndividualService individualService) {
+        SideEffectIndexV1Transformer(SideEffectService sideEffectService, ProjectService projectService, IndividualService individualService, UserService userService, CommonUtils commonUtils) {
             this.sideEffectService = sideEffectService;
             this.individualService = individualService;
             this.projectService = projectService;
+            this.userService = userService;
+            this.commonUtils = commonUtils;
         }
 
         @Override
@@ -76,13 +83,13 @@ public abstract class SideEffectTransformationService implements TransformationS
             Map<String, Object> individualDetails = new HashMap<>();
             ObjectNode boundaryHierarchy = null;
             List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
-            if(!CollectionUtils.isEmpty(taskList)){
+            if (!CollectionUtils.isEmpty(taskList)) {
                 task = taskList.get(0);
             }
-            if(task != null){
+            if (task != null) {
                 try {
-                    boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task,tenantId);
-                } catch (Exception e){
+                    boundaryHierarchy = sideEffectService.getBoundaryHierarchyFromTask(task, tenantId);
+                } catch (Exception e) {
                     log.error("error while fetching Boundary Details: {}", ExceptionUtils.getStackTrace(e));
                 }
                 List<ProjectBeneficiary> projectBeneficiaries = projectService
@@ -92,9 +99,11 @@ public abstract class SideEffectTransformationService implements TransformationS
                     projectBeneficiary = projectBeneficiaries.get(0);
                 }
             }
-            if(projectBeneficiary!=null){
+            if (projectBeneficiary != null) {
                 individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             }
+
+            Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
 
             SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                     .sideEffect(sideEffect)
@@ -104,9 +113,14 @@ public abstract class SideEffectTransformationService implements TransformationS
                     .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                     .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
                     .symptoms(String.join(COMMA, sideEffect.getSymptoms()))
+                    .userName(userInfoMap.get(USERNAME))
+                    .role(userInfoMap.get(ROLE))
+                    .userAddress(userInfoMap.get(CITY))
+                    .taskDates(commonUtils.getDateFromEpoch(sideEffect.getClientAuditDetails().getLastModifiedTime()))
+                    .syncedDate(commonUtils.getDateFromEpoch(sideEffect.getAuditDetails().getLastModifiedTime()))
                     .build();
             sideEffectsIndexV1List.add(sideEffectsIndexV1);
-            log.info("sideEffectsIndexV1List {}",sideEffectsIndexV1List);
+            log.info("sideEffectsIndexV1List {}", sideEffectsIndexV1List);
             return sideEffectsIndexV1List;
         }
     }

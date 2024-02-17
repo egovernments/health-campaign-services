@@ -67,19 +67,17 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private final TransformerProperties properties;
         private final ServiceDefinitionService serviceDefinitionService;
         private final CommonUtils commonUtils;
-        private UserService userService;
+        private final UserService userService;
 
-        private final ObjectMapper objectMapper;
 
         @Autowired
-        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
+        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService) {
 
             this.projectService = projectService;
             this.properties = properties;
             this.serviceDefinitionService = serviceDefinitionService;
             this.commonUtils = commonUtils;
             this.userService = userService;
-            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -125,7 +123,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())
                     .attributes(service.getAttributes())
-                    .syncedTime(service.getAuditDetails().getCreatedTime())
+                    .syncedTime(service.getAuditDetails().getLastModifiedTime())
                     .syncedTimeStamp(syncedTimeStamp)
                     .boundaryHierarchy(boundaryHierarchy)
                     .build();

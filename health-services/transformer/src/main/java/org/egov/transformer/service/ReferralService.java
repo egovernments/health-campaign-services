@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
@@ -30,7 +29,6 @@ import static org.egov.transformer.Constants.INDIVIDUAL_ID;
 public class ReferralService {
 
     private final TransformerProperties transformerProperties;
-    private final ObjectMapper objectMapper;
     private final Producer producer;
     private final UserService userService;
     private final ProjectService projectService;
@@ -40,9 +38,8 @@ public class ReferralService {
     private final CommonUtils commonUtils;
 
     public ReferralService(TransformerProperties transformerProperties,
-                           ObjectMapper objectMapper, Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils) {
+                           Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils) {
         this.transformerProperties = transformerProperties;
-        this.objectMapper = objectMapper;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;

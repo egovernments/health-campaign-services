@@ -111,7 +111,7 @@ public abstract class StockTransformationService implements TransformationServic
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getLastModifiedTime());
             List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
-            Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getAuditDetails().getCreatedBy());
+            Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
 
             StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                     .id(stock.getId())

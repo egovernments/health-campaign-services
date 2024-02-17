@@ -36,4 +36,19 @@ public class SideEffectsIndexV1 {
 
     @JsonProperty("symptoms")
     private String symptoms;
+
+    @JsonProperty("userName")
+    private String userName;
+
+    @JsonProperty("role")
+    private String role;
+
+    @JsonProperty("userAddress")
+    private String userAddress;
+
+    @JsonProperty("taskDates")
+    private String taskDates;
+
+    @JsonProperty("syncedDate")
+    private String syncedDate;
 }
