@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
@@ -16,14 +15,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 
-import static org.egov.transformer.Constants.ROLE;
-import static org.egov.transformer.Constants.USERNAME;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Component
 public class ServiceTransformationService {
-
-    private final ObjectMapper objectMapper;
     private final ServiceDefinitionService serviceDefinitionService;
     private final TransformerProperties transformerProperties;
     private final Producer producer;
@@ -32,9 +28,8 @@ public class ServiceTransformationService {
     private final CommonUtils commonUtils;
 
 
-    public ServiceTransformationService(ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils) {
+    public ServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils) {
 
-        this.objectMapper = objectMapper;
         this.serviceDefinitionService = serviceDefinitionService;
         this.transformerProperties = transformerProperties;
         this.producer = producer;
@@ -81,7 +76,6 @@ public class ServiceTransformationService {
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
-        // populate them from env
         String checkListToFilter = transformerProperties.getCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
         Map<String, Map<String, String>> attributeCodeToQuestionAgeGroup = new HashMap<>();
@@ -100,8 +94,10 @@ public class ServiceTransformationService {
                         .projectId(finalProjectId)
                         .userName(userInfoMap.get(USERNAME))
                         .role(userInfoMap.get(ROLE))
+                        .userAddress(userInfoMap.get(CITY))
                         .createdTime(service.getAuditDetails().getCreatedTime())
                         .syncedTime(service.getAuditDetails().getCreatedTime())
+                        .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                         .createdBy(service.getAuditDetails().getCreatedBy())
                         .syncedTimeStamp(syncedTimeStamp)
                         .boundaryHierarchy(boundaryHierarchy)

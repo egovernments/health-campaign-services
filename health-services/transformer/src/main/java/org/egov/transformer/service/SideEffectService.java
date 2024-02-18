@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 
 
-
 @Component
 @Slf4j
 public class SideEffectService {
@@ -31,15 +29,15 @@ public class SideEffectService {
     private final CommonUtils commonUtils;
 
     private final ProjectService projectService;
-    private final ObjectMapper objectMapper;
-    public SideEffectService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils, ProjectService projectService, ObjectMapper objectMapper) {
+
+    public SideEffectService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils, ProjectService projectService) {
         this.properties = stockConfiguration;
         this.serviceRequestClient = serviceRequestClient;
         this.commonUtils = commonUtils;
         this.projectService = projectService;
-        this.objectMapper = objectMapper;
     }
-    public List<Task> getTaskFromTaskClientReferenceId(String taskClientReferenceId, String tenantId){
+
+    public List<Task> getTaskFromTaskClientReferenceId(String taskClientReferenceId, String tenantId) {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .task(TaskSearch.builder().clientReferenceId(Collections.singletonList(taskClientReferenceId)).build())
                 .requestInfo(RequestInfo.builder().
@@ -67,16 +65,16 @@ public class SideEffectService {
         return response.getTasks();
     }
 
-    public ObjectNode getBoundaryHierarchyFromTask(Task task,String tenantId){
+    public ObjectNode getBoundaryHierarchyFromTask(Task task, String tenantId) {
         Map<String, String> boundaryLabelToNameMap = null;
-        if (task.getAddress()!=null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
+        if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
         } else {
             boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
         }
-        Project project = projectService.getProject(task.getProjectId(),tenantId);
+        Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
         log.info("boundary labels {}", boundaryLabelToNameMap.toString());
         return (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);

@@ -134,8 +134,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
             Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
             String createdTimeStamp = commonUtils.getTimeStampFromEpoch(task.getClientAuditDetails().getCreatedTime());
-            String[] syncedDate = syncedTimeStamp.split(TIME_STAMP_SPLIT);
-            String[] createdDate = createdTimeStamp.split(TIME_STAMP_SPLIT);
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -157,14 +155,13 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .locationAccuracy(task.getAddress().getLocationAccuracy())
                     .createdTime(task.getClientAuditDetails().getCreatedTime())
                     .taskDates(commonUtils.getDateFromEpoch(task.getClientAuditDetails().getLastModifiedTime()))
-                    .createdBy(task.getAuditDetails().getCreatedBy())
+                    .createdBy(task.getClientAuditDetails().getCreatedBy())
                     .lastModifiedTime(task.getClientAuditDetails().getLastModifiedTime())
-                    .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
+                    .lastModifiedBy(task.getClientAuditDetails().getLastModifiedBy())
                     .projectBeneficiaryClientReferenceId(task.getProjectBeneficiaryClientReferenceId())
                     .syncedTimeStamp(syncedTimeStamp)
-                    .createdDate(createdDate[0])
-                    .syncedDate(syncedDate[0])
-                    .syncedTime(task.getAuditDetails().getCreatedTime())
+                    .syncedDate(commonUtils.getDateFromEpoch(task.getAuditDetails().getLastModifiedTime()))
+                    .syncedTime(task.getAuditDetails().getLastModifiedTime())
                     .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .administrationStatus(task.getStatus())
                     .boundaryHierarchy(boundaryHierarchy)

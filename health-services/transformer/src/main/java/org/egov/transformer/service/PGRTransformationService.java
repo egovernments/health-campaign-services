@@ -70,6 +70,7 @@ public class PGRTransformationService {
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
                 .boundaryHierarchy(boundaryHierarchy)
+                .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                 .build();
 
         pgrIndexList.add(pgrIndex);
