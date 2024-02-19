@@ -1,5 +1,6 @@
 package org.egov.hrms.service;
 
+import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
@@ -161,6 +162,7 @@ public class IndividualService implements UserService {
                         .userType(UserType.fromValue(userRequest.getUser().getType()))
                         .build())
                 .isDeleted(Boolean.FALSE)
+                .clientAuditDetails(AuditDetails.builder().createdBy(userRequest.getRequestInfo().getUserInfo().getUuid()).lastModifiedBy(userRequest.getRequestInfo().getUserInfo().getUuid()).build())
                 .rowVersion(userRequest.getUser().getRowVersion())
                 .build();
         return IndividualRequest.builder()
