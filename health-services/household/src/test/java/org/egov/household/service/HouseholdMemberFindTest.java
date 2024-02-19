@@ -57,7 +57,7 @@ class HouseholdMemberFindTest {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .householdMemberSearch(HouseholdMemberSearch.builder()
-                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
+                        .id(Collections.singletonList("some-id")).householdId(Collections.singletonList("household-id")).build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
@@ -75,7 +75,7 @@ class HouseholdMemberFindTest {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .householdMemberSearch(HouseholdMemberSearch.builder()
-                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
+                        .id(Collections.singletonList("some-id")).householdId(Collections.singletonList("household-id")).build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
                 anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
 
