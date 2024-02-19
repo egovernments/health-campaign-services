@@ -2,7 +2,6 @@ package org.egov.common.models.core.validator;
 
 import java.io.IOException;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,7 +34,7 @@ public class CustomIntegerDeserializer extends StdDeserializer<Integer> {
 
         // Check if the parsed quantity matches the original string representation
         if ((double) quantity != Double.parseDouble(node.asText())) {
-            throw new JsonParseException(jsonParser, "Quantity must be an integer");
+            throw new CustomException("INVALID_INPUT", "Quantity must be an integer");
         }
 
         // Return the parsed quantity
