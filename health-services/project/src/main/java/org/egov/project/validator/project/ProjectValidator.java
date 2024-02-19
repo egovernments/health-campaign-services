@@ -186,7 +186,7 @@ public class ProjectValidator {
                 errorMap.put("INVALID_DATE", "Start date should be less than end date");
             }
             if (project.getStartDate() != null && project.getEndDate() != null && project.getEndDate() != 0
-                    && project.getEndDate().compareTo(Instant.ofEpochMilli(project.getStartDate()).plus(Duration.ofDays(1)).toEpochMilli()) >= 0) {
+                    && project.getEndDate().compareTo(Instant.ofEpochMilli(project.getStartDate()).plus(Duration.ofDays(1)).toEpochMilli()) < 0) {
                 log.error("Start date and end date difference should at least be 1 day.");
                 errorMap.put("INVALID_DATE", "Start date and end date difference should at least be 1 day.");
             }
