@@ -82,6 +82,11 @@ public class ProjectStaffUtil {
                 .serviceCode(String.valueOf(UUID.randomUUID()))
                 .startDate(BigDecimal.valueOf(project.getStartDate()))
                 .endDate(BigDecimal.valueOf(project.getEndDate()))
+                .additionalDetails(new HashMap<>() {{
+                    put("eventType", "Attendance");
+                    put("campaignName", project.getName());
+                    put("sessions", 2);
+                }})
                 .status(Status.ACTIVE)
                 .build();
         AttendanceRegisterRequest request = AttendanceRegisterRequest.builder().attendanceRegister(Collections.singletonList(attendanceRegister)).requestInfo(requestInfo).build();
