@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.Address;
 import org.egov.common.models.project.Task;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -10,6 +11,7 @@ import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -100,9 +102,20 @@ public abstract class ProjectTaskTransformationService implements Transformation
                             .createdBy(task.getAuditDetails().getCreatedBy())
                             .lastModifiedTime(task.getAuditDetails().getLastModifiedTime())
                             .lastModifiedBy(task.getAuditDetails().getLastModifiedBy())
+                            .geoPoint(getGeoPoint(task.getAddress()))
                             .isDeleted(task.getIsDeleted())
                             .build()
             ).collect(Collectors.toList());
+        }
+
+        public List<Double> getGeoPoint(Address address) {
+            if (address == null || (address.getLongitude() == null && address.getLatitude() == null)) {
+                return null;
+            }
+            List<Double> geoPoints = new ArrayList<>();
+            geoPoints.add(address.getLongitude());
+            geoPoints.add(address.getLatitude());
+            return geoPoints;
         }
     }
 }
