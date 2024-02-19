@@ -57,9 +57,6 @@ public class SSenderIdReceiverIdEqualsValidator implements Validator<StockBulkRe
             }
         });
 
-        // Remove invalid entities from the original list
-        entities.removeAll(invalidEntities);
-
         return errorDetailsMap;
     }
 
