@@ -4,17 +4,7 @@ import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
-import org.egov.common.models.individual.Address;
-import org.egov.common.models.individual.AddressType;
-import org.egov.common.models.individual.Gender;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkResponse;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.IndividualSearch;
-import org.egov.common.models.individual.IndividualSearchRequest;
-import org.egov.common.models.individual.Name;
-import org.egov.common.models.individual.UserDetails;
+import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
@@ -25,11 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -150,8 +136,11 @@ public class IndividualService implements UserService {
                 .address(Collections.singletonList(Address.builder()
                                 .type(AddressType.CORRESPONDENCE)
                                 .addressLine1(userRequest.getUser().getCorrespondenceAddress())
+                                .clientReferenceId(String.valueOf(UUID.randomUUID()))
                                 .isDeleted(Boolean.FALSE)
                         .build()))
+                .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                .identifiers(Collections.singletonList(Identifier.builder().clientReferenceId(String.valueOf(UUID.randomUUID())).build()))
                 .userDetails(UserDetails.builder()
                         .username(userRequest.getUser().getUserName())
                         .password(userRequest.getUser().getPassword())
