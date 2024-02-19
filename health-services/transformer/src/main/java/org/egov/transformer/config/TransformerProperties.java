@@ -29,9 +29,6 @@ public class TransformerProperties {
     @Value("${transformer.producer.bulk.stock.index.v1.topic}")
     private String transformerProducerBulkStockIndexV1Topic;
 
-    @Value("${transformer.producer.bulk.household.index.v1.topic}")
-    private String transformerProducerBulkHouseholdIndexV1Topic;
-
     @Value("${egov.project.host}")
     private String projectHost;
 
