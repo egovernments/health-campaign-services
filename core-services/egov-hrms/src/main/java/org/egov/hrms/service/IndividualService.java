@@ -145,7 +145,7 @@ public class IndividualService implements UserService {
                 .identifiers(Collections.singletonList(
                         Identifier.builder()
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
-                                .identifierId(userRequest.getUser().getUuid())
+                                .identifierId(String.valueOf(UUID.randomUUID()))
                                 .identifierType(SYSTEM_GENERATED)
                                 .build()))
                 .userDetails(UserDetails.builder()
