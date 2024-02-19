@@ -1,5 +1,7 @@
 package org.egov.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -17,6 +19,7 @@ import org.egov.web.models.*;
 
 import org.egov.web.models.Hrms.Employee;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -53,6 +56,9 @@ public class ProjectStaffUtil {
     @Autowired
     private AttendeeService attendeeService;
 
+    @Autowired
+    @Qualifier("objectMapper")
+    private ObjectMapper mapper;
 
     /**
      * Creates a registry for a supervisor based on the provided project staff, request info, and individual.
@@ -75,6 +81,22 @@ public class ProjectStaffUtil {
 
         Project project = projectList.get(0);
 
+        Map<String, Object> additionalDetailsMap = new HashMap<>();
+        additionalDetailsMap.put("eventType", "Attendance");
+        additionalDetailsMap.put("campaignName", project.getName());
+        additionalDetailsMap.put("sessions", 2);
+
+        JsonNode additionalDetailsNode=null;
+        try {
+            String additionalDetailsJson = mapper.writeValueAsString(additionalDetailsMap);
+            additionalDetailsNode = mapper.readTree(additionalDetailsJson);
+
+        }
+        catch (Exception e)
+        {
+            throw new CustomException("UNABLE_TO_CREATE_ADDITIONAL_DETAILS_OBJECT", "Unable to create Additional Details Object ");
+        }
+
         // Create an attendance register for the project
         AttendanceRegister attendanceRegister = AttendanceRegister.builder().tenantId(tenantId)
                 .name(project.getName())
@@ -82,11 +104,7 @@ public class ProjectStaffUtil {
                 .serviceCode(String.valueOf(UUID.randomUUID()))
                 .startDate(BigDecimal.valueOf(project.getStartDate()))
                 .endDate(BigDecimal.valueOf(project.getEndDate()))
-                .additionalDetails(new HashMap<>() {{
-                    put("eventType", "Attendance");
-                    put("campaignName", project.getName());
-                    put("sessions", 2);
-                }})
+                .additionalDetails(additionalDetailsNode)
                 .status(Status.ACTIVE)
                 .build();
         AttendanceRegisterRequest request = AttendanceRegisterRequest.builder().attendanceRegister(Collections.singletonList(attendanceRegister)).requestInfo(requestInfo).build();
