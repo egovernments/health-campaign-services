@@ -59,4 +59,6 @@ public class HRMSConstants {
 
 	public static final String INTERNALMICROSERVICEUSER_TYPE = "SYSTEM";
 
+	public static final String SYSTEM_GENERATED = "SYSTEM_GENERATED";
+
 }

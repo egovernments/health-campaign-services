@@ -18,6 +18,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
+
 @Slf4j
 public class IndividualService implements UserService {
 
@@ -140,7 +142,12 @@ public class IndividualService implements UserService {
                                 .isDeleted(Boolean.FALSE)
                         .build()))
                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
-                .identifiers(Collections.singletonList(Identifier.builder().clientReferenceId(String.valueOf(UUID.randomUUID())).build()))
+                .identifiers(Collections.singletonList(
+                        Identifier.builder()
+                                .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                                .identifierId(userRequest.getUser().getUuid())
+                                .identifierType(SYSTEM_GENERATED)
+                                .build()))
                 .userDetails(UserDetails.builder()
                         .username(userRequest.getUser().getUserName())
                         .password(userRequest.getUser().getPassword())
