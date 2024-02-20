@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
@@ -125,12 +126,12 @@ public abstract class ProjectTaskTransformationService implements Transformation
             Task constructedTask = constructTaskResourceIfNull(task);
 
             return constructedTask.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType)
+                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType, projectTypeId)
             ).collect(Collectors.toList());
         }
 
         private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId,
-                                                                   ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType) {
+                                                                   ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType, String projectTypeId) {
             Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
             String createdTimeStamp = commonUtils.getTimeStampFromEpoch(task.getClientAuditDetails().getCreatedTime());
@@ -205,17 +206,17 @@ public abstract class ProjectTaskTransformationService implements Transformation
 //            ask if there are any KPI's we need to filter based on cycles, if so we have to add cycleIndex into additionalDetails following same json structure in task
             ObjectNode additionalDetails = objectMapper.createObjectNode();
             if (task.getAdditionalFields() != null) {
-                addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
+                addAdditionalDetails(task.getAdditionalFields(), additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
             }
             if (taskResource.getAdditionalFields() != null) {
-                addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+                addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
             }
             projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
             return projectTaskIndexV1;
         }
 
-        private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
             additionalFields.getFields().forEach(field -> {
                 String key = field.getKey();
                 String value = field.getValue();
@@ -226,6 +227,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
                         log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
                         additionalDetails.put(key, (JsonNode) null);
                     }
+                } else if (!key.equals(CYCLE_NUMBER)) {
+                    Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+                    additionalDetails.put(CYCLE_NUMBER, cycleIndex);
                 } else {
                     additionalDetails.put(key, field.getValue());
                 }
