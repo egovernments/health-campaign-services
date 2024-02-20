@@ -75,7 +75,8 @@ public class StockService {
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete =
             validator -> validator.getClass().equals(SNonExistentValidator.class)
-            || validator.getClass().equals(SNullIdValidator.class);
+            || validator.getClass().equals(SNullIdValidator.class)
+            || validator.getClass().equals(SRowVersionValidator.class);
 
     public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators, StockConfiguration configuration, StockEnrichmentService enrichmentService) {
         this.stockRepository = stockRepository;
