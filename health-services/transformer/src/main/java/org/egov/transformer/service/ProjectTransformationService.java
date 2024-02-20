@@ -98,6 +98,8 @@ public abstract class ProjectTransformationService implements TransformationServ
             }
             isValidTargetsAdditionalDetails(project, targets, FIELD_TARGET, fieldsToCheck, BENEFICIARY_TYPE);
 
+            JsonNode additionalDetails = projectService.fetchAdditionalDetails(tenantId, null, projectTypeId);
+
             String projectBeneficiaryType = projectService.getProjectBeneficiaryType(tenantId, projectTypeId);
 
             return targets.stream().map(r -> {
@@ -144,6 +146,7 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .createdBy(project.getAuditDetails().getCreatedBy())
                                 .lastModifiedTime(project.getAuditDetails().getLastModifiedTime())
                                 .lastModifiedBy(project.getAuditDetails().getLastModifiedBy())
+                                .additionalDetails(additionalDetails)
                                 .build();
                         if (projectIndexV1.getBoundaryHierarchy() == null) {
                             ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
