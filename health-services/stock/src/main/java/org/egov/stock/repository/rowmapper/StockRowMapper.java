@@ -35,6 +35,10 @@ public class StockRowMapper implements RowMapper<Stock> {
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
                     .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .build();
+            Long dateOfEntry = resultSet.getLong("dateOfEntry");
+            if(resultSet.wasNull()){
+                dateOfEntry = null;
+            }
             return Stock.builder()
                     .id(resultSet.getString("id"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
@@ -56,7 +60,7 @@ public class StockRowMapper implements RowMapper<Stock> {
                     .clientAuditDetails(clientAuditDetails)
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
-                    .dateOfEntry(resultSet.getLong("dateOfEntry"))
+                    .dateOfEntry(dateOfEntry)
                     .build();
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
