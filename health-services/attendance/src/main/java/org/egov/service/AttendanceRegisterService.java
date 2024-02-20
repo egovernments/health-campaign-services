@@ -288,7 +288,7 @@ public class AttendanceRegisterService {
         log.info("Fetched attendance registers for update request");
 
         //Validate Update attendance register request against attendance registers fetched from database
-        attendanceServiceValidator.validateUpdateAgainstDB(attendanceRegisterRequest, attendanceRegistersFromDB);
+        attendanceServiceValidator.validateUpdateAgainstDB(attendanceRegisterRequest, attendanceRegistersFromDB, attendanceServiceConfiguration.getRegisterFirstStaffInsertEnabled());
 
         registerEnrichment.enrichRegisterOnUpdate(attendanceRegisterRequest, attendanceRegistersFromDB);
         log.info("Enriched with register Number, Ids and AuditDetails");
