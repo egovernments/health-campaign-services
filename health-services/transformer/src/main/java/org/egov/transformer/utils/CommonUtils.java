@@ -263,12 +263,12 @@ public class CommonUtils {
 
         for (int i = 0; i < cycles.size(); i++) {
             JsonNode currentCycle = cycles.get(i);
-            if (currentCycle.has("startDate") && currentCycle.has("endDate")) {
-                Long startDate = currentCycle.get("startDate").asLong();
-                Long endDate = currentCycle.get("endDate").asLong();
+            if (currentCycle.has(START_DATE) && currentCycle.has(END_DATE)) {
+                Long startDate = currentCycle.get(START_DATE).asLong();
+                Long endDate = currentCycle.get(END_DATE).asLong();
 
                 if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
-                    return currentCycle.get("id").asInt();
+                    return currentCycle.get(ID).asInt();
                 }
             }
         }
@@ -282,9 +282,9 @@ public class CommonUtils {
     private boolean isBetweenCycles(Long createdTime, ArrayNode cycles, int currentIndex) {
         if (currentIndex < cycles.size() - 1) {
             JsonNode nextCycle = cycles.get(currentIndex + 1);
-            if (nextCycle.has("startDate")) {
-                Long nextStartDate = nextCycle.get("startDate").asLong();
-                Long currentEndDate = cycles.get(currentIndex).get("endDate").asLong();
+            if (nextCycle.has(START_DATE)) {
+                Long nextStartDate = nextCycle.get(START_DATE).asLong();
+                Long currentEndDate = cycles.get(currentIndex).get(END_DATE).asLong();
                 return createdTime > currentEndDate && createdTime < nextStartDate;
             }
         }

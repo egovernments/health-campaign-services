@@ -320,8 +320,8 @@ public class ProjectService {
             });
 
             ObjectNode result = JsonNodeFactory.instance.objectNode();
-            result.set("doseIndex", doseIndex);
-            result.set("cycleIndex", cycleIndex);
+            result.set(DOSE_NUMBER, doseIndex);
+            result.set(CYCLE_NUMBER, cycleIndex);
             return result;
         } catch (Exception e) {
             e.printStackTrace();
