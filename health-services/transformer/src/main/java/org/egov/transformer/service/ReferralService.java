@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.Facility;
@@ -37,8 +38,10 @@ public class ReferralService {
 
     private final CommonUtils commonUtils;
 
+    private final ObjectMapper objectMapper;
+
     public ReferralService(TransformerProperties transformerProperties,
-                           Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils) {
+                           Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
@@ -46,6 +49,7 @@ public class ReferralService {
         this.individualService = individualService;
         this.facilityService = facilityService;
         this.commonUtils = commonUtils;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(List<Referral> payloadList) {
@@ -86,6 +90,11 @@ public class ReferralService {
         Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
+
+        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
@@ -100,6 +109,7 @@ public class ReferralService {
                 .boundaryHierarchy(boundaryHierarchy)
                 .taskDates(commonUtils.getDateFromEpoch(referral.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(referral.getAuditDetails().getLastModifiedTime()))
+                .additionalDetails(additionalDetails)
                 .build();
 
         return referralIndexV1;

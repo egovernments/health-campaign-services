@@ -55,4 +55,6 @@ public class ServiceIndexV1 {
     private Long syncedTime;
     @JsonProperty("taskDates")
     private String taskDates;
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 }

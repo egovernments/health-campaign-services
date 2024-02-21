@@ -56,5 +56,7 @@ public class ServiceIndexV2 {
     private Object malariaPositiveAPE;
     @JsonProperty("malariaNegativeAPE")
     private Object malariaNegativeAPE;
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 
 }

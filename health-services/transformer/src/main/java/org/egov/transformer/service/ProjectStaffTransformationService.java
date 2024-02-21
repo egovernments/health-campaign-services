@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
@@ -81,6 +82,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
+            JsonNode additionalDetails = projectService.fetchAdditionalDetails(tenantId, null, projectTypeId);
             List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
             ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
@@ -94,6 +96,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())
                     .lastModifiedTime(projectStaff.getAuditDetails().getLastModifiedTime())
+                    .additionalDetails(additionalDetails)
                     .build();
 
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
