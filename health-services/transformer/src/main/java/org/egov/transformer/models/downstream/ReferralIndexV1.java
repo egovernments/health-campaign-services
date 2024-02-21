@@ -43,4 +43,6 @@ public class ReferralIndexV1 {
     private String taskDates;
     @JsonProperty("syncedDate")
     private String syncedDate;
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 }

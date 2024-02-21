@@ -1,5 +1,7 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.facility.AdditionalFields;
@@ -69,13 +71,16 @@ public abstract class StockTransformationService implements TransformationServic
         private final UserService userService;
         private final ProductService productService;
 
+        private final ObjectMapper objectMapper;
+
         StockIndexV1Transformer(ProjectService projectService, FacilityService facilityService,
-                                CommonUtils commonUtils, UserService userService, ProductService productService) {
+                                CommonUtils commonUtils, UserService userService, ProductService productService, ObjectMapper objectMapper) {
             this.projectService = projectService;
             this.facilityService = facilityService;
             this.commonUtils = commonUtils;
             this.userService = userService;
             this.productService = productService;
+            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -112,6 +117,9 @@ public abstract class StockTransformationService implements TransformationServic
             List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
             String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
             Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
+            Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
+            ObjectNode additionalDetails = objectMapper.createObjectNode();
+            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
 
             StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                     .id(stock.getId())
@@ -147,6 +155,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .transactingFacilityLevel(transactingFacilityLevel)
                     .facilityTarget(facilityTarget)
                     .boundaryHierarchy(boundaryHierarchy)
+                    .additionalDetails(additionalDetails)
                     .build();
             return Collections.singletonList(stockIndexV1);
         }

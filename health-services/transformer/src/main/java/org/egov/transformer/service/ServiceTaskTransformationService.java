@@ -69,15 +69,18 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private final CommonUtils commonUtils;
         private final UserService userService;
 
+        private final ObjectMapper objectMapper;
+
 
         @Autowired
-        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService) {
+        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
 
             this.projectService = projectService;
             this.properties = properties;
             this.serviceDefinitionService = serviceDefinitionService;
             this.commonUtils = commonUtils;
             this.userService = userService;
+            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -106,6 +109,9 @@ public abstract class ServiceTaskTransformationService implements Transformation
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
             Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
+            Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+            ObjectNode additionalDetails = objectMapper.createObjectNode();;
+            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
 
             ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                     .id(service.getId())
@@ -126,6 +132,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
                     .syncedTime(service.getAuditDetails().getLastModifiedTime())
                     .syncedTimeStamp(syncedTimeStamp)
                     .boundaryHierarchy(boundaryHierarchy)
+                    .additionalDetails(additionalDetails)
                     .build();
             return Collections.singletonList(serviceIndexV1);
         }

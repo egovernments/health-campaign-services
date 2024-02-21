@@ -1,8 +1,10 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
@@ -65,13 +67,16 @@ public abstract class SideEffectTransformationService implements TransformationS
         private final UserService userService;
         private final CommonUtils commonUtils;
 
+        private final ObjectMapper objectMapper;
+
         @Autowired
-        SideEffectIndexV1Transformer(SideEffectService sideEffectService, ProjectService projectService, IndividualService individualService, UserService userService, CommonUtils commonUtils) {
+        SideEffectIndexV1Transformer(SideEffectService sideEffectService, ProjectService projectService, IndividualService individualService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
             this.sideEffectService = sideEffectService;
             this.individualService = individualService;
             this.projectService = projectService;
             this.userService = userService;
             this.commonUtils = commonUtils;
+            this.objectMapper = objectMapper;
         }
 
         @Override
@@ -79,6 +84,7 @@ public abstract class SideEffectTransformationService implements TransformationS
             String tenantId = sideEffect.getTenantId();
             List<SideEffectsIndexV1> sideEffectsIndexV1List = new ArrayList<>();
             Task task = null;
+            Integer cycleIndex = null;
             ProjectBeneficiary projectBeneficiary = null;
             Map<String, Object> individualDetails = new HashMap<>();
             ObjectNode boundaryHierarchy = null;
@@ -101,7 +107,14 @@ public abstract class SideEffectTransformationService implements TransformationS
             }
             if (projectBeneficiary != null) {
                 individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
+                if (projectBeneficiary.getProjectId() != null) {
+                    Project project = projectService.getProject(projectBeneficiary.getProjectId(), tenantId);
+                    cycleIndex = commonUtils.fetchCycleIndex(tenantId, project.getProjectTypeId(), sideEffect.getAuditDetails());
+                }
             }
+
+            ObjectNode additionalDetails = objectMapper.createObjectNode();
+            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
 
             Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
 
@@ -118,6 +131,7 @@ public abstract class SideEffectTransformationService implements TransformationS
                     .userAddress(userInfoMap.get(CITY))
                     .taskDates(commonUtils.getDateFromEpoch(sideEffect.getClientAuditDetails().getLastModifiedTime()))
                     .syncedDate(commonUtils.getDateFromEpoch(sideEffect.getAuditDetails().getLastModifiedTime()))
+                    .additionalDetails(additionalDetails)
                     .build();
             sideEffectsIndexV1List.add(sideEffectsIndexV1);
             log.info("sideEffectsIndexV1List {}", sideEffectsIndexV1List);

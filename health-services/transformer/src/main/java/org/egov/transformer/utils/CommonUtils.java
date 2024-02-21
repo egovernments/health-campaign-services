@@ -3,7 +3,9 @@ package org.egov.transformer.utils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.mdms.*;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
@@ -253,4 +255,40 @@ public class CommonUtils {
         });
         return projectStaffRolesMap;
     }
+
+    public Integer fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
+        Long createdTime = auditDetails.getCreatedTime();
+        JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
+        ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
+
+        for (int i = 0; i < cycles.size(); i++) {
+            JsonNode currentCycle = cycles.get(i);
+            if (currentCycle.has(START_DATE) && currentCycle.has(END_DATE)) {
+                Long startDate = currentCycle.get(START_DATE).asLong();
+                Long endDate = currentCycle.get(END_DATE).asLong();
+
+                if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
+                    return currentCycle.get(ID).asInt();
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isWithinCycle(Long createdTime, Long startDate, Long endDate) {
+        return createdTime >= startDate && createdTime <= endDate;
+    }
+
+    private boolean isBetweenCycles(Long createdTime, ArrayNode cycles, int currentIndex) {
+        if (currentIndex < cycles.size() - 1) {
+            JsonNode nextCycle = cycles.get(currentIndex + 1);
+            if (nextCycle.has(START_DATE)) {
+                Long nextStartDate = nextCycle.get(START_DATE).asLong();
+                Long currentEndDate = cycles.get(currentIndex).get(END_DATE).asLong();
+                return createdTime > currentEndDate && createdTime < nextStartDate;
+            }
+        }
+        return false;
+    }
+
 }
