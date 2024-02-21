@@ -201,9 +201,6 @@ public abstract class ProjectTaskTransformationService implements Transformation
             }
 
             //adding to additional details  from additionalFields in task and task resource
-//            TODO if there is no cycle index in task and taskResource additionalFields using auditCreatedTime fetch cycle index from mdms
-//            and add as an integer, and also confirm with Vishal if similar things need to be done for referral/stock
-//            ask if there are any KPI's we need to filter based on cycles, if so we have to add cycleIndex into additionalDetails following same json structure in task
             ObjectNode additionalDetails = objectMapper.createObjectNode();
             if (task.getAdditionalFields() != null) {
                 addAdditionalDetails(task.getAdditionalFields(), additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
