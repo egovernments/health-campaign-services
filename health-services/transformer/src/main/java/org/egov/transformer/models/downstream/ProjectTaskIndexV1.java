@@ -7,8 +7,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -53,8 +51,6 @@ public class ProjectTaskIndexV1 {
     private Double longitude;
     @JsonProperty("createdBy")
     private String createdBy;
-    @JsonProperty("geoPoint")
-    private List<Double> geoPoint;
     @JsonProperty("lastModifiedBy")
     private String lastModifiedBy;
     @JsonProperty("createdTime")
