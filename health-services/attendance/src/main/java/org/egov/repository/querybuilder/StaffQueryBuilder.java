@@ -85,4 +85,8 @@ public class StaffQueryBuilder {
         preparedStmtList.add(criteria.getLimit());
 
     }
+
+    public static String appendOrderLimit(String query) {
+        return query + " ORDER BY stf.enrollment_date ASC LIMIT 1";
+    }
 }

@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @Data
 @Import({TracerConfiguration.class})
@@ -104,6 +106,32 @@ public class AttendanceServiceConfiguration {
 
     @Value("${attendance.register.first.staff.insert.enabled:true}")
     private Boolean registerFirstStaffInsertEnabled;
+
+    //HRMS Service
+    @Value("${egov.hrms.host}")
+    private String hrmsHost;
+
+    @Value("${egov.hrms.search.endpoint}")
+    private String hrmsEndPoint;
+
+    //Project Service
+    @Value("${egov.project.host}")
+    private String projectHost;
+
+    @Value("${egov.project.staff.search.endpoint}")
+    private String projectStaffSearchEndpoint;
+
+    @Value("${egov.project.search.endpoint}")
+    private String projectSearchEndpoint;
+
+    @Value("${project.supervisor.roles}")
+    private List<String> projectSupervisorRoles;
+
+    @Value("${project.attendee.roles}")
+    private List<String> projectAttendeeRoles;
+
+    @Value("${project.staff.attendance.topic}")
+    private String projectStaffAttendanceTopic;
 
 }
 

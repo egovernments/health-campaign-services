@@ -114,4 +114,33 @@ public class IndividualServiceUtil {
 
         return response.getIndividual();
     }
+
+    /**
+     * Retrieves individual details based on the provided search criteria and request information.
+     *
+     * @param individualSearch The search criteria for retrieving individual details
+     * @param requestInfo      The request information
+     * @param tenantId         The ID of the tenant
+     * @return A list of individual details matching the search criteria
+     */
+    public List<Individual> getIndividualDetailsFromSearchCriteria(IndividualSearch individualSearch, RequestInfo requestInfo, String tenantId) {
+        String uri = getSearchURLWithParams(multiStateInstanceUtil.getStateLevelTenant(tenantId)).toUriString();
+        IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
+                .requestInfo(requestInfo).individual(individualSearch).build();
+
+        IndividualBulkResponse response = null;
+        log.info("call individual search with tenantId::" + tenantId + "::indidividual search criteria::" + individualSearch.toString());
+
+        try {
+            response = restTemplate.postForObject(uri, individualSearchRequest, IndividualBulkResponse.class);
+        } catch (HttpClientErrorException | HttpServerErrorException httpClientOrServerExc) {
+            log.error("Error thrown from individual search service::" + httpClientOrServerExc.getStatusCode());
+            throw new CustomException("INDIVIDUAL_SEARCH_SERVICE_EXCEPTION", "Error thrown from individual search service::" + httpClientOrServerExc.getStatusCode());
+        }
+        if (response == null || CollectionUtils.isEmpty(response.getIndividual())) {
+            throw new CustomException("INDIVIDUAL_SEARCH_RESPONSE_IS_EMPTY", "Individuals not found");
+        }
+
+        return response.getIndividual();
+    }
 }

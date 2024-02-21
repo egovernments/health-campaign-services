@@ -17,8 +17,7 @@ import org.egov.web.models.StaffSearchCriteria;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -174,6 +173,30 @@ public class StaffService {
             staffIds.add(staffPermission.getUserId());
         }
         return staffIds;
+    }
+
+    /**
+     * Creates a map of attendance registerId and its first staff enrolled.
+     *
+     * @param tenantId
+     * @param registerIds
+     * @return
+     */
+    public Map<String, StaffPermission> fetchRegisterIdtoFirstStaffMap(String tenantId, List<String> registerIds) {
+        Map<String, StaffPermission> registerIdToFirstStaffMap = new HashMap<>(); //mapping of registerId to the first StaffPermission for each unique registerId
+
+        for ( String registerId  : registerIds) {
+            if (!registerIdToFirstStaffMap.containsKey(registerId)) {
+                StaffSearchCriteria staffSearchCriteria = StaffSearchCriteria.builder().tenantId(tenantId).registerIds(Collections.singletonList(registerId)).build();
+
+                List<StaffPermission> staffPermissionList = staffRepository.getFirstStaff(staffSearchCriteria);
+
+                if (!staffPermissionList.isEmpty()) {
+                    registerIdToFirstStaffMap.put(registerId, staffPermissionList.get(0));
+                }
+            }
+        }
+        return registerIdToFirstStaffMap;
     }
 
 }

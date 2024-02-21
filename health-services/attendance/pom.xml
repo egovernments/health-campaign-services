@@ -77,7 +77,7 @@
     <dependency>
       <groupId>org.egov.common</groupId>
       <artifactId>health-services-models</artifactId>
-      <version>1.0.6-SNAPSHOT</version>
+      <version>1.0.19-SNAPSHOT-dev</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
