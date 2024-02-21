@@ -296,26 +296,26 @@ public class ProjectService {
 
         JsonNode additionalDetails = null;
         JsonNode requiredProjectType = fetchProjectTypes(tenantId, filter, projectTypeId);
-        if (requiredProjectType.has("cycles") && !requiredProjectType.get("cycles").isEmpty()) {
+        if (requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
             additionalDetails = extractCycleAndDoseIndexes(requiredProjectType);
         }
         return additionalDetails;
     }
 
     private JsonNode extractCycleAndDoseIndexes(JsonNode projectType) {
-        ArrayNode cycles = (ArrayNode) projectType.get("cycles");
+        ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
         ArrayNode doseIndex = JsonNodeFactory.instance.arrayNode();
         ArrayNode cycleIndex = JsonNodeFactory.instance.arrayNode();
         try {
             cycles.forEach(cycle -> {
-                if (cycle.has("id")) {
-                    cycleIndex.add(cycle.get("id").asInt());
+                if (cycle.has(ID)) {
+                    cycleIndex.add(cycle.get(ID).asInt());
                 }
             });
-            ArrayNode deliveries = (ArrayNode) cycles.get(0).get("deliveries");
+            ArrayNode deliveries = (ArrayNode) cycles.get(0).get(DELIVERIES);
             deliveries.forEach(delivery -> {
-                if (delivery.has("id")) {
-                    doseIndex.add(delivery.get("id").asInt());
+                if (delivery.has(ID)) {
+                    doseIndex.add(delivery.get(ID).asInt());
                 }
             });
 

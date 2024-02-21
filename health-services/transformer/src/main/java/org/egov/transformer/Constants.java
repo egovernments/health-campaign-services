@@ -67,5 +67,7 @@ public interface Constants {
     String DEFAULT_FACILITY_NAME = "APS";
     String START_DATE = "startDate";
     String END_DATE = "endDate";
+    String CYCLES = "cycles";
+    String DELIVERIES = "deliveries";
 
 }

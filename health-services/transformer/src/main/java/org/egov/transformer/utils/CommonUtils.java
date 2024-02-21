@@ -259,7 +259,7 @@ public class CommonUtils {
     public Integer fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
         Long createdTime = auditDetails.getCreatedTime();
         JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
-        ArrayNode cycles = (ArrayNode) projectType.get("cycles");
+        ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
 
         for (int i = 0; i < cycles.size(); i++) {
             JsonNode currentCycle = cycles.get(i);
