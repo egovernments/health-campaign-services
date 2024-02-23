@@ -28,6 +28,11 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.referralmanagement.Constants.GET_ID;
 
+/**
+ * Validator for checking the existence of entities referred in HFReferral entities.
+ *
+ * Author: kanishq-egov
+ */
 @Component
 @Order(value = 4)
 @Slf4j
@@ -43,7 +48,12 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
         this.objectMapper = objectMapper;
     }
 
-
+    /**
+     * Validates the existence of entities referred in HFReferral entities.
+     *
+     * @param request The HFReferralBulkRequest containing a list of HFReferral entities
+     * @return A Map containing HFReferral entities as keys and lists of errors as values
+     */
     @Override
     public Map<HFReferral, List<Error>> validate(HFReferralBulkRequest request) {
         log.info("validating for existence of entity");
@@ -68,4 +78,3 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
         return errorDetailsMap;
     }
 }
-

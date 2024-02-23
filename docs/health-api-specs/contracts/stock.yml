@@ -504,6 +504,7 @@ definitions:
       - LOST_IN_TRANSIT
       - DAMAGED_IN_STORAGE
       - DAMAGED_IN_TRANSIT
+    description: This field accepts values from enum and if an invalid value is provided, it will default to null.
   wayBillNumber:
     type: string
     minLength: 2
