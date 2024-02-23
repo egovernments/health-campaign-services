@@ -1,6 +1,7 @@
 package org.egov.common.models.stock;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
@@ -50,7 +51,8 @@ public class Stock {
 
     @JsonProperty("quantity")
     @NotNull
-    @Min(value = 1)
+    @Min(value = 1, message = "Minimum value cannot be less than 1")
+    @Max(value = Integer.MAX_VALUE, message = "Value exceeds maximum allowable limit")
     private Integer quantity;
 
     /* project id in-case of health */ 
