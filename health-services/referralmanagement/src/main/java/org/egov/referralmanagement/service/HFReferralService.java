@@ -1,6 +1,5 @@
 package org.egov.referralmanagement.service;
 
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -42,57 +41,73 @@ import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
+/**
+ * Service class for handling operations related to HFReferral entities.
+ * Manages creation, updating, searching, and deletion of HFReferrals.
+ * Includes validation and enrichment of HFReferrals before interacting with the repository.
+ * Author: kanishq-egov
+ */
 @Service
 @Slf4j
 public class HFReferralService {
 
     private final IdGenService idGenService;
-
     private final HFReferralRepository hfReferralRepository;
-
     private final ReferralManagementConfiguration referralManagementConfiguration;
-
     private final HFReferralEnrichmentService hfReferralEnrichmentService;
-
     private final List<Validator<HFReferralBulkRequest, HFReferral>> validators;
 
+    // Predicates to determine which validators are applicable for create, update, and delete operations
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForCreate = validator ->
             validator.getClass().equals(HfrProjectIdValidator.class)
-                || validator.getClass().equals(HfrProjectFacilityIdValidator.class);
+                    || validator.getClass().equals(HfrProjectFacilityIdValidator.class);
 
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HfrProjectIdValidator.class)
-                || validator.getClass().equals(HfrProjectFacilityIdValidator.class)
-                || validator.getClass().equals(HfrNullIdValidator.class)
-                || validator.getClass().equals(HfrIsDeletedValidator.class)
-                || validator.getClass().equals(HfrUniqueEntityValidator.class)
-                || validator.getClass().equals(HfrNonExistentEntityValidator.class)
-                || validator.getClass().equals(HfrRowVersionValidator.class);
+                    || validator.getClass().equals(HfrProjectFacilityIdValidator.class)
+                    || validator.getClass().equals(HfrNullIdValidator.class)
+                    || validator.getClass().equals(HfrIsDeletedValidator.class)
+                    || validator.getClass().equals(HfrUniqueEntityValidator.class)
+                    || validator.getClass().equals(HfrNonExistentEntityValidator.class)
+                    || validator.getClass().equals(HfrRowVersionValidator.class);
 
     private final Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicableForDelete = validator ->
             validator.getClass().equals(HfrNullIdValidator.class)
-                || validator.getClass().equals(HfrNonExistentEntityValidator.class)
-                || validator.getClass().equals(HfrRowVersionValidator.class);
+                    || validator.getClass().equals(HfrNonExistentEntityValidator.class)
+                    || validator.getClass().equals(HfrRowVersionValidator.class);
 
-
-    public HFReferralService(IdGenService idGenService, HFReferralRepository hfReferralRepository, ReferralManagementConfiguration referralManagementConfiguration, HFReferralEnrichmentService referralManagementEnrichmentService, List<Validator<HFReferralBulkRequest, HFReferral>> validators) {
+    /**
+     * Constructor to initialize the service with required dependencies.
+     *
+     * @param idGenService                   The IdGenService for generating IDs.
+     * @param hfReferralRepository          The repository for HFReferral entities.
+     * @param referralManagementConfiguration The configuration for referral management.
+     * @param hfReferralEnrichmentService    The service for enriching HFReferral entities.
+     * @param validators                    The list of validators for HFReferral entities.
+     */
+    public HFReferralService(IdGenService idGenService, HFReferralRepository hfReferralRepository,
+                             ReferralManagementConfiguration referralManagementConfiguration,
+                             HFReferralEnrichmentService hfReferralEnrichmentService,
+                             List<Validator<HFReferralBulkRequest, HFReferral>> validators) {
         this.idGenService = idGenService;
         this.hfReferralRepository = hfReferralRepository;
         this.referralManagementConfiguration = referralManagementConfiguration;
-        this.hfReferralEnrichmentService = referralManagementEnrichmentService;
+        this.hfReferralEnrichmentService = hfReferralEnrichmentService;
         this.validators = validators;
     }
 
+    // Method to create a single HFReferral
     public HFReferral create(HFReferralRequest request) {
-        log.info("received request to create referrals");
+        log.info("Received request to create a referral");
         HFReferralBulkRequest bulkRequest = HFReferralBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .hfReferrals(Collections.singletonList(request.getHfReferral())).build();
-        log.info("creating bulk request");
+        log.info("Creating bulk request");
         return create(bulkRequest, false).get(0);
     }
 
+    // Method to create multiple HFReferrals in bulk
     public List<HFReferral> create(HFReferralBulkRequest hfReferralRequest, boolean isBulk) {
-        log.info("received request to create bulk referrals");
+        log.info("Received request to create bulk referrals");
         Tuple<List<HFReferral>, Map<HFReferral, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, hfReferralRequest, isBulk);
         Map<HFReferral, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -100,14 +115,14 @@ public class HFReferralService {
 
         try {
             if (!validReferrals.isEmpty()) {
-                log.info("processing {} valid entities", validReferrals.size());
+                log.info("Processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.create(validReferrals, hfReferralRequest);
                 hfReferralRepository.save(validReferrals,
                         referralManagementConfiguration.getCreateHFReferralTopic());
-                log.info("successfully created referrals");
+                log.info("Successfully created referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating referrals: {}", exception.getMessage());
+            log.error("Error occurred while creating referrals: {}", exception.getMessage());
             populateErrorDetails(hfReferralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_HF_REFERRALS);
         }
@@ -116,16 +131,18 @@ public class HFReferralService {
         return validReferrals;
     }
 
+    // Method to update a single HFReferral
     public HFReferral update(HFReferralRequest request) {
-        log.info("received request to update referral");
+        log.info("Received request to update a referral");
         HFReferralBulkRequest bulkRequest = HFReferralBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .hfReferrals(Collections.singletonList(request.getHfReferral())).build();
-        log.info("creating bulk request");
+        log.info("Creating bulk request");
         return update(bulkRequest, false).get(0);
     }
 
+    // Method to update multiple HFReferrals in bulk
     public List<HFReferral> update(HFReferralBulkRequest hfReferralRequest, boolean isBulk) {
-        log.info("received request to update bulk referral");
+        log.info("Received request to update bulk referrals");
         Tuple<List<HFReferral>, Map<HFReferral, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, hfReferralRequest, isBulk);
         Map<HFReferral, ErrorDetails> errorDetailsMap = tuple.getY();
@@ -133,14 +150,14 @@ public class HFReferralService {
 
         try {
             if (!validReferrals.isEmpty()) {
-                log.info("processing {} valid entities", validReferrals.size());
+                log.info("Processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.update(validReferrals, hfReferralRequest);
                 hfReferralRepository.save(validReferrals,
                         referralManagementConfiguration.getUpdateHFReferralTopic());
-                log.info("successfully updated bulk referrals");
+                log.info("Successfully updated bulk referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating referrals", exception);
+            log.error("Error occurred while updating referrals", exception);
             populateErrorDetails(hfReferralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_HF_REFERRALS);
         }
@@ -149,39 +166,46 @@ public class HFReferralService {
         return validReferrals;
     }
 
+    // Method to search for HFReferrals based on certain criteria
     public List<HFReferral> search(HFReferralSearchRequest referralSearchRequest,
                                    Integer limit,
                                    Integer offset,
                                    String tenantId,
                                    Long lastChangedSince,
                                    Boolean includeDeleted) {
-        log.info("received request to search referrals");
+        log.info("Received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getHfReferral());
+
+        // If searching by ID only, fetch referrals with specified IDs
         if (isSearchByIdOnly(referralSearchRequest.getHfReferral(), idFieldName)) {
-            log.info("searching referrals by id");
+            log.info("Searching referrals by ID");
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(referralSearchRequest.getHfReferral())),
                     referralSearchRequest.getHfReferral());
-            log.info("fetching referrals with ids: {}", ids);
+            log.info("Fetching referrals with IDs: {}", ids);
+
             return hfReferralRepository.findById(ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
         }
-        log.info("searching referrals using criteria");
+
+        log.info("Searching referrals using criteria");
         return hfReferralRepository.find(referralSearchRequest.getHfReferral(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 
+    // Method to delete a single HFReferral
     public HFReferral delete(HFReferralRequest hfReferralRequest) {
-        log.info("received request to delete a referral");
+        log.info("Received request to delete a referral");
         HFReferralBulkRequest bulkRequest = HFReferralBulkRequest.builder().requestInfo(hfReferralRequest.getRequestInfo())
                 .hfReferrals(Collections.singletonList(hfReferralRequest.getHfReferral())).build();
-        log.info("creating bulk request");
+        log.info("Creating bulk request");
         return delete(bulkRequest, false).get(0);
     }
 
+    // Method to delete multiple HFReferrals in bulk
     public List<HFReferral> delete(HFReferralBulkRequest hfReferralRequest, boolean isBulk) {
         Tuple<List<HFReferral>, Map<HFReferral, ErrorDetails>> tuple = validate(validators,
                 isApplicableForDelete, hfReferralRequest, isBulk);
@@ -190,17 +214,17 @@ public class HFReferralService {
 
         try {
             if (!validReferrals.isEmpty()) {
-                log.info("processing {} valid entities", validReferrals.size());
+                log.info("Processing {} valid entities", validReferrals.size());
                 List<String> referralIds = validReferrals.stream().map(entity -> entity.getId()).collect(Collectors.toSet()).stream().collect(Collectors.toList());
                 List<HFReferral> existingReferrals = hfReferralRepository
                         .findById(referralIds, false);
                 hfReferralEnrichmentService.delete(existingReferrals, hfReferralRequest);
                 hfReferralRepository.save(existingReferrals,
                         referralManagementConfiguration.getDeleteHFReferralTopic());
-                log.info("successfully deleted entities");
+                log.info("Successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("Error occurred while deleting entities: {}", exception);
             populateErrorDetails(hfReferralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_HF_REFERRALS);
         }
@@ -209,29 +233,31 @@ public class HFReferralService {
         return validReferrals;
     }
 
+    // Method to put HFReferrals in cache
     public void putInCache(List<HFReferral> hfReferrals) {
-        log.info("putting {} hfReferrals in cache", hfReferrals.size());
+        log.info("Putting {} HFReferrals in cache", hfReferrals.size());
         hfReferralRepository.putInCache(hfReferrals);
-        log.info("successfully put hfReferrals in cache");
+        log.info("Successfully put HFReferrals in cache");
     }
 
+    // Method to validate HFReferralBulkRequest
     private Tuple<List<HFReferral>, Map<HFReferral, ErrorDetails>> validate(
             List<Validator<HFReferralBulkRequest, HFReferral>> validators,
             Predicate<Validator<HFReferralBulkRequest, HFReferral>> isApplicable,
             HFReferralBulkRequest request,
             boolean isBulk
     ) {
-        log.info("validating request");
+        log.info("Validating request");
         Map<HFReferral, ErrorDetails> errorDetailsMap = CommonUtils.validate(validators,
                 isApplicable, request,
                 Constants.SET_HF_REFERRALS);
         if (!errorDetailsMap.isEmpty() && !isBulk) {
-            log.error("validation error occurred. error details: {}", errorDetailsMap.values().toString());
+            log.error("Validation error occurred. Error details: {}", errorDetailsMap.values());
             throw new CustomException(Constants.VALIDATION_ERROR, errorDetailsMap.values().toString());
         }
         List<HFReferral> validReferrals = request.getHfReferrals().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        log.info("validation successful, found valid referrals");
+        log.info("Validation successful, found valid referrals");
         return new Tuple<>(validReferrals, errorDetailsMap);
     }
 }
