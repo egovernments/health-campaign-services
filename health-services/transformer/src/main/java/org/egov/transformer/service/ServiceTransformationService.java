@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
@@ -26,9 +27,10 @@ public class ServiceTransformationService {
     private final ProjectService projectService;
     private final UserService userService;
     private final CommonUtils commonUtils;
+    private final ObjectMapper objectMapper;
 
 
-    public ServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils) {
+    public ServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
 
         this.serviceDefinitionService = serviceDefinitionService;
         this.transformerProperties = transformerProperties;
@@ -36,6 +38,7 @@ public class ServiceTransformationService {
         this.projectService = projectService;
         this.userService = userService;
         this.commonUtils = commonUtils;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(List<Service> serviceList) {
@@ -76,6 +79,10 @@ public class ServiceTransformationService {
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
+        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+
         String checkListToFilter = transformerProperties.getCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
         Map<String, Map<String, String>> attributeCodeToQuestionAgeGroup = new HashMap<>();
@@ -101,6 +108,7 @@ public class ServiceTransformationService {
                         .createdBy(service.getAuditDetails().getCreatedBy())
                         .syncedTimeStamp(syncedTimeStamp)
                         .boundaryHierarchy(boundaryHierarchy)
+                        .additionalDetails(additionalDetails)
                         .build();
 
                 searchAndSetAttribute(attributeValueList, value, serviceIndexV2);

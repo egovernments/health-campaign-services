@@ -123,4 +123,7 @@ public class StockIndexV1 {
     @JsonProperty("syncedDate")
     private String syncedDate;
 
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
+
 }

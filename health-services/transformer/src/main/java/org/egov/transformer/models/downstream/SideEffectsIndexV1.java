@@ -51,4 +51,7 @@ public class SideEffectsIndexV1 {
 
     @JsonProperty("syncedDate")
     private String syncedDate;
+
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 }

@@ -65,5 +65,9 @@ public interface Constants {
     String MALARIA_POSITIVE_APE = "malariaPositiveAPE";
     String MALARIA_NEGATIVE_APE = "malariaNegativeAPE";
     String DEFAULT_FACILITY_NAME = "APS";
+    String START_DATE = "startDate";
+    String END_DATE = "endDate";
+    String CYCLES = "cycles";
+    String DELIVERIES = "deliveries";
 
 }

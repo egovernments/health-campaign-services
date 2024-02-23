@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
@@ -271,6 +274,59 @@ public class ProjectService {
             throw new RuntimeException(e);
         }
 
+    }
+
+    public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
+        List<JsonNode> projectTypes = new ArrayList<>();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
+            projectTypes = convertToProjectTypeJsonNodeList(response);
+            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
+            return requiredProjectType;
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public JsonNode fetchAdditionalDetails(String tenantId, String filter, String projectTypeId) {
+
+        JsonNode additionalDetails = null;
+        JsonNode requiredProjectType = fetchProjectTypes(tenantId, filter, projectTypeId);
+        if (requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
+            additionalDetails = extractCycleAndDoseIndexes(requiredProjectType);
+        }
+        return additionalDetails;
+    }
+
+    private JsonNode extractCycleAndDoseIndexes(JsonNode projectType) {
+        ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
+        ArrayNode doseIndex = JsonNodeFactory.instance.arrayNode();
+        ArrayNode cycleIndex = JsonNodeFactory.instance.arrayNode();
+        try {
+            cycles.forEach(cycle -> {
+                if (cycle.has(ID)) {
+                    cycleIndex.add(cycle.get(ID).asInt());
+                }
+            });
+            ArrayNode deliveries = (ArrayNode) cycles.get(0).get(DELIVERIES);
+            deliveries.forEach(delivery -> {
+                if (delivery.has(ID)) {
+                    doseIndex.add(delivery.get(ID).asInt());
+                }
+            });
+
+            ObjectNode result = JsonNodeFactory.instance.objectNode();
+            result.set(DOSE_NUMBER, doseIndex);
+            result.set(CYCLE_NUMBER, cycleIndex);
+            return result;
+        } catch (Exception e) {
+            log.info("Error while fetching cycle and dose indexes from MDMS: {}", ExceptionUtils.getStackTrace(e));
+            return null;
+        }
     }
 
     private List<String> convertToProjectTypeList(JsonNode jsonNode) {

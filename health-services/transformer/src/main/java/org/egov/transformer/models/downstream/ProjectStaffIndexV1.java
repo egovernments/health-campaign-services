@@ -2,6 +2,7 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,5 +43,7 @@ public class ProjectStaffIndexV1 {
     private Long createdTime;
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime;
+    @JsonProperty("additionalDetails")
+    private JsonNode additionalDetails;
 
 }
