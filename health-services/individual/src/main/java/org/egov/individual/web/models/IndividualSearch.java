@@ -38,7 +38,7 @@ public class IndividualSearch   {
     private List<String> id = null;
 
     @JsonProperty("individualId")
-    private String individualId = null;
+    private List<String> individualId = null;
 
     @JsonProperty("clientReferenceId")
     private List<String> clientReferenceId = null;
@@ -56,7 +56,7 @@ public class IndividualSearch   {
     private Gender gender = null;
 
     @JsonProperty("mobileNumber")
-    private String mobileNumber = null;
+    private List<String> mobileNumber = null;
 
     @JsonProperty("socialCategory")
     @Exclude
@@ -93,11 +93,11 @@ public class IndividualSearch   {
 
     @Exclude
     @JsonProperty("username")
-    private String username;
+    private List<String> username;
 
     @Exclude
     @JsonProperty("userId")
-    private Long userId;
+    private List<Long> userId;
 
     @Exclude
     @JsonProperty("latitude")

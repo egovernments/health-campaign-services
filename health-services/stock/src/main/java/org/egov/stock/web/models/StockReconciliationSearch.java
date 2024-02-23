@@ -35,10 +35,10 @@ public class StockReconciliationSearch {
 
     @JsonProperty("facilityId")
     @Size(min=2, max=64)
-    private String facilityId = null;
+    private List<String> facilityId = null;
 
     @JsonProperty("productVariantId")
     @Size(min=2, max=64)
-    private String productVariantId = null;
+    private List<String> productVariantId = null;
 }
 

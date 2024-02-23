@@ -50,7 +50,7 @@ class ProjectStaffServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
                 .thenReturn(Collections.emptyList());
         ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder()
-                .id(Collections.singletonList("ID101")).staffId("some-user-id").build();
+                .id(Collections.singletonList("ID101")).staffId(Collections.singletonList("some-user-id")).build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -78,7 +78,7 @@ class ProjectStaffServiceSearchTest {
         when(projectStaffRepository.find(any(ProjectStaffSearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectStaffs);
         projectStaffs.add(ProjectStaffTestBuilder.builder().withId().withId().withAuditDetails().build());
-        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id(Collections.singletonList("ID101")).projectId("some-projectId").build();
+        ProjectStaffSearch projectStaffSearch = ProjectStaffSearch.builder().id(Collections.singletonList("ID101")).projectId(Collections.singletonList("some-projectId")).build();
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder()
                 .projectStaff(projectStaffSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();

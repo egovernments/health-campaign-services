@@ -305,7 +305,7 @@ public class DownsyncService {
 	        		
 	        TaskSearch search = TaskSearch.builder()
 					.id(taskIds)
-					.projectId(downsyncRequest.getDownsyncCriteria().getProjectId())
+					.projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
 					.build();
 			
 			TaskSearchRequest searchRequest = TaskSearchRequest.builder()

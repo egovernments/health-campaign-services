@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -216,7 +217,7 @@ public class ProjectBeneficiaryApiControllerTest {
     void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
 
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
-                ProjectBeneficiarySearch.builder().projectId("12").build()
+                ProjectBeneficiarySearch.builder().projectId(Collections.singletonList("12")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),
@@ -245,7 +246,7 @@ public class ProjectBeneficiaryApiControllerTest {
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
-                ProjectBeneficiarySearch.builder().projectId("12").build()
+                ProjectBeneficiarySearch.builder().projectId(Collections.singletonList("12")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),

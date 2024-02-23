@@ -37,11 +37,11 @@ public class ProjectBeneficiarySearch {
 
     @JsonProperty("projectId")
     @Size(min=2,max=64)
-    private String projectId = null;
+    private List<String> projectId = null;
 
     @JsonProperty("beneficiaryId")
     @Size(min=2,max=64)
-    private String beneficiaryId = null;
+    private List<String> beneficiaryId = null;
 
     @JsonProperty("clientReferenceId")
     private List<String> clientReferenceId = null;

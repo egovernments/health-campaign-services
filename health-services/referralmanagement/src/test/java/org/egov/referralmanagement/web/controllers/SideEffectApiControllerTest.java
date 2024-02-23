@@ -33,6 +33,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @WebMvcTest(SideEffectApiController.class)
@@ -152,7 +153,7 @@ public class SideEffectApiControllerTest {
     void shouldAcceptSearchRequestAndReturnSideEffect() throws Exception {
 
         SideEffectSearchRequest sideEffectSearchRequest = SideEffectSearchRequest.builder().sideEffect(
-                SideEffectSearch.builder().taskId("some-task-id").build()
+                SideEffectSearch.builder().taskId(Collections.singletonList("some-task-id")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         Mockito.when(sideEffectService.search(ArgumentMatchers.any(SideEffectSearchRequest.class),
@@ -181,7 +182,7 @@ public class SideEffectApiControllerTest {
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
         SideEffectSearchRequest sideEffectSearchRequest = SideEffectSearchRequest.builder().sideEffect(
-                SideEffectSearch.builder().taskId("some-task-id").build()
+                SideEffectSearch.builder().taskId(Collections.singletonList("some-task-id")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         Mockito.when(sideEffectService.search(ArgumentMatchers.any(SideEffectSearchRequest.class),

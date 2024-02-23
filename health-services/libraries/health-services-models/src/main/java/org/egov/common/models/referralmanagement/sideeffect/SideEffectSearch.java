@@ -20,9 +20,9 @@ public class SideEffectSearch {
     private List<String> clientReferenceId;
 
     @JsonProperty("taskId")
-    private String taskId;
+    private List<String> taskId;
 
     @JsonProperty("taskClientReferenceId")
-    private String taskClientReferenceId;
+    private List<String> taskClientReferenceId;
 
 }

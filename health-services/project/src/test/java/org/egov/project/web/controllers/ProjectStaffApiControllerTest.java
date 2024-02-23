@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -168,7 +169,7 @@ class ProjectStaffApiControllerTest {
     void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
 
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
-                ProjectStaffSearch.builder().projectId("12").build()
+                ProjectStaffSearch.builder().projectId(Collections.singletonList("12")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
                 any(Integer.class),

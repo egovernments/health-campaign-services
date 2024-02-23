@@ -33,7 +33,7 @@ public class ProjectResourceSearch {
 
     @JsonProperty("projectId")
     @Size(min=2,max=64)
-    private String projectId = null;
+    private List<String> projectId = null;
 
 }
 
