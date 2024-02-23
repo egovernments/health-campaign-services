@@ -106,7 +106,7 @@ public class ProjectValidator {
         validateMultipleTenantIds(project);
         //Verify MDMS Data
         // TODO: Uncomment and fix as per HCM once we get clarity
-         validateRequestMDMSData(project, tenantId, errorMap);
+        // validateRequestMDMSData(project, tenantId, errorMap);
 
         if (!errorMap.isEmpty())
             throw new CustomException(errorMap);
