@@ -111,7 +111,7 @@ public class ProjectStaffUtil {
         if(numberOfSessions.equals(TWO_SESSIONS))
             additionalDetailsMap.put("sessions", 2);
         else
-            additionalDetailsMap.put("sessions", 1);
+            additionalDetailsMap.put("sessions", 0);
 
         JsonNode additionalDetailsNode=null;
         try {
