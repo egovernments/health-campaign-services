@@ -34,6 +34,7 @@ import org.egov.stock.validator.stock.SNullIdValidator;
 import org.egov.stock.validator.stock.SProductVariantIdValidator;
 import org.egov.stock.validator.stock.SReferenceIdValidator;
 import org.egov.stock.validator.stock.SRowVersionValidator;
+import org.egov.stock.validator.stock.SSenderIdReceiverIdEqualsValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.egov.stock.validator.stock.StocktransferPartiesValidator;
 import org.egov.stock.web.models.StockSearchRequest;
@@ -57,6 +58,7 @@ public class StockService {
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForCreate =
             validator -> validator.getClass().equals(SProductVariantIdValidator.class)
+                    || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
                     || validator.getClass().equals(StocktransferPartiesValidator.class)
                     || validator.getClass().equals(SReferenceIdValidator.class);
 
@@ -68,11 +70,13 @@ public class StockService {
             || validator.getClass().equals(SRowVersionValidator.class)
             || validator.getClass().equals(SUniqueEntityValidator.class)
             || validator.getClass().equals(SReferenceIdValidator.class)
+            || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
             || validator.getClass().equals(StocktransferPartiesValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForDelete =
             validator -> validator.getClass().equals(SNonExistentValidator.class)
-            || validator.getClass().equals(SNullIdValidator.class);
+            || validator.getClass().equals(SNullIdValidator.class)
+            || validator.getClass().equals(SRowVersionValidator.class);
 
     public StockService(StockRepository stockRepository, List<Validator<StockBulkRequest, Stock>> validators, StockConfiguration configuration, StockEnrichmentService enrichmentService) {
         this.stockRepository = stockRepository;
