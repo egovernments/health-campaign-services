@@ -324,8 +324,8 @@ public class ProjectService {
             result.set(CYCLE_NUMBER, cycleIndex);
             return result;
         } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
+            log.info("Error while fetching cycle and dose indexes from MDMS: {}", ExceptionUtils.getStackTrace(e));
+            return null;
         }
     }
 
