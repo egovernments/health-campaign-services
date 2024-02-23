@@ -27,6 +27,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.util.AttendanceServiceConstants.LIMIT_OFFSET;
+import static org.egov.util.AttendanceServiceConstants.TWO_SESSIONS;
 
 @Component
 @Slf4j
@@ -70,6 +71,8 @@ public class ProjectStaffUtil {
      */
     public void createRegistryForSupervisor(ProjectStaff projectStaff, RequestInfo requestInfo, Individual individual) {
         String tenantId = projectStaff.getTenantId();
+        ObjectMapper objectMapper = new ObjectMapper();
+        String numberOfSessions = null;
 
         log.info("Match Found for Supervisor Role");
 
@@ -81,10 +84,34 @@ public class ProjectStaffUtil {
 
         Project project = projectList.get(0);
 
+        JsonNode additionalDetails = null;
+        try {
+            Object additionalDetailsObj = project.getAdditionalDetails();
+            String additionalDetailsStr = objectMapper.writeValueAsString(additionalDetailsObj);
+            additionalDetails = objectMapper.readTree(additionalDetailsStr);
+
+            JsonNode numberOfSessionsNode = additionalDetails.get("numberOfSessions");
+            if (numberOfSessionsNode != null && numberOfSessionsNode.isTextual()) {
+                numberOfSessions = numberOfSessionsNode.asText();
+                log.info("Number of sessions: " + numberOfSessions);
+            } else {
+                numberOfSessions = TWO_SESSIONS;
+                log.info("numberOfSessions field not found in project's additonal Details");
+            }
+        }catch (ClassCastException e) {
+            log.error("Not able to parse additional details object", e);
+        } catch (Exception e) {
+            log.error("An unexpected error occurred while getting AdditionalDetails", e);
+        }
+
         Map<String, Object> additionalDetailsMap = new HashMap<>();
         additionalDetailsMap.put("eventType", "Attendance");
         additionalDetailsMap.put("campaignName", project.getName());
-        additionalDetailsMap.put("sessions", 2);
+
+        if(numberOfSessions.equals(TWO_SESSIONS))
+            additionalDetailsMap.put("sessions", 2);
+        else
+            additionalDetailsMap.put("sessions", 1);
 
         JsonNode additionalDetailsNode=null;
         try {

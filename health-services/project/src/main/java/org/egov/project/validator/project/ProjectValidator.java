@@ -353,7 +353,7 @@ public class ProjectValidator {
                     numberOfSessions = numberOfSessionsNode.asText();
                     log.info("Number of sessions: " + numberOfSessions);
                 } else {
-                    log.info("numberOfSessions field not found or is not a string");
+                    log.info("numberOfSessions field not found in project's additonal Details");
                 }
 
             } catch (ClassCastException e) {
