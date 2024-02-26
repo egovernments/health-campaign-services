@@ -217,7 +217,7 @@ public class ProjectBeneficiaryApiControllerTest {
     void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
 
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
-                ProjectBeneficiarySearch.builder().projectId(Collections.singletonList("12")).build()
+                ProjectBeneficiarySearch.builder().projectId(Arrays.asList("12","11")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),
@@ -246,7 +246,7 @@ public class ProjectBeneficiaryApiControllerTest {
     void shouldThrowExceptionIfNoResultFound() throws Exception {
 
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder().projectBeneficiary(
-                ProjectBeneficiarySearch.builder().projectId(Collections.singletonList("12")).build()
+                ProjectBeneficiarySearch.builder().projectId(Arrays.asList("12","11")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
 
         when(projectBeneficiaryService.search(any(BeneficiarySearchRequest.class),

@@ -169,7 +169,7 @@ class ProjectStaffApiControllerTest {
     void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
 
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
-                ProjectStaffSearch.builder().projectId(Collections.singletonList("12")).build()
+                ProjectStaffSearch.builder().projectId(Arrays.asList("12","11")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
                 any(Integer.class),

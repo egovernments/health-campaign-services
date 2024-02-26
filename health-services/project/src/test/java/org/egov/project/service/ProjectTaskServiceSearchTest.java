@@ -147,7 +147,7 @@ public class ProjectTaskServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectTasks);
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).projectId("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).projectId(Collections.singletonList("some-id")).build()).build();
 
         List<Task> projectTasks = projectTaskService.search(taskSearchRequest.getTask(), 10, 0, 
                 "default", null, false);
