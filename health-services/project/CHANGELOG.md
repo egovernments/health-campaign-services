@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.2 - 2024-02-26
+- Added Project start date and end date update validation
+
 ## 1.1.1 - 2023-11-15
 - Added tag in project beneficiary 
 
