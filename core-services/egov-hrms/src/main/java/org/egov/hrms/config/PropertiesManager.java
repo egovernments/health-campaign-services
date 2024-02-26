@@ -134,4 +134,7 @@ public class PropertiesManager {
 
 	@Value("${egov.hrms.auto.generate.password}")
 	private boolean autoGeneratePassword;
+
+	@Value("${egov.mdmsLegacy.search.endpoint}")
+	public String mdmsLegacySearchEndpoint;
 }
