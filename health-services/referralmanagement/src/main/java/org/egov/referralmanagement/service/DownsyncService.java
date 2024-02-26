@@ -261,7 +261,7 @@ public class DownsyncService {
 	        		
 	        ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
 					.id(ids)
-					.projectId(downsyncRequest.getDownsyncCriteria().getProjectId())
+					.projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
 					.build();
 			
 			BeneficiarySearchRequest searchRequest = BeneficiarySearchRequest.builder()

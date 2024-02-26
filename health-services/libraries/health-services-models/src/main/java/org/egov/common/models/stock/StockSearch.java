@@ -37,13 +37,13 @@ public class StockSearch {
 
     @JsonProperty("productVariantId")
     @Size(min=2, max=64)
-    private String productVariantId = null;
+    private List<String> productVariantId = null;
 
     @JsonProperty("referenceId")
     private String referenceId = null;
 
     @JsonProperty("wayBillNumber")
-    private String wayBillNumber = null;
+    private List<String> wayBillNumber = null;
 
     @JsonProperty("referenceIdType")
     @Size(min=2, max=64)
