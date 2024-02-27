@@ -259,17 +259,20 @@ public class CommonUtils {
     public Integer fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
         Long createdTime = auditDetails.getCreatedTime();
         JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
-        ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
+        if (projectType.has(CYCLES)) {
+            ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
 
-        for (int i = 0; i < cycles.size(); i++) {
-            JsonNode currentCycle = cycles.get(i);
-            if (currentCycle.has(START_DATE) && currentCycle.has(END_DATE)) {
-                Long startDate = currentCycle.get(START_DATE).asLong();
-                Long endDate = currentCycle.get(END_DATE).asLong();
+            for (int i = 0; i < cycles.size(); i++) {
+                JsonNode currentCycle = cycles.get(i);
+                if (currentCycle.has(START_DATE) && currentCycle.has(END_DATE)) {
+                    Long startDate = currentCycle.get(START_DATE).asLong();
+                    Long endDate = currentCycle.get(END_DATE).asLong();
 
-                if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
-                    return currentCycle.get(ID).asInt();
+                    if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
+                        return currentCycle.get(ID).asInt();
+                    }
                 }
+                return null;
             }
         }
         return null;
