@@ -269,7 +269,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND userId=:userId ";
             paramsMap.put("userId", String.valueOf(searchObject.getUserId()));
         }
-        query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY createdtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

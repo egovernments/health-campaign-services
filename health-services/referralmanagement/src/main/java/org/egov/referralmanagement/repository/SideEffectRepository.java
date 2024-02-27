@@ -86,7 +86,7 @@ public class SideEffectRepository extends GenericRepository<SideEffect> {
         if (lastChangedSince != null) {
             query = query + "and as.lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY ae.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY ae.createdtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

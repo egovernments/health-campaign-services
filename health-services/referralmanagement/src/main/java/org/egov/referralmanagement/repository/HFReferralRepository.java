@@ -91,7 +91,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         }
 
         // Add ORDER BY, LIMIT, and OFFSET clauses to the query.
-        query = query + "ORDER BY hf.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY hf.createdtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);

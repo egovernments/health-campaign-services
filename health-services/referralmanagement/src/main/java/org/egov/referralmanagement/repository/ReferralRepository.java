@@ -59,7 +59,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
         if (lastChangedSince != null) {
             query = query + "and r.lastModifiedTime>=:lastModifiedTime ";
         }
-        query = query + "ORDER BY r.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY r.createdtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
