@@ -1,10 +1,17 @@
 package org.egov.project.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.BeneficiaryRequest;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.service.IdGenService;
 import org.egov.common.utils.CommonUtils;
@@ -22,17 +29,10 @@ import org.egov.project.validator.beneficiary.PbUniqueEntityValidator;
 import org.egov.project.validator.beneficiary.PbUniqueTagsValidator;
 import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForCreateValidator;
 import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForUpdateValidator;
-import org.egov.project.web.models.BeneficiarySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
