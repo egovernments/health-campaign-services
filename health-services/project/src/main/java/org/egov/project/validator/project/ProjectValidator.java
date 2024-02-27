@@ -1,5 +1,17 @@
 package org.egov.project.validator.project;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -13,25 +25,17 @@ import org.egov.project.util.BoundaryUtil;
 import org.egov.project.util.MDMSUtils;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
+import static org.egov.project.util.ProjectConstants.MASTER_ATTENDANCE_SESSION;
 import static org.egov.project.util.ProjectConstants.MASTER_DEPARTMENT;
 import static org.egov.project.util.ProjectConstants.MASTER_NATUREOFWORK;
 import static org.egov.project.util.ProjectConstants.MASTER_PROJECTTYPE;
 import static org.egov.project.util.ProjectConstants.MASTER_TENANTS;
 import static org.egov.project.util.ProjectConstants.MDMS_COMMON_MASTERS_MODULE_NAME;
+import static org.egov.project.util.ProjectConstants.MDMS_HCM_ATTENDANCE_MODULE_NAME;
 import static org.egov.project.util.ProjectConstants.MDMS_TENANT_MODULE_NAME;
 
 @Component
@@ -46,6 +50,10 @@ public class ProjectValidator {
 
     @Autowired
     ProjectConfiguration config;
+
+    @Autowired
+    @Qualifier("objectMapper")
+    ObjectMapper mapper;
 
     /* Validates create Project request body */
     public void validateCreateProjectRequest(ProjectRequest request) {
@@ -63,6 +71,7 @@ public class ProjectValidator {
         //Verify MDMS Data
         // TODO: Uncomment and fix as per HCM once we get clarity
         // validateRequestMDMSData(request, tenantId, errorMap);
+        validateAttendanceSessionAgainstMDMS(request,errorMap,tenantId);
 
         //Get boundaries in list from all Projects in request body for validation
         Map<String, List<String>> boundariesForValidation = getBoundaryForValidation(request.getProjects());
@@ -306,6 +315,51 @@ public class ProjectValidator {
             if (!StringUtils.isBlank(project.getNatureOfWork()) && natureOfWorkRes != null && !natureOfWorkRes.contains(project.getNatureOfWork())) {
                 log.error("The nature of work: " + project.getNatureOfWork() + " is not present in MDMS");
                 errorMap.put("INVALID_NATURE_OF_WORK", "The nature of work: " + project.getNatureOfWork() + " is not present in MDMS");
+            }
+        }
+    }
+
+    private void validateAttendanceSessionAgainstMDMS(ProjectRequest projectRequest, Map<String, String> errorMap, String tenantId) {
+        String rootTenantId = tenantId.split("\\.")[0];
+        ObjectMapper objectMapper = new ObjectMapper();
+        String numberOfSessions = null;
+
+        //Get MDMS data using create project request and tenantId
+        Object mdmsData = mdmsUtils.mDMSCall(projectRequest, rootTenantId);
+        final String jsonPathForAttendanceSession = "$.MdmsRes." + MDMS_HCM_ATTENDANCE_MODULE_NAME + "." + MASTER_ATTENDANCE_SESSION + ".*";
+        List<Object> attendanceRes = null;
+        try {
+            attendanceRes = JsonPath.read(mdmsData, jsonPathForAttendanceSession);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
+        }
+
+        for (Project project : projectRequest.getProjects()) {
+            JsonNode additionalDetails = null;
+            try {
+                Object additionalDetailsObj = project.getAdditionalDetails();
+                String additionalDetailsStr = objectMapper.writeValueAsString(additionalDetailsObj);
+                additionalDetails = objectMapper.readTree(additionalDetailsStr);
+
+                JsonNode numberOfSessionsNode = additionalDetails.get("numberOfSessions");
+                if (numberOfSessionsNode != null && numberOfSessionsNode.isTextual()) {
+                    numberOfSessions = numberOfSessionsNode.asText();
+                    log.info("Number of sessions: " + numberOfSessions);
+                } else {
+                    log.info("numberOfSessions field not found in project's additonal Details");
+                }
+
+            } catch (ClassCastException e) {
+                log.error("Not able to parse additional details object", e);
+            } catch (Exception e) {
+                log.error("An unexpected error occurred while getting AdditionalDetails", e);
+            }
+
+            // Validate numberOfSessions
+            if (!StringUtils.isBlank(numberOfSessions) && !attendanceRes.contains(numberOfSessions)) {
+                log.error("The number of attendance sessions " + numberOfSessions + " is not present in MDMS");
+                errorMap.put("INVALID_NUMBER_OF_ATTENDANCE_SESSIONS", "The number of attendance sessions: " + numberOfSessions + " is not present in MDMS");
             }
         }
     }
