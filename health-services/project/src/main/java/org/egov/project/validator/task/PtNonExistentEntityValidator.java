@@ -68,7 +68,7 @@ public class PtNonExistentEntityValidator implements Validator<TaskBulkRequest, 
 
             existingEntities.forEach(task -> {
                 validateSubEntity(errorDetailsMap, eMap, task,
-                        Collections.singletonList(task.getAddress()),
+                        task.getAddress() != null ? Collections.singletonList(task.getAddress()) : null,
                         GET_ADDRESS);
                 validateSubEntity(errorDetailsMap, eMap, task,
                         task.getResources(), GET_RESOURCES);
