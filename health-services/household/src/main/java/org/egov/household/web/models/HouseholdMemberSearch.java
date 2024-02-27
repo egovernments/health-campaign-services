@@ -32,16 +32,16 @@ public class HouseholdMemberSearch {
     private List<String> id = null;
 
     @JsonProperty("householdId")
-    private String householdId = null;
+    private List<String> householdId = null;
 
     @JsonProperty("householdClientReferenceId")
-    private String householdClientReferenceId = null;
+    private List<String> householdClientReferenceId = null;
 
     @JsonProperty("individualId")
-    private String individualId = null;
+    private List<String> individualId = null;
 
     @JsonProperty("individualClientReferenceId")
-    private String individualClientReferenceId = null;
+    private List<String> individualClientReferenceId = null;
 
     @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = null;
