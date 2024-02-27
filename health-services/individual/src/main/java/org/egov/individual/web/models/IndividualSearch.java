@@ -101,7 +101,7 @@ public class IndividualSearch   {
 
     @Exclude
     @JsonProperty("userUuid")
-    private String userUuid;
+    private List<String> userUuid;
 
     @Exclude
     @JsonProperty("latitude")

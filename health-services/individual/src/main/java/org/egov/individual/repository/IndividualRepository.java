@@ -271,8 +271,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
 
         if (searchObject.getUserUuid() != null) {
-            query = query + "AND userUuid=:userUuid ";
-            paramsMap.put("userUuid", String.valueOf(searchObject.getUserUuid()));
+            query = query + "AND userUuid in (:userUuid) ";
+            paramsMap.put("userUuid", searchObject.getUserUuid());
         }
 
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
