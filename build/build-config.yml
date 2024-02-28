@@ -89,7 +89,7 @@ config:
     build:
       - work-dir: "core-services/error-handler"
         image-name: "error-handler"
-        dockerfile: "build/maven/Dockerfile"        
+        dockerfile: "build/maven/Dockerfile"
   - name: "builds/health-campaign-services/core-services/dashboard-analytics"
     build:
       - work-dir: "core-services/dashboard-analytics"

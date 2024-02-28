@@ -1,5 +1,17 @@
 package org.egov.project.validator.project;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -13,23 +25,17 @@ import org.egov.project.util.BoundaryUtil;
 import org.egov.project.util.MDMSUtils;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
+import static org.egov.project.util.ProjectConstants.MASTER_ATTENDANCE_SESSION;
 import static org.egov.project.util.ProjectConstants.MASTER_DEPARTMENT;
 import static org.egov.project.util.ProjectConstants.MASTER_NATUREOFWORK;
 import static org.egov.project.util.ProjectConstants.MASTER_PROJECTTYPE;
 import static org.egov.project.util.ProjectConstants.MASTER_TENANTS;
 import static org.egov.project.util.ProjectConstants.MDMS_COMMON_MASTERS_MODULE_NAME;
+import static org.egov.project.util.ProjectConstants.MDMS_HCM_ATTENDANCE_MODULE_NAME;
 import static org.egov.project.util.ProjectConstants.MDMS_TENANT_MODULE_NAME;
 
 @Component
@@ -44,6 +50,10 @@ public class ProjectValidator {
 
     @Autowired
     ProjectConfiguration config;
+
+    @Autowired
+    @Qualifier("objectMapper")
+    ObjectMapper mapper;
 
     /* Validates create Project request body */
     public void validateCreateProjectRequest(ProjectRequest request) {
@@ -61,6 +71,7 @@ public class ProjectValidator {
         //Verify MDMS Data
         // TODO: Uncomment and fix as per HCM once we get clarity
         // validateRequestMDMSData(request, tenantId, errorMap);
+        validateAttendanceSessionAgainstMDMS(request,errorMap,tenantId);
 
         //Get boundaries in list from all Projects in request body for validation
         Map<String, List<String>> boundariesForValidation = getBoundaryForValidation(request.getProjects());
@@ -183,6 +194,11 @@ public class ProjectValidator {
                 log.error("Start date should be less than end date");
                 errorMap.put("INVALID_DATE", "Start date should be less than end date");
             }
+            if (project.getStartDate() != null && project.getEndDate() != null && project.getEndDate() != 0
+                    && project.getEndDate().compareTo(Instant.ofEpochMilli(project.getStartDate()).plus(Duration.ofDays(1)).toEpochMilli()) < 0) {
+                log.error("Start date and end date difference should at least be 1 day.");
+                errorMap.put("INVALID_DATE", "Start date and end date difference should at least be 1 day.");
+            }
             if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary()) && StringUtils.isBlank(project.getAddress().getBoundaryType()) ) {
                 log.error("Boundary Type is mandatory if boundary is present  in Project request body");
                 errorMap.put("BOUNDARY", "Boundary Type is mandatory if boundary is present in Project request body");
@@ -303,6 +319,51 @@ public class ProjectValidator {
         }
     }
 
+    private void validateAttendanceSessionAgainstMDMS(ProjectRequest projectRequest, Map<String, String> errorMap, String tenantId) {
+        String rootTenantId = tenantId.split("\\.")[0];
+        ObjectMapper objectMapper = new ObjectMapper();
+        String numberOfSessions = null;
+
+        //Get MDMS data using create project request and tenantId
+        Object mdmsData = mdmsUtils.mDMSCall(projectRequest, rootTenantId);
+        final String jsonPathForAttendanceSession = "$.MdmsRes." + MDMS_HCM_ATTENDANCE_MODULE_NAME + "." + MASTER_ATTENDANCE_SESSION + ".*";
+        List<Object> attendanceRes = null;
+        try {
+            attendanceRes = JsonPath.read(mdmsData, jsonPathForAttendanceSession);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
+        }
+
+        for (Project project : projectRequest.getProjects()) {
+            JsonNode additionalDetails = null;
+            try {
+                Object additionalDetailsObj = project.getAdditionalDetails();
+                String additionalDetailsStr = objectMapper.writeValueAsString(additionalDetailsObj);
+                additionalDetails = objectMapper.readTree(additionalDetailsStr);
+
+                JsonNode numberOfSessionsNode = additionalDetails.get("numberOfSessions");
+                if (numberOfSessionsNode != null && numberOfSessionsNode.isTextual()) {
+                    numberOfSessions = numberOfSessionsNode.asText();
+                    log.info("Number of sessions: " + numberOfSessions);
+                } else {
+                    log.info("numberOfSessions field not found in project's additonal Details");
+                }
+
+            } catch (ClassCastException e) {
+                log.error("Not able to parse additional details object", e);
+            } catch (Exception e) {
+                log.error("An unexpected error occurred while getting AdditionalDetails", e);
+            }
+
+            // Validate numberOfSessions
+            if (!StringUtils.isBlank(numberOfSessions) && !attendanceRes.contains(numberOfSessions)) {
+                log.error("The number of attendance sessions " + numberOfSessions + " is not present in MDMS");
+                errorMap.put("INVALID_NUMBER_OF_ATTENDANCE_SESSIONS", "The number of attendance sessions: " + numberOfSessions + " is not present in MDMS");
+            }
+        }
+    }
+
     /* Validate Project Request MDMS data */
     private void validateRequestMDMSData(ProjectRequest request, String tenantId, Map<String, String> errorMap) {
         String rootTenantId = tenantId.split("\\.")[0];
@@ -350,7 +411,17 @@ public class ProjectValidator {
             log.error("The project records that you are trying to update does not exists in the system");
             throw new CustomException("INVALID_PROJECT_MODIFY", "The records that you are trying to update does not exists in the system");
         }
+        Long currentTimestamp = Instant.now().toEpochMilli();
+        // Calculate the timestamp for midnight (12:00 AM) of the next date, plus 24 hours, in UTC
+        Instant nextDateInstantUTC = Instant.ofEpochMilli(currentTimestamp)
+                .plus(Duration.ofDays(1))  // Add 1 day to get the next date
+                .atZone(ZoneOffset.UTC)
+                .toLocalDate()  // Extract the date part
+                .atStartOfDay(ZoneOffset.UTC)  // Set the time to midnight
+                .toInstant()// Convert to Instant
+                .plus(Duration.ofDays(1));  // Add 1 day
 
+        Long nextDateTimestampUTC = nextDateInstantUTC.toEpochMilli();
         for (Project project: projectsFromRequest) {
             Project projectFromDB = projectsFromDB.stream().filter(p -> p.getId().equals(project.getId())).findFirst().orElse(null);
 
@@ -359,11 +430,64 @@ public class ProjectValidator {
                 throw new CustomException("INVALID_PROJECT_MODIFY", "The project id " + project.getId() + " that you are trying to update does not exists for the project");
             }
 
+            validateStartDateAndEndDateAgainstDB(project, projectFromDB, currentTimestamp, nextDateTimestampUTC);
+
             validateUpdateTargetAgainstDB(project, projectFromDB);
 
             validateUpdateDocumentAgainstDB(project, projectFromDB);
 
             validateUpdateAddressAgainstDB(project, projectFromDB);
+        }
+    }
+
+    /**
+     * Validates the start and end dates of a project against the database and current timestamp.
+     *
+     * @param project               The project object containing the new start and end dates.
+     * @param projectFromDB         The project object retrieved from the database for comparison.
+     * @param currentTimestamp      The current timestamp.
+     * @param nextDateTimestampUTC  The nextDateTimestamp
+     */
+    private void validateStartDateAndEndDateAgainstDB(Project project, Project projectFromDB, Long currentTimestamp, Long nextDateTimestampUTC) {
+        String errorMessage = "";
+        // Check if the project start date is not null and whether it's different from the one in the database
+        if (project.getStartDate() != null) {
+            // Check if the project start date is different from the one in the database
+            if(project.getStartDate().compareTo(projectFromDB.getStartDate()) != 0) {
+                // Check if the project start date is before the current timestamp or within 24 hours from the next date's midnight
+                if (projectFromDB.getStartDate().compareTo(currentTimestamp) < 0) {
+                    errorMessage = "The project start date cannot be updated as the project has already started.";
+                } else if(project.getStartDate().compareTo(nextDateTimestampUTC) < 0) {
+                    errorMessage = "The project start date cannot be updated as it should be at least 24 hours in advance from the current time and start after the next day onwards.";
+                }
+            }
+        } else {
+            errorMessage = "The project start date cannot be updated as it is null.";
+        }
+        // If there's an error message, log it and throw a CustomException
+        if(!errorMessage.trim().isEmpty()) {
+            log.error(errorMessage);
+            throw new CustomException("INVALID_PROJECT_MODIFY", errorMessage);
+        }
+
+        errorMessage = "";
+        // Check if the project end date is not null and whether it's different from the one in the database
+        if(project.getEndDate() != null) {
+            // Check if the project end date is before the current timestamp or within 24 hours from the next date's midnight
+            if(project.getEndDate().compareTo(projectFromDB.getEndDate()) < 0) {
+                if (project.getEndDate().compareTo(currentTimestamp) < 0) {
+                    errorMessage = "The project end date cannot be updated as it has already ended. The project end date cannot be decreased to a past date.";
+                } else if (project.getEndDate().compareTo(nextDateTimestampUTC) < 0) {
+                    errorMessage = "The project end date cannot be updated as it should be at least 24 hours in advance from the current time and start after the next day onwards.";
+                }
+            }
+        } else {
+            errorMessage = "The project end date cannot be updated as it is null.";
+        }
+        // If there's an error message, log it and throw a CustomException
+        if(!errorMessage.trim().isEmpty()) {
+            log.error(errorMessage);
+            throw new CustomException("INVALID_PROJECT_MODIFY", errorMessage);
         }
     }
 
