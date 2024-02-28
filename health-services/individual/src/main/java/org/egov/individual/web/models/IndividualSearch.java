@@ -100,6 +100,10 @@ public class IndividualSearch   {
     private Long userId;
 
     @Exclude
+    @JsonProperty("userUuid")
+    private List<String> userUuid;
+
+    @Exclude
     @JsonProperty("latitude")
     @DecimalMin("-90")
     @DecimalMax("90")
