@@ -102,6 +102,7 @@ public class HouseholdService {
         }
         ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(household.getTenantId(), projectTypeId, boundaryLabelToNameMap);
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
+        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getCreatedTime());
 
         return HouseholdIndexV1.builder()
                 .household(household)
@@ -113,6 +114,8 @@ public class HouseholdService {
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
+                .syncedTimeStamp(syncedTimeStamp)
+                .syncedTime(household.getAuditDetails().getLastModifiedTime())
                 .build();
     }
 }
