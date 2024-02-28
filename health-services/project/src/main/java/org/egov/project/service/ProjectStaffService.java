@@ -124,7 +124,9 @@ public class ProjectStaffService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
+                // Pushing the data as ProjectStaffBulkRequest for Attendance Service Consumer
                 producer.push(projectConfiguration.getProjectStaffAttendanceTopic(), new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities));
+                // Pushing the data as list for persister consumer
                 projectStaffRepository.save(validEntities, projectConfiguration.getCreateProjectStaffTopic());
                 log.info("successfully created project staff");
             }
