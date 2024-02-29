@@ -99,7 +99,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
 
-        query = query + "ORDER BY h.lastModifiedTime ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY h.lastModifiedTime, h.clientlastmodifiedtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
         return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
