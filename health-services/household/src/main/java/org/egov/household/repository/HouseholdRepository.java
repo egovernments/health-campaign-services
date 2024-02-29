@@ -73,7 +73,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
     public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
         String query = "SELECT h.*, a.*, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
         if (searchObject.getLocalityCode() != null) {
-            query += " FROM (SELECT * FROM address WHERE localitycode = '" + searchObject.getLocalityCode() + "') a LEFT JOIN household h ON a.id = h.addressid";
+            query += " FROM (SELECT * FROM address WHERE localitycode = '" + searchObject.getLocalityCode() + "') a INNER JOIN household h ON a.id = h.addressid";
         } else {
             query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
         }
@@ -92,8 +92,11 @@ public class HouseholdRepository extends GenericRepository<Household> {
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
-        paramsMap.put("tenantId", tenantId);
-        paramsMap.put("isDeleted", includeDeleted);
+
+        if (searchObject.getLocalityCode() == null) {
+            paramsMap.put("tenantId", tenantId);
+            paramsMap.put("isDeleted", includeDeleted);
+        }
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
