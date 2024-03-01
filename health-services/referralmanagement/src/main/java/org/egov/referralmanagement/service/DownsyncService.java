@@ -1,15 +1,21 @@
 package org.egov.referralmanagement.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.household.Household;
-import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkResponse;
 import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.models.household.HouseholdMemberSearchRequest;
-import org.egov.common.models.household.HouseholdSearch;
-import org.egov.common.models.household.HouseholdSearchRequest;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualSearch;
@@ -32,18 +38,11 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class DownsyncService {
@@ -58,18 +57,22 @@ public class DownsyncService {
 	
 	private ReferralManagementService referralService;
 	
+	private HouseholdRepository householdRepository;
+	
 	@Autowired
 	public DownsyncService( ServiceRequestClient serviceRequestClient,
 							ReferralManagementConfiguration referralManagementConfiguration,
 							NamedParameterJdbcTemplate jdbcTemplate,
 							SideEffectService sideEffectService,
-							ReferralManagementService referralService) {
+							ReferralManagementService referralService,
+							HouseholdRepository householdRepository) {
 
 		this.restClient = serviceRequestClient;
 		this.configs = referralManagementConfiguration;
 		this.jdbcTemplate = jdbcTemplate;
 		this.sideEffectService=sideEffectService;
 		this.referralService=referralService;
+		this.householdRepository = householdRepository;
 		
 		}
 
@@ -147,26 +150,27 @@ public class DownsyncService {
 		 */
 		private List<Household> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
 
-			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
-			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-	
-			StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
-					.append(configs.getHouseholdSearchUrl());
-			householdUrl = 	appendUrlParams(householdUrl, criteria, null, null);
-					
-			HouseholdSearch householdSearch = HouseholdSearch.builder()
-					.localityCode(criteria.getLocality())
-					.build();
+			DownsyncCriteria  criteria = downsyncRequest.getDownsyncCriteria();
+//			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+//	
+//			StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
+//					.append(configs.getHouseholdSearchUrl());
+//			householdUrl = 	appendUrlParams(householdUrl, criteria, null, null);
+//					
+//			HouseholdSearch householdSearch = HouseholdSearch.builder()
+//					.localityCode(criteria.getLocality())
+//					.build();
+//			
+//			HouseholdSearchRequest searchRequest = HouseholdSearchRequest.builder()
+//				.household(householdSearch)
+//				.requestInfo(requestInfo)
+//				.build();
 			
-			HouseholdSearchRequest searchRequest = HouseholdSearchRequest.builder()
-				.household(householdSearch)
-				.requestInfo(requestInfo)
-				.build();
-			
-			HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
-			List<Household> households = res.getHouseholds();
+			//HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
+			Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null);
+			List<Household> households = res.getY();
 			downsync.setHouseholds(households);
-			downsync.getDownsyncCriteria().setTotalCount(res.getTotalCount());
+			downsync.getDownsyncCriteria().setTotalCount(res.getX());
 					
 			if(CollectionUtils.isEmpty(households))
 				return Collections.emptyList();
