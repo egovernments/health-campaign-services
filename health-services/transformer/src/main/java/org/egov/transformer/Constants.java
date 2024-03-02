@@ -69,5 +69,12 @@ public interface Constants {
     String END_DATE = "endDate";
     String CYCLES = "cycles";
     String DELIVERIES = "deliveries";
+    String RECEIVED = "received";
+    String RETURNED = "returned";
+    String ISSUED = "issued";
+    String LOST = "lost";
+    String GAINED = "gained";
+    String DAMAGED = "damaged";
+    String INHAND = "inHand";
 
 }
