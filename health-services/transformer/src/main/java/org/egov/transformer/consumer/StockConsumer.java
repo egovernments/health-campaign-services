@@ -5,10 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.Stock;
-import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.handler.TransformationHandler;
-import org.egov.transformer.service.StockReconciliationService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -23,12 +21,10 @@ public class StockConsumer {
 
     private final ObjectMapper objectMapper;
 
-    private final StockReconciliationService stockReconciliationService;
     private final TransformationHandler<Stock> transformationHandler;
 
-    public StockConsumer(ObjectMapper objectMapper, StockReconciliationService stockReconciliationService, TransformationHandler<Stock> transformationHandler) {
+    public StockConsumer(ObjectMapper objectMapper, TransformationHandler<Stock> transformationHandler) {
         this.objectMapper = objectMapper;
-        this.stockReconciliationService = stockReconciliationService;
         this.transformationHandler = transformationHandler;
     }
 
@@ -45,19 +41,4 @@ public class StockConsumer {
             log.error("error in stock consumer bulk create {}", ExceptionUtils.getStackTrace(exception));
         }
     }
-
-    @KafkaListener(topics = { "${transformer.consumer.stock.reconciliation.create.topic}",
-            "${transformer.consumer.stock.reconciliation.update.topic}"})
-    public void consumeStockReconciliation(ConsumerRecord<String, Object> payload,
-                                           @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        try {
-            List<StockReconciliation> payloadList = Arrays.asList(objectMapper
-                    .readValue((String) payload.value(),
-                            StockReconciliation[].class));
-            stockReconciliationService.transform(payloadList);
-        } catch (Exception exception) {
-            log.error("error in stock consumer bulk create {}", ExceptionUtils.getStackTrace(exception));
-        }
-    }
-
 }
