@@ -40,6 +40,7 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequ
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -81,6 +82,7 @@ public class DownsyncService {
 		 * @param downsyncRequest
 		 * @return Downsync
 		 */
+	    @Cacheable(value = "downsyncDataCache", key = "{#downsyncRequest.downsyncCriteria.locality, #downsyncRequest.downsyncCriteria.offset, #downsyncRequest.downsyncCriteria.limit}")
 		public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) {
 
 			Downsync downsync = new Downsync();
