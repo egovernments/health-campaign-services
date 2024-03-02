@@ -6,8 +6,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -40,12 +42,15 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequ
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class DownsyncService {
 	
 	private ServiceRequestClient restClient;
@@ -60,13 +65,16 @@ public class DownsyncService {
 	
 	private HouseholdRepository householdRepository;
 	
+	private RedisTemplate<String, Object> redisTemplate;
+	
 	@Autowired
 	public DownsyncService( ServiceRequestClient serviceRequestClient,
 							ReferralManagementConfiguration referralManagementConfiguration,
 							NamedParameterJdbcTemplate jdbcTemplate,
 							SideEffectService sideEffectService,
 							ReferralManagementService referralService,
-							HouseholdRepository householdRepository) {
+							HouseholdRepository householdRepository,
+							RedisTemplate<String, Object> redisTemplate) {
 
 		this.restClient = serviceRequestClient;
 		this.configs = referralManagementConfiguration;
@@ -74,7 +82,7 @@ public class DownsyncService {
 		this.sideEffectService=sideEffectService;
 		this.referralService=referralService;
 		this.householdRepository = householdRepository;
-		
+		this.redisTemplate = redisTemplate;		
 		}
 
 		/**
@@ -82,11 +90,17 @@ public class DownsyncService {
 		 * @param downsyncRequest
 		 * @return Downsync
 		 */
-	    @Cacheable(value = "downsyncDataCache", key = "{#downsyncRequest.downsyncCriteria.locality, #downsyncRequest.downsyncCriteria.offset, #downsyncRequest.downsyncCriteria.limit}")
 		public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) {
 
 			Downsync downsync = new Downsync();
-
+			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
+			String key = criteria.getLocality()+criteria.getOffset()+criteria.getLimit();
+			
+			Object obj = getFromCache(key);
+			if(null != obj) {
+				return (Downsync) obj;
+			}
+			
 			List<Household> households = null;
 			List<String> householdClientRefIds = null;
 			List<String> householdIds = null;
@@ -140,7 +154,9 @@ public class DownsyncService {
 
 				searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
 			}
-
+			
+			cacheByKey(downsync, key);
+			
 			return downsync;
 		}
 
@@ -441,4 +457,24 @@ public class DownsyncService {
 		
 		return url;
 	}
+	
+    protected void cacheByKey(Downsync downsync, String key) {
+    	
+    	Map<String, Downsync> map = new HashMap<>();
+    	map.put(key, downsync);
+        try{
+            
+                redisTemplate.opsForHash().put("downsync", key, downsync);
+                redisTemplate.expire(key, 600l, TimeUnit.SECONDS);
+            
+        } catch (Exception exception) {
+            log.warn("Error while saving to cache: {}", ExceptionUtils.getStackTrace(exception));
+        }
+    }
+    
+    private Object getFromCache (String key) {
+    	
+    	return redisTemplate.opsForHash().get("downsync", key);
+    	
+    }
 }
