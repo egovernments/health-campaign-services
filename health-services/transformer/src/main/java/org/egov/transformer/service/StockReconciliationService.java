@@ -63,7 +63,6 @@ public class StockReconciliationService {
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
 
-        //String facilityLevel = facility != null ? stockTransformationService.getFacilityLevel(facility) : null;
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                 && facility.getAddress().getLocality().getCode() != null) {
             boundaryLabelToNameMap = projectService
@@ -82,21 +81,12 @@ public class StockReconciliationService {
         }
 
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
-                .id(stockReconciliation.getId())
-                .tenantId(tenantId)
-                .facilityId(stockReconciliation.getFacilityId())
+                .stockReconciliation(stockReconciliation)
                 .facilityName(facility != null ? facility.getName() : stockReconciliation.getFacilityId())
                 .facilityTarget(facilityTarget)
                 .facilityLevel(facilityLevel)
-                .createdTime(stockReconciliation.getClientAuditDetails().getCreatedTime())
-                .createdBy(stockReconciliation.getClientAuditDetails().getCreatedBy())
-                .lastModifiedBy(stockReconciliation.getClientAuditDetails().getLastModifiedBy())
-                .lastModifiedTime(stockReconciliation.getClientAuditDetails().getLastModifiedTime())
-                .productVariant(stockReconciliation.getProductVariantId())
                 .syncedTimeStamp(syncedTimeStamp)
                 .syncedTime(stockReconciliation.getAuditDetails().getLastModifiedTime())
-                .calculatedCount(stockReconciliation.getCalculatedCount())
-                .stockPhysicalCount(stockReconciliation.getPhysicalCount())
                 .boundaryHierarchy(boundaryHierarchy)
                 .additionalDetails(additionalDetails)
                 .taskDates(commonUtils.getDateFromEpoch(stockReconciliation.getClientAuditDetails().getLastModifiedTime()))
