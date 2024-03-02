@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.web.controllers;
 
 import io.swagger.annotations.ApiParam;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncResponse;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.validation.Valid;
 
+@Slf4j
 @Controller
 @RequestMapping("/beneficiary-downsync")
 @Validated
@@ -31,7 +33,7 @@ public class BeneficiaryDownsyncController {
 	
     @PostMapping(value = "/v1/_get")
     public ResponseEntity<DownsyncResponse> getBeneficaryData (@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
-
+		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
     	Downsync.builder().
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
