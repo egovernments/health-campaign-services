@@ -168,3 +168,10 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
         image-name: "health-hrms-db"
+  - name: "builds/health-campaign-services/core-services/egov-hrms"
+    build:
+      - work-dir: "core-services/egov-hrms"
+        image-name: "egov-hrms"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/egov-hrms/src/main/resources/db"
+        image-name: "egov-hrms-db"
