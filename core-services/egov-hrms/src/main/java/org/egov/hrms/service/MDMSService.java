@@ -27,18 +27,12 @@ public class MDMSService {
 
 	@Autowired
 	private RestTemplate restTemplate;
-
-	@Value("${egov.mdmslegacy.host}")
-	private String mdmsLegacyHost;
-
+	
 	@Value("${egov.mdms.host}")
 	private String mdmsHost;
 
 	@Value("${egov.mdms.search.endpoint}")
 	private String mdmsEndpoint;
-
-	@Value("${egov.mdmslegacy.search.endpoint}")
-	private String mdmsLegacyEndpoint;
 	
 	
 	/**
@@ -186,8 +180,7 @@ public class MDMSService {
 			moduleDetail.setMasterDetails(masterDetails);
 			moduleDetails.add(moduleDetail);
 		}
-
-		uri.append(mdmsLegacyHost).append(mdmsLegacyEndpoint);
+		uri.append(mdmsHost).append(mdmsEndpoint);
 		MdmsCriteria mdmsCriteria = MdmsCriteria.builder().tenantId(tenantId).moduleDetails(moduleDetails).build();
 		return MdmsCriteriaReq.builder().requestInfo(requestInfo).mdmsCriteria(mdmsCriteria).build();
 
