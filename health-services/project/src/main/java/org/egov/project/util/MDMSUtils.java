@@ -1,5 +1,10 @@
 package org.egov.project.util;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
@@ -14,16 +19,13 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-
+import static org.egov.project.util.ProjectConstants.MASTER_ATTENDANCE_SESSION;
 import static org.egov.project.util.ProjectConstants.MASTER_DEPARTMENT;
 import static org.egov.project.util.ProjectConstants.MASTER_NATUREOFWORK;
 import static org.egov.project.util.ProjectConstants.MASTER_PROJECTTYPE;
 import static org.egov.project.util.ProjectConstants.MASTER_TENANTS;
 import static org.egov.project.util.ProjectConstants.MDMS_COMMON_MASTERS_MODULE_NAME;
+import static org.egov.project.util.ProjectConstants.MDMS_HCM_ATTENDANCE_MODULE_NAME;
 import static org.egov.project.util.ProjectConstants.MDMS_TENANT_MODULE_NAME;
 
 @Component
@@ -58,11 +60,13 @@ public class MDMSUtils {
         ModuleDetail projectMDMSModuleDetail = getMDMSModuleRequestData(request);
         ModuleDetail projectDepartmentModuleDetail = getDepartmentModuleRequestData(request);
         ModuleDetail projectTenantModuleDetail = getTenantModuleRequestData(request);
+        ModuleDetail attendanceModuleDetail = getAttendanceModuleRequestData(request);
 
         List<ModuleDetail> moduleDetails = new LinkedList<>();
         moduleDetails.add(projectMDMSModuleDetail);
         moduleDetails.add(projectDepartmentModuleDetail);
         moduleDetails.add(projectTenantModuleDetail);
+        moduleDetails.add(attendanceModuleDetail);
 
         MdmsCriteria mdmsCriteria = MdmsCriteria.builder().moduleDetails(moduleDetails).tenantId(tenantId)
                 .build();
@@ -121,6 +125,21 @@ public class MDMSUtils {
                 .moduleName(MDMS_TENANT_MODULE_NAME).build();
 
         return tenantModuleDetail;
+    }
+
+    private ModuleDetail getAttendanceModuleRequestData(ProjectRequest request) {
+        List<MasterDetail> attendanceMasterDetails = new ArrayList<>();
+
+        MasterDetail attendanceSessionsMasterDetails = MasterDetail.builder().name(MASTER_ATTENDANCE_SESSION)
+                .filter(filterCode)
+                .build();
+
+        attendanceMasterDetails.add(attendanceSessionsMasterDetails);
+
+        ModuleDetail attendanceModuleDetail = ModuleDetail.builder().masterDetails(attendanceMasterDetails)
+                .moduleName(MDMS_HCM_ATTENDANCE_MODULE_NAME).build();
+
+        return attendanceModuleDetail;
     }
 
 }

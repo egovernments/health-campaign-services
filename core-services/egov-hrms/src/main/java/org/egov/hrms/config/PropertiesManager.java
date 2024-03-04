@@ -137,4 +137,5 @@ public class PropertiesManager {
 
 	@Value("${egov.mdmsLegacy.search.endpoint}")
 	public String mdmsLegacySearchEndpoint;
+
 }

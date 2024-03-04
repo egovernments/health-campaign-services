@@ -17,6 +17,7 @@ import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
@@ -98,6 +99,11 @@ public class IndividualSearch   {
     @Exclude
     @JsonProperty("userId")
     private Long userId;
+
+    @Exclude
+    @JsonProperty("userUuid")
+    @Size(min = 1)
+    private List<String> userUuid;
 
     @Exclude
     @JsonProperty("latitude")

@@ -1,11 +1,24 @@
 package org.egov.hrms.service;
 
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
+
 import org.egov.common.models.individual.*;
+
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
@@ -18,6 +31,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
@@ -142,13 +156,18 @@ public class IndividualService implements UserService {
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
                                 .isDeleted(Boolean.FALSE)
                         .build()))
+                /*
+                 * FIXME (HCM specific change) clientReferenceId is the primary key in the individual table of the FrontEnd Worker Application's local database. 
+                 */
                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                // Creating a list of identifiers
                 .identifiers(Collections.singletonList(
                         Identifier.builder()
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
                                 .identifierId(String.valueOf(UUID.randomUUID()))
                                 .identifierType(SYSTEM_GENERATED)
                                 .build()))
+          
                 .userDetails(UserDetails.builder()
                         .username(userRequest.getUser().getUserName())
                         .password(userRequest.getUser().getPassword())
