@@ -1,5 +1,6 @@
 package org.egov.hrms.service;
 
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
@@ -15,18 +16,9 @@ import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
-import org.egov.common.models.individual.Address;
-import org.egov.common.models.individual.AddressType;
-import org.egov.common.models.individual.Gender;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkResponse;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.IndividualSearch;
-import org.egov.common.models.individual.IndividualSearchRequest;
-import org.egov.common.models.individual.Name;
-import org.egov.common.models.individual.UserDetails;
+
+import org.egov.common.models.individual.*;
+
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
@@ -34,6 +26,12 @@ import org.egov.hrms.web.contract.User;
 import org.egov.hrms.web.contract.UserRequest;
 import org.egov.hrms.web.contract.UserResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.stream.Collectors;
+
 
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
@@ -161,19 +159,15 @@ public class IndividualService implements UserService {
                 /*
                  * FIXME (HCM specific change) clientReferenceId is the primary key in the individual table of the FrontEnd Worker Application's local database. 
                  */
-                // Generating a unique client reference ID using UUID
                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
                 // Creating a list of identifiers
                 .identifiers(Collections.singletonList(
-                        // Building a unique identifier
                         Identifier.builder()
-                                // Generating a unique client reference ID using UUID for the identifier
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
-                                // Generating a unique identifier ID using UUID
                                 .identifierId(String.valueOf(UUID.randomUUID()))
-                                // Specifying the type of identifier as SYSTEM_GENERATED
                                 .identifierType(SYSTEM_GENERATED)
                                 .build()))
+          
                 .userDetails(UserDetails.builder()
                         .username(userRequest.getUser().getUserName())
                         .password(userRequest.getUser().getPassword())
