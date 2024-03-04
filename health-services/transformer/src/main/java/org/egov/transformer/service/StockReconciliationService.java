@@ -102,7 +102,9 @@ public class StockReconciliationService {
             String value = field.getValue();
             if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
                 try {
-                    additionalDetails.put(key, Integer.valueOf(value));
+                    Double doubleValue = Double.valueOf(value);
+                    Integer intValue = doubleValue.intValue();
+                    additionalDetails.put(key, intValue);
                 } catch (NumberFormatException e) {
                     log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
                     additionalDetails.put(key, (JsonNode) null);
