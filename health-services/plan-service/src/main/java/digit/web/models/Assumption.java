@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import digit.models.coremodels.AuditDetails;
 import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -23,22 +24,23 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Assumption   {
-        @JsonProperty("id")
+public class Assumption {
+    @JsonProperty("id")
+    @Valid
+    private UUID id = null;
 
-          @Valid
-                private UUID id = null;
+    @JsonProperty("key")
+    @NotNull
+    @Size(min = 1, max = 32)
+    private String key = null;
 
-        @JsonProperty("key")
-          @NotNull
+    @JsonProperty("value")
+    @NotNull
+    @Valid
+    private BigDecimal value = null;
 
-        @Size(min=1,max=32)         private String key = null;
-
-        @JsonProperty("value")
-          @NotNull
-
-          @Valid
-                private BigDecimal value = null;
+    @JsonProperty("auditDetails")
+    private @Valid AuditDetails auditDetails;
 
 
 }

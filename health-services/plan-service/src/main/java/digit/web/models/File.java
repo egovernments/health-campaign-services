@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import digit.models.coremodels.AuditDetails;
 import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -23,52 +24,55 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class File   {
-        @JsonProperty("id")
+public class File {
+    @JsonProperty("id")
+    @Valid
+    private UUID id = null;
 
-          @Valid
-                private UUID id = null;
+    @JsonProperty("filestoreId")
+    @NotNull
+    @Size(min = 1, max = 32)
+    private String filestoreId = null;
 
-        @JsonProperty("filestoreId")
-          @NotNull
+    @JsonProperty("inputFileType")
+    @NotNull
+    private InputFileTypeEnum inputFileType = null;
 
-        @Size(min=1,max=32)         private String filestoreId = null;
+    @JsonProperty("auditDetails")
+    private @Valid AuditDetails auditDetails;
 
-            /**
-            * The original file type of the Input
-            */
-            public enum InputFileTypeEnum {
-                        EXCEL("Excel"),
-                        
-                        SHAPEFILE("Shapefile"),
-                        
-                        GEOJSON("GeoJSON");
-            
-            private String value;
-            
-            InputFileTypeEnum(String value) {
+
+    /**
+     * The original file type of the Input
+     */
+    public enum InputFileTypeEnum {
+        EXCEL("Excel"),
+
+        SHAPEFILE("Shapefile"),
+
+        GEOJSON("GeoJSON");
+
+        private String value;
+
+        InputFileTypeEnum(String value) {
             this.value = value;
-            }
-            
-            @Override
-            @JsonValue
-            public String toString() {
+        }
+
+        @Override
+        @JsonValue
+        public String toString() {
             return String.valueOf(value);
-            }
-            
-            @JsonCreator
-            public static InputFileTypeEnum fromValue(String text) {
+        }
+
+        @JsonCreator
+        public static InputFileTypeEnum fromValue(String text) {
             for (InputFileTypeEnum b : InputFileTypeEnum.values()) {
-            if (String.valueOf(b.value).equals(text)) {
-            return b;
-            }
+                if (String.valueOf(b.value).equals(text)) {
+                    return b;
+                }
             }
             return null;
-            }
-            }        @JsonProperty("inputFileType")
-          @NotNull
-
-                private InputFileTypeEnum inputFileType = null;
-
+        }
+    }
 
 }

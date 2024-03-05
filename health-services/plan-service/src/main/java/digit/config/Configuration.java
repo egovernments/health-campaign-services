@@ -85,8 +85,10 @@ public class Configuration {
     @Value("${egov.url.shortner.endpoint}")
     private String urlShortnerEndpoint;
 
+    //Persister Topic
+    @Value("${plan.configuration.create.topic}")
+    private String planConfigCreateTopic;
 
-    //SMSNotification
-    @Value("${egov.sms.notification.topic}")
-    private String smsNotificationTopic;
+    @Value("${plan.configuration.update.topic}")
+    private String planConfigUpdateTopic;
 }

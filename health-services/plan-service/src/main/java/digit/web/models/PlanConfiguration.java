@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import digit.models.coremodels.AuditDetails;
 import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -28,65 +29,65 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanConfiguration   {
-        @JsonProperty("id")
+public class PlanConfiguration {
+    @JsonProperty("id")
 
-          @Valid
-                private UUID id = null;
+    @Valid
+    private UUID id = null;
 
-        @JsonProperty("tenantId")
-          @NotNull
+    @JsonProperty("tenantId")
+    @NotNull
+    private String tenantId = null;
 
-                private String tenantId = null;
+    @JsonProperty("name")
+    @NotNull
+    @Size(min = 2)
+    private String name = null;
 
-        @JsonProperty("name")
-          @NotNull
+    @JsonProperty("executionPlanId")
+    private String executionPlanId = null;
 
-        @Size(min=2)         private String name = null;
+    @JsonProperty("files")
+    @NotNull
+    @Valid
+    private List<File> files = new ArrayList<>();
 
-        @JsonProperty("executionPlanId")
+    @JsonProperty("assumptions")
+    @NotNull
+    @Valid
+    private List<Assumption> assumptions = new ArrayList<>();
 
-                private String executionPlanId = null;
+    @JsonProperty("operations")
+    @NotNull
+    @Valid
+    private List<Operation> operations = new ArrayList<>();
 
-        @JsonProperty("files")
-          @NotNull
-          @Valid
-                private List<File> files = new ArrayList<>();
+    @JsonProperty("resourceMapping")
+    @NotNull
+    @Valid
+    private List<ResourceMapping> resourceMapping = new ArrayList<>();
 
-        @JsonProperty("assumptions")
-          @NotNull
-          @Valid
-                private List<Assumption> assumptions = new ArrayList<>();
+    @JsonProperty("auditDetails")
+    private @Valid AuditDetails auditDetails;
 
-        @JsonProperty("operations")
-          @NotNull
-          @Valid
-                private List<Operation> operations = new ArrayList<>();
-
-        @JsonProperty("resourceMapping")
-          @NotNull
-          @Valid
-                private List<ResourceMapping> resourceMapping = new ArrayList<>();
-
-
-        public PlanConfiguration addFilesItem(File filesItem) {
+    public PlanConfiguration addFilesItem(File filesItem) {
         this.files.add(filesItem);
         return this;
-        }
+    }
 
-        public PlanConfiguration addAssumptionsItem(Assumption assumptionsItem) {
+    public PlanConfiguration addAssumptionsItem(Assumption assumptionsItem) {
         this.assumptions.add(assumptionsItem);
         return this;
-        }
+    }
 
-        public PlanConfiguration addOperationsItem(Operation operationsItem) {
+    public PlanConfiguration addOperationsItem(Operation operationsItem) {
         this.operations.add(operationsItem);
         return this;
-        }
+    }
 
-        public PlanConfiguration addResourceMappingItem(ResourceMapping resourceMappingItem) {
+    public PlanConfiguration addResourceMappingItem(ResourceMapping resourceMappingItem) {
         this.resourceMapping.add(resourceMappingItem);
         return this;
-        }
+    }
 
 }

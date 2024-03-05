@@ -23,20 +23,17 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Resource   {
-        @JsonProperty("id")
+public class Resource {
+    @JsonProperty("id")
+    @Valid
+    private UUID id = null;
 
-          @Valid
-                private UUID id = null;
+    @JsonProperty("resourceType")
+    private String resourceType = null;
 
-        @JsonProperty("resourceType")
-
-                private String resourceType = null;
-
-        @JsonProperty("estimatedNumber")
-
-          @Valid
-                private BigDecimal estimatedNumber = null;
+    @JsonProperty("estimatedNumber")
+    @Valid
+    private BigDecimal estimatedNumber = null;
 
 
 }
