@@ -92,7 +92,8 @@ public class HouseholdService {
     public HouseholdIndexV1 transform(Household household) {
         Map<String, String> boundaryLabelToNameMap = null;
         String projectTypeId = null;
-        String userId = household.getAuditDetails().getCreatedBy();
+        Integer cycleIndex = null;
+        String userId = household.getClientAuditDetails().getCreatedBy();
         ProjectStaff projectStaff = projectService.searchProjectStaff(userId, household.getTenantId());
         if (projectStaff != null) {
             Project project = projectService.getProject(projectStaff.getProjectId(), household.getTenantId());
@@ -108,8 +109,11 @@ public class HouseholdService {
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getCreatedTime());
 
+        if (projectTypeId != null) {
+            cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), projectTypeId, household.getAuditDetails());
+        }
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_NUMBER, 2);
+        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
 
         return HouseholdIndexV1.builder()
                 .household(household)
