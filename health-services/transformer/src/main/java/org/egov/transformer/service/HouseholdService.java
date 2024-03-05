@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -35,13 +36,16 @@ public class HouseholdService {
     private final ProjectService projectService;
     private final CommonUtils commonUtils;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils) {
+    private final ObjectMapper objectMapper;
+
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;
         this.commonUtils = commonUtils;
+        this.objectMapper = objectMapper;
     }
 
     public List<Household> searchHousehold(String clientRefId, String tenantId) {
@@ -104,6 +108,9 @@ public class HouseholdService {
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getCreatedTime());
 
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        additionalDetails.put(CYCLE_NUMBER, 2);
+
         return HouseholdIndexV1.builder()
                 .household(household)
                 .userName(userInfoMap.get(USERNAME))
@@ -114,6 +121,7 @@ public class HouseholdService {
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
+                .additionalDetails(additionalDetails)
                 .syncedTimeStamp(syncedTimeStamp)
                 .syncedTime(household.getAuditDetails().getLastModifiedTime())
                 .build();
