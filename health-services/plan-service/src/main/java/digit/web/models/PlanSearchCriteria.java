@@ -21,18 +21,16 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanSearchCriteria   {
-        @JsonProperty("tenantId")
+public class PlanSearchCriteria {
+    @JsonProperty("tenantId")
+    @Size(min = 1, max = 100)
+    private String tenantId = null;
 
-        @Size(min=1,max=100)         private String tenantId = null;
+    @JsonProperty("locality")
+    private String locality = null;
 
-        @JsonProperty("locality")
-
-                private String locality = null;
-
-        @JsonProperty("executionPlanId")
-
-                private String executionPlanId = null;
+    @JsonProperty("executionPlanId")
+    private String executionPlanId = null;
 
 
 }

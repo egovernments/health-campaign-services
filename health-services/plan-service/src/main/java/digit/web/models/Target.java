@@ -22,24 +22,20 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Target   {
-        @JsonProperty("id")
+public class Target {
+    @JsonProperty("id")
+    @Valid
+    private UUID id = null;
 
-          @Valid
-                private UUID id = null;
+    @JsonProperty("taskId")
+    @Valid
+    private UUID taskId = null;
 
-        @JsonProperty("taskId")
+    @JsonProperty("metric")
+    private String metric = null;
 
-          @Valid
-                private UUID taskId = null;
-
-        @JsonProperty("metric")
-
-                private String metric = null;
-
-        @JsonProperty("metricDetail")
-
-                private Object metricDetail = null;
+    @JsonProperty("metricDetail")
+    private Object metricDetail = null;
 
 
 }

@@ -18,16 +18,14 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanConfigurationSearchRequest   {
-        @JsonProperty("RequestInfo")
+public class PlanConfigurationSearchRequest {
+    @JsonProperty("RequestInfo")
+    @Valid
+    private RequestInfo requestInfo = null;
 
-          @Valid
-                private RequestInfo requestInfo = null;
-
-        @JsonProperty("PlanConfigurationSearchCriteria")
-
-          @Valid
-                private PlanConfigurationSearchCriteria planConfigurationSearchCriteria = null;
+    @JsonProperty("PlanConfigurationSearchCriteria")
+    @Valid
+    private PlanConfigurationSearchCriteria planConfigurationSearchCriteria = null;
 
 
 }

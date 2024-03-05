@@ -20,23 +20,22 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanSearchResponse   {
-        @JsonProperty("ResponseInfo")
+public class PlanSearchResponse {
+    @JsonProperty("ResponseInfo")
+    @Valid
+    private ResponseInfo responseInfo = null;
 
-          @Valid
-                private ResponseInfo responseInfo = null;
-
-        @JsonProperty("Plan")
-          @Valid
-                private List<Plan> plan = null;
+    @JsonProperty("Plan")
+    @Valid
+    private List<Plan> plan = null;
 
 
-        public PlanSearchResponse addPlanItem(Plan planItem) {
-            if (this.plan == null) {
+    public PlanSearchResponse addPlanItem(Plan planItem) {
+        if (this.plan == null) {
             this.plan = new ArrayList<>();
-            }
+        }
         this.plan.add(planItem);
         return this;
-        }
+    }
 
 }

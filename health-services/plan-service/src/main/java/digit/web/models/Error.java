@@ -31,15 +31,12 @@ public class Error {
 
     @JsonProperty("message")
     @NotNull
-
     private String message = null;
 
     @JsonProperty("description")
-
     private String description = null;
 
     @JsonProperty("params")
-
     private List<String> params = null;
 
 

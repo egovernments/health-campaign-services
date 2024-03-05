@@ -27,67 +27,62 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Plan   {
-        @JsonProperty("id")
+public class Plan {
+    @JsonProperty("id")
+    @Valid
+    private UUID id = null;
 
-          @Valid
-                private UUID id = null;
+    @JsonProperty("tenantId")
+    private String tenantId = null;
 
-        @JsonProperty("tenantId")
+    @JsonProperty("locality")
+    @Size(min = 2)
+    private String locality = null;
 
-                private String tenantId = null;
+    @JsonProperty("executionPlanId")
+    private String executionPlanId = null;
 
-        @JsonProperty("locality")
+    @JsonProperty("planConfigurationId")
+    private String planConfigurationId = null;
 
-        @Size(min=2)         private String locality = null;
+    @JsonProperty("additionalDetails")
+    private Object additionalDetails = null;
 
-        @JsonProperty("executionPlanId")
+    @JsonProperty("activities")
+    @Valid
+    private List<Activity> activities = null;
 
-                private String executionPlanId = null;
+    @JsonProperty("resources")
+    @Valid
+    private List<Resource> resources = null;
 
-        @JsonProperty("planConfigurationId")
-
-                private String planConfigurationId = null;
-
-        @JsonProperty("additionalDetails")
-
-                private Object additionalDetails = null;
-
-        @JsonProperty("activities")
-          @Valid
-                private List<Activity> activities = null;
-
-        @JsonProperty("resources")
-          @Valid
-                private List<Resource> resources = null;
-
-        @JsonProperty("targets")
-          @Valid
-                private List<Target> targets = null;
+    @JsonProperty("targets")
+    @Valid
+    private List<Target> targets = null;
 
 
-        public Plan addActivitiesItem(Activity activitiesItem) {
-            if (this.activities == null) {
+    public Plan addActivitiesItem(Activity activitiesItem) {
+        if (this.activities == null) {
             this.activities = new ArrayList<>();
-            }
+        }
         this.activities.add(activitiesItem);
         return this;
-        }
+    }
 
-        public Plan addResourcesItem(Resource resourcesItem) {
-            if (this.resources == null) {
+    public Plan addResourcesItem(Resource resourcesItem) {
+        if (this.resources == null) {
             this.resources = new ArrayList<>();
-            }
+        }
         this.resources.add(resourcesItem);
         return this;
-        }
+    }
 
-        public Plan addTargetsItem(Target targetsItem) {
-            if (this.targets == null) {
+    public Plan addTargetsItem(Target targetsItem) {
+        if (this.targets == null) {
             this.targets = new ArrayList<>();
-            }
+        }
         this.targets.add(targetsItem);
         return this;
-        }
+    }
 
 }

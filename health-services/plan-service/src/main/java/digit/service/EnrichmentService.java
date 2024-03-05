@@ -2,6 +2,7 @@ package digit.service;
 
 import digit.config.Configuration;
 import digit.config.ServiceConstants;
+import digit.models.coremodels.AuditDetails;
 import digit.util.IdgenUtil;
 import digit.web.models.Assumption;
 import digit.web.models.Operation;
@@ -26,13 +27,14 @@ public class EnrichmentService {
         this.config = config;
     }
 
-    public void create(PlanConfigurationRequest request) throws Exception {
+    public void enrichCreate(PlanConfigurationRequest request)  {
         enrichPlanConfiguration(request.getPlanConfiguration());
 
-        log.info("enriching facility enrichment with generated IDs");
     }
 
-    public static PlanConfiguration enrichPlanConfiguration(PlanConfiguration planConfiguration) {
+    public PlanConfiguration enrichPlanConfiguration(PlanConfiguration planConfiguration) {
+        log.info("enriching plan config with generated IDs");
+
         // Set ID for PlanConfiguration
         planConfiguration.setId(UUID.randomUUID());
 
@@ -49,5 +51,14 @@ public class EnrichmentService {
         }
 
         return planConfiguration;
+    }
+
+    public AuditDetails getAuditDetails(String by, AuditDetails auditDetails, Boolean isCreate) {
+        Long time = System.currentTimeMillis();
+        if (isCreate)
+            return AuditDetails.builder().createdBy(by).lastModifiedBy(by).createdTime(time).lastModifiedTime(time).build();
+        else
+            return AuditDetails.builder().createdBy(auditDetails.getCreatedBy()).lastModifiedBy(by)
+                    .createdTime(auditDetails.getCreatedTime()).lastModifiedTime(time).build();
     }
 }

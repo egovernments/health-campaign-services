@@ -1,9 +1,10 @@
 package digit.service;
 
-import digit.web.models.PlanConfiguration;
+import digit.config.Configuration;
+import digit.validators.PlanConfigurationValidator;
 import digit.web.models.PlanConfigurationRequest;
-import java.util.List;
-import java.util.Map;
+
+import org.egov.common.producer.Producer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,12 +14,28 @@ import org.springframework.stereotype.Service;
 public class PlanConfigurationService {
 
     @Autowired
-    public PlanConfigurationService() {
+    private final Producer producer;
+
+    @Autowired
+    private final EnrichmentService enrichmentService;
+
+    @Autowired
+    private final Configuration config;
+
+    @Autowired
+    private final PlanConfigurationValidator validator;
+
+    public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config, PlanConfigurationValidator validator) {
+        this.producer = producer;
+        this.enrichmentService = enrichmentService;
+        this.config = config;
+        this.validator = validator;
     }
 
     public PlanConfigurationRequest create(PlanConfigurationRequest request) {
-        log.info("received request to create plan configurations");
-
+        enrichmentService.enrichCreate(request);
+        validator.validateCreate(request);
+        producer.push(config.getPlanConfigCreateTopic() ,request);
         return new PlanConfigurationRequest();
     }
 }

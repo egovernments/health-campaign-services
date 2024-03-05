@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import digit.models.coremodels.AuditDetails;
 import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -21,14 +22,15 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ResourceMapping   {
-        @JsonProperty("mappedFrom")
+public class ResourceMapping {
+    @JsonProperty("mappedFrom")
+    private String mappedFrom = null;
 
-                private String mappedFrom = null;
+    @JsonProperty("mappedTo")
+    private String mappedTo = null;
 
-        @JsonProperty("mappedTo")
-
-                private String mappedTo = null;
+    @JsonProperty("auditDetails")
+    private @Valid AuditDetails auditDetails;
 
 
 }
