@@ -24,16 +24,14 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class Resource {
+
     @JsonProperty("id")
-    @Valid
     private String id = null;
 
     @JsonProperty("resourceType")
     private String resourceType = null;
 
     @JsonProperty("estimatedNumber")
-    @Valid
     private BigDecimal estimatedNumber = null;
-
 
 }

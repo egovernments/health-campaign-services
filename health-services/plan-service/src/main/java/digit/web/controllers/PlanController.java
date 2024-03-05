@@ -1,8 +1,8 @@
 package digit.web.controllers;
 
 
+import digit.service.PlanService;
 import digit.web.models.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -17,25 +17,26 @@ import javax.validation.Valid;
 @RequestMapping("/plan")
 public class PlanController {
 
-    private ObjectMapper objectMapper;
+    private PlanService planService;
 
-    public PlanController(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public PlanController(PlanService planService) {
+        this.planService = planService;
     }
 
     @RequestMapping(value = "/_create", method = RequestMethod.POST)
-    public ResponseEntity<PlanSearchResponse> createPost(@Valid @RequestBody PlanCreateRequest body) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanSearchResponse());
+    public ResponseEntity<PlanResponse> createPost(@Valid @RequestBody PlanCreateRequest body) {
+        PlanResponse planResponse = planService.createPlan(body);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanResponse());
     }
 
     @RequestMapping(value = "/_search", method = RequestMethod.POST)
-    public ResponseEntity<PlanSearchResponse> searchPost(@Valid @RequestBody PlanSearchRequest body) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanSearchResponse());
+    public ResponseEntity<PlanResponse> searchPost(@Valid @RequestBody PlanSearchRequest body) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanResponse());
     }
 
     @RequestMapping(value = "/_update", method = RequestMethod.POST)
-    public ResponseEntity<PlanSearchResponse> updatePost(@Valid @RequestBody PlanEditRequest body) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanSearchResponse());
+    public ResponseEntity<PlanResponse> updatePost(@Valid @RequestBody PlanEditRequest body) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanResponse());
     }
 
 }

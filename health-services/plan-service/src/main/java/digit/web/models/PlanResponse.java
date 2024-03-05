@@ -20,7 +20,7 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanSearchResponse {
+public class PlanResponse {
     @JsonProperty("ResponseInfo")
     @Valid
     private ResponseInfo responseInfo = null;
@@ -30,7 +30,7 @@ public class PlanSearchResponse {
     private List<Plan> plan = null;
 
 
-    public PlanSearchResponse addPlanItem(Plan planItem) {
+    public PlanResponse addPlanItem(Plan planItem) {
         if (this.plan == null) {
             this.plan = new ArrayList<>();
         }
