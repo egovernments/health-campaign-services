@@ -32,6 +32,7 @@
     "devD:utilities": "cd packages/modules/utilities && yarn start",
     "dev:workbench": "cd packages/modules/workbench && yarn start",
     "dev:workbench-hcm": "cd packages/modules/workbench-hcm && yarn start",
+    "dev:hcm-microplanning": "cd packages/modules/hcm-microplanning && yarn start",
     "dev:engagement": "cd packages/modules/engagement && yarn start",
     "build": "run-p build:**",
     "build:libraries": "cd packages/libraries && yarn build",
@@ -45,6 +46,7 @@
     "build:engagement": "cd packages/modules/engagement && yarn build",
     "build:workbench": "cd packages/modules/workbench && yarn build",
     "build:workbench-hcm": "cd packages/modules/workbench-hcm && yarn build",
+    "build:hcm-microplanning": "cd packages/modules/hcm-microplanning && yarn build",
     "deploy:jenkins": "./scripts/jenkins.sh",
     "clean": "rm -rf node_modules"
   },

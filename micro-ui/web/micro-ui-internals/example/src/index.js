@@ -15,6 +15,7 @@ import "@egovernments/digit-ui-css/example/index.css";
 
 import { pgrCustomizations } from "./pgr";
 import { UICustomizations } from "./UICustomizations";
+import { initMicroplanningComponents } from "@egovernments/digit-ui-module-hcmmicroplanning";
 
 var Digit = window.Digit || {};
 
@@ -25,6 +26,7 @@ const enabledModules = [
   "HCMWORKBENCH",
   //  "Engagement", "NDSS","QuickPayLinks", "Payment",
   "Utilities",
+  "Microplanning"
   //added to check fsm
   // "FSM"
 ];
@@ -73,6 +75,7 @@ const initDigitUI = () => {
   initUtilitiesComponents();
   initWorkbenchComponents();
   initWorkbenchHCMComponents();
+  initMicroplanningComponents();
 
   const moduleReducers = (initData) => initData;
 
