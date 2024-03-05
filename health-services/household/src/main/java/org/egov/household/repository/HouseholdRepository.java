@@ -71,8 +71,13 @@ public class HouseholdRepository extends GenericRepository<Household> {
     }
 
     public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
-        query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
+        String query = "SELECT h.*, a.*, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
+        if (searchObject.getLocalityCode() != null) {
+            query += " FROM (SELECT * FROM address WHERE localitycode = '" + searchObject.getLocalityCode() + "') a LEFT JOIN household h ON a.id = h.addressid";
+        } else {
+            query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
+        }
+
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
@@ -87,13 +92,14 @@ public class HouseholdRepository extends GenericRepository<Household> {
         if (lastChangedSince != null) {
             query = query + "and lastModifiedTime>=:lastModifiedTime ";
         }
+
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
 
-        query = query + "ORDER BY h.id ASC LIMIT :limit OFFSET :offset";
+        query = query + "ORDER BY h.lastModifiedTime, h.clientlastmodifiedtime ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
         return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
