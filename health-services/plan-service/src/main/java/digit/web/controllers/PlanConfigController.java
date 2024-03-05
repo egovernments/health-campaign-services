@@ -22,15 +22,14 @@ import java.util.*;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2024-03-04T09:55:29.782094600+05:30[Asia/Calcutta]")
 @Controller
-@RequestMapping("/plan")
-public class ConfigApiController {
+public class PlanConfigController {
 
-    private final ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
 
-    private final PlanConfigurationService planConfigurationService;
+    private PlanConfigurationService planConfigurationService;
 
     @Autowired
-    public ConfigApiController(ObjectMapper objectMapper, PlanConfigurationService planConfigurationService) {
+    public PlanConfigController(ObjectMapper objectMapper, PlanConfigurationService planConfigurationService) {
         this.objectMapper = objectMapper;
         this.planConfigurationService = planConfigurationService;
     }

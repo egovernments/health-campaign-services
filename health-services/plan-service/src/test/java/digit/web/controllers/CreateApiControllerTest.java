@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 */
 @Ignore
 @RunWith(SpringRunner.class)
-@WebMvcTest(CreateApiController.class)
+@WebMvcTest(PlanController.class)
 @Import(TestConfiguration.class)
 public class CreateApiControllerTest {
 

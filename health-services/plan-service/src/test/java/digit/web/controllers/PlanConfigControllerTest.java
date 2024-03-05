@@ -6,7 +6,6 @@ import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -20,9 +19,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 */
 @Ignore
 @RunWith(SpringRunner.class)
-@WebMvcTest(ConfigApiController.class)
+@WebMvcTest(PlanConfigController.class)
 @Import(TestConfiguration.class)
-public class ConfigApiControllerTest {
+public class PlanConfigControllerTest {
 
     @Autowired
     private MockMvc mockMvc;

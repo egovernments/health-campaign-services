@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Import;
 @ComponentScan(basePackages = { "digit", "digit.web.controllers" , "digit.config"})
 public class Main {
 
-
     public static void main(String[] args) throws Exception {
         SpringApplication.run(Main.class, args);
     }
