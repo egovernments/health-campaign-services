@@ -103,9 +103,9 @@ public abstract class StockTransformationService implements TransformationServic
                 }
             }
             ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-            String facilityLevel = facility != null ? getFacilityLevel(facility) : null;
-            String transactingFacilityLevel = transactingFacility != null ? getFacilityLevel(transactingFacility) : null;
-            Long facilityTarget = facility != null ? getFacilityTarget(facility) : null;
+            String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
+            String transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
+            Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
 
             String facilityType = WAREHOUSE;
             String transactingFacilityType = WAREHOUSE;
@@ -172,25 +172,5 @@ public abstract class StockTransformationService implements TransformationServic
             return transactingFacilityType;
         }
 
-        private Long getFacilityTarget(Facility facility) {
-            AdditionalFields facilityAdditionalFields = facility.getAdditionalFields();
-            if (facilityAdditionalFields != null) {
-                List<Field> fields = facilityAdditionalFields.getFields();
-                Optional<Field> field = fields.stream().filter(field1 -> FACILITY_TARGET_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
-                if (field.isPresent() && field.get().getValue() != null) {
-                    return Long.valueOf(field.get().getValue());
-                }
-            }
-            return null;
-        }
-
-        private String getFacilityLevel(Facility facility) {
-            String facilityUsage = facility.getUsage();
-            if (facilityUsage != null) {
-                return WAREHOUSE.equalsIgnoreCase(facility.getUsage()) ?
-                        (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
-            }
-            return null;
-        }
     }
 }

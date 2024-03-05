@@ -6,18 +6,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.models.facility.Facility;
-import org.egov.common.models.facility.FacilitySearch;
-import org.egov.common.models.facility.FacilitySearchRequest;
+import org.egov.common.models.facility.*;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static org.egov.transformer.Constants.*;
+import static org.egov.transformer.Constants.SATELLITE_WAREHOUSE;
 
 @Service
 @Slf4j
@@ -67,5 +65,26 @@ public class FacilityService {
             log.error("error while fetching facility {}", ExceptionUtils.getStackTrace(e));
             return null;
         }
+    }
+
+    public Long getFacilityTarget(Facility facility) {
+        AdditionalFields facilityAdditionalFields = facility.getAdditionalFields();
+        if (facilityAdditionalFields != null) {
+            List<Field> fields = facilityAdditionalFields.getFields();
+            Optional<Field> field = fields.stream().filter(field1 -> FACILITY_TARGET_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
+            if (field.isPresent() && field.get().getValue() != null) {
+                return Long.valueOf(field.get().getValue());
+            }
+        }
+        return null;
+    }
+
+    public String getFacilityLevel(Facility facility) {
+        String facilityUsage = facility.getUsage();
+        if (facilityUsage != null) {
+            return WAREHOUSE.equalsIgnoreCase(facility.getUsage()) ?
+                    (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
+        }
+        return null;
     }
 }

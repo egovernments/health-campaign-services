@@ -36,4 +36,8 @@ public class HouseholdIndexV1 {
     private ObjectNode boundaryHierarchy;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
+    @JsonProperty("syncedTimeStamp")
+    private String syncedTimeStamp;
+    @JsonProperty("syncedTime")
+    private Long syncedTime;
 }
