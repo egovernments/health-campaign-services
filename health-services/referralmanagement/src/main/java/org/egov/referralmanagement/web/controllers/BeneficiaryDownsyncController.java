@@ -38,8 +38,8 @@ public class BeneficiaryDownsyncController {
 	
     @PostMapping(value = "/v1/_get")
     public ResponseEntity<DownsyncResponse> getBeneficaryData (@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
-		  log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
-		  log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
+		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
+		log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
     	Downsync.builder().
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
