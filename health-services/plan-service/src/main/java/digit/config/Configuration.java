@@ -22,32 +22,6 @@ import java.util.TimeZone;
 @Getter
 public class Configuration {
 
-
-    // User Config
-    @Value("${egov.user.host}")
-    private String userHost;
-
-    @Value("${egov.user.context.path}")
-    private String userContextPath;
-
-    @Value("${egov.user.create.path}")
-    private String userCreateEndpoint;
-
-    @Value("${egov.user.search.path}")
-    private String userSearchEndpoint;
-
-    @Value("${egov.user.update.path}")
-    private String userUpdateEndpoint;
-
-
-    //Idgen Config
-    @Value("${egov.idgen.host}")
-    private String idGenHost;
-
-    @Value("${egov.idgen.path}")
-    private String idGenPath;
-
-
     //Workflow Config
     @Value("${egov.workflow.host}")
     private String wfHost;
@@ -69,21 +43,6 @@ public class Configuration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsEndPoint;
 
-
-    //HRMS
-    @Value("${egov.hrms.host}")
-    private String hrmsHost;
-
-    @Value("${egov.hrms.search.endpoint}")
-    private String hrmsEndPoint;
-
-
-    //URLShortening
-    @Value("${egov.url.shortner.host}")
-    private String urlShortnerHost;
-
-    @Value("${egov.url.shortner.endpoint}")
-    private String urlShortnerEndpoint;
 
     //Persister Topic
     @Value("${plan.configuration.create.topic}")

@@ -26,7 +26,7 @@ import lombok.Builder;
 public class Resource {
     @JsonProperty("id")
     @Valid
-    private UUID id = null;
+    private String id = null;
 
     @JsonProperty("resourceType")
     private String resourceType = null;

@@ -1,10 +1,10 @@
 package digit.service;
 
 import digit.config.Configuration;
+import digit.kafka.Producer;
 import digit.validators.PlanConfigurationValidator;
 import digit.web.models.PlanConfigurationRequest;
 
-import org.egov.common.producer.Producer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,17 +13,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class PlanConfigurationService {
 
-    @Autowired
-    private final Producer producer;
+    private Producer producer;
 
-    @Autowired
-    private final EnrichmentService enrichmentService;
+    private EnrichmentService enrichmentService;
 
-    @Autowired
-    private final Configuration config;
+    private Configuration config;
 
-    @Autowired
-    private final PlanConfigurationValidator validator;
+    private PlanConfigurationValidator validator;
 
     public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config, PlanConfigurationValidator validator) {
         this.producer = producer;

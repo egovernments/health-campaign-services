@@ -1,9 +1,7 @@
 package digit.service;
 
 import digit.config.Configuration;
-import digit.config.ServiceConstants;
 import digit.models.coremodels.AuditDetails;
-import digit.util.IdgenUtil;
 import digit.web.models.Assumption;
 import digit.web.models.Operation;
 import digit.web.models.PlanConfiguration;
@@ -17,13 +15,9 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class EnrichmentService {
+    private Configuration config;
 
-    private final IdgenUtil idgenUtil;
-
-    private final Configuration config;
-
-    public EnrichmentService(IdgenUtil idgenUtil, Configuration config) {
-        this.idgenUtil = idgenUtil;
+    public EnrichmentService(Configuration config) {
         this.config = config;
     }
 
