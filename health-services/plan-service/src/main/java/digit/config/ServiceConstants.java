@@ -46,5 +46,6 @@ public class ServiceConstants {
     public static final String TENANTID = "?tenantId=";
     public static final String BUSINESS_SERVICES = "&businessServices=";
 
-
+    public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
+    public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
 }

@@ -2,11 +2,11 @@ package digit.service;
 
 import digit.config.Configuration;
 import digit.kafka.Producer;
-import digit.validators.PlanConfigurationValidator;
+import digit.service.enrichment.EnrichmentService;
+import digit.service.validator.PlanConfigurationValidator;
 import digit.web.models.PlanConfigurationRequest;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,6 +32,6 @@ public class PlanConfigurationService {
         enrichmentService.enrichCreate(request);
         validator.validateCreate(request);
         producer.push(config.getPlanConfigCreateTopic() ,request);
-        return new PlanConfigurationRequest();
+        return request;
     }
 }

@@ -117,9 +117,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.egov.common</groupId>
-            <artifactId>health-services-common</artifactId>
-            <version>1.0.15-SNAPSHOT</version>
+            <groupId>org.egov.services</groupId>
+            <artifactId>digit-models</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

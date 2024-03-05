@@ -1,14 +1,7 @@
 package digit.web.models;
 
 import digit.models.coremodels.AuditDetails;
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import digit.web.models.Assumption;
-import digit.web.models.Operation;
-import digit.web.models.ResourceMapping;
-import io.swagger.v3.oas.annotations.media.Schema;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

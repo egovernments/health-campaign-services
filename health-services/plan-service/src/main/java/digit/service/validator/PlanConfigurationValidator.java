@@ -1,4 +1,4 @@
-package digit.validators;
+package digit.service.validator;
 
 import digit.web.models.PlanConfigurationRequest;
 import lombok.extern.slf4j.Slf4j;
