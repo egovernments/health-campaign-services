@@ -1,10 +1,10 @@
 package digit.web.models;
 
-import digit.models.coremodels.AuditDetails;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.*;

@@ -1,7 +1,6 @@
 package digit.service.enrichment;
 
 import digit.config.Configuration;
-import digit.models.coremodels.AuditDetails;
 import digit.web.models.Assumption;
 import digit.web.models.File;
 import digit.web.models.Operation;
@@ -11,6 +10,7 @@ import digit.web.models.ResourceMapping;
 import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 
