@@ -48,4 +48,16 @@ public class ServiceConstants {
 
     public static final String USERINFO_MISSING_CODE = "USERINFO_MISSING";
     public static final String USERINFO_MISSING_MESSAGE = "UserInfo is missing in Request Info ";
+
+    public static final String ASSUMPTION_VALUE_NOT_FOUND_CODE = "ASSUMPTION_VALUE_NOT_FOUND";
+    public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value not found in assumptions list ";
+
+    public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
+    public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS";
+
+    public static final String MDMS_PLAN_ASSUMPTION_MODULE_NAME = "";
+
+    public static final String MDMS_MASTER_ASSUMPTION = "";
+
+
 }

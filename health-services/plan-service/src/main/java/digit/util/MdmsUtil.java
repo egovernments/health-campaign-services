@@ -37,7 +37,6 @@ public class MdmsUtil {
         uri.append(configs.getMdmsHost()).append(configs.getMdmsEndPoint());
         MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, moduleName, masterNameList);
         Object response = new HashMap<>();
-        Integer rate = 0;
         MdmsResponse mdmsResponse = new MdmsResponse();
         try {
             response = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
@@ -47,7 +46,6 @@ public class MdmsUtil {
         }
 
         return mdmsResponse.getMdmsRes();
-        //log.info(ulbToCategoryListMap.toString());
     }
 
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String moduleName, List<String> masterNameList) {

@@ -324,7 +324,6 @@ public class ProjectValidator {
         ObjectMapper objectMapper = new ObjectMapper();
         String numberOfSessions = null;
 
-        //Get MDMS data using create project request and tenantId
         Object mdmsData = mdmsUtils.mDMSCall(projectRequest, rootTenantId);
         final String jsonPathForAttendanceSession = "$.MdmsRes." + MDMS_HCM_ATTENDANCE_MODULE_NAME + "." + MASTER_ATTENDANCE_SESSION + ".*";
         List<Object> attendanceRes = null;

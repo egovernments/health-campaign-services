@@ -2,6 +2,8 @@ package digit.service;
 
 import digit.config.Configuration;
 import digit.kafka.Producer;
+import digit.repository.PlanConfigurationRepository;
+import digit.repository.impl.PlanConfigurationRepositoryImpl;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
 import digit.web.models.PlanConfigurationRequest;
@@ -21,17 +23,21 @@ public class PlanConfigurationService {
 
     private PlanConfigurationValidator validator;
 
-    public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config, PlanConfigurationValidator validator) {
+    private PlanConfigurationRepositoryImpl repository;
+
+    public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config
+            , PlanConfigurationValidator validator, PlanConfigurationRepositoryImpl repository) {
         this.producer = producer;
         this.enrichmentService = enrichmentService;
         this.config = config;
         this.validator = validator;
+        this.repository = repository;
     }
 
     public PlanConfigurationRequest create(PlanConfigurationRequest request) {
         enrichmentService.enrichCreate(request);
         validator.validateCreate(request);
-        producer.push(config.getPlanConfigCreateTopic() ,request);
+        repository.create(request);
         return request;
     }
 }
