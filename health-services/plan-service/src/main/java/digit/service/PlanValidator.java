@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,43 @@ public class PlanValidator {
         // Validate target-activity linkage
         validateTargetActivityLinkage(request);
 
+        // Validate dependencies
+        validateActivityDependencies(request);
+
+    }
+
+    private void validateActivityDependencies(PlanCreateRequest request) {
+        // Check if dependent activity codes are valid
+        validateDependentActivityCodes(request);
+
+        // Check if dependent activities form a cycle
+        checkForCycleInActivityDependencies(request);
+    }
+
+    private void checkForCycleInActivityDependencies(PlanCreateRequest request) {
+        Map<String, Set<String>> activityCodeVsDependenciesMap = request.getPlan().getActivities().stream()
+                .collect(Collectors.toMap(Activity::getCode, Activity::getDependencies));
+
+        activityCodeVsDependenciesMap.keySet().forEach(activityCode -> {
+            activityCodeVsDependenciesMap.get(activityCode).forEach(dependency -> {
+                if(activityCodeVsDependenciesMap.get(dependency).contains(activityCode))
+                    throw new CustomException("CYCLIC_ACTIVITY_DEPENDENCY", "Cyclic activity dependency found");
+            });
+        });
+    }
+
+    private void validateDependentActivityCodes(PlanCreateRequest request) {
+        request.getPlan().getActivities().forEach(activity -> {
+            if(!CollectionUtils.isEmpty(activity.getDependencies())) {
+                Set<String> activityCodes = request.getPlan().getActivities().stream()
+                        .map(Activity::getCode)
+                        .collect(Collectors.toSet());
+                activity.getDependencies().forEach(dependency -> {
+                    if(!activityCodes.contains(dependency))
+                        throw new CustomException("INVALID_ACTIVITY_DEPENDENCY", "Activity dependency is invalid");
+                });
+            }
+        });
     }
 
     private void validateExecutionPlanExistence(PlanCreateRequest request) {

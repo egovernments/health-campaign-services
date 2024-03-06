@@ -15,7 +15,6 @@ import lombok.Builder;
  * PlanConfigurationResponse
  */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2024-03-04T09:55:29.782094600+05:30[Asia/Calcutta]")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
