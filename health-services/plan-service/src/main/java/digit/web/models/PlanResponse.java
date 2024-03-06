@@ -21,6 +21,7 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class PlanResponse {
+
     @JsonProperty("ResponseInfo")
     @Valid
     private ResponseInfo responseInfo = null;
@@ -28,14 +29,5 @@ public class PlanResponse {
     @JsonProperty("Plan")
     @Valid
     private List<Plan> plan = null;
-
-
-    public PlanResponse addPlanItem(Plan planItem) {
-        if (this.plan == null) {
-            this.plan = new ArrayList<>();
-        }
-        this.plan.add(planItem);
-        return this;
-    }
 
 }

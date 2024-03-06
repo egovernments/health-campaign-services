@@ -10,19 +10,25 @@ import java.util.Collections;
 @Service
 public class PlanService {
 
-    private ResponseInfoUtil responseInfoUtil;
+    private PlanValidator planValidator;
 
-    public PlanService(ResponseInfoUtil responseInfoUtil) {
-        this.responseInfoUtil = responseInfoUtil;
+    private PlanEnricher planEnricher;
+
+    public PlanService(PlanValidator planValidator, PlanEnricher planEnricher) {
+        this.planValidator = planValidator;
+        this.planEnricher = planEnricher;
     }
 
     public PlanResponse createPlan(PlanCreateRequest body) {
 
         // Validate plan create request
+        planValidator.validatePlanCreate(body);
 
+        // Enrich plan create request
+        planEnricher.enrichPlanCreate(body);
 
         return PlanResponse.builder()
-                .responseInfo(responseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
                 .plan(Collections.singletonList(body.getPlan()))
                 .build();
     }

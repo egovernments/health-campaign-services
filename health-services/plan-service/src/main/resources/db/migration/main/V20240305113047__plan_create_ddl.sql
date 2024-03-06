@@ -15,6 +15,7 @@ CREATE TABLE plan (
 CREATE TABLE plan_activity (
   id varchar(64),
   tenant_id varchar(64),
+  code varchar(128),
   description varchar(2048),
   planned_start_date bigint,
   planned_end_date bigint,
@@ -31,13 +32,13 @@ CREATE TABLE plan_activity (
 CREATE TABLE plan_activity_dependency (
   id varchar(64),
   activity_id varchar(64),
-  precursor_activity_id varchar(64),
+  precursor_activity_code varchar(64),
   created_by varchar(64),
   created_time bigint,
   last_modified_by varchar(64),
   last_modified_time bigint,
   CONSTRAINT uk_plan_activity_dependency_id PRIMARY KEY (id),
-  FOREIGN KEY (activity_id) REFERENCES plan(id)
+  FOREIGN KEY (activity_id) REFERENCES plan_activity(id)
 );
 
 CREATE TABLE plan_activity_condition (
@@ -51,7 +52,7 @@ CREATE TABLE plan_activity_condition (
   last_modified_by varchar(64),
   last_modified_time bigint,
   CONSTRAINT uk_plan_activity_condition_id PRIMARY KEY (id),
-  FOREIGN KEY (activity_id) REFERENCES plan(id)
+  FOREIGN KEY (activity_id) REFERENCES plan_activity(id)
 );
 
 CREATE TABLE plan_resource (
@@ -59,11 +60,13 @@ CREATE TABLE plan_resource (
   resource_type varchar(256),
   estimated_number numeric(12,2),
   plan_id varchar(64),
+  activity_code varchar(128),
   created_by varchar(64),
   created_time bigint,
   last_modified_by varchar(64),
   last_modified_time bigint,
-  CONSTRAINT uk_plan_resource_id PRIMARY KEY (id)
+  CONSTRAINT uk_plan_resource_id PRIMARY KEY (id),
+  FOREIGN KEY (plan_id) REFERENCES plan(id)
 );
 
 CREATE TABLE plan_target (
@@ -73,6 +76,7 @@ CREATE TABLE plan_target (
   metric_comparator varchar(64),
   metric_unit varchar(128),
   plan_id varchar(64),
+  activity_code varchar(128),
   created_by varchar(64),
   created_time bigint,
   last_modified_by varchar(64),

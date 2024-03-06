@@ -34,4 +34,7 @@ public class Resource {
     @JsonProperty("estimatedNumber")
     private BigDecimal estimatedNumber = null;
 
+    @JsonProperty("activityCode")
+    private String activityCode = null;
+
 }

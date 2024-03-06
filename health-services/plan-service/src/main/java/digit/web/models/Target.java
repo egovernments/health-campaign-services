@@ -37,5 +37,7 @@ public class Target {
     @JsonProperty("metricDetail")
     private Object metricDetail = null;
 
+    @JsonProperty("activityCode")
+    private String activityCode = null;
 
 }

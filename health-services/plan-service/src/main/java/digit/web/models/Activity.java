@@ -31,6 +31,9 @@ public class Activity {
     @JsonProperty("tenantId")
     private String tenantId = null;
 
+    @JsonProperty("code")
+    private String code = null;
+
     @JsonProperty("description")
     private String description = null;
 

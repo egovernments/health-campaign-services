@@ -22,9 +22,9 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class Plan {
+
     @JsonProperty("id")
-    @Valid
-    private UUID id = null;
+    private String id = null;
 
     @JsonProperty("tenantId")
     private String tenantId = null;
@@ -53,30 +53,5 @@ public class Plan {
     @JsonProperty("targets")
     @Valid
     private List<Target> targets = null;
-
-
-    public Plan addActivitiesItem(Activity activitiesItem) {
-        if (this.activities == null) {
-            this.activities = new ArrayList<>();
-        }
-        this.activities.add(activitiesItem);
-        return this;
-    }
-
-    public Plan addResourcesItem(Resource resourcesItem) {
-        if (this.resources == null) {
-            this.resources = new ArrayList<>();
-        }
-        this.resources.add(resourcesItem);
-        return this;
-    }
-
-    public Plan addTargetsItem(Target targetsItem) {
-        if (this.targets == null) {
-            this.targets = new ArrayList<>();
-        }
-        this.targets.add(targetsItem);
-        return this;
-    }
 
 }
