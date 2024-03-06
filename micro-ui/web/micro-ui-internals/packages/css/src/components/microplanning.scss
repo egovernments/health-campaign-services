@@ -48,23 +48,84 @@
         }
     }
 
-    .upload-section-active {
-        display: flex;
-
-        p {
-            color: rgba(80, 90, 95, 1);
-            font-weight: 400;
-            font-size: 16px;
-        }
+    .upload-component {
+        min-width: 80%;
+        height: min-content;
+        border-radius: 4px;
+        padding: 24px;
+        background-color: rgba(255, 255, 255, 1);
+        margin: 0;
+        margin-right: 15px;
+        padding-bottom: 10px;
     }
 
-    .upload-section-inactive {
-        display: none;
+    .upload-component-active {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0;
+
+        .greyedout-name {
+            color: rgba(177, 180, 182, 1);
+            margin: 0 10px;
+            font-size: 20px;
+            padding-top: 0px;
+            font-weight: 500;
+        }
+
+        h2 {
+            margin-top: 10px;
+            font-size: 40px;
+            margin: 0 10px;
+            font-weight: 700;
+        }
 
         p {
-            color: rgba(80, 90, 95, 1);
-            font-weight: 400;
+            margin: 0 10px;
+            padding-top: 10px;
             font-size: 16px;
+            font-weight: 400;
         }
+
+    }
+
+    .upload-component-inactive {
+        display: none;
+    }
+
+    .upload-option-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 0;
+        flex-wrap: wrap;
+    }
+
+    .upload-option {
+        border-radius: 4px;
+        border: 1px rgba(214, 213, 212, 1) solid;
+        min-width: 200px;
+        min-height: 140px;
+        box-shadow: 0 1px rgba(0, 0, 0, 0.16);
+        padding: 10px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        justify-items: center;
+        margin : 0 20px;
+        margin-top: 15px;
+        cursor: pointer;
+
+        &:hover {
+            border: 1px rgba(244, 119, 56, 1) solid;
+            box-shadow: 3px 3px 9.11px 0px rgba(244, 119, 56, 0.25);
+            color: rgba(244, 119, 56, 1);
+            margin-top: 0px;
+        }
+
+        p{
+            margin-top: 10px;
+        }
+
     }
 }

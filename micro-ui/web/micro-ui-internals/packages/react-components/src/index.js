@@ -214,7 +214,9 @@ import {
   FacilityIcon,
   WareHousesIcon,
   BarChartIcon,
-  TickMarkBackgroundFilled
+  TickMarkBackgroundFilled,
+  SpatialDocumentIcon,
+  ExcelIcon
 } from "./atoms/svgindex";
 import Table from "./atoms/Table";
 import TelePhone from "./atoms/TelePhone";
@@ -597,5 +599,7 @@ export {
   FacilityIcon,
   WareHousesIcon,
   BarChartIcon,
-  TickMarkBackgroundFilled
+  TickMarkBackgroundFilled,
+  SpatialDocumentIcon,
+  ExcelIcon
 };
