@@ -209,7 +209,12 @@ import {
   FileIcon,
   DeleteIconv2,
   InfoIconOutline,
-  HelpOutlineIcon
+  HelpOutlineIcon,
+  PopulationIcon,
+  FacilityIcon,
+  WareHousesIcon,
+  BarChartIcon,
+  TickMarkBackgroundFilled
 } from "./atoms/svgindex";
 import Table from "./atoms/Table";
 import TelePhone from "./atoms/TelePhone";
@@ -586,5 +591,11 @@ export {
 
 
   // Exported all svgs from svg-component library
-  SVG
+  SVG,
+
+  PopulationIcon,
+  FacilityIcon,
+  WareHousesIcon,
+  BarChartIcon,
+  TickMarkBackgroundFilled
 };

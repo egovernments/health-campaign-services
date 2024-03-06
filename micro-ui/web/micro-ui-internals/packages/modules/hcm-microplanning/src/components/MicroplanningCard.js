@@ -18,6 +18,11 @@ const MicroplanningCard = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
 
   let links = [
+    {
+      label: t("Upload Page"),
+      link: `/${window?.contextPath}/employee/microplanning/upload`,
+      roles: ROLES.MDMS,
+    },
     // {
     //   label: t("ACTION_TEST_LOCALISATION"),
     //   link: `/${window?.contextPath}/employee/workbench/localisation-search`,

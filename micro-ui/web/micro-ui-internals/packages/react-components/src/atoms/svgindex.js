@@ -1809,6 +1809,44 @@ const HelpOutlineIcon = ({ className = "", fill = "", style = {} }) => (
   </svg>
 );
 
+const PopulationIcon = ({ className = "", fill = "", style = {} }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} width="32" height="35" style={style} viewBox="0 0 32 35" fill={fill}>
+    <path fillRule="evenodd" clipRule="evenodd" d="M15.9997 4.5C18.0699 4.5 19.7467 6.1356 19.7467 8.15442C19.7467 10.1735 18.0702 11.8088 15.9997 11.8088C13.9298 11.8088 12.2533 10.1737 12.2533 8.15442C12.2533 6.1356 13.9298 4.5 15.9997 4.5ZM6.36438 4.5C8.43458 4.5 10.1113 6.1356 10.1113 8.15442C10.1113 10.1735 8.43483 11.8088 6.36438 11.8088C4.29444 11.8088 2.61793 10.1737 2.61793 8.15442C2.61793 6.1356 4.29444 4.5 6.36438 4.5ZM10.178 21.5607V30.4994H2.55385V20.4281H0.5V17.0096C0.5 14.651 2.47417 12.7256 4.89249 12.7256H7.83697C8.75633 12.7256 9.61452 13.0053 10.3214 13.4795C9.48153 14.4281 8.97394 15.6619 8.97394 17.0096V21.5602H10.178L10.178 21.5607ZM25.6354 4.5C27.7053 4.5 29.3818 6.1356 29.3818 8.15442C29.3818 10.1735 27.7053 11.8088 25.6354 11.8088C23.5652 11.8088 21.8884 10.1737 21.8884 8.15442C21.8884 6.1356 23.5649 4.5 25.6354 4.5ZM29.4484 20.4288V30.5H21.825V21.5613H23.0261V17.0107C23.0261 15.663 22.5182 14.4295 21.6786 13.4807C22.3855 13.0064 23.2437 12.7267 24.163 12.7267H27.1075C29.5258 12.7267 31.5 14.6522 31.5 17.0107V20.4293H29.4486L29.4484 20.4288ZM19.8131 20.4288V30.5H12.1896V20.4288H10.1352V17.0103C10.1352 14.6517 12.1094 12.7263 14.5277 12.7263H17.4722C19.8905 12.7263 21.8647 14.6517 21.8647 17.0103V20.4288H19.8131Z" fill={fill}/>
+  </svg>
+)
+
+const FacilityIcon = ({ className = "", fill = "", style = {} }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="35" className={className} style={style} viewBox="0 0 30 35" fill={fill} >
+    <path fillRule="evenodd" clipRule="evenodd" d="M15 4.375L5 13.125V30.625H11.25V20.4167H18.75V30.625H25V13.125L15 4.375Z" fill={fill}/>
+  </svg>
+)
+
+const WareHousesIcon = ({ className = "", fill = "", style = {} }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="35" className={className} style={style} viewBox="0 0 30 35" fill={fill} >
+    <path fillRule="evenodd" clipRule="evenodd" d="M25 5.83203H5V8.7487H25V5.83203ZM26.25 20.4154V17.4987L25 10.207H5L3.75 17.4987V20.4154H5V29.1654H17.5V20.4154H22.5V29.1654H25V20.4154H26.25ZM15 26.2487H7.5V20.4154H15V26.2487Z" fill={fill}/>
+  </svg>
+)
+
+const BarChartIcon = ({ className = "", fill = "", style = {} }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="30" height="35" className={className} style={style} viewBox="0 0 30 35" fill={fill} >
+    <path fillRule="evenodd" clipRule="evenodd" d="M9.375 30.625H2.5V13.125H9.375V30.625ZM18.4375 4.375H11.5625V30.625H18.4375V4.375ZM27.5 16.0417H20.625V30.625H27.5V16.0417Z" fill={fill}/>
+  </svg>
+)
+
+const TickMarkBackgroundFilled = ({ className = "", fill = "", style = {} }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" className={className} style={style} viewBox="0 0 32 32" fill={fill}>
+    <g clipPath="url(#clip0_2628_42184)">
+      <path fillRule="evenodd" clipRule="evenodd" d="M15.9998 2.66797C8.63984 2.66797 2.6665 8.6413 2.6665 16.0013C2.6665 23.3613 8.63984 29.3346 15.9998 29.3346C23.3598 29.3346 29.3332 23.3613 29.3332 16.0013C29.3332 8.6413 23.3598 2.66797 15.9998 2.66797ZM13.3332 22.668L6.6665 16.0013L8.5465 14.1213L13.3332 18.8946L23.4532 8.77464L25.3332 10.668L13.3332 22.668Z" fill={fill}/>
+    </g>
+    <defs>
+      <clipPath id="clip0_2628_42184">
+        <rect width="32" height="32" fill="white"/>
+      </clipPath>
+    </defs>
+  </svg>
+
+)
+
 
 const ExpenditureIcon = BillsIcon;
 
@@ -1967,5 +2005,10 @@ export {
   UploadIcon,
   FileIcon,
   DeleteIconv2,
-  InfoIconOutline
+  InfoIconOutline,
+  PopulationIcon,
+  FacilityIcon,
+  WareHousesIcon,
+  BarChartIcon,
+  TickMarkBackgroundFilled
 };

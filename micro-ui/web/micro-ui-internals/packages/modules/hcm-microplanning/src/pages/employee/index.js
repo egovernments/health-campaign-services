@@ -3,6 +3,7 @@ import { Switch, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 import MicroplanningHeader from "../../components/MicroplanningHeader";
+import Upload from "./Upload";
 
 const MicroplanningBreadCrumb = ({ location ,defaultPath}) => {
   const { t } = useTranslation();
@@ -16,6 +17,11 @@ const MicroplanningBreadCrumb = ({ location ,defaultPath}) => {
       path: `/${window?.contextPath}/employee`,
       content: t("Home"),
       show: true,
+    },
+    {
+      path: `/${window.contextPath}/employee/upload`,
+      content:  t(`Upload`) ,
+      show: pathVar.includes("upload")?true: false,
     }
     
   ];
@@ -47,6 +53,7 @@ const App = ({ path }) => {
       </div>
       <Switch>
         <AppContainer className="workbench">
+          <PrivateRoute path={`${path}/upload`} component={() => <Upload parentRoute={path}/>} />
 
         </AppContainer>
       </Switch>
