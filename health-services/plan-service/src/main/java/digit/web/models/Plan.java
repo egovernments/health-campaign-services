@@ -2,6 +2,8 @@ package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+
+import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 import javax.validation.Valid;
 import javax.validation.constraints.*;
@@ -50,5 +52,8 @@ public class Plan {
     @JsonProperty("targets")
     @Valid
     private List<Target> targets = null;
+
+    @JsonProperty("auditDetails")
+    private AuditDetails auditDetails = null;
 
 }

@@ -17,7 +17,7 @@ import lombok.Builder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PlanCreateRequest {
+public class PlanRequest {
     @JsonProperty("RequestInfo")
     @Valid
     private RequestInfo requestInfo = null;

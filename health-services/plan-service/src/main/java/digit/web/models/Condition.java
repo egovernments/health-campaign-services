@@ -21,6 +21,10 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class Condition {
+
+    @JsonProperty
+    private String id = null;
+
     @JsonProperty("entity")
     private String entity = null;
 
@@ -29,6 +33,5 @@ public class Condition {
 
     @JsonProperty("expression")
     private String expression = null;
-
 
 }

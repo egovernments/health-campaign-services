@@ -39,7 +39,7 @@ public class Activity {
     private Long plannedEndDate = null;
 
     @JsonProperty("dependencies")
-    private Set<String> dependencies = null;
+    private List<String> dependencies = null;
 
     @JsonProperty("conditions")
     @Valid

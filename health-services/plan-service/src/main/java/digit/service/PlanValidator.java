@@ -1,12 +1,13 @@
 package digit.service;
 
 import digit.web.models.Activity;
-import digit.web.models.PlanCreateRequest;
+import digit.web.models.PlanRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 @Component
 public class PlanValidator {
 
-    public void validatePlanCreate(PlanCreateRequest request) {
+    public void validatePlanCreate(PlanRequest request) {
 
         // Validate execution plan existence
         validateExecutionPlanExistence(request);
@@ -39,7 +40,7 @@ public class PlanValidator {
 
     }
 
-    private void validateActivityDependencies(PlanCreateRequest request) {
+    private void validateActivityDependencies(PlanRequest request) {
         // Check if dependent activity codes are valid
         validateDependentActivityCodes(request);
 
@@ -47,9 +48,10 @@ public class PlanValidator {
         checkForCycleInActivityDependencies(request);
     }
 
-    private void checkForCycleInActivityDependencies(PlanCreateRequest request) {
-        Map<String, Set<String>> activityCodeVsDependenciesMap = request.getPlan().getActivities().stream()
-                .collect(Collectors.toMap(Activity::getCode, Activity::getDependencies));
+    private void checkForCycleInActivityDependencies(PlanRequest request) {
+        Map<String, List<String>> activityCodeVsDependenciesMap = request.getPlan().getActivities().stream()
+                .collect(Collectors.toMap(Activity::getCode,
+                        activity -> CollectionUtils.isEmpty(activity.getDependencies()) ? List.of() : activity.getDependencies()));
 
         activityCodeVsDependenciesMap.keySet().forEach(activityCode -> {
             activityCodeVsDependenciesMap.get(activityCode).forEach(dependency -> {
@@ -59,7 +61,7 @@ public class PlanValidator {
         });
     }
 
-    private void validateDependentActivityCodes(PlanCreateRequest request) {
+    private void validateDependentActivityCodes(PlanRequest request) {
         request.getPlan().getActivities().forEach(activity -> {
             if(!CollectionUtils.isEmpty(activity.getDependencies())) {
                 Set<String> activityCodes = request.getPlan().getActivities().stream()
@@ -73,10 +75,19 @@ public class PlanValidator {
         });
     }
 
-    private void validateExecutionPlanExistence(PlanCreateRequest request) {
+    private void validateExecutionPlanExistence(PlanRequest request) {
     }
 
-    private void validateActivities(PlanCreateRequest request) {
+    private void validateActivities(PlanRequest request) {
+        // Validate code uniqueness within activities
+        Set<String> activityCodes = request.getPlan().getActivities().stream()
+                .map(Activity::getCode)
+                .collect(Collectors.toSet());
+
+        if(activityCodes.size() != request.getPlan().getActivities().size()) {
+            throw new CustomException("DUPLICATE_ACTIVITY_CODES", "Activity codes within the plan should be unique");
+        }
+
         // If execution plan id is not provided, providing activities is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
                 && CollectionUtils.isEmpty(request.getPlan().getActivities())) {
@@ -98,11 +109,11 @@ public class PlanValidator {
         }
     }
 
-    private void validatePlanConfigurationExistence(PlanCreateRequest request) {
+    private void validatePlanConfigurationExistence(PlanRequest request) {
 
     }
 
-    private void validateResources(PlanCreateRequest request) {
+    private void validateResources(PlanRequest request) {
         // If plan configuration id is not provided, providing resources is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && CollectionUtils.isEmpty(request.getPlan().getResources())) {
@@ -123,8 +134,9 @@ public class PlanValidator {
         }
     }
 
-    private void validateResourceActivityLinkage(PlanCreateRequest request) {
-        if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
+    private void validateResourceActivityLinkage(PlanRequest request) {
+        if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
+                && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             Set<String> activityCodes = request.getPlan().getActivities().stream()
                     .map(Activity::getCode)
                     .collect(Collectors.toSet());
@@ -135,7 +147,7 @@ public class PlanValidator {
         }
     }
 
-    private void validateTargetActivityLinkage(PlanCreateRequest request) {
+    private void validateTargetActivityLinkage(PlanRequest request) {
         if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             Set<String> activityCodes = request.getPlan().getActivities().stream()
                     .map(Activity::getCode)
