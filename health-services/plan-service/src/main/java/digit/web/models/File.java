@@ -26,7 +26,7 @@ import lombok.Builder;
 public class File {
     @JsonProperty("id")
     @Valid
-    private UUID id = null;
+    private String id = null;
 
     @JsonProperty("filestoreId")
     @NotNull
@@ -36,10 +36,6 @@ public class File {
     @JsonProperty("inputFileType")
     @NotNull
     private InputFileTypeEnum inputFileType = null;
-
-    @JsonProperty("auditDetails")
-    private @Valid AuditDetails auditDetails;
-
 
     /**
      * The original file type of the Input

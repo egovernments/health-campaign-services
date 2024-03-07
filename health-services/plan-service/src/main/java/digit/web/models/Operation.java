@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.UUID;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
@@ -26,7 +28,7 @@ import lombok.Builder;
 public class Operation {
     @JsonProperty("id")
     @Valid
-    private UUID id = null;
+    private String id = null;
 
     @JsonProperty("input")
     @NotNull
@@ -43,10 +45,6 @@ public class Operation {
     @JsonProperty("output")
     @Size(min = 1, max = 32)
     private String output = null;
-
-    @JsonProperty("auditDetails")
-    private @Valid AuditDetails auditDetails;
-
 
     /**
      * The operator used in the operation

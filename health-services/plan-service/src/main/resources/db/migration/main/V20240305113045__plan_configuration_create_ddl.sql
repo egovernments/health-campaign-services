@@ -31,7 +31,7 @@ CREATE TABLE plan_configuration_files (
 CREATE TABLE plan_configuration_assumptions (
   id                            character varying(64),
   key                           character varying(256),
-  value                         character varying(256),
+  value                         numeric(12,2),
   plan_configuration_id         character varying(64),
   created_by                    character varying(64),
   created_time                  bigint,
@@ -47,7 +47,7 @@ CREATE TABLE plan_configuration_operations (
   id                            character varying(64),
   input                         character varying(256),
   operator                      character varying(64),
-  assumption_value              bigint,
+  assumption_value              character varying(256),
   output                        character varying(64),
   plan_configuration_id         character varying(64),
   created_by                    character varying(64),

@@ -24,7 +24,7 @@ import lombok.Builder;
 public class Assumption {
     @JsonProperty("id")
     @Valid
-    private UUID id = null;
+    private String id = null;
 
     @JsonProperty("key")
     @NotNull
@@ -35,9 +35,5 @@ public class Assumption {
     @NotNull
     @Valid
     private BigDecimal value = null;
-
-    @JsonProperty("auditDetails")
-    private @Valid AuditDetails auditDetails;
-
 
 }

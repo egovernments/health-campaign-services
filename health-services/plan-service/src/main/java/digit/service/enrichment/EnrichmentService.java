@@ -11,14 +11,15 @@ import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import static digit.config.ServiceConstants.USERINFO_MISSING_CODE;
 import static digit.config.ServiceConstants.USERINFO_MISSING_MESSAGE;
 
 
-@Service
+@Component
 @Slf4j
 public class EnrichmentService {
     private Configuration config;
@@ -35,44 +36,19 @@ public class EnrichmentService {
         enrichAuditDetails(request.getPlanConfiguration(), request.getRequestInfo().getUserInfo().getUuid(), Boolean.TRUE);
     }
 
-    public PlanConfiguration enrichPlanConfiguration(PlanConfiguration planConfiguration) {
+    public void enrichPlanConfiguration(PlanConfiguration planConfiguration) {
         log.info("enriching plan config with generated IDs");
+        UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration, "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration.getFiles(), "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration.getAssumptions(), "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration.getOperations(), "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration.getResourceMapping(), "id");
 
-        // Set ID for PlanConfiguration
-        planConfiguration.setId(UUID.randomUUID());
-
-        // Set IDs for Assumptions
-        List<Assumption> assumptions = planConfiguration.getAssumptions();
-        for (Assumption assumption : assumptions) {
-            assumption.setId(UUID.randomUUID());
-        }
-
-        // Set IDs for Operations
-        List<Operation> operations = planConfiguration.getOperations();
-        for (Operation operation : operations) {
-            operation.setId(UUID.randomUUID());
-        }
-
-        return planConfiguration;
     }
 
     public void enrichAuditDetails(PlanConfiguration planConfiguration, String by, Boolean isCreate) {
         Long time = System.currentTimeMillis();
-        for (Operation operation : planConfiguration.getOperations()) {
-            operation.setAuditDetails(getAuditDetails(by, operation.getAuditDetails(), isCreate));
-        }
-
-        for (Assumption assumption : planConfiguration.getAssumptions()) {
-            assumption.setAuditDetails(getAuditDetails(by, assumption.getAuditDetails(), isCreate));
-        }
-
-        for (File file : planConfiguration.getFiles()) {
-            file.setAuditDetails(getAuditDetails(by, file.getAuditDetails(), isCreate));
-        }
-
-        for (ResourceMapping resourceMapping : planConfiguration.getResourceMapping()) {
-            resourceMapping.setAuditDetails(getAuditDetails(by, resourceMapping.getAuditDetails(), isCreate));
-        }
+        planConfiguration.setAuditDetails(getAuditDetails(by,planConfiguration.getAuditDetails(), isCreate));
     }
 
     public AuditDetails getAuditDetails(String by, AuditDetails auditDetails, Boolean isCreate) {

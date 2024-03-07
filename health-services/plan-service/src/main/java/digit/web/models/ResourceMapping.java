@@ -22,14 +22,14 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class ResourceMapping {
+    @JsonProperty("id")
+    @Valid
+    private String id = null;
+
     @JsonProperty("mappedFrom")
     private String mappedFrom = null;
 
     @JsonProperty("mappedTo")
     private String mappedTo = null;
-
-    @JsonProperty("auditDetails")
-    private @Valid AuditDetails auditDetails;
-
 
 }

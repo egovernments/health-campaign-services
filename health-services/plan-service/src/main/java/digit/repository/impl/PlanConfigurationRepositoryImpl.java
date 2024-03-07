@@ -17,7 +17,6 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     private JdbcTemplate jdbcTemplate;
     private Configuration config;
 
-    @Autowired
     public PlanConfigurationRepositoryImpl(Producer producer, JdbcTemplate jdbcTemplate,
                                            Configuration config) {
         this.producer = producer;
@@ -28,6 +27,11 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     @Override
     public void create(PlanConfigurationRequest planConfigurationRequest) {
         producer.push(config.getPlanConfigCreateTopic(),planConfigurationRequest);
+    }
+
+    @Override
+    public void search(PlanConfigurationRequest planConfigurationRequest) {
+     log.info("Search Method");
     }
 
     @Override

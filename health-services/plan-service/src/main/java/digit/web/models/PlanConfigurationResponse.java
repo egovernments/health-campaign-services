@@ -24,16 +24,16 @@ public class PlanConfigurationResponse {
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("PlanConfigurationResponse")
+    @JsonProperty("PlanConfiguration")
     @Valid
-    private List<PlanConfiguration> planConfigurationResponse = null;
+    private List<PlanConfiguration> planConfiguration = null;
 
 
     public PlanConfigurationResponse addPlanConfigurationResponseItem(PlanConfiguration planConfigurationResponseItem) {
-        if (this.planConfigurationResponse == null) {
-            this.planConfigurationResponse = new ArrayList<>();
+        if (this.planConfiguration == null) {
+            this.planConfiguration = new ArrayList<>();
         }
-        this.planConfigurationResponse.add(planConfigurationResponseItem);
+        this.planConfiguration.add(planConfigurationResponseItem);
         return this;
     }
 

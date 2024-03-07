@@ -23,9 +23,8 @@ import lombok.Builder;
 @Builder
 public class PlanConfiguration {
     @JsonProperty("id")
-
     @Valid
-    private UUID id = null;
+    private String id = null;
 
     @JsonProperty("tenantId")
     @NotNull
@@ -61,25 +60,5 @@ public class PlanConfiguration {
 
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
-
-    public PlanConfiguration addFilesItem(File filesItem) {
-        this.files.add(filesItem);
-        return this;
-    }
-
-    public PlanConfiguration addAssumptionsItem(Assumption assumptionsItem) {
-        this.assumptions.add(assumptionsItem);
-        return this;
-    }
-
-    public PlanConfiguration addOperationsItem(Operation operationsItem) {
-        this.operations.add(operationsItem);
-        return this;
-    }
-
-    public PlanConfiguration addResourceMappingItem(ResourceMapping resourceMappingItem) {
-        this.resourceMapping.add(resourceMappingItem);
-        return this;
-    }
 
 }

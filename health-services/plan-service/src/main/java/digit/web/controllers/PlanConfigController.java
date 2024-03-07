@@ -38,7 +38,7 @@ public class PlanConfigController {
 
             PlanConfigurationRequest planConfigurationRequest = planConfigurationService.create(body);
             PlanConfigurationResponse response = PlanConfigurationResponse.builder()
-                    .planConfigurationResponse(Collections.singletonList(planConfigurationRequest.getPlanConfiguration()))
+                    .planConfiguration(Collections.singletonList(planConfigurationRequest.getPlanConfiguration()))
                     .responseInfo(new ResponseInfo())
                     .build();
 
