@@ -23,7 +23,7 @@ public class PlanController {
     }
 
     @RequestMapping(value = "/_create", method = RequestMethod.POST)
-    public ResponseEntity<PlanResponse> createPost(@Valid @RequestBody PlanCreateRequest body) {
+    public ResponseEntity<PlanResponse> createPost(@Valid @RequestBody PlanRequest body) {
         PlanResponse planResponse = planService.createPlan(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planResponse);
     }

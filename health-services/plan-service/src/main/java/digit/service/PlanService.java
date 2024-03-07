@@ -1,6 +1,6 @@
 package digit.service;
 
-import digit.web.models.PlanCreateRequest;
+import digit.web.models.PlanRequest;
 import digit.web.models.PlanResponse;
 import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ public class PlanService {
         this.planEnricher = planEnricher;
     }
 
-    public PlanResponse createPlan(PlanCreateRequest body) {
+    public PlanResponse createPlan(PlanRequest body) {
 
         // Validate plan create request
         planValidator.validatePlanCreate(body);
