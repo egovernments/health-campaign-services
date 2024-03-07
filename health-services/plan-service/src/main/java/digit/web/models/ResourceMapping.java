@@ -1,13 +1,11 @@
 package digit.web.models;
 
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.v3.oas.annotations.media.Schema;
-import org.egov.common.contract.models.AuditDetails;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Data;
@@ -27,9 +25,13 @@ public class ResourceMapping {
     private String id = null;
 
     @JsonProperty("mappedFrom")
+    @NotNull
+    @Size(min = 2, max = 256)
     private String mappedFrom = null;
 
     @JsonProperty("mappedTo")
+    @NotNull
+    @Size(min = 2, max = 256)
     private String mappedTo = null;
 
 }
