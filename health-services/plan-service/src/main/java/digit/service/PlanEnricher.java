@@ -6,6 +6,9 @@ import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Component
 public class PlanEnricher {
 
@@ -21,6 +24,15 @@ public class PlanEnricher {
         body.getPlan().getActivities().forEach(activity -> {
             if(!CollectionUtils.isEmpty(activity.getConditions())) {
                 UUIDEnrichmentUtil.enrichRandomUuid(activity.getConditions(), "id");
+            }
+        });
+
+        // Set empty value in dependencies list when it is empty or null
+        body.getPlan().getActivities().forEach(activity -> {
+            if(CollectionUtils.isEmpty(activity.getDependencies())) {
+                List<String> emptyStringList = new ArrayList<>();
+                emptyStringList.add("");
+                activity.setDependencies(emptyStringList);
             }
         });
 

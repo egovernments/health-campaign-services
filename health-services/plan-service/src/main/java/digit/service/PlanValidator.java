@@ -135,7 +135,8 @@ public class PlanValidator {
     }
 
     private void validateResourceActivityLinkage(PlanRequest request) {
-        if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
+        if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
+                && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
             Set<String> activityCodes = request.getPlan().getActivities().stream()
                     .map(Activity::getCode)
                     .collect(Collectors.toSet());

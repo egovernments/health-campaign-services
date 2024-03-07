@@ -34,7 +34,7 @@ CREATE TABLE plan_activity_condition (
   entity_property varchar(64),
   expression varchar(2048),
   activity_id varchar(64),
-  is_active boolean,
+  is_active boolean DEFAULT true,
   created_by varchar(64),
   created_time bigint,
   last_modified_by varchar(64),

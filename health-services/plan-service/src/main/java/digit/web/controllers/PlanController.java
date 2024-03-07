@@ -30,7 +30,7 @@ public class PlanController {
 
     @RequestMapping(value = "/_search", method = RequestMethod.POST)
     public ResponseEntity<PlanResponse> searchPost(@Valid @RequestBody PlanSearchRequest body) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanResponse());
+        return ResponseEntity.status(HttpStatus.OK).body(new PlanResponse());
     }
 
     @RequestMapping(value = "/_update", method = RequestMethod.POST)
