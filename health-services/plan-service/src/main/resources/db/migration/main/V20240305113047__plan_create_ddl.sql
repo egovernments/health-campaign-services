@@ -13,14 +13,13 @@ CREATE TABLE plan (
 );
 
 CREATE TABLE plan_activity (
-  id varchar(64),
-  tenant_id varchar(64),
-  code varchar(128),
+  id varchar(64) NOT NULL,
+  code varchar(128) NOT NULL,
   description varchar(2048),
   planned_start_date bigint,
   planned_end_date bigint,
-  plan_id varchar(64),
-  resource_id varchar(64),
+  dependencies character varying(2048),
+  plan_id varchar(64) NOT NULL,
   created_by varchar(64),
   created_time bigint,
   last_modified_by varchar(64),
@@ -29,24 +28,13 @@ CREATE TABLE plan_activity (
   FOREIGN KEY (plan_id) REFERENCES plan(id)
 );
 
-CREATE TABLE plan_activity_dependency (
-  id varchar(64),
-  activity_id varchar(64),
-  precursor_activity_code varchar(64),
-  created_by varchar(64),
-  created_time bigint,
-  last_modified_by varchar(64),
-  last_modified_time bigint,
-  CONSTRAINT uk_plan_activity_dependency_id PRIMARY KEY (id),
-  FOREIGN KEY (activity_id) REFERENCES plan_activity(id)
-);
-
 CREATE TABLE plan_activity_condition (
   id varchar(64),
   entity varchar(64),
   entity_property varchar(64),
   expression varchar(2048),
   activity_id varchar(64),
+  is_active boolean,
   created_by varchar(64),
   created_time bigint,
   last_modified_by varchar(64),

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -48,8 +49,9 @@ public class PlanValidator {
     }
 
     private void checkForCycleInActivityDependencies(PlanCreateRequest request) {
-        Map<String, Set<String>> activityCodeVsDependenciesMap = request.getPlan().getActivities().stream()
-                .collect(Collectors.toMap(Activity::getCode, Activity::getDependencies));
+        Map<String, List<String>> activityCodeVsDependenciesMap = request.getPlan().getActivities().stream()
+                .collect(Collectors.toMap(Activity::getCode,
+                        activity -> CollectionUtils.isEmpty(activity.getDependencies()) ? List.of() : activity.getDependencies()));
 
         activityCodeVsDependenciesMap.keySet().forEach(activityCode -> {
             activityCodeVsDependenciesMap.get(activityCode).forEach(dependency -> {
@@ -77,6 +79,15 @@ public class PlanValidator {
     }
 
     private void validateActivities(PlanCreateRequest request) {
+        // Validate code uniqueness within activities
+        Set<String> activityCodes = request.getPlan().getActivities().stream()
+                .map(Activity::getCode)
+                .collect(Collectors.toSet());
+
+        if(activityCodes.size() != request.getPlan().getActivities().size()) {
+            throw new CustomException("DUPLICATE_ACTIVITY_CODES", "Activity codes within the plan should be unique");
+        }
+
         // If execution plan id is not provided, providing activities is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getExecutionPlanId())
                 && CollectionUtils.isEmpty(request.getPlan().getActivities())) {
