@@ -3,10 +3,11 @@ package digit.web.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Data;
@@ -26,16 +27,20 @@ public class Plan {
     private String id = null;
 
     @JsonProperty("tenantId")
+    @NotNull
+    @Size(min = 2, max = 64)
     private String tenantId = null;
 
     @JsonProperty("locality")
-    @Size(min = 2)
+    @Size(min = 1, max = 64)
     private String locality = null;
 
     @JsonProperty("executionPlanId")
+    @Size(min = 64, max = 64)
     private String executionPlanId = null;
 
     @JsonProperty("planConfigurationId")
+    @Size(min = 64, max = 64)
     private String planConfigurationId = null;
 
     @JsonProperty("additionalDetails")

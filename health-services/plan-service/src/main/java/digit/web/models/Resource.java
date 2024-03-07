@@ -1,14 +1,10 @@
 package digit.web.models;
 
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
-import java.util.UUID;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Data;
@@ -28,12 +24,16 @@ public class Resource {
     private String id = null;
 
     @JsonProperty("resourceType")
+    @NotNull
+    @Size(min = 2, max = 256)
     private String resourceType = null;
 
     @JsonProperty("estimatedNumber")
+    @NotNull
     private BigDecimal estimatedNumber = null;
 
     @JsonProperty("activityCode")
+    @Size(min = 2, max = 128)
     private String activityCode = null;
 
 }

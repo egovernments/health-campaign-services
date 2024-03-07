@@ -2,8 +2,8 @@ package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
-import java.util.Set;
 
+import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -27,9 +27,11 @@ public class Activity {
 
     @JsonProperty("code")
     @NotNull
+    @Size(min = 2, max = 128)
     private String code = null;
 
     @JsonProperty("description")
+    @Size(max = 2048)
     private String description = null;
 
     @JsonProperty("plannedStartDate")

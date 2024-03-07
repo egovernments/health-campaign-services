@@ -7,11 +7,13 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 
+@Validated
 @Controller
 @RequestMapping("/plan")
 public class PlanController {
@@ -30,6 +32,7 @@ public class PlanController {
 
     @RequestMapping(value = "/_search", method = RequestMethod.POST)
     public ResponseEntity<PlanResponse> searchPost(@Valid @RequestBody PlanSearchRequest body) {
+        PlanResponse planResponse = planService.searchPlan(body);
         return ResponseEntity.status(HttpStatus.OK).body(new PlanResponse());
     }
 

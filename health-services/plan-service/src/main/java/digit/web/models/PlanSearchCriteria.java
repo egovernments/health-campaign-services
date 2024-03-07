@@ -1,12 +1,11 @@
 package digit.web.models;
 
-import java.util.Objects;
+import java.util.Set;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
-import javax.validation.Valid;
-import javax.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Data;
@@ -21,8 +20,12 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class PlanSearchCriteria {
+
+    @JsonProperty("ids")
+    private Set<String> ids = null;
+
     @JsonProperty("tenantId")
-    @Size(min = 1, max = 100)
+    @NotNull
     private String tenantId = null;
 
     @JsonProperty("locality")
@@ -31,5 +34,7 @@ public class PlanSearchCriteria {
     @JsonProperty("executionPlanId")
     private String executionPlanId = null;
 
+    @JsonProperty("planConfigurationId")
+    private String planConfigurationId = null;
 
 }
