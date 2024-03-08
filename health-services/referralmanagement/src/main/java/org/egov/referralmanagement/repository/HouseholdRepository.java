@@ -32,8 +32,8 @@ public class HouseholdRepository {
 
 	        Map<String, Object> paramsMapCount = new HashMap<>();
 	        paramsMapCount.put("localitycode", localityCode);
-	        
-	        Long totalCount = Long.valueOf(namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_mv where localitycode=:localitycode",paramsMapCount,Integer.class));
+	        Integer maxRank = namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_mv where localitycode=:localitycode", paramsMapCount, Integer.class);
+	        Long totalCount = maxRank == null ? 0L : Long.valueOf(maxRank);
 	        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, householdRowMapper));
 	    }
 }
