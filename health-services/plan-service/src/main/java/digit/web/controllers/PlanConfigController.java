@@ -5,7 +5,7 @@ import digit.service.PlanConfigurationService;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
