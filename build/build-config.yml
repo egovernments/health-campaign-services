@@ -175,3 +175,10 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
         image-name: "egov-hrms-db"
+  - name: "builds/health-campaign-services/health-services/plan-service"
+    build:
+      - work-dir: "health-services/plan-service"
+        image-name: "plan-service"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/plan-service/src/main/resources/db"
+        image-name: "plan-service-db"
