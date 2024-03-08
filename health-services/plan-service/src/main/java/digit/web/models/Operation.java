@@ -34,7 +34,6 @@ public class Operation {
 
     @JsonProperty("operator")
     @NotNull
-    @Size(min = 2, max = 64)
     private OperatorEnum operator = null;
 
     @JsonProperty("assumptionValue")

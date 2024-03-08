@@ -30,7 +30,7 @@ public class PlanConfigurationValidator {
     MdmsUtil mdmsUtil;
 
     public void validateCreate(PlanConfigurationRequest request) {
-//        validateAssumptionKeyAgainstMDMS(request);
+        validateAssumptionKeyAgainstMDMS(request);
         validateAssumptionValue(request.getPlanConfiguration());
     }
 
@@ -52,10 +52,11 @@ public class PlanConfigurationValidator {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId, MDMS_PLAN_ASSUMPTION_MODULE_NAME, Collections.singletonList(MDMS_MASTER_ASSUMPTION));
-        final String jsonPathForAssumption = "$.MdmsRes." + MDMS_PLAN_ASSUMPTION_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + ".*";
+        final String jsonPathForAssumption = "$." + MDMS_PLAN_ASSUMPTION_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + ".*.code";
 
         List<Object> assumptionListFromMDMS = null;
         try {
+            log.info(jsonPathForAssumption);
             assumptionListFromMDMS = JsonPath.read(mdmsData, jsonPathForAssumption);
         } catch (Exception e) {
             log.error(e.getMessage());

@@ -33,7 +33,6 @@ public class File {
 
     @JsonProperty("inputFileType")
     @NotNull
-    @Size(min = 2, max = 64)
     private InputFileTypeEnum inputFileType = null;
 
     /**
