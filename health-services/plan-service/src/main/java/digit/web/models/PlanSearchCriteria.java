@@ -37,4 +37,10 @@ public class PlanSearchCriteria {
     @JsonProperty("planConfigurationId")
     private String planConfigurationId = null;
 
+    @JsonProperty("offset")
+    private Integer offset = null;
+
+    @JsonProperty("limit")
+    private Integer limit = null;
+
 }

@@ -1,6 +1,7 @@
 package digit.service;
 
 import digit.repository.PlanRepository;
+import digit.web.models.Plan;
 import digit.web.models.PlanRequest;
 import digit.web.models.PlanResponse;
 import digit.web.models.PlanSearchRequest;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 @Service
 public class PlanService {
@@ -43,11 +45,13 @@ public class PlanService {
     }
 
     public PlanResponse searchPlan(PlanSearchRequest body) {
-        
+        // Delegate search request to repository
+        List<Plan> planList = planRepository.search(body.getPlanSearchCriteria());
 
+        // Build and return response back to controller
         return PlanResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
-                .plan(new ArrayList<>())
+                .plan(planList)
                 .build();
     }
 }

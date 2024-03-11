@@ -33,7 +33,7 @@ public class PlanController {
     @RequestMapping(value = "/_search", method = RequestMethod.POST)
     public ResponseEntity<PlanResponse> searchPost(@Valid @RequestBody PlanSearchRequest body) {
         PlanResponse planResponse = planService.searchPlan(body);
-        return ResponseEntity.status(HttpStatus.OK).body(new PlanResponse());
+        return ResponseEntity.status(HttpStatus.OK).body(planResponse);
     }
 
     @RequestMapping(value = "/_update", method = RequestMethod.POST)

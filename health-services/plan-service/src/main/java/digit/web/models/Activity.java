@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 import jakarta.validation.constraints.Size;
+import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

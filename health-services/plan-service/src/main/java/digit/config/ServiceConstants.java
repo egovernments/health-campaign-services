@@ -59,5 +59,8 @@ public class ServiceConstants {
 
     public static final String MDMS_MASTER_ASSUMPTION = "Assumptions";
 
+    public static final String DOT_SEPARATOR = ".";
+
+    public static final String DOT_REGEX = "\\.";
 
 }
