@@ -42,9 +42,10 @@ public class PlanRepositoryImpl implements PlanRepository {
 
     @Override
     public List<Plan> search(PlanSearchCriteria planSearchCriteria) {
+        // Fetch plan ids from database
         List<String> planIds = queryDatabaseForPlanIds(planSearchCriteria);
-        log.info("Plan ids: " + planIds);
 
+        // Fetch plans from database based on the acquired ids
         List<Plan> plans = searchPlanByIds(planIds);
 
         return plans;

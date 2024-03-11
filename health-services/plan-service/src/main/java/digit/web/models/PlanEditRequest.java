@@ -18,6 +18,7 @@ import lombok.Builder;
 @NoArgsConstructor
 @Builder
 public class PlanEditRequest {
+
     @JsonProperty("RequestInfo")
     @Valid
     private RequestInfo requestInfo = null;
@@ -25,6 +26,5 @@ public class PlanEditRequest {
     @JsonProperty("Plan")
     @Valid
     private Plan plan = null;
-
 
 }

@@ -11,7 +11,6 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.sql.ResultSet;
@@ -30,6 +29,10 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
     @Override
     public List<Plan> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, Plan> planMap = new LinkedHashMap<>();
+        Map<String, Activity> activityMap = new LinkedHashMap<>();
+        Map<String, Condition> conditionMap = new LinkedHashMap<>();
+        Map<String, Resource> resourceMap = new LinkedHashMap<>();
+        Map<String, Target> targetMap = new LinkedHashMap<>();
 
         // Traverse through result set and create plan objects
         while(rs.next()) {
@@ -59,16 +62,25 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
             }
 
-            addActivities(rs, planEntry);
-            addResources(rs, planEntry);
-            addTargets(rs, planEntry);
+            addActivities(rs, planEntry, activityMap, conditionMap);
+            addResources(rs, planEntry, resourceMap);
+            addTargets(rs, planEntry, targetMap);
             planMap.put(planId, planEntry);
         }
 
         return new ArrayList<>(planMap.values());
     }
 
-    private void addActivities(ResultSet rs, Plan plan) throws SQLException, DataAccessException {
+    private void addActivities(ResultSet rs, Plan plan,
+                               Map<String, Activity> activityMap, Map<String, Condition> conditionMap) throws SQLException, DataAccessException {
+
+        String activityId = rs.getString("plan_activity_id");
+
+        if(!ObjectUtils.isEmpty(activityId) && activityMap.containsKey(activityId)) {
+            addActivityConditions(rs, activityMap.get(activityId), conditionMap);
+            return;
+        }
+
         String dependencies = rs.getString("plan_activity_dependencies");
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(rs.getString("plan_activity_created_by"))
@@ -78,7 +90,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .build();
 
         Activity activity = Activity.builder()
-                .id(rs.getString("plan_activity_id"))
+                .id(activityId)
                 .code(rs.getString("plan_activity_code"))
                 .description(rs.getString("plan_activity_description"))
                 .plannedStartDate(rs.getLong("plan_activity_planned_start_date"))
@@ -86,7 +98,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .dependencies(ObjectUtils.isEmpty(dependencies) ? new ArrayList<>() : Arrays.asList(rs.getString("plan_activity_dependencies").split(",")))
                 .build();
 
-        addActivityConditions(rs, activity);
+        addActivityConditions(rs, activity, conditionMap);
 
         if (CollectionUtils.isEmpty(plan.getActivities())) {
             List<Activity> activityList = new ArrayList<>();
@@ -96,9 +108,17 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             plan.getActivities().add(activity);
         }
 
+        activityMap.put(activity.getId(), activity);
+
     }
 
-    private void addActivityConditions(ResultSet rs, Activity activity) throws SQLException, DataAccessException {
+    private void addActivityConditions(ResultSet rs, Activity activity, Map<String, Condition> conditionMap) throws SQLException, DataAccessException {
+        String conditionId = rs.getString("plan_activity_condition_id");
+
+        if(ObjectUtils.isEmpty(conditionId) || conditionMap.containsKey(conditionId)) {
+            return;
+        }
+
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(rs.getString("plan_activity_condition_created_by"))
                 .createdTime(rs.getLong("plan_activity_condition_created_time"))
@@ -107,7 +127,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .build();
 
         Condition condition = Condition.builder()
-                .id(rs.getString("plan_activity_condition_id"))
+                .id(conditionId)
                 .entity(rs.getString("plan_activity_condition_entity"))
                 .entityProperty(rs.getString("plan_activity_condition_entity_property"))
                 .expression(rs.getString("plan_activity_condition_expression"))
@@ -121,9 +141,18 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             activity.getConditions().add(condition);
         }
 
+        conditionMap.put(condition.getId(), condition);
+
     }
 
-    private void addResources(ResultSet rs, Plan planEntry) throws SQLException, DataAccessException {
+    private void addResources(ResultSet rs, Plan planEntry, Map<String, Resource> resourceMap) throws SQLException, DataAccessException {
+
+        String resourceId = rs.getString("plan_resource_id");
+
+        if(ObjectUtils.isEmpty(resourceId) || resourceMap.containsKey(resourceId)) {
+            return;
+        }
+
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(rs.getString("plan_resource_created_by"))
                 .createdTime(rs.getLong("plan_resource_created_time"))
@@ -146,9 +175,17 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             planEntry.getResources().add(resource);
         }
 
+        resourceMap.put(resource.getId(), resource);
+
     }
 
-    private void addTargets(ResultSet rs, Plan planEntry) throws SQLException, DataAccessException {
+    private void addTargets(ResultSet rs, Plan planEntry, Map<String, Target> targetMap) throws SQLException, DataAccessException {
+        String targetId = rs.getString("plan_target_id");
+
+        if(ObjectUtils.isEmpty(targetId) || targetMap.containsKey(targetId)) {
+            return;
+        }
+
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(rs.getString("plan_target_created_by"))
                 .createdTime(rs.getLong("plan_target_created_time"))
@@ -163,7 +200,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
                 .build();
 
         Target target = Target.builder()
-                .id(rs.getString("plan_target_id"))
+                .id(targetId)
                 .metric(rs.getString("plan_target_metric"))
                 .metricDetail(metricDetail)
                 .activityCode(rs.getString("plan_target_activity_code"))
@@ -176,6 +213,8 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         } else {
             planEntry.getTargets().add(target);
         }
+
+        targetMap.put(target.getId(), target);
 
     }
 
