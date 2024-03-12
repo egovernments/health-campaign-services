@@ -21,9 +21,9 @@
     "dev:css": "cd packages/css && yarn start",
     "publish:css": "cd packages/css && yarn && npm publish --tag workbench-1.0",
     "dev:example": "cd example && yarn start",
-    "dev:hcm-microplanning": "cd packages/modules/hcm-microplanning && yarn start",
+    "dev:campaign": "cd packages/modules/campaign-manager && yarn start",
     "build": "run-p build:**",
-    "build:hcm-microplanning": "cd packages/modules/hcm-microplanning && yarn build",
+    "build:campaign": "cd packages/modules/campaign-manager && yarn build",
     "deploy:jenkins": "./scripts/jenkins.sh",
     "clean": "rm -rf node_modules"
   },

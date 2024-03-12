@@ -1,14 +1,14 @@
-import { Loader,TourProvider } from "@egovernments/digit-ui-react-components";
+import { Loader, TourProvider } from "@egovernments/digit-ui-react-components";
 import React from "react";
 import { useRouteMatch } from "react-router-dom";
 import EmployeeApp from "./pages/employee";
 import { CustomisedHooks } from "./hooks";
 import { UICustomizations } from "./configs/UICustomizations";
-// import WorkbenchCard from "./components/WorkbenchCard";
-import MicroplanningCard from "./components/MicroplanningCard";
+import CampaignCard from "./components/CampaignCard";
+import UploadBoundaryData from "./pages/employee/UploadBoundaryData";
 
-const MicroplanningModule = ({ stateCode, userType, tenants }) => {
-  const moduleCode = ["Microplanning"];
+const CampaignModule = ({ stateCode, userType, tenants }) => {
+  const moduleCode = ["campaignmanager", "workbench", "mdms", "schema"];
   const { path, url } = useRouteMatch();
   const language = Digit.StoreData.getCurrentLanguage();
   const { isLoading, data: store } = Digit.Services.useStore({
@@ -21,17 +21,19 @@ const MicroplanningModule = ({ stateCode, userType, tenants }) => {
     return <Loader />;
   }
 
-  return <TourProvider>
-    <EmployeeApp path={path} stateCode={stateCode} />
-  </TourProvider>
+  return (
+    <TourProvider>
+      <EmployeeApp path={path} stateCode={stateCode} url={url} userType={userType} />
+    </TourProvider>
+  );
 };
 
 const componentsToRegister = {
-  MicroplanningModule,
-  MicroplanningCard,
-  // DigitJSONForm,
-  // DSSCard: null, // TO HIDE THE DSS CARD IN HOME SCREEN as per workbench
-  // HRMSCard // Overridden the HRMS card as per workbench
+  CampaignModule: CampaignModule,
+  campaignModule: CampaignModule,
+  campaignCard: CampaignCard,
+  CampaignCard: CampaignCard,
+  UploadBoundaryData,
 };
 
 const overrideHooks = () => {
@@ -73,10 +75,10 @@ const setupLibraries = (Library, service, method) => {
 /* To Overide any existing config/middlewares  we need to use similar method */
 const updateCustomConfigs = () => {
   setupLibraries("Customizations", "commonUiConfig", { ...window?.Digit?.Customizations?.commonUiConfig, ...UICustomizations });
+  // setupLibraries("Utils", "parsingUtils", { ...window?.Digit?.Utils?.parsingUtils, ...parsingUtils });
 };
 
-
- const initMicroplanningComponents = () => {
+const initCampaignComponents = () => {
   overrideHooks();
   updateCustomConfigs();
   Object.entries(componentsToRegister).forEach(([key, value]) => {
@@ -84,5 +86,4 @@ const updateCustomConfigs = () => {
   });
 };
 
-export   {initMicroplanningComponents};
-
+export { initCampaignComponents };

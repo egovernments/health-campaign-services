@@ -6,6 +6,7 @@ import { UICustomizations } from "./Customisations/UICustomizations";
 import { initWorkbenchComponents } from "@egovernments/digit-ui-module-workbench";
 import { initUtilitiesComponents } from "@egovernments/digit-ui-module-utilities";
 import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-hcmworkbench";
+import { initCampaignComponents } from "@egovernments/digit-ui-module-campaign-manager"
 
 window.contextPath = window?.globalConfigs?.getConfig("CONTEXT_PATH");
 
@@ -33,6 +34,8 @@ const initDigitUI = () => {
   initUtilitiesComponents();
   initWorkbenchComponents();
   initWorkbenchHCMComponents();
+  initCampaignComponents();
+
 };
 
 initLibraries().then(() => {
