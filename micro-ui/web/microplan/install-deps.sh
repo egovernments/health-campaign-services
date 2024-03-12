@@ -7,12 +7,12 @@ echo "Main Branch: $BRANCH"
 INTERNALS="micro-ui-internals"
 cd ..
 
-cp core/App.js src
-cp core/package.json package.json 
-cp core/webpack.config.js webpack.config.js 
-cp core/inter-package.json $INTERNALS/package.json
+cp microplan/App.js src
+cp microplan/package.json package.json 
+cp microplan/webpack.config.js webpack.config.js 
+cp microplan/inter-package.json $INTERNALS/package.json
 
 cp $INTERNALS/example/src/UICustomizations.js src/Customisations
 
-echo "UI :: core " && echo "Branch: $(git branch --show-current)" && echo "$(git log -1 --pretty=%B)" && echo "installing packages" 
+echo "UI :: microplan " && echo "Branch: $(git branch --show-current)" && echo "$(git log -1 --pretty=%B)" && echo "installing packages" 
 

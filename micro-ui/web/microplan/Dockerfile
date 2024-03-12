@@ -13,7 +13,7 @@ RUN ls -lah
 RUN cd web/ \
     && node -e 'console.log(v8.getHeapStatistics().heap_size_limit/(1024*1024))' \
     && node -e 'console.log("core only")' \
-    && cd core/ \
+    && cd microplan/ \
     &&  ./install-deps.sh \
     && cd ../ \
     && yarn install \ 
@@ -26,4 +26,4 @@ ENV WORK_DIR=/var/web/microplan-ui
 RUN mkdir -p ${WORK_DIR}
 
 COPY --from=build /app/web/build ${WORK_DIR}/
-COPY --from=build /app/web/core/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/web/microplan/nginx.conf /etc/nginx/conf.d/default.conf
