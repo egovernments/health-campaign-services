@@ -23,7 +23,7 @@ module.exports = {
   output: {
     filename: "[name].bundle.js",
     path: path.resolve(__dirname, "build"),
-    publicPath: "/microplan-ui/",
+    publicPath: "/workbench-ui/",
   },
   optimization: {
     splitChunks: {

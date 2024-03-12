@@ -13,7 +13,7 @@ RUN ls -lah
 RUN cd web/ \
     && node -e 'console.log(v8.getHeapStatistics().heap_size_limit/(1024*1024))' \
     && node -e 'console.log("core only")' \
-    && cd microplan/ \
+    && cd workbench/ \
     &&  ./install-deps.sh \
     && cd ../ \
     && yarn install \ 
@@ -21,9 +21,9 @@ RUN cd web/ \
 
 FROM nginx:mainline-alpine
 #FROM ghcr.io/egovernments/nginx:mainline-alpine
-ENV WORK_DIR=/var/web/microplan-ui
+ENV WORK_DIR=/var/web/workbench-ui
 
 RUN mkdir -p ${WORK_DIR}
 
 COPY --from=build /app/web/build ${WORK_DIR}/
-COPY --from=build /app/web/microplan/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/web/workbench/nginx.conf /etc/nginx/conf.d/default.conf

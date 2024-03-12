@@ -10,13 +10,14 @@
   "workspaces": [
     "micro-ui-internals/packages/modules/*"
   ],
-  "homepage": "/microplan-ui",
+  "homepage": "/workbench-ui",
   "dependencies": {
     "@egovernments/digit-ui-libraries": "1.8.1-beta.1",
     "@egovernments/digit-ui-module-core": "1.8.1-beta.6",
     "@egovernments/digit-ui-module-utilities": "1.0.1-beta.1",
     "@egovernments/digit-ui-react-components": "1.8.1-beta.2",
-    "@egovernments/digit-ui-module-hcmmicroplanning":"0.0.1",
+    "@egovernments/digit-ui-module-workbench": "1.0.1-beta.1",
+    "@egovernments/digit-ui-module-hcmworkbench":"0.0.38",
     "babel-loader": "8.1.0",
     "clean-webpack-plugin": "4.0.0",
     "react": "17.0.2",
