@@ -27,6 +27,11 @@ public class PlanService {
         this.planRepository = planRepository;
     }
 
+    /**
+     * This method processes the requests that come for creating plans.
+     * @param body
+     * @return
+     */
     public PlanResponse createPlan(PlanRequest body) {
         // Validate plan create request
         planValidator.validatePlanCreate(body);
@@ -44,6 +49,11 @@ public class PlanService {
                 .build();
     }
 
+    /**
+     * This method processes the requests that come for searching plans.
+     * @param body
+     * @return
+     */
     public PlanResponse searchPlan(PlanSearchRequest body) {
         // Delegate search request to repository
         List<Plan> planList = planRepository.search(body.getPlanSearchCriteria());
@@ -52,6 +62,28 @@ public class PlanService {
         return PlanResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
                 .plan(planList)
+                .build();
+    }
+
+    /**
+     * This method processes the requests that come for updating plans.
+     * @param body
+     * @return
+     */
+    public PlanResponse updatePlan(PlanRequest body) {
+        // Validate plan update request
+        planValidator.validatePlanUpdate(body);
+
+        // Enrich plan update request
+        planEnricher.enrichPlanUpdate(body);
+
+        // Delegate update request to repository
+        planRepository.update(body);
+
+        // Build and return response back to controller
+        return PlanResponse.builder()
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(body.getRequestInfo(), Boolean.TRUE))
+                .plan(Collections.singletonList(body.getPlan()))
                 .build();
     }
 }

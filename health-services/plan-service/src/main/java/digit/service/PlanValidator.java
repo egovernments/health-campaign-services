@@ -1,12 +1,15 @@
 package digit.service;
 
+import digit.repository.PlanRepository;
 import digit.web.models.Activity;
 import digit.web.models.PlanRequest;
+import digit.web.models.PlanSearchCriteria;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,6 +18,16 @@ import java.util.stream.Collectors;
 @Component
 public class PlanValidator {
 
+    private PlanRepository planRepository;
+
+    public PlanValidator(PlanRepository planRepository) {
+        this.planRepository = planRepository;
+    }
+
+    /**
+     * This method performs business validations on plan create requests
+     * @param request
+     */
     public void validatePlanCreate(PlanRequest request) {
 
         // Validate execution plan existence
@@ -40,6 +53,10 @@ public class PlanValidator {
 
     }
 
+    /**
+     * This validation method validates if the dependent activities are valid and if they form a cycle
+     * @param request
+     */
     private void validateActivityDependencies(PlanRequest request) {
         // Check if dependent activity codes are valid
         validateDependentActivityCodes(request);
@@ -48,6 +65,10 @@ public class PlanValidator {
         checkForCycleInActivityDependencies(request);
     }
 
+    /**
+     * This method checks if the activity dependencies form a cycle
+     * @param request
+     */
     private void checkForCycleInActivityDependencies(PlanRequest request) {
         Map<String, List<String>> activityCodeVsDependenciesMap = request.getPlan().getActivities().stream()
                 .collect(Collectors.toMap(Activity::getCode,
@@ -61,12 +82,19 @@ public class PlanValidator {
         });
     }
 
+    /**
+     * This method validates if the dependent activity codes are valid
+     * @param request
+     */
     private void validateDependentActivityCodes(PlanRequest request) {
+        // Collect all activity codes
+        Set<String> activityCodes = request.getPlan().getActivities().stream()
+                .map(Activity::getCode)
+                .collect(Collectors.toSet());
+
+        // Check if the dependent activity codes are valid
         request.getPlan().getActivities().forEach(activity -> {
             if(!CollectionUtils.isEmpty(activity.getDependencies())) {
-                Set<String> activityCodes = request.getPlan().getActivities().stream()
-                        .map(Activity::getCode)
-                        .collect(Collectors.toSet());
                 activity.getDependencies().forEach(dependency -> {
                     if(!activityCodes.contains(dependency))
                         throw new CustomException("INVALID_ACTIVITY_DEPENDENCY", "Activity dependency is invalid");
@@ -75,15 +103,24 @@ public class PlanValidator {
         });
     }
 
+    /**
+     * This method validates if the execution plan id provided in the request exists
+     * @param request
+     */
     private void validateExecutionPlanExistence(PlanRequest request) {
     }
 
+    /**
+     * This method validates the activities provided in the request
+     * @param request
+     */
     private void validateActivities(PlanRequest request) {
         // Validate code uniqueness within activities
         Set<String> activityCodes = request.getPlan().getActivities().stream()
                 .map(Activity::getCode)
                 .collect(Collectors.toSet());
 
+        // If activity codes are not unique, throw an exception
         if(activityCodes.size() != request.getPlan().getActivities().size()) {
             throw new CustomException("DUPLICATE_ACTIVITY_CODES", "Activity codes within the plan should be unique");
         }
@@ -109,10 +146,18 @@ public class PlanValidator {
         }
     }
 
+    /**
+     * This method validates if the plan configuration id provided in the request exists
+     * @param request
+     */
     private void validatePlanConfigurationExistence(PlanRequest request) {
 
     }
 
+    /**
+     * This method validates the resources provided in the request
+     * @param request
+     */
     private void validateResources(PlanRequest request) {
         // If plan configuration id is not provided, providing resources is mandatory
         if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
@@ -134,12 +179,19 @@ public class PlanValidator {
         }
     }
 
+    /**
+     * This method validates the linkage between resources and activities
+     * @param request
+     */
     private void validateResourceActivityLinkage(PlanRequest request) {
         if(ObjectUtils.isEmpty(request.getPlan().getPlanConfigurationId())
                 && !CollectionUtils.isEmpty(request.getPlan().getActivities())) {
+            // Collect all activity codes
             Set<String> activityCodes = request.getPlan().getActivities().stream()
                     .map(Activity::getCode)
                     .collect(Collectors.toSet());
+
+            // Validate resource-activity linkage
             request.getPlan().getResources().forEach(resource -> {
                 if(!activityCodes.contains(resource.getActivityCode()))
                     throw new CustomException("INVALID_RESOURCE_ACTIVITY_LINKAGE", "Resource-Activity linkage is invalid");
@@ -147,11 +199,18 @@ public class PlanValidator {
         }
     }
 
+    /**
+     * This method validates the linkage between targets and activities
+     * @param request
+     */
     private void validateTargetActivityLinkage(PlanRequest request) {
         if(!CollectionUtils.isEmpty(request.getPlan().getActivities())) {
+            // Collect all activity codes
             Set<String> activityCodes = request.getPlan().getActivities().stream()
                     .map(Activity::getCode)
                     .collect(Collectors.toSet());
+
+            // Validate target-activity linkage
             request.getPlan().getTargets().forEach(target -> {
                 if(!activityCodes.contains(target.getActivityCode()))
                     throw new CustomException("INVALID_TARGET_ACTIVITY_LINKAGE", "Target-Activity linkage is invalid");
@@ -159,4 +218,44 @@ public class PlanValidator {
         }
     }
 
+    /**
+     * This method performs business validations on plan update requests
+     * @param request
+     */
+    public void validatePlanUpdate(PlanRequest request) {
+        // Validate plan existence
+        validatePlanExistence(request);
+
+        // Validate activities
+        validateActivities(request);
+
+        // Validate plan configuration existence
+        validatePlanConfigurationExistence(request);
+
+        // Validate resources
+        validateResources(request);
+
+        // Validate resource-activity linkage
+        validateResourceActivityLinkage(request);
+
+        // Validate target-activity linkage
+        validateTargetActivityLinkage(request);
+
+        // Validate dependencies
+        validateActivityDependencies(request);
+
+    }
+
+    /**
+     * This method validates if the plan id provided in the update request exists
+     * @param request
+     */
+    private void validatePlanExistence(PlanRequest request) {
+        // If plan id provided is invalid, throw an exception
+        if(CollectionUtils.isEmpty(planRepository.search(PlanSearchCriteria.builder()
+                .ids(Collections.singleton(request.getPlan().getId()))
+                .build()))) {
+            throw new CustomException("INVALID_PLAN_ID", "Plan id provided is invalid");
+        }
+    }
 }

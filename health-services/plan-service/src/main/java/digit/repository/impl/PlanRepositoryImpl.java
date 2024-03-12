@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,15 +36,29 @@ public class PlanRepositoryImpl implements PlanRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /**
+     * This method emits an event to the persister for it to save the plan in the database.
+     * @param planRequest
+     */
     @Override
     public void create(PlanRequest planRequest) {
         producer.push("save-plan", planRequest);
     }
 
+    /**
+     * This method searches for plans based on the search criteria.
+     * @param planSearchCriteria
+     * @return
+     */
     @Override
     public List<Plan> search(PlanSearchCriteria planSearchCriteria) {
         // Fetch plan ids from database
         List<String> planIds = queryDatabaseForPlanIds(planSearchCriteria);
+
+        // Return empty list back as response if no plan ids are found
+        if(CollectionUtils.isEmpty(planIds)) {
+            return new ArrayList<>();
+        }
 
         // Fetch plans from database based on the acquired ids
         List<Plan> plans = searchPlanByIds(planIds);
@@ -51,11 +66,20 @@ public class PlanRepositoryImpl implements PlanRepository {
         return plans;
     }
 
+    /**
+     * This method emits an event to the persister for it to update the plan in the database.
+     * @param planRequest
+     */
     @Override
     public void update(PlanRequest planRequest) {
         producer.push("update-plan", planRequest);
     }
 
+    /**
+     * Helper method to query database for plan ids based on the provided search criteria.
+     * @param planSearchCriteria
+     * @return
+     */
     private List<String> queryDatabaseForPlanIds(PlanSearchCriteria planSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planQueryBuilder.getPlanSearchQuery(planSearchCriteria, preparedStmtList);
@@ -63,6 +87,11 @@ public class PlanRepositoryImpl implements PlanRepository {
         return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 
+    /**
+     * Helper method to search for plans based on the provided plan ids.
+     * @param planIds
+     * @return
+     */
     private List<Plan> searchPlanByIds(List<String> planIds) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = planQueryBuilder.getPlanQuery(planIds, preparedStmtList);
