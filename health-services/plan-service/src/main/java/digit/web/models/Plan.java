@@ -36,11 +36,11 @@ public class Plan {
     private String locality = null;
 
     @JsonProperty("executionPlanId")
-    @Size(min = 64, max = 64)
+    @Size(max = 64)
     private String executionPlanId = null;
 
     @JsonProperty("planConfigurationId")
-    @Size(min = 64, max = 64)
+    @Size(max = 64)
     private String planConfigurationId = null;
 
     @JsonProperty("additionalDetails")

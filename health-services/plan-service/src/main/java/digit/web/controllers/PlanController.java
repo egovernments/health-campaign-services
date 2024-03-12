@@ -24,21 +24,37 @@ public class PlanController {
         this.planService = planService;
     }
 
+    /**
+     * Request handler for serving plan create requests
+     * @param body
+     * @return
+     */
     @RequestMapping(value = "/_create", method = RequestMethod.POST)
     public ResponseEntity<PlanResponse> createPost(@Valid @RequestBody PlanRequest body) {
         PlanResponse planResponse = planService.createPlan(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planResponse);
     }
 
+    /**
+     * Request handler for serving plan search requests
+     * @param body
+     * @return
+     */
     @RequestMapping(value = "/_search", method = RequestMethod.POST)
     public ResponseEntity<PlanResponse> searchPost(@Valid @RequestBody PlanSearchRequest body) {
         PlanResponse planResponse = planService.searchPlan(body);
         return ResponseEntity.status(HttpStatus.OK).body(planResponse);
     }
 
+    /**
+     * Request handler for serving plan update requests
+     * @param body
+     * @return
+     */
     @RequestMapping(value = "/_update", method = RequestMethod.POST)
-    public ResponseEntity<PlanResponse> updatePost(@Valid @RequestBody PlanEditRequest body) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanResponse());
+    public ResponseEntity<PlanResponse> updatePost(@Valid @RequestBody PlanRequest body) {
+        PlanResponse planResponse = planService.updatePlan(body);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(planResponse);
     }
 
 }
