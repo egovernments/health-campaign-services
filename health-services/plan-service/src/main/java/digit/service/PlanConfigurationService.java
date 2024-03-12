@@ -2,12 +2,14 @@ package digit.service;
 
 import digit.config.Configuration;
 import digit.kafka.Producer;
-import digit.repository.PlanConfigurationRepository;
 import digit.repository.impl.PlanConfigurationRepositoryImpl;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
+import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 
+import digit.web.models.PlanConfigurationSearchRequest;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -39,5 +41,10 @@ public class PlanConfigurationService {
         validator.validateCreate(request);
         repository.create(request);
         return request;
+    }
+
+    public List<PlanConfiguration> search(PlanConfigurationSearchRequest request) {
+        validator.validateSearchRequest(request);
+        return repository.search(request.getPlanConfigurationSearchCriteria());
     }
 }

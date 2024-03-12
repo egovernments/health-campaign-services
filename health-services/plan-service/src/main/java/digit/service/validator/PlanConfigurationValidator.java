@@ -6,11 +6,14 @@ import digit.web.models.Assumption;
 import digit.web.models.Operation;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
+import digit.web.models.PlanConfigurationSearchRequest;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -73,4 +76,17 @@ public class PlanConfigurationValidator {
         }
     }
 
+    public void validateSearchRequest(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
+        validateSearchCriteria(planConfigurationSearchRequest);
+    }
+
+    private void validateSearchCriteria(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
+        if (Objects.isNull(planConfigurationSearchRequest.getPlanConfigurationSearchCriteria())) {
+            throw new CustomException("SEARCH CRITERIA CANNOT BE EMPTY", "Search criteria cannot be empty");
+        }
+
+        if (StringUtils.isEmpty(planConfigurationSearchRequest.getPlanConfigurationSearchCriteria().getTenantId())) {
+            throw new CustomException("TENANT ID CANNOT BE EMPTY", "Tenant Id cannot be empty, TenantId should be present");
+        }
+    }
 }

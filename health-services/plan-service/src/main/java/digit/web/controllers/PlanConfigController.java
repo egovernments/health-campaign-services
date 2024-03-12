@@ -2,6 +2,8 @@ package digit.web.controllers;
 
 
 import digit.service.PlanConfigurationService;
+import digit.util.ResponseInfoFactory;
+import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;
@@ -10,7 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
-import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,28 +28,34 @@ public class PlanConfigController {
 
     private PlanConfigurationService planConfigurationService;
 
+    private ResponseInfoFactory responseInfoFactory;
+
     @Autowired
-    public PlanConfigController(ObjectMapper objectMapper, PlanConfigurationService planConfigurationService) {
+    public PlanConfigController(ObjectMapper objectMapper, PlanConfigurationService planConfigurationService, ResponseInfoFactory responseInfoFactory) {
         this.objectMapper = objectMapper;
         this.planConfigurationService = planConfigurationService;
+        this.responseInfoFactory = responseInfoFactory;
     }
 
     @RequestMapping(value = "/config/_create", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configCreatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
 
-            PlanConfigurationRequest planConfigurationRequest = planConfigurationService.create(body);
-            PlanConfigurationResponse response = PlanConfigurationResponse.builder()
-                    .planConfiguration(Collections.singletonList(planConfigurationRequest.getPlanConfiguration()))
-                    .responseInfo(new ResponseInfo())
-                    .build();
+        PlanConfigurationRequest planConfigurationRequest = planConfigurationService.create(body);
+        PlanConfigurationResponse response = PlanConfigurationResponse.builder()
+                .planConfiguration(Collections.singletonList(planConfigurationRequest.getPlanConfiguration()))
+                .responseInfo(responseInfoFactory
+                        .createResponseInfoFromRequestInfo(body.getRequestInfo(), true))
+                .build();
 
-            return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
 
     }
 
     @RequestMapping(value = "/config/_search", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configSearchPost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationSearchRequest body) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanConfigurationResponse());
+        List<PlanConfiguration> planConfigurationList = planConfigurationService.search(body);
+        PlanConfigurationResponse response = PlanConfigurationResponse.builder().responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(body.getRequestInfo(), true)).planConfiguration(planConfigurationList).build();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @RequestMapping(value = "/config/_update", method = RequestMethod.POST)

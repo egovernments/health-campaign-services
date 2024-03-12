@@ -21,11 +21,21 @@ public class PlanConfigurationSearchCriteria {
     @Size(min = 1, max = 100)
     private String tenantId = null;
 
+    @JsonProperty("id")
+    private String id = null;
+
     @JsonProperty("name")
     private String name = null;
 
-    @JsonProperty("executionPlan")
-    private String executionPlan = null;
+    @JsonProperty("executionPlanId")
+    private String executionPlanId = null;
+
+    @JsonProperty("offset")
+    private Integer offset;
+
+    @JsonProperty("limit")
+    private Integer limit;
+
 
 
 }
