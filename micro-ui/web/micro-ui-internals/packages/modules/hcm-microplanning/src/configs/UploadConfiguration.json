@@ -1,0 +1,122 @@
+{
+  "tenantId": "mz",
+  "moduleName": "hcm-microplanning",
+  "UploadConfiguration": [
+    {
+      "id": "Population",
+      "title": "Population",
+      "code": "POPULATION",
+      "iconName": "Population",
+      "UploadFileTypes": [
+        {
+          "id": "Excel",
+          "title": "Excel",
+          "code": "EXCEL",
+          "fileExtension":["xlsx", "xls"],
+          "iconName": "Excel"
+        },
+        {
+          "id": "ShapeFiles",
+          "title": "Shape Files",
+          "code": "SHAPE_FILES",
+          "fileExtension":["zip"],
+          "iconName": "SpatialDocument"
+        },
+        {
+          "id": "GeoJson",
+          "title": "Geo Json",
+          "code": "GEOJSON",
+          "fileExtension":["geojson"],
+          "iconName": "SpatialDocument"
+        }
+      ]
+    },
+    {
+      "id": "Facility",
+      "title": "Facility",
+      "code": "FACILITY",
+      "iconName": "Facility",
+      "UploadFileTypes": [
+        {
+          "id": "Excel",
+          "title": "Excel",
+          "code": "EXCEL",
+          "fileExtension":["xlsx", "xls"],
+          "iconName": "Excel"
+        },
+        {
+          "id": "ShapeFiles",
+          "title": "Shape Files",
+          "code": "SHAPE_FILES",
+          "fileExtension":["zip"],
+          "iconName": "SpatialDocument"
+        },
+        {
+          "id": "GeoJson",
+          "title": "Geo Json",
+          "code": "GEOJSON",
+          "fileExtension":["geojson"],
+          "iconName": "SpatialDocument"
+        }
+      ]
+    },
+    {
+      "id": "WareHouses",
+      "title": "Ware Houses",
+      "code": "WARE_HOUSES",
+      "iconName": "WareHouses",
+      "UploadFileTypes": [
+        {
+          "id": "Excel",
+          "title": "Excel",
+          "code": "EXCEL",
+          "fileExtension":["xlsx", "xls"],
+          "iconName": "Excel"
+        },
+        {
+          "id": "ShapeFiles",
+          "title": "Shape Files",
+          "code": "SHAPE_FILES",
+          "fileExtension":["zip"],
+          "iconName": "SpatialDocument"
+        },
+        {
+          "id": "GeoJson",
+          "title": "Geo Json",
+          "code": "GEOJSON",
+          "fileExtension":["geojson"],
+          "iconName": "SpatialDocument"
+        }
+      ]
+    },
+    {
+      "id": "IncidentRate",
+      "title": "Incident Rate",
+      "code": "INCIDENT_RATE",
+      "iconName": "BarChart",
+      "UploadFileTypes": [
+        {
+          "id": "Excel",
+          "title": "Excel",
+          "code": "EXCEL",
+          "fileExtension":["xlsx", "xls"],
+          "iconName": "Excel"
+        },
+        {
+          "id": "ShapeFiles",
+          "title": "Shape Files",
+          "code": "SHAPE_FILES",
+          "fileExtension":["zip"],
+          "iconName": "SpatialDocument"
+        },
+        {
+          "id": "GeoJson",
+          "title": "Geo Json",
+          "code": "GEOJSON",
+          "fileExtension":["geojson"],
+          "iconName": "SpatialDocument"
+        }
+      ]
+    }
+  ]
+}

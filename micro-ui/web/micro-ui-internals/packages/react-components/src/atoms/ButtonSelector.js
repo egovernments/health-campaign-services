@@ -21,6 +21,7 @@ const ButtonSelector = (props) => {
       style={props.style ? props.style : null}
     >
       <h2 style={{ ...props?.textStyles, ...{ width: "100%" } }}>{props.label}</h2>
+      {props.ButtonBody?props.ButtonBody:""}
     </button>
   );
 };

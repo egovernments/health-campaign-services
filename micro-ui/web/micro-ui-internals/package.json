@@ -24,6 +24,7 @@
     "publish:css": "cd packages/css && yarn publish --access public",
     "dev:libraries": "cd packages/libraries && yarn start",
     "dev:components": "cd packages/react-components && yarn start",
+    "dev:svg-components": "cd packages/svg-components && yarn start",
     "dev:example": "cd example && yarn start",
     "dev:core": "cd packages/modules/core && yarn start",
     "dev:dss": "cd packages/modules/dss && yarn start",

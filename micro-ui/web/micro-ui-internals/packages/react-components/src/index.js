@@ -210,13 +210,6 @@ import {
   DeleteIconv2,
   InfoIconOutline,
   HelpOutlineIcon,
-  PopulationIcon,
-  FacilityIcon,
-  WareHousesIcon,
-  BarChartIcon,
-  TickMarkBackgroundFilled,
-  SpatialDocumentIcon,
-  ExcelIcon
 } from "./atoms/svgindex";
 import Table from "./atoms/Table";
 import TelePhone from "./atoms/TelePhone";
@@ -593,13 +586,5 @@ export {
 
 
   // Exported all svgs from svg-component library
-  SVG,
-
-  PopulationIcon,
-  FacilityIcon,
-  WareHousesIcon,
-  BarChartIcon,
-  TickMarkBackgroundFilled,
-  SpatialDocumentIcon,
-  ExcelIcon
+  SVG
 };

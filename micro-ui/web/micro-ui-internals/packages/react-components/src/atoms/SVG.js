@@ -776,6 +776,12 @@ import {
     ZoomIn,
     ZoomOut,
     ZoomOutMap,
+    Facility,
+    WareHouses,
+    BarChart,
+    TickMarkBackgroundFilled,
+    Excel,
+    SpatialDocument,
   } from "@egovernments/digit-ui-svg-components";
 
 
@@ -1558,4 +1564,10 @@ import {
     ZoomIn,
     ZoomOut,
     ZoomOutMap,
+    Facility,
+    WareHouses,
+    BarChart,
+    TickMarkBackgroundFilled,
+    Excel,
+    SpatialDocument,
   }

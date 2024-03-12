@@ -780,6 +780,13 @@ import { ZoomOutMap } from "./svg/ZoomOutMap";
 import { InfoBannerIcon } from "./svg/InfoBannerIcon";
 import { Success } from "./svg/Success";
 import { TickMark } from "./svg/TickMark";
+import { Facility } from "./svg/Facility";
+import { WareHouses } from "./svg/WareHouses"
+import { BarChart } from "./svg/BarChart"
+import { TickMarkBackgroundFilled } from "./svg/TickMarkBackgroundFilled"
+import { Excel } from "./svg/Excel"
+import { SpatialDocument } from "./svg/SpatialDocument"
+
 
 export {
   Success,
@@ -1564,4 +1571,10 @@ export {
   ZoomIn,
   ZoomOut,
   ZoomOutMap,
+  Facility,
+  WareHouses,
+  BarChart,
+  TickMarkBackgroundFilled,
+  Excel,
+  SpatialDocument,
 };
