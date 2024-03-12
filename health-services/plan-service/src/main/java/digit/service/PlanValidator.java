@@ -1,9 +1,7 @@
 package digit.service;
 
 import digit.repository.PlanRepository;
-import digit.web.models.Activity;
-import digit.web.models.PlanRequest;
-import digit.web.models.PlanSearchCriteria;
+import digit.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -115,7 +113,7 @@ public class PlanValidator {
      * @param request
      */
     private void validateActivities(PlanRequest request) {
-        // Validate code uniqueness within activities
+        // Collect all activity codes
         Set<String> activityCodes = request.getPlan().getActivities().stream()
                 .map(Activity::getCode)
                 .collect(Collectors.toSet());
@@ -229,11 +227,20 @@ public class PlanValidator {
         // Validate activities
         validateActivities(request);
 
+        // Validate activities uuid uniqueness
+        validateActivitiesUuidUniqueness(request);
+
         // Validate plan configuration existence
         validatePlanConfigurationExistence(request);
 
         // Validate resources
         validateResources(request);
+
+        // Validate resource uuid uniqueness
+        validateResourceUuidUniqueness(request);
+
+        // Validate target uuid uniqueness
+        validateTargetUuidUniqueness(request);
 
         // Validate resource-activity linkage
         validateResourceActivityLinkage(request);
@@ -244,6 +251,42 @@ public class PlanValidator {
         // Validate dependencies
         validateActivityDependencies(request);
 
+    }
+
+    private void validateTargetUuidUniqueness(PlanRequest request) {
+        // Collect all target uuids
+        Set<String> targetUuids = request.getPlan().getTargets().stream()
+                .map(Target::getId)
+                .collect(Collectors.toSet());
+
+        // If target uuids are not unique, throw an exception
+        if(targetUuids.size() != request.getPlan().getTargets().size()) {
+            throw new CustomException("DUPLICATE_TARGET_UUIDS", "Target uuids should be unique");
+        }
+    }
+
+    private void validateResourceUuidUniqueness(PlanRequest request) {
+        // Collect all resource uuids
+        Set<String> resourceUuids = request.getPlan().getResources().stream()
+                .map(Resource::getId)
+                .collect(Collectors.toSet());
+
+        // If resource uuids are not unique, throw an exception
+        if(resourceUuids.size() != request.getPlan().getResources().size()) {
+            throw new CustomException("DUPLICATE_RESOURCE_UUIDS", "Resource uuids should be unique");
+        }
+    }
+
+    private void validateActivitiesUuidUniqueness(PlanRequest request) {
+        // Collect all activity uuids
+        Set<String> activityUuids = request.getPlan().getActivities().stream()
+                .map(Activity::getId)
+                .collect(Collectors.toSet());
+
+        // If activity uuids are not unique, throw an exception
+        if(activityUuids.size() != request.getPlan().getActivities().size()) {
+            throw new CustomException("DUPLICATE_ACTIVITY_UUIDS", "Activity uuids should be unique");
+        }
     }
 
     /**
