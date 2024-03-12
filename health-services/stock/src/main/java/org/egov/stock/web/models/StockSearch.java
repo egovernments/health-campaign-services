@@ -40,7 +40,6 @@ public class StockSearch {
     private String facilityId = null;
 
     @JsonProperty("productVariantId")
-    @Size(min=2, max=64)
     private List<String> productVariantId = null;
 
     @JsonProperty("referenceId")

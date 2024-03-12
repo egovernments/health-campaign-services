@@ -36,11 +36,9 @@ public class ProjectBeneficiarySearch {
     private String tenantId = null;
 
     @JsonProperty("projectId")
-    @Size(min=2,max=64)
     private List<String> projectId = null;
 
     @JsonProperty("beneficiaryId")
-    @Size(min=2,max=64)
     private List<String> beneficiaryId = null;
 
     @JsonProperty("clientReferenceId")

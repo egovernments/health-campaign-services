@@ -30,7 +30,6 @@ public class ProductVariantSearch   {
     private List<String> id = null;
 
     @JsonProperty("productId")
-    @Size(min = 2, max = 64)
     private List<String> productId = null;
 
     @JsonProperty("sku")

@@ -28,18 +28,15 @@ public class TaskSearch {
     private List<String> id = null;
 
     @JsonProperty("projectId")
-    @Size(min=2,max=64)
     private List<String> projectId = null;
 
     @JsonProperty("projectBeneficiaryId")
-    @Size(min=2,max=64)
     private List<String> projectBeneficiaryId = null;
 
     @JsonProperty("clientReferenceId")
     private List<String> clientReferenceId = null;
 
     @JsonProperty("projectBeneficiaryClientReferenceId")
-    @Size(min=2,max=64)
     private List<String> projectBeneficiaryClientReferenceId = null;
 
     @JsonProperty("plannedStartDate")
