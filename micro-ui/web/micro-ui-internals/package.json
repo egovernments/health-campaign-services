@@ -19,7 +19,7 @@
     "start:dev": "run-p dev:**",
     "start:script": "./scripts/create.sh",
     "dev:css": "cd packages/css && yarn start",
-    "publish:css": "cd packages/css && yarn publish --access public",
+    "publish:css": "cd packages/css && yarn && npm publish --tag workbench-1.0",
     "dev:example": "cd example && yarn start",
     "dev:hcm-microplanning": "cd packages/modules/hcm-microplanning && yarn start",
     "build": "run-p build:**",

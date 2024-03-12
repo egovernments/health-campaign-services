@@ -10,9 +10,9 @@ const ROLES = {
 
 // Mukta Overrriding the Works Home screen card
 const MicroplanningCard = () => {
-  if (!Digit.Utils.didEmployeeHasAtleastOneRole(Object.values(ROLES).flatMap((e) => e))) {
-    return null;
-  }
+  // if (!Digit.Utils.didEmployeeHasAtleastOneRole(Object.values(ROLES).flatMap((e) => e))) {
+  //   return null;
+  // }
 
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
@@ -21,7 +21,7 @@ const MicroplanningCard = () => {
     {
       label: t("Upload Page"),
       link: `/${window?.contextPath}/employee/microplanning/upload`,
-      roles: ROLES.MDMS,
+      roles: [],
     },
     // {
     //   label: t("ACTION_TEST_LOCALISATION"),
