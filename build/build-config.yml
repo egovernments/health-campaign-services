@@ -24,6 +24,12 @@ config:
       - work-dir: micro-ui/
         dockerfile: micro-ui/web/workbench/Dockerfile
         image-name: workbench-ui
+
+  - name: builds/Digit-Frontend/microplan-ui
+    build:
+      - work-dir: micro-ui/
+        dockerfile: micro-ui/web/microplan/Dockerfile
+        image-name: microplan-ui
         
   - name: builds/Digit-Frontend/storybook-svg
     build:
