@@ -49,29 +49,8 @@ public class PlanConfigurationValidator {
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
-        validateTenantId(request, mdmsData);
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
         validateAssumptionValue(planConfiguration);
-    }
-
-    public void validateTenantId(PlanConfigurationRequest request, Object mdmsData) {
-        PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForTenant = "$." + MDMS_TENANT_MODULE_NAME + "." + MDSM_MASTER_TENANTS + ".*";
-
-        List<Object> tenantListFromMDMS = null;
-        try {
-            log.info(jsonPathForTenant);
-            tenantListFromMDMS = JsonPath.read(mdmsData, jsonPathForTenant);
-        } catch (Exception e) {
-            log.error(e.getMessage());
-            throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
-        }
-
-        if (!tenantListFromMDMS.contains(planConfiguration.getTenantId())) {
-            log.error("The tenant: " + planConfiguration.getTenantId() + " is not present in MDMS");
-            throw new CustomException(TENANT_NOT_FOUND_IN_MDMS_CODE, TENANT_NOT_FOUND_IN_MDMS_MESSAGE);
-        }
-
     }
 
     public void validateAssumptionValue(PlanConfiguration planConfiguration) {
