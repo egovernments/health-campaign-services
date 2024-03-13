@@ -172,6 +172,6 @@ config:
     build:
       - work-dir: "health-services/plan-service"
         image-name: "plan-service"
-        dockerfile: "build/maven/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/plan-service/src/main/resources/db"
         image-name: "plan-service-db"
