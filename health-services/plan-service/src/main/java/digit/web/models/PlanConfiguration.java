@@ -1,6 +1,7 @@
 package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotEmpty;
 import java.util.ArrayList;
 import java.util.List;
 import jakarta.validation.Valid;
@@ -44,21 +45,25 @@ public class PlanConfiguration {
 
     @JsonProperty("files")
     @NotNull
+    @NotEmpty
     @Valid
     private List<File> files = new ArrayList<>();
 
     @JsonProperty("assumptions")
     @NotNull
+    @NotEmpty
     @Valid
     private List<Assumption> assumptions = new ArrayList<>();
 
     @JsonProperty("operations")
     @NotNull
+    @NotEmpty
     @Valid
     private List<Operation> operations = new ArrayList<>();
 
     @JsonProperty("resourceMapping")
     @NotNull
+    @NotEmpty
     @Valid
     private List<ResourceMapping> resourceMapping = new ArrayList<>();
 

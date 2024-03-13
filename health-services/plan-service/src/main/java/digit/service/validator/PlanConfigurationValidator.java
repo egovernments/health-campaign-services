@@ -1,5 +1,6 @@
 package digit.service.validator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import digit.util.MdmsUtil;
 import digit.web.models.Assumption;
@@ -9,6 +10,7 @@ import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationSearchRequest;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -24,17 +26,52 @@ import static digit.config.ServiceConstants.ASSUMPTION_VALUE_NOT_FOUND_CODE;
 import static digit.config.ServiceConstants.ASSUMPTION_VALUE_NOT_FOUND_MESSAGE;
 import static digit.config.ServiceConstants.MDMS_MASTER_ASSUMPTION;
 import static digit.config.ServiceConstants.MDMS_PLAN_ASSUMPTION_MODULE_NAME;
+import static digit.config.ServiceConstants.MDMS_TENANT_MODULE_NAME;
+import static digit.config.ServiceConstants.MDSM_MASTER_TENANTS;
+import static digit.config.ServiceConstants.TENANT_NOT_FOUND_IN_MDMS_CODE;
+import static digit.config.ServiceConstants.TENANT_NOT_FOUND_IN_MDMS_MESSAGE;
 
 @Component
 @Slf4j
 public class PlanConfigurationValidator {
 
-    @Autowired
-    MdmsUtil mdmsUtil;
+
+    private MdmsUtil mdmsUtil;
+    private ObjectMapper objectMapper;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
+        this.mdmsUtil = mdmsUtil;
+        this.objectMapper = objectMapper;
+    }
 
     public void validateCreate(PlanConfigurationRequest request) {
-        validateAssumptionKeyAgainstMDMS(request);
-        validateAssumptionValue(request.getPlanConfiguration());
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+        String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
+        Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+
+        validateTenantId(request, mdmsData);
+        validateAssumptionKeyAgainstMDMS(request, mdmsData);
+        validateAssumptionValue(planConfiguration);
+    }
+
+    public void validateTenantId(PlanConfigurationRequest request, Object mdmsData) {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+        final String jsonPathForTenant = "$." + MDMS_TENANT_MODULE_NAME + "." + MDSM_MASTER_TENANTS + ".*";
+
+        List<Object> tenantListFromMDMS = null;
+        try {
+            log.info(jsonPathForTenant);
+            tenantListFromMDMS = JsonPath.read(mdmsData, jsonPathForTenant);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
+        }
+
+        if (!tenantListFromMDMS.contains(planConfiguration.getTenantId())) {
+            log.error("The tenant: " + planConfiguration.getTenantId() + " is not present in MDMS");
+            throw new CustomException(TENANT_NOT_FOUND_IN_MDMS_CODE, TENANT_NOT_FOUND_IN_MDMS_MESSAGE);
+        }
+
     }
 
     public void validateAssumptionValue(PlanConfiguration planConfiguration) {
@@ -51,11 +88,9 @@ public class PlanConfigurationValidator {
         }
     }
 
-    public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request) {
+    public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
-        Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId, MDMS_PLAN_ASSUMPTION_MODULE_NAME, Collections.singletonList(MDMS_MASTER_ASSUMPTION));
-        final String jsonPathForAssumption = "$." + MDMS_PLAN_ASSUMPTION_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + ".*.code";
+        final String jsonPathForAssumption = "$." + MDMS_PLAN_ASSUMPTION_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + ".*";
 
         List<Object> assumptionListFromMDMS = null;
         try {

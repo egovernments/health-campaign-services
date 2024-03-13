@@ -37,8 +37,8 @@ public class PlanConfigurationService {
     }
 
     public PlanConfigurationRequest create(PlanConfigurationRequest request) {
-        enrichmentService.enrichCreate(request);
         validator.validateCreate(request);
+        enrichmentService.enrichCreate(request);
         repository.create(request);
         return request;
     }

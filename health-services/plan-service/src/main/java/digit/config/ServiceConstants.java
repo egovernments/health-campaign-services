@@ -55,12 +55,22 @@ public class ServiceConstants {
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS";
 
-    public static final String MDMS_PLAN_ASSUMPTION_MODULE_NAME = "hcm-microplanning";
+    public static final String TENANT_NOT_FOUND_IN_MDMS_CODE = "TENANT_ID_NOT_FOUND_IN_MDMS";
+    public static final String TENANT_NOT_FOUND_IN_MDMS_MESSAGE = "Tenant Id is not present in MDMS";
 
+    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
+    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
+
+    public static final String MDMS_PLAN_ASSUMPTION_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "Assumptions";
+    public static final String MDSM_MASTER_TENANTS = "tenants";
+    public static final String MDMS_TENANT_MODULE_NAME = "tenant";
 
     public static final String DOT_SEPARATOR = ".";
 
     public static final String DOT_REGEX = "\\.";
+
+    public static final String FILTER_CODE = "$.*.code";
+
 
 }

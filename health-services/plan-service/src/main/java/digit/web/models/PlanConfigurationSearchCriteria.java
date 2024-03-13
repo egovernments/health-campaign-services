@@ -1,5 +1,6 @@
 package digit.web.models;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.validation.annotation.Validated;
@@ -35,7 +36,5 @@ public class PlanConfigurationSearchCriteria {
 
     @JsonProperty("limit")
     private Integer limit;
-
-
 
 }
