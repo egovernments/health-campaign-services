@@ -269,12 +269,21 @@ public class IndividualRepository extends GenericRepository<Individual> {
             query = query + "AND userId=:userId ";
             paramsMap.put("userId", String.valueOf(searchObject.getUserId()));
         }
+
+        if (searchObject.getUserUuid() != null) {
+            query = query + "AND userUuid in (:userUuid) ";
+            paramsMap.put("userUuid", searchObject.getUserUuid());
+        }
+
         query = query + "ORDER BY id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
+
+        log.info("query-------------------------->");
+        log.info(query);
         return query;
     }
 

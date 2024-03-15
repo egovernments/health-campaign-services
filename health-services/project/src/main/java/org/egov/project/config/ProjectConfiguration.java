@@ -186,6 +186,9 @@ public class ProjectConfiguration {
     @Value("${egov.user.id.validator}")
     private String egovUserIdValidator;
 
+    @Value("${project.staff.attendance.topic}")
+    private String projectStaffAttendanceTopic;
+
     @Value("${project.task.resource.quantity.pattern}")
     private String projectTaskResourceQuantityPattern;
 
