@@ -8,9 +8,12 @@ import digit.service.validator.PlanConfigurationValidator;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 
+import digit.web.models.PlanConfigurationResponse;
 import digit.web.models.PlanConfigurationSearchRequest;
+import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.utils.ResponseInfoUtil;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -46,5 +49,17 @@ public class PlanConfigurationService {
     public List<PlanConfiguration> search(PlanConfigurationSearchRequest request) {
         validator.validateSearchRequest(request);
         return repository.search(request.getPlanConfigurationSearchCriteria());
+    }
+
+    public PlanConfigurationResponse update(PlanConfigurationRequest request) {
+        validator.validateUpdateRequest(request);
+        enrichmentService.enrichUpdate(request);
+        repository.update(request);
+
+        // Build and return response back to controller
+        return PlanConfigurationResponse.builder()
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(request.getRequestInfo(), Boolean.TRUE))
+                .planConfiguration(Collections.singletonList(request.getPlanConfiguration()))
+                .build();
     }
 }

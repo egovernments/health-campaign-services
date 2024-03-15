@@ -1,16 +1,9 @@
 package digit.service.enrichment;
 
 import digit.config.Configuration;
-import digit.web.models.Assumption;
-import digit.web.models.File;
-import digit.web.models.Operation;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
-import digit.web.models.ResourceMapping;
-import java.util.List;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
@@ -18,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import static digit.config.ServiceConstants.USERINFO_MISSING_CODE;
 import static digit.config.ServiceConstants.USERINFO_MISSING_MESSAGE;
-
+import org.springframework.util.ObjectUtils;
 
 @Component
 @Slf4j
@@ -61,6 +54,46 @@ public class EnrichmentService {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         planConfiguration.setAuditDetails(AuditDetailsEnrichmentUtil
                 .prepareAuditDetails(planConfiguration.getAuditDetails(), request.getRequestInfo(), isCreate));
+    }
+
+    public void enrichUpdate(PlanConfigurationRequest request) {
+        enrichPlanConfigurationForUpdate(request);
+        if(request.getRequestInfo().getUserInfo() == null)
+            throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
+
+        enrichAuditDetails(request, Boolean.FALSE);
+    }
+
+    public void enrichPlanConfigurationForUpdate(PlanConfigurationRequest request) {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+
+        // For Files
+        planConfiguration.getFiles().forEach(file -> {
+            if (ObjectUtils.isEmpty(file.getId())) {
+                UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
+            }
+        });
+
+        // For Assumptions
+        planConfiguration.getAssumptions().forEach(assumption -> {
+            if (ObjectUtils.isEmpty(assumption.getId())) {
+                UUIDEnrichmentUtil.enrichRandomUuid(assumption, "id");
+            }
+        });
+
+        // For Operations
+        planConfiguration.getOperations().forEach(operation -> {
+            if (ObjectUtils.isEmpty(operation.getId())) {
+                UUIDEnrichmentUtil.enrichRandomUuid(operation, "id");
+            }
+        });
+
+        // For ResourceMappings
+        planConfiguration.getResourceMapping().forEach(resourceMapping -> {
+            if (ObjectUtils.isEmpty(resourceMapping.getId())) {
+                UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id");
+            }
+        });
     }
 
 }

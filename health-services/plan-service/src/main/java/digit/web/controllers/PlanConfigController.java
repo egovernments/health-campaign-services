@@ -60,6 +60,7 @@ public class PlanConfigController {
 
     @RequestMapping(value = "/config/_update", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configUpdatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new PlanConfigurationResponse());
+        PlanConfigurationResponse response = planConfigurationService.update(body);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 }

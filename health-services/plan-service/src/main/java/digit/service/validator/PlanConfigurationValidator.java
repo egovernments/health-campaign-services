@@ -2,12 +2,15 @@ package digit.service.validator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
+import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
 import digit.web.models.Assumption;
 import digit.web.models.Operation;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
+import digit.web.models.PlanConfigurationSearchCriteria;
 import digit.web.models.PlanConfigurationSearchRequest;
+import digit.web.models.PlanSearchCriteria;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -16,9 +19,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.coyote.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import static digit.config.ServiceConstants.ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE;
 import static digit.config.ServiceConstants.ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE;
@@ -37,11 +42,12 @@ public class PlanConfigurationValidator {
 
 
     private MdmsUtil mdmsUtil;
-    private ObjectMapper objectMapper;
 
-    public PlanConfigurationValidator(MdmsUtil mdmsUtil, ObjectMapper objectMapper) {
+    private PlanConfigurationRepository planConfigRepository;
+
+    public PlanConfigurationValidator(MdmsUtil mdmsUtil, PlanConfigurationRepository planConfigRepository) {
         this.mdmsUtil = mdmsUtil;
-        this.objectMapper = objectMapper;
+        this.planConfigRepository = planConfigRepository;
     }
 
     public void validateCreate(PlanConfigurationRequest request) {
@@ -101,6 +107,30 @@ public class PlanConfigurationValidator {
 
         if (StringUtils.isEmpty(planConfigurationSearchRequest.getPlanConfigurationSearchCriteria().getTenantId())) {
             throw new CustomException("TENANT ID CANNOT BE EMPTY", "Tenant Id cannot be empty, TenantId should be present");
+        }
+    }
+
+    public void validateUpdateRequest(PlanConfigurationRequest request) {
+        PlanConfiguration planConfiguration = request.getPlanConfiguration();
+        String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
+        Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
+
+        // Validate plan existence
+        validatePlanConfigExistence(request);
+
+        //Validate Assumption keys against MDMS data
+        validateAssumptionKeyAgainstMDMS(request, mdmsData);
+
+        //Validate Assumption values under operations with assumption keys
+        validateAssumptionValue(planConfiguration);
+    }
+
+    public void validatePlanConfigExistence(PlanConfigurationRequest request) {
+        // If plan id provided is invalid, throw an exception
+        if(CollectionUtils.isEmpty(planConfigRepository.search(PlanConfigurationSearchCriteria.builder()
+                .id(request.getPlanConfiguration().getId())
+                .build()))) {
+            throw new CustomException("INVALID_PLAN_CONFIG_ID", "Plan config id provided is invalid");
         }
     }
 }
