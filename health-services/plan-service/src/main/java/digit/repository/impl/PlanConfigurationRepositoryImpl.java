@@ -37,11 +37,20 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
         this.planConfigRowMapper = planConfigRowMapper;
     }
 
+    /**
+     * Pushes a new plan configuration to persister kafka topic.
+     * @param planConfigurationRequest The request containing the plan configuration details.
+     */
     @Override
     public void create(PlanConfigurationRequest planConfigurationRequest) {
-        producer.push(config.getPlanConfigCreateTopic(),planConfigurationRequest);
+        producer.push(config.getPlanConfigCreateTopic(), planConfigurationRequest);
     }
 
+    /**
+     * Searches for plan configurations based on the provided search criteria.
+     * @param planConfigurationSearchCriteria The criteria to use for searching plan configurations.
+     * @return A list of plan configurations that match the search criteria.
+     */
     @Override
     public List<PlanConfiguration> search(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
@@ -51,8 +60,12 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
         return jdbcTemplate.query(query, preparedStmtList.toArray(), planConfigRowMapper);
     }
 
+    /**
+     * Pushes an updated existing plan configuration to persister kafka topic.
+     * @param planConfigurationRequest The request containing the updated plan configuration details.
+     */
     @Override
     public void update(PlanConfigurationRequest planConfigurationRequest) {
-        producer.push(config.getPlanConfigUpdateTopic(),planConfigurationRequest);
+        producer.push(config.getPlanConfigUpdateTopic(), planConfigurationRequest);
     }
 }

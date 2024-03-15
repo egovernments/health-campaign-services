@@ -22,16 +22,26 @@ public class EnrichmentService {
         this.config = config;
     }
 
-    public void enrichCreate(PlanConfigurationRequest request)  {
+    /**
+     * Enriches the PlanConfigurationRequest for creating a new plan configuration.
+     * This method enriches the plan configuration with generated IDs, validates user information, and enriches audit details for create operation.
+     * @param request The PlanConfigurationRequest to be enriched.
+     * @throws CustomException if user information is missing in the request.
+     */
+    public void enrichCreate(PlanConfigurationRequest request) {
         enrichPlanConfiguration(request.getPlanConfiguration());
-        if(request.getRequestInfo().getUserInfo() == null)
+        if (request.getRequestInfo().getUserInfo() == null)
             throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
 
         enrichAuditDetails(request, Boolean.TRUE);
     }
 
+    /**
+     * Enriches the given plan configuration with generated IDs for plan, files, assumptions, operations, and resource mappings.
+     * @param planConfiguration The PlanConfiguration to be enriched.
+     */
     public void enrichPlanConfiguration(PlanConfiguration planConfiguration) {
-        log.info("enriching plan config with generated IDs");
+        log.info("Enriching plan config with generated IDs");
 
         // Generate id for plan configuration
         UUIDEnrichmentUtil.enrichRandomUuid(planConfiguration, "id");
@@ -49,21 +59,35 @@ public class EnrichmentService {
         planConfiguration.getResourceMapping().forEach(resourceMapping -> UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id"));
     }
 
+    /**
+     * Enriches the audit details for the PlanConfigurationRequest based on the operation type (create or update).
+     * @param request The PlanConfigurationRequest for which audit details are to be enriched.
+     * @param isCreate A boolean indicating whether the operation is a create or update operation.
+     */
     public void enrichAuditDetails(PlanConfigurationRequest request, Boolean isCreate) {
-        // Enrich audit details for plan configurationqq
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         planConfiguration.setAuditDetails(AuditDetailsEnrichmentUtil
                 .prepareAuditDetails(planConfiguration.getAuditDetails(), request.getRequestInfo(), isCreate));
     }
 
+    /**
+     * Enriches the PlanConfigurationRequest for updating an existing plan configuration.
+     * This method enriches the plan configuration for update, validates user information, and enriches audit details for update operation.
+     * @param request The PlanConfigurationRequest to be enriched.
+     * @throws CustomException if user information is missing in the request.
+     */
     public void enrichUpdate(PlanConfigurationRequest request) {
         enrichPlanConfigurationForUpdate(request);
-        if(request.getRequestInfo().getUserInfo() == null)
+        if (request.getRequestInfo().getUserInfo() == null)
             throw new CustomException(USERINFO_MISSING_CODE, USERINFO_MISSING_MESSAGE);
 
         enrichAuditDetails(request, Boolean.FALSE);
     }
 
+    /**
+     * Enriches the plan configuration for update by generating IDs for files, assumptions, operations, and resource mappings if they are empty.
+     * @param request The PlanConfigurationRequest to be enriched for update operation.
+     */
     public void enrichPlanConfigurationForUpdate(PlanConfigurationRequest request) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
 

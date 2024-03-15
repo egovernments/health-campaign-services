@@ -50,6 +50,10 @@ public class PlanConfigurationValidator {
         this.planConfigRepository = planConfigRepository;
     }
 
+    /**
+     * Validates the create request for plan configuration, including assumptions against MDMS data.
+     * @param request The create request for plan configuration.
+     */
     public void validateCreate(PlanConfigurationRequest request) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
@@ -59,6 +63,10 @@ public class PlanConfigurationValidator {
         validateAssumptionValue(planConfiguration);
     }
 
+    /**
+     * Validates the assumption values against the assumption keys in the plan configuration.
+     * @param planConfiguration The plan configuration to validate.
+     */
     public void validateAssumptionValue(PlanConfiguration planConfiguration) {
         Set<String> assumptionValues = planConfiguration.getAssumptions().stream()
                 .map(Assumption::getKey)
@@ -73,6 +81,11 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Validates the assumption keys against MDMS data.
+     * @param request The request containing the plan configuration and the MDMS data.
+     * @param mdmsData The MDMS data.
+     */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         final String jsonPathForAssumption = "$." + MDMS_PLAN_ASSUMPTION_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + ".*";
@@ -96,6 +109,10 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Validates the search request for plan configurations.
+     * @param planConfigurationSearchRequest The search request for plan configurations.
+     */
     public void validateSearchRequest(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
         validateSearchCriteria(planConfigurationSearchRequest);
     }
@@ -110,6 +127,10 @@ public class PlanConfigurationValidator {
         }
     }
 
+    /**
+     * Validates the update request for plan configuration, including assumptions against MDMS data.
+     * @param request The update request for plan configuration.
+     */
     public void validateUpdateRequest(PlanConfigurationRequest request) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = planConfiguration.getTenantId().split("\\.")[0];
@@ -125,6 +146,10 @@ public class PlanConfigurationValidator {
         validateAssumptionValue(planConfiguration);
     }
 
+    /**
+     * Validates the existence of the plan configuration in the repository.
+     * @param request The request containing the plan configuration to validate.
+     */
     public void validatePlanConfigExistence(PlanConfigurationRequest request) {
         // If plan id provided is invalid, throw an exception
         if(CollectionUtils.isEmpty(planConfigRepository.search(PlanConfigurationSearchCriteria.builder()

@@ -39,6 +39,11 @@ public class PlanConfigurationService {
         this.repository = repository;
     }
 
+    /**
+     * Creates a new plan configuration based on the provided request.
+     * @param request The request containing the plan configuration details.
+     * @return The created plan configuration request.
+     */
     public PlanConfigurationRequest create(PlanConfigurationRequest request) {
         validator.validateCreate(request);
         enrichmentService.enrichCreate(request);
@@ -46,11 +51,21 @@ public class PlanConfigurationService {
         return request;
     }
 
+    /**
+     * Searches for plan configurations based on the provided search criteria.
+     * @param request The search request containing the criteria.
+     * @return A list of plan configurations that match the search criteria.
+     */
     public List<PlanConfiguration> search(PlanConfigurationSearchRequest request) {
         validator.validateSearchRequest(request);
         return repository.search(request.getPlanConfigurationSearchCriteria());
     }
 
+    /**
+     * Updates an existing plan configuration based on the provided request.
+     * @param request The request containing the updated plan configuration details.
+     * @return The response containing the updated plan configuration.
+     */
     public PlanConfigurationResponse update(PlanConfigurationRequest request) {
         validator.validateUpdateRequest(request);
         enrichmentService.enrichUpdate(request);

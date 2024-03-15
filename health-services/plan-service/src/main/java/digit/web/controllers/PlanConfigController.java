@@ -37,6 +37,11 @@ public class PlanConfigController {
         this.responseInfoFactory = responseInfoFactory;
     }
 
+    /**
+     * Request handler for serving plan configuration create requests
+     * @param body
+     * @return
+     */
     @RequestMapping(value = "/config/_create", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configCreatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
 
@@ -51,6 +56,11 @@ public class PlanConfigController {
 
     }
 
+    /**
+     * Request handler for serving plan configuration search requests
+     * @param body
+     * @return
+     */
     @RequestMapping(value = "/config/_search", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configSearchPost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationSearchRequest body) {
         List<PlanConfiguration> planConfigurationList = planConfigurationService.search(body);
@@ -58,6 +68,11 @@ public class PlanConfigController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+    /**
+     * Request handler for serving plan configuration update requests
+     * @param body
+     * @return
+     */
     @RequestMapping(value = "/config/_update", method = RequestMethod.POST)
     public ResponseEntity<PlanConfigurationResponse> configUpdatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
         PlanConfigurationResponse response = planConfigurationService.update(body);
