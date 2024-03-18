@@ -12,7 +12,7 @@ import { initHRMSComponents } from "@egovernments/digit-ui-module-hrms";
 import { initUtilitiesComponents } from "@egovernments/digit-ui-module-utilities";
 import { UICustomizations } from "./Customisations/UICustomizations";
 import { initWorkbenchComponents } from "@egovernments/digit-ui-module-workbench";
-import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-hcmworkbench";
+// import { initWorkbenchHCMComponents } from "@egovernments/digit-ui-module-hcmworkbench";
 
 window.contextPath = window?.globalConfigs?.getConfig("CONTEXT_PATH");
 
@@ -42,7 +42,6 @@ const initDigitUI = () => {
   initEngagementComponents();
   initUtilitiesComponents();
   initWorkbenchComponents();
-  initMicroplanningComponents();
 
   window.Digit.Customizations = {
     PGR: {},

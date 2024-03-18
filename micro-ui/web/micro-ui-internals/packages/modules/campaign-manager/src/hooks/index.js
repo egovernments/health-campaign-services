@@ -1,4 +1,5 @@
 import utils from "../utils";
+import { useProductList } from "./useProductList";
 
 const UserService = {};
 
@@ -6,7 +7,13 @@ const workbench = {};
 
 const contracts = {};
 
-const Hooks = {};
+const campaign = {
+  useProductList,
+};
+
+const Hooks = {
+  campaign,
+};
 
 const Utils = {
   browser: {

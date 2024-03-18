@@ -42,7 +42,8 @@ frontend/micro-ui/web/public/index.html
 ### Changelog
 
 ```bash
-1.0.0-microlan Base version
+1.0.1-campaign Styling added for delivery rule screen
+1.0.0-campaign Base version
 
 ```
 ## Contributors

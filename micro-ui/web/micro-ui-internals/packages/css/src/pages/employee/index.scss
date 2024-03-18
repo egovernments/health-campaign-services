@@ -1,0 +1,20 @@
+@import "./campaignCycle.scss";
+
+.campaign-cycle-container {
+  .popup-header-fix {
+    margin-top: 0rem !important;
+  }
+}
+
+.tag.inbox-tag {
+  max-width: fit-content;
+  background-color: #d6d5d4;
+  border-radius: 2rem;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  height: 2rem;
+  margin-bottom: 0.7rem;
+  grid-gap: 0.2rem;
+  gap: 0.2rem;
+}

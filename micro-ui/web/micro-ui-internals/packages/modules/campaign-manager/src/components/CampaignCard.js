@@ -20,7 +20,22 @@ const CampaignCard = () => {
     {
       label: t("ACTION_TEST_CAMPAIGN_HOME"),
       link: `/${window?.contextPath}/employee/campaign/sample`,
-      roles: [],  // @nabeel roles to be added later
+      roles: [], // @nabeel roles to be added later
+    },
+    {
+      label: t("ACTION_TEST_CAMPAIGN_CYCLE_CONFIGURE"),
+      link: `/${window?.contextPath}/employee/campaign/create-campaign/cycle-configure`,
+      roles: [], // @nabeel roles to be added later
+    },
+    {
+      label: t("ACTION_TEST_CAMPAIGN_CYCLE"),
+      link: `/${window?.contextPath}/employee/campaign/create-campaign/delivery-details`,
+      roles: [], // @nabeel roles to be added later
+    },
+    {
+      label: t("ACTION_TEST_SETUP_CAMPAIGN"),
+      link: `/${window?.contextPath}/employee/campaign/setup-campaign`,
+      roles: [], // @nabeel roles to be added later
     },
   ];
 

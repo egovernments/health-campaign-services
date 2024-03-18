@@ -17,7 +17,8 @@ const enabledModules = [
   // "HRMS",
   "Engagement",
   "Workbench",
-  "HCMWORKBENCH"
+  "HCMWORKBENCH",
+  "Campaign"
 ];
 
 const moduleReducers = (initData) => ({
