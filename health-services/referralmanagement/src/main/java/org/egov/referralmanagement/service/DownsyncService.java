@@ -265,6 +265,7 @@ public class DownsyncService {
 			/**
 			 * Adding lastShangedSince to id query to avoid load on API search for members
 			 */
+			boolean isAndRequired = false;
 			Map<String, Object> paramMap = new HashMap<>();
 			StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
 
@@ -273,10 +274,12 @@ public class DownsyncService {
 
 				memberIdsquery.append("%s IN (:%s)");
 				paramMap.put(idListFeildName, idList);
-				memberIdsquery.append(" AND ");
+				isAndRequired = true;
 			}
 
 			if (null != lastChangedSince) {
+				if(isAndRequired)
+					memberIdsquery.append(" AND ");
 				memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
 				paramMap.put("lastChangedSince", lastChangedSince);
 			}
