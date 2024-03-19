@@ -1,5 +1,12 @@
 package org.egov.facility.service;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -18,13 +25,6 @@ import org.egov.facility.validator.FRowVersionValidator;
 import org.egov.facility.validator.FUniqueEntityValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -90,7 +90,7 @@ public class FacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getCreateFacilityTopic());
+                facilityRepository.save(new FacilityBulkRequest(request.getRequestInfo(), validEntities), configuration.getCreateFacilityTopic(),"facilities");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
