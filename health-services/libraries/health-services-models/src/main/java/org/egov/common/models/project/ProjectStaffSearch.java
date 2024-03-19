@@ -13,9 +13,9 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 /**
-* This object defines the mapping of a system staff user to a project for a certain period.
-*/
-    @ApiModel(description = "This object defines the mapping of a system staff user to a project for a certain period.")
+ * This object defines the mapping of a system staff user to a project for a certain period.
+ */
+@ApiModel(description = "This object defines the mapping of a system staff user to a project for a certain period.")
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
 
@@ -23,15 +23,15 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectStaffSearch   {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ProjectStaffSearch {
 
 
     @JsonProperty("id")
     private List<String> id = null;
 
     @JsonProperty("tenantId")
-    @Size(min=2,max=1000)
+    @Size(min = 2, max = 1000)
     private String tenantId = null;
 
     @JsonProperty("staffId")

@@ -6,6 +6,7 @@ import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.models.project.ProjectStaffRequest;
+import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
 import org.egov.common.utils.CommonUtils;
@@ -26,7 +27,9 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.lang.reflect.Type;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -60,6 +63,8 @@ public class ProjectStaffService {
 
     private final List<Validator<ProjectStaffBulkRequest, ProjectStaff>> validators;
 
+    private final Producer producer;
+
     private final Predicate<Validator<ProjectStaffBulkRequest, ProjectStaff>> isApplicableForCreate = validator ->
             validator.getClass().equals(PsUserIdValidator.class)
                     || validator.getClass().equals(PsProjectIdValidator.class)
@@ -86,7 +91,8 @@ public class ProjectStaffService {
             ProjectService projectService,
             UserService userService,
             ProjectConfiguration projectConfiguration,
-            ProjectStaffEnrichmentService enrichmentService, List<Validator<ProjectStaffBulkRequest, ProjectStaff>> validators) {
+            ProjectStaffEnrichmentService enrichmentService,
+            Producer producer, List<Validator<ProjectStaffBulkRequest, ProjectStaff>> validators) {
         this.idGenService = idGenService;
         this.projectStaffRepository = projectStaffRepository;
         this.projectService = projectService;
@@ -94,6 +100,7 @@ public class ProjectStaffService {
         this.projectConfiguration = projectConfiguration;
         this.enrichmentService = enrichmentService;
         this.validators = validators;
+        this.producer = producer;
     }
 
     public ProjectStaff create(ProjectStaffRequest request) {
@@ -117,6 +124,9 @@ public class ProjectStaffService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
+                // Pushing the data as ProjectStaffBulkRequest for Attendance Service Consumer
+                producer.push(projectConfiguration.getProjectStaffAttendanceTopic(), new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities));
+                // Pushing the data as list for persister consumer
                 projectStaffRepository.save(validEntities, projectConfiguration.getCreateProjectStaffTopic());
                 log.info("successfully created project staff");
             }
