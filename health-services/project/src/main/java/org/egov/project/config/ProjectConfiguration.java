@@ -189,9 +189,4 @@ public class ProjectConfiguration {
     @Value("${project.staff.attendance.topic}")
     private String projectStaffAttendanceTopic;
 
-    @Value("${project.task.resource.quantity.pattern}")
-    private String projectTaskResourceQuantityPattern;
-
-    @Value("${project.task.resource.quantity.invalid-error-message}")
-    private String projectTaskResourceQuantityInvalidErrorMessage;
 }

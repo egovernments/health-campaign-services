@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 
 /**
  * @author syed-egov
- * This is the master data to capture the metadata of Task
+ * POJO to capture the metadata of Task
  */
 @Validated
 @Data
