@@ -11,6 +11,7 @@ import {
   Modal,
   CloseSvg,
 } from "@egovernments/digit-ui-react-components";
+import { SVG } from "@egovernments/digit-ui-react-components";
 import React, { Fragment, useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { attributeConfig } from "../../../configs/attributeConfig";
@@ -120,19 +121,19 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
       </LabelFieldPair>
       <LabelFieldPair>
         <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
-        <div className="field" style={{ display: "flex" }}>
+        <div className="field" style={{ display: "flex", width: "100%" }}>
           {attribute?.operator?.code === "IN_BETWEEN" ? (
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
               <TextInput
                 className=""
-                textInputStyle={{ width: "50%" }}
+                textInputStyle={{ width: "45%" }}
                 value={attribute?.toValue}
                 onChange={(e) => selectToFromValue(e, "to")}
                 disable={false}
               />
               <TextInput
                 className=""
-                textInputStyle={{ width: "50%" }}
+                textInputStyle={{ width: "45%" }}
                 value={attribute?.fromValue}
                 onChange={(e) => selectToFromValue(e, "from")}
                 disable={false}
@@ -288,7 +289,12 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
 
         {delivery?.products?.length > 0 &&
           delivery?.products?.map((i) => <RemoveableTagNew text={{ value: i.name }} onClick={() => removeProduct(i)} />)}
-        <Button label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)} icon={<AddIcon />} onButtonClick={() => setShowModal(true)} />
+        <Button
+          variation="secondary"
+          label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)}
+          icon={<SVG.AppRegistration />}
+          onButtonClick={() => setShowModal(true)}
+        />
       </Card>
       {showModal && (
         <Modal

@@ -155,7 +155,7 @@
     background-color: #fafafa;
     padding: 1rem;
     .add-attribute {
-      width: 60%;
+      width: calc(100% / 4 * 3);
       justify-content: center;
       h2 {
         width: unset !important;
