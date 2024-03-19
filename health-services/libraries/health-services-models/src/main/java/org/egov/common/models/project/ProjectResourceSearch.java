@@ -1,5 +1,7 @@
 package org.egov.common.models.project;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
@@ -8,9 +10,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
-
-import javax.validation.constraints.Size;
-import java.util.List;
 
 /**
 * This object defines the mapping of a resource to a project.
@@ -30,7 +29,6 @@ public class ProjectResourceSearch {
     private List<String> id = null;
 
     @JsonProperty("projectId")
-    @Size(min=2,max=64)
     private List<String> projectId = null;
 
 }
