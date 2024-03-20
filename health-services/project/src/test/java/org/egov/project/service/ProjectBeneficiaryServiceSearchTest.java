@@ -51,7 +51,7 @@ class ProjectBeneficiaryServiceSearchTest {
         when(projectBeneficiaryRepository.find(any(ProjectBeneficiarySearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
         ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
-                .id(Collections.singletonList("ID101")).projectId("some-id").build();
+                .id(Collections.singletonList("ID101")).projectId(Collections.singletonList("some-id")).build();
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
@@ -67,7 +67,7 @@ class ProjectBeneficiaryServiceSearchTest {
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectBeneficiary);
         projectBeneficiary.add(ProjectBeneficiaryTestBuilder.builder().withId().withId().withAuditDetails().build());
         ProjectBeneficiarySearch projectBeneficiarySearch = ProjectBeneficiarySearch.builder()
-                .id(Collections.singletonList("ID101")).projectId("some-projectId").build();
+                .id(Collections.singletonList("ID101")).projectId(Collections.singletonList("some-projectId")).build();
         BeneficiarySearchRequest beneficiarySearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();

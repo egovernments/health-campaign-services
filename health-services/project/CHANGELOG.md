@@ -1,5 +1,12 @@
 All notable changes to this module will be documented in this file.
 
+
+## To be released
+- In ProjectStaffSearch, staffId and projectId updated to accept list of search entities instead of single entity
+- In ProjectTaskSearch, projectId, projectBeneficiaryId, projectBeneficiaryClientReferenceId updated to accept list of search entities instead of single entity
+- In ProjectBeneficiarySearch, projectId, beneficiaryId updated to accept list of search entities instead of single entity 
+- In ProjectResourceSearch,  projectId updated to accept list of search entities instead of single entity
+
 ## 1.1.2 - 2024-02-26
 - Implemented validation for updating project start date and end date.
 - Added numberOfSessions field in additional details for attendance registry.

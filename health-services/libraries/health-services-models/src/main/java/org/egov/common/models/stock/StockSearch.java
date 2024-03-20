@@ -1,5 +1,9 @@
 package org.egov.common.models.stock;
 
+import java.util.List;
+import javax.validation.Valid;
+import javax.validation.constraints.Size;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -7,10 +11,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.Size;
-import java.util.List;
 
 /**
  * StockSearch
@@ -36,14 +36,13 @@ public class StockSearch {
     private String facilityId = null;
 
     @JsonProperty("productVariantId")
-    @Size(min=2, max=64)
-    private String productVariantId = null;
+    private List<String> productVariantId = null;
 
     @JsonProperty("referenceId")
     private String referenceId = null;
 
     @JsonProperty("wayBillNumber")
-    private String wayBillNumber = null;
+    private List<String> wayBillNumber = null;
 
     @JsonProperty("referenceIdType")
     @Size(min=2, max=64)

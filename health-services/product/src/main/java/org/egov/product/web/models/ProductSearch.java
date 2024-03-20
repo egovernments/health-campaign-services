@@ -32,9 +32,9 @@ public class ProductSearch {
     private String type = null;
 
     @JsonProperty("name")
-    private String name = null;
+    private List<String> name = null;
 
     @JsonProperty("manufacturer")
-    private String manufacturer = null;
+    private List<String> manufacturer = null;
 }
 

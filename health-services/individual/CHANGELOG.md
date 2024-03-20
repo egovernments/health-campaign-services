@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+
+## To be released
+- In IndividualSearch, individualId, mobileNumber updated to accept list of search entities instead of single entity
+
 ## 1.1.3 
 - Added ability to search by user UUID for individual search.
 
