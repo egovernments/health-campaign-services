@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -22,21 +24,9 @@ import javax.validation.constraints.Size;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Facility {
-    @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min = 2, max = 64)
-    private String clientReferenceId = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min = 2, max = 1000)
-    private String tenantId = null;
+public class Facility extends EgovOfflineModel {
 
     @JsonProperty("isPermanent")
     private Boolean isPermanent = true;
@@ -55,22 +45,10 @@ public class Facility {
     @Valid
     private Address address = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove this
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
 
 
 }

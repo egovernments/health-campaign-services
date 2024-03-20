@@ -11,26 +11,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.egov.common.models.project.AdditionalFields;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class HFReferral {
-
-    @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min = 2, max = 64)
-    private String clientReferenceId;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min=2, max = 1000)
-    private String tenantId;
+@SuperBuilder
+public class HFReferral extends EgovOfflineModel {
 
     @JsonProperty("projectId")
     @Size(min = 2, max = 64)
@@ -61,24 +50,8 @@ public class HFReferral {
     @Size(max=100)
     private String nationalLevelId;
 
+    //TODO remove this
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-    @JsonProperty("rowVersion")
-    private Integer rowVersion;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails;
-
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
 }

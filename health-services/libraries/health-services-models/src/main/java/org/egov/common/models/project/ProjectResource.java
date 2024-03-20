@@ -9,6 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovModel;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -25,17 +27,9 @@ import javax.validation.constraints.Size;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectResource   {
-    @JsonProperty("id")
-    @Size(min=2, max = 64)
-    private String id = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min=2, max = 1000)
-    private String tenantId = null;
+@SuperBuilder
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ProjectResource extends EgovModel {
 
     @JsonProperty("projectId")
     @NotNull
@@ -46,24 +40,15 @@ public class ProjectResource   {
     @NotNull
     private ProjectProductVariant resource = null;
 
+    //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
-
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
 
     @JsonProperty("startDate")
     private Long startDate = null;
 
     @JsonProperty("endDate")
     private Long endDate = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
 
 }
 

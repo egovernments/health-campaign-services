@@ -1,17 +1,16 @@
 package org.egov.common.models.product;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovModel;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * ProductVariant
@@ -22,62 +21,27 @@ import javax.validation.constraints.Size;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductVariant {
-    @JsonProperty("id")
-
-
-    private String id = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min=2,max=1000)
-    private String tenantId = null;
+public class ProductVariant extends EgovModel {
 
     @JsonProperty("productId")
     @NotNull
-
-
     @Size(min = 2, max = 64)
-
     private String productId = null;
 
     @JsonProperty("sku")
-
-
     @Size(min = 0, max = 1000)
-
     private String sku = null;
 
     @JsonProperty("variation")
     @NotNull
-
-
     @Size(min = 0, max = 1000)
-
     private String variation = null;
 
-    @JsonProperty("additionalFields")
-
-    @Valid
-
-
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove
     @JsonProperty("isDeleted")
-
-
     private Boolean isDeleted = null;
-
-    @JsonProperty("rowVersion")
-
-
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
 
 }
 

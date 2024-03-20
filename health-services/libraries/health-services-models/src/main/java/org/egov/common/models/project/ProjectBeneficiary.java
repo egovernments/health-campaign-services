@@ -9,6 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -26,16 +28,9 @@ import javax.validation.constraints.Size;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectBeneficiary {
-    @JsonProperty("id")
-    private String id = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min=2,max=64)
-    private String tenantId = null;
+@SuperBuilder
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ProjectBeneficiary extends EgovOfflineModel {
 
     @JsonProperty("projectId")
     @NotNull
@@ -50,34 +45,13 @@ public class ProjectBeneficiary {
     @Min(value = 0, message = "Date must be greater than or equal to 0")
     private Long dateOfRegistration = null;
 
-    @JsonProperty("clientReferenceId")
-    @Size(min=2,max=64)
-    private String clientReferenceId = null;
-
     @JsonProperty("beneficiaryClientReferenceId")
     @Size(min=2,max=64)
     private String beneficiaryClientReferenceId = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove this
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
-
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
 
     @JsonProperty("tag")
     private String tag;
