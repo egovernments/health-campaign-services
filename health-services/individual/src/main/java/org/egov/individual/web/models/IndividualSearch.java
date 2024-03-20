@@ -15,6 +15,9 @@ import org.egov.common.models.individual.Name;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.DecimalMax;
+import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
@@ -96,5 +99,31 @@ public class IndividualSearch   {
     @Exclude
     @JsonProperty("userId")
     private Long userId;
+
+    @Exclude
+    @JsonProperty("userUuid")
+    @Size(min = 1)
+    private List<String> userUuid;
+
+    @Exclude
+    @JsonProperty("latitude")
+    @DecimalMin("-90")
+    @DecimalMax("90")
+    private Double latitude;
+
+    @Exclude
+    @JsonProperty("longitude")
+    @DecimalMin("-180")
+    @DecimalMax("180")
+    private Double longitude;
+
+    /*
+    * @value unit of measurement in Kilometer
+    * */
+    @Exclude
+    @JsonProperty("searchRadius")
+    @DecimalMin("0")
+    private Double searchRadius;
+
 }
 
