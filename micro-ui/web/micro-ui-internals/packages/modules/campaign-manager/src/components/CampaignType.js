@@ -7,9 +7,9 @@ const CampaignType = ({ onSelect, formData, ...props }) => {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getStateId();
   const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS("mz", "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
-  const [type, setType] = useState(props?.props?.sessionData?.[2]?.projectType || {});
-  const [ beneficiaryType , setBeneficiaryType] = useState(props?.props?.sessionData?.[2]?.projectType?.beneficiaryType || "");
-  const [ showBeneficiary , setShowBeneficiaryType] = useState(Boolean(props?.props?.sessionData?.[2]?.projectType?.beneficiaryType));
+  const [type, setType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType || {});
+  const [ beneficiaryType , setBeneficiaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType || "");
+  const [ showBeneficiary , setShowBeneficiaryType] = useState(Boolean(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType));
   const handleChange = (data) => {
     setType(data);
     setBeneficiaryType(data?.beneficiaryType);

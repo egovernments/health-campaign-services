@@ -24,8 +24,10 @@ const SetupCampaign = () => {
     const convertFormData = (totalFormData) => {
       const modifiedData = [
         {
-          projectType: totalFormData?.[2]?.projectType.code,
-          campaignName: totalFormData?.[3]?.campaignName,
+          startDate: totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate,
+          endDate: totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate,
+          projectType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType.code,
+          campaignName: totalFormData?.HCM_CAMPAIGN_NAME?.campaignName,
         },
       ];
     };
@@ -54,12 +56,12 @@ const SetupCampaign = () => {
 
     setTotalFormData((prevData) => ({
       ...prevData,
-      [currentKey]: formData,
+      [name]: formData,
     }));
     //to set the data in the local storage
     setParams({
       ...params,
-      [currentKey]: { ...formData },
+      [name]: { ...formData },
     });
 
     const dummyData = {
@@ -106,14 +108,13 @@ const SetupCampaign = () => {
   //   .filter((config) => config.form.length > 0);
 
   const filterCampaignConfig = (campaignConfig, currentKey) => {
-    return campaignConfig
-      .map((config) => {
-        return {
-          ...config,
-          form: config?.form.filter((step) => parseInt(step.key) === currentKey),
-        };
-      })
-      .filter((config) => config.form.length > 0);
+    return campaignConfig.map(config => {
+      return {
+        ...config,
+        form: config?.form.filter(step => parseInt(step.key) === currentKey),
+      };
+    }).filter(config => config.form.length > 0);
+
   };
 
   const [filteredConfig, setFilteredConfig] = useState(filterCampaignConfig(campaignConfig, currentKey));

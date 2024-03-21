@@ -5,7 +5,7 @@ import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
 
 const CampaignName = ({ onSelect, formData, control, ...props }) => {
   const { t } = useTranslation();
-  const [name, setName] = useState(props?.props?.sessionData?.[3]?.campaignName || null);
+  const [name, setName] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_NAME?.campaignName || null);
   
 
   // useEffect(() => {
