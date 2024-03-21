@@ -74,7 +74,7 @@ public class GeoJsonService {
                     // Check the field name
                     if ("type".equals(fieldName)) {
                         String type = parser.getText();
-                        System.out.println("Type: " + type);
+                        log.info("Type: " + type);
                     } else if ("properties".equals(fieldName)) {
                         // Parse the nested properties object
                         Map<Object, Object> properties = parseProperties(parser);
@@ -84,7 +84,7 @@ public class GeoJsonService {
                             Integer pop = (Integer) properties.get("Population");
                             log.info("Population - "+ pop);
                         }
-                        System.out.println("Properties: " + properties);
+                        log.info("Properties: " + properties);
                     }
                 }
             }
@@ -92,7 +92,7 @@ public class GeoJsonService {
             // Close the parser
             parser.close();
         } catch (IOException e) {
-            System.err.println("Error reading JSON file: " + e.getMessage());
+            log.error("Error reading JSON file: " + e.getMessage());
         }
     }
 
