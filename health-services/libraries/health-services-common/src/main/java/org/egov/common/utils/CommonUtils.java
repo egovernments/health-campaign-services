@@ -862,7 +862,7 @@ public class CommonUtils {
     }
 
     private static Method findMethod(String methodName, Class<?> clazz) {
-        return Arrays.stream(ReflectionUtils.getDeclaredMethods(clazz))
+        return Arrays.stream(ReflectionUtils.getAllDeclaredMethods(clazz))
                 .filter(m -> m.getName().equals(methodName))
                 .findFirst().orElseThrow(() -> new CustomException("INVALID_OBJECT_OR_METHOD", "Invalid object or method"));
     }
