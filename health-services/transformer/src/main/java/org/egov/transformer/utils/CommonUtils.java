@@ -272,8 +272,8 @@ public class CommonUtils {
                         return currentCycle.get(ID).asInt();
                     }
                 }
-                return null;
             }
+            return null;
         }
         return null;
     }
