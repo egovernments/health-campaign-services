@@ -20,19 +20,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.ReflectionUtils;
 
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
 @Slf4j
@@ -48,22 +44,22 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     public List<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
-        List<Individual> objFound;
-        objFound = findInCache(ids);
-        if (!includeDeleted) {
-            objFound = objFound.stream()
-                    .filter(entity -> entity.getIsDeleted().equals(false))
-                    .collect(Collectors.toList());
-        }
-        if (!objFound.isEmpty()) {
-            Method idMethod = getIdMethod(objFound, idColumn);
-            ids.removeAll(objFound.stream()
-                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
-                    .collect(Collectors.toList()));
-            if (ids.isEmpty()) {
-                return objFound;
-            }
-        }
+        List<Individual> objFound = new ArrayList<>();
+//        objFound = findInCache(ids);
+//        if (!includeDeleted) {
+//            objFound = objFound.stream()
+//                    .filter(entity -> entity.getIsDeleted().equals(false))
+//                    .collect(Collectors.toList());
+//        }
+//        if (!objFound.isEmpty()) {
+//            Method idMethod = getIdMethod(objFound, idColumn);
+//            ids.removeAll(objFound.stream()
+//                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+//                    .collect(Collectors.toList()));
+//            if (ids.isEmpty()) {
+//                return objFound;
+//            }
+//        }
 
         String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
                 includeDeleted), idColumn);
