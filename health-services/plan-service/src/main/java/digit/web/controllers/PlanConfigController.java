@@ -1,6 +1,7 @@
 package digit.web.controllers;
 
 
+import digit.service.GeoJsonService;
 import digit.service.PlanConfigurationService;
 import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfiguration;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.io.IOException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,11 +32,14 @@ public class PlanConfigController {
 
     private ResponseInfoFactory responseInfoFactory;
 
+    private GeoJsonService geoJsonService;
+
     @Autowired
-    public PlanConfigController(ObjectMapper objectMapper, PlanConfigurationService planConfigurationService, ResponseInfoFactory responseInfoFactory) {
+    public PlanConfigController(ObjectMapper objectMapper, PlanConfigurationService planConfigurationService, ResponseInfoFactory responseInfoFactory, GeoJsonService geoJsonService) {
         this.objectMapper = objectMapper;
         this.planConfigurationService = planConfigurationService;
         this.responseInfoFactory = responseInfoFactory;
+        this.geoJsonService = geoJsonService;
     }
 
     /**
@@ -77,5 +82,16 @@ public class PlanConfigController {
     public ResponseEntity<PlanConfigurationResponse> configUpdatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationRequest body) {
         PlanConfigurationResponse response = planConfigurationService.update(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    /**
+     * Request handler for geojson parser testing
+     * @return
+     */
+    @RequestMapping(value = "/config/_test", method = RequestMethod.POST)
+    public ResponseEntity<String> test() throws IOException {
+//        geoJsonService.parseJson();
+        geoJsonService.parseJsonUsingLibrary();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body("Okay");
     }
 }
