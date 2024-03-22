@@ -12,6 +12,7 @@ import TimelineCampaign from "./components/TimelineCampaign";
 import CampaignDates from "./components/CampaignDates";
 import CampaignType from "./components/CampaignType";
 import CampaignName from "./components/CampaignName";
+import MyCampaign from "./pages/employee/MyCampaign";
 
 const CampaignModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["campaignmanager", "workbench", "mdms", "schema"];
@@ -45,7 +46,8 @@ const componentsToRegister = {
   TimelineCampaign,
   CampaignDates,
   CampaignType,
-  CampaignName
+  CampaignName,
+  MyCampaign
 };
 
 const overrideHooks = () => {

@@ -79,6 +79,7 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "2",
           key: "4",
+          name: "HCM_CAMPAIGN_CYCLE_CONFIGURE",
           body: [
             {
               isMandatory: false,
@@ -93,6 +94,7 @@ export const CampaignConfig = (totalFormData) => {
               },
               populators: {
                 name: "cycleConfiguration",
+                sessionData: totalFormData,
                 // optionsKey: "code",
                 error: "ES__REQUIRED",
                 required: true,
@@ -103,6 +105,7 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "2",
           key: "5",
+          name: "HCM_CAMPAIGN_DELIVERY_DATA",
           body: [
             {
               isMandatory: false,
@@ -114,6 +117,7 @@ export const CampaignConfig = (totalFormData) => {
               disable: false,
               customProps: {
                 module: "HCM",
+                sessionData: totalFormData,
               },
               populators: {
                 name: "deliveryRule",
@@ -173,6 +177,7 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "5",
           key: "8",
+          isLast: true,
           body: [
             {
               isMandatory: false,

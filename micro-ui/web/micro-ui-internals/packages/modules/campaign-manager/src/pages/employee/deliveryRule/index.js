@@ -10,13 +10,19 @@ function makeSequential(jsonArray, keyName) {
   }));
 }
 
-function DeliverySetup({ tabCount = 3, subTabCount = 2 }) {
+function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subTabCount = 3, ...props }) {
   // Campaign Tab Skeleton function
+  const [cycleData, setCycleData] = useState(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
+
+  useEffect(() => {
+    setCycleData(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
+  }, [config]);
+
   const generateTabsData = (tabs, subTabs) => {
-    return [...Array(tabCount)].map((_, tabIndex) => ({
+    return [...Array(tabs)].map((_, tabIndex) => ({
       cycleIndex: `${tabIndex + 1}`,
       active: tabIndex === 0 ? true : false,
-      deliveries: [...Array(subTabCount)].map((_, subTabIndex) => ({
+      deliveries: [...Array(subTabs || 1)].map((_, subTabIndex) => ({
         deliveryIndex: `${subTabIndex + 1}`,
         active: subTabIndex === 0 ? true : false,
         deliveryRules: [
@@ -34,6 +40,8 @@ function DeliverySetup({ tabCount = 3, subTabCount = 2 }) {
   // Reducer function
   const campaignDataReducer = (state, action) => {
     switch (action.type) {
+      case "GENERATE_CAMPAIGN_DATA":
+        return generateTabsData(action.cycle, action.deliveries);
       case "UPDATE_CAMPAIGN_DATA":
         const changeUpdate = state.map((i) => {
           if (i.active) {
@@ -166,8 +174,22 @@ function DeliverySetup({ tabCount = 3, subTabCount = 2 }) {
     }
   };
 
-  const [campaignData, dispatchCampaignData] = useReducer(campaignDataReducer, generateTabsData());
+  const [campaignData, dispatchCampaignData] = useReducer(
+    campaignDataReducer,
+    generateTabsData(cycleData?.cycleConfgureDate?.cycle, cycleData?.cycleConfgureDate?.deliveries)
+  );
 
+  useEffect(() => {
+    dispatchCampaignData({
+      type: "GENERATE_CAMPAIGN_DATA",
+      cycle: cycleData?.cycleConfgureDate?.cycle,
+      deliveries: cycleData?.cycleConfgureDate?.deliveries,
+    });
+  }, [cycleData]);
+
+  useEffect(() => {
+    onSelect("deliveryRule", campaignData);
+  }, [campaignData]);
   return (
     <CycleContext.Provider value={{ campaignData, dispatchCampaignData }}>
       <MultiTab />

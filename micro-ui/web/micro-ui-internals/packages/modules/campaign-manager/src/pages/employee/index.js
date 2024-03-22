@@ -26,6 +26,7 @@ const App = ({ path }) => {
   const UploadBoundaryData = Digit?.ComponentRegistryService?.getComponent("UploadBoundaryData");
   const CycleConfiguration = Digit?.ComponentRegistryService?.getComponent("CycleConfiguration");
   const DeliveryRule = Digit?.ComponentRegistryService?.getComponent("DeliveryRule");
+  const MyCampaign = Digit?.ComponentRegistryService?.getComponent("MyCampaign");
 
   return (
     <React.Fragment>
@@ -40,6 +41,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/create-campaign/delivery-details`} component={() => <DeliveryRule />} />
           <PrivateRoute path={`${path}/sample`} component={() => <div>Home Campaign Loaded</div>} />
           <PrivateRoute path={`${path}/setup-campaign`} component={() => <SetupCampaign />} />
+          <PrivateRoute path={`${path}/my-campaign`} component={() => <MyCampaign />} />
         </AppContainer>
       </Switch>
     </React.Fragment>

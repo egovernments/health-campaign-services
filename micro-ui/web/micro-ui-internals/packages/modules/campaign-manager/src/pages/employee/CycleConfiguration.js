@@ -1,4 +1,4 @@
-import React, { useReducer, Fragment } from "react";
+import React, { useReducer, Fragment, useEffect } from "react";
 import { CardText, DatePicker, LabelFieldPair, Card, CardHeader, CardLabel, CardSubHeader } from "@egovernments/digit-ui-react-components";
 import PlusMinusInput from "../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
@@ -46,10 +46,15 @@ const updateCycleData = (cycleData, index, update) => {
   return cycleData.map((item) => (item.key === index ? { ...item, ...update } : item));
 };
 
-function CycleConfiguration() {
+function CycleConfiguration({ onSelect, formData, control, ...props }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { cycleConfgureDate, cycleData } = state;
   const { t } = useTranslation();
+
+  useEffect(() => {
+    onSelect("cycleConfigure", state);
+  }, [state]);
+
   const updateCycle = (d) => {
     dispatch({ type: "UPDATE_CYCLE", payload: d });
   };

@@ -14,6 +14,7 @@ const SetupCampaign = () => {
   const [totalFormData, setTotalFormData] = useState({});
   const [campaignConfig, setCampaignConfig] = useState(CampaignConfig(totalFormData));
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
+  const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
 
   useEffect(() => {
     setCampaignConfig(CampaignConfig(totalFormData));
@@ -49,6 +50,77 @@ const SetupCampaign = () => {
       },
     };
   };
+
+  function restructureData(data) {
+    const dateData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure?.cycleData;
+    const restructuredData = [];
+
+    data.forEach((cycle) => {
+      cycle.deliveries.forEach((delivery, index) => {
+        delivery.deliveryRules.forEach((rule) => {
+          const restructuredRule = {
+            startDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i.key === cycle.cycleIndex)?.startDate), // Hardcoded for now
+            endDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i?.key === cycle?.cycleIndex)?.startDate), // Hardcoded for now
+            cycleNumber: parseInt(cycle.cycleIndex),
+            deliveryNumber: parseInt(delivery.deliveryIndex),
+            deliveryRuleNumber: parseInt(rule.ruleKey), // New key added
+            products: [],
+            conditions: [],
+          };
+
+          rule.attributes.forEach((attribute) => {
+            restructuredRule.conditions.push({
+              attribute: attribute.attribute ? attribute.attribute.code : null,
+              operator: attribute.operator ? attribute.operator.code : null,
+              value: parseInt(attribute.value),
+            });
+          });
+
+          restructuredData.push(restructuredRule);
+        });
+      });
+    });
+
+    return restructuredData;
+  }
+
+  useEffect(() => {
+    if (currentKey === 8) {
+      // history.push()
+      return;
+    }
+    const reqCreate = async () => {
+      let payloadData = {};
+      payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+        ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+        : null;
+      payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+        ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+        : null;
+      payloadData.tenantId = tenantId;
+      payloadData.action = "draft";
+      payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
+      payloadData.boundaries = [];
+      payloadData.resources = [];
+      payloadData.projectType = null;
+      payloadData.additionalDetails = {};
+      if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+        const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+        payloadData.deliveryRules = temp;
+      }
+
+      await mutate(payloadData, {
+        onError: (error, variables) => {
+          console.log(error);
+        },
+        onSuccess: async (data) => {
+          console.log(data);
+        },
+      });
+    };
+
+    reqCreate();
+  }, [totalFormData, currentKey]);
 
   const onSubmit = (formData) => {
     setCurrentKey(currentKey + 1);
@@ -108,13 +180,14 @@ const SetupCampaign = () => {
   //   .filter((config) => config.form.length > 0);
 
   const filterCampaignConfig = (campaignConfig, currentKey) => {
-    return campaignConfig.map(config => {
-      return {
-        ...config,
-        form: config?.form.filter(step => parseInt(step.key) === currentKey),
-      };
-    }).filter(config => config.form.length > 0);
-
+    return campaignConfig
+      .map((config) => {
+        return {
+          ...config,
+          form: config?.form.filter((step) => parseInt(step.key) === currentKey),
+        };
+      })
+      .filter((config) => config.form.length > 0);
   };
 
   const [filteredConfig, setFilteredConfig] = useState(filterCampaignConfig(campaignConfig, currentKey));
@@ -145,7 +218,7 @@ const SetupCampaign = () => {
         secondaryLabel={"PREVIOUS"}
         noCardStyle={currentStep == 1 ? true : false}
         onSecondayActionClick={onSecondayActionClick}
-        label={currentKey < 10 ? "NEXT" : "SUBMIT"}
+        label={currentKey < 8 ? "NEXT" : "SUBMIT"}
       />
     </React.Fragment>
   );
