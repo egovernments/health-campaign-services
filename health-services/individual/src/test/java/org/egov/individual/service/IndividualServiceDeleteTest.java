@@ -29,6 +29,7 @@ import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -88,20 +89,10 @@ class IndividualServiceDeleteTest {
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(requestIndividual)
                 .build();
-        List<Individual> individualsInDb = new ArrayList<>();
-        individualsInDb.add(IndividualTestBuilder.builder()
-                .withClientReferenceId()
-                .withId()
-                .withName()
-                .withTenantId()
-                .withAddressHavingAuditDetails()
-                .withIdentifiersHavingAuditDetails()
-                .withRowVersion()
-                .withAuditDetails()
-                .build());
 
-        individualService.delete(request);
-        verify(individualRepository, times(1)).save(anyList(), anyString());
+        List<Individual> deletedIndividual = individualService.delete(request);
+        IndividualBulkRequest individualBulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo()).individuals(deletedIndividual).build();
+        verify(individualRepository, times(1)).save(eq(individualBulkRequest), eq("delete-topic"),eq("individuals"));
     }
 
     @Test

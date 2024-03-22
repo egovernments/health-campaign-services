@@ -106,8 +106,9 @@ public class ReferralManagementService {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.create(validReferrals, referralRequest);
-                referralRepository.save(validReferrals,
-                        referralManagementConfiguration.getCreateReferralTopic());
+                referralRepository.save(new ReferralBulkRequest(referralRequest.getRequestInfo(),validReferrals),
+                        referralManagementConfiguration.getCreateReferralTopic(),
+                        "referrals");
                 log.info("successfully created referrals");
             }
         } catch (Exception exception) {
@@ -139,8 +140,9 @@ public class ReferralManagementService {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.update(validReferrals, referralRequest);
-                referralRepository.save(validReferrals,
-                        referralManagementConfiguration.getUpdateReferralTopic());
+                referralRepository.save(new ReferralBulkRequest(referralRequest.getRequestInfo(),validReferrals),
+                        referralManagementConfiguration.getUpdateReferralTopic(),
+                        "referrals");
                 log.info("successfully updated bulk referrals");
             }
         } catch (Exception exception) {
@@ -199,8 +201,9 @@ public class ReferralManagementService {
                 List<Referral> existingReferrals = referralRepository
                         .findById(referralIds, false);
                 referralManagementEnrichmentService.delete(existingReferrals, referralRequest);
-                referralRepository.save(existingReferrals,
-                        referralManagementConfiguration.getDeleteReferralTopic());
+                referralRepository.save(new ReferralBulkRequest(referralRequest.getRequestInfo(),existingReferrals),
+                        referralManagementConfiguration.getDeleteReferralTopic(),
+                        "referrals");
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

@@ -216,7 +216,7 @@ class ProjectBeneficiaryServiceUpdateTest {
     @Test
     @DisplayName("should send the updates to kafka")
     void shouldSendTheUpdatesToKafka() throws Exception {
-        when(projectBeneficiaryRepository.save(anyList(), anyString())).thenReturn(request.getProjectBeneficiaries());
+        when(projectBeneficiaryRepository.save(any(BeneficiaryBulkRequest.class), eq("update-topic"), eq("projectBeneficiaries"))).thenReturn(request.getProjectBeneficiaries());
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.update(request, false);
 

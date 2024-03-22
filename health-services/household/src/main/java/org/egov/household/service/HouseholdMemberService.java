@@ -119,8 +119,8 @@ public class HouseholdMemberService {
                 householdMemberEnrichmentService.create(validHouseholdMembers, householdMemberBulkRequest);
 
                 log.info("saving valid household members to the repository");
-                householdMemberRepository.save(validHouseholdMembers,
-                        householdMemberConfiguration.getCreateTopic());
+                householdMemberRepository.save(new HouseholdMemberBulkRequest(householdMemberBulkRequest.getRequestInfo(),validHouseholdMembers),
+                        householdMemberConfiguration.getCreateTopic(), "householdMembers");
                 log.info("household members data saved successfully");
             }
         } catch (Exception exception) {
@@ -181,8 +181,8 @@ public class HouseholdMemberService {
         try {
             if (!validHouseholdMembers.isEmpty()) {
                 householdMemberEnrichmentService.update(validHouseholdMembers, householdMemberBulkRequest);
-                householdMemberRepository.save(validHouseholdMembers,
-                        householdMemberConfiguration.getUpdateTopic());
+                householdMemberRepository.save(new HouseholdMemberBulkRequest(householdMemberBulkRequest.getRequestInfo(),validHouseholdMembers),
+                        householdMemberConfiguration.getUpdateTopic(), "householdMembers");
                 log.info("household member data updated successfully");
             }
         } catch (Exception exception) {
@@ -213,8 +213,8 @@ public class HouseholdMemberService {
         try {
             if (!validHouseholdMembers.isEmpty()) {
                 householdMemberEnrichmentService.delete(validHouseholdMembers, householdMemberBulkRequest);
-                householdMemberRepository.save(validHouseholdMembers,
-                        householdMemberConfiguration.getDeleteTopic());
+                householdMemberRepository.save(new HouseholdMemberBulkRequest(householdMemberBulkRequest.getRequestInfo(),validHouseholdMembers),
+                        householdMemberConfiguration.getDeleteTopic(), "householdMembers");
                 log.info("deleted Household Members: {}", validHouseholdMembers);
             }
         } catch (Exception exception) {

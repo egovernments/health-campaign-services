@@ -102,9 +102,19 @@ class IndividualServiceTest {
                 .build()));
         lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(true));
         individualService.create(request);
-
+        Individual requestIndividual = IndividualTestBuilder.builder()
+                .withId()
+                .withClientReferenceId()
+                .withRowVersion()
+                .withIdentifiers()
+                .withAddress()
+                .withIsDeleted(true)
+                .build();
+        RequestInfo mockRequestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
+        IndividualBulkRequest bulkRequest = new IndividualBulkRequest(mockRequestInfo, Collections.singletonList(requestIndividual));
+        individualService.create(bulkRequest,true);
         verify(individualRepository, times(1))
-                .save(anyList(), anyString());
+                .save(eq(bulkRequest), eq("save-topic"),eq("individuals"));
     }
 
     @Test

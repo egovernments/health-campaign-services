@@ -128,7 +128,7 @@ class FacilityServiceTest {
         List<Facility> facility = facilityService.create(facilityBulkRequest, false);
 
         assertEquals(1, facility.size());
-        verify(repository, times(1)).save(anyList(), eq("create-facility-topic"));
+        verify(repository, times(1)).save(eq(facilityBulkRequest), eq("create-facility-topic"),eq("facilities"));
     }
 
     @Test
@@ -151,7 +151,7 @@ class FacilityServiceTest {
         List<Facility> facility = facilityService.update(facilityBulkRequest, false);
 
         assertEquals(1, facility.size());
-        verify(repository, times(1)).save(anyList(), eq("update-facility-topic"));
+        verify(repository, times(1)).save(eq(facilityBulkRequest), eq("update-facility-topic"),eq("facilities"));
     }
 
     @Test
@@ -174,6 +174,6 @@ class FacilityServiceTest {
         List<Facility> facility = facilityService.delete(facilityBulkRequest, false);
 
         assertEquals(1, facility.size());
-        verify(repository, times(1)).save(anyList(), eq("delete-facility-topic"));
+        verify(repository, times(1)).save(eq(facilityBulkRequest), eq("delete-facility-topic"),eq("facilities"));
     }
 }

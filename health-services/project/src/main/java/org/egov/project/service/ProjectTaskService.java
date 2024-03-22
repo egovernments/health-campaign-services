@@ -127,7 +127,9 @@ public class ProjectTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                projectTaskRepository.save(validTasks, projectConfiguration.getCreateProjectTaskTopic());
+                projectTaskRepository.save(new TaskBulkRequest(request.getRequestInfo(),validTasks),
+                        projectConfiguration.getCreateProjectTaskTopic(),
+                        "tasks");
                 log.info("successfully created project tasks");
             }
          } catch (Exception exception) {
@@ -159,7 +161,9 @@ public class ProjectTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                projectTaskRepository.save(validTasks, projectConfiguration.getUpdateProjectTaskTopic());
+                projectTaskRepository.save(new TaskBulkRequest(request.getRequestInfo(),validTasks),
+                        projectConfiguration.getUpdateProjectTaskTopic(),
+                        "tasks");
                 log.info("successfully updated bulk project tasks");
             }
         } catch (Exception exception) {
@@ -190,7 +194,9 @@ public class ProjectTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                projectTaskRepository.save(validTasks, projectConfiguration.getDeleteProjectTaskTopic());
+                projectTaskRepository.save(new TaskBulkRequest(request.getRequestInfo(),validTasks),
+                        projectConfiguration.getDeleteProjectTaskTopic(),
+                        "tasks");
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);

@@ -91,7 +91,7 @@ class ProductVariantServiceCreateTest {
         verify(idGenService, times(1)).getIdList(any(RequestInfo.class),
                 any(String.class),
                 eq("product.variant.id"), eq(""), anyInt());
-        verify(productVariantRepository, times(1)).save(any(List.class), any(String.class));
+        verify(productVariantRepository, times(1)).save(eq(request), eq("create-topic"), eq("productVariant"));
     }
 
     @Test

@@ -30,6 +30,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -104,8 +105,8 @@ class HouseholdMemberCreateTest {
                 .build();
 
         List<HouseholdMember> createdHouseholdMembers =  householdMemberService.create(householdMemberRequest);
-
-        verify(householdMemberRepository, times(1)).save(createdHouseholdMembers, "create-topic");
+        HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder().requestInfo(householdMemberRequest.getRequestInfo()).householdMembers(createdHouseholdMembers).build();
+        verify(householdMemberRepository, times(1)).save(eq(householdMemberBulkRequest), eq("create-topic"),eq("householdMembers"));
     }
 
     @Test
@@ -117,9 +118,10 @@ class HouseholdMemberCreateTest {
                 .withRequestInfo()
                 .build();
 
-        householdMemberService.create(householdMemberRequest);
+        List<HouseholdMember> createHouseholdMember = householdMemberService.create(householdMemberRequest);
+        HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder().requestInfo(householdMemberRequest.getRequestInfo()).householdMembers(createHouseholdMember).build();
 
-        verify(householdMemberRepository, times(1)).save(anyList(), anyString());
+        verify(householdMemberRepository, times(1)).save(eq(householdMemberBulkRequest), eq("create-topic"), eq("householdMembers"));
     }
 
 }

@@ -152,7 +152,7 @@ class StockReconciliationServiceTest {
         List<StockReconciliation> stock = stockService.create(StockReconciliationBulkRequest, false);
 
         assertEquals(1, stock.size());
-        verify(repository, times(1)).save(anyList(), eq("create-stock-topic"));
+        verify(repository, times(1)).save(eq(StockReconciliationBulkRequest), eq("create-stock-topic"), eq("stockReconciliation"));
     }
 
     @Test
@@ -175,7 +175,7 @@ class StockReconciliationServiceTest {
         List<StockReconciliation> stock = stockService.update(StockReconciliationBulkRequest, false);
 
         assertEquals(1, stock.size());
-        verify(repository, times(1)).save(anyList(), eq("update-stock-topic"));
+        verify(repository, times(1)).save(eq(StockReconciliationBulkRequest), eq("update-stock-topic"), eq("stockReconciliation"));
     }
 
     @Test
@@ -198,6 +198,6 @@ class StockReconciliationServiceTest {
         List<StockReconciliation> stock = stockService.delete(StockReconciliationBulkRequest, false);
 
         assertEquals(1, stock.size());
-        verify(repository, times(1)).save(anyList(), eq("delete-stock-topic"));
+        verify(repository, times(1)).save(eq(StockReconciliationBulkRequest), eq("delete-stock-topic"),eq("stockReconciliation"));
     }
 }

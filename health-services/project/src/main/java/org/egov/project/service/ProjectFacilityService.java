@@ -117,7 +117,9 @@ public class ProjectFacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                projectFacilityRepository.save(validEntities, projectConfiguration.getCreateProjectFacilityTopic());
+                projectFacilityRepository.save(new ProjectFacilityBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getCreateProjectFacilityTopic(),
+                        "projectFacilities");
                 log.info("successfully created project facility");
             }
         } catch (Exception exception) {
@@ -151,7 +153,9 @@ public class ProjectFacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                projectFacilityRepository.save(validEntities, projectConfiguration.getUpdateProjectFacilityTopic());
+                projectFacilityRepository.save(new ProjectFacilityBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getUpdateProjectFacilityTopic(),
+                        "projectFacilities");
                 log.info("successfully updated bulk project facility");
             }
         } catch (Exception exception) {
@@ -183,7 +187,9 @@ public class ProjectFacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                projectFacilityRepository.save(validEntities, projectConfiguration.getDeleteProjectFacilityTopic());
+                projectFacilityRepository.save(new ProjectFacilityBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getUpdateProjectFacilityTopic(),
+                        "projectFacilities");
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

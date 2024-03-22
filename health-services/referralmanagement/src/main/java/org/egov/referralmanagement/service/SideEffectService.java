@@ -115,8 +115,9 @@ public class SideEffectService {
             if (!validSideEffects.isEmpty()) {
                 log.info("processing {} valid entities", validSideEffects.size());
                 sideEffectEnrichmentService.create(validSideEffects, sideEffectRequest);
-                sideEffectRepository.save(validSideEffects,
-                        referralManagementConfiguration.getCreateSideEffectTopic());
+                sideEffectRepository.save(new SideEffectBulkRequest(sideEffectRequest.getRequestInfo(), validSideEffects),
+                        referralManagementConfiguration.getCreateSideEffectTopic(),
+                        "sideEffects");
                 log.info("successfully created side effects");
             }
         } catch (Exception exception) {
@@ -160,8 +161,9 @@ public class SideEffectService {
             if (!validSideEffects.isEmpty()) {
                 log.info("processing {} valid entities", validSideEffects.size());
                 sideEffectEnrichmentService.update(validSideEffects, sideEffectRequest);
-                sideEffectRepository.save(validSideEffects,
-                        referralManagementConfiguration.getUpdateSideEffectTopic());
+                sideEffectRepository.save(new SideEffectBulkRequest(sideEffectRequest.getRequestInfo(), validSideEffects),
+                        referralManagementConfiguration.getUpdateSideEffectTopic(),
+                        "sideEffects");
                 log.info("successfully updated bulk side effects");
             }
         } catch (Exception exception) {
@@ -243,8 +245,9 @@ public class SideEffectService {
                 List<SideEffect> existingSideEffects = sideEffectRepository
                         .findById(sideEffectIds, false);
                 sideEffectEnrichmentService.delete(existingSideEffects, sideEffectRequest);
-                sideEffectRepository.save(existingSideEffects,
-                        referralManagementConfiguration.getDeleteSideEffectTopic());
+                sideEffectRepository.save(new SideEffectBulkRequest(sideEffectRequest.getRequestInfo(), existingSideEffects),
+                        referralManagementConfiguration.getDeleteSideEffectTopic(),
+                        "sideEffects");
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

@@ -101,7 +101,9 @@ public class ProjectResourceService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                projectResourceRepository.save(validEntities, projectConfiguration.getCreateProjectResourceTopic());
+                projectResourceRepository.save(new ProjectResourceBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getCreateProjectResourceTopic(),
+                        "projectResource");
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
@@ -134,7 +136,9 @@ public class ProjectResourceService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                projectResourceRepository.save(validEntities, projectConfiguration.getUpdateProjectResourceTopic());
+                projectResourceRepository.save(new ProjectResourceBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getUpdateProjectResourceTopic(),
+                        "projectResource");
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
@@ -167,7 +171,9 @@ public class ProjectResourceService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                projectResourceRepository.save(validEntities, projectConfiguration.getDeleteProjectResourceTopic());
+                projectResourceRepository.save(new ProjectResourceBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getDeleteProjectResourceTopic(),
+                        "projectResource");
                 log.info("successfully deleted project resource");
             }
         } catch (Exception exception) {

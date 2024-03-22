@@ -102,7 +102,9 @@ public class StockReconciliationService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockReconciliationTopic());
+                stockRepository.save(new StockReconciliationBulkRequest(request.getRequestInfo(),validTasks),
+                        configuration.getCreateStockReconciliationTopic(),
+                        "stockReconciliation");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -134,7 +136,9 @@ public class StockReconciliationService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                stockRepository.save(validTasks, configuration.getUpdateStockReconciliationTopic());
+                stockRepository.save(new StockReconciliationBulkRequest(request.getRequestInfo(),validTasks),
+                        configuration.getUpdateStockReconciliationTopic(),
+                        "stockReconciliation");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -167,7 +171,9 @@ public class StockReconciliationService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                stockRepository.save(validTasks, configuration.getDeleteStockReconciliationTopic());
+                stockRepository.save(new StockReconciliationBulkRequest(request.getRequestInfo(),validTasks),
+                        configuration.getDeleteStockReconciliationTopic(),
+                        "stockReconciliation");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

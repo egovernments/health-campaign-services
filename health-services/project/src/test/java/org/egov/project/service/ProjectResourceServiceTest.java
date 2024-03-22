@@ -172,7 +172,7 @@ class ProjectResourceServiceTest {
         List<ProjectResource> projectResources = service.create(request, false);
 
         assertEquals(1, projectResources.size());
-        verify(projectResourceRepository, times(1)).save(anyList(), eq("create-project-resource-topic"));
+        verify(projectResourceRepository, times(1)).save(eq(request), eq("create-project-resource-topic"),eq("projectResource"));
 
     }
 
@@ -198,7 +198,7 @@ class ProjectResourceServiceTest {
         List<ProjectResource> projectResources = service.update(request, false);
 
         assertEquals(1, projectResources.size());
-        verify(projectResourceRepository, times(1)).save(anyList(), eq("update-project-resource-topic"));
+        verify(projectResourceRepository, times(1)).save(eq(request), eq("update-project-resource-topic"),eq("projectResource"));
 
     }
 
@@ -224,7 +224,7 @@ class ProjectResourceServiceTest {
         List<ProjectResource> projectResources = service.delete(request, false);
 
         assertEquals(1, projectResources.size());
-        verify(projectResourceRepository, times(1)).save(anyList(), eq("delete-project-resource-topic"));
+        verify(projectResourceRepository, times(1)).save(eq(request), eq("delete-project-resource-topic"), eq("projectResource"));
 
     }
 }

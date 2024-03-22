@@ -121,7 +121,7 @@ public class FacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getUpdateFacilityTopic());
+                facilityRepository.save(new FacilityBulkRequest(request.getRequestInfo(),validEntities), configuration.getUpdateFacilityTopic(), "facilities");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -152,7 +152,7 @@ public class FacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getDeleteFacilityTopic());
+                facilityRepository.save(new FacilityBulkRequest(request.getRequestInfo(), validEntities), configuration.getDeleteFacilityTopic(), "facilities");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

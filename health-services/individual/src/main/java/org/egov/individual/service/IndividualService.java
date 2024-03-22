@@ -135,8 +135,8 @@ public class IndividualService {
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                individualRepository.save(encryptedIndividualList,
-                        properties.getSaveIndividualTopic());
+                individualRepository.save(new IndividualBulkRequest(request.getRequestInfo(),validIndividuals),
+                        properties.getSaveIndividualTopic(), "individuals");
             }
         } catch (CustomException exception) {
             log.error("error occurred", exception);
@@ -248,8 +248,9 @@ public class IndividualService {
                 }
 
                 // save
-                individualRepository.save(encryptedIndividualList,
-                        properties.getUpdateIndividualTopic());
+                individualRepository.save(new IndividualBulkRequest(request.getRequestInfo(),validIndividuals),
+                        properties.getUpdateIndividualTopic(),
+                        "individuals");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -358,8 +359,9 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
-                individualRepository.save(validIndividuals,
-                        properties.getDeleteIndividualTopic());
+                individualRepository.save(new IndividualBulkRequest(request.getRequestInfo(),validIndividuals),
+                        properties.getDeleteIndividualTopic(),
+                        "individuals");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

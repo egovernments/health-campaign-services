@@ -250,7 +250,7 @@ class IndividualServiceUpdateTest {
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
         List<Individual> result = individualService.update(request);
-        verify(individualRepository, times(1)).save(anyList(), anyString());
+        verify(individualRepository, times(1)).save(any(IndividualBulkRequest.class), eq("update-topic"), eq("individuals"));
     }
 
 }

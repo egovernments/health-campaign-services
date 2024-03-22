@@ -103,7 +103,9 @@ public class StockService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockTopic());
+                stockRepository.save(new StockBulkRequest(request.getRequestInfo(),validTasks),
+                        configuration.getCreateStockTopic(),
+                        "stock");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -133,7 +135,9 @@ public class StockService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                stockRepository.save(validTasks, configuration.getUpdateStockTopic());
+                stockRepository.save(new StockBulkRequest(request.getRequestInfo(),validTasks),
+                        configuration.getUpdateStockTopic(),
+                        "stock");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -163,7 +167,9 @@ public class StockService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                stockRepository.save(validTasks, configuration.getDeleteStockTopic());
+                stockRepository.save(new StockBulkRequest(request.getRequestInfo(),validTasks),
+                        configuration.getDeleteStockTopic(),
+                        "stock");
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

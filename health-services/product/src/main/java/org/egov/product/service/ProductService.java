@@ -61,7 +61,7 @@ public class ProductService {
         enrichForCreate(productRequest.getProduct(), idList, productRequest.getRequestInfo());
 
         log.info("saving products");
-        productRepository.save(productRequest.getProduct(), productConfiguration.getCreateProductTopic());
+        productRepository.save(productRequest, productConfiguration.getCreateProductTopic(), "product");
         return productRequest.getProduct();
     }
 
@@ -83,7 +83,7 @@ public class ProductService {
         enrichForUpdate(pMap, existingProducts, productRequest);
 
         log.info("saving updated products");
-        productRepository.save(productRequest.getProduct(), productConfiguration.getUpdateProductTopic());
+        productRepository.save(productRequest, productConfiguration.getUpdateProductTopic(), "product");
         return productRequest.getProduct();
     }
 

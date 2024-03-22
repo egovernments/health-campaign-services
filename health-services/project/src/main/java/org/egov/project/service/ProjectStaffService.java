@@ -127,7 +127,9 @@ public class ProjectStaffService {
                 // Pushing the data as ProjectStaffBulkRequest for Attendance Service Consumer
                 producer.push(projectConfiguration.getProjectStaffAttendanceTopic(), new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities));
                 // Pushing the data as list for persister consumer
-                projectStaffRepository.save(validEntities, projectConfiguration.getCreateProjectStaffTopic());
+                projectStaffRepository.save(new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getCreateProjectStaffTopic(),
+                        "projectStaff");
                 log.info("successfully created project staff");
             }
         } catch (Exception exception) {
@@ -161,7 +163,9 @@ public class ProjectStaffService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                projectStaffRepository.save(validEntities, projectConfiguration.getUpdateProjectStaffTopic());
+                projectStaffRepository.save(new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getUpdateProjectStaffTopic(),
+                        "projectStaff");
                 log.info("successfully updated bulk project staff");
             }
         } catch (Exception exception) {
@@ -193,7 +197,9 @@ public class ProjectStaffService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                projectStaffRepository.save(validEntities, projectConfiguration.getDeleteProjectStaffTopic());
+                projectStaffRepository.save(new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities),
+                        projectConfiguration.getDeleteProjectStaffTopic(),
+                        "projectStaff");
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

@@ -63,7 +63,7 @@ public class ProductVariantService {
         enrichForCreate(request.getProductVariant(), idList, request.getRequestInfo());
         log.info("Enrichment done");
         log.info("saving the product variants");
-        productVariantRepository.save(request.getProductVariant(), productConfiguration.getCreateProductVariantTopic());
+        productVariantRepository.save(request, productConfiguration.getCreateProductVariantTopic(), "productVariant");
         log.info("saved product variants");
         return request.getProductVariant();
     }
@@ -90,7 +90,7 @@ public class ProductVariantService {
         log.info("updating product variants lastModifiedTime and lastModifiedBy");
         enrichForUpdate(pvMap, existingProductVariants, request);
 
-        productVariantRepository.save(request.getProductVariant(), productConfiguration.getUpdateProductVariantTopic());
+        productVariantRepository.save(request, productConfiguration.getUpdateProductVariantTopic(), "productVariant");
 
         return request.getProductVariant();
     }

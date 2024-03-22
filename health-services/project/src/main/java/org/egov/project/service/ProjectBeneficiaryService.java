@@ -119,8 +119,9 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.create(validProjectBeneficiaries, beneficiaryRequest);
-                projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getCreateProjectBeneficiaryTopic());
+                projectBeneficiaryRepository.save(new BeneficiaryBulkRequest(beneficiaryRequest.getRequestInfo(),validProjectBeneficiaries),
+                        projectConfiguration.getCreateProjectBeneficiaryTopic(),
+                        "projectBeneficiaries");
                 log.info("successfully created project beneficiaries");
             }
         } catch (Exception exception) {
@@ -152,8 +153,9 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.update(validProjectBeneficiaries, beneficiaryRequest);
-                projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getUpdateProjectBeneficiaryTopic());
+                projectBeneficiaryRepository.save(new BeneficiaryBulkRequest(beneficiaryRequest.getRequestInfo(),validProjectBeneficiaries),
+                        projectConfiguration.getUpdateProjectBeneficiaryTopic(),
+                        "projectBeneficiaries");
                 log.info("successfully updated bulk project beneficiaries");
             }
         } catch (Exception exception) {
@@ -209,8 +211,9 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.delete(validProjectBeneficiaries, beneficiaryRequest);
-                projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getDeleteProjectBeneficiaryTopic());
+                projectBeneficiaryRepository.save(new BeneficiaryBulkRequest(beneficiaryRequest.getRequestInfo(),validProjectBeneficiaries),
+                        projectConfiguration.getDeleteProjectBeneficiaryTopic(),
+                        "projectBeneficiaries");
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

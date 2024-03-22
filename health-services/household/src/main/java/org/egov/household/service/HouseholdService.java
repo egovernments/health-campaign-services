@@ -96,7 +96,7 @@ public class HouseholdService {
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
-                householdRepository.save(validEntities, householdConfiguration.getCreateTopic());
+                householdRepository.save(new HouseholdBulkRequest(request.getRequestInfo(),validEntities), householdConfiguration.getCreateTopic(), "households");
                 log.info("successfully created {} households", validEntities.size());
             }
         } catch (Exception exception) {
@@ -159,7 +159,7 @@ public class HouseholdService {
             if (!validEntities.isEmpty()) {
                 log.info("updating valid entities");
                 enrichmentService.update(validEntities, request);
-                householdRepository.save(validEntities, householdConfiguration.getUpdateTopic());
+                householdRepository.save(new HouseholdBulkRequest(request.getRequestInfo(),validEntities), householdConfiguration.getUpdateTopic(), "households");
                 log.info("successfully updated households");
             }
         } catch (Exception exception) {
@@ -193,7 +193,7 @@ public class HouseholdService {
             if (!validEntities.isEmpty()) {
                 enrichmentService.delete(validEntities, request);
                 log.info("households deleted successfully");
-                householdRepository.save(validEntities, householdConfiguration.getDeleteTopic());
+                householdRepository.save(new HouseholdBulkRequest(request.getRequestInfo(),validEntities), householdConfiguration.getDeleteTopic(), "households");
                 log.info("Households saved to delete topic");
             }
         } catch (Exception exception) {

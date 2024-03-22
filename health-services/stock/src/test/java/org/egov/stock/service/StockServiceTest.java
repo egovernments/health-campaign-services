@@ -150,7 +150,7 @@ class StockServiceTest {
         List<Stock> stock = stockService.create(stockBulkRequest, false);
 
         assertEquals(1, stock.size());
-        verify(repository, times(1)).save(anyList(), eq("create-stock-topic"));
+        verify(repository, times(1)).save(eq(stockBulkRequest), eq("create-stock-topic"),eq("stock"));
     }
 
     @Test
@@ -173,7 +173,7 @@ class StockServiceTest {
         List<Stock> stock = stockService.update(stockBulkRequest, false);
 
         assertEquals(1, stock.size());
-        verify(repository, times(1)).save(anyList(), eq("update-stock-topic"));
+        verify(repository, times(1)).save(eq(stockBulkRequest), eq("update-stock-topic"),eq("stock"));
     }
 
     @Test
@@ -196,6 +196,6 @@ class StockServiceTest {
         List<Stock> stock = stockService.delete(stockBulkRequest, false);
 
         assertEquals(1, stock.size());
-        verify(repository, times(1)).save(anyList(), eq("delete-stock-topic"));
+        verify(repository, times(1)).save(eq(stockBulkRequest), eq("delete-stock-topic"), eq("stock"));
     }
 }

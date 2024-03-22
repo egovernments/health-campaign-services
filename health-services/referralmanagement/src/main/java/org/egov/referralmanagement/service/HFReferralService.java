@@ -117,8 +117,9 @@ public class HFReferralService {
             if (!validReferrals.isEmpty()) {
                 log.info("Processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.create(validReferrals, hfReferralRequest);
-                hfReferralRepository.save(validReferrals,
-                        referralManagementConfiguration.getCreateHFReferralTopic());
+                hfReferralRepository.save(new HFReferralBulkRequest(hfReferralRequest.getRequestInfo(),validReferrals),
+                        referralManagementConfiguration.getCreateHFReferralTopic(),
+                        "hfReferrals");
                 log.info("Successfully created referrals");
             }
         } catch (Exception exception) {
@@ -152,8 +153,9 @@ public class HFReferralService {
             if (!validReferrals.isEmpty()) {
                 log.info("Processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.update(validReferrals, hfReferralRequest);
-                hfReferralRepository.save(validReferrals,
-                        referralManagementConfiguration.getUpdateHFReferralTopic());
+                hfReferralRepository.save(new HFReferralBulkRequest(hfReferralRequest.getRequestInfo(),validReferrals),
+                        referralManagementConfiguration.getUpdateHFReferralTopic(),
+                        "hfReferrals");
                 log.info("Successfully updated bulk referrals");
             }
         } catch (Exception exception) {
@@ -219,8 +221,9 @@ public class HFReferralService {
                 List<HFReferral> existingReferrals = hfReferralRepository
                         .findById(referralIds, false);
                 hfReferralEnrichmentService.delete(existingReferrals, hfReferralRequest);
-                hfReferralRepository.save(existingReferrals,
-                        referralManagementConfiguration.getDeleteHFReferralTopic());
+                hfReferralRepository.save(new HFReferralBulkRequest(hfReferralRequest.getRequestInfo(),existingReferrals),
+                        referralManagementConfiguration.getDeleteHFReferralTopic(),
+                        "hfReferrals");
                 log.info("Successfully deleted entities");
             }
         } catch (Exception exception) {
