@@ -125,16 +125,17 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             Task constructedTask = constructTaskResourceIfNull(task);
 
+            String projectType = project.getProjectType();
+
             return constructedTask.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType, projectTypeId)
+                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType, projectTypeId, projectType)
             ).collect(Collectors.toList());
         }
 
         private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId,
-                                                                   ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType, String projectTypeId) {
+                                                                   ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType, String projectTypeId, String projectType) {
             Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
-            String createdTimeStamp = commonUtils.getTimeStampFromEpoch(task.getClientAuditDetails().getCreatedTime());
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -166,6 +167,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .administrationStatus(task.getStatus())
                     .boundaryHierarchy(boundaryHierarchy)
+                    .projectType(projectType)
                     .build();
 
             List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));

@@ -110,9 +110,7 @@ public class HouseholdService {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getCreatedTime());
 
         if (projectTypeId != null) {
-            log.info("projectTypeId is not null, the value is {} ", projectTypeId);
             cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), projectTypeId, household.getAuditDetails());
-            log.info("cycleIndex is {}", cycleIndex);
         }
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_NUMBER, cycleIndex);
