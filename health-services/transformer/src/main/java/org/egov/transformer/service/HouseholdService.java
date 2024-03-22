@@ -1,5 +1,6 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -35,13 +36,16 @@ public class HouseholdService {
     private final ProjectService projectService;
     private final CommonUtils commonUtils;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils) {
+    private final ObjectMapper objectMapper;
+
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;
         this.commonUtils = commonUtils;
+        this.objectMapper = objectMapper;
     }
 
     public List<Household> searchHousehold(String clientRefId, String tenantId) {
@@ -88,7 +92,8 @@ public class HouseholdService {
     public HouseholdIndexV1 transform(Household household) {
         Map<String, String> boundaryLabelToNameMap = null;
         String projectTypeId = null;
-        String userId = household.getAuditDetails().getCreatedBy();
+        Integer cycleIndex = null;
+        String userId = household.getClientAuditDetails().getCreatedBy();
         ProjectStaff projectStaff = projectService.searchProjectStaff(userId, household.getTenantId());
         if (projectStaff != null) {
             Project project = projectService.getProject(projectStaff.getProjectId(), household.getTenantId());
@@ -104,6 +109,14 @@ public class HouseholdService {
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getCreatedTime());
 
+        if (projectTypeId != null) {
+            log.info("projectTypeId is not null, the value is {} ", projectTypeId);
+            cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), projectTypeId, household.getAuditDetails());
+            log.info("cycleIndex is {}", cycleIndex);
+        }
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+
         return HouseholdIndexV1.builder()
                 .household(household)
                 .userName(userInfoMap.get(USERNAME))
@@ -114,6 +127,7 @@ public class HouseholdService {
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
+                .additionalDetails(additionalDetails)
                 .syncedTimeStamp(syncedTimeStamp)
                 .syncedTime(household.getAuditDetails().getLastModifiedTime())
                 .build();

@@ -258,16 +258,23 @@ public class CommonUtils {
 
     public Integer fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
         Long createdTime = auditDetails.getCreatedTime();
-        JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
+        JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, "644c4356-5214-11ee-be56-0242ac120002");
+        log.info("projectType returned from mdms {}", projectType);
         if (projectType.has(CYCLES)) {
             ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
+            log.info("cycles array {}", cycles);
 
             for (int i = 0; i < cycles.size(); i++) {
                 JsonNode currentCycle = cycles.get(i);
                 if (currentCycle.has(START_DATE) && currentCycle.has(END_DATE)) {
                     Long startDate = currentCycle.get(START_DATE).asLong();
                     Long endDate = currentCycle.get(END_DATE).asLong();
-
+                    log.info("createdTime is {}", createdTime);
+                    log.info("startDate is {} and endDate is {} for cycleIndex {}", startDate, endDate, i);
+                    boolean isWithInCycle = isWithinCycle(createdTime, startDate, endDate);
+                    boolean isBetweenCycle = isBetweenCycles(createdTime, cycles,i);
+                    log.info("for index {} , isWithinCycle is {}", i, isWithInCycle);
+                    log.info("for index {}, isBetweenCycle is {}", i, isBetweenCycle);
                     if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
                         return currentCycle.get(ID).asInt();
                     }
@@ -279,6 +286,8 @@ public class CommonUtils {
     }
 
     private boolean isWithinCycle(Long createdTime, Long startDate, Long endDate) {
+        log.info("createdTime is {}", createdTime);
+        log.info("startDate is {} and endDate is {}", startDate, endDate);
         return createdTime >= startDate && createdTime <= endDate;
     }
 
@@ -288,6 +297,7 @@ public class CommonUtils {
             if (nextCycle.has(START_DATE)) {
                 Long nextStartDate = nextCycle.get(START_DATE).asLong();
                 Long currentEndDate = cycles.get(currentIndex).get(END_DATE).asLong();
+                log.info("nextStartDate is {} and currentEndDate is {}", nextStartDate, currentEndDate);
                 return createdTime > currentEndDate && createdTime < nextStartDate;
             }
         }
