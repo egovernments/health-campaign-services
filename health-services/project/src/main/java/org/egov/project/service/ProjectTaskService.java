@@ -47,6 +47,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.project.Constants.PROJECT_TASK_CACHE_FIELD;
 import static org.egov.project.Constants.SET_TASKS;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
@@ -127,9 +128,12 @@ public class ProjectTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                projectTaskRepository.save(new TaskBulkRequest(request.getRequestInfo(),validTasks),
+                projectTaskRepository.save(TaskBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .tasks(validTasks)
+                                .build(),
                         projectConfiguration.getCreateProjectTaskTopic(),
-                        "tasks");
+                        PROJECT_TASK_CACHE_FIELD);
                 log.info("successfully created project tasks");
             }
          } catch (Exception exception) {
@@ -161,9 +165,13 @@ public class ProjectTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                projectTaskRepository.save(new TaskBulkRequest(request.getRequestInfo(),validTasks),
+
+                projectTaskRepository.save(TaskBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .tasks(validTasks)
+                                .build(),
                         projectConfiguration.getUpdateProjectTaskTopic(),
-                        "tasks");
+                        PROJECT_TASK_CACHE_FIELD);
                 log.info("successfully updated bulk project tasks");
             }
         } catch (Exception exception) {
@@ -194,9 +202,13 @@ public class ProjectTaskService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                projectTaskRepository.save(new TaskBulkRequest(request.getRequestInfo(),validTasks),
+
+                projectTaskRepository.save(TaskBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .tasks(validTasks)
+                                .build(),
                         projectConfiguration.getDeleteProjectTaskTopic(),
-                        "tasks");
+                        PROJECT_TASK_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred while deleting entities: {}", exception);

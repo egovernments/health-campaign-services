@@ -42,6 +42,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.project.Constants.PROJECT_STAFF_CACHE_FIELD;
 import static org.egov.project.Constants.SET_STAFF;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
@@ -127,9 +128,12 @@ public class ProjectStaffService {
                 // Pushing the data as ProjectStaffBulkRequest for Attendance Service Consumer
                 producer.push(projectConfiguration.getProjectStaffAttendanceTopic(), new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities));
                 // Pushing the data as list for persister consumer
-                projectStaffRepository.save(new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities),
+                projectStaffRepository.save(ProjectStaffBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectStaff(validEntities)
+                                .build(),
                         projectConfiguration.getCreateProjectStaffTopic(),
-                        "projectStaff");
+                        PROJECT_STAFF_CACHE_FIELD);
                 log.info("successfully created project staff");
             }
         } catch (Exception exception) {
@@ -163,9 +167,13 @@ public class ProjectStaffService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                projectStaffRepository.save(new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities),
+
+                projectStaffRepository.save(ProjectStaffBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectStaff(validEntities)
+                                .build(),
                         projectConfiguration.getUpdateProjectStaffTopic(),
-                        "projectStaff");
+                        PROJECT_STAFF_CACHE_FIELD);
                 log.info("successfully updated bulk project staff");
             }
         } catch (Exception exception) {
@@ -197,9 +205,13 @@ public class ProjectStaffService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                projectStaffRepository.save(new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities),
+
+                projectStaffRepository.save(ProjectStaffBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectStaff(validEntities)
+                                .build(),
                         projectConfiguration.getDeleteProjectStaffTopic(),
-                        "projectStaff");
+                        PROJECT_STAFF_CACHE_FIELD);
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

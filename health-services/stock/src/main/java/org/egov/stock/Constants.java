@@ -35,4 +35,8 @@ public class Constants {
     public static String GET_REQUEST_INFO = "getRequestInfo";
 
     public static String NO_PROJECT_FACILITY_MAPPING_EXISTS = "NO_PROJECT_FACILITY_MAPPING_EXISTS";
+
+    public static String STOCK_CACHE_FIELD = "stock";
+
+    public static String STOCK_RECONCILIATION_CACHE_FIELD = "stockReconciliation";
 }

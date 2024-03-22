@@ -9,4 +9,6 @@ public class Constants {
     public static String GET_ID = "getId";
 
     public static String VALIDATION_ERROR = "VALIDATION_ERROR";
+
+    public static String FACILITY_CACHE_FIELD= "facilities";
 }

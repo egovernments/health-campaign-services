@@ -26,6 +26,7 @@ import static org.egov.common.utils.CommonUtils.includeDeleted;
 import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.validateEntities;
+import static org.egov.product.Constants.PRODUCT_CACHE_FIELD;
 
 @Service
 @Slf4j
@@ -61,7 +62,7 @@ public class ProductService {
         enrichForCreate(productRequest.getProduct(), idList, productRequest.getRequestInfo());
 
         log.info("saving products");
-        productRepository.save(productRequest, productConfiguration.getCreateProductTopic(), "product");
+        productRepository.save(productRequest, productConfiguration.getCreateProductTopic(), PRODUCT_CACHE_FIELD);
         return productRequest.getProduct();
     }
 
@@ -83,7 +84,7 @@ public class ProductService {
         enrichForUpdate(pMap, existingProducts, productRequest);
 
         log.info("saving updated products");
-        productRepository.save(productRequest, productConfiguration.getUpdateProductTopic(), "product");
+        productRepository.save(productRequest, productConfiguration.getUpdateProductTopic(), PRODUCT_CACHE_FIELD);
         return productRequest.getProduct();
     }
 

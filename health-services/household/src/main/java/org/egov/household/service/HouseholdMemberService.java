@@ -42,6 +42,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.household.Constants.HOUSEHOLD_MEMBER_CACHE_FIELD;
 import static org.egov.household.Constants.SET_HOUSEHOLD_MEMBERS;
 import static org.egov.household.Constants.VALIDATION_ERROR;
 
@@ -119,8 +120,12 @@ public class HouseholdMemberService {
                 householdMemberEnrichmentService.create(validHouseholdMembers, householdMemberBulkRequest);
 
                 log.info("saving valid household members to the repository");
-                householdMemberRepository.save(new HouseholdMemberBulkRequest(householdMemberBulkRequest.getRequestInfo(),validHouseholdMembers),
-                        householdMemberConfiguration.getCreateTopic(), "householdMembers");
+                householdMemberRepository.save(HouseholdMemberBulkRequest.builder()
+                                .requestInfo(householdMemberBulkRequest.getRequestInfo())
+                                .householdMembers(validHouseholdMembers)
+                                .build(),
+                        householdMemberConfiguration.getCreateTopic(),
+                        HOUSEHOLD_MEMBER_CACHE_FIELD);
                 log.info("household members data saved successfully");
             }
         } catch (Exception exception) {
@@ -181,8 +186,12 @@ public class HouseholdMemberService {
         try {
             if (!validHouseholdMembers.isEmpty()) {
                 householdMemberEnrichmentService.update(validHouseholdMembers, householdMemberBulkRequest);
-                householdMemberRepository.save(new HouseholdMemberBulkRequest(householdMemberBulkRequest.getRequestInfo(),validHouseholdMembers),
-                        householdMemberConfiguration.getUpdateTopic(), "householdMembers");
+                householdMemberRepository.save(HouseholdMemberBulkRequest.builder()
+                                .requestInfo(householdMemberBulkRequest.getRequestInfo())
+                                .householdMembers(validHouseholdMembers)
+                                .build(),
+                        householdMemberConfiguration.getUpdateTopic(),
+                        HOUSEHOLD_MEMBER_CACHE_FIELD);
                 log.info("household member data updated successfully");
             }
         } catch (Exception exception) {
@@ -213,8 +222,12 @@ public class HouseholdMemberService {
         try {
             if (!validHouseholdMembers.isEmpty()) {
                 householdMemberEnrichmentService.delete(validHouseholdMembers, householdMemberBulkRequest);
-                householdMemberRepository.save(new HouseholdMemberBulkRequest(householdMemberBulkRequest.getRequestInfo(),validHouseholdMembers),
-                        householdMemberConfiguration.getDeleteTopic(), "householdMembers");
+                householdMemberRepository.save(HouseholdMemberBulkRequest.builder()
+                                .requestInfo(householdMemberBulkRequest.getRequestInfo())
+                                .householdMembers(validHouseholdMembers)
+                                .build(),
+                        householdMemberConfiguration.getDeleteTopic(),
+                        HOUSEHOLD_MEMBER_CACHE_FIELD);
                 log.info("deleted Household Members: {}", validHouseholdMembers);
             }
         } catch (Exception exception) {

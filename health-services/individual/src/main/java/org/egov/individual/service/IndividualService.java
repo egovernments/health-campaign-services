@@ -135,8 +135,13 @@ public class IndividualService {
                 //encrypt PII data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                individualRepository.save(new IndividualBulkRequest(request.getRequestInfo(),validIndividuals),
-                        properties.getSaveIndividualTopic(), "individuals");
+
+                individualRepository.save(IndividualBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .individuals(validIndividuals)
+                                .build(),
+                        properties.getSaveIndividualTopic(),
+                        INDIVIDUAL_CACHE_FIELD);
             }
         } catch (CustomException exception) {
             log.error("error occurred", exception);
@@ -248,9 +253,12 @@ public class IndividualService {
                 }
 
                 // save
-                individualRepository.save(new IndividualBulkRequest(request.getRequestInfo(),validIndividuals),
+                individualRepository.save(IndividualBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .individuals(validIndividuals)
+                                .build(),
                         properties.getUpdateIndividualTopic(),
-                        "individuals");
+                        INDIVIDUAL_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -359,9 +367,13 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
-                individualRepository.save(new IndividualBulkRequest(request.getRequestInfo(),validIndividuals),
+
+                individualRepository.save(IndividualBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .individuals(validIndividuals)
+                                .build(),
                         properties.getDeleteIndividualTopic(),
-                        "individuals");
+                        INDIVIDUAL_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

@@ -40,6 +40,7 @@ import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.project.Constants.GET_PROJECT_RESOURCE;
+import static org.egov.project.Constants.PROJECT_RESOURCE_CACHE_FIELD;
 import static org.egov.project.Constants.SET_PROJECT_RESOURCE;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
@@ -101,9 +102,13 @@ public class ProjectResourceService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                projectResourceRepository.save(new ProjectResourceBulkRequest(request.getRequestInfo(),validEntities),
+
+                projectResourceRepository.save(ProjectResourceBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectResource(validEntities)
+                                .build(),
                         projectConfiguration.getCreateProjectResourceTopic(),
-                        "projectResource");
+                        PROJECT_RESOURCE_CACHE_FIELD);
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
@@ -136,9 +141,13 @@ public class ProjectResourceService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                projectResourceRepository.save(new ProjectResourceBulkRequest(request.getRequestInfo(),validEntities),
+
+                projectResourceRepository.save(ProjectResourceBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectResource(validEntities)
+                                .build(),
                         projectConfiguration.getUpdateProjectResourceTopic(),
-                        "projectResource");
+                        PROJECT_RESOURCE_CACHE_FIELD);
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
@@ -171,9 +180,13 @@ public class ProjectResourceService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                projectResourceRepository.save(new ProjectResourceBulkRequest(request.getRequestInfo(),validEntities),
+
+                projectResourceRepository.save(ProjectResourceBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectResource(validEntities)
+                                .build(),
                         projectConfiguration.getDeleteProjectResourceTopic(),
-                        "projectResource");
+                        PROJECT_RESOURCE_CACHE_FIELD);
                 log.info("successfully deleted project resource");
             }
         } catch (Exception exception) {

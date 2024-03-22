@@ -28,6 +28,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.validateEntities;
 import static org.egov.common.utils.CommonUtils.validateIds;
+import static org.egov.product.Constants.PRODUCT_VARIANT_CACHE_FIELD;
 
 @Service
 @Slf4j
@@ -63,7 +64,7 @@ public class ProductVariantService {
         enrichForCreate(request.getProductVariant(), idList, request.getRequestInfo());
         log.info("Enrichment done");
         log.info("saving the product variants");
-        productVariantRepository.save(request, productConfiguration.getCreateProductVariantTopic(), "productVariant");
+        productVariantRepository.save(request, productConfiguration.getCreateProductVariantTopic(), PRODUCT_VARIANT_CACHE_FIELD);
         log.info("saved product variants");
         return request.getProductVariant();
     }
@@ -90,7 +91,7 @@ public class ProductVariantService {
         log.info("updating product variants lastModifiedTime and lastModifiedBy");
         enrichForUpdate(pvMap, existingProductVariants, request);
 
-        productVariantRepository.save(request, productConfiguration.getUpdateProductVariantTopic(), "productVariant");
+        productVariantRepository.save(request, productConfiguration.getUpdateProductVariantTopic(), PRODUCT_VARIANT_CACHE_FIELD);
 
         return request.getProductVariant();
     }
