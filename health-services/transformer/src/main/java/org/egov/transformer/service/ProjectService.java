@@ -366,13 +366,13 @@ public class ProjectService {
 
     public ProjectStaff searchProjectStaff(String userId, String tenantId) {
 
-        ProjectStaffRequest request = ProjectStaffRequest.builder()
+        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
                 .requestInfo(RequestInfo.builder()
                         .userInfo(User.builder()
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
-                .projectStaff(ProjectStaff.builder().userId(userId).tenantId(tenantId).build())
+                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
                 .build();
 
         ProjectStaffBulkResponse response;
