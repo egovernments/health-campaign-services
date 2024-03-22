@@ -9,6 +9,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.hibernate.validator.constraints.Range;
 import org.springframework.validation.annotation.Validated;
 
@@ -26,22 +28,9 @@ import javax.validation.constraints.Size;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
-public class Household {
-
-    @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min = 2, max = 1000)
-    private String tenantId = null;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min = 2, max = 64)
-    private String clientReferenceId = null;
+@SuperBuilder
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class Household extends EgovOfflineModel {
 
     @JsonProperty("memberCount")
     @NotNull
@@ -52,25 +41,9 @@ public class Household {
     @Valid
     private Address address = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
 }
 

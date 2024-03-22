@@ -3,6 +3,7 @@ package org.egov.stock.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.CommonSearchCriteria;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.models.stock.StockReconciliationBulkResponse;
@@ -16,6 +17,7 @@ import org.egov.stock.web.models.StockReconciliationSearchRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -74,12 +76,10 @@ public class StockReconciliationApiController {
     }
 
     @RequestMapping(value = "/reconciliation/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<StockReconciliationBulkResponse> stockReconciliationV1SearchPost(@ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest request, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                                                       @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
+    public ResponseEntity<StockReconciliationBulkResponse> stockReconciliationV1SearchPost(@ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest request,
+                                                                                           @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
 
-        List<StockReconciliation> stock = stockReconciliationService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        List<StockReconciliation> stock = stockReconciliationService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
         StockReconciliationBulkResponse response = StockReconciliationBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).stockReconciliation(stock).build();
 

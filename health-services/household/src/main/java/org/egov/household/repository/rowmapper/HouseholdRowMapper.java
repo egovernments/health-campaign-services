@@ -1,18 +1,18 @@
 package org.egov.household.repository.rowmapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.household.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.household.Address;
 import org.egov.common.models.household.AddressType;
 import org.egov.common.models.household.Boundary;
 import org.egov.common.models.household.Household;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 @Component
 public class HouseholdRowMapper implements RowMapper<Household> {

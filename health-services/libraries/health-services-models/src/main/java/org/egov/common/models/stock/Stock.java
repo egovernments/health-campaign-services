@@ -15,6 +15,8 @@ import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -26,22 +28,9 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Stock {
-	
-    @JsonProperty("id")
-    @Size(min=2, max=64)
-    private String id;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min=2, max=64)
-    private String clientReferenceId;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min=2, max=1000)
-    private String tenantId;
+public class Stock extends EgovOfflineModel {
 
     /* product fields */
     @JsonProperty("productVariantId")
@@ -98,30 +87,13 @@ public class Stock {
     @Size(min = 2, max = 200)
     private String wayBillNumber;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields;
-
+    //TODO remove this
     @JsonProperty("isDeleted")
     @Default
     private Boolean isDeleted = Boolean.FALSE;
 
-    @JsonProperty("rowVersion")
-    private Integer rowVersion;
-
-    @JsonIgnore
-    @Default
-    private Boolean hasErrors = Boolean.FALSE;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails;
-
     @JsonProperty("dateOfEntry")
     private Long dateOfEntry;
 
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails;
 }
 

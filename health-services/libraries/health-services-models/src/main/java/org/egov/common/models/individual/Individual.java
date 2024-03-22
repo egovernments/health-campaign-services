@@ -10,6 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
@@ -29,26 +31,13 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Individual {
-
-    @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
+public class Individual extends EgovOfflineModel {
 
     @JsonProperty("individualId")
     @Size(min = 2, max = 64)
     private String individualId = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min = 2, max = 1000)
-    private String tenantId = null;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min = 2, max = 64)
-    private String clientReferenceId = null;
 
     @JsonProperty("userId")
     private String userId = null;
@@ -113,26 +102,9 @@ public class Individual {
     @JsonProperty("photo")
     private String photo = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
-
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
 
     @JsonProperty("isSystemUser")
     private Boolean isSystemUser = Boolean.FALSE;

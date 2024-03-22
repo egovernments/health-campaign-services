@@ -3,7 +3,7 @@ package org.egov.stock.repository.rowmapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.stock.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.stock.ReferenceIdType;
 import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;

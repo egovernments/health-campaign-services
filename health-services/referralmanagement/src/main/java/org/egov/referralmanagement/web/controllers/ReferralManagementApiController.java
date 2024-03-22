@@ -1,6 +1,7 @@
 package org.egov.referralmanagement.web.controllers;
 
 import io.swagger.annotations.ApiParam;
+import org.egov.common.models.core.CommonSearchCriteria;
 import org.egov.referralmanagement.service.ReferralManagementService;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.referralmanagement.Referral;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -92,23 +94,15 @@ public class ReferralManagementApiController {
     /**
      *
      * @param request
-     * @param limit
-     * @param offset
-     * @param tenantId
-     * @param lastChangedSince
-     * @param includeDeleted
+     * @param searchCriteria Additional common search criteria.
      * @return
      * @throws Exception
      */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "Referral Search.", required = true) @Valid @RequestBody ReferralSearchRequest request,
-                                                                             @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
-                                                                             @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
-                                                                             @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
-                                                                             @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
-                                                                             @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
+                                                                     @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
 
-        List<Referral> referrals = referralManagementService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        List<Referral> referrals = referralManagementService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
         ReferralBulkResponse response = ReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).referrals(referrals).build();
 
