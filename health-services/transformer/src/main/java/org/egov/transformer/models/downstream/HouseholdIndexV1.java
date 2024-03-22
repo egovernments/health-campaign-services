@@ -40,4 +40,6 @@ public class HouseholdIndexV1 {
     private String syncedTimeStamp;
     @JsonProperty("syncedTime")
     private Long syncedTime;
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 }

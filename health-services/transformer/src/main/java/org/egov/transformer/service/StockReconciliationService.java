@@ -77,7 +77,8 @@ public class StockReconciliationService {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (stockReconciliation.getAdditionalFields() != null) {
-            addAdditionalDetails(stockReconciliation.getAdditionalFields(), additionalDetails, stockReconciliation.getAuditDetails(), tenantId, projectTypeId);
+            addAdditionalDetails(stockReconciliation.getAdditionalFields(), additionalDetails);
+            addCycleIndex(additionalDetails, stockReconciliation.getAuditDetails(), tenantId, projectTypeId);
         }
 
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
@@ -96,7 +97,7 @@ public class StockReconciliationService {
         return stockReconciliationIndexV1;
     }
 
-    private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+    private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
         additionalFields.getFields().forEach(field -> {
             String key = field.getKey();
             String value = field.getValue();
@@ -110,13 +111,17 @@ public class StockReconciliationService {
                     additionalDetails.put(key, (JsonNode) null);
                 }
             }
-            else if (!key.equals(CYCLE_NUMBER)) {
-                Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
-                additionalDetails.put(CYCLE_NUMBER, cycleIndex);
-            }
             else {
                 additionalDetails.put(key, field.getValue());
             }
         });
+    }
+
+
+    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+        if (!additionalDetails.has(CYCLE_NUMBER)) {
+            Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+        }
     }
 }
