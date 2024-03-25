@@ -11,8 +11,8 @@ import org.egov.common.data.query.annotations.Exclude;
 import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.constraints.DecimalMax;
-import javax.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import java.util.List;
 
 /**
@@ -20,7 +20,6 @@ import java.util.List;
 */
     @ApiModel(description = "A representation of Household.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
 
 @Data
 @NoArgsConstructor
