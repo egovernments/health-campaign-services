@@ -39,6 +39,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.project.Constants.PROJECT_FACILITY_CACHE_FIELD;
 import static org.egov.project.Constants.SET_PROJECT_FACILITIES;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
@@ -117,7 +118,13 @@ public class ProjectFacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                projectFacilityRepository.save(validEntities, projectConfiguration.getCreateProjectFacilityTopic());
+
+                projectFacilityRepository.save(ProjectFacilityBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectFacilities(validEntities)
+                                .build(),
+                        projectConfiguration.getCreateProjectFacilityTopic(),
+                        PROJECT_FACILITY_CACHE_FIELD);
                 log.info("successfully created project facility");
             }
         } catch (Exception exception) {
@@ -151,7 +158,13 @@ public class ProjectFacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                projectFacilityRepository.save(validEntities, projectConfiguration.getUpdateProjectFacilityTopic());
+
+                projectFacilityRepository.save(ProjectFacilityBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectFacilities(validEntities)
+                                .build(),
+                        projectConfiguration.getUpdateProjectFacilityTopic(),
+                        PROJECT_FACILITY_CACHE_FIELD);
                 log.info("successfully updated bulk project facility");
             }
         } catch (Exception exception) {
@@ -183,7 +196,13 @@ public class ProjectFacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                projectFacilityRepository.save(validEntities, projectConfiguration.getDeleteProjectFacilityTopic());
+
+                projectFacilityRepository.save(ProjectFacilityBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .projectFacilities(validEntities)
+                                .build(),
+                        projectConfiguration.getUpdateProjectFacilityTopic(),
+                        PROJECT_FACILITY_CACHE_FIELD);
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

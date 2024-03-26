@@ -21,8 +21,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,7 +68,7 @@ class ProjectTaskServiceCreateTest {
         projectTaskService.create(request);
 
         verify(projectTaskRepository, times(1))
-                .save(anyList(), anyString());
+                .save(any(TaskBulkRequest.class), eq("save-project-task-topic"),eq("tasks"));
     }
 
     @Test
@@ -75,7 +77,7 @@ class ProjectTaskServiceCreateTest {
         projectTaskService.update(request);
 
         verify(projectTaskRepository, times(1))
-                .save(anyList(), anyString());
+                .save(any(TaskBulkRequest.class), eq("update-project-task-topic"),eq("tasks"));
     }
 
     @Test
@@ -84,7 +86,7 @@ class ProjectTaskServiceCreateTest {
         projectTaskService.delete(request);
 
         verify(projectTaskRepository, times(1))
-                .save(anyList(), anyString());
+                .save(any(TaskBulkRequest.class), eq("delete-project-task-topic"), eq("tasks"));
     }
 
 }

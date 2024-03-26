@@ -85,7 +85,7 @@ class ProductServiceTest {
 
         productService.create(request);
 
-        verify(productRepository, times(1)).save(any(List.class), any(String.class));
+        verify(productRepository, times(1)).save(eq(request), eq("create-topic"),eq("product"));
     }
     @Test
     void shouldGenerateRequestWithRowVersionAndIsDeleted() throws Exception {

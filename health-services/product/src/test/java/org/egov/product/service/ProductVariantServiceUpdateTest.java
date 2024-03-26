@@ -3,6 +3,7 @@ package org.egov.product.service;
 import org.egov.common.models.product.ApiOperation;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
+import org.egov.common.models.product.ProductVariantResponse;
 import org.egov.common.service.IdGenService;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.helper.ProductVariantRequestTestBuilder;
@@ -145,7 +146,9 @@ class ProductVariantServiceUpdateTest {
     void shouldSendTheUpdatesToKafka() {
         mockValidateProuctId();
         mockFindById();
-        when(productVariantRepository.save(anyList(), anyString())).thenReturn(request.getProductVariant());
+//        when(productVariantRepository.save(anyList(), anyString())).thenReturn(request.getProductVariant());
+        when(productVariantRepository.save(any(ProductVariantRequest.class), anyString(), anyString()))
+                .thenReturn(ProductVariantResponse.class);
 
         List<ProductVariant> productVariants = productVariantService.update(request);
 

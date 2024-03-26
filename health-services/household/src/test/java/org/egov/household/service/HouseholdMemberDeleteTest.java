@@ -29,6 +29,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -104,8 +105,9 @@ class HouseholdMemberDeleteTest {
                 .withDeletedHouseholdMember()
                 .build();
 
-        householdMemberService.delete(request);
-        verify(householdMemberRepository, times(1)).save(anyList(), anyString());
+        List<HouseholdMember> deletedHouseholdMember = householdMemberService.delete(request);
+        HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder().requestInfo(request.getRequestInfo()).householdMembers(deletedHouseholdMember).build();
+        verify(householdMemberRepository, times(1)).save(eq(householdMemberBulkRequest), eq("delete-topic"),eq("householdMembers"));
 
     }
 

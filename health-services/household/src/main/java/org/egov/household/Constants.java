@@ -39,4 +39,8 @@ public interface Constants {
 
     String INDIVIDUAL_CANNOT_BE_NULL_MESSAGE = "individual id and individual client reference id both cannot be null";
 
+    String HOUSEHOLD_CACHE_FIELD = "households";
+
+    String HOUSEHOLD_MEMBER_CACHE_FIELD = "householdMembers";
+
 }

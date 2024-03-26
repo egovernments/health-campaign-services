@@ -1,6 +1,7 @@
 package org.egov.project;
 
-public interface Constants {
+public interface
+Constants {
     String SET_PROJECT_BENEFICIARIES = "setProjectBeneficiaries";
 
     String VALIDATION_ERROR = "VALIDATION_ERROR";
@@ -53,5 +54,15 @@ public interface Constants {
     String PIPE = "||";
 
     String PROJECT_ID = "projectId";
+
+    String PROJECT_BENEFICIARY_CACHE_FIELD = "projectBeneficiaries";
+
+    String PROJECT_FACILITY_CACHE_FIELD = "projectFacilities";
+
+    String PROJECT_RESOURCE_CACHE_FIELD = "projectResource";
+
+    String PROJECT_STAFF_CACHE_FIELD = "projectStaff";
+
+    String PROJECT_TASK_CACHE_FIELD = "tasks";
 
 }

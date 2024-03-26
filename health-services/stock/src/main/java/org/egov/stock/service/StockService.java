@@ -11,6 +11,7 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.stock.Constants.GET_STOCK;
 import static org.egov.stock.Constants.SET_STOCK;
+import static org.egov.stock.Constants.STOCK_CACHE_FIELD;
 import static org.egov.stock.Constants.VALIDATION_ERROR;
 
 import java.util.Collections;
@@ -103,7 +104,13 @@ public class StockService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockTopic());
+
+                stockRepository.save(StockBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .stock(validTasks)
+                                .build(),
+                        configuration.getCreateStockTopic(),
+                        STOCK_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -133,7 +140,13 @@ public class StockService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                stockRepository.save(validTasks, configuration.getUpdateStockTopic());
+
+                stockRepository.save(StockBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .stock(validTasks)
+                                .build(),
+                        configuration.getUpdateStockTopic(),
+                        STOCK_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -163,7 +176,13 @@ public class StockService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                stockRepository.save(validTasks, configuration.getDeleteStockTopic());
+
+                stockRepository.save(StockBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .stock(validTasks)
+                                .build(),
+                        configuration.getDeleteStockTopic(),
+                        STOCK_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

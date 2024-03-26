@@ -9,6 +9,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.referralmanagement.Constants.SIDE_EFFECT_CACHE_FIELD;
 
 import java.util.Collections;
 import java.util.List;
@@ -115,8 +116,14 @@ public class SideEffectService {
             if (!validSideEffects.isEmpty()) {
                 log.info("processing {} valid entities", validSideEffects.size());
                 sideEffectEnrichmentService.create(validSideEffects, sideEffectRequest);
-                sideEffectRepository.save(validSideEffects,
-                        referralManagementConfiguration.getCreateSideEffectTopic());
+
+                sideEffectRepository.save(SideEffectBulkRequest.builder()
+                                .requestInfo(sideEffectRequest.getRequestInfo())
+                                .sideEffects(validSideEffects)
+                                .build(),
+                        referralManagementConfiguration.getCreateSideEffectTopic(),
+                        SIDE_EFFECT_CACHE_FIELD);
+
                 log.info("successfully created side effects");
             }
         } catch (Exception exception) {
@@ -160,8 +167,14 @@ public class SideEffectService {
             if (!validSideEffects.isEmpty()) {
                 log.info("processing {} valid entities", validSideEffects.size());
                 sideEffectEnrichmentService.update(validSideEffects, sideEffectRequest);
-                sideEffectRepository.save(validSideEffects,
-                        referralManagementConfiguration.getUpdateSideEffectTopic());
+
+                sideEffectRepository.save(SideEffectBulkRequest.builder()
+                                .requestInfo(sideEffectRequest.getRequestInfo())
+                                .sideEffects(validSideEffects)
+                                .build(),
+                        referralManagementConfiguration.getUpdateSideEffectTopic(),
+                        SIDE_EFFECT_CACHE_FIELD);
+
                 log.info("successfully updated bulk side effects");
             }
         } catch (Exception exception) {
@@ -243,8 +256,14 @@ public class SideEffectService {
                 List<SideEffect> existingSideEffects = sideEffectRepository
                         .findById(sideEffectIds, false);
                 sideEffectEnrichmentService.delete(existingSideEffects, sideEffectRequest);
-                sideEffectRepository.save(existingSideEffects,
-                        referralManagementConfiguration.getDeleteSideEffectTopic());
+
+                sideEffectRepository.save(SideEffectBulkRequest.builder()
+                                .requestInfo(sideEffectRequest.getRequestInfo())
+                                .sideEffects(existingSideEffects)
+                                .build(),
+                        referralManagementConfiguration.getDeleteSideEffectTopic(),
+                        SIDE_EFFECT_CACHE_FIELD);
+
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

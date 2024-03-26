@@ -43,6 +43,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.project.Constants.PROJECT_BENEFICIARY_CACHE_FIELD;
 import static org.egov.project.Constants.SET_PROJECT_BENEFICIARIES;
 import static org.egov.project.Constants.VALIDATION_ERROR;
 
@@ -119,8 +120,13 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.create(validProjectBeneficiaries, beneficiaryRequest);
-                projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getCreateProjectBeneficiaryTopic());
+
+                projectBeneficiaryRepository.save(BeneficiaryBulkRequest.builder()
+                                .requestInfo(beneficiaryRequest.getRequestInfo())
+                                .projectBeneficiaries(validProjectBeneficiaries)
+                                .build(),
+                        projectConfiguration.getCreateProjectBeneficiaryTopic(),
+                        PROJECT_BENEFICIARY_CACHE_FIELD);
                 log.info("successfully created project beneficiaries");
             }
         } catch (Exception exception) {
@@ -152,8 +158,13 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.update(validProjectBeneficiaries, beneficiaryRequest);
-                projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getUpdateProjectBeneficiaryTopic());
+
+                projectBeneficiaryRepository.save(BeneficiaryBulkRequest.builder()
+                                .requestInfo(beneficiaryRequest.getRequestInfo())
+                                .projectBeneficiaries(validProjectBeneficiaries)
+                                .build(),
+                        projectConfiguration.getUpdateProjectBeneficiaryTopic(),
+                        PROJECT_BENEFICIARY_CACHE_FIELD);
                 log.info("successfully updated bulk project beneficiaries");
             }
         } catch (Exception exception) {
@@ -209,8 +220,13 @@ public class ProjectBeneficiaryService {
             if (!validProjectBeneficiaries.isEmpty()) {
                 log.info("processing {} valid entities", validProjectBeneficiaries.size());
                 projectBeneficiaryEnrichmentService.delete(validProjectBeneficiaries, beneficiaryRequest);
-                projectBeneficiaryRepository.save(validProjectBeneficiaries,
-                        projectConfiguration.getDeleteProjectBeneficiaryTopic());
+
+                projectBeneficiaryRepository.save(BeneficiaryBulkRequest.builder()
+                                .requestInfo(beneficiaryRequest.getRequestInfo())
+                                .projectBeneficiaries(validProjectBeneficiaries)
+                                .build(),
+                        projectConfiguration.getDeleteProjectBeneficiaryTopic(),
+                        PROJECT_BENEFICIARY_CACHE_FIELD);
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
