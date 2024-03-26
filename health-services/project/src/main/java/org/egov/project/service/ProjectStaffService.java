@@ -1,11 +1,5 @@
 package org.egov.project.service;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -14,6 +8,7 @@ import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.models.project.ProjectStaffRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.service.IdGenService;
+import org.egov.common.service.UserService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
@@ -31,6 +26,14 @@ import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.lang.reflect.Type;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -52,6 +55,8 @@ public class ProjectStaffService {
     private final ProjectStaffRepository projectStaffRepository;
 
     private final ProjectService projectService;
+
+    private final UserService userService;
 
     private final ProjectConfiguration projectConfiguration;
 
@@ -85,12 +90,14 @@ public class ProjectStaffService {
             IdGenService idGenService,
             ProjectStaffRepository projectStaffRepository,
             ProjectService projectService,
+            UserService userService,
             ProjectConfiguration projectConfiguration,
             ProjectStaffEnrichmentService enrichmentService,
             Producer producer, List<Validator<ProjectStaffBulkRequest, ProjectStaff>> validators) {
         this.idGenService = idGenService;
         this.projectStaffRepository = projectStaffRepository;
         this.projectService = projectService;
+        this.userService = userService;
         this.projectConfiguration = projectConfiguration;
         this.enrichmentService = enrichmentService;
         this.validators = validators;
