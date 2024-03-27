@@ -7,6 +7,9 @@ import java.math.BigDecimal;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Data;
@@ -34,6 +37,9 @@ public class Assumption {
     @JsonProperty("value")
     @NotNull
     @Valid
+    @DecimalMin(value = "0.01", inclusive = true, message = "Assumption value must be greater than 0")
+    @DecimalMax(value = "999.99", inclusive = true, message = "Assumption value must be less than 1000")
+    @Digits(integer = 3, fraction = 2, message = "Value must have up to 3 digits and up to 2 decimal points")
     private BigDecimal value = null;
 
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 import lombok.AllArgsConstructor;
@@ -36,11 +37,13 @@ public class PlanConfiguration {
     @JsonProperty("name")
     @NotNull
     @Size(min = 2, max = 128)
+    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Name must not contain only special characters")
     private String name = null;
 
     @JsonProperty("executionPlanId")
     @NotNull
     @Size(min = 2, max = 64)
+    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Execution Plan Id must not contain only special characters")
     private String executionPlanId = null;
 
     @JsonProperty("files")
