@@ -173,7 +173,8 @@ public class MasterDataService {
 		StringBuilder url = new StringBuilder(configs.getProjectHost())
 				.append(configs.getProjectSearchUrl())
 				.append("?offset=0")
-				.append("&limit=100");
+				.append("&limit=100")
+				.append("&tenantId=").append(downsyncCriteria.getTenantId());
 		
 		Project project = Project.builder()
 				.id(projectId)
