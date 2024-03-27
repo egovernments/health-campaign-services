@@ -3,6 +3,7 @@ package org.egov.referralmanagement.service;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,7 +46,10 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class DownsyncService {
 	
 	private ServiceRequestClient restClient;
@@ -58,18 +62,22 @@ public class DownsyncService {
 	
 	private ReferralManagementService referralService;
 	
+	private MasterDataService masterDataService;
+	
 	@Autowired
 	public DownsyncService( ServiceRequestClient serviceRequestClient,
 							ReferralManagementConfiguration referralManagementConfiguration,
 							NamedParameterJdbcTemplate jdbcTemplate,
 							SideEffectService sideEffectService,
-							ReferralManagementService referralService) {
+							ReferralManagementService referralService,
+							MasterDataService masterDataService ) {
 
 		this.restClient = serviceRequestClient;
 		this.configs = referralManagementConfiguration;
 		this.jdbcTemplate = jdbcTemplate;
 		this.sideEffectService=sideEffectService;
 		this.referralService=referralService;
+		this.masterDataService=masterDataService;
 		
 		}
 
@@ -93,6 +101,8 @@ public class DownsyncService {
 			downsync.setDownsyncCriteria(downsyncCriteria);
 			boolean isSyncTimeAvalable = null != downsyncCriteria.getLastSyncedTime();
 			
+			//Project project = getProjectType(downsyncRequest);
+			LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
 			
 			/* search household */
 			householdIds = searchHouseholds(downsyncRequest, downsync);
@@ -107,7 +117,8 @@ public class DownsyncService {
 				individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualIds);
 			}
 
-			/* search beneficiary using individual ids */
+			/* search beneficiary using individual ids OR household ids */
+			// get boolean is-project inbdividual or household
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
 			}
@@ -115,8 +126,8 @@ public class DownsyncService {
 			/* search tasks using beneficiary uuids */
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
 				
-				taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds);
-
+				taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, projectType);
+					
 				/* ref search */
 				referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
 			}
@@ -128,6 +139,7 @@ public class DownsyncService {
 
 			return downsync;
 		}
+
 
 		/**
 		 * 
@@ -236,45 +248,6 @@ public class DownsyncService {
 		}
 
 		/**
-		 * common method to fetch Ids with list of relation Ids like id of member with householdIds
-		 * @param idList
-		 * @param idListFeildName
-		 * @param tableName
-		 * @param lastChangedSince
-		 * @param paramMap
-		 * @return
-		 */
-		private List<String> getPrimaryIds(List<String> idList, String idListFeildName,String tableName, Long lastChangedSince) {
-			
-			/**
-			 * Adding lastShangedSince to id query to avoid load on API search for members 
-			 */
-			boolean isAndRequired = false;
-			Map<String, Object> paramMap = new HashMap<>();
-			StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
-
-			
-			if (!CollectionUtils.isEmpty(idList)) {
-				
-				memberIdsquery.append("%s IN (:%s)");
-				paramMap.put(idListFeildName, idList);
-				isAndRequired = true;
-			}
-
-			if (null != lastChangedSince) {
-				if(isAndRequired)
-					memberIdsquery.append(" AND ");
-				memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
-				paramMap.put("lastChangedSince", lastChangedSince);
-			}
-	        
-			String finalQuery = String.format(memberIdsquery.toString(), tableName, idListFeildName, idListFeildName);
-	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
-	        List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
-			return memberids;
-		}
-
-		/**
 		 * 
 		 * @param downsyncRequest
 		 * @param downsync
@@ -320,16 +293,24 @@ public class DownsyncService {
 		 * @param downsyncRequest
 		 * @param downsync
 		 * @param beneficiaryClientRefIds
+		 * @param projectType 
 		 * @return
 		 */
 		private List<String> searchTasks(DownsyncRequest downsyncRequest, Downsync downsync,
-				List<String> beneficiaryClientRefIds) {
+				List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType) {
 
 			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-	
+			List<String> taskIds;
+			List<Integer> cycleIndicesForTaskDownload = masterDataService.getCycleIndicesForTask(projectType);
+			
 	        /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-	        List<String> taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",criteria.getLastSyncedTime());
+			if (!CollectionUtils.isEmpty(cycleIndicesForTaskDownload))
+				taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK_CYCLE_INDEX_MATERIALIZED_VIEW",
+						criteria.getLastSyncedTime(), cycleIndicesForTaskDownload);
+			else
+				taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+						criteria.getLastSyncedTime());
 	        
 	        if(CollectionUtils.isEmpty(taskIds))
 	        	return Collections.emptyList();
@@ -425,7 +406,92 @@ public class DownsyncService {
 		}
 
 
+		/**
+		 * common method to fetch Ids with list of relation Ids like id of member with householdIds
+		 * @param idList
+		 * @param idListFeildName
+		 * @param tableName
+		 * @param lastChangedSince
+		 * @param paramMap
+		 * @return
+		 */
+		private List<String> getPrimaryIds(List<String> idList, String idListFieldName,String tableName, Long lastChangedSince) {
+			
+			/**
+			 * Adding lastShangedSince to id query to avoid load on API search for members 
+			 */
+			boolean isAndRequired = false;
+			Map<String, Object> paramMap = new HashMap<>();
+			StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
 
+			
+			if (!CollectionUtils.isEmpty(idList)) {
+				
+				memberIdsquery.append("%s IN (:%s)");
+				paramMap.put(idListFieldName, idList);
+				isAndRequired = true;
+			}
+
+			if (null != lastChangedSince) {
+				if(isAndRequired)
+					memberIdsquery.append(" AND ");
+				memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
+				paramMap.put("lastChangedSince", lastChangedSince);
+			}
+	        
+			String finalQuery = String.format(memberIdsquery.toString(), tableName, idListFieldName, idListFieldName);
+	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
+	        List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
+			return memberids;
+		}
+		
+		/**
+		 * common method to fetch Ids with list of relation Ids like id of member with householdIds
+		 * @param idList
+		 * @param idListFeildName
+		 * @param tableName
+		 * @param lastChangedSince
+		 * @param paramMap
+		 * @return
+		 */
+		private List<String> getPrimaryIds(List<String> idList, String idListFieldName,String tableName, Long lastChangedSince, List<Integer> cycleIndices) {
+			
+			/**
+			 * Adding lastShangedSince to id query to avoid load on API search for members 
+			 */
+			boolean isAndRequired = false;
+			Map<String, Object> paramMap = new HashMap<>();
+			StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
+
+			
+			if (!CollectionUtils.isEmpty(idList)) {
+				
+				memberIdsquery.append("%s IN (:%s)");
+				paramMap.put(idListFieldName, idList);
+				isAndRequired = true;
+			}
+
+			if (null != lastChangedSince) {
+				if(isAndRequired)
+					memberIdsquery.append(" AND ");
+				isAndRequired = true;
+				memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
+				paramMap.put("lastChangedSince", lastChangedSince);
+			}
+			
+			if(!CollectionUtils.isEmpty(cycleIndices)) {
+				if(isAndRequired)
+					memberIdsquery.append(" AND ");
+				memberIdsquery.append(" cycleindex IN (:cycleIndices)");
+				paramMap.put("cycleIndices", cycleIndices);
+			}
+	        
+			String finalQuery = String.format(memberIdsquery.toString(), tableName, idListFieldName, idListFieldName);
+	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
+	        List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
+			return memberids;
+		}
+		
 	/**
 	 * append url params
 	 *
