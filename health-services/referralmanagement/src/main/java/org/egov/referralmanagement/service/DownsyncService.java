@@ -482,7 +482,7 @@ public class DownsyncService {
 			if(!CollectionUtils.isEmpty(cycleIndices)) {
 				if(isAndRequired)
 					memberIdsquery.append(" AND ");
-				memberIdsquery.append(" cycleindex IN (:CycleIndices)");
+				memberIdsquery.append(" cycleindex IN (:cycleIndices)");
 				paramMap.put("cycleIndices", cycleIndices);
 			}
 	        
