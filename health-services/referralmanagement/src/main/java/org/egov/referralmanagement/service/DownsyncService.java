@@ -474,6 +474,7 @@ public class DownsyncService {
 			if (null != lastChangedSince) {
 				if(isAndRequired)
 					memberIdsquery.append(" AND ");
+				isAndRequired = true;
 				memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
 				paramMap.put("lastChangedSince", lastChangedSince);
 			}
