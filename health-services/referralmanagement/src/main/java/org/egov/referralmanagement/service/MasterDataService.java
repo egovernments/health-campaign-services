@@ -17,9 +17,8 @@ import java.util.stream.Collectors;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectResponse;
-import org.egov.common.models.project.ProjectSearch;
-import org.egov.common.models.project.ProjectSearchRequest;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncCriteria;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
@@ -174,16 +173,17 @@ public class MasterDataService {
 		StringBuilder url = new StringBuilder(configs.getProjectHost())
 				.append(configs.getProjectSearchUrl());
 		
-		ProjectSearch projectSearch = ProjectSearch.builder()
+		Project project = Project.builder()
 				.id(projectId)
 				.tenantId(downsyncCriteria.getTenantId())
 				.build();
-		ProjectSearchRequest searchRequest = ProjectSearchRequest.builder()
-				.project(projectSearch)
+		
+		ProjectRequest projectRequest = ProjectRequest.builder()
+				.projects(Arrays.asList(project))
 				.requestInfo(info)
 				.build();
 		
-		ProjectResponse res = restClient.fetchResult(url, searchRequest, ProjectResponse.class);
+		ProjectResponse res = restClient.fetchResult(url, projectRequest, ProjectResponse.class);
 		return res.getProject().get(0);
 	}
 }
