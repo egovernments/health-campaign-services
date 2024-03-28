@@ -91,7 +91,9 @@ public class PlanConfigController {
     @RequestMapping(value = "/config/_test", method = RequestMethod.POST)
     public ResponseEntity<String> test() throws IOException {
 //        geoJsonService.parseJson();
-        geoJsonService.parseJsonUsingLibrary();
+//        geoJsonService.parseShapeFileUsingLibrary();
+//        geoJsonService.parseGeoJsonUsingLibrary();
+        geoJsonService.planConfigProcessor();
         return ResponseEntity.status(HttpStatus.ACCEPTED).body("Okay");
     }
 }

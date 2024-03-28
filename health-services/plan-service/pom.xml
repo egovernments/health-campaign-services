@@ -30,7 +30,7 @@
     <dependencies>
         <dependency>
             <groupId>org.geotools</groupId>
-            <artifactId>gt-geojson</artifactId>
+            <artifactId>gt-geojson-core</artifactId>
             <version>${geotools.version}</version>
         </dependency>
         <dependency>
