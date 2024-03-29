@@ -153,6 +153,7 @@ public abstract class StockTransformationService implements TransformationServic
                     .syncedDate(commonUtils.getDateFromEpoch(stock.getAuditDetails().getLastModifiedTime()))
                     .facilityLevel(facilityLevel)
                     .transactingFacilityLevel(transactingFacilityLevel)
+                    .waybillNumber(stock.getWayBillNumber())
                     .facilityTarget(facilityTarget)
                     .boundaryHierarchy(boundaryHierarchy)
                     .additionalDetails(additionalDetails)
