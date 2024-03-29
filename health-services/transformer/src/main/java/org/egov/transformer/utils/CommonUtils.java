@@ -267,18 +267,19 @@ public class CommonUtils {
                 if (currentCycle.has(START_DATE) && currentCycle.has(END_DATE)) {
                     Long startDate = currentCycle.get(START_DATE).asLong();
                     Long endDate = currentCycle.get(END_DATE).asLong();
-
                     if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
                         return currentCycle.get(ID).asInt();
                     }
                 }
-                return null;
             }
+            return null;
         }
         return null;
     }
 
     private boolean isWithinCycle(Long createdTime, Long startDate, Long endDate) {
+        log.info("createdTime is {}", createdTime);
+        log.info("startDate is {} and endDate is {}", startDate, endDate);
         return createdTime >= startDate && createdTime <= endDate;
     }
 
@@ -288,6 +289,7 @@ public class CommonUtils {
             if (nextCycle.has(START_DATE)) {
                 Long nextStartDate = nextCycle.get(START_DATE).asLong();
                 Long currentEndDate = cycles.get(currentIndex).get(END_DATE).asLong();
+                log.info("nextStartDate is {} and currentEndDate is {}", nextStartDate, currentEndDate);
                 return createdTime > currentEndDate && createdTime < nextStartDate;
             }
         }

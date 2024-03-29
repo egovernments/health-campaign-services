@@ -82,7 +82,7 @@ public class FacilityService {
     public String getFacilityLevel(Facility facility) {
         String facilityUsage = facility.getUsage();
         if (facilityUsage != null) {
-            return WAREHOUSE.equalsIgnoreCase(facility.getUsage()) ?
+            return WAREHOUSE.equalsIgnoreCase(facilityUsage) ?
                     (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
         }
         return null;

@@ -125,16 +125,17 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             Task constructedTask = constructTaskResourceIfNull(task);
 
+            String projectType = project.getProjectType();
+
             return constructedTask.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType, projectTypeId)
+                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType, projectTypeId, projectType)
             ).collect(Collectors.toList());
         }
 
         private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId,
-                                                                   ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType, String projectTypeId) {
+                                                                   ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType, String projectTypeId, String projectType) {
             Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
-            String createdTimeStamp = commonUtils.getTimeStampFromEpoch(task.getClientAuditDetails().getCreatedTime());
             ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                     .id(taskResource.getId())
                     .taskId(task.getId())
@@ -166,6 +167,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                     .administrationStatus(task.getStatus())
                     .boundaryHierarchy(boundaryHierarchy)
+                    .projectType(projectType)
                     .build();
 
             List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
@@ -203,17 +205,19 @@ public abstract class ProjectTaskTransformationService implements Transformation
             //adding to additional details  from additionalFields in task and task resource
             ObjectNode additionalDetails = objectMapper.createObjectNode();
             if (task.getAdditionalFields() != null) {
-                addAdditionalDetails(task.getAdditionalFields(), additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
+                addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
+                addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
             }
             if (taskResource.getAdditionalFields() != null) {
-                addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
+                addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+                addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
             }
             projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
             return projectTaskIndexV1;
         }
 
-        private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+        private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
             additionalFields.getFields().forEach(field -> {
                 String key = field.getKey();
                 String value = field.getValue();
@@ -224,13 +228,17 @@ public abstract class ProjectTaskTransformationService implements Transformation
                         log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
                         additionalDetails.put(key, (JsonNode) null);
                     }
-                } else if (!key.equals(CYCLE_NUMBER)) {
-                    Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
-                    additionalDetails.put(CYCLE_NUMBER, cycleIndex);
                 } else {
                     additionalDetails.put(key, field.getValue());
                 }
             });
+        }
+
+        private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+            if (!additionalDetails.has(CYCLE_NUMBER)) {
+                Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+                additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+            }
         }
 
         private Task constructTaskResourceIfNull(Task task) {
