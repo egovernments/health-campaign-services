@@ -65,7 +65,7 @@ public class PlanConfigController {
     public ResponseEntity<PlanConfigurationResponse> configSearchPost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanConfigurationSearchRequest body) {
         List<PlanConfiguration> planConfigurationList = planConfigurationService.search(body);
         PlanConfigurationResponse response = PlanConfigurationResponse.builder().responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(body.getRequestInfo(), true)).planConfiguration(planConfigurationList).build();
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     /**
