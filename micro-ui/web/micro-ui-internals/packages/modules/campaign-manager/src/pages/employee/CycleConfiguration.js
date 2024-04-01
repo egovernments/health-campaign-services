@@ -1,6 +1,5 @@
 import React, { useReducer, Fragment, useEffect } from "react";
-import { CardText, DatePicker, LabelFieldPair, Card, CardHeader, CardLabel, CardSubHeader, Paragraph, Header } from "@egovernments/digit-ui-react-components";
-import PlusMinusInput from "../../components/PlusMinusInput";
+import { CardText, LabelFieldPair, Card, CardLabel, CardSubHeader, Paragraph, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@egovernments/digit-ui-components";
 
@@ -106,18 +105,8 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
               {t(`CAMPAIGN_CYCLE`)} {index + 1}
             </CardLabel>
             <div className="date-field-container">
-              <DatePicker
-                // min={Digit.Utils.date.getDate(Date.now() + 1 * 24 * 60 * 60 * 1000)}
-                // max={Digit.Utils.date.getDate(Date.now() + 2 * 24 * 60 * 60 * 1000)}
-                date={cycleData?.find((j) => j.key === index + 1)?.fromDate}
-                onChange={(d) => selectFromDate(index + 1, d)}
-              />
-              <DatePicker
-                // min={Digit.Utils.date.getDate()}
-                // max={Digit.Utils.date.getDate(Date.now() + 10 * 24 * 60 * 60 * 1000)}
-                date={cycleData?.find((j) => j.key === index + 1)?.toDate}
-                onChange={(d) => selectToDate(index + 1, d)}
-              />
+              <TextInput type="date" value={cycleData?.find((j) => j.key === index + 1)?.fromDate} onChange={(d) => selectFromDate(index + 1, d)} />
+              <TextInput type="date" value={cycleData?.find((j) => j.key === index + 1)?.toDate} onChange={(d) => selectToDate(index + 1, d)} />
             </div>
           </LabelFieldPair>
         ))}
