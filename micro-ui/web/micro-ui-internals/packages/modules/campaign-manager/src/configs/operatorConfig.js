@@ -11,4 +11,8 @@ export const operatorConfig = [
     key: 3,
     code: "IN_BETWEEN",
   },
+  {
+    key: 4,
+    code: "EQUAL_TO",
+  },
 ];

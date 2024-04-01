@@ -1,14 +1,17 @@
 import React, { useReducer, Fragment, useEffect } from "react";
-import { CardText, DatePicker, LabelFieldPair, Card, CardHeader, CardLabel, CardSubHeader } from "@egovernments/digit-ui-react-components";
+import { CardText, DatePicker, LabelFieldPair, Card, CardHeader, CardLabel, CardSubHeader, Paragraph, Header } from "@egovernments/digit-ui-react-components";
 import PlusMinusInput from "../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
+import { TextInput } from "@egovernments/digit-ui-components";
 
-const initialState = {
-  cycleConfgureDate: {
-    cycle: 1,
-    deliveries: 1,
-  },
-  cycleData: [],
+const initialState = (saved) => {
+  return {
+    cycleConfgureDate: {
+      cycle: saved?.cycleConfgureDate?.cycle ? saved?.cycleConfgureDate?.cycle : 1,
+      deliveries: saved?.cycleConfgureDate?.deliveries ? saved?.cycleConfgureDate?.deliveries : 1,
+    },
+    cycleData: saved?.cycleData ? [...saved?.cycleData] : [],
+  };
 };
 
 const reducer = (state, action) => {
@@ -47,7 +50,8 @@ const updateCycleData = (cycleData, index, update) => {
 };
 
 function CycleConfiguration({ onSelect, formData, control, ...props }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const saved = JSON.parse(sessionStorage.getItem("Digit.HCM_CAMPAIGN_MANAGER_FORM_DATA"))?.value?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
+  const [state, dispatch] = useReducer(reducer, initialState(saved));
   const { cycleConfgureDate, cycleData } = state;
   const { t } = useTranslation();
 
@@ -56,7 +60,7 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
   }, [state]);
 
   const updateCycle = (d) => {
-    dispatch({ type: "UPDATE_CYCLE", payload: d });
+    dispatch({ type: "UPDATE_CYCLE", payload: d?.target?.value ? Number(d?.target?.value) : d });
   };
 
   const updateDelivery = (d) => {
@@ -73,15 +77,25 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
 
   return (
     <>
+      <Header>{t(`CAMPAIGN_CYCLE_TITLE`)}</Header>
+      <Paragraph value={t(`CAMPAIGN_CYCLE_SUB_TEXT`)} />
       <Card className="campaign-counter-container">
         <CardText>{t(`CAMPAIGN_CYCLE_CONFIGURE_HEADING`)}</CardText>
         <LabelFieldPair>
-          <CardLabel>{t(`CAMPAIGN_NO_OF_CYCLE`)}</CardLabel>
-          <PlusMinusInput defaultValues={cycleConfgureDate?.cycle} onSelect={(d) => updateCycle(d)} />
+          <CardLabel>
+            {t(`CAMPAIGN_NO_OF_CYCLE`)}
+            <span className="mandatory-span">*</span>
+          </CardLabel>
+          <TextInput type="numeric" value={cycleConfgureDate?.cycle} onChange={(d) => updateCycle(d)} />
+          {/* <PlusMinusInput defaultValues={cycleConfgureDate?.cycle} onSelect={(d) => updateCycle(d)} /> */}
         </LabelFieldPair>
         <LabelFieldPair>
-          <CardLabel>{t(`CAMPAIGN_NO_OF_DELIVERY`)}</CardLabel>
-          <PlusMinusInput defaultValues={cycleConfgureDate?.deliveries} onSelect={(d) => updateDelivery(d)} />
+          <CardLabel>
+            {t(`CAMPAIGN_NO_OF_DELIVERY`)}
+            <span className="mandatory-span">*</span>
+          </CardLabel>
+          <TextInput type="numeric" value={cycleConfgureDate?.deliveries} onChange={(d) => updateDelivery(d)} />
+          {/* <PlusMinusInput defaultValues={cycleConfgureDate?.deliveries} onSelect={(d) => updateDelivery(d)} /> */}
         </LabelFieldPair>
       </Card>
       <Card className="campaign-counter-container">

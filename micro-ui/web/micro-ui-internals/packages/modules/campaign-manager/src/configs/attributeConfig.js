@@ -1,14 +1,18 @@
 export const attributeConfig = [
   {
     key: 1,
-    code: "age",
+    code: "Age",
   },
   {
     key: 2,
-    code: "height",
+    code: "Height",
   },
   {
     key: 3,
-    code: "weight",
+    code: "Weight",
+  },
+  {
+    key: 4,
+    code: "Gender",
   },
 ];

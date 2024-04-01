@@ -68,6 +68,9 @@
   padding: 1.5rem;
   .label-field-pair {
     margin-bottom: 1rem;
+    .card-label {
+      font-weight: 700;
+    }
   }
   .date-field-container {
     display: grid;
@@ -158,6 +161,7 @@
       width: calc(100% / 4 * 3);
       justify-content: center;
       h2 {
+        font-size: 1rem;
         width: unset !important;
       }
     }
@@ -174,6 +178,9 @@
 }
 .add-rule-btn {
   margin: auto;
+  h2 {
+    font-size: 1rem;
+  }
 }
 
 .popup-wrap.campaign-product-wrapper {

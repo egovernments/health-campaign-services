@@ -4,7 +4,7 @@ import {
   DustbinIcon,
   CardLabel,
   Dropdown,
-  TextInput,
+  // TextInput,
   Button,
   Card,
   CardHeader,
@@ -19,6 +19,7 @@ import { operatorConfig } from "../../../configs/operatorConfig";
 import RemoveableTagNew from "../../../components/RemovableTagNew";
 import AddProducts from "./AddProductscontext";
 import { CycleContext } from ".";
+import { TextInput } from "@egovernments/digit-ui-components";
 
 const makeSequential = (jsonArray, keyName) => {
   return jsonArray.map((item, index) => ({
@@ -31,13 +32,33 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
   const [val, setVal] = useState("");
   const [showAttribute, setShowAttribute] = useState(null);
   const [showOperator, setShowOperator] = useState(null);
+  const [addedOption, setAddedOption] = useState(null);
   const { t } = useTranslation();
 
+  useEffect(() => {
+    setAddedOption(delivery?.attributes?.map((i) => i?.attribute?.code)?.filter((i) => i));
+  }, [delivery]);
+
   const selectValue = (e) => {
+    let val = e.target.value;
+    if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
+      val = val.slice(0, -1);
+    }
     // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
     const updatedData = deliveryRules.map((item, index) => {
       if (item.ruleKey === deliveryRuleIndex) {
         item.attributes.find((i) => i.key === attribute.key).value = e.target.value;
+      }
+      return item;
+    });
+    setDeliveryRules(updatedData);
+  };
+
+  const selectGender = (value) => {
+    // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
+    const updatedData = deliveryRules.map((item, index) => {
+      if (item.ruleKey === deliveryRuleIndex) {
+        item.attributes.find((i) => i.key === attribute.key).value = value;
       }
       return item;
     });
@@ -68,6 +89,11 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     const updatedData = deliveryRules.map((item, index) => {
       if (item.ruleKey === deliveryRuleIndex) {
         item.attributes.find((i) => i.key === attribute.key).attribute = value;
+        if (value.code === "Gender") {
+          item.attributes.find((i) => i.key === attribute.key).operator = {
+            code: "EQUAL_TO",
+          };
+        }
       }
       return item;
     });
@@ -98,7 +124,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
           selected={attribute?.attribute}
           disable={false}
           isMandatory={true}
-          option={attributeConfig}
+          option={addedOption ? attributeConfig.filter((item) => !addedOption.includes(item.code)) : attributeConfig}
           select={(value) => selectAttribute(value)}
           optionKey="code"
           t={t}
@@ -111,7 +137,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
         <Dropdown
           className="form-field"
           selected={attribute?.operator}
-          disable={false}
+          disable={attribute?.attribute?.code === "Gender" ? true : false}
           isMandatory={true}
           option={operatorConfig}
           select={(value) => selectOperator(value)}
@@ -139,27 +165,50 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
                 disable={false}
               />
             </div>
+          ) : attribute?.attribute?.code === "Gender" ? (
+            <Dropdown
+              className="form-field"
+              selected={attribute?.value}
+              disable={false}
+              isMandatory={true}
+              option={[
+                {
+                  key: 1,
+                  code: "Male",
+                },
+                {
+                  key: 2,
+                  code: "Female",
+                },
+              ]}
+              select={(value) => selectGender(value)}
+              optionKey="code"
+              t={t}
+            />
           ) : (
-            <TextInput className="" textInputStyle={{ width: "100%" }} value={attribute?.value} onChange={selectValue} disable={false} />
+            <TextInput textInputStyle={{ width: "100%" }} value={attribute?.value} onChange={selectValue} disable={false} />
           )}
         </div>
       </LabelFieldPair>
-      <div
-        onClick={() => onDelete()}
-        style={{
-          cursor: "pointer",
-          fontWeight: "600",
-          fontSize: "1rem",
-          color: "#f47738",
-          display: "flex",
-          gap: "0.5rem",
-          alignItems: "center",
-          marginTop: "1rem",
-        }}
-      >
-        <DustbinIcon />
-        {t(`CAMPAIGN_DELETE_ROW_TEXT`)}
-      </div>
+      {delivery.attributes.length !== 1 && (
+        <div
+          onClick={() => onDelete()}
+          style={{
+            cursor: "pointer",
+            fontWeight: "600",
+            marginLeft: "1rem",
+            fontSize: "1rem",
+            color: "#f47738",
+            display: "flex",
+            gap: "0.5rem",
+            alignItems: "center",
+            marginTop: "1rem",
+          }}
+        >
+          <DustbinIcon />
+          {t(`CAMPAIGN_DELETE_ROW_TEXT`)}
+        </div>
+      )}
     </div>
   );
 };
@@ -221,13 +270,15 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
           onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
         />
       ))}
-      <Button
-        variation="secondary"
-        label={t(`CAMPAIGN_ADD_MORE_ATTRIBUTE_TEXT`)}
-        className="add-attribute"
-        icon={<AddIcon fill="#f47738" />}
-        onButtonClick={addMoreAttribute}
-      />
+      {delivery.attributes.length !== attributeConfig.length && (
+        <Button
+          variation="secondary"
+          label={t(`CAMPAIGN_ADD_MORE_ATTRIBUTE_TEXT`)}
+          className="add-attribute"
+          icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill="#f47738" width="20" height="20" />}
+          onButtonClick={addMoreAttribute}
+        />
+      )}
     </Card>
   );
 };
@@ -271,12 +322,14 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           <p className="title">
             {t(`CAMPAIGN_DELIVERY_RULE_LABEL`)} {delivery.ruleKey}
           </p>
-          <div
-            onClick={() => onDelete()}
-            style={{ fontWeight: "600", fontSize: "1rem", color: "#f47738", display: "flex", gap: "0.5rem", alignItems: "center" }}
-          >
-            <DustbinIcon /> {t(`CAMPAIGN_DELETE_CONDITION_LABEL`)}
-          </div>
+          {deliveryRules.length !== 1 && (
+            <div
+              onClick={() => onDelete()}
+              style={{ fontWeight: "600", fontSize: "1rem", color: "#f47738", display: "flex", gap: "0.5rem", alignItems: "center" }}
+            >
+              <DustbinIcon /> {t(`CAMPAIGN_DELETE_CONDITION_LABEL`)}
+            </div>
+          )}
         </CardHeader>
         <AddAttributeWrapper
           deliveryRuleIndex={delivery.ruleKey}
@@ -378,9 +431,9 @@ const AddDeliveryRuleWrapper = ({}) => {
       ))}
       <Button
         variation="secondary"
-        label={`CAMPAIGN_ADD_MORE_DELIVERY_BUTTON`}
+        label={t(`CAMPAIGN_ADD_MORE_DELIVERY_BUTTON`)}
         className={"add-rule-btn"}
-        icon={<AddIcon fill="#f47738" />}
+        icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill="#f47738" />}
         onButtonClick={addMoreDelivery}
       />
     </>

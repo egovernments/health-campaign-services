@@ -13,7 +13,9 @@ const SetupCampaign = () => {
   const [currentKey, setCurrentKey] = useState(1);
   const [totalFormData, setTotalFormData] = useState({});
   const [campaignConfig, setCampaignConfig] = useState(CampaignConfig(totalFormData));
+  const [shouldUpdate, setShouldUpdate] = useState(false);
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
+
   const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
 
   useEffect(() => {
@@ -85,42 +87,45 @@ const SetupCampaign = () => {
   }
 
   useEffect(() => {
-    if (currentKey === 8) {
-      // history.push()
-      return;
-    }
-    const reqCreate = async () => {
-      let payloadData = {};
-      payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-        ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
-        : null;
-      payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
-        ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
-        : null;
-      payloadData.tenantId = tenantId;
-      payloadData.action = "draft";
-      payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-      payloadData.boundaries = [];
-      payloadData.resources = [];
-      payloadData.projectType = null;
-      payloadData.additionalDetails = {};
-      if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
-        const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
-        payloadData.deliveryRules = temp;
+    if (shouldUpdate === true) {
+      if (currentKey === 8) {
+        // history.push()
+        return;
       }
+      const reqCreate = async () => {
+        let payloadData = {};
+        payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+          ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+          : null;
+        payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+          ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+          : null;
+        payloadData.tenantId = tenantId;
+        payloadData.action = "draft";
+        payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
+        payloadData.boundaries = [];
+        payloadData.resources = [];
+        payloadData.projectType = null;
+        payloadData.additionalDetails = {};
+        if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+          const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+          payloadData.deliveryRules = temp;
+        }
 
-      await mutate(payloadData, {
-        onError: (error, variables) => {
-          console.log(error);
-        },
-        onSuccess: async (data) => {
-          console.log(data);
-        },
-      });
-    };
+        await mutate(payloadData, {
+          onError: (error, variables) => {
+            console.log(error);
+          },
+          onSuccess: async (data) => {
+            console.log(data);
+          },
+        });
+      };
 
-    reqCreate();
-  }, [totalFormData, currentKey]);
+      reqCreate();
+      setShouldUpdate(false);
+    }
+  }, [shouldUpdate, totalFormData, currentKey]);
 
   const onSubmit = (formData) => {
     setCurrentKey(currentKey + 1);
@@ -147,6 +152,7 @@ const SetupCampaign = () => {
       ],
     };
 
+    setShouldUpdate(true);
     // convertFormData(totalFormData);
     const payload = convertPayload(dummyData);
   };
@@ -166,6 +172,7 @@ const SetupCampaign = () => {
 
   const onSecondayActionClick = () => {
     if (currentKey > 1) {
+      setShouldUpdate(false);
       setCurrentKey(currentKey - 1);
     }
   };

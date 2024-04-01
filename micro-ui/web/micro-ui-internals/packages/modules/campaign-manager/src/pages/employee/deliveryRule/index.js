@@ -13,12 +13,15 @@ function makeSequential(jsonArray, keyName) {
 function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subTabCount = 3, ...props }) {
   // Campaign Tab Skeleton function
   const [cycleData, setCycleData] = useState(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
-
+  const saved = JSON.parse(sessionStorage.getItem("Digit.HCM_CAMPAIGN_MANAGER_FORM_DATA"))?.value?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule;
   useEffect(() => {
     setCycleData(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
   }, [config]);
 
   const generateTabsData = (tabs, subTabs) => {
+    if (saved && saved?.length == tabs) {
+      return [...saved];
+    }
     return [...Array(tabs)].map((_, tabIndex) => ({
       cycleIndex: `${tabIndex + 1}`,
       active: tabIndex === 0 ? true : false,
