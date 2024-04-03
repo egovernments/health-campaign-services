@@ -18,6 +18,15 @@ const SetupCampaign = () => {
   const [showToast, setShowToast] = useState(null);
   const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
 
+  function updateUrlParams(params) {
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+    window.history.replaceState({}, "", url);
+  }
+  // Example usage:
+  // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
   useEffect(() => {
     setCampaignConfig(CampaignConfig(totalFormData));
   }, [totalFormData]);
@@ -88,7 +97,7 @@ const SetupCampaign = () => {
 
   useEffect(() => {
     if (shouldUpdate === true) {
-      if (currentKey === 8) {
+      if (currentKey === 9) {
         // history.push()
         return;
       }
@@ -136,7 +145,7 @@ const SetupCampaign = () => {
         if (formData?.campaignDates?.startDate && formData?.campaignDates?.endDate && endDateObj > startDateObj) {
           return true;
         } else {
-          setShowToast({ key: "error", label: "Showing Error" });
+          setShowToast({ key: "error", label: "CAMPAIGN_DATES_MISSING_ERROR" });
           return false;
         }
       default:
@@ -185,8 +194,8 @@ const SetupCampaign = () => {
 
   const onStepClick = (step) => {
     const filteredSteps = campaignConfig[0].form.filter((item) => item.stepCount === String(step + 1));
-    console.log(filteredSteps,"filteredSteps");
 
+    
     const key = parseInt(filteredSteps[0].key);
     const name = filteredSteps[0].name;
 
@@ -253,10 +262,10 @@ const SetupCampaign = () => {
         onSubmit={onSubmit}
         showSecondaryLabel={currentKey > 1 ? true : false}
         secondaryLabel={t("HCM_BACK")}
-        actionClassName = {"actionBarClass"}
+        actionClassName={"actionBarClass"}
         noCardStyle={currentStep == 1 ? true : false}
         onSecondayActionClick={onSecondayActionClick}
-        label={currentKey < 8 ? t("HCM_NEXT") : t("HCM_SUBMIT")}
+        label={currentKey === 9 ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
       {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
     </React.Fragment>

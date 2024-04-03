@@ -200,13 +200,19 @@ export const CampaignConfig = (totalFormData) => {
           body: [
             {
               isMandatory: false,
-              key: "preview",
+              key: "summary",
               type: "component",
-              component: "PreviewCampaign",
+              component: "CampaignSummary",
               withoutLabel: true,
               disable: false,
               customProps: {
                 module: "HCM",
+              },
+              populators: {
+                name: "summary",
+                // optionsKey: "code",
+                // error: "ES__REQUIRED",
+                required: true,
               },
             },
           ],

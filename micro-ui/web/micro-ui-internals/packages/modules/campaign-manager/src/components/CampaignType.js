@@ -8,8 +8,8 @@ const CampaignType = ({ onSelect, formData, ...props }) => {
   const tenantId = Digit.ULBService.getStateId();
   const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS("mz", "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
   const [type, setType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType || {});
-  const [ beneficiaryType , setBeneficiaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType || "");
-  const [ showBeneficiary , setShowBeneficiaryType] = useState(Boolean(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType));
+  const [beneficiaryType, setBeneficiaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType || "");
+  const [showBeneficiary, setShowBeneficiaryType] = useState(Boolean(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType));
   const handleChange = (data) => {
     setType(data);
     setBeneficiaryType(data?.beneficiaryType);
@@ -26,8 +26,8 @@ const CampaignType = ({ onSelect, formData, ...props }) => {
       <p className="description-type">{t(`HCM_CAMPAIGN_TYPE_DESCRIPTION`)}</p>
       <LabelFieldPair>
         <div className="campaign-type">
-        <span >{`${t("HCM_CAMPAIGN_TYPE")}`}</span>
-        <span className="mandatory-span">*</span>
+          <span>{`${t("HCM_CAMPAIGN_TYPE")}`}</span>
+          <span className="mandatory-span">*</span>
         </div>
         <Dropdown
           style={{ width: "50%" }}
@@ -40,12 +40,12 @@ const CampaignType = ({ onSelect, formData, ...props }) => {
           }}
         />
       </LabelFieldPair>
-      {showBeneficiary &&
-      <LabelFieldPair>
-        <div className="beneficiary-type">{`${t("HCM_BENEFICIARY_TYPE")}`}</div>
-        <div>{beneficiaryType}</div>
-      </LabelFieldPair>
-      }
+      {showBeneficiary && (
+        <LabelFieldPair>
+          <div className="beneficiary-type">{`${t("HCM_BENEFICIARY_TYPE")}`}</div>
+          <div>{beneficiaryType}</div>
+        </LabelFieldPair>
+      )}
     </React.Fragment>
   );
 };

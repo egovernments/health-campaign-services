@@ -54,7 +54,12 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
   const { cycleConfgureDate, cycleData } = state;
   const { t } = useTranslation();
   const [dateRange, setDateRange] = useState(null);
-  const [sessionData, setSessionData] = useState(Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA"));
+  const tempSession = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+  const [sessionData, setSessionData] = useState(tempSession);
+
+  useEffect(() => {
+    setSessionData(tempSession);
+  }, [tempSession]);
 
   useEffect(() => {
     setDateRange({
@@ -85,8 +90,14 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
 
   return (
     <>
-      <Header>{t(`CAMPAIGN_CYCLE_TITLE`)}</Header>
-      <Paragraph value={t(`CAMPAIGN_CYCLE_SUB_TEXT`)} />
+      <Header>{sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.name}</Header>
+      <Paragraph
+        customClassName="cycle-paragraph"
+        value={`(${sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+          .split("-")
+          .reverse()
+          .join("/")} - ${sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate.split("-").reverse().join("/")})`}
+      />
       <Card className="campaign-counter-container">
         <CardText>{t(`CAMPAIGN_CYCLE_CONFIGURE_HEADING`)}</CardText>
         <LabelFieldPair>

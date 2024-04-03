@@ -12,7 +12,7 @@ const MyCampaign = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [config, setConfig] = useState(myCampaignConfig?.myCampaignConfig?.[0]);
   const [tabData, setTabData] = useState(
-    myCampaignConfig?.myCampaignConfig?.map((configItem, index) => ({ key: index, label: configItem.label, active: n === 0 ? true : false }))
+    myCampaignConfig?.myCampaignConfig?.map((configItem, index) => ({ key: index, label: configItem.label, active: index === 0 ? true : false }))
   );
 
   const onTabChange = (n) => {
