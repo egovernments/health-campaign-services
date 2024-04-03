@@ -185,12 +185,12 @@ const SetupCampaign = () => {
 
   const onStepClick = (step) => {
     const filteredSteps = campaignConfig[0].form.filter((item) => item.stepCount === String(step + 1));
+    console.log(filteredSteps,"filteredSteps");
 
     const key = parseInt(filteredSteps[0].key);
-    // setCurrentKey(key);
-    // setCurrentStep(step);
+    const name = filteredSteps[0].name;
 
-    if (Object.keys(totalFormData).includes(key.toString())) {
+    if (Object.keys(totalFormData).includes(name)) {
       setCurrentKey(key);
       setCurrentStep(step);
     }
@@ -252,10 +252,11 @@ const SetupCampaign = () => {
         })}
         onSubmit={onSubmit}
         showSecondaryLabel={currentKey > 1 ? true : false}
-        secondaryLabel={"PREVIOUS"}
+        secondaryLabel={t("HCM_BACK")}
+        actionClassName = {"actionBarClass"}
         noCardStyle={currentStep == 1 ? true : false}
         onSecondayActionClick={onSecondayActionClick}
-        label={currentKey < 8 ? "NEXT" : "SUBMIT"}
+        label={currentKey < 8 ? t("HCM_NEXT") : t("HCM_SUBMIT")}
       />
       {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
     </React.Fragment>

@@ -23,9 +23,12 @@ const CampaignType = ({ onSelect, formData, ...props }) => {
   return (
     <React.Fragment>
       <Header>{t(`HCM_CAMPAIGN_TYPE_HEADER`)}</Header>
-      <p>{t(`HCM_CAMPAIGN_TYPE_DESCRIPTION`)}</p>
+      <p className="description-type">{t(`HCM_CAMPAIGN_TYPE_DESCRIPTION`)}</p>
       <LabelFieldPair>
-        <span className="campaign-type">{`${t("HCM_CAMPAIGN_TYPE")}`}</span>
+        <div className="campaign-type">
+        <span >{`${t("HCM_CAMPAIGN_TYPE")}`}</span>
+        <span className="mandatory-span">*</span>
+        </div>
         <Dropdown
           style={{ width: "50%" }}
           t={t}
@@ -39,7 +42,7 @@ const CampaignType = ({ onSelect, formData, ...props }) => {
       </LabelFieldPair>
       {showBeneficiary &&
       <LabelFieldPair>
-        <div style={{marginRight: "4rem"}}>{`${t("HCM_BENEFICIARY_TYPE")}`}</div>
+        <div className="beneficiary-type">{`${t("HCM_BENEFICIARY_TYPE")}`}</div>
         <div>{beneficiaryType}</div>
       </LabelFieldPair>
       }

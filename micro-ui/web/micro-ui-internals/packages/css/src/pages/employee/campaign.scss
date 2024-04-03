@@ -5,7 +5,8 @@
     grid-template-columns: 1fr 1fr;
     grid-gap: 5rem;
     width: 70%;
-    padding-top: 0.3rem
+    padding-top: 0.3rem;
+    margin-top: 1rem;
 }
 .date-field{
   display: grid;
@@ -14,9 +15,40 @@
 }
 .campaign-type{
   margin-right: 5rem;
-    padding-bottom: 1.2rem;
+  padding-bottom: 1.2rem;
+  font-weight: bold;
 }
 .name-container{
   margin-right: 5rem;
-  padding-bottom: 1.2rem
+  padding-bottom: 1.2rem;
+  font-weight: bold;
+  min-width: 30%;
+}
+.beneficiary-type{
+  margin-right: 5.4rem;
+  font-weight: bold;
+}
+.campaign-dates{
+  display: flex;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+.mandatory-date{
+  margin-top: 0.8rem;
+  margin-left: 0.5rem;
+  color: red !important;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.description-type{
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+.name-description{
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+.dates-description{
+  margin-top: 2rem;
+  margin-bottom: 2rem;
 }

@@ -5,34 +5,10 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "1",
           key: "1",
-          name: "HCM_CAMPAIGN_DATE",
-          body: [
-            {
-              isMandatory: false,
-              key: "campaignDates",
-              type: "component",
-              component: "CampaignDates",
-              withoutLabel: true,
-              disable: false,
-              customProps: {
-                module: "HCM",
-              },
-              populators: {
-                name: "campaignDates",
-                // optionsKey: "code",
-                error: "ES__REQUIRED",
-                required: true,
-              },
-            },
-          ],
-        },
-        {
-          stepCount: "1",
-          key: "2",
           name: "HCM_CAMPAIGN_TYPE",
           body: [
             {
-              isMandatory: false,
+              isMandatory: true,
               key: "projectType",
               type: "component",
               component: "CampaignType",
@@ -44,8 +20,6 @@ export const CampaignConfig = (totalFormData) => {
               },
               populators: {
                 name: "projectType",
-                // optionsKey: "code",
-                error: "ES__REQUIRED",
                 required: true,
               },
             },
@@ -53,11 +27,11 @@ export const CampaignConfig = (totalFormData) => {
         },
         {
           stepCount: "1",
-          key: "3",
+          key: "2",
           name: "HCM_CAMPAIGN_NAME",
           body: [
             {
-              isMandatory: false,
+              isMandatory: true,
               key: "campaignName",
               type: "component",
               component: "CampaignName",
@@ -69,8 +43,30 @@ export const CampaignConfig = (totalFormData) => {
               },
               populators: {
                 name: "campaignName",
+                required: true,
+              },
+            },
+          ],
+        },
+        {
+          stepCount: "1",
+          key: "3",
+          name: "HCM_CAMPAIGN_DATE",
+          body: [
+            {
+              isMandatory: true,
+              key: "campaignDates",
+              type: "component",
+              component: "CampaignDates",
+              withoutLabel: true,
+              disable: false,
+              customProps: {
+                module: "HCM",
+              },
+              populators: {
+                name: "campaignDates",
                 // optionsKey: "code",
-                error: "ES__REQUIRED",
+                // error: "ES__REQUIRED",
                 required: true,
               },
             },
@@ -168,7 +164,7 @@ export const CampaignConfig = (totalFormData) => {
               populators: {
                 name: "uploadBoundary",
                 // optionsKey: "code",
-                error: "ES__REQUIRED",
+                // error: "ES__REQUIRED",
                 required: true,
               },
             },
@@ -180,18 +176,18 @@ export const CampaignConfig = (totalFormData) => {
           body: [
             {
               isMandatory: false,
-              key: "campaignType",
+              key: "uploadFacility",
               type: "component",
-              component: "CampaignType",
+              component: "UploadFacilityData",
               withoutLabel: true,
               disable: false,
               customProps: {
                 module: "HCM",
               },
               populators: {
-                name: "campaignType",
+                name: "uploadFacility",
                 // optionsKey: "code",
-                error: "ES__REQUIRED",
+                // error: "ES__REQUIRED",
                 required: true,
               },
             },

@@ -13,6 +13,7 @@ import CampaignDates from "./components/CampaignDates";
 import CampaignType from "./components/CampaignType";
 import CampaignName from "./components/CampaignName";
 import MyCampaign from "./pages/employee/MyCampaign";
+import UploadFacilityData from "./pages/employee/UploadFacilityData";
 import CampaignSummary from "./components/CampaignSummary";
 import CycleDetaisPreview from "./components/CycleDetaisPreview";
 
@@ -50,6 +51,7 @@ const componentsToRegister = {
   CampaignType,
   CampaignName,
   MyCampaign,
+  UploadFacilityData
   CampaignSummary,
   CycleDetaisPreview,
 };

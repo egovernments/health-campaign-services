@@ -16,9 +16,14 @@ const CampaignBreadCrumb = ({ location, defaultPath }) => {
       content: t("CAMPAIGN_HOME"),
       show: true,
     },
+    {
+      path: `/${window?.contextPath}/employee/campaign/setup-campaign`,
+      content: t("CREATE_NEW_CAMPAIGN"),
+      show: true,
+    }
   ];
 
-  return <BreadCrumb className="campaign-bredcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
+  return <BreadCrumb className="campaign-breadcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
 };
 
 const App = ({ path }) => {

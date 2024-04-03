@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { DownloadIcon } from "@egovernments/digit-ui-react-components";
 import BulkUpload from "../../components/BulkUpload";
 
-const UploadBoundaryData = () => {
+const UploadFacilityData = () => {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [uploadedFile, setUploadedFile] = useState([]);
@@ -36,7 +36,7 @@ const UploadBoundaryData = () => {
   return (
     <React.Fragment>
       <div className="campaign-bulk-upload">
-        <Header className="digit-form-composer-sub-header">{t("WBH_UPLOAD_BOUNDARY")}</Header>
+        <Header className="digit-form-composer-sub-header">{t("WBH_UPLOAD_Facility")}</Header>
         <Button
           label={t("WBH_DOWNLOAD_TEMPLATE")}
           variation="secondary"
@@ -45,10 +45,10 @@ const UploadBoundaryData = () => {
           className="campaign-download-template-btn"
         />
       </div>
-      <div className="info-text">{t(`HCM_BOUNDARY_MESSAGE`)}</div>
+      <div className="info-text">{t(`HCM_FACILITY_MESSAGE`)}</div>
       <BulkUpload onSubmit={onBulkUploadSubmit} fileData={uploadedFile} onFileDelete={onFileDelete} onFileDownload={onFileDownload} />
     </React.Fragment>
   );
 };
 
-export default UploadBoundaryData;
+export default UploadFacilityData;
