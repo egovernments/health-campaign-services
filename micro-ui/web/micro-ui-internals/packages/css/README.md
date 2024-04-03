@@ -42,6 +42,7 @@ frontend/micro-ui/web/public/index.html
 ### Changelog
 
 ```bash
+1.0.5-campaign some css fixes in previous button
 1.0.4-campaign updated styling for create campaign screens
 1.0.2-campaign update Styling added for delivery rule screen
 1.0.1-campaign Styling added for delivery rule screen
