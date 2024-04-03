@@ -51,7 +51,7 @@ const componentsToRegister = {
   CampaignType,
   CampaignName,
   MyCampaign,
-  UploadFacilityData
+  UploadFacilityData,
   CampaignSummary,
   CycleDetaisPreview,
 };
