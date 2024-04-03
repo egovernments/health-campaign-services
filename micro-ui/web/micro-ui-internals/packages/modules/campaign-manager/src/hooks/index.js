@@ -1,4 +1,5 @@
 import utils from "../utils";
+import { useSearchCampaign } from "./services/useSearchCampaign";
 import useCreateCampaign from "./useCreateCampaign";
 import { useProductList } from "./useProductList";
 
@@ -11,6 +12,7 @@ const contracts = {};
 const campaign = {
   useProductList,
   useCreateCampaign,
+  useSearchCampaign,
 };
 
 const Hooks = {

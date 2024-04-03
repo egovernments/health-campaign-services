@@ -1,4 +1,4 @@
-import React, { useReducer, Fragment, useEffect } from "react";
+import React, { useReducer, Fragment, useEffect, useState } from "react";
 import { CardText, LabelFieldPair, Card, CardLabel, CardSubHeader, Paragraph, Header } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@egovernments/digit-ui-components";
@@ -53,6 +53,15 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
   const [state, dispatch] = useReducer(reducer, initialState(saved));
   const { cycleConfgureDate, cycleData } = state;
   const { t } = useTranslation();
+  const [dateRange, setDateRange] = useState(null);
+  const [sessionData, setSessionData] = useState(Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA"));
+
+  useEffect(() => {
+    setDateRange({
+      startDate: sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate,
+      endDate: sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate,
+    });
+  }, [sessionData]);
 
   useEffect(() => {
     onSelect("cycleConfigure", state);
@@ -105,8 +114,21 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
               {t(`CAMPAIGN_CYCLE`)} {index + 1}
             </CardLabel>
             <div className="date-field-container">
-              <TextInput type="date" value={cycleData?.find((j) => j.key === index + 1)?.fromDate} onChange={(d) => selectFromDate(index + 1, d)} />
-              <TextInput type="date" value={cycleData?.find((j) => j.key === index + 1)?.toDate} onChange={(d) => selectToDate(index + 1, d)} />
+              <TextInput
+                type="date"
+                value={cycleData?.find((j) => j.key === index + 1)?.fromDate}
+                min={dateRange?.startDate}
+                max={dateRange?.endDate}
+                onChange={(d) => selectFromDate(index + 1, d)}
+              />
+              {console.log("cycleData?.find((j) => j.key === index + 1)?.toDate", cycleData?.find((j) => j.key === index + 1)?.fromDate)}
+              <TextInput
+                type="date"
+                value={cycleData?.find((j) => j.key === index + 1)?.toDate}
+                min={cycleData?.find((j) => j.key === index + 1)?.fromDate}
+                max={dateRange?.endDate}
+                onChange={(d) => selectToDate(index + 1, d)}
+              />
             </div>
           </LabelFieldPair>
         ))}

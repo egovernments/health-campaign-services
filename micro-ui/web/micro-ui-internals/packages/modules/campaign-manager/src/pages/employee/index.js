@@ -27,6 +27,7 @@ const App = ({ path }) => {
   const CycleConfiguration = Digit?.ComponentRegistryService?.getComponent("CycleConfiguration");
   const DeliveryRule = Digit?.ComponentRegistryService?.getComponent("DeliveryRule");
   const MyCampaign = Digit?.ComponentRegistryService?.getComponent("MyCampaign");
+  const CampaignSummary = Digit?.ComponentRegistryService?.getComponent("CampaignSummary");
 
   return (
     <React.Fragment>
@@ -42,6 +43,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/sample`} component={() => <div>Home Campaign Loaded</div>} />
           <PrivateRoute path={`${path}/setup-campaign`} component={() => <SetupCampaign />} />
           <PrivateRoute path={`${path}/my-campaign`} component={() => <MyCampaign />} />
+          <PrivateRoute path={`${path}/preview`} component={() => <CampaignSummary />} />
         </AppContainer>
       </Switch>
     </React.Fragment>

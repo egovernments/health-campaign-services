@@ -37,10 +37,20 @@ const CampaignCard = () => {
       link: `/${window?.contextPath}/employee/campaign/setup-campaign`,
       roles: [], // @nabeel roles to be added later
     },
+    {
+      label: t("ACTION_TEST_PREVIEW_CAMPAIGN"),
+      link: `/${window?.contextPath}/employee/campaign/preview`,
+      roles: [], // @nabeel roles to be added later
+    },
+    {
+      label: t("ACTION_TEST_MY_CAMPAIGN"),
+      link: `/${window?.contextPath}/employee/campaign/my-campaign`,
+      roles: [], // @nabeel roles to be added later
+    },
     // {
-      // label: t("ACTION_TEST_MY_CAMPAIGN"),
-      // link: `/${window?.contextPath}/employee/campaign/my-campaign`,
-      // roles: [], // @nabeel roles to be added later
+    // label: t("ACTION_TEST_MY_CAMPAIGN"),
+    // link: `/${window?.contextPath}/employee/campaign/my-campaign`,
+    // roles: [], // @nabeel roles to be added later
     // },
   ];
 

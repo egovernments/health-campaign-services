@@ -11,7 +11,9 @@ const MyCampaign = () => {
   const tenant = Digit.ULBService.getStateId();
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [config, setConfig] = useState(myCampaignConfig?.myCampaignConfig?.[0]);
-  const [tabData, setTabData] = useState(myCampaignConfig?.myCampaignConfig?.map((i, n) => ({ key: n, label: i.label, active: n === 0 ? true : false })));
+  const [tabData, setTabData] = useState(
+    myCampaignConfig?.myCampaignConfig?.map((configItem, index) => ({ key: index, label: configItem.label, active: n === 0 ? true : false }))
+  );
 
   const onTabChange = (n) => {
     setTabData((prev) => prev.map((i, c) => ({ ...i, active: c === n ? true : false })));
@@ -20,10 +22,7 @@ const MyCampaign = () => {
 
   return (
     <React.Fragment>
-      <Header styles={{ fontSize: "32px" }}>
-        {t(config?.label)}
-        {<span className="inbox-count">{location?.state?.count ? location?.state?.count : 0}</span>}
-      </Header>
+      <Header styles={{ fontSize: "32px" }}>{t("CAMPAIGN_SEARCH_TITLE")}</Header>
       <div className="inbox-search-wrapper">
         <InboxSearchComposer configs={config} showTab={true} tabData={tabData} onTabChange={onTabChange}></InboxSearchComposer>
       </div>

@@ -177,7 +177,6 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "5",
           key: "8",
-          isLast: true,
           body: [
             {
               isMandatory: false,
@@ -194,6 +193,24 @@ export const CampaignConfig = (totalFormData) => {
                 // optionsKey: "code",
                 error: "ES__REQUIRED",
                 required: true,
+              },
+            },
+          ],
+        },
+        {
+          stepCount: "7",
+          key: "9",
+          isLast: true,
+          body: [
+            {
+              isMandatory: false,
+              key: "preview",
+              type: "component",
+              component: "PreviewCampaign",
+              withoutLabel: true,
+              disable: false,
+              customProps: {
+                module: "HCM",
               },
             },
           ],

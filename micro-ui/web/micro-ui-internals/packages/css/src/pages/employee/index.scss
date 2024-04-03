@@ -26,6 +26,79 @@
   font-weight: 700;
 }
 
-.digit-employee-card-input.numeric{
+.digit-employee-card-input.numeric {
   margin-bottom: unset;
+}
+
+.view-composer-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.card-with-background {
+  margin-top: 1rem;
+  .card-head {
+    margin-bottom: 1rem;
+    color: #505a5f;
+  }
+}
+.no-data-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .error-msg {
+    margin-top: 1rem;
+  }
+}
+.search-tab-head {
+  color: #505a5f;
+}
+.search-tabs-container {
+  border-bottom: none;
+}
+.delivery-preview-card {
+  background-color: #fafafa;
+  border: 1px solid #d6d5d4;
+  width: 70%;
+  .custom-table-label {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #505a5f;
+    margin-bottom: 1rem;
+  }
+  .campaign-attribute-table {
+    margin-bottom: 1rem;
+    table {
+      background-color: #fafafa;
+      border: 1px solid #d6d5d4;
+      border-collapse: collapse;
+      border-radius: 1rem;
+      th {
+        border: 1px solid #d6d5d4;
+      }
+      td {
+        padding: 1rem;
+        border: 1px solid #d6d5d4;
+      }
+    }
+  }
+  .campaign-product-table {
+    margin-bottom: 1rem;
+    table {
+      background-color: #fafafa;
+      border: 1px solid #d6d5d4;
+      border-collapse: collapse;
+      border-radius: 1rem;
+      tbody {
+        background-color: #fff;
+      }
+      th {
+        border: 1px solid #d6d5d4;
+      }
+      td {
+        padding: 1rem;
+        border: 1px solid #d6d5d4;
+      }
+    }
+  }
 }
