@@ -15,7 +15,7 @@ const SetupCampaign = () => {
   const [campaignConfig, setCampaignConfig] = useState(CampaignConfig(totalFormData));
   const [shouldUpdate, setShouldUpdate] = useState(false);
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
-
+  const [showToast, setShowToast] = useState(null);
   const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
 
   useEffect(() => {
@@ -127,7 +127,33 @@ const SetupCampaign = () => {
     }
   }, [shouldUpdate, totalFormData, currentKey]);
 
+  const handleValidate = (formData) => {
+    const key = Object.keys(formData)?.[0];
+    switch (key) {
+      case "campaignDates":
+        const startDateObj = new Date(formData?.campaignDates?.startDate);
+        const endDateObj = new Date(formData?.campaignDates?.endDate);
+        if (formData?.campaignDates?.startDate && formData?.campaignDates?.endDate && endDateObj > startDateObj) {
+          return true;
+        } else {
+          setShowToast({ key: "error", label: "Showing Error" });
+          return false;
+        }
+      default:
+        break;
+    }
+  };
+
+  useEffect(() => {
+    if (showToast) {
+      setTimeout(closeToast, 5000);
+    }
+  }, [showToast]);
   const onSubmit = (formData) => {
+    const checkValid = handleValidate(formData);
+    if (checkValid === false) {
+      return;
+    }
     setCurrentKey(currentKey + 1);
     const name = filteredConfig?.[0]?.form?.[0]?.name;
 
@@ -210,6 +236,10 @@ const SetupCampaign = () => {
     setCurrentStep(Number(filteredConfig?.[0]?.form?.[0]?.stepCount - 1));
   }, [currentKey, filteredConfig]);
 
+  const closeToast = () => {
+    setShowToast(null);
+  };
+
   return (
     <React.Fragment>
       <TimelineCampaign currentStep={currentStep + 1} onStepClick={onStepClick} />
@@ -227,6 +257,7 @@ const SetupCampaign = () => {
         onSecondayActionClick={onSecondayActionClick}
         label={currentKey < 8 ? "NEXT" : "SUBMIT"}
       />
+      {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
     </React.Fragment>
   );
 };
