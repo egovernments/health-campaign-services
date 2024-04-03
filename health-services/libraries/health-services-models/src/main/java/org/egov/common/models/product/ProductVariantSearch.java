@@ -1,7 +1,7 @@
 package org.egov.common.models.product;
 
 import java.util.List;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 * ProductVariantSearch
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
+
 
 @Data
 @NoArgsConstructor

@@ -1,7 +1,7 @@
 package org.egov.common.models.stock;
 
 import java.util.List;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
  * StockReconciliationSearch
  */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
+
 
 @Data
 @NoArgsConstructor

@@ -12,9 +12,9 @@ import org.egov.common.models.core.EgovOfflineModel;
 import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 @Data

@@ -13,17 +13,17 @@ import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
 * A representation of the registration of an entity to a Project.
 */
     @ApiModel(description = "A representation of the registration of an entity to a Project.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
+
 
 @Data
 @NoArgsConstructor
