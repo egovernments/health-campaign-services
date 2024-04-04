@@ -10,9 +10,6 @@ public class ServiceConstants {
     public static final String EXTERNAL_SERVICE_EXCEPTION = "External Service threw an Exception: ";
     public static final String SEARCHER_SERVICE_EXCEPTION = "Exception while fetching from searcher: ";
 
-    public static final String IDGEN_ERROR = "IDGEN ERROR";
-    public static final String NO_IDS_FOUND_ERROR = "No ids returned from idgen Service";
-
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
     public static final String RES_MSG_ID = "uief87324";
@@ -52,17 +49,37 @@ public class ServiceConstants {
     public static final String ASSUMPTION_VALUE_NOT_FOUND_CODE = "ASSUMPTION_VALUE_NOT_FOUND";
     public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value not found in assumptions list ";
 
+    public static final String FILESTORE_ID_INVALID_CODE = "FILESTORE_ID_INVALID";
+    public static final String FILESTORE_ID_INVALID_MESSAGE = "Resource mapping does not have a Valid File Store Id ";
+
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS";
+
+    public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
+    public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS";
 
     public static final String TENANT_NOT_FOUND_IN_MDMS_CODE = "TENANT_ID_NOT_FOUND_IN_MDMS";
     public static final String TENANT_NOT_FOUND_IN_MDMS_MESSAGE = "Tenant Id is not present in MDMS";
 
+    public static final String TENANT_ID_EMPTY_CODE = "TENANT_ID_EMPTY";
+    public static final String TENANT_ID_EMPTY_MESSAGE = "Tenant Id cannot be empty, TenantId should be present";
+
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
 
-    public static final String MDMS_PLAN_ASSUMPTION_MODULE_NAME = "hcm-microplanning";
+    public static final String SEARCH_CRITERIA_EMPTY_CODE = "SEARCH_CRITERIA_EMPTY";
+    public static final String SEARCH_CRITERIA_EMPTY_MESSAGE = "Search criteria cannot be empty";
+
+    public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
+    public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
+
+    public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
+    public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
+
+    public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "Assumptions";
+    public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
+
     public static final String MDSM_MASTER_TENANTS = "tenants";
     public static final String MDMS_TENANT_MODULE_NAME = "tenant";
 
@@ -71,6 +88,8 @@ public class ServiceConstants {
     public static final String DOT_REGEX = "\\.";
 
     public static final String FILTER_CODE = "$.*.code";
+
+    public static final String FILTER_ID = "$.*.id";
 
 
 }
