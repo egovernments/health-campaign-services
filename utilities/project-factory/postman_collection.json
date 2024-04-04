@@ -1,0 +1,444 @@
+{
+	"info": {
+		"_postman_id": "b8161872-9b4b-41b7-bfd8-d73d19945f98",
+		"name": "Project factory",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "8437237",
+		"_collection_link": "https://blue-sunset-8912-1.postman.co/workspace/My-Workspace~90d79ee1-adad-4052-8531-ca6b8bbd8e90/collection/8437237-b8161872-9b4b-41b7-bfd8-d73d19945f98?action=share&source=collection_link&creator=8437237"
+	},
+	"item": [
+		{
+			"name": "campain-manage-create",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    //  43cfaf3f-f31f-492f-afeb-cebe4f4301e8\n    // d71a1963-27a8-4300-a1c4-2ec99e95331b   multiplesheet\n    // 6c091ddb-523e-4afd-8a81-afe94196d080 without matching sheetName\n    // for unifieddev\n    // 1d27af7d-3736-408d-b9bc-796c92fd5f4b multiplesheet\n    \"Campaign\": {\n        // \"id\": \"string\",\n        // \"campaignNo\": \"string\",\n        \"hierarchyType\": \"string\",\n        \"tenantId\": \"pg.citya\",\n        \"campaignName\": \"string\",\n        \"boundaryCode\": \"pg.citya\",\n        \"startDate\": 1677594987,\n        \"endDate\": 9776881655,\n        \"projectType\": \"Household Based Project\",\n        \"CampaignDetails\": [\n            {\n                \"boundaryCode\": \"SUN01\",\n                \"boundaryType\": \"Locality\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1665497225000,\n                \"targets\": [\n                    {\n                        \"total\": 300,\n                        \"target\": 250,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": \"B1\",\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"staff\"\n                    }\n                ]\n            },\n            {\n                \"boundaryCode\": \"B1\",\n                \"boundaryType\": \"Ward\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1665497225000,\n                \"targets\": [\n                    {\n                        \"total\": 700,\n                        \"target\": 600,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": \"pg.citya\",\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"staff\"\n                    }\n                ]\n            },\n            {\n                \"boundaryCode\": \"pg.citya\",\n                \"boundaryType\": \"City\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1665497225000,\n                \"targets\": [\n                    {\n                        \"total\": 1000,\n                        \"target\": 800,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": null,\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            \"F-2024-03-04-000062\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"facility\"\n                    }\n                ]\n            },\n            {\n                \"boundaryCode\": \"B2\",\n                \"boundaryType\": \"Ward\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1665497225000,\n                \"targets\": [\n                    {\n                        \"total\": 450,\n                        \"target\": 350,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": \"pg.citya\",\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            // \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\"\n                            \"PVAR-2024-02-29-000035\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"resource\"\n                        // \"type\": \"staff|resource|facility\"\n                    }\n                ]\n            }\n            // Add more entries as needed...\n        ],\n        \"deliveryRules\": [\n            {\n                \"startDate\": \"string\",\n                \"endDate\": \"string\",\n                \"cycle\": \"string\"\n            }\n        ],\n        \"additionalDetails\": {}\n    },\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"96594292-74c2-442b-a146-7d8b8aee70ff\",\n        \"userInfo\": {\n            \"id\": 947,\n            \"uuid\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"userName\": \"EMP44\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HCM SYSTEM ADMINISTRATOR\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"SUPER USER\",\n                    \"code\": \"SUPERUSER\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HRMS Admin\",\n                    \"code\": \"HRMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"pg\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1709110250993|en_IN\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/project-type/createCampaign",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"project-type",
+						"createCampaign"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "campaign-generate",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"77d1b1f8-21ee-4998-8f0c-38ff65aad940\",\n        \"userInfo\": {\n            \"id\": 947,\n            \"uuid\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"userName\": \"EMP44\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HCM SYSTEM ADMINISTRATOR\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"SUPER USER\",\n                    \"code\": \"SUPERUSER\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HRMS Admin\",\n                    \"code\": \"HRMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"pg\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1709110250993|en_IN\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/data/_generate?tenantId=pg&type=facilityWithBoundary&forceUpdate=true&hierarchyType=sanitation",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_generate"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "pg"
+						},
+						{
+							"key": "type",
+							"value": "facilityWithBoundary"
+						},
+						{
+							"key": "forceUpdate",
+							"value": "true"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "sanitation"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "project-factory/v1/data/_create",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"4d18d41f-bf61-4a50-9382-c7728d57b076\",\n        \"userInfo\": {\n            \"id\": 947,\n            \"uuid\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"userName\": \"EMP44\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HCM SYSTEM ADMINISTRATOR\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"SUPER USER\",\n                    \"code\": \"SUPERUSER\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HRMS Admin\",\n                    \"code\": \"HRMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"pg\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1709110250993|en_IN\",\n        \"plainAccessRequest\": {}\n    },\n    \"ResourceDetails\": {\n        \"type\": \"facility\",\n        // \"type\": \"facility|user|boundary\",\n        \"tenantId\": \"pg\",\n        // \"fileStoreId\": \"e0602d82-c09c-4154-92b8-327424c3cd86\",     with no error\n        \"fileStoreId\": \"8710945a-58ba-4740-9c5e-8884b9bc53f1\",\n        \"action\": \"create\",\n        \"hierarchyType\":\"NITISH\",\n        \"additionalDetails\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/data/_create",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/project-factory/v1/project-type/create",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"c97608a4-d896-462e-95f5-3d20c5d80d9f\",\n        \"userInfo\": {\n            \"id\": 947,\n            \"uuid\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"userName\": \"EMP44\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HCM SYSTEM ADMINISTRATOR\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"SUPER USER\",\n                    \"code\": \"SUPERUSER\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HRMS Admin\",\n                    \"code\": \"HRMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"pg\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1709110250993|en_IN\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        \"hierarchyType\": \"NITISH\",\n        \"tenantId\": \"pg\",\n        \"campaignName\": \"Bednet LLIN\",\n        \"action\": \"create\",\n        // \"action\": \"draft||create\",\n        \"startDate\": 1665497225000,\n        \"endDate\": 1665497225000,\n        \"boundaries\": [\n            {\n                \"code\": \"IN\",\n                \"type\": \"Country\",\n                \"isRoot\": true\n            }\n        ],\n        \"resources\": [\n            {\n                \"filestoreId\": \"89f55c18-1d74-4bb1-a78f-3eef5454f059\",\n                \"type\": \"facility\",\n                \"filename\": \"facility.xlsx\"\n            }\n        ],\n        \"projectType\": \"string\",\n        \"deliveryRules\": [\n            {\n                \"startDate\": 1665497225000,\n                \"endDate\": 1665497225000,\n                \"cycleNumber\": 0,\n                \"deliveryNumber\": 0,\n                \"deliveryRuleNumber\": 0,\n                \"products\": [\n                    \"string\"\n                ],\n                \"conditions\": [\n                    {\n                        \"attribute\": \"string\",\n                        \"operator\": \"string\",\n                        \"value\": 0\n                    }\n                ]\n            }\n        ],\n        \"additionalDetails\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/project-type/create",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"project-type",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "project-factory/v1/project-type/create",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"4d18d41f-bf61-4a50-9382-c7728d57b076\",\n        \"userInfo\": {\n            \"id\": 947,\n            \"uuid\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"userName\": \"EMP44\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HCM SYSTEM ADMINISTRATOR\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"SUPER USER\",\n                    \"code\": \"SUPERUSER\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HRMS Admin\",\n                    \"code\": \"HRMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"pg\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1709110250993|en_IN\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        \"hierarchyType\": \"admin\",\n        \"tenantId\": \"mz\",\n        \"campaignName\": \"Bednet LLIN\",\n        \"action\": \"draft||create\",\n        \"startDate\": 1665497225000,\n        \"endDate\": 1665497225000,\n        \"boundaries\": [\n            {\n                \"code\": \"string\",\n                \"type\": \"string\",\n                \"isRoot\": true\n            }\n        ],\n        \"resources\": [\n            {\n                \"filestoreId\": \"cf3bd20c-5ac3-4af1-a303-55445049b289\",\n                \"type\": \"user\",\n                \"filename\": \"user.xlsx\"\n            }\n        ],\n        \"projectType\": \"string\",\n        \"deliveryRules\": [\n            {\n                \"startDate\": 1665497225000,\n                \"endDate\": 1665497225000,\n                \"cycleNumber\": 0,\n                \"deliveryNumber\": 0,\n                \"products\": [\n                    \"string\"\n                ],\n                \"conditions\": [\n                    {\n                        \"attribute\": \"string\",\n                        \"operator\": \"string\",\n                        \"value\": 0\n                    }\n                ]\n            }\n        ],\n        \"additionalDetails\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/project-type/create",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"project-type",
+						"create"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

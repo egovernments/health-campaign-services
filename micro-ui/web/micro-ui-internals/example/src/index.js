@@ -65,7 +65,6 @@ const initDigitUI = () => {
     // ...paymentConfigs,
     // PaymentLinks,
   });
-
   initUtilitiesComponents();
   initWorkbenchComponents();
   initWorkbenchHCMComponents();

@@ -55,3 +55,9 @@ config:
         dockerfile: micro-ui/web/core/Dockerfile
         image-name: core-ui
 
+  - name: "builds/Digit-Frontend/utilities/egov-bff"
+    build:
+      - work-dir: "utilities/project-factory"
+        image-name: "project-factory"
+      - work-dir: "utilities/project-factory/migration"
+        image-name: "project-factory-db"
