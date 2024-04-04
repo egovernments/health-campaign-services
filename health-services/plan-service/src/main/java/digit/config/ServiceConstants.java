@@ -52,6 +52,9 @@ public class ServiceConstants {
     public static final String ASSUMPTION_VALUE_NOT_FOUND_CODE = "ASSUMPTION_VALUE_NOT_FOUND";
     public static final String ASSUMPTION_VALUE_NOT_FOUND_MESSAGE = "Operation's Assumption value not found in assumptions list ";
 
+    public static final String FILESTORE_ID_INVALID_CODE = "FILESTORE_ID_INVALID";
+    public static final String FILESTORE_ID_INVALID_MESSAGE = "Resource mapping does not have a Valid File Store Id ";
+
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE = "ASSUMPTION_KEY_NOT_FOUND_IN_MDMS";
     public static final String ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE = "Assumption Key is not present in MDMS";
 

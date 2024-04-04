@@ -5,12 +5,14 @@ import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.util.MdmsUtil;
 import digit.web.models.Assumption;
+import digit.web.models.File;
 import digit.web.models.Operation;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationSearchCriteria;
 import digit.web.models.PlanConfigurationSearchRequest;
 import digit.web.models.PlanSearchCriteria;
+import digit.web.models.ResourceMapping;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,8 @@ import static digit.config.ServiceConstants.ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_COD
 import static digit.config.ServiceConstants.ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE;
 import static digit.config.ServiceConstants.ASSUMPTION_VALUE_NOT_FOUND_CODE;
 import static digit.config.ServiceConstants.ASSUMPTION_VALUE_NOT_FOUND_MESSAGE;
+import static digit.config.ServiceConstants.FILESTORE_ID_INVALID_CODE;
+import static digit.config.ServiceConstants.FILESTORE_ID_INVALID_MESSAGE;
 import static digit.config.ServiceConstants.MDMS_MASTER_ASSUMPTION;
 import static digit.config.ServiceConstants.MDMS_PLAN_ASSUMPTION_MODULE_NAME;
 import static digit.config.ServiceConstants.MDMS_TENANT_MODULE_NAME;
@@ -61,6 +65,7 @@ public class PlanConfigurationValidator {
 
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
         validateAssumptionValue(planConfiguration);
+        validateFilestoreId(planConfiguration);
     }
 
     /**
@@ -110,6 +115,24 @@ public class PlanConfigurationValidator {
     }
 
     /**
+     * Validates the file store IDs in the provided PlanConfiguration's Resource Mapping list.
+     * @param planConfiguration The PlanConfiguration to validate.
+     */
+    public void validateFilestoreId(PlanConfiguration planConfiguration) {
+        Set<String> fileStoreIds = planConfiguration.getFiles().stream()
+                .map(File::getFilestoreId)
+                .collect(Collectors.toSet());
+
+        List<ResourceMapping> resourceMappingList = planConfiguration.getResourceMapping();
+        for (ResourceMapping mapping : resourceMappingList) {
+            if (!fileStoreIds.contains(mapping.getFilestoreId())) {
+                log.error("Resource Mapping " + mapping.getMappedTo() + " does not have valid fileStoreId " + mapping.getFilestoreId());
+                throw new CustomException(FILESTORE_ID_INVALID_CODE, FILESTORE_ID_INVALID_MESSAGE);
+            }
+        }
+    }
+
+    /**
      * Validates the search request for plan configurations.
      * @param planConfigurationSearchRequest The search request for plan configurations.
      */
@@ -144,6 +167,10 @@ public class PlanConfigurationValidator {
 
         //Validate Assumption values under operations with assumption keys
         validateAssumptionValue(planConfiguration);
+
+        //Validate Resource Mapping's Filestore Ids
+        validateFilestoreId(planConfiguration);
+
     }
 
     /**

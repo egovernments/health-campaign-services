@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
 import lombok.AllArgsConstructor;
@@ -23,6 +24,12 @@ public class ResourceMapping {
     @JsonProperty("id")
     @Valid
     private String id = null;
+
+    @JsonProperty("filestoreId")
+    @NotNull
+    @Size(min = 1, max = 128)
+    @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Filestore Id must not contain only special characters")
+    private String filestoreId = null;
 
     @JsonProperty("mappedFrom")
     @NotNull
