@@ -3,14 +3,13 @@ import { httpRequest } from "./request";
 import config from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from '../Kafka/Listener'
-import { getAllFacilities } from "../api/campaignApis";
+import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
 import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
 import { Pool } from 'pg';
 import { logger } from "./logger";
 import dataManageController from "../controllers/dataManage/dataManage.controller";
-// import * as xlsx from 'xlsx-populate';
 const NodeCache = require("node-cache");
 const _ = require('lodash');
 
@@ -393,11 +392,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
     const generatedResource: any = { generatedResource: newEntryResponse }
     produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
     if (type === 'boundary') {
-      // const BoundaryDetails = {
-      //   hierarchyType: "NITISH",
-      //   tenantId: "pg"
-      // };
-      // request.body.BoundaryDetails = BoundaryDetails;
       const dataManagerController = new dataManageController();
       const result = await dataManagerController.getBoundaryData(request, response);
       const finalResponse = await getFinalUpdatedResponse(result, newEntryResponse, request);
@@ -683,6 +677,48 @@ async function getDataFromSheet(fileStoreId: any, tenantId: any, createAndSearch
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true)
 }
 
+async function getBoundaryRelationshipData(request: any, params: any) {
+  const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
+  const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
+  return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
+}
+
+async function getDataSheetReady(boundaryData: any, request: any) {
+  if (!boundaryData) {
+    throw new Error("No boundary data provided.");
+  }
+  const boundaryType = boundaryData?.[0].boundaryType;
+  const boundaryList = generateHierarchyList(boundaryData)
+  if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
+    throw new Error("Boundary list is empty or not an array.");
+  }
+  const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
+  const string = boundaryCodes.join(', ');
+  const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: "pg", codes: string });
+
+  const boundaryCodeNameMapping: { [key: string]: string } = {};
+  boundaryEntityResponse?.Boundary?.forEach((data: any) => {
+    boundaryCodeNameMapping[data?.code] = data?.additionalDetails?.name;
+  });
+
+  const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+  const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
+  const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
+  const headers = [...reducedHierarchy, "Boundary Code", "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"];
+  const data = boundaryList.map(boundary => {
+    const boundaryParts = boundary.split(',');
+    const boundaryCode = boundaryParts[boundaryParts.length - 1];
+    const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
+    const mappedRowData = rowData.map((cell: any, index: number) =>
+      index === reducedHierarchy.length ? '' : cell !== '' ? boundaryCodeNameMapping[cell] || cell : ''
+    );
+    const boundaryCodeIndex = reducedHierarchy.length;
+    mappedRowData[boundaryCodeIndex] = boundaryCode;
+    return mappedRowData;
+  });
+  return await createExcelSheet(data, headers);
+}
+
 
 
 export {
@@ -715,7 +751,9 @@ export {
   getDataFromSheet,
   matchData,
   enrichResourceDetails,
-  modifyBoundaryData
+  modifyBoundaryData,
+  getBoundaryRelationshipData,
+  getDataSheetReady
 };
 
 

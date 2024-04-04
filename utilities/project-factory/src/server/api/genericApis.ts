@@ -3,9 +3,9 @@ import config from "../config";
 import FormData from 'form-data';
 import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
-import { correctParentValues, sortCampaignDetails } from "../utils/genericUtils";
+import { correctParentValues, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails } from "../utils/genericUtils";
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator";
-import { extractCodesFromBoundaryRelationshipResponse } from '../utils/campaignUtils';
+import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils';
 const _ = require('lodash');
 
 const getWorkbook = async (fileUrl: string, sheetName: string) => {
@@ -344,43 +344,19 @@ function generateElementCode(sequence: any, parentCode: any, element: any) {
 }
 
 async function getBoundarySheetData(request: any) {
-    const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-    const params = request?.body?.Filters;
-    const boundaryType = params?.boundaryType;
-    const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
-    const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
+    const params = {
+        ...request?.query,
+        includeChildren: true
+    };
+    const boundaryData = await getBoundaryRelationshipData(request, params);
     logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    if (boundaryData) {
-        const boundaryList = generateHierarchyList(boundaryData)
-        if (Array.isArray(boundaryList) && boundaryList.length > 0) {
-            const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
-            const string = boundaryCodes.join(', ');
-            const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: "pg", codes: string });
-
-            const boundaryCodeNameMapping: { [key: string]: string } = {};
-            boundaryEntityResponse?.Boundary?.forEach((data: any) => {
-                boundaryCodeNameMapping[data?.code] = data?.additionalDetails?.name;
-            });
-
-            const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
-            const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
-            const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
-            const headers = [...reducedHierarchy, "Boundary Code", "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"];
-            const data = boundaryList.map(boundary => {
-                const boundaryParts = boundary.split(',');
-                const boundaryCode = boundaryParts[boundaryParts.length - 1];
-                const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
-                const mappedRowData = rowData.map((cell: any, index: number) =>
-                    index === reducedHierarchy.length ? '' : cell !== '' ? boundaryCodeNameMapping[cell] || cell : ''
-                );
-                const boundaryCodeIndex = reducedHierarchy.length;
-                mappedRowData[boundaryCodeIndex] = boundaryCode;
-                return mappedRowData;
-            });
-            return await createExcelSheet(data, headers);
-        }
+    if (request?.body?.Filters) {
+        const filteredBoundaryData = await generateFilteredBoundaryData(request);
+        return await getDataSheetReady(filteredBoundaryData, request);
     }
-    return { wb: null, ws: null, sheetName: null }; // Return null if no data found
+    else {
+        return await getDataSheetReady(boundaryData, request);
+    }
 }
 
 
@@ -607,4 +583,5 @@ export {
     createProjectIfNotExists,
     createRelatedResouce,
     createExcelSheet,
+    generateHierarchyList
 }
