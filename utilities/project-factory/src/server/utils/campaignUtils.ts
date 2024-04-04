@@ -9,6 +9,8 @@ import { logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import pool from "../config/dbPoolConfig";
 import * as XLSX from 'xlsx';
+import { getBoundaryRelationshipData } from "./genericUtils";
+import { validateFilters } from "./validators/campaignValidators";
 
 // import * as xlsx from 'xlsx-populate';
 const _ = require('lodash');
@@ -662,6 +664,113 @@ async function appendSheetsToWorkbook(boundaryData: any[]) {
     }
 }
 
+async function generateFilteredBoundaryData(request: any) {
+    validateFilters(request);
+    const rootBoundary: any = (request?.body?.Filters?.boundaries).filter((boundary: any) => boundary.isRoot);
+    const params = {
+        ...request?.query,
+        includeChildren: true,
+        codes: rootBoundary?.[0]?.code
+    };
+    const boundaryData = await getBoundaryRelationshipData(request, params);
+    const filteredBoundaryList = filterBoundaries(boundaryData, request?.body?.Filters)
+    return filteredBoundaryList;
+}
+
+function filterBoundaries(boundaryData: any[], filters: any): any {
+    function filterRecursive(boundary: any): any {
+        const boundaryFilters = filters && filters.boundaries; // Accessing boundaries array from filters object
+        const filter = boundaryFilters?.find((f: any) => f.code === boundary.code && f.boundaryType === boundary.boundaryType);
+
+        if (!filter) {
+            return {
+                ...boundary,
+                children: boundary.children.map(filterRecursive)
+            };
+        }
+
+        if (!boundary.children.length) {
+            if (!filter.includeAllChildren) {
+                throw new Error("Boundary cannot have includeAllChildren filter false if it does not have any children");
+            }
+            // If boundary has no children and includeAllChildren is true, return as is
+            return {
+                ...boundary,
+                children: []
+            };
+        }
+
+        if (filter.includeAllChildren) {
+            // If includeAllChildren is true, return boundary with all children
+            return {
+                ...boundary,
+                children: boundary.children.map(filterRecursive)
+            };
+        }
+
+        const filteredChildren: any[] = [];
+        boundary.children.forEach((child: any) => {
+            const matchingFilter = boundaryFilters.find((f: any) => f.code === child.code && f.boundaryType === child.boundaryType);
+            if (matchingFilter) {
+                filteredChildren.push(filterRecursive(child));
+            }
+        });
+        return {
+            ...boundary,
+            children: filteredChildren
+        };
+    }
+    try {
+        const filteredData = boundaryData.map(filterRecursive);
+        return filteredData;
+    }
+    catch (e: any) {
+        const errorMessage = "Error occurred while fetching boundaries: " + e.message;
+        logger.error(errorMessage)
+        throw new Error(errorMessage);
+    }
+}
+
+
+function generateHierarchy(boundaries: any[]) {
+    // Create an object to store boundary types and their parents
+    const parentMap: any = {};
+
+    // Populate the object with boundary types and their parents
+    for (const boundary of boundaries) {
+        parentMap[boundary.boundaryType] = boundary.parentBoundaryType;
+    }
+
+    // Traverse the hierarchy to generate the hierarchy list
+    const hierarchyList = [];
+    for (const boundaryType in parentMap) {
+        if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
+            const parentBoundaryType = parentMap[boundaryType];
+            if (parentBoundaryType === null) {
+                // This boundary type has no parent, add it to the hierarchy list
+                hierarchyList.push(boundaryType);
+                // Traverse its children recursively
+                traverseChildren(boundaryType, parentMap, hierarchyList);
+            }
+        }
+    }
+    return hierarchyList;
+}
+
+function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
+    for (const boundaryType in parentMap) {
+        if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
+            const parentBoundaryType = parentMap[boundaryType];
+            if (parentBoundaryType === parent) {
+                // This boundary type has the current parent, add it to the hierarchy list
+                hierarchyList.push(boundaryType);
+                // Traverse its children recursively
+                traverseChildren(boundaryType, parentMap, hierarchyList);
+            }
+        }
+    }
+}
+
 export {
     generateProcessedFileAndPersist,
     convertToTypeData,
@@ -674,5 +783,7 @@ export {
     processDataSearchRequest,
     getCodeMappingsOfExistingBoundaryCodes,
     processBasedOnAction,
-    appendSheetsToWorkbook
+    appendSheetsToWorkbook,
+    generateFilteredBoundaryData,
+    generateHierarchy
 }

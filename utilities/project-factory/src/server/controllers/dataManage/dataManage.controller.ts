@@ -75,7 +75,6 @@ class dataManageController {
                 if (!fileResponse?.fileStoreIds?.[0]?.url) {
                     throw new Error("Invalid file");
                 }
-                console.log(fileResponse?.fileStoreIds?.[0]?.url, "ggggggggggg")
                 const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Sheet1");
                 const updatedWorkbook = await appendSheetsToWorkbook(boundaryData);
                 const boundaryDetails = await createAndUploadFile(updatedWorkbook, request);

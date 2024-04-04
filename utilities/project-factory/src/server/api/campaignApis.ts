@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage } from "../utils/genericUtils";
 import { validateSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber } from "./genericApis";
-import { convertToTypeData } from "../utils/campaignUtils";
+import { convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
 
@@ -376,6 +376,50 @@ async function projectCreate(projectCreateBody: any, request: any) {
   }
 }
 
+function generateHierarchyList(data: any[], parentChain: any = []) {
+  let result: any[] = [];
+
+  // Iterate over each boundary in the current level
+  for (let boundary of data) {
+    let currentChain = [...parentChain, boundary.code];
+
+    // Add the current chain to the result
+    result.push(currentChain.join(','));
+
+    // If there are children, recursively call the function
+    if (boundary.children && boundary.children.length > 0) {
+      let childResults = generateHierarchyList(boundary.children, currentChain);
+      result = result.concat(childResults);
+    }
+  }
+  return result;
+
+}
+
+const getHierarchy = async (request: any, tenantId: string, hierarchyType: string) => {
+  const url = `${config.host.boundaryHost}${config.paths.boundaryHierarchy}`;
+
+  // Create request body
+  const requestBody = {
+    "RequestInfo": request?.body?.RequestInfo,
+    "BoundaryTypeHierarchySearchCriteria": {
+      "tenantId": tenantId,
+      "limit": 5,
+      "offset": 0,
+      "hierarchyType": hierarchyType
+    }
+  };
+
+  try {
+    const response = await httpRequest(url, requestBody);
+    const boundaryList = response?.BoundaryHierarchy?.[0].boundaryHierarchy;
+    return generateHierarchy(boundaryList);
+  } catch (error: any) {
+    logger.error(`Error fetching hierarchy data: ${error.message}`, error);
+    throw error;
+  }
+};
+
 export {
   enrichCampaign,
   getAllFacilities,
@@ -386,5 +430,7 @@ export {
   processGenericRequest,
   createProjectCampaignResourcData,
   processCreate,
-  projectCreate
+  projectCreate,
+  generateHierarchyList,
+  getHierarchy
 };
