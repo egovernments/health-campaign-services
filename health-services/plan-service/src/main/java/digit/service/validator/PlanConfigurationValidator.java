@@ -34,12 +34,16 @@ import static digit.config.ServiceConstants.JSONPATH_ERROR_MESSAGE;
 import static digit.config.ServiceConstants.MDMS_MASTER_ASSUMPTION;
 import static digit.config.ServiceConstants.MDMS_MASTER_UPLOAD_CONFIGURATION;
 import static digit.config.ServiceConstants.MDMS_PLAN_MODULE_NAME;
+import static digit.config.ServiceConstants.REQUEST_UUID_EMPTY_CODE;
+import static digit.config.ServiceConstants.REQUEST_UUID_EMPTY_MESSAGE;
 import static digit.config.ServiceConstants.SEARCH_CRITERIA_EMPTY_CODE;
 import static digit.config.ServiceConstants.SEARCH_CRITERIA_EMPTY_MESSAGE;
 import static digit.config.ServiceConstants.TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE;
 import static digit.config.ServiceConstants.TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE;
 import static digit.config.ServiceConstants.TENANT_ID_EMPTY_CODE;
 import static digit.config.ServiceConstants.TENANT_ID_EMPTY_MESSAGE;
+import static digit.config.ServiceConstants.USER_UUID_MISMATCH_CODE;
+import static digit.config.ServiceConstants.USER_UUID_MISMATCH_MESSAGE;
 
 @Component
 @Slf4j
@@ -170,6 +174,7 @@ public class PlanConfigurationValidator {
      */
     public void validateSearchRequest(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
         validateSearchCriteria(planConfigurationSearchRequest);
+        validateUserUuid(planConfigurationSearchRequest);
     }
 
     private void validateSearchCriteria(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
@@ -181,6 +186,22 @@ public class PlanConfigurationValidator {
             throw new CustomException(TENANT_ID_EMPTY_CODE, TENANT_ID_EMPTY_MESSAGE);
         }
     }
+
+    private void validateUserUuid(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
+        String userUuid = planConfigurationSearchRequest.getPlanConfigurationSearchCriteria().getUserUuid();
+        String requestUuid = planConfigurationSearchRequest.getRequestInfo().getUserInfo().getUuid();
+
+        if (userUuid.isEmpty()) return;
+
+        if (StringUtils.isEmpty(requestUuid)) {
+            throw new CustomException(REQUEST_UUID_EMPTY_CODE, REQUEST_UUID_EMPTY_MESSAGE);
+        }
+
+        if (!userUuid.equals(requestUuid)) {
+            throw new CustomException(USER_UUID_MISMATCH_CODE, USER_UUID_MISMATCH_MESSAGE);
+        }
+    }
+
 
     /**
      * Validates the update request for plan configuration, including assumptions against MDMS data.

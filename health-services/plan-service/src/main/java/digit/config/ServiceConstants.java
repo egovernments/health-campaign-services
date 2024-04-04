@@ -73,6 +73,10 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
     public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
 
+    public static final String REQUEST_UUID_EMPTY_CODE = "REQUEST_UUID_EMPTY";
+    public static final String REQUEST_UUID_EMPTY_MESSAGE = "Request UUID is empty";
+    public static final String USER_UUID_MISMATCH_CODE = "USER_UUID_MISMATCH";
+    public static final String USER_UUID_MISMATCH_MESSAGE = "Not Authorized to search with provided useruuid";
     public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
     public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
 
