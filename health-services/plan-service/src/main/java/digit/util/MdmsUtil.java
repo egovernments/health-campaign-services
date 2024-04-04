@@ -57,7 +57,7 @@ public class MdmsUtil {
 
     public MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId) {
 
-        ModuleDetail assumptionModuleDetail = getAssumptionModuleDetail();
+        ModuleDetail assumptionModuleDetail = getPlanModuleDetail();
 
         List<ModuleDetail> moduleDetails = new LinkedList<>();
         moduleDetails.add(assumptionModuleDetail);
@@ -67,14 +67,15 @@ public class MdmsUtil {
         return MdmsCriteriaReq.builder().mdmsCriteria(mdmsCriteria).requestInfo(requestInfo).build();
     }
 
-    private ModuleDetail getAssumptionModuleDetail() {
+    private ModuleDetail getPlanModuleDetail() {
         List<MasterDetail> assumptionMasterDetails = new ArrayList<>();
 
         MasterDetail assumptionMasterDetail = MasterDetail.builder().name(MDMS_MASTER_ASSUMPTION).filter(FILTER_CODE).build();
-
+        MasterDetail uploadConfigMasterDetail = MasterDetail.builder().name(MDMS_MASTER_UPLOAD_CONFIGURATION).filter(FILTER_ID).build();
         assumptionMasterDetails.add(assumptionMasterDetail);
+        assumptionMasterDetails.add(uploadConfigMasterDetail);
 
-        return ModuleDetail.builder().masterDetails(assumptionMasterDetails).moduleName(MDMS_PLAN_ASSUMPTION_MODULE_NAME).build();
+        return ModuleDetail.builder().masterDetails(assumptionMasterDetails).moduleName(MDMS_PLAN_MODULE_NAME).build();
     }
 
 }

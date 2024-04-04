@@ -78,7 +78,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         file.setId(fileId);
         file.setFilestoreId(rs.getString("plan_configuration_files_filestore_id"));
         file.setInputFileType(File.InputFileTypeEnum.valueOf(rs.getString("plan_configuration_files_input_file_type").toUpperCase()));
-
+        file.setTemplateIdentifier(rs.getString("plan_configuration_files_template_identifier"));
         if (CollectionUtils.isEmpty(planConfigEntry.getFiles())) {
             List<File> fileList = new ArrayList<>();
             fileList.add(file);
