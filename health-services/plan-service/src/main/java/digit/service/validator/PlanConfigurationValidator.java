@@ -99,7 +99,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionKeyAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForAssumption = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + ".*";
+        final String jsonPathForAssumption = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_ASSUMPTION + "[*].assumptions[*]";
 
         List<Object> assumptionListFromMDMS = null;
         try {

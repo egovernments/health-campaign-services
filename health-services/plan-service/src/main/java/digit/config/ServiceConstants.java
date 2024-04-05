@@ -81,7 +81,7 @@ public class ServiceConstants {
     public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
 
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
-    public static final String MDMS_MASTER_ASSUMPTION = "Assumptions";
+    public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
 
     public static final String MDSM_MASTER_TENANTS = "tenants";
