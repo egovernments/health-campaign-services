@@ -1,4 +1,4 @@
-package org.egov.common.helper;
+package org.egov.common.helpers;
 
 import org.egov.common.contract.request.RequestInfo;
 
