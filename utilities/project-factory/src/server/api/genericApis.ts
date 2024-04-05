@@ -6,6 +6,7 @@ import { logger } from "../utils/logger";
 import { correctParentValues, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails } from "../utils/genericUtils";
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator";
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils';
+import { validateFilters } from '../utils/validators/campaignValidators';
 const _ = require('lodash');
 
 const getWorkbook = async (fileUrl: string, sheetName: string) => {
@@ -349,8 +350,12 @@ async function getBoundarySheetData(request: any) {
         includeChildren: true
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
+    if (!boundaryData) {
+        throw new Error("No boundary data found in the system .");
+    }
     logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    if (request?.body?.Filters !=null) {
+    if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
+        validateFilters(request, boundaryData);
         const filteredBoundaryData = await generateFilteredBoundaryData(request);
         return await getDataSheetReady(filteredBoundaryData, request);
     }
