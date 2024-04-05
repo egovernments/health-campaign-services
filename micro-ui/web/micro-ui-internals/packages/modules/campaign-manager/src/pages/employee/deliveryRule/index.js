@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer, useState } from "react";
 import MultiTab from "./MultiTabcontext";
+import { deliveryConfig } from "../../../configs/deliveryConfig";
 
 const CycleContext = createContext();
 
@@ -13,7 +14,9 @@ function makeSequential(jsonArray, keyName) {
 function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subTabCount = 3, ...props }) {
   // Campaign Tab Skeleton function
   const [cycleData, setCycleData] = useState(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
-  const saved = JSON.parse(sessionStorage.getItem("Digit.HCM_CAMPAIGN_MANAGER_FORM_DATA"))?.value?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule;
+  const saved = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule;
+  const selectedProjectType = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA").HCM_CAMPAIGN_TYPE.projectType.code;
+  const filteredDeliveryConfig = deliveryConfig.find((i) => i.projectType === selectedProjectType);
   useEffect(() => {
     setCycleData(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
   }, [config]);
@@ -32,8 +35,16 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
           {
             ruleKey: 1,
             delivery: {},
-            attributes: [{ key: 1, attribute: null, operator: null, value: "" }],
-            products: [],
+            attributes: filteredDeliveryConfig?.customAttribute
+              ? filteredDeliveryConfig?.attributeConfig?.map((i) => ({ key: 1, attribute: i.attrValue, operator: null, value: "" }))
+              : [{ key: 1, attribute: null, operator: null, value: "" }],
+            products: [
+              {
+                key: 1,
+                count: null,
+                value: null,
+              },
+            ],
           },
         ],
       })),
@@ -193,8 +204,15 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   useEffect(() => {
     onSelect("deliveryRule", campaignData);
   }, [campaignData]);
+
   return (
-    <CycleContext.Provider value={{ campaignData, dispatchCampaignData }}>
+    <CycleContext.Provider
+      value={{
+        campaignData,
+        dispatchCampaignData,
+        filteredDeliveryConfig,
+      }}
+    >
       <MultiTab />
     </CycleContext.Provider>
   );
