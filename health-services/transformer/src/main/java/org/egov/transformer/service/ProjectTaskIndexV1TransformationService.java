@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Task;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -15,8 +16,8 @@ public class ProjectTaskIndexV1TransformationService extends ProjectTaskTransfor
 
     @Autowired
     public ProjectTaskIndexV1TransformationService(ProjectTaskIndexV1Transformer transformer,
-                                                   Producer producer, TransformerProperties properties) {
-        super(transformer, producer, properties);
+                                                   Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
+        super(transformer, producer, properties, commonUtils);
     }
 
     @Override

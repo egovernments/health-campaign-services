@@ -9,6 +9,7 @@ import com.jayway.jsonpath.Option;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.transformer.upstream.Boundary;
 import org.egov.tracer.model.CustomException;
@@ -23,8 +24,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
@@ -38,7 +37,7 @@ public class BoundaryService {
 
     private final TreeGenerator treeGenerator;
 
-    private static final Map<String, List<Boundary>> boundaryListMap = new ConcurrentHashMap<>();
+    private static BoundaryTree cachedBoundaryTree = null;
 
     public BoundaryService(TransformerProperties transformerProperties,
                            ServiceRequestClient serviceRequestClient,
@@ -49,21 +48,34 @@ public class BoundaryService {
         this.treeGenerator = treeGenerator;
     }
 
-    public List<Boundary> getBoundary(String code, String hierarchyTypeCode, String tenantId) {
-        if (boundaryListMap.containsKey(code)) {
-            log.info("getting boudary data for code {} from cache", code);
-            return boundaryListMap.get(code);
-        }
-        List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
-        if (!boundaryList.isEmpty()) {
-            boundaryListMap.put(code, boundaryList);
-        } else {
-            boundaryList = Collections.emptyList();
-        }
-        return boundaryList;
+    public BoundaryTree getBoundary(String code, String hierarchyTypeCode, String tenantId) {
+        return generateLocationTree(code, hierarchyTypeCode, tenantId);
     }
 
+    public BoundaryTree generateLocationTree (String code, String hierarchyTypeCode, String tenantId) {
+        if(cachedBoundaryTree == null) {
+            List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+            if(boundaryList.isEmpty()) return null;
+            log.info("no cached boundary tree, adding current tree into the cache");
+            cachedBoundaryTree = generateTree(boundaryList.get(0));
+            return search(cachedBoundaryTree, code);
+        }
+        else {
+            log.info("fetching boundary {} from cached tree", code);
+            BoundaryTree searchedFromCache = search(cachedBoundaryTree, code);
+            if(searchedFromCache != null) {
+                return searchedFromCache;
+            } else {
+                List<Boundary> boundaryList = searchBoundary(code, hierarchyTypeCode, tenantId);
+                if(boundaryList.isEmpty()) return null;
+                log.info("boundary code {} not in cached tree, generating new tree", code);
+                cachedBoundaryTree = generateTree(boundaryList.get(0));
+                return search(cachedBoundaryTree, code);
+            }
+        }
+    }
     public BoundaryTree generateTree(Boundary boundary) {
+
         return treeGenerator.generateTree(boundary);
     }
 
@@ -89,7 +101,7 @@ public class BoundaryService {
                     RequestInfo.builder().build(),
                     LinkedHashMap.class);
         } catch (Exception e) {
-            log.error("error while calling boundary service", e);
+            log.error("error while calling boundary service: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("BOUNDARY_ERROR", "error while calling boundary service");
         }
         if (response != null) {
@@ -108,7 +120,7 @@ public class BoundaryService {
                             .readValue(str,
                                     Boundary[].class));
                 } catch (JsonProcessingException e) {
-                    log.error("error in paring json", e);
+                    log.error("error in paring json {}", ExceptionUtils.getStackTrace(e));
                     throw new CustomException("JSON_ERROR", "error in parsing json");
                 }
             }
