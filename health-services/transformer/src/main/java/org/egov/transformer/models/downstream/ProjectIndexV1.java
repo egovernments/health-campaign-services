@@ -2,10 +2,14 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -17,6 +21,8 @@ public class ProjectIndexV1 {
     private String id;
     @JsonProperty("projectId")
     private String projectId;
+    @JsonProperty("projectBeneficiaryType")
+    private String projectBeneficiaryType;
     @JsonProperty("overallTarget")
     private Integer overallTarget;
     @JsonProperty("targetPerDay")
@@ -29,18 +35,20 @@ public class ProjectIndexV1 {
     private Long endDate;
     @JsonProperty("productVariant")
     private String productVariant;
+    @JsonProperty("productName")
+    private String productName;
     @JsonProperty("targetType")
     private String targetType;
-    @JsonProperty("province")
-    private String province;
-    @JsonProperty("district")
-    private String district;
-    @JsonProperty("administrativeProvince")
-    private String administrativeProvince;
-    @JsonProperty("locality")
-    private String locality;
-    @JsonProperty("village")
-    private String village;
+    @JsonProperty("boundaryHierarchy")
+    private ObjectNode boundaryHierarchy;
+    @JsonProperty("tenantId")
+    private String tenantId;
+    @JsonProperty("taskDates")
+    private List<String> taskDates;
+    @JsonProperty("projectType")
+    private String projectType;
+    @JsonProperty("subProjectType")
+    private String subProjectType;
     @JsonProperty("createdBy")
     private String createdBy = null;
     @JsonProperty("lastModifiedBy")
@@ -49,4 +57,6 @@ public class ProjectIndexV1 {
     private Long createdTime = null;
     @JsonProperty("lastModifiedTime")
     private Long lastModifiedTime = null;
+    @JsonProperty("additionalDetails")
+    private JsonNode additionalDetails;
 }

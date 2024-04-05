@@ -2,6 +2,7 @@ package org.egov.transformer.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.enums.Operation;
@@ -30,14 +31,14 @@ public class StockConsumer {
     @KafkaListener(topics = { "${transformer.consumer.bulk.create.stock.topic}",
             "${transformer.consumer.bulk.update.stock.topic}"})
     public void consumeStock(ConsumerRecord<String, Object> payload,
-                           @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+                             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             List<Stock> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Stock[].class));
             transformationHandler.handle(payloadList, Operation.STOCK);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk create", exception);
+            log.error("error in stock consumer bulk create {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

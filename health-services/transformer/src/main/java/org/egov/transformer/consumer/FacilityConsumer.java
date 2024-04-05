@@ -2,6 +2,7 @@ package org.egov.transformer.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.facility.Facility;
 import org.egov.transformer.service.FacilityService;
@@ -39,7 +40,7 @@ public class FacilityConsumer {
                             Facility[].class));
             facilityService.updateFacilitiesInCache(facilities);
         } catch (Exception exception) {
-            log.error("error in facility consumer", exception);
+            log.error("error in facility consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

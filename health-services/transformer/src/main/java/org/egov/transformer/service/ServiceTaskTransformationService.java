@@ -1,7 +1,10 @@
 package org.egov.transformer.service;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ServiceIndexV1;
@@ -9,14 +12,15 @@ import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.egov.transformer.Constants.*;
+
 @Slf4j
 public abstract class ServiceTaskTransformationService implements TransformationService<Service> {
 
@@ -25,13 +29,15 @@ public abstract class ServiceTaskTransformationService implements Transformation
     protected final Producer producer;
 
     protected final TransformerProperties properties;
+    protected final CommonUtils commonUtils;
 
     @Autowired
     protected ServiceTaskTransformationService(ServiceTaskTransformationService.ServiceTaskIndexV1Transformer transformer,
-                                                Producer producer, TransformerProperties properties) {
+                                               Producer producer, TransformerProperties properties, CommonUtils commonUtils) {
         this.transformer = transformer;
         this.producer = producer;
         this.properties = properties;
+        this.commonUtils = commonUtils;
     }
 
     @Override
@@ -60,40 +66,75 @@ public abstract class ServiceTaskTransformationService implements Transformation
         private final ProjectService projectService;
         private final TransformerProperties properties;
         private final ServiceDefinitionService serviceDefinitionService;
+        private final CommonUtils commonUtils;
+        private final UserService userService;
+
+        private final ObjectMapper objectMapper;
+
 
         @Autowired
-        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService) {
+        ServiceTaskIndexV1Transformer(ProjectService projectService, TransformerProperties properties, ServiceDefinitionService serviceDefinitionService, CommonUtils commonUtils, UserService userService, ObjectMapper objectMapper) {
 
             this.projectService = projectService;
             this.properties = properties;
             this.serviceDefinitionService = serviceDefinitionService;
+            this.commonUtils = commonUtils;
+            this.userService = userService;
+            this.objectMapper = objectMapper;
         }
 
         @Override
         public List<ServiceIndexV1> transform(Service service) {
-
+            String tenantId = service.getTenantId();
             ServiceDefinition serviceDefinition = serviceDefinitionService.getServiceDefinition(service.getServiceDefId(), service.getTenantId());
             String[] parts = serviceDefinition.getCode().split("\\.");
             String projectName = parts[0];
             String supervisorLevel = parts[2];
-            String projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
-            Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
+            String projectId = null;
+            if (service.getAccountId() != null) {
+                projectId = service.getAccountId();
+            } else {
+                projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
+            }
+            Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+            Project project = projectService.getProject(projectId, tenantId);
+            String projectTypeId = project.getProjectTypeId();
+            if (service.getAdditionalDetails() != null) {
+                boundaryLabelToNameMap = projectService
+                        .getBoundaryLabelToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
+            } else {
+                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, service.getTenantId());
+            }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+            ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
+            String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
+            Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
+            Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+            ObjectNode additionalDetails = objectMapper.createObjectNode();;
+            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
 
-            return Collections.singletonList(ServiceIndexV1.builder()
+            ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                     .id(service.getId())
+                    .clientReferenceId(service.getClientId())
                     .projectId(projectId)
                     .serviceDefinitionId(service.getServiceDefId())
                     .supervisorLevel(supervisorLevel)
-                    .checklistName(serviceDefinition.getCode())
-                    .province(boundaryLabelToNameMap.get(properties.getProvince()))
-                    .district(boundaryLabelToNameMap.get(properties.getDistrict()))
+                    .checklistName(parts[1])
+                    .userName(userInfoMap.get(USERNAME))
+                    .role(userInfoMap.get(ROLE))
+                    .userAddress(userInfoMap.get(CITY))
                     .createdTime(service.getAuditDetails().getCreatedTime())
+                    .taskDates(commonUtils.getDateFromEpoch(service.getAuditDetails().getLastModifiedTime()))
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .tenantId(service.getTenantId())
                     .userId(service.getAccountId())
                     .attributes(service.getAttributes())
-                    .build());
+                    .syncedTime(service.getAuditDetails().getLastModifiedTime())
+                    .syncedTimeStamp(syncedTimeStamp)
+                    .boundaryHierarchy(boundaryHierarchy)
+                    .additionalDetails(additionalDetails)
+                    .build();
+            return Collections.singletonList(serviceIndexV1);
         }
     }
 }

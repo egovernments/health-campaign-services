@@ -8,7 +8,10 @@ public enum Operation {
     PROJECT_STAFF("PROJECT_STAFF"),
     PROJECT("PROJECT"),
     STOCK("STOCK"),
-    SERVICE("SERVICE");
+    HOUSEHOLD_MEMBER("HOUSEHOLD_MEMBER"),
+    SERVICE("SERVICE"),
+    SIDE_EFFECT("SIDE_EFFECT"),
+    REFERRAL("REFERRAL");
 
     private String value;
 

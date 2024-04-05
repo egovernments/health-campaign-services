@@ -1,20 +1,23 @@
 package org.egov.transformer.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
+import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 public abstract class ProjectStaffTransformationService implements TransformationService<ProjectStaff> {
@@ -23,6 +26,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
     protected final Producer producer;
 
     protected final TransformerProperties properties;
+
 
     @Autowired
     protected ProjectStaffTransformationService(ProjectStaffIndexV1Transformer transformer,
@@ -56,33 +60,49 @@ public abstract class ProjectStaffTransformationService implements Transformatio
     static class ProjectStaffIndexV1Transformer implements
             Transformer<ProjectStaff, ProjectStaffIndexV1> {
         private final ProjectService projectService;
-        private final TransformerProperties properties;
+
+        private final UserService userService;
+
+        private final CommonUtils commonUtils;
 
         @Autowired
-        ProjectStaffIndexV1Transformer(ProjectService projectService, TransformerProperties properties) {
+        ProjectStaffIndexV1Transformer(ProjectService projectService, UserService userService, CommonUtils commonUtils) {
             this.projectService = projectService;
-            this.properties = properties;
+            this.userService = userService;
+            this.commonUtils = commonUtils;
         }
 
         @Override
         public List<ProjectStaffIndexV1> transform(ProjectStaff projectStaff) {
+            String tenantId = projectStaff.getTenantId();
+            String projectId = projectStaff.getProjectId();
+            Project project = projectService.getProject(projectId, tenantId);
+            String projectTypeId = project.getProjectTypeId();
             Map<String, String> boundaryLabelToNameMap = projectService
                     .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-            return Collections.singletonList(ProjectStaffIndexV1.builder()
+            Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
+            JsonNode additionalDetails = projectService.fetchAdditionalDetails(tenantId, null, projectTypeId);
+            List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
+            ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                     .id(projectStaff.getId())
-                    .projectId(projectStaff.getProjectId())
+                    .projectId(projectId)
                     .userId(projectStaff.getUserId())
-                    .province(boundaryLabelToNameMap.get(properties.getProvince()))
-                    .district(boundaryLabelToNameMap.get(properties.getDistrict()))
-                    .administrativeProvince(boundaryLabelToNameMap.get(properties.getAdministrativeProvince()))
-                    .locality(boundaryLabelToNameMap.get(properties.getLocality()))
-                    .village(boundaryLabelToNameMap.get(properties.getVillage()))
+                    .userName(userInfoMap.get(USERNAME))
+                    .role(userInfoMap.get(ROLE))
+                    .userAddress(userInfoMap.get(CITY))
+                    .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
                     .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                     .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())
                     .lastModifiedTime(projectStaff.getAuditDetails().getLastModifiedTime())
-                    .build());
+                    .additionalDetails(additionalDetails)
+                    .build();
+
+            ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
+            projectStaffIndexV1.setBoundaryHierarchy(boundaryHierarchy);
+            projectStaffIndexV1List.add(projectStaffIndexV1);
+            return projectStaffIndexV1List;
         }
     }
 }

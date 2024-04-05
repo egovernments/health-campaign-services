@@ -2,6 +2,7 @@ package org.egov.transformer.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
@@ -41,10 +42,9 @@ public class ProjectConsumer {
             ProjectRequest request = objectMapper
                     .readValue((String) payload.value(),
                             ProjectRequest.class);
-            projectService.updateProjectsInCache(request);
             transformationHandler.handle(request.getProjects(), Operation.PROJECT);
         } catch (Exception exception) {
-            log.error("error in project consumer", exception);
+            log.error("error in project consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

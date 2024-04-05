@@ -8,9 +8,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.Task;
+import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.stock.Stock;
 import org.egov.tracer.config.TracerConfiguration;
 import org.egov.transformer.enums.Operation;
@@ -121,10 +123,33 @@ public class MainConfiguration {
     }
     @Bean
     @Autowired
+    @Qualifier("householdMemberTransformationServiceMap")
+    public Map<Operation, List<TransformationService<HouseholdMember>>> getOperationTransformationServiceMapForHouseholdMember(
+            List<TransformationService<HouseholdMember>> transformationServices) {
+        Map<Operation, List<TransformationService<HouseholdMember>>> map =  transformationServices
+                .stream()
+                .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
+    }
+    @Bean
+    @Autowired
     @Qualifier("serviceTaskTransformationServiceMap")
     public Map<Operation, List<TransformationService<Service>>> getOperationTransformationServiceMapForServiceTask(
             List<TransformationService<Service>> transformationServices) {
         Map<Operation, List<TransformationService<Service>>> map =  transformationServices
+                .stream()
+                .collect(Collectors.groupingBy(TransformationService::getOperation));
+        log.info(map.toString());
+        return map;
+    }
+
+    @Bean
+    @Autowired
+    @Qualifier("sideEffectTransformationServiceMap")
+    public Map<Operation, List<TransformationService<SideEffect>>> getOperationTransformationServiceMapForSideEffect(
+            List<TransformationService<SideEffect>> transformationServices) {
+        Map<Operation, List<TransformationService<SideEffect>>> map =  transformationServices
                 .stream()
                 .collect(Collectors.groupingBy(TransformationService::getOperation));
         log.info(map.toString());

@@ -4,34 +4,35 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.mdms.MasterDetail;
 import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectRequest;
-import org.egov.common.models.project.ProjectResponse;
-import org.egov.common.models.transformer.upstream.Boundary;
+import org.egov.common.models.project.*;
 import org.egov.tracer.model.CustomException;
+import org.egov.transformer.Constants;
 import org.egov.transformer.boundary.BoundaryNode;
 import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
-import static org.egov.transformer.Constants.MDMS_RESPONSE;
-import static org.egov.transformer.Constants.PROJECT_TYPES;
+import static org.egov.transformer.Constants.*;
 
 @Component
 @Slf4j
@@ -47,7 +48,6 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
-    private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
@@ -59,35 +59,20 @@ public class ProjectService {
         this.mdmsService = mdmsService;
     }
 
-
-    public void updateProjectsInCache(ProjectRequest projectRequest) {
-        projectRequest.getProjects().forEach(project -> projectMap.put(project.getId(), project));
-    }
-
     public Project getProject(String projectId, String tenantId) {
-        if (projectMap.containsKey(projectId)) {
-            log.info("getting project {} from cache", projectId);
-            return projectMap.get(projectId);
-        }
         List<Project> projects = searchProject(projectId, tenantId);
         Project project = null;
         if (!projects.isEmpty()) {
             project = projects.get(0);
-            projectMap.put(projectId, project);
         }
         return project;
     }
 
     public Project getProjectByName(String projectName, String tenantId) {
-        if (projectMap.containsKey(projectName)) {
-            log.info("getting project {} from cache", projectName);
-            return projectMap.get(projectName);
-        }
         List<Project> projects = searchProjectByName(projectName, tenantId);
         Project project = null;
         if (!projects.isEmpty()) {
             project = projects.get(0);
-            projectMap.put(projectName, project);
         }
         return project;
     }
@@ -99,10 +84,12 @@ public class ProjectService {
     }
 
     public Map<String, String> getBoundaryLabelToNameMap(String locationCode, String tenantId) {
-        List<Boundary> boundaryList = boundaryService.getBoundary(locationCode, "ADMIN",
+        BoundaryTree locationTree = boundaryService.getBoundary(locationCode, "ADMIN",
                 tenantId);
-        BoundaryTree boundaryTree = boundaryService.generateTree(boundaryList.get(0));
-        BoundaryTree locationTree = boundaryService.search(boundaryTree, locationCode);
+        if (locationTree == null) {
+            log.info("could not fetch location tree for code {}", locationCode);
+            return new HashMap<>();
+        }
         List<BoundaryNode> parentNodes = locationTree.getParentNodes();
         Map<String, String> resultMap = parentNodes.stream().collect(Collectors
                 .toMap(BoundaryNode::getLabel, BoundaryNode::getName));
@@ -138,7 +125,7 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching project list", e);
+            log.error("error while fetching project list {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for name: " + projectName);
         }
@@ -149,10 +136,10 @@ public class ProjectService {
 
         ProjectRequest request = ProjectRequest.builder()
                 .requestInfo(RequestInfo.builder().
-                userInfo(User.builder()
-                        .uuid("transformer-uuid")
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
                         .build())
-                .build())
                 .projects(Collections.singletonList(Project.builder().id(projectId).tenantId(tenantId).build()))
                 .build();
 
@@ -168,11 +155,40 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching project list", e);
+            log.error("error while fetching project list {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for id: " + projectId);
         }
         return response.getProject();
+    }
+
+    public List<ProjectBeneficiary> searchBeneficiary(String projectBeneficiaryClientRefId, String tenantId) {
+        BeneficiarySearchRequest request = BeneficiarySearchRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectBeneficiary(ProjectBeneficiarySearch.builder().
+                        clientReferenceId(Collections.singletonList(projectBeneficiaryClientRefId)).build())
+                .build();
+        BeneficiaryBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectBeneficiarySearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    BeneficiaryBulkResponse.class);
+        } catch (Exception e) {
+            log.error("error while fetching beneficiary {}", ExceptionUtils.getStackTrace(e));
+            throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
+                    "error while fetching beneficiary details for id: " + projectBeneficiaryClientRefId);
+        }
+        return response.getProjectBeneficiaries();
     }
 
     public List<String> getProducts(String tenantId, String projectTypeId) {
@@ -187,6 +203,30 @@ public class ProjectService {
         return convertToProjectTypeList(response);
     }
 
+    public String getProjectBeneficiaryType(String tenantId, String projectTypeId) {
+        String filter = "$[?(@.id == '" + projectTypeId + "')].beneficiaryType";
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                    transformerProperties.getMdmsModule(), filter);
+
+            if (response != null && response.has(transformerProperties.getMdmsModule())) {
+                JsonNode projectBeneficiaryTypeNode = response
+                        .get(transformerProperties.getMdmsModule())
+                        .withArray(PROJECT_TYPES);
+
+                if (projectBeneficiaryTypeNode != null && projectBeneficiaryTypeNode.isArray() && projectBeneficiaryTypeNode.size() > 0) {
+                    return projectBeneficiaryTypeNode.get(0).asText();
+                }
+            }
+        } catch (Exception exception) {
+            log.error("error while fetching projectBeneficiaryType from MDMS for projectTypeId: {}. ExceptionDetails {}", projectTypeId, ExceptionUtils.getStackTrace(exception));
+        }
+        return null;
+    }
+
     private JsonNode fetchMdmsResponse(RequestInfo requestInfo, String tenantId, String name,
                                        String moduleName, String filter) {
         MdmsCriteriaReq serviceRegistry = getMdmsRequest(requestInfo, tenantId, name, moduleName, filter);
@@ -197,9 +237,107 @@ public class ProjectService {
         }
     }
 
+    public JsonNode fetchBoundaryData(String tenantId, String filter, String projectTypeId) {
+        List<JsonNode> projectTypes = new ArrayList<>();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                    transformerProperties.getMdmsModule(), filter);
+            projectTypes = convertToProjectTypeJsonNodeList(response);
+            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
+            return requiredProjectType.get(Constants.BOUNDARY_DATA);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public JsonNode fetchBoundaryDataByTenant(String tenantId, String filter) {
+        List<JsonNode> projectTypes = new ArrayList<>();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
+                    transformerProperties.getMdmsModule(), filter);
+            projectTypes = convertToProjectTypeJsonNodeList(response);
+            for (JsonNode projectType : projectTypes) {
+                JsonNode boundaryData = projectType.get(Constants.BOUNDARY_DATA);
+                if (boundaryData != null) {
+                    return boundaryData;
+                }
+            }
+            return null;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
+        List<JsonNode> projectTypes = new ArrayList<>();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        try {
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
+            projectTypes = convertToProjectTypeJsonNodeList(response);
+            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
+            return requiredProjectType;
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public JsonNode fetchAdditionalDetails(String tenantId, String filter, String projectTypeId) {
+
+        JsonNode additionalDetails = null;
+        JsonNode requiredProjectType = fetchProjectTypes(tenantId, filter, projectTypeId);
+        if (requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
+            additionalDetails = extractCycleAndDoseIndexes(requiredProjectType);
+        }
+        return additionalDetails;
+    }
+
+    private JsonNode extractCycleAndDoseIndexes(JsonNode projectType) {
+        ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
+        ArrayNode doseIndex = JsonNodeFactory.instance.arrayNode();
+        ArrayNode cycleIndex = JsonNodeFactory.instance.arrayNode();
+        try {
+            cycles.forEach(cycle -> {
+                if (cycle.has(ID)) {
+                    cycleIndex.add(cycle.get(ID).asInt());
+                }
+            });
+            ArrayNode deliveries = (ArrayNode) cycles.get(0).get(DELIVERIES);
+            deliveries.forEach(delivery -> {
+                if (delivery.has(ID)) {
+                    doseIndex.add(delivery.get(ID).asInt());
+                }
+            });
+
+            ObjectNode result = JsonNodeFactory.instance.objectNode();
+            result.set(DOSE_NUMBER, doseIndex);
+            result.set(CYCLE_NUMBER, cycleIndex);
+            return result;
+        } catch (Exception e) {
+            log.info("Error while fetching cycle and dose indexes from MDMS: {}", ExceptionUtils.getStackTrace(e));
+            return null;
+        }
+    }
+
     private List<String> convertToProjectTypeList(JsonNode jsonNode) {
         JsonNode projectTypesNode = jsonNode.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
         return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<String>>() {
+        });
+    }
+
+    private List<JsonNode> convertToProjectTypeJsonNodeList(JsonNode jsonNode) throws IOException {
+        JsonNode projectTypesNode = jsonNode.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
+        return objectMapper.readValue(projectTypesNode.traverse(), new TypeReference<List<JsonNode>>() {
         });
     }
 
@@ -207,7 +345,9 @@ public class ProjectService {
                                            String moduleName, String filter) {
         MasterDetail masterDetail = new MasterDetail();
         masterDetail.setName(masterName);
-        masterDetail.setFilter(filter);
+        if (filter != null && !filter.isEmpty()) {
+            masterDetail.setFilter(filter);
+        }
         List<MasterDetail> masterDetailList = new ArrayList<>();
         masterDetailList.add(masterDetail);
         ModuleDetail moduleDetail = new ModuleDetail();
@@ -223,4 +363,36 @@ public class ProjectService {
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
     }
+
+    public ProjectStaff searchProjectStaff(String userId, String tenantId) {
+
+        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
+                .build();
+
+        ProjectStaffBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectStaffSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    ProjectStaffBulkResponse.class);
+        } catch (Exception e) {
+            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
+
+            return null;
+        }
+        return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
+    }
+
+
 }
