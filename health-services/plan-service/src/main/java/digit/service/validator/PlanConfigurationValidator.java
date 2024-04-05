@@ -191,7 +191,9 @@ public class PlanConfigurationValidator {
         String userUuid = planConfigurationSearchRequest.getPlanConfigurationSearchCriteria().getUserUuid();
         String requestUuid = planConfigurationSearchRequest.getRequestInfo().getUserInfo().getUuid();
 
-        if (userUuid.isEmpty()) return;
+        if (userUuid == null || userUuid.isEmpty()) {
+            return;
+        }
 
         if (StringUtils.isEmpty(requestUuid)) {
             throw new CustomException(REQUEST_UUID_EMPTY_CODE, REQUEST_UUID_EMPTY_MESSAGE);
