@@ -7,8 +7,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.Task;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.handler.TransformationHandler;
-import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
-import org.egov.transformer.service.NewProjectTaskTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -19,7 +17,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @Slf4j
@@ -29,19 +26,15 @@ public class ProjectTaskConsumer {
 
     private final ObjectMapper objectMapper;
 
-    private final NewProjectTaskTransformationService newProjectTaskTransformationService;
-
     private final List<Task> taskBatch = new ArrayList<>();
 
-    private final long batchProcessingInterval = 3 * 1000;
     private long startTimeMillis;
 
     @Autowired
     public ProjectTaskConsumer(TransformationHandler<Task> transformationHandler,
-                               @Qualifier("objectMapper") ObjectMapper objectMapper, NewProjectTaskTransformationService newProjectTaskTransformationService) {
+                               @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.transformationHandler = transformationHandler;
         this.objectMapper = objectMapper;
-        this.newProjectTaskTransformationService = newProjectTaskTransformationService;
 
     }
 
@@ -60,6 +53,7 @@ public class ProjectTaskConsumer {
         } catch (Exception exception) {
             log.error("error in project task bulk consumer {}", ExceptionUtils.getStackTrace(exception));
         }
+        long batchProcessingInterval = 3 * 1000;
         if (System.currentTimeMillis() - startTimeMillis >= batchProcessingInterval ||
                 taskBatch.size() >= 20) {
             processTaskBatch();
