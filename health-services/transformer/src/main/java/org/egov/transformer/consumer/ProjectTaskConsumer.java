@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.Task;
+import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.handler.TransformationHandler;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,12 +31,15 @@ public class ProjectTaskConsumer {
 
     private long startTimeMillis;
 
+    private final TransformerProperties transformerProperties;
+
     @Autowired
     public ProjectTaskConsumer(TransformationHandler<Task> transformationHandler,
-                               @Qualifier("objectMapper") ObjectMapper objectMapper) {
+                               @Qualifier("objectMapper") ObjectMapper objectMapper, TransformerProperties transformerProperties) {
         this.transformationHandler = transformationHandler;
         this.objectMapper = objectMapper;
 
+        this.transformerProperties = transformerProperties;
     }
 
     @KafkaListener(topics = { "${transformer.consumer.bulk.create.project.task.topic}",
@@ -50,13 +54,13 @@ public class ProjectTaskConsumer {
 //            transformationHandler.handle(payloadList, Operation.TASK);
 //            List<ProjectTaskIndexV1> rec = newProjectTaskTransformationService.transformNew(payloadList);
 
+            long batchProcessingInterval = transformerProperties.getTaskTimeLimit() * 1000;
+            if (System.currentTimeMillis() - startTimeMillis >= batchProcessingInterval ||
+                    taskBatch.size() >= transformerProperties.getTaskBatchSize()) {
+                processTaskBatch();
+            }
         } catch (Exception exception) {
             log.error("error in project task bulk consumer {}", ExceptionUtils.getStackTrace(exception));
-        }
-        long batchProcessingInterval = 3 * 1000;
-        if (System.currentTimeMillis() - startTimeMillis >= batchProcessingInterval ||
-                taskBatch.size() >= 20) {
-            processTaskBatch();
         }
     }
     private void processTaskBatch() {

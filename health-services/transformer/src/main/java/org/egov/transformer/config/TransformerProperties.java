@@ -158,5 +158,11 @@ public class TransformerProperties {
     @Value("${referral.service.checklist.name}")
     private String checkListName;
 
+    @Value("${task.transformation.batch.size}")
+    private Integer taskBatchSize;
+
+    @Value("${task.transformation.time.limit.seconds}")
+    private Integer taskTimeLimit;
+
 
 }
