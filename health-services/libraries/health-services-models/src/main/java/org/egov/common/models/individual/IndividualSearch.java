@@ -87,5 +87,8 @@ public class IndividualSearch   {
     @JsonProperty("userUuid")
     @Size(min = 1)
     private List<String> userUuid;
+
+    @JsonProperty("type")
+    private String type;
 }
 
