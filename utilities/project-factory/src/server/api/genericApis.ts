@@ -18,7 +18,7 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
         const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
         const workbook = XLSX.read(responseFile, { type: 'buffer' });
         if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-            throw new Error(`Sheet with name "${sheetName}" is not present in the file.`);
+            throw Object.assign(new Error(`Sheet with name "${sheetName}" is not present in the file.`), { code: "INVALID_SHEETNAME" });
         }
         return workbook;
     } catch (error) {
@@ -89,7 +89,7 @@ const getCampaignNumber: any = async (requestBody: any, idFormat: String, idName
     if (result?.idResponses?.[0]?.id) {
         return result?.idResponses?.[0]?.id;
     }
-    throw new Error("Error during generating campaign number");
+    throw Object.assign(new Error("Error during generating campaign number"), { code: "IDGEN_ERROR" });
 }
 
 const getResouceNumber: any = async (RequestInfo: any, idFormat: String, idName: string) => {
@@ -351,7 +351,7 @@ async function getBoundarySheetData(request: any) {
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
     if (!boundaryData) {
-        throw new Error("No boundary data found in the system .");
+        throw Object.assign(new Error("No boundary data found in the system."), { code: "BOUNDARY_DATA_NOT_FOUND" });
     }
     logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
     if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
@@ -566,7 +566,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
         }
     } catch (error) {
         console.error('Error creating boundary relationship:', error);
-        throw new Error('Error creating boundary relationship: Boundary already exist in the system');
+        throw Object.assign(new Error('Error creating boundary relationship: Boundary already exist in the system'), { code: 'BOUNDARY_ALREADY_EXIST' });
     }
 }
 

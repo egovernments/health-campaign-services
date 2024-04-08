@@ -229,17 +229,18 @@ async function validateCampaignBoundary(boundary: any, hierarchyType: any, tenan
     };
     const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, { RequestInfo: request.body.RequestInfo }, params);
     if (!boundaryResponse?.TenantBoundary || !Array.isArray(boundaryResponse.TenantBoundary) || boundaryResponse.TenantBoundary.length === 0) {
-        throw new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
+        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND" });
     }
 
     const boundaryData = boundaryResponse.TenantBoundary[0]?.boundary;
 
     if (!boundaryData || !Array.isArray(boundaryData) || boundaryData.length === 0) {
-        throw new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
+        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND" });
+
     }
 
     if (boundary.isRoot && boundaryData[0]?.code !== boundary.code) {
-        throw new Error(`Boundary with code ${boundary.code} is not root`);
+        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND" });
     }
 }
 

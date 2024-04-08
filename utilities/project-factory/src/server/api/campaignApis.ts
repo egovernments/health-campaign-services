@@ -31,7 +31,7 @@ async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchP
     searchedFacilities.push(...response?.Facilities);
     return response.Facilities.length >= 50; // Return true if there are more facilities to fetch, false otherwise
   } else {
-    throw new Error("Search failed for Facility. Check Logs");
+    throw Object.assign(new Error("Search failed for Facility. Check Logs"), { code: "FACILITY_SEARCH_FAILED" });
   }
 }
 
@@ -356,7 +356,7 @@ async function createProjectCampaignResourcData(request: any) {
       } catch (error: any) {
         // Handle error for individual resource creation
         logger.error(`Error creating resource: ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
-        throw new Error(String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error))
+        throw Object.assign(new Error(String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error)), { code: "RESOURCE_CREATION_ERROR" });
       }
     }
   }
@@ -372,7 +372,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
-    throw new Error("Project creation failed, for the request: " + JSON.stringify(projectCreateBody))
+    throw Object.assign(new Error("Project creation failed, for the request: " + JSON.stringify(projectCreateBody)), { code: "PROJECT_CREATION_FAILED" });
   }
 }
 
