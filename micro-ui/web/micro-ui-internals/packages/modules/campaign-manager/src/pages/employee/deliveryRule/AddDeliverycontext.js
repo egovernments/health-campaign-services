@@ -40,9 +40,11 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
   }, [delivery]);
 
   const selectValue = (e) => {
+    console.log("edkshsdkhs", e.target.value);
     let val = e.target.value;
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
+      return;
     }
     // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
     const updatedData = deliveryRules.map((item, index) => {
@@ -66,6 +68,10 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
   };
 
   const selectToFromValue = (e, range) => {
+    let val = e.target.value;
+    if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
+      val = val.slice(0, -1);
+    }
     if (range === "to") {
       const updatedData = deliveryRules.map((item, index) => {
         if (item.ruleKey === deliveryRuleIndex) {
@@ -436,6 +442,10 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
   const prodRef = useRef();
 
   const confirmResources = () => {
+    const isValid = prodRef.current?.every((item) => item?.count !== null && item?.value !== null);
+    if (!isValid) {
+      return;
+    }
     dispatchCampaignData({
       type: "ADD_PRODUCT",
       payload: {
@@ -487,7 +497,9 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
         />
 
         {delivery?.products?.length > 0 &&
-          delivery?.products?.map((i) => <RemoveableTagNew text={{ value: i.name }} onClick={() => removeProduct(i)} />)}
+          delivery?.products?.map((i) => {
+            i?.value && i.count ? <RemoveableTagNew text={{ value: i.value }} onClick={() => removeProduct(i)} /> : null;
+          })}
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)}

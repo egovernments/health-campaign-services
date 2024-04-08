@@ -204,6 +204,7 @@ export const CampaignConfig = (totalFormData) => {
               type: "component",
               component: "CampaignSummary",
               withoutLabel: true,
+              withoutLabelFieldPair: true,
               disable: false,
               customProps: {
                 module: "HCM",

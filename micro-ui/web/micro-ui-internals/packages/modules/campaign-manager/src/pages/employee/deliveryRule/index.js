@@ -38,13 +38,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
             attributes: filteredDeliveryConfig?.customAttribute
               ? filteredDeliveryConfig?.attributeConfig?.map((i) => ({ key: 1, attribute: i.attrValue, operator: null, value: "" }))
               : [{ key: 1, attribute: null, operator: null, value: "" }],
-            products: [
-              {
-                key: 1,
-                count: null,
-                value: null,
-              },
-            ],
+            products: [],
           },
         ],
       })),

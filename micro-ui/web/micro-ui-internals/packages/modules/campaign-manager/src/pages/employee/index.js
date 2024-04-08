@@ -20,7 +20,7 @@ const CampaignBreadCrumb = ({ location, defaultPath }) => {
       path: `/${window?.contextPath}/employee/campaign/setup-campaign`,
       content: t("CREATE_NEW_CAMPAIGN"),
       show: true,
-    }
+    },
   ];
 
   return <BreadCrumb className="campaign-breadcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
@@ -33,6 +33,7 @@ const App = ({ path }) => {
   const DeliveryRule = Digit?.ComponentRegistryService?.getComponent("DeliveryRule");
   const MyCampaign = Digit?.ComponentRegistryService?.getComponent("MyCampaign");
   const CampaignSummary = Digit?.ComponentRegistryService?.getComponent("CampaignSummary");
+  const Response = Digit?.ComponentRegistryService?.getComponent("Response");
 
   return (
     <React.Fragment>
@@ -49,6 +50,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/setup-campaign`} component={() => <SetupCampaign />} />
           <PrivateRoute path={`${path}/my-campaign`} component={() => <MyCampaign />} />
           <PrivateRoute path={`${path}/preview`} component={() => <CampaignSummary />} />
+          <PrivateRoute path={`${path}/response`} component={() => <Response />} />
         </AppContainer>
       </Switch>
     </React.Fragment>

@@ -1,9 +1,10 @@
 import { Loader, FormComposerV2, Header, Toast, MultiUploadWrapper, Button, Close, LogoutIcon } from "@egovernments/digit-ui-react-components";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useHistory } from "react-router-dom";
+import { useHistory, useParams } from "react-router-dom";
 import TimelineCampaign from "../../components/TimelineCampaign";
 import { CampaignConfig } from "../../configs/CampaignConfig";
+import { QueryClient, useQueryClient } from "react-query";
 
 const SetupCampaign = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
@@ -17,6 +18,24 @@ const SetupCampaign = () => {
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
   const [showToast, setShowToast] = useState(null);
   const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
+  const { mutate: updateCampaign } = Digit.Hooks.campaign.useUpdateCampaign(tenantId);
+  const searchParams = new URLSearchParams(location.search);
+  const id = searchParams.get("id");
+  const [isDraftCreated, setIsDraftCreated] = useState(false);
+  const client = useQueryClient();
+
+  const { isLoading: draftLoading, data: draftData, error: draftError, refetch: draftRefetch } = Digit.Hooks.campaign.useSearchCampaign({
+    tenantId: tenantId,
+    filter: {
+      ids: [id],
+    },
+    config: {
+      enabled: id ? true : false,
+      select: (data) => {
+        return data?.[0];
+      },
+    },
+  });
 
   function updateUrlParams(params) {
     const url = new URL(window.location.href);
@@ -70,8 +89,8 @@ const SetupCampaign = () => {
       cycle.deliveries.forEach((delivery, index) => {
         delivery.deliveryRules.forEach((rule) => {
           const restructuredRule = {
-            startDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i.key === cycle.cycleIndex)?.startDate), // Hardcoded for now
-            endDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i?.key === cycle?.cycleIndex)?.startDate), // Hardcoded for now
+            startDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i.key === cycle.cycleIndex)?.fromDate), // Hardcoded for now
+            endDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i?.key === cycle?.cycleIndex)?.toDate), // Hardcoded for now
             cycleNumber: parseInt(cycle.cycleIndex),
             deliveryNumber: parseInt(delivery.deliveryIndex),
             deliveryRuleNumber: parseInt(rule.ruleKey), // New key added
@@ -96,45 +115,180 @@ const SetupCampaign = () => {
   }
 
   useEffect(() => {
+    if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+      const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+    }
     if (shouldUpdate === true) {
-      if (currentKey === 9) {
-        // history.push()
-        return;
+      if (filteredConfig?.[0]?.form?.[0]?.isLast) {
+        const reqCreate = async () => {
+          let payloadData = {};
+          payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+            : null;
+          payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+            : null;
+          payloadData.tenantId = tenantId;
+          payloadData.action = "create";
+          payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
+          payloadData.boundaries = [];
+          payloadData.resources = [];
+          payloadData.projectType = null;
+          payloadData.additionalDetails = {};
+          if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+            const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+            payloadData.deliveryRules = temp;
+          }
+
+          await mutate(payloadData, {
+            onError: (error, variables) => {
+              console.log(error);
+            },
+            onSuccess: async (data) => {
+              draftRefetch();
+              Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+              history.push(
+                `/${window.contextPath}/employee/campaign/response?campaignId=${data?.CampaignDetails?.campaignNumber}&isSuccess=${true}`,
+                {
+                  message: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE",
+                  text: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT",
+                }
+              );
+            },
+          });
+        };
+
+        reqCreate();
+      } else if (!isDraftCreated) {
+        const reqCreate = async () => {
+          let payloadData = {};
+          payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+            : null;
+          payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+            : null;
+          payloadData.tenantId = tenantId;
+          payloadData.action = "draft";
+          payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
+          payloadData.boundaries = [];
+          payloadData.resources = [];
+          payloadData.projectType = null;
+          payloadData.additionalDetails = {};
+          if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+            const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+            payloadData.deliveryRules = temp;
+          }
+
+          await mutate(payloadData, {
+            onError: (error, variables) => {
+              console.log(error);
+            },
+            onSuccess: async (data) => {
+              updateUrlParams({ id: data?.CampaignDetails?.id });
+              setIsDraftCreated(true);
+              draftRefetch();
+            },
+          });
+        };
+
+        reqCreate();
+      } else {
+        const reqCreate = async () => {
+          let payloadData = draftData;
+          payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+            : null;
+          payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+            : null;
+          payloadData.tenantId = tenantId;
+          payloadData.action = "draft";
+          payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
+          payloadData.boundaries = [];
+          payloadData.resources = [];
+          payloadData.projectType = null;
+          payloadData.additionalDetails = {};
+          if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+            const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+            payloadData.deliveryRules = temp;
+          }
+
+          await updateCampaign(payloadData, {
+            onError: (error, variables) => {
+              console.log(error);
+            },
+            onSuccess: async (data) => {
+              updateUrlParams({ id: data?.CampaignDetails?.id });
+              draftRefetch();
+            },
+          });
+        };
+
+        reqCreate();
       }
-      const reqCreate = async () => {
-        let payloadData = {};
-        payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-          ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
-          : null;
-        payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
-          ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
-          : null;
-        payloadData.tenantId = tenantId;
-        payloadData.action = "draft";
-        payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-        payloadData.boundaries = [];
-        payloadData.resources = [];
-        payloadData.projectType = null;
-        payloadData.additionalDetails = {};
-        if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
-          const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
-          payloadData.deliveryRules = temp;
-        }
-
-        await mutate(payloadData, {
-          onError: (error, variables) => {
-            console.log(error);
-          },
-          onSuccess: async (data) => {
-            console.log(data);
-          },
-        });
-      };
-
-      reqCreate();
       setShouldUpdate(false);
     }
   }, [shouldUpdate, totalFormData, currentKey]);
+
+  function validateCycleData(data) {
+    const { cycle, deliveries } = data.cycleConfigure.cycleConfgureDate;
+    const cycleData = data.cycleConfigure.cycleData;
+
+    // Validate cycle and deliveries
+    if (cycle <= 0 || deliveries <= 0) {
+      return { error: true, message: "Cycle and deliveries should be greater than 0" };
+    }
+
+    // Validate cycleData length
+    if (cycleData.length !== cycle) {
+      return { error: true, message: "Cycle data length should be equal to cycle" };
+    }
+
+    // Validate fromDate and startDate in cycleData
+    for (const item of cycleData) {
+      if (!item.fromDate || !item.toDate) {
+        return { error: true, message: "From date and start date should not be empty in cycle data" };
+      }
+    }
+
+    return false;
+  }
+
+  function validateDeliveryRules(data) {
+    let isValid = true;
+
+    // Iterate over deliveryRule array
+    data.deliveryRule.forEach((cycle) => {
+      cycle.deliveries.forEach((delivery) => {
+        delivery.deliveryRules.forEach((rule) => {
+          // Validate attributes and products length
+          if (rule.attributes.length === 0 || rule.products.length === 0) {
+            isValid = false;
+            return;
+          }
+
+          rule.attributes.forEach((attribute) => {
+            // Check if attribute, operator, and value are empty
+            if (attribute.attribute !== "" || attribute.operator !== null || attribute.value !== "") {
+              isValid = false;
+            }
+          });
+
+          rule.products.forEach((product) => {
+            // Check if count and value are empty
+            if (product.count !== null || product.value !== null) {
+              isValid = false;
+            }
+          });
+        });
+      });
+    });
+
+    return isValid;
+    // ? "Delivery rules are valid"
+    // : "Attributes, operators, values, count, or value are not empty in delivery rules or attributes/products length is 0";
+  }
 
   const handleValidate = (formData) => {
     const key = Object.keys(formData)?.[0];
@@ -148,6 +302,20 @@ const SetupCampaign = () => {
           setShowToast({ key: "error", label: "CAMPAIGN_DATES_MISSING_ERROR" });
           return false;
         }
+      case "summary":
+        const cycleConfigureData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE;
+        const isCycleError = validateCycleData(cycleConfigureData);
+        if (isCycleError?.error === true) {
+          setShowToast({ key: "error", label: isCycleError?.message });
+          return false;
+        }
+        const deliveryCycleData = totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA;
+        const isDeliveryError = validateDeliveryRules(deliveryCycleData);
+        if (isDeliveryError === false) {
+          setShowToast({ key: "error", label: "DELIVERY_RULES_ERROR" });
+          return false;
+        }
+        return true;
       default:
         break;
     }
@@ -158,12 +326,13 @@ const SetupCampaign = () => {
       setTimeout(closeToast, 5000);
     }
   }, [showToast]);
+
   const onSubmit = (formData) => {
     const checkValid = handleValidate(formData);
     if (checkValid === false) {
       return;
     }
-    setCurrentKey(currentKey + 1);
+
     const name = filteredConfig?.[0]?.form?.[0]?.name;
 
     setTotalFormData((prevData) => ({
@@ -188,6 +357,10 @@ const SetupCampaign = () => {
     };
 
     setShouldUpdate(true);
+
+    if (!filteredConfig?.[0]?.form?.[0]?.isLast) {
+      setCurrentKey(currentKey + 1);
+    }
     // convertFormData(totalFormData);
     const payload = convertPayload(dummyData);
   };
@@ -195,7 +368,6 @@ const SetupCampaign = () => {
   const onStepClick = (step) => {
     const filteredSteps = campaignConfig[0].form.filter((item) => item.stepCount === String(step + 1));
 
-    
     const key = parseInt(filteredSteps[0].key);
     const name = filteredSteps[0].name;
 
@@ -263,9 +435,9 @@ const SetupCampaign = () => {
         showSecondaryLabel={currentKey > 1 ? true : false}
         secondaryLabel={t("HCM_BACK")}
         actionClassName={"actionBarClass"}
-        noCardStyle={currentStep == 1 ? true : false}
+        noCardStyle={currentStep === 1 || currentStep === 6 ? true : false}
         onSecondayActionClick={onSecondayActionClick}
-        label={currentKey === 9 ? t("HCM_SUBMIT") : t("HCM_NEXT")}
+        label={filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
       {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
     </React.Fragment>

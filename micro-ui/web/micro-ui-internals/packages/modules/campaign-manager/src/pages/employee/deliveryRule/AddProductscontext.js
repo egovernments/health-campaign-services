@@ -5,7 +5,13 @@ import { useTranslation } from "react-i18next";
 
 function AddProducts({ stref, selectedDelivery }) {
   const { t } = useTranslation();
-  const [products, setProducts] = useState(selectedDelivery?.products);
+  const [products, setProducts] = useState([
+    {
+      key: 1,
+      count: null,
+      value: 1,
+    },
+  ]);
   const data = Digit.Hooks.campaign.useProductList();
   // const onDeleteProduct = (i, c) => {
   //   const updatedProducts = selectedDelivery.products.filter((product) => product.key !== i.key);
