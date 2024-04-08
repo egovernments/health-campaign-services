@@ -12,6 +12,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
@@ -25,18 +26,23 @@ public class ExcelParser implements FileParser {
 
     private ParsingUtil parsingUtil;
 
-    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil) {
+    private FilestoreUtil filestoreUtil;
+
+    public ExcelParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil) {
         this.objectMapper = objectMapper;
         this.parsingUtil = parsingUtil;
+        this.filestoreUtil = filestoreUtil;
     }
 
 
     public void parseFileData(PlanConfiguration planConfig) {
-        File file = new File("Microplan/valid/Population/PopulationValid.xlsx");
+
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
 
         // Check if the GeoJSON file exists
-        if (file.exists()) log.info("File exists at - " + file.getAbsolutePath());
-        else log.info("FILE NOT FOUND - " + file.getAbsolutePath());
+        if (file == null || !file.exists()) log.info("FILE NOT FOUND - ");
+        else log.info("File exists at - " + file.getAbsolutePath());
 
         try
         {

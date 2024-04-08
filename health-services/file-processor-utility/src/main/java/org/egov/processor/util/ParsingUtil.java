@@ -1,19 +1,18 @@
 package org.egov.processor.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.egov.common.contract.request.RequestInfo;
-import org.egov.processor.service.ExcelParser;
-import org.egov.processor.web.models.PlanConfiguration;
-import org.egov.processor.web.models.PlanConfigurationSearchCriteria;
-import org.egov.processor.web.models.PlanConfigurationSearchRequest;
 import org.egov.processor.web.models.ResourceMapping;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
@@ -82,4 +81,30 @@ public class ParsingUtil {
 
         return columnNames;
     }
+
+    /**
+     * Converts a byte array to a File object.
+     *
+     * @param byteArray The byte array to convert.
+     * @param fileName  The name of the file to create.
+     * @return The File object representing the byte array.
+     */
+    public File convertByteArrayToFile(byte[] byteArray, String fileName) {
+        try {
+            // Create a new file with the given file name
+            File file = new File(fileName);
+            // Convert the byte array to a ByteArrayInputStream
+            ByteArrayInputStream bis = new ByteArrayInputStream(byteArray);
+            // Use Apache Commons IO to copy the ByteArrayInputStream to the File
+            FileUtils.copyInputStreamToFile(bis, file);
+            // Close the ByteArrayInputStream
+            bis.close();
+            // Return the File object
+            return file;
+        } catch (IOException e) {
+            log.error("CANNOT_CONVERT_BYTE_ARRAY_TO_FILE", "Cannot convert byte array from response to File object");
+        }
+        return null;
+    }
+
 }

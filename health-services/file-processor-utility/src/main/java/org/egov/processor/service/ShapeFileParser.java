@@ -6,6 +6,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
@@ -23,19 +24,20 @@ public class ShapeFileParser implements FileParser {
 
     private ParsingUtil parsingUtil;
 
+    private FilestoreUtil filestoreUtil;
+
     public ShapeFileParser(ParsingUtil parsingUtil) {
         this.parsingUtil = parsingUtil;
     }
 
     public void parseFileData(PlanConfiguration planConfig) {
         // Define the path to the shapefile
-        File file = new File("Microplan/valid/Population/Population/Population.shp");
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        File file = parsingUtil.convertByteArrayToFile(byteArray, "shapefile");
 
-        // Check if the shapefile exists
-        if (file.exists())
-            log.info("File exists at - " + file.getAbsolutePath());
-        else
-            log.info("FILE NOT FOUND - " + file.getAbsolutePath());
+        // Check if the GeoJSON file exists
+        if (file == null || !file.exists()) log.info("FILE NOT FOUND - ");
+        else log.info("File exists at - " + file.getAbsolutePath());
 
         try {
             // Create a DataStore for the shapefile
