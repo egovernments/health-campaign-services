@@ -44,10 +44,9 @@ class dataManageController {
             validateGenerateRequest(request);
             await processGenerate(request, response);
             return sendResponse(response, { GeneratedResource: request?.body?.generatedResource }, request);
-
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e) }, request, response);
+            return errorResponder({ message: String(e) }, request, response, 404);
         }
     };
 

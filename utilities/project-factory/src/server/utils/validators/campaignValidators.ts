@@ -10,29 +10,37 @@ import axios from "axios";
 import { createBoundaryMap } from "../campaignUtils";
 
 
-async function fetchBoundariesInChunks(uniqueBoundaries: any[], request: any) {
-    const tenantId = request.body.ResourceDetails.tenantId;
+async function fetchBoundariesInChunks(request: any) {
+    const { tenantId, hierarchyType } = request.body.ResourceDetails;
     const boundaryEnitiySearchParams: any = {
-        tenantId
+        tenantId, hierarchyType, includeChildren: true
     };
     const responseBoundaries: any[] = [];
-
-    for (let i = 0; i < uniqueBoundaries.length; i += 10) {
-        const chunk = uniqueBoundaries.slice(i, i + 10);
-        const concatenatedString = chunk.join(',');
-        boundaryEnitiySearchParams.codes = concatenatedString;
-
-        const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryEntity, request.body, boundaryEnitiySearchParams);
-
-        if (!Array.isArray(response?.Boundary)) {
-            throw new Error("Error in Boundary Search. Check Boundary codes");
-        }
-
-        responseBoundaries.push(...response.Boundary);
+    logger.info("Boundary search url : " + config.host.boundaryHost + config.paths.boundaryRelationship);
+    logger.info("Boundary search params : " + JSON.stringify(boundaryEnitiySearchParams));
+    var response;
+    try {
+        response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEnitiySearchParams);
+        const processBoundary = (boundaryItems: any[], parentId?: string) => {
+            boundaryItems.forEach((boundaryItem: any) => {
+                const { id, code, boundaryType, children } = boundaryItem;
+                responseBoundaries.push({ tenantId, hierarchyType, parentId, id, code, boundaryType });
+                if (children.length > 0) {
+                    processBoundary(children, id);
+                }
+            });
+        };
+        const TenantBoundary = response.TenantBoundary;
+        TenantBoundary.forEach((tenantBoundary: any) => {
+            const { boundary } = tenantBoundary;
+            processBoundary(boundary);
+        });
+    } catch (error) {
+        throw new Error(`Boundary search failed with error: ${error}`);
     }
-
     return responseBoundaries;
 }
+
 
 function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[]) {
     if (responseBoundaries.length >= uniqueBoundaries.length) {
@@ -49,7 +57,7 @@ function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries
 }
 
 async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
-    const responseBoundaries = await fetchBoundariesInChunks(uniqueBoundaries, request);
+    const responseBoundaries = await fetchBoundariesInChunks(request);
     compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries);
 }
 
@@ -84,6 +92,7 @@ async function validateViaSchema(data: any, schema: any) {
     const ajv = new Ajv();
     const validate = ajv.compile(schema);
     const validationErrors: any[] = [];
+
     data.forEach((facility: any, index: any) => {
         if (!validate(facility)) {
             validationErrors.push({ index, errors: validate.errors });
@@ -92,12 +101,19 @@ async function validateViaSchema(data: any, schema: any) {
 
     // Throw errors if any
     if (validationErrors.length > 0) {
-        const errorMessage = validationErrors.map(({ index, errors }) => `Facility at index ${index}: ${JSON.stringify(errors)}`).join('\n');
-        throw new Error(`Validation errors:\n${errorMessage}`);
+        const errorMessage = validationErrors.map(({ index, errors }) => {
+            const errorMessages = errors.map((error: any) => {
+                return `Validation error at '${error.dataPath}': ${error.message}`;
+            });
+            return `Data at index ${index}:${errorMessages}`;
+        });
+        throw new Error(`Validation errors:${errorMessage}`);
     } else {
         logger.info("All Facilities rows are valid.");
     }
 }
+
+
 
 async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any) {
     await validateViaSchema(data, schema);
@@ -166,6 +182,9 @@ async function validateCreateRequest(request: any) {
         }
         if (!request?.body?.ResourceDetails?.action) {
             throw new Error("action is missing")
+        }
+        if (!request?.body?.ResourceDetails?.hierarchyType) {
+            throw new Error("hierarchyType is missing")
         }
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throw new Error("tenantId is not matching with userInfo")
@@ -313,7 +332,42 @@ async function validateCampaignName(request: any) {
 
 }
 
-async function validateProjectCampaignRequest(request: any) {
+async function validateById(request: any) {
+    const { id, tenantId } = request?.body?.CampaignDetails
+    if (!id) {
+        throw new Error("id is required");
+    }
+    const searchBody = {
+        RequestInfo: request.body.RequestInfo,
+        CampaignDetails: {
+            tenantId: tenantId,
+            ids: [id]
+        }
+    }
+    logger.info("searchBody : " + JSON.stringify(searchBody));
+    logger.info("Url : " + config.host.projectFactoryBff + "project-factory/v1/project-type/search");
+    try {
+        const searchResponse: any = await axios.post(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
+        if (Array.isArray(searchResponse?.data?.CampaignDetails)) {
+            if (searchResponse?.data?.CampaignDetails?.length > 0) {
+                logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.data?.CampaignDetails));
+                request.body.ExistingCampaignDetails = searchResponse?.data?.CampaignDetails[0];
+            }
+            else {
+                throw new Error("Campaign not found");
+            }
+        }
+        else {
+            throw new Error("Some error occured during campaignDetails search");
+        }
+    } catch (error: any) {
+        // Handle error for individual resource creation
+        logger.error(`Error searching campaign ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
+        throw new Error(String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error))
+    }
+}
+
+async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { hierarchyType, action, tenantId, boundaries, resources } = CampaignDetails;
     if (!CampaignDetails) {
@@ -322,7 +376,9 @@ async function validateProjectCampaignRequest(request: any) {
     if (!(action == "create" || action == "draft")) {
         throw new Error("action can only be create or draft")
     }
-    await validateCampaignName(request);
+    if (actionInUrl == "create") {
+        await validateCampaignName(request);
+    }
     if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails)
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -330,6 +386,9 @@ async function validateProjectCampaignRequest(request: any) {
         }
         await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources)
+    }
+    if (actionInUrl == "update") {
+        await validateById(request);
     }
 }
 

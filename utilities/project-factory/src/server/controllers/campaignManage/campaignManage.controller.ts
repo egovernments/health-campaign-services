@@ -30,6 +30,7 @@ class campaignManageController {
     // Initialize routes for MeasurementController
     public intializeRoutes() {
         this.router.post(`${this.path}/create`, this.createProjectTypeCampaign);
+        this.router.post(`${this.path}/update`, this.updateProjectTypeCampaign);
         this.router.post(`${this.path}/search`, this.searchProjectTypeCampaign);
         this.router.post(`${this.path}/createCampaign`, this.createCampaign);
     }
@@ -38,14 +39,27 @@ class campaignManageController {
         response: express.Response
     ) => {
         try {
-            await validateProjectCampaignRequest(request);
-            await processBasedOnAction(request)
+            await validateProjectCampaignRequest(request, "create");
+            await processBasedOnAction(request, "create")
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e) }, request, response);
+            return errorResponder({ message: String(e) }, request, response, 404);
         }
+    };
 
+    updateProjectTypeCampaign = async (
+        request: express.Request,
+        response: express.Response
+    ) => {
+        try {
+            await validateProjectCampaignRequest(request, "update");
+            await processBasedOnAction(request, "update")
+            return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
+        } catch (e: any) {
+            logger.error(String(e))
+            return errorResponder({ message: String(e) }, request, response, 404);
+        }
     };
 
     searchProjectTypeCampaign = async (

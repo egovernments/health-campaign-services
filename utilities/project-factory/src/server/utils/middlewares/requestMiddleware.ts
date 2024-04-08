@@ -13,6 +13,15 @@ const requestSchema = object({
 
 const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!req.headers['content-type'] || req.headers['content-type'] !== 'application/json') {
+      // Send 415 Unsupported Media Type error
+      res.status(415).send("Unsupported Media Type: Content-Type should be 'application/json'");
+      return;
+    }
+    if (!req?.body?.RequestInfo?.userInfo?.tenantId) {
+      res.status(404).send("RequestInfo.userInfo.tenantId is missing");
+      return;
+    }
     requestSchema.validateSync(req.body.RequestInfo);
     next();
   } catch (error) {

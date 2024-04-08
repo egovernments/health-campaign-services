@@ -551,7 +551,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
                 hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
                 parent: modifiedChildParentMap.get(boundaryCode)
             }
-                        if (!allCodes.has(boundaryCode)) {
+            if (!allCodes.has(boundaryCode)) {
                 flag = 0;
                 requestBody.BoundaryRelationship = boundary;
                 const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary-relationships/_create`, requestBody, {}, 'POST');

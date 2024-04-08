@@ -220,7 +220,7 @@ function validateGenerateRequest(request: express.Request) {
         throw new Error("tenantId in userInfo and query should be same");
     }
     if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
-        throw new Error("type should be facility, user, boundary or facilityWithBoundary");
+        throw new Error("Type should be facility, user, boundary or facilityWithBoundary");
     }
 }
 
