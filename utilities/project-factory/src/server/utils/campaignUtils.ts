@@ -279,14 +279,15 @@ async function enrichAndPersistProjectCampaignRequest(request: any) {
 function getChildParentMap(modifiedBoundaryData: any) {
     const childParentMap: Map<string, string | null> = new Map();
 
-    for (let i = 0; i < modifiedBoundaryData.length; i++) {
-        const row = modifiedBoundaryData[i];
-        for (let j = row.length - 1; j > 0; j--) {
+    modifiedBoundaryData.forEach((row:any)=> {
+        for (let j = row.length - 1; j >= 0; j--) {
             const child = row[j];
-            const parent = row[j - 1]; // Parent is the element to the immediate left
-            childParentMap.set(child, parent);
+            const parent = j - 1 >= 0 ? row[j - 1] : null;
+            if (!childParentMap.has(child)) {
+                childParentMap.set(child, parent);
+            }
         }
-    }
+    });
 
     return childParentMap;
 }
