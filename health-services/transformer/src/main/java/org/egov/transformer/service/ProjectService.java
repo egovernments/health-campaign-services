@@ -243,8 +243,8 @@ public class ProjectService {
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
         try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
-                    transformerProperties.getMdmsModule(), filter);
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, transformerProperties.getBoundaryHierarchyMaster(),
+                    transformerProperties.getBoundaryHierarchyModule(), filter);
             projectTypes = convertToProjectTypeJsonNodeList(response);
             JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
             return requiredProjectType.get(Constants.BOUNDARY_DATA);
@@ -260,8 +260,8 @@ public class ProjectService {
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
         try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
-                    transformerProperties.getMdmsModule(), filter);
+            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, transformerProperties.getBoundaryHierarchyMaster(),
+                    transformerProperties.getBoundaryHierarchyModule(), filter);
             projectTypes = convertToProjectTypeJsonNodeList(response);
             for (JsonNode projectType : projectTypes) {
                 JsonNode boundaryData = projectType.get(Constants.BOUNDARY_DATA);

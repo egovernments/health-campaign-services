@@ -158,5 +158,10 @@ public class TransformerProperties {
     @Value("${referral.service.checklist.name}")
     private String checkListName;
 
+    @Value("${project.mdms.boundary.hierarchy.module}")
+    private String boundaryHierarchyModule;
+
+    @Value("${project.mdms.boundary.hierarchy.master}")
+    private String boundaryHierarchyMaster;
 
 }
