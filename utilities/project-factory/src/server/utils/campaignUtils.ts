@@ -10,7 +10,6 @@ import createAndSearch from "../config/createAndSearch";
 import pool from "../config/dbPoolConfig";
 import * as XLSX from 'xlsx';
 import { getBoundaryRelationshipData } from "./genericUtils";
-import { validateFilters } from "./validators/campaignValidators";
 
 // import * as xlsx from 'xlsx-populate';
 const _ = require('lodash');
@@ -317,14 +316,15 @@ async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl:
 function getChildParentMap(modifiedBoundaryData: any) {
     const childParentMap: Map<string, string | null> = new Map();
 
-    for (let i = 0; i < modifiedBoundaryData.length; i++) {
-        const row = modifiedBoundaryData[i];
-        for (let j = row.length - 1; j > 0; j--) {
+    modifiedBoundaryData.forEach((row: any) => {
+        for (let j = row.length - 1; j >= 0; j--) {
             const child = row[j];
-            const parent = row[j - 1]; // Parent is the element to the immediate left
-            childParentMap.set(child, parent);
+            const parent = j - 1 >= 0 ? row[j - 1] : null;
+            if (!childParentMap.has(child)) {
+                childParentMap.set(child, parent);
+            }
         }
-    }
+    });
 
     return childParentMap;
 }
@@ -706,15 +706,14 @@ async function appendSheetsToWorkbook(boundaryData: any[]) {
 }
 
 async function generateFilteredBoundaryData(request: any) {
-    validateFilters(request);
     const rootBoundary: any = (request?.body?.Filters?.boundaries).filter((boundary: any) => boundary.isRoot);
     const params = {
         ...request?.query,
         includeChildren: true,
         codes: rootBoundary?.[0]?.code
     };
-    const boundaryData = await getBoundaryRelationshipData(request, params);
-    const filteredBoundaryList = filterBoundaries(boundaryData, request?.body?.Filters)
+    const boundaryDataFromRootOnwards = await getBoundaryRelationshipData(request, params);
+    const filteredBoundaryList = filterBoundaries(boundaryDataFromRootOnwards, request?.body?.Filters)
     return filteredBoundaryList;
 }
 
@@ -812,6 +811,15 @@ function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
     }
 }
 
+function createBoundaryMap(boundaries: any[], boundaryMap: Map<string, string>): void {
+    for (const boundary of boundaries) {
+        boundaryMap.set(boundary.code, boundary.boundaryType);
+        if (boundary.children.length > 0) {
+            createBoundaryMap(boundary.children, boundaryMap);
+        }
+    }
+}
+
 export {
     generateProcessedFileAndPersist,
     convertToTypeData,
@@ -826,5 +834,6 @@ export {
     processBasedOnAction,
     appendSheetsToWorkbook,
     generateFilteredBoundaryData,
-    generateHierarchy
+    generateHierarchy,
+    createBoundaryMap
 }

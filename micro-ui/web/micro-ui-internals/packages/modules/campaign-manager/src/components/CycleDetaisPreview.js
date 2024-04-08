@@ -71,40 +71,44 @@ const CycleDetaisPreview = ({ data, item, index }) => {
       ) : null}
 
       <Card className="delivery-preview-card">
-        <DetailsTable
-          className="campaign-attribute-table"
-          cardHeader={{ value: "Condition" }}
-          columnsData={[
-            {
-              Header: t("Attribute"),
-              accessor: "attribute",
-            },
-            {
-              Header: t("Operator"),
-              accessor: "operator",
-            },
-            {
-              Header: t("Value"),
-              accessor: "value",
-            },
-          ]}
-          rowsData={item?.conditions}
-        />
-        <DetailsTable
-          className="campaign-product-table"
-          // cardHeader={{ value: "Product Details" }}
-          columnsData={[
-            {
-              Header: t("Product"),
-              accessor: "product",
-            },
-            {
-              Header: t("Count"),
-              accessor: "count",
-            },
-          ]}
-          rowsData={item?.products}
-        />
+        {item?.conditions?.length > 0 && (
+          <DetailsTable
+            className="campaign-attribute-table"
+            cardHeader={{ value: "Condition" }}
+            columnsData={[
+              {
+                Header: t("Attribute"),
+                accessor: "attribute",
+              },
+              {
+                Header: t("Operator"),
+                accessor: "operator",
+              },
+              {
+                Header: t("Value"),
+                accessor: "value",
+              },
+            ]}
+            rowsData={item?.conditions}
+          />
+        )}
+        {item?.products?.length > 0 && (
+          <DetailsTable
+            className="campaign-product-table"
+            // cardHeader={{ value: "Product Details" }}
+            columnsData={[
+              {
+                Header: t("Product"),
+                accessor: "product",
+              },
+              {
+                Header: t("Count"),
+                accessor: "count",
+              },
+            ]}
+            rowsData={item?.products}
+          />
+        )}
       </Card>
     </>
   );

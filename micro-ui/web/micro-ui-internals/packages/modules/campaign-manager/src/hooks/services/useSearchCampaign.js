@@ -17,5 +17,5 @@ const searchCampaignService = async ({ tenantId, filter, pagination }) => {
 };
 
 export const useSearchCampaign = ({ tenantId, filter, pagination, config = {} }) => {
-  return useQuery(["SEARCH_CAMPAIGN"], () => searchCampaignService({ tenantId, filter, pagination }), config);
+  return useQuery(["SEARCH_CAMPAIGN", tenantId, filter, pagination], () => searchCampaignService({ tenantId, filter, pagination }), config);
 };

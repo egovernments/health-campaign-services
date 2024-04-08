@@ -387,7 +387,7 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
     result.push(currentChain.join(','));
 
     // If there are children, recursively call the function
-    if (boundary.children.length > 0) {
+    if (boundary.children && boundary.children.length > 0) {
       let childResults = generateHierarchyList(boundary.children, currentChain);
       result = result.concat(childResults);
     }
@@ -414,8 +414,8 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
     const response = await httpRequest(url, requestBody);
     const boundaryList = response?.BoundaryHierarchy?.[0].boundaryHierarchy;
     return generateHierarchy(boundaryList);
-  } catch (error) {
-    console.error('Error:', error);
+  } catch (error: any) {
+    logger.error(`Error fetching hierarchy data: ${error.message}`, error);
     throw error;
   }
 };

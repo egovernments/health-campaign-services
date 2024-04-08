@@ -40,9 +40,11 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
   }, [delivery]);
 
   const selectValue = (e) => {
+    console.log("edkshsdkhs", e.target.value);
     let val = e.target.value;
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
+      return;
     }
     // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
     const updatedData = deliveryRules.map((item, index) => {
@@ -66,6 +68,10 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
   };
 
   const selectToFromValue = (e, range) => {
+    let val = e.target.value;
+    if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
+      val = val.slice(0, -1);
+    }
     if (range === "to") {
       const updatedData = deliveryRules.map((item, index) => {
         if (item.ruleKey === deliveryRuleIndex) {
@@ -213,8 +219,139 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
   );
 };
 
+const AddCustomAttributeField = ({
+  config,
+  deliveryRuleIndex,
+  delivery,
+  deliveryRules,
+  setDeliveryRules,
+  attribute,
+  setAttributes,
+  index,
+  onDelete,
+}) => {
+  const [val, setVal] = useState("");
+  const [showAttribute, setShowAttribute] = useState(null);
+  const [showOperator, setShowOperator] = useState(null);
+  const [addedOption, setAddedOption] = useState(null);
+  const { t } = useTranslation();
+  const { attrConfig } = useContext(CycleContext);
+
+  useEffect(() => {
+    setAddedOption(delivery?.attributes?.map((i) => i?.attribute?.code)?.filter((i) => i));
+  }, [delivery]);
+
+  const selectValue = (e) => {
+    let val = e.target.value;
+    if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
+      val = val.slice(0, -1);
+    }
+    // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
+    const updatedData = deliveryRules.map((item, index) => {
+      if (item.ruleKey === deliveryRuleIndex) {
+        item.attributes.find((i) => i.key === attribute.key).value = e.target.value;
+      }
+      return item;
+    });
+    setDeliveryRules(updatedData);
+  };
+
+  const selectOperator = (value) => {
+    // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
+    const updatedData = deliveryRules.map((item, index) => {
+      if (item.ruleKey === deliveryRuleIndex) {
+        item.attributes.find((i) => i.key === attribute.key).operator = value;
+      }
+      return item;
+    });
+    setShowOperator(value);
+    setDeliveryRules(updatedData);
+  };
+
+  return (
+    <div key={attribute?.key} className="attribute-field-wrapper">
+      <LabelFieldPair>
+        <CardLabel isMandatory={true} className="card-label-smaller">
+          {t(`CAMPAIGN_ATTRIBUTE_LABEL`)}
+        </CardLabel>
+        <TextInput type="text" textInputStyle={{ width: "100%" }} value={config?.attrValue} disabled={true} />
+        {/* <Dropdown
+          className="form-field"
+          selected={attribute?.attribute}
+          disable={false}
+          isMandatory={true}
+          option={addedOption ? attributeConfig.filter((item) => !addedOption.includes(item.code)) : attributeConfig}
+          select={(value) => selectAttribute(value)}
+          optionKey="code"
+          t={t}
+        /> */}
+      </LabelFieldPair>
+      <LabelFieldPair>
+        <CardLabel isMandatory={true} className="card-label-smaller">
+          {t(`CAMPAIGN_OPERATOR_LABEL`)}
+        </CardLabel>
+        <Dropdown
+          className="form-field"
+          selected={attribute?.operator}
+          disable={attribute?.attribute?.code === "Gender" ? true : false}
+          isMandatory={true}
+          option={operatorConfig}
+          select={(value) => selectOperator(value)}
+          optionKey="code"
+          t={t}
+        />
+      </LabelFieldPair>
+      <LabelFieldPair>
+        <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
+        <div className="field" style={{ display: "flex", width: "100%" }}>
+          {attribute?.operator?.code === "IN_BETWEEN" ? (
+            <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+              <TextInput
+                className=""
+                textInputStyle={{ width: "45%" }}
+                value={attribute?.toValue}
+                onChange={(e) => selectToFromValue(e, "to")}
+                disable={false}
+              />
+              <TextInput
+                className=""
+                textInputStyle={{ width: "45%" }}
+                value={attribute?.fromValue}
+                onChange={(e) => selectToFromValue(e, "from")}
+                disable={false}
+              />
+            </div>
+          ) : attribute?.attribute?.code === "Gender" ? (
+            <Dropdown
+              className="form-field"
+              selected={attribute?.value}
+              disable={false}
+              isMandatory={true}
+              option={[
+                {
+                  key: 1,
+                  code: "Male",
+                },
+                {
+                  key: 2,
+                  code: "Female",
+                },
+              ]}
+              select={(value) => selectGender(value)}
+              optionKey="code"
+              t={t}
+            />
+          ) : (
+            <TextInput textInputStyle={{ width: "100%" }} value={attribute?.value} onChange={selectValue} disable={false} />
+          )}
+        </div>
+      </LabelFieldPair>
+    </div>
+  );
+};
+
 const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDeliveryRules, index, key }) => {
-  const { campaignData, dispatchCampaignData } = useContext(CycleContext);
+  const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
   const { t } = useTranslation();
 
   const [attributes, setAttributes] = useState([{ key: 1, deliveryRuleIndex, attribute: "", operator: "", value: "" }]);
@@ -257,20 +394,35 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
 
   return (
     <Card className="attribute-container">
-      {delivery.attributes.map((item, index) => (
-        <AddAttributeField
-          deliveryRuleIndex={deliveryRuleIndex}
-          delivery={delivery}
-          deliveryRules={deliveryRules}
-          setDeliveryRules={setDeliveryRules}
-          attribute={item}
-          setAttributes={setAttributes}
-          key={index}
-          index={index}
-          onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
-        />
-      ))}
-      {delivery.attributes.length !== attributeConfig.length && (
+      {filteredDeliveryConfig?.customAttribute
+        ? delivery.attributes.map((item, index) => (
+            <AddCustomAttributeField
+              deliveryRuleIndex={deliveryRuleIndex}
+              delivery={delivery}
+              deliveryRules={deliveryRules}
+              setDeliveryRules={setDeliveryRules}
+              attribute={item}
+              setAttributes={setAttributes}
+              config={filteredDeliveryConfig?.attributeConfig?.[index]}
+              key={index}
+              index={index}
+              onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
+            />
+          ))
+        : delivery.attributes.map((item, index) => (
+            <AddAttributeField
+              deliveryRuleIndex={deliveryRuleIndex}
+              delivery={delivery}
+              deliveryRules={deliveryRules}
+              setDeliveryRules={setDeliveryRules}
+              attribute={item}
+              setAttributes={setAttributes}
+              key={index}
+              index={index}
+              onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
+            />
+          ))}
+      {!filteredDeliveryConfig?.attrAddDisable && delivery.attributes.length !== attributeConfig.length && (
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_ADD_MORE_ATTRIBUTE_TEXT`)}
@@ -290,6 +442,10 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
   const prodRef = useRef();
 
   const confirmResources = () => {
+    const isValid = prodRef.current?.every((item) => item?.count !== null && item?.value !== null);
+    if (!isValid) {
+      return;
+    }
     dispatchCampaignData({
       type: "ADD_PRODUCT",
       payload: {
@@ -341,7 +497,9 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
         />
 
         {delivery?.products?.length > 0 &&
-          delivery?.products?.map((i) => <RemoveableTagNew text={{ value: i.name }} onClick={() => removeProduct(i)} />)}
+          delivery?.products?.map((i) => {
+            i?.value && i.count ? <RemoveableTagNew text={{ value: i.value }} onClick={() => removeProduct(i)} /> : null;
+          })}
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)}
@@ -374,7 +532,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
 };
 
 const AddDeliveryRuleWrapper = ({}) => {
-  const { campaignData, dispatchCampaignData } = useContext(CycleContext);
+  const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
   const [targetedData, setTargetedData] = useState(campaignData.find((i) => i.active === true).deliveries.find((d) => d.active === true));
   const [deliveryRules, setDeliveryRules] = useState(targetedData.deliveryRules);
   const { t } = useTranslation();
@@ -429,13 +587,15 @@ const AddDeliveryRuleWrapper = ({}) => {
           onDelete={() => deleteDeliveryRule(item)}
         />
       ))}
-      <Button
-        variation="secondary"
-        label={t(`CAMPAIGN_ADD_MORE_DELIVERY_BUTTON`)}
-        className={"add-rule-btn"}
-        icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill="#f47738" />}
-        onButtonClick={addMoreDelivery}
-      />
+      {!filteredDeliveryConfig?.deliveryAddDisable && (
+        <Button
+          variation="secondary"
+          label={t(`CAMPAIGN_ADD_MORE_DELIVERY_BUTTON`)}
+          className={"add-rule-btn"}
+          icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill="#f47738" />}
+          onButtonClick={addMoreDelivery}
+        />
+      )}
     </>
   );
 };

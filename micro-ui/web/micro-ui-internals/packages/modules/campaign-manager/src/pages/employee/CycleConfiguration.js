@@ -49,34 +49,27 @@ const updateCycleData = (cycleData, index, update) => {
 };
 
 function CycleConfiguration({ onSelect, formData, control, ...props }) {
-  const saved = JSON.parse(sessionStorage.getItem("Digit.HCM_CAMPAIGN_MANAGER_FORM_DATA"))?.value?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
+  const saved = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
   const [state, dispatch] = useReducer(reducer, initialState(saved));
   const { cycleConfgureDate, cycleData } = state;
   const { t } = useTranslation();
-  const [dateRange, setDateRange] = useState(null);
   const tempSession = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
-  const [sessionData, setSessionData] = useState(tempSession);
-
-  useEffect(() => {
-    setSessionData(tempSession);
-  }, [tempSession]);
-
-  useEffect(() => {
-    setDateRange({
-      startDate: sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate,
-      endDate: sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate,
-    });
-  }, [sessionData]);
+  const [dateRange, setDateRange] = useState({
+    startDate: tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate,
+    endDate: tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate,
+  });
 
   useEffect(() => {
     onSelect("cycleConfigure", state);
   }, [state]);
 
   const updateCycle = (d) => {
+    if (d === 0) return;
     dispatch({ type: "UPDATE_CYCLE", payload: d?.target?.value ? Number(d?.target?.value) : d });
   };
 
   const updateDelivery = (d) => {
+    if (d === 0) return;
     dispatch({ type: "UPDATE_DELIVERY", payload: d });
   };
 
@@ -90,13 +83,13 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
 
   return (
     <>
-      <Header>{sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.name}</Header>
+      <Header>{t(`CAMPAIGN_PROJECT_${tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code?.toUpperCase()}`)}</Header>
       <Paragraph
         customClassName="cycle-paragraph"
-        value={`(${sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+        value={`(${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
           .split("-")
           .reverse()
-          .join("/")} - ${sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate.split("-").reverse().join("/")})`}
+          .join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate.split("-").reverse().join("/")})`}
       />
       <Card className="campaign-counter-container">
         <CardText>{t(`CAMPAIGN_CYCLE_CONFIGURE_HEADING`)}</CardText>
@@ -132,7 +125,6 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
                 max={dateRange?.endDate}
                 onChange={(d) => selectFromDate(index + 1, d)}
               />
-              {console.log("cycleData?.find((j) => j.key === index + 1)?.toDate", cycleData?.find((j) => j.key === index + 1)?.fromDate)}
               <TextInput
                 type="date"
                 value={cycleData?.find((j) => j.key === index + 1)?.toDate}

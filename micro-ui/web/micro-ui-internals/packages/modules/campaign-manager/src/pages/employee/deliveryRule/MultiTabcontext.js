@@ -193,7 +193,7 @@ const MultiTab = ({ tabCount = 3, subTabCount = 2 }) => {
   const [activeSubTab, setActiveSubTab] = useState(0);
   const { campaignData, dispatchCampaignData } = useContext(CycleContext);
   const { t } = useTranslation();
-
+  const tempSession = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
   const handleTabChange = (tabIndex, index) => {
     dispatchCampaignData({
       type: "TAB_CHANGE_UPDATE",
@@ -212,8 +212,14 @@ const MultiTab = ({ tabCount = 3, subTabCount = 2 }) => {
 
   return (
     <>
-      <Header>{t(`CAMPAIGN_DELIVERY_RULE_TITLE`)}</Header>
-      <Paragraph value={t(`CAMPAIGN_DELIVERY_SUB_TEXT`)} />
+      <Header>{t(`CAMPAIGN_PROJECT_${tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code?.toUpperCase()}`)}</Header>
+      <Paragraph
+        customClassName="cycle-paragraph"
+        value={`(${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+          .split("-")
+          .reverse()
+          .join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate.split("-").reverse().join("/")})`}
+      />
       <div className="campaign-cycle-container">
         <div className="campaign-tabs-container">
           <Tabs tabCount={tabCount} activeTab={activeTab} onTabChange={handleTabChange} />

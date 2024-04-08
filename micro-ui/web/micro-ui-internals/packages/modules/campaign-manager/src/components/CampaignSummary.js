@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory } from "react-router-dom";
 import { EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
@@ -81,61 +81,18 @@ const CampaignSummary = () => {
                     item: item,
                     index: index,
                   },
-                  // values: [
-                  //   {
-                  //     key: "CAMPAIGN_TYPE",
-                  //     value: t("CAMPAIGN_SUMMARY_NA"),
-                  //   },
-                  //   {
-                  //     key: "CAMPAIGN_NAME",
-                  //     value: t("CAMPAIGN_SUMMARY_NA"),
-                  //   },
-                  //   {
-                  //     key: "CAMPAIGN_START_DATE",
-                  //     value: t("CAMPAIGN_SUMMARY_NA"),
-                  //   },
-                  //   {
-                  //     key: "CAMPAIGN_END_DATE",
-                  //     value: t("CAMPAIGN_SUMMARY_NA"),
-                  //   },
-                  // ],
                 },
               ],
             })),
-            {
-              sections: [
-                {
-                  type: "DATA",
-                  cardHeader: { value: t("DELIVERY_DETAILS"), inlineStyles: { marginTop: 0 } },
-                  cardSecondaryAction: <EditIcon />,
-                  values: [
-                    {
-                      key: "CAMPAIGN_TYPE",
-                      value: t("CAMPAIGN_SUMMARY_NA"),
-                    },
-                    {
-                      key: "CAMPAIGN_NAME",
-                      value: t("CAMPAIGN_SUMMARY_NA"),
-                    },
-                    {
-                      key: "CAMPAIGN_START_DATE",
-                      value: t("CAMPAIGN_SUMMARY_NA"),
-                    },
-                    {
-                      key: "CAMPAIGN_END_DATE",
-                      value: t("CAMPAIGN_SUMMARY_NA"),
-                    },
-                  ],
-                },
-              ],
-            },
           ],
         };
       },
+      enabled: id ? true : false,
       staleTime: 0,
       cacheTime: 0,
     },
   });
+
   const handleRedirect = (step) => {
     history.push(`/${window?.contextPath}/employee/campaign/setup-campaign?step=${step}`);
   };
@@ -389,33 +346,6 @@ const CampaignSummary = () => {
           },
         ],
       })),
-      {
-        sections: [
-          {
-            type: "DATA",
-            cardHeader: { value: t("DELIVERY_DETAILS"), inlineStyles: { marginTop: 0 } },
-            cardSecondaryAction: <EditIcon />,
-            values: [
-              {
-                key: "CAMPAIGN_TYPE",
-                value: t("CAMPAIGN_SUMMARY_NA"),
-              },
-              {
-                key: "CAMPAIGN_NAME",
-                value: t("CAMPAIGN_SUMMARY_NA"),
-              },
-              {
-                key: "CAMPAIGN_START_DATE",
-                value: t("CAMPAIGN_SUMMARY_NA"),
-              },
-              {
-                key: "CAMPAIGN_END_DATE",
-                value: t("CAMPAIGN_SUMMARY_NA"),
-              },
-            ],
-          },
-        ],
-      },
     ],
   };
 
@@ -436,14 +366,18 @@ const CampaignSummary = () => {
   }
 
   return (
-    <React.Fragment>
-      <div className="cardHeaderWithOptions">
+    <>
+      {/* <div className="cardHeaderWithOptions"> */}
+      <div className="madarchod">
         <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
       </div>
+      {/* </div> */}
 
-      {/* {!isLoading && <ViewComposer data={testData} isLoading={isLoading} />} */}
-      <ViewComposer data={data} />
-    </React.Fragment>
+      <div className="laudalelo">
+        {/* {!isLoading && <ViewComposer data={testData} isLoading={isLoading} />} */}
+        <ViewComposer data={data} />
+      </div>
+    </>
   );
 };
 

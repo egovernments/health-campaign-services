@@ -114,13 +114,16 @@ class dataManageController {
             const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
             const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
             const childParentMap = getChildParentMap(withoutBoundaryCode);
-            const boundaryMap = await getBoundaryCodesHandler(withoutBoundaryCode, childParentMap, mappingMap, countMap);
+            const boundaryMap = await getBoundaryCodesHandler(withoutBoundaryCode, childParentMap, mappingMap, countMap, request);
             const boundaryTypeMap = getBoundaryTypeMap(boundaryData, boundaryMap);
             await createBoundaryEntities(request, boundaryMap);
             const modifiedMap: Map<string, string | null> = new Map();
             childParentMap.forEach((value, key) => {
                 const modifiedKey = boundaryMap.get(key);
-                const modifiedValue = boundaryMap.get(value);
+                let modifiedValue = null;
+                if (value !== null && boundaryMap.has(value)) {
+                    modifiedValue = boundaryMap.get(value);
+                }
                 modifiedMap.set(modifiedKey, modifiedValue);
             });
             await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap);

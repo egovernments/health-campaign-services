@@ -172,9 +172,13 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   align-items: center;
+  gap: 2.5rem;
   .label-field-pair {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: flex-start !important;
+    .employee-select-wrap.form-field {
+      width: 100%;
+    }
   }
 }
 .add-rule-btn {
