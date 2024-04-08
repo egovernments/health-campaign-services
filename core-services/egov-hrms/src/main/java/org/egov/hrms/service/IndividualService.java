@@ -96,6 +96,7 @@ public class IndividualService implements UserService {
                         // given name
                         .individualName((String) userSearchCriteria
                                 .get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME))
+                        .type
                 .build())
                 .build();
         IndividualBulkResponse response = getIndividualResponse((String) userSearchCriteria
