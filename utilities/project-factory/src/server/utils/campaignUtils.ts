@@ -259,9 +259,9 @@ async function enrichAndPersistCampaignForCreate(request: any) {
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, startDate: request?.body?.CampaignDetails?.startDate, endDate: request?.body?.CampaignDetails?.endDate };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
-    request.body.CampaignDetails.projectType = request?.body?.Campaign?.projectType ? request?.body?.Campaign?.projectType : null;
-    request.body.CampaignDetails.hierarchyType = request?.body?.Campaign?.hierarchyType ? request?.body?.Campaign?.hierarchyType : null;
-    request.body.CampaignDetails.additionalDetails = request?.body?.Campaign?.additionalDetails ? request?.body?.Campaign?.additionalDetails : {};
+    request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType ? request?.body?.CampaignDetails?.projectType : null;
+    request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType ? request?.body?.CampaignDetails?.hierarchyType : null;
+    request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails ? request?.body?.CampaignDetails?.additionalDetails : {};
     request.body.CampaignDetails.auditDetails = {
         createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
         createdTime: Date.now(),
