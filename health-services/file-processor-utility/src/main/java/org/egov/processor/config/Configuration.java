@@ -33,4 +33,13 @@ public class Configuration {
 
     @Value("${egov.plan.config.endpoint}")
     private String planConfigEndPoint;
+
+    //Filestore
+
+    @Value("${egov.filestore.host}")
+    private String fileStoreHost;
+
+    @Value("${egov.filestore.endpoint}")
+    private String fileStoreEndpoint;
+
 }

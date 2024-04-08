@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
@@ -26,17 +27,22 @@ public class GeoJsonParser implements FileParser {
 
     private ParsingUtil parsingUtil;
 
-    public GeoJsonParser(ObjectMapper objectMapper) {
+    private FilestoreUtil filestoreUtil;
+
+    public GeoJsonParser(ObjectMapper objectMapper, ParsingUtil parsingUtil, FilestoreUtil filestoreUtil) {
         this.objectMapper = objectMapper;
+        this.parsingUtil = parsingUtil;
+        this.filestoreUtil = filestoreUtil;
     }
 
     public void parseFileData(PlanConfiguration planConfig) {
         // Define the path to the GeoJSON file
-        File file = new File("Microplan/valid/Population/Population.geojson");
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        File file = parsingUtil.convertByteArrayToFile(byteArray, "geojson");
 
         // Check if the GeoJSON file exists
-        if (file.exists()) log.info("File exists at - " + file.getAbsolutePath());
-        else log.info("FILE NOT FOUND - " + file.getAbsolutePath());
+        if (file == null || !file.exists()) log.info("FILE NOT FOUND - ");
+        else log.info("File exists at - " + file.getAbsolutePath());
 
         try (GeoJSONReader reader = new GeoJSONReader(file.toURI().toURL())) {
             // Read the GeoJSON file and get the SimpleFeatureCollection
