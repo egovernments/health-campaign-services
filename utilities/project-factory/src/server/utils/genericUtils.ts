@@ -153,14 +153,25 @@ const errorResponder = (
   error: any,
   request: any,
   response: Response,
+  status: any = 500,
   next: any = null
 ) => {
   response.header("Content-Type", "application/json");
-  const status = 500;
   response
     .status(status)
-    .send(getErrorResponse("INTERNAL_SERVER_ERROR", error?.message));
+    .send(getErrorResponse("INTERNAL_SERVER_ERROR", trimError(error.message)));
 };
+
+const trimError = (e: any) => {
+  if (typeof e === "string") {
+    e = e.trim();
+    while (e.startsWith("Error:")) {
+      e = e.substring(6);
+      e = e.trim();
+    }
+  }
+  return e;
+}
 
 async function generateXlsxFromJson(request: any, response: any, simplifiedData: any) {
   try {
@@ -537,7 +548,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any) 
   const allFacilities = await getAllFacilities(tenantId, request.body);
   request.body.generatedResourceCount = allFacilities.length;
   const facilitySheetData: any = await createFacilitySheet(allFacilities);
-  request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
+  // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   const boundarySheetData: any = await getBoundarySheetData(request);
   await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request);
 }

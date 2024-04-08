@@ -106,13 +106,22 @@ const httpRequest = async (
       ":: ERROR :: " +
       errorResponse?.data?.Errors?.[0]?.code || error
     );
-    logger.error(":: ERROR STACK :: " + error?.stack || error);
-    throwError(
-      "error occured while making request to " +
+    logger.error("error occured while making request to " +
       getServiceName(_url) +
       ": error response :" +
-      (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message)
-    );
+      (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message))
+    logger.error(":: ERROR STACK :: " + error?.stack || error);
+    if (errorResponse?.data?.Errors) {
+      throwError(JSON.stringify(errorResponse?.data?.Errors));
+    }
+    else {
+      throwError(
+        "error occured while making request to " +
+        getServiceName(_url) +
+        ": error response :" +
+        (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message)
+      );
+    }
   }
 };
 
