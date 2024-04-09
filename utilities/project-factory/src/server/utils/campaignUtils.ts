@@ -287,6 +287,8 @@ async function enrichAndPersistCampaignForUpdate(request: any) {
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.auditDetails = {
+        createdBy: ExistingCampaignDetails?.createdBy,
+        createdTime: ExistingCampaignDetails?.createdTime,
         lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
         lastModifiedTime: Date.now(),
     }

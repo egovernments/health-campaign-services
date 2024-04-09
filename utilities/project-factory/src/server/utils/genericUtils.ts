@@ -157,9 +157,8 @@ const errorResponder = (
   next: any = null
 ) => {
   response.header("Content-Type", "application/json");
-  response
-    .status(status)
-    .send(getErrorResponse("INTERNAL_SERVER_ERROR", trimError(error.message)));
+  const errorResponse = getErrorResponse(error.code || "INTERNAL_SERVER_ERROR", trimError(error.message || "Some Error Occurred!!"));
+  response.status(status).send(errorResponse);
 };
 
 const trimError = (e: any) => {
@@ -712,7 +711,9 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
-  const headers = [...reducedHierarchy, "Boundary Code", "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"];
+  const headers = [...reducedHierarchy, "Boundary Code",
+    // "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"
+  ];
   const data = boundaryList.map(boundary => {
     const boundaryParts = boundary.split(',');
     const boundaryCode = boundaryParts[boundaryParts.length - 1];

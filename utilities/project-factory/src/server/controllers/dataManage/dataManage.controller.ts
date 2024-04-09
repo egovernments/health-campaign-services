@@ -46,7 +46,7 @@ class dataManageController {
             return sendResponse(response, { GeneratedResource: request?.body?.generatedResource }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e) }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
         }
     };
 
@@ -149,7 +149,7 @@ class dataManageController {
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e) }, request, response);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
         }
     }
 
@@ -160,7 +160,7 @@ class dataManageController {
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e) }, request, response);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
         }
     }
 
