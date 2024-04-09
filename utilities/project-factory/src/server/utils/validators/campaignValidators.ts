@@ -2,8 +2,6 @@ import createAndSearch from "../../config/createAndSearch";
 import config from "../../config";
 import { logger } from "../logger";
 import { httpRequest } from "../request";
-import { getFacilityIds, matchFacilityData } from "../genericUtils";
-import { getFacilitiesViaIds } from "../../api/campaignApis";
 import { campaignDetailsSchema } from "../../config/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
@@ -211,12 +209,6 @@ function validateFacilityCreateData(data: any) {
         validateBooleanField(obj, 'isPermanent', originalIndex);
     });
 
-}
-
-async function validateFacilityViaSearch(tenantId: string, data: any, requestBody: any) {
-    const ids = getFacilityIds(data);
-    const searchedFacilities = await getFacilitiesViaIds(tenantId, ids, requestBody)
-    matchFacilityData(data, searchedFacilities)
 }
 
 async function validateCampaignBoundary(boundary: any, hierarchyType: any, tenantId: any, request: any): Promise<void> {
@@ -462,7 +454,6 @@ export {
     validateSheetData,
     validateCreateRequest,
     validateFacilityCreateData,
-    validateFacilityViaSearch,
     validateProjectCampaignRequest,
     validateSearchProjectCampaignRequest,
     validateSearchRequest,

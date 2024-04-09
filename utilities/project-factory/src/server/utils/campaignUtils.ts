@@ -106,7 +106,7 @@ async function updateStatusFile(request: any) {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throw new Error("No download URL returned for the given fileStoreId");
+        throw Object.assign(new Error("No download URL returned for the given fileStoreId"), { code: 'INVALID_FILE' });
     }
 
     const headers = {
@@ -121,7 +121,7 @@ async function updateStatusFile(request: any) {
 
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throw new Error(`Sheet with name "${sheetName}" is not present in the file.`);
+        throw Object.assign(new Error(`Sheet with name "${sheetName}" is not present in the file.`), { code: 'SHEET_NOT_FOUND' });
     }
     processErrorData(request, createAndSearchConfig, workbook, sheetName);
 

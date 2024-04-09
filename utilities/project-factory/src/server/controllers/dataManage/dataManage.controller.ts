@@ -57,7 +57,7 @@ class dataManageController {
             const responseData = await getResponseFromDb(request, response);
             if (!responseData || responseData.length === 0) {
                 logger.error("No data of type  " + type + " with status Completed present in db")
-                throw new Error('First Generate then Download');
+                throw Object.assign(new Error('First Generate then Download'), { code: 'GENERATION_REQUIRE' });
             }
             const auditDetails = generateAuditDetails(request);
             const transformedResponse = responseData.map((item: any) => {

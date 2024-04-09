@@ -604,24 +604,6 @@ function getFacilityIds(data: any) {
   return data.map((obj: any) => obj["id"])
 }
 
-function matchFacilityData(data: any, searchedFacilities: any) {
-  for (const dataFacility of data) {
-    const searchedFacility = searchedFacilities.find((facility: any) => facility.id === dataFacility.id);
-
-    if (!searchedFacility) {
-      throw new Error(`Facility with ID "${dataFacility.id}" not found in searched facilities.`);
-    }
-    if (config?.values?.matchFacilityData) {
-      const keys = Object.keys(dataFacility);
-      for (const key of keys) {
-        if (searchedFacility.hasOwnProperty(key) && searchedFacility[key] !== dataFacility[key]) {
-          throw new Error(`Value mismatch for key "${key}" at index ${dataFacility.originalIndex}. Expected: "${dataFacility[key]}", Found: "${searchedFacility[key]}"`);
-        }
-      }
-    }
-  }
-}
-
 function matchData(request: any, datas: any, searchedDatas: any, createAndSearchConfig: any) {
   const uid = createAndSearchConfig.uniqueIdentifier;
   const errors = []
@@ -756,7 +738,6 @@ export {
   processGenerateRequest,
   processGenerate,
   getFacilityIds,
-  matchFacilityData,
   getDataFromSheet,
   matchData,
   enrichResourceDetails,
