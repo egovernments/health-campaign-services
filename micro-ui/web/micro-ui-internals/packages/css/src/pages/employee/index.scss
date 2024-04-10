@@ -127,3 +127,9 @@
 .employee-app-wrapper {
   margin: 0rem 2rem;
 }
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 5px;
+  top: 20%;
+  transform: translateY(-50%);
+}
