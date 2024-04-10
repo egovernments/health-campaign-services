@@ -10,6 +10,7 @@ import FormData from 'form-data';
 import { Pool } from 'pg';
 import { logger } from "./logger";
 import dataManageController from "../controllers/dataManage/dataManage.controller";
+import { convertSheetToDifferentTabs } from "./campaignUtils";
 const NodeCache = require("node-cache");
 const _ = require('lodash');
 
@@ -407,7 +408,11 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
     if (type === 'boundary') {
       const dataManagerController = new dataManageController();
       const result = await dataManagerController.getBoundaryData(request, response);
-      const finalResponse = await getFinalUpdatedResponse(result, newEntryResponse, request);
+      let updatedResult = result;
+      if (request?.body?.Filters && request?.body?.Filters?.boundaries.length > 0) {
+        updatedResult = await convertSheetToDifferentTabs(request, result[0].fileStoreId);
+      }
+      const finalResponse = await getFinalUpdatedResponse(updatedResult, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
       produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;

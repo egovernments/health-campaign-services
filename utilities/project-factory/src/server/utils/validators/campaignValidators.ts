@@ -2,6 +2,7 @@ import createAndSearch from "../../config/createAndSearch";
 import config from "../../config";
 import { logger } from "../logger";
 import { httpRequest } from "../request";
+import {  getHierarchy } from "../../api/campaignApis";
 import { campaignDetailsSchema } from "../../config/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
@@ -87,27 +88,26 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
 }
 
 async function validateViaSchema(data: any, schema: any) {
-    const ajv = new Ajv();
-    const validate = ajv.compile(schema);
-    const validationErrors: any[] = [];
-
-    data.forEach((facility: any, index: any) => {
-        if (!validate(facility)) {
-            validationErrors.push({ index, errors: validate.errors });
-        }
-    });
-
-    // Throw errors if any
-    if (validationErrors.length > 0) {
-        const errorMessage = validationErrors.map(({ index, errors }) => {
-            const errorMessages = errors.map((error: any) => {
-                return `Validation error at '${error.dataPath}': ${error.message}`;
-            });
-            return `Data at index ${index}:${errorMessages}`;
+    if (schema) {
+        const ajv = new Ajv();
+        const validate = ajv.compile(schema);
+        const validationErrors: any[] = [];
+        data.forEach((item: any, index: any) => {
+            if (!validate(item)) {
+                validationErrors.push({ index, errors: validate.errors });
+            }
         });
-        throw new Error(`Validation errors:${errorMessage}`);
-    } else {
-        logger.info("All Facilities rows are valid.");
+
+        // Throw errors if any
+        if (validationErrors.length > 0) {
+            const errorMessage = validationErrors.map(({ index, errors }) => `Facility at index ${index}: ${JSON.stringify(errors)}`).join('\n');
+            throw new Error(`Validation errors:\n${errorMessage}`);
+        } else {
+            logger.info("All Facilities rows are valid.");
+        }
+    }
+    else {
+        logger.info("skipping schema validation")
     }
 }
 
@@ -459,6 +459,43 @@ function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string,
     }
 }
 
+async function validateHierarchyType(request: any) {
+    try {
+        const requestBody = {
+            "RequestInfo": { ...request?.body?.RequestInfo },
+            "BoundaryTypeHierarchySearchCriteria": {
+                "tenantId": request?.body?.ResourceDetails?.tenantId,
+                "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
+            }
+        }
+        const url = config?.host?.boundaryHost + config?.paths?.boundaryHierarchy;
+        console.log(url, "urlllllllllll")
+        const response = await httpRequest(url, requestBody, undefined, "post", undefined, undefined);
+        console.log(response, "ressssssssssss")
+        if (!response?.BoundaryHierarchy) {
+            throw Error("Boundary Hierarchy not present for given tenant and hierarchy Type")
+        }
+    }
+    catch (error: any) {
+        throw new Error(`Error while validating HierarchyType: ${error.message}`);
+    }
+}
+
+async function validateBoundarySheetData(boundaryData: any, request: any) {
+    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    validateBoundarySheetHeaders(boundaryData, hierarchy);
+}
+function validateBoundarySheetHeaders(boundaryData: any, hierarchy: any) {
+    const headersOfBoundarySheet = Object.keys(boundaryData[0]);
+    const boundaryCodeIndex = headersOfBoundarySheet.indexOf('Boundary Code');
+    const keysBeforeBoundaryCode = boundaryCodeIndex === -1 ? headersOfBoundarySheet : headersOfBoundarySheet.slice(0, boundaryCodeIndex);
+    
+    if (keysBeforeBoundaryCode.length !== hierarchy.length || keysBeforeBoundaryCode.some((key, index) => key !== hierarchy[index])) {
+        throw Error("Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy Type");
+    }
+}
+
+
 
 
 
@@ -470,5 +507,7 @@ export {
     validateProjectCampaignRequest,
     validateSearchProjectCampaignRequest,
     validateSearchRequest,
-    validateFilters
+    validateFilters,
+    validateHierarchyType,
+    validateBoundarySheetData
 }

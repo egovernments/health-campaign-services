@@ -116,7 +116,12 @@ const createAndSearch: any = {
             url: config.host.facilityHost + "facility/v1/_search",
             searchPath: "Facilities"
         }
+    },
+    "boundary":{
+        parseArrayConfig: {
+            sheetName: "Sheet1",
     }
+}
 }
 
 export default createAndSearch;

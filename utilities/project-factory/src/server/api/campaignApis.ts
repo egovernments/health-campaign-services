@@ -5,8 +5,8 @@ import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage } from "../utils/genericUtils";
 import { validateSheetData } from '../utils/validators/campaignValidators';
-import { getCampaignNumber } from "./genericApis";
-import { convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
+import {  getCampaignNumber } from "./genericApis";
+import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
 
@@ -322,18 +322,23 @@ async function processGenericRequest(request: any) {
 
 async function processCreate(request: any) {
   const type: string = request.body.ResourceDetails.type;
-  const createAndSearchConfig = createAndSearch[type]
-  const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
-  await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
-  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
-  request.body.dataToCreate = typeData.createData;
-  request.body.dataToSearch = typeData.searchData;
-  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-  if (createAndSearchConfig?.createBulkDetails) {
-    _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
-    const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
-    changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
-    await performAndSaveResourceActivity(request, createAndSearchConfig, params, type);
+  if (type == "boundary") {
+         await autoGenerateBoundaryCodes(request);
+  }
+  else {
+    const createAndSearchConfig = createAndSearch[type]
+    const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
+    await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
+    const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
+    request.body.dataToCreate = typeData.createData;
+    request.body.dataToSearch = typeData.searchData;
+    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    if (createAndSearchConfig?.createBulkDetails) {
+      _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
+      const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
+      changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
+      await performAndSaveResourceActivity(request, createAndSearchConfig, params, type);
+    }
   }
 }
 
