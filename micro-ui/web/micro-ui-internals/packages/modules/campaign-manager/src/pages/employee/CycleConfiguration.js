@@ -65,6 +65,7 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
 
   const updateCycle = (d) => {
     if (d === 0) return;
+    if (d?.target?.value.trim() === "") return;
     dispatch({ type: "UPDATE_CYCLE", payload: d?.target?.value ? Number(d?.target?.value) : d });
   };
 

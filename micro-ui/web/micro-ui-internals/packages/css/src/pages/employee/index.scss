@@ -2,7 +2,7 @@
 
 .campaign-cycle-container {
   .popup-header-fix {
-    margin-top: 0rem !important;
+    margin-top: 1.5rem !important;
   }
 }
 
@@ -30,16 +30,16 @@
   margin-bottom: unset;
 }
 
-.actionBarClass{
+.actionBarClass {
   display: flex;
   justify-content: space-between;
   flex-direction: row-reverse;
 }
-.previous-button{
+.previous-button {
   margin-left: 4rem;
   min-width: 12.5rem;
 }
-.info-text{
+.info-text {
   padding-bottom: 2rem;
 }
 
@@ -120,4 +120,16 @@
   font-size: 24px;
   color: #505a5f;
   margin-top: 0.5rem;
+}
+.digit-stepper-container {
+  margin-bottom: 1.5rem;
+}
+.employee-app-wrapper {
+  margin: 0rem 2rem;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 5px;
+  top: 20%;
+  transform: translateY(-50%);
 }

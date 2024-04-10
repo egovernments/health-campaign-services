@@ -62,6 +62,7 @@ export const CampaignConfig = (totalFormData) => {
               disable: false,
               customProps: {
                 module: "HCM",
+                sessionData: totalFormData
               },
               populators: {
                 name: "campaignDates",
