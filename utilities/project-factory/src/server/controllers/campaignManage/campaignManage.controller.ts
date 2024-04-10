@@ -44,7 +44,7 @@ class campaignManageController {
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code, status: e?.status ? e.status : e?.status ? e?.status : 400 }, request, response);
+            return errorResponder({ message: String(e), code: e?.code, status: e?.status || 400 }, request, response);
         }
     };
 
