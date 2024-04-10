@@ -90,8 +90,8 @@ const SetupCampaign = () => {
       cycle.deliveries.forEach((delivery, index) => {
         delivery.deliveryRules.forEach((rule) => {
           const restructuredRule = {
-            startDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i.key === cycle.cycleIndex)?.fromDate), // Hardcoded for now
-            endDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i?.key === cycle?.cycleIndex)?.toDate), // Hardcoded for now
+            startDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i.key == cycle.cycleIndex)?.fromDate), // Hardcoded for now
+            endDate: Digit.Utils.date.convertDateToEpoch(dateData?.find((i) => i?.key == cycle?.cycleIndex)?.toDate), // Hardcoded for now
             cycleNumber: parseInt(cycle.cycleIndex),
             deliveryNumber: parseInt(delivery.deliveryIndex),
             deliveryRuleNumber: parseInt(rule.ruleKey), // New key added
@@ -104,6 +104,13 @@ const SetupCampaign = () => {
               attribute: attribute.attribute ? attribute.attribute.code : null,
               operator: attribute.operator ? attribute.operator.code : null,
               value: parseInt(attribute.value),
+            });
+          });
+
+          rule.products.forEach((prod) => {
+            restructuredRule.products.push({
+              value: prod?.value,
+              count: prod?.count,
             });
           });
 
@@ -295,13 +302,12 @@ const SetupCampaign = () => {
     const key = Object.keys(formData)?.[0];
     switch (key) {
       case "campaignName":
-      if (typeof formData?.campaignName !== 'string' || !formData?.campaignName.trim() ) {
-        setShowToast({ key: "error", label: "CAMPAIGN_NAME_MISSING_TYPE_ERROR" });
-        return false;
-      }
-      else {
-        return true;
-      }
+        if (typeof formData?.campaignName !== "string" || !formData?.campaignName.trim()) {
+          setShowToast({ key: "error", label: "CAMPAIGN_NAME_MISSING_TYPE_ERROR" });
+          return false;
+        } else {
+          return true;
+        }
       case "campaignDates":
         const startDateObj = new Date(formData?.campaignDates?.startDate);
         const endDateObj = new Date(formData?.campaignDates?.endDate);

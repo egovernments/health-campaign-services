@@ -60,7 +60,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
     const updatedData = deliveryRules.map((item, index) => {
       if (item.ruleKey === deliveryRuleIndex) {
-        item.attributes.find((i) => i.key === attribute.key).value = value;
+        item.attributes.find((i) => i.key === attribute.key).value = value?.code;
       }
       return item;
     });
@@ -457,11 +457,12 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
   };
 
   const removeProduct = (item) => {
+    const temp = delivery;
     setDeliveryRules((prevState) => {
       const updatedDeliveryRules = prevState.map((delivery) => {
-        if (delivery.ruleKey === delivery.ruleKey) {
+        if (delivery.ruleKey === temp.ruleKey) {
           const updatedProducts = delivery.products
-            .filter((product) => product.key !== item.key)
+            .filter((product) => product.value !== item.value)
             .map((product, index) => ({ ...product, key: index + 1 }));
           return { ...delivery, products: updatedProducts };
         }
@@ -498,7 +499,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
 
         {delivery?.products?.length > 0 &&
           delivery?.products?.map((i) => {
-            i?.value && i.count ? <RemoveableTagNew text={{ value: i.value }} onClick={() => removeProduct(i)} /> : null;
+            return i?.value && i?.count ? <RemoveableTagNew text={{ value: i.value }} onClick={() => removeProduct(i)} /> : null;
           })}
         <Button
           variation="secondary"

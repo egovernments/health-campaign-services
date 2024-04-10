@@ -153,7 +153,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
                   if (rule.ruleKey === action.payload.delivery.ruleKey) {
                     return {
                       ...rule,
-                      products: prodTemp,
+                      products: [...rule.products, ...prodTemp],
                     };
                   }
                   return rule;

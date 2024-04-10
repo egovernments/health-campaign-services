@@ -133,3 +133,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   top: 20%;
   transform: translateY(-50%);
 }
+.campaign-preview-edit-container {
+  display: flex;
+  gap: 1rem;
+  span {
+    color: #f47738;
+  }
+}
+.campaign-attribute-table {
+  tbody {
+    tr:nth-child(odd) {
+      background-color: white;
+    }
+  }
+}

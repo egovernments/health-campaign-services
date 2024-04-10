@@ -25,7 +25,8 @@ const CampaignSummary = () => {
                   type: "DATA",
                   cardHeader: { value: t("CAMPAIGN_DETAILS"), inlineStyles: { marginTop: 0 } },
                   cardSecondaryAction: (
-                    <div onClick={() => handleRedirect(1)}>
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
+                      <span>{t(`CAMPAIGN_EDIT`)}</span>
                       <EditIcon />
                     </div>
                   ),
@@ -56,7 +57,8 @@ const CampaignSummary = () => {
                   type: "DATA",
                   cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0 } },
                   cardSecondaryAction: (
-                    <div onClick={() => handleRedirect(2)}>
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
+                      <span>{t(`CAMPAIGN_EDIT`)}</span>
                       <EditIcon />
                     </div>
                   ),
@@ -74,7 +76,12 @@ const CampaignSummary = () => {
                 {
                   type: "COMPONENT",
                   cardHeader: { value: t("DELIVERY_CYCLE_DETAILS"), inlineStyles: { marginTop: 0 } },
-                  cardSecondaryAction: <EditIcon />,
+                  cardSecondaryAction: (
+                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(2)}>
+                      <span>{t(`CAMPAIGN_EDIT`)}</span>
+                      <EditIcon />
+                    </div>
+                  ),
                   component: "CycleDetaisPreview",
                   props: {
                     data: data?.[0],
@@ -269,7 +276,8 @@ const CampaignSummary = () => {
             type: "DATA",
             cardHeader: { value: t("CAMPAIGN_DETAILS"), inlineStyles: { marginTop: 0 } },
             cardSecondaryAction: (
-              <div onClick={() => handleRedirect(1)}>
+              <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
+                <span>{t(`CAMPAIGN_EDIT`)}</span>
                 <EditIcon />
               </div>
             ),
@@ -300,7 +308,8 @@ const CampaignSummary = () => {
             type: "DATA",
             cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0 } },
             cardSecondaryAction: (
-              <div onClick={() => handleRedirect(2)}>
+              <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
+                <span>{t(`CAMPAIGN_EDIT`)}</span>
                 <EditIcon />
               </div>
             ),
@@ -318,7 +327,12 @@ const CampaignSummary = () => {
           {
             type: "COMPONENT",
             cardHeader: { value: t("DELIVERY_CYCLE_DETAILS"), inlineStyles: { marginTop: 0 } },
-            cardSecondaryAction: <EditIcon />,
+            cardSecondaryAction: (
+              <div className="campaign-preview-edit-container" onClick={() => handleRedirect(2)}>
+                <span>{t(`CAMPAIGN_EDIT`)}</span>
+                <EditIcon />
+              </div>
+            ),
             component: "CycleDetaisPreview",
             props: {
               DUMMY_DATA: DUMMY_DATA?.[0],
@@ -367,16 +381,8 @@ const CampaignSummary = () => {
 
   return (
     <>
-      {/* <div className="cardHeaderWithOptions"> */}
-      <div className="madarchod">
-        <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
-      </div>
-      {/* </div> */}
-
-      <div className="laudalelo">
-        {/* {!isLoading && <ViewComposer data={testData} isLoading={isLoading} />} */}
-        <ViewComposer data={data} />
-      </div>
+      <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
+      <ViewComposer data={data} />
     </>
   );
 };
