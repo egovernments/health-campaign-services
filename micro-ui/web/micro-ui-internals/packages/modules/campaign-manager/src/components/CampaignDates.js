@@ -3,14 +3,13 @@ import { DatePicker,LabelFieldPair, Header } from "@egovernments/digit-ui-react-
 import { useTranslation } from "react-i18next";
 import { TextInput } from "@egovernments/digit-ui-components";
 
-const CampaignDates = ({onSelect, formData}) => {
+const CampaignDates = ({onSelect, formData , ...props}) => {
   const { t } = useTranslation();
   const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
   const today = Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS);
-  const [dates, setDates] = useState({ startDate: today, endDate: today });
-  const [startDate, setStartDate] = useState(); // Set default start date to today
-  const [endDate, setEndDate] = useState(); // Default end date
-
+  const [dates, setDates] = useState({ startDate: props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate || today, endDate: props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate || today });
+  const [startDate, setStartDate] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate); // Set default start date to today
+  const [endDate, setEndDate] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate); // Default end date
 
   function setStart(value) {
     setStartDate(value);
@@ -37,26 +36,17 @@ const CampaignDates = ({onSelect, formData}) => {
         <span className="mandatory-date">*</span>
         </div>
         <div className="date-field-container">
-        {/* <DatePicker 
-          date={startDate}
-          key = {startDate}
-          min={Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS)}
-          onChange={(date) => setStart(date)}
-        /> */}
         <TextInput 
         type="date" 
         value = {startDate}
         placeholder="start-date" 
         min={Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS)}
         onChange={(d) => setStart(d)}/>
-        {/* <DatePicker 
-         date={endDate}
-        //  key = {endDate} 
-        // //  min={Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS)}
-        // //  max={Digit.Utils.date.getDate(Date.now() + 10 * ONE_DAY_IN_MS)}
-         onChange={(date) => setEnd(date)}
-        /> */}
-        <TextInput type="date" value = {endDate} placeholder="end-date" onChange={(d) => setEnd(d)}/>
+        <TextInput type="date" 
+        value = {endDate} 
+        placeholder="end-date"
+         min={Digit.Utils.date.getDate(Date.now() + 2*ONE_DAY_IN_MS)} 
+         onChange={(d) => setEnd(d)}/>
         </div>
       </LabelFieldPair>
     </React.Fragment>
