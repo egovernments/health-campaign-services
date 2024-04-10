@@ -44,7 +44,7 @@ class campaignManageController {
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code, status: e?.status ? e.status : e?.status ? e?.status : 400 }, request, response);
         }
     };
 
@@ -58,7 +58,7 @@ class campaignManageController {
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
         }
     };
 
@@ -66,14 +66,13 @@ class campaignManageController {
         request: express.Request,
         response: express.Response
     ) => {
-
         try {
             await validateSearchProjectCampaignRequest(request);
             await searchProjectCampaignResourcData(request);
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
         }
 
     };
@@ -91,7 +90,7 @@ class campaignManageController {
         }
         catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
 
         }
     };

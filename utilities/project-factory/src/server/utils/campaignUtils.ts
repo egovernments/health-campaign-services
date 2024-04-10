@@ -256,12 +256,14 @@ function enrichRootProjectId(requestBody: any) {
 async function enrichAndPersistCampaignForCreate(request: any) {
     const action = request?.body?.CampaignDetails?.action;
     request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
-    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, startDate: request?.body?.CampaignDetails?.startDate, endDate: request?.body?.CampaignDetails?.endDate };
+    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType ? request?.body?.CampaignDetails?.projectType : null;
     request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType ? request?.body?.CampaignDetails?.hierarchyType : null;
     request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails ? request?.body?.CampaignDetails?.additionalDetails : {};
+    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate
+    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate
     request.body.CampaignDetails.auditDetails = {
         createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
         createdTime: Date.now(),
@@ -283,9 +285,14 @@ async function enrichAndPersistCampaignForUpdate(request: any) {
     const action = request?.body?.CampaignDetails?.action;
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
-    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, startDate: request?.body?.CampaignDetails?.startDate, endDate: request?.body?.CampaignDetails?.endDate };
+    request.body.CampaignDetails.campaignDetails = request?.body?.CampaignDetails?.deliveryRules ? { deliveryRules: request?.body?.CampaignDetails?.deliveryRules } : ExistingCampaignDetails?.campaignDetails;
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
+    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate ? request?.body?.CampaignDetails?.startDate : ExistingCampaignDetails?.startDate
+    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate ? request?.body?.CampaignDetails?.endDate : ExistingCampaignDetails?.endDate
+    request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType ? request?.body?.CampaignDetails?.projectType : ExistingCampaignDetails?.projectType
+    request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType ? request?.body?.CampaignDetails?.hierarchyType : ExistingCampaignDetails?.hierarchyType
+    request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails ? request?.body?.CampaignDetails?.additionalDetails : ExistingCampaignDetails?.additionalDetails
     request.body.CampaignDetails.auditDetails = {
         createdBy: ExistingCampaignDetails?.createdBy,
         createdTime: ExistingCampaignDetails?.createdTime,
@@ -419,7 +426,13 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
 
     for (const field in searchFields) {
         if (searchFields[field] !== undefined) {
-            conditions.push(`${field} = $${index}`);
+            if (field === 'startDate') {
+                conditions.push(`startDate >= $${index}`);
+            } else if (field === 'endDate') {
+                conditions.push(`endDate <= $${index}`);
+            } else {
+                conditions.push(`${field} = $${index}`);
+            }
             values.push(searchFields[field]);
             index++;
         }
@@ -464,6 +477,7 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
     return { query, values };
 }
 
+
 async function executeSearchQuery(query: string, values: any[]) {
     const queryResult = await pool.query(query, values);
     logger.info("queryResult : " + JSON.stringify(queryResult));
@@ -478,6 +492,8 @@ async function executeSearchQuery(query: string, values: any[]) {
         hierarchyType: row.hierarchytype,
         boundaryCode: row.boundarycode,
         projectId: row.projectid,
+        startDate: Number(row.startdate),
+        endDate: Number(row.enddate),
         createdBy: row.createdby,
         lastModifiedBy: row.lastmodifiedby,
         createdTime: Number(row?.createdtime),

@@ -41,12 +41,12 @@ class dataManageController {
 
     generateData = async (request: express.Request, response: express.Response) => {
         try {
-            validateGenerateRequest(request);
+            await validateGenerateRequest(request);
             await processGenerate(request, response);
             return sendResponse(response, { GeneratedResource: request?.body?.generatedResource }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
         }
     };
 
@@ -84,7 +84,7 @@ class dataManageController {
             }
         } catch (e: any) {
             logger.error(String(e));
-            return errorResponder({ message: String(e) + "    Check Logs" }, request, response);
+            return errorResponder({ message: String(e) + "    Check Logs" }, request, response, e?.status ? e?.status : 400);
         }
     }
 
@@ -98,9 +98,9 @@ class dataManageController {
             const BoundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
             return BoundaryFileDetails;
         }
-        catch (error: any) {
-            logger.error(String(error));
-            return errorResponder({ message: String(error) + "    Check Logs" }, request, response);
+        catch (e: any) {
+            logger.error(String(e));
+            return errorResponder({ message: String(e) + "    Check Logs" }, request, response, e?.status ? e?.status : 400);
         }
     };
 
@@ -135,8 +135,8 @@ class dataManageController {
             const BoundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
             return sendResponse(response, { BoundaryFileDetails: BoundaryFileDetails }, request);
         }
-        catch (error) {
-            return errorResponder({ message: String(error) + "    Check Logs" }, request, response);
+        catch (e: any) {
+            return errorResponder({ message: String(e) + "    Check Logs" }, request, response, e?.status ? e?.status : 400);
         }
     }
 
@@ -149,7 +149,7 @@ class dataManageController {
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
         }
     }
 
@@ -160,7 +160,7 @@ class dataManageController {
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, 404);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
         }
     }
 

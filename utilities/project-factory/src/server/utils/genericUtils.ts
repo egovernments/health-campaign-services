@@ -158,7 +158,10 @@ const errorResponder = (
 ) => {
   response.header("Content-Type", "application/json");
   const errorResponse = getErrorResponse(error.code || "INTERNAL_SERVER_ERROR", trimError(error.message || "Some Error Occurred!!"));
-  response.status(status).send(errorResponse);
+  if (error?.status) {
+    response.status(error.status).send(errorResponse);
+  }
+  else response.status(status).send(errorResponse);
 };
 
 const trimError = (e: any) => {

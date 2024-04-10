@@ -221,18 +221,18 @@ async function validateCampaignBoundary(boundary: any, hierarchyType: any, tenan
     };
     const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, { RequestInfo: request.body.RequestInfo }, params);
     if (!boundaryResponse?.TenantBoundary || !Array.isArray(boundaryResponse.TenantBoundary) || boundaryResponse.TenantBoundary.length === 0) {
-        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND" });
+        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND", status: 400 });
     }
 
     const boundaryData = boundaryResponse.TenantBoundary[0]?.boundary;
 
     if (!boundaryData || !Array.isArray(boundaryData) || boundaryData.length === 0) {
-        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND" });
+        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND", status: 400 });
 
     }
 
     if (boundary.isRoot && boundaryData[0]?.code !== boundary.code) {
-        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND" });
+        throw Object.assign(new Error(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`), { code: "BOUNDARY_NOT_FOUND", status: 400 });
     }
 }
 
@@ -345,6 +345,9 @@ async function validateById(request: any) {
             if (searchResponse?.data?.CampaignDetails?.length > 0) {
                 logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.data?.CampaignDetails));
                 request.body.ExistingCampaignDetails = searchResponse?.data?.CampaignDetails[0];
+                if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName) {
+                    throw Object.assign(new Error(`CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`), { code: "CAMPAIGNNAME_MISMATCH", status: 400 });
+                }
             }
             else {
                 throw new Error("Campaign not found");
@@ -396,6 +399,16 @@ async function validateSearchProjectCampaignRequest(request: any) {
     if (CampaignDetails.ids) {
         if (!Array.isArray(CampaignDetails.ids)) {
             throw new Error("ids should be an array")
+        }
+    }
+    const { pagination } = CampaignDetails;
+    if (pagination?.limit || pagination?.limit == 0) {
+        if (typeof pagination.limit === 'number') {
+            if (pagination.limit > 100 || pagination.limit < 1) {
+                throw Object.assign(new Error("Pagination Limit should be from 1 to 100"), { code: "INVALID_PAGINATION", status: 400 });
+            }
+        } else {
+            throw Object.assign(new Error("Pagination Limit should be a number"), { code: "INVALID_PAGINATION", status: 400 });
         }
     }
 }
