@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.Address;
@@ -89,10 +90,10 @@ public class IndividualService implements UserService {
         IndividualSearchRequest request = IndividualSearchRequest.builder()
                 .requestInfo(requestInfo)
                 .individual(IndividualSearch.builder()
-                        .mobileNumber(Collections.singletonList((String) userSearchCriteria.get("mobileNumber")))
+                        .mobileNumber(StringUtils.isEmpty((String) userSearchCriteria.get("mobileNumber")) ? Collections.singletonList((String) userSearchCriteria.get("mobileNumber")) : null)
                         .id((List<String>) userSearchCriteria.get("uuid"))
                         .roleCodes((List<String>) userSearchCriteria.get("roleCodes"))
-                        .username(Collections.singletonList((String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME)))
+                        .username(StringUtils.isEmpty((String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME)) ? Collections.singletonList((String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME)) : null)
                         // given name
                         .individualName((String) userSearchCriteria
                                 .get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME))
