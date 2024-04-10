@@ -210,18 +210,52 @@ function validateProjectFacilityResponse(projectFacilityResponse: any) {
         throw new Error("Project Facility creation failed. Check Logs")
     }
 }
-
-function validateGenerateRequest(request: express.Request) {
-    const { tenantId, type } = request.query;
+async function validateHierarchyType(request: any, hierarchyType: any) {
+    const searchBody = {
+        RequestInfo: request?.body?.RequestInfo,
+        BoundaryTypeHierarchySearchCriteria: {
+            "tenantId": request?.query?.tenantId,
+            "limit": 5,
+            "offset": 0,
+            "hierarchyType": hierarchyType
+        }
+    }
+    logger.info("Hierarchy Search Url : " + config.host.boundaryHost + config.paths.boundaryHierarchy);
+    logger.info("SearchBo")
+    const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
+    if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
+        logger.info("Hierarchy Search Response : " + JSON.stringify(response?.BoundaryHierarchy))
+    }
+    else {
+        throw Object.assign(new Error(`hierarchyType ${hierarchyType} not found`), { code: "HIERARCHYTYPE_NOT_FOUND", status: 400 });
+    }
+}
+async function validateGenerateRequest(request: express.Request) {
+    const { tenantId, type, hierarchyType, forceUpdate } = request.query;
     if (!tenantId) {
         throw new Error("tenantId is required");
     }
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
         throw new Error("tenantId in userInfo and query should be same");
     }
+    if (!type) {
+        throw new Error("type is required");
+    }
+    if (!hierarchyType) {
+        throw new Error("hierarchyType is required");
+    }
+    if (forceUpdate) {
+        if (forceUpdate !== 'true' && forceUpdate !== 'false') {
+            throw new Error("forceUpdate should be either 'true' or 'false'");
+        }
+    }
+    else {
+        throw new Error("forceUpdate is required");
+    }
     if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
         throw new Error("Type should be facility, user, boundary or facilityWithBoundary");
     }
+    await validateHierarchyType(request, hierarchyType);
 }
 
 export {
