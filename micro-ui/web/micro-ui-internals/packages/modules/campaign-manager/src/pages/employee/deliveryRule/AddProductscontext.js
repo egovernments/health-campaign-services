@@ -2,14 +2,15 @@ import { AddIcon, Button, CardText, Dropdown, DustbinIcon, Label, LabelFieldPair
 import React, { Fragment, useEffect, useState } from "react";
 import PlusMinusInput from "../../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
+import { TextInput } from "@egovernments/digit-ui-components";
 
 function AddProducts({ stref, selectedDelivery }) {
   const { t } = useTranslation();
   const [products, setProducts] = useState([
     {
       key: 1,
-      count: null,
-      value: 1,
+      count: 1,
+      value: null,
     },
   ]);
   const data = Digit.Hooks.campaign.useProductList();
@@ -146,10 +147,12 @@ function AddProducts({ stref, selectedDelivery }) {
   };
 
   const incrementC = (data, value) => {
+    if (value?.target?.value.trim() === "") return;
+    if (value === 0) return;
     setProducts((prevState) => {
       return prevState.map((item) => {
         if (item.key === data.key) {
-          return { ...item, count: value };
+          return { ...item, count: value?.target?.value ? Number(value?.target?.value) : value };
         }
         return item;
       });
@@ -174,41 +177,16 @@ function AddProducts({ stref, selectedDelivery }) {
   return (
     <div>
       {products.map((i, c) => (
-        <div
-          style={{
-            backgroundColor: "#fafafa",
-            border: "1px solid #d6d5d4",
-            borderRadius: "0.4rem",
-            padding: "1.5rem",
-            marginRight: "1.5rem",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <CardText>
-            {t(`CAMPAIGN_RESOURCE`)} {c + 1}
-          </CardText>
-          <div
-            onClick={() => deleteItem(i, c)}
-            style={{
-              cursor: "pointer",
-              fontWeight: "600",
-              fontSize: "1rem",
-              color: "#f47738",
-              display: "flex",
-              gap: "0.5rem",
-              alignItems: "center",
-              marginTop: "1rem",
-            }}
-          >
-            <DustbinIcon />
+        <div className="add-resource-container">
+          <div className="header-container">
+            <CardText>
+              {t(`CAMPAIGN_RESOURCE`)} {c + 1}
+            </CardText>
+            <div className="delete-resource-icon" onClick={() => deleteItem(i, c)}>
+              <DustbinIcon />
+            </div>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr",
-              gridGap: "2rem",
-            }}
-          >
+          <div className="add-resource-label-field-container">
             <LabelFieldPair>
               <Label>{t(`CAMPAIGN_ADD_PRODUCTS_LABEL`)}</Label>
               <Dropdown
@@ -225,7 +203,7 @@ function AddProducts({ stref, selectedDelivery }) {
 
             <LabelFieldPair style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
               <Label>{t(`CAMPAIGN_COUNT_LABEL`)}</Label>
-              <PlusMinusInput defaultValues={i?.count} onSelect={(d) => incrementC(i, d)} />
+              <TextInput type="numeric" defaultValue={i?.count} value={i?.count} onChange={(d) => incrementC(i, d)} />
             </LabelFieldPair>
           </div>
         </div>
@@ -234,7 +212,7 @@ function AddProducts({ stref, selectedDelivery }) {
         variation="secondary"
         label={`CAMPAIGN_PRODUCTS_MODAL_SECONDARY_ACTION`}
         className={"add-rule-btn"}
-        icon={<AddIcon fill="#f47738" />}
+        icon={<AddIcon fill="#f47738" styles={{ height: "1.5rem", width: "1.5rem" }} />}
         onButtonClick={add}
       />
     </div>
