@@ -14,7 +14,7 @@ const requestSchema = object({
 const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
     const contentType = req.headers['content-type'];
-    if (!contentType || !contentType.split(';').includes('application/json')) {
+    if (!contentType || !contentType.split(';').map(part => part.trim()).includes('application/json')) {
       res.status(415).send("Unsupported Media Type: Content-Type should be 'application/json'");
       return;
     }
