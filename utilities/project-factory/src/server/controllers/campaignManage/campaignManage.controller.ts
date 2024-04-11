@@ -69,7 +69,7 @@ class campaignManageController {
         try {
             await validateSearchProjectCampaignRequest(request);
             await searchProjectCampaignResourcData(request);
-            return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
+            return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails, totalCount: request?.body?.totalCount }, request);
         } catch (e: any) {
             logger.error(String(e))
             return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);

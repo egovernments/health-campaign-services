@@ -410,11 +410,24 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
     return codes;
 }
 
+
+async function getTotalCount(request: any) {
+    try {
+        const query = "SELECT COUNT(*) FROM health.eg_cm_campaign_details";
+        const queryResult = await pool.query(query);
+        request.body.totalCount = parseInt(queryResult.rows[0].count, 10);
+    } catch (error) {
+        logger.error("Error getting total count:" + error);
+        throw error;
+    }
+}
+
 async function searchProjectCampaignResourcData(request: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { tenantId, pagination, ids, ...searchFields } = CampaignDetails;
     const queryData = buildSearchQuery(tenantId, pagination, ids, searchFields);
     logger.info("queryData : " + JSON.stringify(queryData));
+    await getTotalCount(request)
     const responseData = await executeSearchQuery(queryData.query, queryData.values);
     request.body.CampaignDetails = responseData;
 }
