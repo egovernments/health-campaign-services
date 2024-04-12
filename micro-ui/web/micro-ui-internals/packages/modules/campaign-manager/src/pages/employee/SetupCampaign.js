@@ -139,7 +139,7 @@ const SetupCampaign = () => {
           payloadData.tenantId = tenantId;
           payloadData.action = "create";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-          payloadData.boundaries = [];
+          payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [];
           payloadData.projectType = null;
           payloadData.additionalDetails = {};
@@ -150,7 +150,6 @@ const SetupCampaign = () => {
 
           await mutate(payloadData, {
             onError: (error, variables) => {
-              console.log(error);
             },
             onSuccess: async (data) => {
               draftRefetch();
@@ -179,7 +178,7 @@ const SetupCampaign = () => {
           payloadData.tenantId = tenantId;
           payloadData.action = "draft";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-          payloadData.boundaries = [];
+          payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [];
           payloadData.projectType = null;
           payloadData.additionalDetails = {};
@@ -213,7 +212,7 @@ const SetupCampaign = () => {
           payloadData.tenantId = tenantId;
           payloadData.action = "draft";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-          payloadData.boundaries = [];
+          payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [];
           payloadData.projectType = null;
           payloadData.additionalDetails = {};
@@ -462,7 +461,7 @@ const SetupCampaign = () => {
         showSecondaryLabel={currentKey > 1 ? true : false}
         secondaryLabel={t("HCM_BACK")}
         actionClassName={"actionBarClass"}
-        noCardStyle={currentStep === 1 || currentStep === 6 ? true : false}
+        noCardStyle={currentStep === 1 || currentStep === 6 || currentStep === 2 ? true : false}
         onSecondayActionClick={onSecondayActionClick}
         label={filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
