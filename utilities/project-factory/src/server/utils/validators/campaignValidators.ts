@@ -2,7 +2,7 @@ import createAndSearch from "../../config/createAndSearch";
 import config from "../../config";
 import { logger } from "../logger";
 import { httpRequest } from "../request";
-import {  getHierarchy } from "../../api/campaignApis";
+import { getHierarchy } from "../../api/campaignApis";
 import { campaignDetailsSchema } from "../../config/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
@@ -87,25 +87,31 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
     await validateUniqueBoundaries(uniqueBoundaries, request);
 }
 
-async function validateViaSchema(data: any, schema: any) {
+async function validateViaSchema(data: any, schema: any, request: any) {
+
     if (schema) {
         const ajv = new Ajv();
         const validate = ajv.compile(schema);
         const validationErrors: any[] = [];
         data.forEach((item: any, index: any) => {
-            if (!validate(item)) {
-                validationErrors.push({ index, errors: validate.errors });
-            }
+            if (!item?.[createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName])
+                if (!validate(item)) {
+                    validationErrors.push({ index, errors: validate.errors });
+                }
         });
 
         // Throw errors if any
         if (validationErrors.length > 0) {
-            const errorMessage = validationErrors.map(({ index, errors }) => `Facility at index ${index}: ${JSON.stringify(errors)}`).join('\n');
-            throw new Error(`Validation errors:\n${errorMessage}`);
+            const errorMessage = validationErrors.map(({ index, errors }) => {
+                const formattedErrors = errors.map((error: any) => `${error.dataPath}: ${error.message}`).join(', ');
+                return `Data at index ${index}: ${formattedErrors}`;
+            }).join(' , ');
+            throw new Error(`Data errors: ${errorMessage}`);
         } else {
             logger.info("All Facilities rows are valid.");
         }
     }
+
     else {
         logger.info("skipping schema validation")
     }
@@ -114,7 +120,7 @@ async function validateViaSchema(data: any, schema: any) {
 
 
 async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any) {
-    await validateViaSchema(data, schema);
+    await validateViaSchema(data, schema, request);
     if (boundaryValidation) {
         await validateBoundaryData(data, request, boundaryValidation?.column);
     }
@@ -237,44 +243,47 @@ async function validateCampaignBoundary(boundary: any, hierarchyType: any, tenan
 }
 
 async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyType: any, tenantId: any, request: any): Promise<void> {
-    if (!Array.isArray(boundaries)) {
-        throw new Error("Boundaries should be an array");
-    }
+    if (!request?.body?.CampaignDetails?.projectId) {
+        if (boundaries) {
+            if (!Array.isArray(boundaries)) {
+                throw new Error("boundaries should be an array");
+            }
+            let rootBoundaryCount = 0;
+            for (const boundary of boundaries) {
+                if (!boundary.code) {
+                    throw new Error("Boundary code is required");
+                }
+                if (!boundary.type) {
+                    throw new Error("Boundary type is required");
+                }
 
-    let rootBoundaryCount = 0;
-
-    for (const boundary of boundaries) {
-        if (!boundary.code) {
-            throw new Error("Boundary code is required");
+                if (boundary.isRoot) {
+                    rootBoundaryCount++;
+                }
+                await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
+            }
+            if (rootBoundaryCount !== 1) {
+                throw new Error("Exactly one boundary should have isRoot=true");
+            }
         }
-
-        if (!boundary.type) {
-            throw new Error("Boundary type is required");
+        else {
+            throw Object.assign(new Error("Missing boundaries array"), { code: "MISSING_BOUNDARY", status: 400 });
         }
-
-        if (boundary.isRoot) {
-            rootBoundaryCount++;
-        }
-
-        await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
-    }
-
-    if (rootBoundaryCount !== 1) {
-        throw new Error("Exactly one boundary should have isRoot=true");
     }
 }
 
 async function validateProjectCampaignResources(resources: any[]) {
-    if (!Array.isArray(resources)) {
-        throw new Error("resources should be an array");
-    }
-    for (const resource of resources) {
-        const { type } = resource;
-        if (!createAndSearch[type]) {
-            throw new Error("Invalid resource type");
+    if (resources) {
+        if (!Array.isArray(resources)) {
+            throw new Error("resources should be an array");
+        }
+        for (const resource of resources) {
+            const { type } = resource;
+            if (!createAndSearch[type]) {
+                throw new Error("Invalid resource type");
+            }
         }
     }
-
 }
 
 function validateProjectCampaignMissingFields(CampaignDetails: any) {

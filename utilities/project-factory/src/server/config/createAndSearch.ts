@@ -22,13 +22,13 @@ const createAndSearch: any = {
                 },
                 "Facility Type": {
                     "type": "string",
-                    "enum": ["Storing Resource"]
+                    "enum": ["Warehouse", "Health Facility"]
                 },
                 "Facility Status": {
                     "type": "string",
-                    "enum": ["Temp", "Perm"]
+                    "enum": ["Temporary", "Permanent"]
                 },
-                "Facility Capacity": {
+                "Capacity": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 9223372036854775807
@@ -38,11 +38,12 @@ const createAndSearch: any = {
                 "Facility Name",
                 "Facility Type",
                 "Facility Status",
-                "Facility Capacity"
+                "Capacity"
             ]
         },
         uniqueIdentifier: "id",
         uniqueIdentifierColumn: "A",
+        uniqueIdentifierColumnName: "Facility Code",
         matchEachKey: true,
         parseArrayConfig: {
             sheetName: "List of Available Facilities",
@@ -67,12 +68,12 @@ const createAndSearch: any = {
                     resultantPath: "isPermanent",
                     type: "boolean",
                     conversionCondition: {
-                        "Perm": "true",
-                        "Temp": ""
+                        "Permanent": "true",
+                        "Temporary": ""
                     }
                 },
                 {
-                    sheetColumnName: "Facility Capacity",
+                    sheetColumnName: "Capacity",
                     resultantPath: "storageCapacity",
                     type: "number"
                 }
@@ -117,11 +118,11 @@ const createAndSearch: any = {
             searchPath: "Facilities"
         }
     },
-    "boundary":{
+    "boundary": {
         parseArrayConfig: {
             sheetName: "Sheet1",
+        }
     }
-}
 }
 
 export default createAndSearch;

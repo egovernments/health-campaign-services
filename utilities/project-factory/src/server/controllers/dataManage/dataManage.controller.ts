@@ -5,7 +5,7 @@ import { enrichResourceDetails, errorResponder, processGenerate, sendResponse, g
 import { processGenericRequest } from "../../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../../api/genericApis";
 import { validateCreateRequest, validateSearchRequest } from "../../utils/validators/campaignValidators";
-import {  generateProcessedFileAndPersist, processDataSearchRequest } from "../../utils/campaignUtils";
+import { generateProcessedFileAndPersist, processDataSearchRequest } from "../../utils/campaignUtils";
 
 
 
@@ -84,7 +84,7 @@ class dataManageController {
         }
         catch (e: any) {
             logger.error(String(e));
-            return errorResponder({ message: String(e) + "    Check Logs" }, request, response, e?.status ? e?.status : 400);
+            return errorResponder({ message: String(e) + "    Checodeck Logs" }, request, response, e?.status ? e?.status : 400);
         }
     };
 

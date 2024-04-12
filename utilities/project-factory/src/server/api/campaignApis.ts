@@ -5,7 +5,7 @@ import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage } from "../utils/genericUtils";
 import { validateSheetData } from '../utils/validators/campaignValidators';
-import {  getCampaignNumber } from "./genericApis";
+import { getCampaignNumber } from "./genericApis";
 import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
@@ -323,7 +323,7 @@ async function processGenericRequest(request: any) {
 async function processCreate(request: any) {
   const type: string = request.body.ResourceDetails.type;
   if (type == "boundary") {
-         await autoGenerateBoundaryCodes(request);
+    await autoGenerateBoundaryCodes(request);
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
@@ -343,8 +343,8 @@ async function processCreate(request: any) {
 }
 
 async function createProjectCampaignResourcData(request: any) {
-  if (request?.body?.CampaignDetails?.action == "create") {
-    for (const resource of request.body.CampaignDetails.resources) {
+  if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
+    for (const resource of request?.body?.CampaignDetails?.resources) {
       const resourceDetails = {
         type: resource.type,
         fileStoreId: resource.filestoreId,
