@@ -419,7 +419,7 @@ async function getTotalCount(request: any) {
         const query = "SELECT COUNT(*) FROM health.eg_cm_campaign_details";
         const queryResult = await pool.query(query);
         request.body.totalCount = parseInt(queryResult.rows[0].count, 10);
-    } catch (error) {
+    } catch (error: any) {
         logger.error("Error getting total count: " + error.message + ", Stack: " + error.stack);
         throw error;
     }

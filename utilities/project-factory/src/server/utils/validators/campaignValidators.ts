@@ -469,9 +469,7 @@ async function validateHierarchyType(request: any) {
             }
         }
         const url = config?.host?.boundaryHost + config?.paths?.boundaryHierarchy;
-        console.log(url, "urlllllllllll")
         const response = await httpRequest(url, requestBody, undefined, "post", undefined, undefined);
-        console.log(response, "ressssssssssss")
         if (!response?.BoundaryHierarchy) {
             throw Error("Boundary Hierarchy not present for given tenant and hierarchy Type")
         }
@@ -483,17 +481,28 @@ async function validateHierarchyType(request: any) {
 
 async function validateBoundarySheetData(boundaryData: any, request: any) {
     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-    validateBoundarySheetHeaders(boundaryData, hierarchy);
+    validateBoundarySheetHeaders(boundaryData, hierarchy, request);
 }
-function validateBoundarySheetHeaders(boundaryData: any, hierarchy: any) {
-    const headersOfBoundarySheet = Object.keys(boundaryData[0]);
+function validateBoundarySheetHeaders(boundaryData: any, hierarchy: any, request: any) {
+    let maxLength = 0;
+    let longestObject: any;
+    for (const obj of boundaryData) {
+        const length = Object.keys(obj).length;
+        if (length > maxLength) {
+            longestObject = obj;
+            maxLength = length;
+        }
+    }
+    const headersOfBoundarySheet = Object.keys(longestObject);
     const boundaryCodeIndex = headersOfBoundarySheet.indexOf('Boundary Code');
     const keysBeforeBoundaryCode = boundaryCodeIndex === -1 ? headersOfBoundarySheet : headersOfBoundarySheet.slice(0, boundaryCodeIndex);
-    
-    if (keysBeforeBoundaryCode.length !== hierarchy.length || keysBeforeBoundaryCode.some((key, index) => key !== hierarchy[index])) {
-        throw Error("Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy Type");
+    if (keysBeforeBoundaryCode.some((key: string, index: number) => key !== hierarchy[index])) {
+        const errorMessage = `"Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy type: ${request?.body?.ResourceDetails?.hierarchyType}"`;
+        throw Object.assign(new Error(errorMessage), { code: "BOUNDARY_SHEET_HEADER_ERROR" });
     }
+
 }
+
 
 
 
