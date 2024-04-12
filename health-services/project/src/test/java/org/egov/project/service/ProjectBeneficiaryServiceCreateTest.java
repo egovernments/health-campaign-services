@@ -155,7 +155,7 @@ class ProjectBeneficiaryServiceCreateTest {
     @DisplayName("should send the enriched project beneficiary to the kafka topic")
     void shouldSendTheEnrichedProjectBeneficiaryToTheKafkaTopic() throws Exception {
         projectBeneficiaryService.create(request);
-        verify(projectBeneficiaryRepository, times(1)).save(any(List.class), any(String.class));
+        verify(projectBeneficiaryRepository, times(1)).save(any(BeneficiaryBulkRequest.class), eq("create-topic"), eq("projectBeneficiaries"));
     }
 
 

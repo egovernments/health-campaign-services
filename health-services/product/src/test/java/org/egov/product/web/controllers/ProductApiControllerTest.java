@@ -61,7 +61,7 @@ class ProductApiControllerTest {
     @DisplayName("product Request should fail for incorrect API operation")
     void productRequestForCreateShouldFailForIncorrectApiOperation() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationDelete().build();
-        String expectedResponse = "{\"ResponseInfo\":null,\"Errors\":[{\"code\":\"INVALID_API_OPERATION\",\"message\":\"API Operation DELETE not valid for create request\",\"description\":null,\"params\":null}]}";
+        String expectedResponse = "{\"ResponseInfo\":null,\"Errors\":[{\"id\":null,\"parentId\":null,\"code\":\"INVALID_API_OPERATION\",\"message\":\"API Operation DELETE not valid for create request\",\"description\":null,\"params\":null}]}";
 
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))

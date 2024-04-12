@@ -40,6 +40,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.referralmanagement.Constants.HF_REFERRAL_CACHE_FIELD;
 
 /**
  * Service class for handling operations related to HFReferral entities.
@@ -117,8 +118,14 @@ public class HFReferralService {
             if (!validReferrals.isEmpty()) {
                 log.info("Processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.create(validReferrals, hfReferralRequest);
-                hfReferralRepository.save(validReferrals,
-                        referralManagementConfiguration.getCreateHFReferralTopic());
+
+                hfReferralRepository.save(HFReferralBulkRequest.builder()
+                                .requestInfo(hfReferralRequest.getRequestInfo())
+                                .hfReferrals(validReferrals)
+                                .build(),
+                        referralManagementConfiguration.getCreateHFReferralTopic(),
+                        HF_REFERRAL_CACHE_FIELD);
+
                 log.info("Successfully created referrals");
             }
         } catch (Exception exception) {
@@ -152,8 +159,14 @@ public class HFReferralService {
             if (!validReferrals.isEmpty()) {
                 log.info("Processing {} valid entities", validReferrals.size());
                 hfReferralEnrichmentService.update(validReferrals, hfReferralRequest);
-                hfReferralRepository.save(validReferrals,
-                        referralManagementConfiguration.getUpdateHFReferralTopic());
+
+                hfReferralRepository.save(HFReferralBulkRequest.builder()
+                                .requestInfo(hfReferralRequest.getRequestInfo())
+                                .hfReferrals(validReferrals)
+                                .build(),
+                        referralManagementConfiguration.getUpdateHFReferralTopic(),
+                        HF_REFERRAL_CACHE_FIELD);
+
                 log.info("Successfully updated bulk referrals");
             }
         } catch (Exception exception) {
@@ -219,8 +232,14 @@ public class HFReferralService {
                 List<HFReferral> existingReferrals = hfReferralRepository
                         .findById(referralIds, false);
                 hfReferralEnrichmentService.delete(existingReferrals, hfReferralRequest);
-                hfReferralRepository.save(existingReferrals,
-                        referralManagementConfiguration.getDeleteHFReferralTopic());
+
+                hfReferralRepository.save(HFReferralBulkRequest.builder()
+                                .requestInfo(hfReferralRequest.getRequestInfo())
+                                .hfReferrals(existingReferrals)
+                                .build(),
+                        referralManagementConfiguration.getDeleteHFReferralTopic(),
+                        HF_REFERRAL_CACHE_FIELD);
+
                 log.info("Successfully deleted entities");
             }
         } catch (Exception exception) {

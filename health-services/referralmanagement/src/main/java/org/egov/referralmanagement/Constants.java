@@ -16,4 +16,10 @@ public interface Constants {
     String FACILITY = "FACILITY";
 
     String INVALID_RECIPIENT_TYPE = "Invalid Recipient Type";
+
+    String SIDE_EFFECT_CACHE_FIELD = "sideEffects";
+
+    String REFERRAL_CACHE_FIELD = "referrals";
+
+    String HF_REFERRAL_CACHE_FIELD = "hfReferrals";
 }

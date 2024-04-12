@@ -1,15 +1,6 @@
 package org.egov.common.data.repository;
 
-import lombok.extern.slf4j.Slf4j;
-import org.egov.common.data.query.builder.SelectQueryBuilder;
-import org.egov.common.data.query.exception.QueryBuilderException;
-import org.egov.common.producer.Producer;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.util.ReflectionUtils;
-
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -21,6 +12,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.producer.Producer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getMethod;
@@ -123,6 +124,40 @@ public abstract class GenericRepository<T> {
         return objects;
     }
 
+    public Object save(Object object, String topic, String fieldName){
+        producer.push(topic, object);
+        log.info("Pushed to kafka");
+        List<T> objList = extractField(object, fieldName);
+        putInCache(objList);
+        log.info("Saved to cache");
+        return object;
+    }
+
+    public static <T> List<T> extractField(Object object, String fieldName) {
+        List<T> extractedValues = new ArrayList<>();
+        if (object == null || fieldName == null || fieldName.isEmpty()) {
+            return extractedValues;
+        }
+        try {
+            Class<?> clazz = object.getClass();
+            Field field = clazz.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            Object value = field.get(object);
+            if (value != null) {
+                if (value instanceof List<?>) {
+                    for (Object element : (List<?>) value) {
+                        extractedValues.add((T) element);
+                    }
+                } else {
+                    extractedValues.add((T) value);
+                }
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return extractedValues;
+    }
+
     public List<T> save(List<T> objects, String topic, String cacheKey) {
         producer.push(topic, objects);
         log.info("Pushed to kafka");
@@ -154,6 +189,7 @@ public abstract class GenericRepository<T> {
         }
     }
 
+
     public void putInCache(List<T> objects) {
         if(objects == null || objects.isEmpty()) {
             return;
@@ -162,6 +198,7 @@ public abstract class GenericRepository<T> {
         cacheByKey(objects, "clientReferenceId");
         // cacheByKey(objects, "id");
     }
+
 
     public void putInCache(List<T> objects, String key) {
         if(objects == null || objects.isEmpty()) {

@@ -1,5 +1,12 @@
 package org.egov.facility.service;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -19,13 +26,6 @@ import org.egov.facility.validator.FUniqueEntityValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.handleErrors;
@@ -35,6 +35,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
+import static org.egov.facility.Constants.FACILITY_CACHE_FIELD;
 import static org.egov.facility.Constants.GET_FACILITIES;
 import static org.egov.facility.Constants.SET_FACILITIES;
 import static org.egov.facility.Constants.VALIDATION_ERROR;
@@ -90,7 +91,12 @@ public class FacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getCreateFacilityTopic());
+                facilityRepository.save(FacilityBulkRequest.builder()
+                        .requestInfo(request.getRequestInfo())
+                        .facilities(validEntities)
+                                .build(),
+                        configuration.getCreateFacilityTopic(),
+                        FACILITY_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -121,7 +127,12 @@ public class FacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.update(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getUpdateFacilityTopic());
+                facilityRepository.save(FacilityBulkRequest.builder()
+                        .requestInfo(request.getRequestInfo())
+                        .facilities(validEntities)
+                                .build(),
+                        configuration.getUpdateFacilityTopic(),
+                        FACILITY_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -152,7 +163,12 @@ public class FacilityService {
             if (!validEntities.isEmpty()) {
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.delete(validEntities, request);
-                facilityRepository.save(validEntities, configuration.getDeleteFacilityTopic());
+                facilityRepository.save(FacilityBulkRequest.builder()
+                        .requestInfo(request.getRequestInfo())
+                        .facilities(validEntities)
+                        .build(),
+                        configuration.getDeleteFacilityTopic(),
+                        FACILITY_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);

@@ -183,12 +183,9 @@ class HouseholdMemberUpdateTest {
                 .withRowVersion(1)
                 .build();
 
-        List<HouseholdMember> householdMembers = new ArrayList<>();
-        householdMembers.add(HouseholdMemberTestBuilder.builder().withHouseholdIdAndIndividualId()
-                .build());
-
-       householdMemberService.update(request);
-       verify(householdMemberRepository, times(1)).save(anyList(), anyString());
+       List<HouseholdMember> updateHouseholdMembers = householdMemberService.update(request);
+       HouseholdMemberBulkRequest householdMemberBulkRequest = HouseholdMemberBulkRequest.builder().requestInfo(request.getRequestInfo()).householdMembers(updateHouseholdMembers).build();
+       verify(householdMemberRepository, times(1)).save(eq(householdMemberBulkRequest), eq("update-topic"), eq("householdMembers"));
     }
 
 }

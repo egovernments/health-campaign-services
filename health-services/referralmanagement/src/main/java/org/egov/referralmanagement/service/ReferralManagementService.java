@@ -10,6 +10,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.referralmanagement.Constants.REFERRAL_CACHE_FIELD;
 
 import java.util.Collections;
 import java.util.List;
@@ -106,8 +107,14 @@ public class ReferralManagementService {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.create(validReferrals, referralRequest);
-                referralRepository.save(validReferrals,
-                        referralManagementConfiguration.getCreateReferralTopic());
+
+                referralRepository.save(ReferralBulkRequest.builder()
+                                .requestInfo(referralRequest.getRequestInfo())
+                                .referrals(validReferrals)
+                                .build(),
+                        referralManagementConfiguration.getCreateReferralTopic(),
+                        REFERRAL_CACHE_FIELD);
+
                 log.info("successfully created referrals");
             }
         } catch (Exception exception) {
@@ -139,8 +146,14 @@ public class ReferralManagementService {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
                 referralManagementEnrichmentService.update(validReferrals, referralRequest);
-                referralRepository.save(validReferrals,
-                        referralManagementConfiguration.getUpdateReferralTopic());
+
+                referralRepository.save(ReferralBulkRequest.builder()
+                                .requestInfo(referralRequest.getRequestInfo())
+                                .referrals(validReferrals)
+                                .build(),
+                        referralManagementConfiguration.getUpdateReferralTopic(),
+                        REFERRAL_CACHE_FIELD);
+
                 log.info("successfully updated bulk referrals");
             }
         } catch (Exception exception) {
@@ -199,8 +212,14 @@ public class ReferralManagementService {
                 List<Referral> existingReferrals = referralRepository
                         .findById(referralIds, false);
                 referralManagementEnrichmentService.delete(existingReferrals, referralRequest);
-                referralRepository.save(existingReferrals,
-                        referralManagementConfiguration.getDeleteReferralTopic());
+
+                referralRepository.save(ReferralBulkRequest.builder()
+                                .requestInfo(referralRequest.getRequestInfo())
+                                .referrals(existingReferrals)
+                                .build(),
+                        referralManagementConfiguration.getDeleteReferralTopic(),
+                        REFERRAL_CACHE_FIELD);
+
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {

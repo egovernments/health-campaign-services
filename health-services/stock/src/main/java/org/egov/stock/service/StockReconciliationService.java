@@ -39,6 +39,7 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.stock.Constants.GET_STOCK_RECONCILIATION;
 import static org.egov.stock.Constants.SET_STOCK_RECONCILIATION;
+import static org.egov.stock.Constants.STOCK_RECONCILIATION_CACHE_FIELD;
 import static org.egov.stock.Constants.VALIDATION_ERROR;
 
 
@@ -102,7 +103,13 @@ public class StockReconciliationService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.create(validTasks, request);
-                stockRepository.save(validTasks, configuration.getCreateStockReconciliationTopic());
+
+                stockRepository.save(StockReconciliationBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .stockReconciliation(validTasks)
+                                .build(),
+                        configuration.getCreateStockReconciliationTopic(),
+                        STOCK_RECONCILIATION_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -134,7 +141,13 @@ public class StockReconciliationService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.update(validTasks, request);
-                stockRepository.save(validTasks, configuration.getUpdateStockReconciliationTopic());
+
+                stockRepository.save(StockReconciliationBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .stockReconciliation(validTasks)
+                                .build(),
+                        configuration.getUpdateStockReconciliationTopic(),
+                        STOCK_RECONCILIATION_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
@@ -167,7 +180,13 @@ public class StockReconciliationService {
             if (!validTasks.isEmpty()) {
                 log.info("processing {} valid entities", validTasks.size());
                 enrichmentService.delete(validTasks, request);
-                stockRepository.save(validTasks, configuration.getDeleteStockReconciliationTopic());
+
+                stockRepository.save(StockReconciliationBulkRequest.builder()
+                                .requestInfo(request.getRequestInfo())
+                                .stockReconciliation(validTasks)
+                                .build(),
+                        configuration.getDeleteStockReconciliationTopic(),
+                        STOCK_RECONCILIATION_CACHE_FIELD);
             }
         } catch (Exception exception) {
             log.error("error occurred", exception);
