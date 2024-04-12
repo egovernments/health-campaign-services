@@ -141,5 +141,5 @@ export const campaignDetailsSchema = {
             "type": "object"
         }
     },
-    "required": ["hierarchyType", "tenantId", "campaignName", "action", "startDate", "endDate", "boundaries", "resources", "projectType", "deliveryRules", "additionalDetails"]
+    "required": ["hierarchyType", "tenantId", "campaignName", "action", "startDate", "endDate", "projectType", "deliveryRules", "additionalDetails"]
 };

@@ -265,15 +265,15 @@ async function enrichAndPersistCampaignForCreate(request: any) {
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType ? request?.body?.CampaignDetails?.projectType : null;
     request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType ? request?.body?.CampaignDetails?.hierarchyType : null;
     request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails ? request?.body?.CampaignDetails?.additionalDetails : {};
-    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate
-    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate
+    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || null
+    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate || null
     request.body.CampaignDetails.auditDetails = {
         createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
         createdTime: Date.now(),
         lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
         lastModifiedTime: Date.now(),
     }
-    if (action == "create") {
+    if (action == "create" && !request?.body?.CampaignDetails?.projectId) {
         enrichRootProjectId(request.body);
     }
     else {
@@ -291,8 +291,8 @@ async function enrichAndPersistCampaignForUpdate(request: any) {
     request.body.CampaignDetails.campaignDetails = request?.body?.CampaignDetails?.deliveryRules ? { deliveryRules: request?.body?.CampaignDetails?.deliveryRules } : ExistingCampaignDetails?.campaignDetails;
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
-    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate ? request?.body?.CampaignDetails?.startDate : ExistingCampaignDetails?.startDate
-    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate ? request?.body?.CampaignDetails?.endDate : ExistingCampaignDetails?.endDate
+    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || ExistingCampaignDetails?.startDate || null
+    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate || ExistingCampaignDetails?.endDate || null
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType ? request?.body?.CampaignDetails?.projectType : ExistingCampaignDetails?.projectType
     request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType ? request?.body?.CampaignDetails?.hierarchyType : ExistingCampaignDetails?.hierarchyType
     request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails ? request?.body?.CampaignDetails?.additionalDetails : ExistingCampaignDetails?.additionalDetails
@@ -302,7 +302,7 @@ async function enrichAndPersistCampaignForUpdate(request: any) {
         lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
         lastModifiedTime: Date.now(),
     }
-    if (action == "create") {
+    if (action == "create" && !request?.body?.CampaignDetails?.projectId) {
         enrichRootProjectId(request.body);
     }
     else {
@@ -652,33 +652,35 @@ async function reorderBoundaries(request: any) {
 }
 
 async function createProject(request: any) {
-    const { tenantId, boundaries, projectType, startDate, endDate } = request?.body?.CampaignDetails;
-    var Projects: any = [{
-        tenantId,
-        projectType,
-        startDate,
-        endDate,
-        "projectSubType": "Campaign",
-        "department": "Campaign",
-        "description": "Campaign ",
-    }]
-    const projectCreateBody = {
-        RequestInfo: request?.body?.RequestInfo,
-        Projects
-    }
-    await reorderBoundaries(request)
-    for (const boundary of boundaries) {
-        Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
-        if (request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent) {
-            const parent = request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent
-            Projects[0].parent = request?.body?.boundaryProjectMapping?.[parent]?.projectId
+    const { tenantId, boundaries, projectType, projectId, startDate, endDate } = request?.body?.CampaignDetails;
+    if (boundaries && projectType && !projectId) {
+        var Projects: any = [{
+            tenantId,
+            projectType,
+            startDate,
+            endDate,
+            "projectSubType": "Campaign",
+            "department": "Campaign",
+            "description": "Campaign ",
+        }]
+        const projectCreateBody = {
+            RequestInfo: request?.body?.RequestInfo,
+            Projects
         }
-        else {
-            Projects[0].parent = null
+        await reorderBoundaries(request)
+        for (const boundary of boundaries) {
+            Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
+            if (request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent) {
+                const parent = request?.body?.boundaryProjectMapping?.[boundary?.code]?.parent
+                Projects[0].parent = request?.body?.boundaryProjectMapping?.[parent]?.projectId
+            }
+            else {
+                Projects[0].parent = null
+            }
+            Projects[0].referenceID = request?.body?.CampaignDetails?.id
+            await projectCreate(projectCreateBody, request)
+            await new Promise(resolve => setTimeout(resolve, 3000));
         }
-        Projects[0].referenceID = request?.body?.CampaignDetails?.id
-        await projectCreate(projectCreateBody, request)
-        await new Promise(resolve => setTimeout(resolve, 3000));
     }
 }
 

@@ -523,13 +523,13 @@ function correctParentValues(campaignDetails: any) {
 }
 
 async function createFacilitySheet(allFacilities: any[]) {
-  const headers = ["Facility Code", "Facility Name", "Facility Type", "Facility Status", "Facility Capacity", "Boundary Code"]
+  const headers = ["Facility Code", "Facility Name", "Facility Type", "Facility Status", "Capacity", "Boundary Code"]
   const facilities = allFacilities.map((facility: any) => {
     return [
       facility?.id,
       facility?.name,
       facility?.usage,
-      facility?.isPermanent ? "Perm" : "Temp",
+      facility?.isPermanent ? "Permanent" : "Temporary",
       facility?.storageCapacity,
       ""
     ]
