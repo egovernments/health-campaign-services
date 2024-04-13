@@ -71,6 +71,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     let val = e.target.value;
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
+      return;
     }
     if (range === "to") {
       const updatedData = deliveryRules.map((item, index) => {
@@ -169,6 +170,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
                 value={attribute?.fromValue}
                 onChange={(e) => selectToFromValue(e, "from")}
                 disable={false}
+                min={attribute?.toValue}
               />
             </div>
           ) : attribute?.attribute?.code === "Gender" ? (
