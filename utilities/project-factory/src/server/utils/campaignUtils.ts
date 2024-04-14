@@ -9,7 +9,7 @@ import { logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import pool from "../config/dbPoolConfig";
 import * as XLSX from 'xlsx';
-import { getBoundaryRelationshipData, modifyBoundaryData } from "./genericUtils";
+import { getBoundaryRelationshipData, modifyBoundaryData, throwError } from "./genericUtils";
 import { validateBoundarySheetData, validateHierarchyType } from "./validators/campaignValidators";
 
 // import * as xlsx from 'xlsx-populate';
@@ -107,7 +107,7 @@ async function updateStatusFile(request: any) {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throw Object.assign(new Error("No download URL returned for the given fileStoreId"), { code: 'INVALID_FILE' });
+        throwError("No download URL returned for the given fileStoreId", 500, "INVALID_FILE");
     }
 
     const headers = {
@@ -122,7 +122,7 @@ async function updateStatusFile(request: any) {
 
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throw Object.assign(new Error(`Sheet with name "${sheetName}" is not present in the file.`), { code: 'SHEET_NOT_FOUND' });
+        throwError(`Sheet with name "${sheetName}" is not present in the file.`, 500, "SHEET_NOT_FOUND");
     }
     processErrorData(request, createAndSearchConfig, workbook, sheetName);
 
@@ -132,7 +132,7 @@ async function updateStatusFile(request: any) {
         request.body.ResourceDetails.processedFileStoreId = responseData?.[0]?.fileStoreId;
     }
     else {
-        throw new Error("Error in Creatring Status File");
+        throwError("Error in Creating Status File", 500, "STATUS_FILE_CREATION_ERROR");
     }
 }
 
@@ -352,7 +352,7 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[]) {
             if (mappingMap.has(grandParent)) {
                 countMap.set(grandParent, (countMap.get(grandParent) || 0) + 1);
             } else {
-                throw new Error("Insert boundary hierarchy level wise");
+                throwError("Insert boundary hierarchy level wise", 400, "BOUNDARY_HIERARCHY_INSERT_ERROR");
             }
         }
         mappingMap.set(row[len - 2], row[len - 1]);
@@ -767,7 +767,7 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
 
         if (!boundary.children.length) {
             if (!filter.includeAllChildren) {
-                throw new Error("Boundary cannot have includeAllChildren filter false if it does not have any children");
+                throwError("Boundary cannot have includeAllChildren filter false if it does not have any children", 400, "VALIDATION_ERROR");
             }
             // If boundary has no children and includeAllChildren is true, return as is
             return {
@@ -803,7 +803,7 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
     catch (e: any) {
         const errorMessage = "Error occurred while fetching boundaries: " + e.message;
         logger.error(errorMessage)
-        throw new Error(errorMessage);
+        throwError("Error occurred while fetching boundaries: " + e.message, 500, "INTERNAL_SERVER_ERROR");
     }
 }
 
@@ -861,7 +861,7 @@ const autoGenerateBoundaryCodes = async (request: any) => {
         await validateHierarchyType(request);
         const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
         if (!fileResponse?.fileStoreIds?.[0]?.url) {
-            throw new Error("Invalid file");
+            throwError("Invalid file", 400, "INVALID_FILE_ERROR");
         }
         const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Sheet1", false);
         await validateBoundarySheetData(boundaryData, request);
@@ -890,13 +890,13 @@ const autoGenerateBoundaryCodes = async (request: any) => {
         request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
     }
     catch (error: any) {
-        throw new Error(error.message);
+        throwError(error.message, 500, "INTERNAL_SERVER_ERROR");
     }
 }
 async function convertSheetToDifferentTabs(request: any, fileStoreId: any) {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.query?.tenantId, fileStoreIds: fileStoreId }, "get");
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throw new Error("Invalid file");
+        throwError("Invalid file", 400, "INVALID_FILE_ERROR");
     }
     const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Sheet1");
     const updatedWorkbook = await appendSheetsToWorkbook(boundaryData);
