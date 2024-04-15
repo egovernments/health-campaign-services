@@ -26,6 +26,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
+//TODO should be imported from common model library
 public class UserInfo {
     @JsonProperty("tenantId")
     @NotNull

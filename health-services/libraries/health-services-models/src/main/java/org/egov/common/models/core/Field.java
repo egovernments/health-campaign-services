@@ -1,19 +1,18 @@
-package org.egov.common.models.product;
-
-import java.util.List;
+package org.egov.common.models.core;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
-* ProductSearch
-*/
+ * Field
+ */
 @Validated
 
 
@@ -22,15 +21,17 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductSearch extends EgovSearchModel {
+public class Field {
+    @JsonProperty("key")
+    @NotNull
+    @Size(min = 2, max = 64)
+    private String key = null;
 
-    @JsonProperty("type")
-    private String type = null;
+    @JsonProperty("value")
+    @NotNull
+    @Size(min = 1, max = 10000)
+    private String value = null;
 
-    @JsonProperty("name")
-    private List<String> name = null;
 
-    @JsonProperty("manufacturer")
-    private List<String> manufacturer = null;
 }
 

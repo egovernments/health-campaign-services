@@ -10,17 +10,13 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovOfflineSearchModel;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HFReferralSearch {
-    @JsonProperty("id")
-    private List<String> id;
-
-    @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId;
+public class HFReferralSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("facilityId")
     private List<String> facilityId;

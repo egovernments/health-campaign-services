@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -23,13 +24,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectFacilitySearch   {
-
-    @JsonProperty("id")
-    private List<String> id = null;
-
-    @JsonProperty("tenantId")
-    private String tenantId = null;
+public class ProjectFacilitySearch extends EgovSearchModel {
 
     @JsonProperty("facilityId")
     private List<String> facilityId = null;

@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.Size;
@@ -21,13 +22,7 @@ import jakarta.validation.constraints.Size;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectSearch {
-
-    @JsonProperty("id")
-    private String id = null;
-
-    @JsonProperty("tenantId")
-    private String tenantId = null;
+public class ProjectSearch extends EgovSearchModel {
 
     @JsonProperty("startDate")
     private Long startDate = null;

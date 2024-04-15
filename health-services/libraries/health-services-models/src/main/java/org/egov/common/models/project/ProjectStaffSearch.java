@@ -1,7 +1,6 @@
 package org.egov.common.models.project;
 
 import java.util.List;
-import jakarta.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -10,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -24,15 +24,8 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectStaffSearch {
+public class ProjectStaffSearch extends EgovSearchModel {
 
-
-    @JsonProperty("id")
-    private List<String> id = null;
-
-    @JsonProperty("tenantId")
-    @Size(min = 2, max = 1000)
-    private String tenantId = null;
 
     @JsonProperty("staffId")
     private List<String> staffId = null;

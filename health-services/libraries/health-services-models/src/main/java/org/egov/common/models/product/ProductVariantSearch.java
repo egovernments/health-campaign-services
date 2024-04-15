@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -22,10 +23,7 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductVariantSearch   {
-
-    @JsonProperty("id")
-    private List<String> id = null;
+public class ProductVariantSearch extends EgovSearchModel {
 
     @JsonProperty("productId")
     private List<String> productId = null;

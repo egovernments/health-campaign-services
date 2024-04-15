@@ -21,9 +21,6 @@ public class EgovOfflineModel extends EgovModel {
     @Size(min = 2, max = 64)
     protected String clientReferenceId;
 
-//    @JsonProperty("hasErrors")
-//    protected Boolean hasErrors = Boolean.FALSE;
-
     @JsonProperty("clientAuditDetails")
     @Valid
     protected AuditDetails clientAuditDetails;

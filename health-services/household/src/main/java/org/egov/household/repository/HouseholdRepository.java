@@ -18,7 +18,7 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.models.household.Household;
 import org.egov.common.producer.Producer;
 import org.egov.household.repository.rowmapper.HouseholdRowMapper;
-import org.egov.household.web.models.HouseholdSearch;
+import org.egov.common.models.household.HouseholdSearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -39,7 +39,7 @@ public class HouseholdRepository extends GenericRepository<Household> {
                                   RedisTemplate<String, Object> redisTemplate,
                                   SelectQueryBuilder selectQueryBuilder,
                                   HouseholdRowMapper householdRowMapper) {
-        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdRowMapper, Optional.of("household"));
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdRowMapper, Optional.of("household h"));
     }
 
     public Tuple<Long, List<Household>> findById(List<String> ids, String columnName, Boolean includeDeleted) {

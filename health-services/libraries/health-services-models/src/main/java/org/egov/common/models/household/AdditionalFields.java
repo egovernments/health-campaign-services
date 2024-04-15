@@ -25,6 +25,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Deprecated
 public class AdditionalFields {
 
     @JsonProperty("schema")

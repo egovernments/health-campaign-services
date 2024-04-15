@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovOfflineSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -24,23 +25,13 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectBeneficiarySearch {
-
-    @JsonProperty("id")
-    private List<String> id = null;
-
-    @JsonProperty("tenantId")
-    @Size(min=2,max=1000)
-    private String tenantId = null;
+public class ProjectBeneficiarySearch extends EgovOfflineSearchModel {
 
     @JsonProperty("projectId")
     private List<String> projectId = null;
 
     @JsonProperty("beneficiaryId")
     private List<String> beneficiaryId = null;
-
-    @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId = null;
 
     @JsonProperty("dateOfRegistration")
     private Long dateOfRegistration = null;

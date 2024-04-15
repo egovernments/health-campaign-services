@@ -21,6 +21,7 @@ import jakarta.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Deprecated
 public class HouseholdMemberSearchRequest {
 
     @JsonProperty("RequestInfo")

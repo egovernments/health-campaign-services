@@ -24,7 +24,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Boundary {
+public class Boundary { // should be replaced with boundary v2 object. and need to update the boudary
     @JsonProperty("code")
     @NotNull
     private String code = null;

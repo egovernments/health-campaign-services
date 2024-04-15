@@ -26,6 +26,7 @@ import java.util.List;
 @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
     @Table(name = "household_member")
+    @Deprecated
 public class HouseholdMemberSearch {
 
     @JsonProperty("id")

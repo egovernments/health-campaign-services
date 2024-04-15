@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -16,17 +17,12 @@ import org.springframework.validation.annotation.Validated;
 */
     @ApiModel(description = "This object defines the mapping of a resource to a project.")
 @Validated
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProjectResourceSearch {
-
-    @JsonProperty("id")
-    private List<String> id = null;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ProjectResourceSearch extends EgovSearchModel {
 
     @JsonProperty("projectId")
     private List<String> projectId = null;

@@ -26,6 +26,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
+//TODO compare with services common
 public class TenantRole {
     @JsonProperty("tenantId")
     @NotNull

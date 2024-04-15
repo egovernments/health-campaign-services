@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.models.core.EgovOfflineSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
@@ -24,10 +25,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdMemberSearch   {
-
-    @JsonProperty("id")
-    private List<String> id = null;
+public class HouseholdMemberSearch  extends EgovOfflineSearchModel {
 
     @JsonProperty("householdId")
     private List<String> householdId = null;
@@ -38,18 +36,11 @@ public class HouseholdMemberSearch   {
     @JsonProperty("individualId")
     private List<String> individualId = null;
 
-    @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId = null;
-
     @JsonProperty("individualClientReferenceId")
     private List<String> individualClientReferenceId = null;
 
     @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = null;
-
-    @JsonProperty("tenantId")
-    @Valid
-    private String tenantId = null;
 
 }
 

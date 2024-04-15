@@ -17,7 +17,7 @@ import org.egov.household.validators.household.HNonExsistentEntityValidator;
 import org.egov.household.validators.household.HNullIdValidator;
 import org.egov.household.validators.household.HRowVersionValidator;
 import org.egov.household.validators.household.HUniqueEntityValidator;
-import org.egov.household.web.models.HouseholdSearch;
+import org.egov.common.models.household.HouseholdSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

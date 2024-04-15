@@ -25,7 +25,8 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = true)
+@Deprecated
 public class Address   {
         @JsonProperty("id")
     

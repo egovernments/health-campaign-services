@@ -19,6 +19,7 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EgovModel {
+
     @JsonProperty("id")
     @Size(min = 2, max = 64)
     protected String id;
@@ -32,16 +33,16 @@ public class EgovModel {
     protected String status;
 
     @JsonProperty("source")
-    protected String source;
+    protected String source;  //TODO what are the various sources and needs comments
 
     @JsonProperty("rowVersion")
     protected Integer rowVersion;
 
-    @JsonProperty("applicationId")
+    @JsonProperty("applicationId") //needs comments
     protected String applicationId;
 
     @JsonProperty("hasErrors")
-    protected Boolean hasErrors = Boolean.FALSE;
+    protected Boolean hasErrors = Boolean.FALSE; //TODO is this health specific or will this become general.
 
     @JsonProperty("additionalFields")
     @Valid

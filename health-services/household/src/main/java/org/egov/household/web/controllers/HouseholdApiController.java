@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.ds.Tuple;
-import org.egov.common.models.core.CommonSearchCriteria;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdBulkResponse;
@@ -14,6 +14,7 @@ import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.HouseholdMemberBulkResponse;
 import org.egov.common.models.household.HouseholdMemberRequest;
 import org.egov.common.models.household.HouseholdMemberResponse;
+import org.egov.common.models.household.HouseholdMemberSearchRequest;
 import org.egov.common.models.household.HouseholdRequest;
 import org.egov.common.models.household.HouseholdResponse;
 import org.egov.common.producer.Producer;
@@ -22,8 +23,6 @@ import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.config.HouseholdMemberConfiguration;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
-import org.egov.household.web.models.HouseholdMemberSearchRequest;
-import org.egov.household.web.models.HouseholdSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,10 +36,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+
 import java.util.List;
 
 
@@ -101,9 +97,8 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(@ApiParam(value = "Details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberSearchRequest householdMemberSearchRequest,
-                                                                                   @ModelAttribute CommonSearchCriteria searchCriteria) {
-        List<HouseholdMember> households = householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+    public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(@ApiParam(value = "Details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberSearchRequest householdMemberSearchRequest) {
+        List<HouseholdMember> households = householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), householdMemberSearchRequest.getHouseholdMemberSearch().getLimit(), householdMemberSearchRequest.getHouseholdMemberSearch().getOffset(), householdMemberSearchRequest.getHouseholdMemberSearch().getTenantId(), householdMemberSearchRequest.getHouseholdMemberSearch().getLastChangedSince(), householdMemberSearchRequest.getHouseholdMemberSearch().getIncludeDeleted());
         HouseholdMemberBulkResponse response = HouseholdMemberBulkResponse.builder().responseInfo(ResponseInfoFactory
                                                 .createResponseInfo(householdMemberSearchRequest.getRequestInfo(), true))
                                                 .householdMembers(households)
@@ -199,7 +194,7 @@ public class HouseholdApiController {
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<HouseholdBulkResponse> householdV1SearchPost(@ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdSearchRequest request,
-                                                                       @ModelAttribute CommonSearchCriteria searchCriteria) {
+                                                                       @ModelAttribute URLParams searchCriteria) {
 
         Tuple<Long, List<Household>> householdsTuple = householdService.search(request.getHousehold(), searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
         HouseholdBulkResponse response = HouseholdBulkResponse.builder().responseInfo(ResponseInfoFactory

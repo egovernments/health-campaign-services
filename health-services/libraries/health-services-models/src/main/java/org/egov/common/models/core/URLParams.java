@@ -6,12 +6,11 @@ import jakarta.validation.constraints.NotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.annotations.ApiParam;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+//TODO should we move all this to body model or should we keep this in url? same with search common models
 /**
  * Model class representing common search criteria for API search operations.
  */
@@ -20,7 +19,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class CommonSearchCriteria {
+public class URLParams {
 
     /**
      * The maximum number of records to be returned in the response.
@@ -29,7 +28,6 @@ public class CommonSearchCriteria {
     @Min(0)
     @Max(1000)
     @JsonProperty("limit")
-    @ApiParam(value = "Pagination - limit records in response", required = true)
     private Integer limit;
 
     /**
@@ -38,7 +36,6 @@ public class CommonSearchCriteria {
     @NotNull
     @Min(0)
     @JsonProperty("offset")
-    @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true)
     private Integer offset;
 
     /**
@@ -46,16 +43,14 @@ public class CommonSearchCriteria {
      */
     @NotNull
     @JsonProperty("tenantId")
-    @ApiParam(value = "Unique id for a tenant.", required = true)
     private String tenantId;
 
     /**
-     * The epoch time representing the starting point from which changes on the object should be picked up.
-     * Results from this parameter should include both newly created objects and modified objects since this time.
+     * The epoch time representing point in time since last modification happened in the table.
+     * Results from this parameter should include both newly created objects and modified objects from this time.
      * This criterion aids polling clients to synchronize changes since their last synchronization with the platform.
      */
     @JsonProperty("lastChangedSince")
-    @ApiParam(value = "Epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ")
     private Long lastChangedSince;
 
     /**
@@ -63,7 +58,6 @@ public class CommonSearchCriteria {
      * This flag is used in search APIs to specify if deleted records should be included.
      */
     @JsonProperty("includeDeleted")
-    @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false")
     private Boolean includeDeleted;
 
 }

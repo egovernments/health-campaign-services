@@ -22,6 +22,7 @@ import jakarta.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
+//TODO should we extend model request info wrapper
 public class FacilitySearchRequest {
     @JsonProperty("RequestInfo")
     @NotNull
