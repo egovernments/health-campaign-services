@@ -71,9 +71,9 @@ public class IndividualService implements UserService {
 
     @Override
     public UserResponse updateUser(UserRequest userRequest) {
-        IndividualSearchRequest request = mapToIndividualSearchRequest(userRequest);
+        IndividualSearchRequest individualSearchRequest = mapToIndividualSearchRequest(userRequest);
         IndividualBulkResponse individualSearchResponse =
-                getIndividualResponse(userRequest.getUser().getTenantId(), request);
+                getIndividualResponse(userRequest.getUser().getTenantId(), individualSearchRequest);
         UserResponse userResponse = null;
         if (individualSearchResponse == null || individualSearchResponse.getIndividual() == null || individualSearchResponse.getIndividual().size() == 0) {
             return userResponse;
@@ -149,7 +149,7 @@ public class IndividualService implements UserService {
                 .individual(
                         IndividualSearch.builder()
                         .id(Collections.singletonList(userRequest.getUser().getUuid()))
-                        .userUuid(Collections.singletonList(userRequest.getUser().getUserServiceUuid()))
+                        .userUuid(userRequest.getUser().getUserServiceUuid() != null ? Collections.singletonList(userRequest.getUser().getUserServiceUuid()) : null)
                         .build()
                 )
                 .build();
