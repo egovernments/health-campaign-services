@@ -17,31 +17,31 @@ const CampaignCard = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
 
   let links = [
-    {
-      label: t("ACTION_TEST_CAMPAIGN_HOME"),
-      link: `/${window?.contextPath}/employee/campaign/sample`,
-      roles: [], // @nabeel roles to be added later
-    },
-    {
-      label: t("ACTION_TEST_CAMPAIGN_CYCLE_CONFIGURE"),
-      link: `/${window?.contextPath}/employee/campaign/create-campaign/cycle-configure`,
-      roles: [], // @nabeel roles to be added later
-    },
-    {
-      label: t("ACTION_TEST_CAMPAIGN_CYCLE"),
-      link: `/${window?.contextPath}/employee/campaign/create-campaign/delivery-details`,
-      roles: [], // @nabeel roles to be added later
-    },
+    // {
+    //   label: t("ACTION_TEST_CAMPAIGN_HOME"),
+    //   link: `/${window?.contextPath}/employee/campaign/sample`,
+    //   roles: [], // @nabeel roles to be added later
+    // },
+    // {
+    //   label: t("ACTION_TEST_CAMPAIGN_CYCLE_CONFIGURE"),
+    //   link: `/${window?.contextPath}/employee/campaign/create-campaign/cycle-configure`,
+    //   roles: [], // @nabeel roles to be added later
+    // },
+    // {
+    //   label: t("ACTION_TEST_CAMPAIGN_CYCLE"),
+    //   link: `/${window?.contextPath}/employee/campaign/create-campaign/delivery-details`,
+    //   roles: [], // @nabeel roles to be added later
+    // },
     {
       label: t("ACTION_TEST_SETUP_CAMPAIGN"),
       link: `/${window?.contextPath}/employee/campaign/setup-campaign`,
       roles: [], // @nabeel roles to be added later
     },
-    {
-      label: t("ACTION_TEST_PREVIEW_CAMPAIGN"),
-      link: `/${window?.contextPath}/employee/campaign/preview`,
-      roles: [], // @nabeel roles to be added later
-    },
+    // {
+    //   label: t("ACTION_TEST_PREVIEW_CAMPAIGN"),
+    //   link: `/${window?.contextPath}/employee/campaign/preview`,
+    //   roles: [], // @nabeel roles to be added later
+    // },
     {
       label: t("ACTION_TEST_MY_CAMPAIGN"),
       link: `/${window?.contextPath}/employee/campaign/my-campaign`,
