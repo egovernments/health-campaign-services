@@ -22,7 +22,15 @@ import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.Plan;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
+
+import static org.egov.processor.web.models.Operation.OperatorEnum.MINUS;
+import static org.egov.processor.web.models.Operation.OperatorEnum.PERCENT;
+import static org.egov.processor.web.models.Operation.OperatorEnum.PLUS;
+import static org.egov.processor.web.models.Operation.OperatorEnum.SLASH;
+import static org.egov.processor.web.models.Operation.OperatorEnum.STAR;
+import static org.egov.processor.web.models.Operation.OperatorEnum._U;
 
 @Slf4j
 @Service
@@ -41,7 +49,7 @@ public class ExcelParser implements FileParser {
     }
 
 
-    public void parseFileData(Plan plan, PlanConfiguration planConfig) {
+    public void parseFileData(Plan plan, PlanConfiguration planConfig, String fileStoreId) {
 
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
@@ -61,7 +69,7 @@ public class ExcelParser implements FileParser {
             List<ResourceMapping> resourceMappingList = planConfig.getResourceMapping();
 
             // Validate the attribute mapping
-            boolean isValid = parsingUtil.validateAttributeMapping(columnNames, resourceMappingList);
+            boolean isValid = parsingUtil.validateAttributeMapping(columnNames, resourceMappingList, fileStoreId);
             if (isValid) {
                 log.info("Attribute mapping is valid.");
             } else {
@@ -70,8 +78,7 @@ public class ExcelParser implements FileParser {
 
             //TODO: Figure out where you will get the column to calculate population sum
             int populationColumnIndex = mapOfColumnNameandIndex.get("tp1");
-            double populationSum = sumColumnValues(sheet, dataFormatter, populationColumnIndex);
-            System.out.println("Sum of population column: " + populationSum);
+//            double populationSum = sumColumnValues(sheet, dataFormatter, populationColumnIndex);
 
         }
         catch (IOException | InvalidFormatException e)
@@ -102,17 +109,8 @@ public class ExcelParser implements FileParser {
         return sum;
     }
 
-    private void calculateResources(Plan plan, PlanConfiguration planConfiguration)
-    {
-        List<Operation> operationList = planConfiguration.getOperations();
 
-        for(Operation operation : operationList)
-        {
-            //TODO: calculation
 
-        }
-
-    }
 
 
 }
