@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -36,10 +37,14 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -88,6 +93,7 @@ public class DownsyncService {
 
 			Downsync downsync = new Downsync();
 			DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
+			/* FIXME SHOULD BE REMOVED for enabling lastsynced time issue*/
 			downsyncCriteria.setLastSyncedTime(null);
 
 			List<Household> households = null;
@@ -111,7 +117,7 @@ public class DownsyncService {
 
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdIds))
 				/* search household member using household ids */
-				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdIds);
+				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
 
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
 
@@ -224,7 +230,7 @@ public class DownsyncService {
 
 			Long lastChangedSince = downsyncRequest.getDownsyncCriteria().getLastSyncedTime();
 
-			List<String> memberids = getPrimaryIds(householdIds, "householdId","HOUSEHOLD_MEMBER",lastChangedSince);
+			List<String> memberids = getPrimaryIds(householdIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
 
 			if (CollectionUtils.isEmpty(memberids))
 				return Collections.emptyList();
