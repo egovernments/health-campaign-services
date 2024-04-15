@@ -40,7 +40,6 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
   }, [delivery]);
 
   const selectValue = (e) => {
-    console.log("edkshsdkhs", e.target.value);
     let val = e.target.value;
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);

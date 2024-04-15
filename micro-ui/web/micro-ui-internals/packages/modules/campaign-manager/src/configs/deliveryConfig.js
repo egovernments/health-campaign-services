@@ -6,11 +6,13 @@ export const deliveryConfig = [
     customAttribute: true,
     attributeConfig: [
       {
+        key: 1,
         label: "Custom",
         attrType: "text",
         attrValue: "CAMPAIGN_BEDNET_INDIVIDUAL_LABEL",
       },
       {
+        key: 2,
         label: "Custom",
         attrType: "text",
         attrValue: "CAMPAIGN_BEDNET_HOUSEHOLD_LABEL",

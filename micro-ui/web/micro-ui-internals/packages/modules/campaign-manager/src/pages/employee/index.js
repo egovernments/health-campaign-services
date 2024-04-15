@@ -36,6 +36,19 @@ const App = ({ path }) => {
   const CampaignSummary = Digit?.ComponentRegistryService?.getComponent("CampaignSummary");
   const Response = Digit?.ComponentRegistryService?.getComponent("Response");
 
+  useEffect(() => {
+    if (window.location.pathname !== "/workbench-ui/employee/campaign/setup-campaign") {
+      window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+    }
+    if (window.location.pathname === "/workbench-ui/employee/campaign/response") {
+      window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+    }
+    return () => {
+      if (window.location.pathname !== "/workbench-ui/employee/campaign/setup-campaign") {
+        window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+      }
+    };
+  }, []);
   return (
     <React.Fragment>
       <div className="wbh-header-container">
