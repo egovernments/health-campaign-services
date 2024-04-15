@@ -3,8 +3,8 @@ import { httpRequest } from "./request";
 import config from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from '../Kafka/Listener'
-import { createProjectCampaignResourcData, getHierarchy, projectCreate } from "../api/campaignApis";
-import { getCampaignNumber, createAndUploadFile, getSheetData, getBoundaryCodesHandler, createBoundaryEntities, createBoundaryRelationship, createExcelSheet } from "../api/genericApis";
+import { createProjectCampaignResourcData, getHeadersOfBoundarySheet, getHierarchy, projectCreate } from "../api/campaignApis";
+import { getCampaignNumber, createAndUploadFile, getSheetData, getBoundaryCodesHandler, createBoundaryRelationship, createExcelSheet, createBoundaryEntities } from "../api/genericApis";
 import { logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import pool from "../config/dbPoolConfig";
@@ -863,8 +863,9 @@ const autoGenerateBoundaryCodes = async (request: any) => {
         if (!fileResponse?.fileStoreIds?.[0]?.url) {
             throwError("Invalid file", 400, "INVALID_FILE_ERROR");
         }
-        const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Sheet1", false);
-        await validateBoundarySheetData(boundaryData, request);
+        const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
+        const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
+        await validateBoundarySheetData(headersOfBoundarySheet, request);
         const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
         const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
         const childParentMap = getChildParentMap(withoutBoundaryCode);
@@ -883,9 +884,8 @@ const autoGenerateBoundaryCodes = async (request: any) => {
         await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap);
         const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
         const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-        const headers = [...hierarchy, "Boundary Code", "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"];
         const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
-        const boundarySheetData = await createExcelSheet(data, headers);
+        const boundarySheetData = await createExcelSheet(data, hierarchy);
         const boundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
         request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
     }

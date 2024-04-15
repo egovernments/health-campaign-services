@@ -434,7 +434,7 @@ async function validateSearchRequest(request: any) {
     }
 }
 
-function validateFilters(request: any, boundaryData: any[]) {
+async function validateFilters(request: any, boundaryData: any[]) {
     const boundaries = request?.body?.Filters?.boundaries;
     if (!Array.isArray(boundaries)) {
         throwError("Invalid Filter Criteria: 'boundaries' should be an array.", 400, "VALIDATION_ERROR");
@@ -442,12 +442,13 @@ function validateFilters(request: any, boundaryData: any[]) {
 
     const boundaryMap = new Map<string, string>();
     createBoundaryMap(boundaryData, boundaryMap);
-    validateBoundariesOfFilters(boundaries, boundaryMap);
+    const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+    validateBoundariesOfFilters(boundaries, boundaryMap, hierarchy);
 
     const rootBoundaries = boundaries.filter((boundary: any) => boundary.isRoot);
 
     if (rootBoundaries.length !== 1) {
-        throwError("Invalid Filter Criteria: Exactly one root boundary is required, but found " + rootBoundaries.length, 400, "VALIDATION_ERROR");
+        throw Object.assign(new Error(`Invalid Filter Criteria: Exactly one root boundary is required, but found "${rootBoundaries.length}`), { code: "ROOT_BOUNDARY_ERROR" })
     }
 
     const boundaryTypeOfRoot = rootBoundaries[0]?.boundaryType;
@@ -455,16 +456,38 @@ function validateFilters(request: any, boundaryData: any[]) {
     const boundariesOfTypeOfSameAsRoot = boundaries.filter((boundary: any) => boundary.boundaryType === boundaryTypeOfRoot);
 
     if (boundariesOfTypeOfSameAsRoot.length > 1) {
-        throwError("Invalid Filter Criteria: Multiple boundaries of the same type as the root found. Only one is allowed.", 400, "VALIDATION_ERROR");
+        throw Object.assign(new Error(`"Invalid Filter Criteria: Multiple boundaries of the same type as the root found. Only one is allowed.`), { code: "MORE_THAN_ONE_BOUNDARY_AT_ROOT_LEVEL_ERROR" })
     }
 }
 
-function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string, string>): void {
+function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string, string>, hierarchy: any) {
     for (const boundary of boundaries) {
-        if (!boundaryMap.has(boundary.code)) {
-            throwError(`Boundary data with code '${boundary.code}' specified in 'Filters' of the request body was not found for the given hierarchy.`, 400, "VALIDATION_ERROR");
-        } else if (boundaryMap.get(boundary.code) !== boundary.boundaryType) {
-            throwError(`Boundary type mismatch for code '${boundary.code}' specified in 'Filters' of the request body. Expected type: ${boundary.boundaryType}, but found a different type.`, 400, "VALIDATION_ERROR");
+        if (!boundary.code) {
+            throw Object.assign(new Error(`Boundary Code is null or empty or undefined in Filters of Request Body`), { code: "BOUNDRY_CODE_NULL" })
+        }
+        if (!boundary.boundaryType) {
+            throw Object.assign(new Error(`Boundary Type is null or empty or undefined in Filters of Request Body`), { code: "BOUNDRY_TYPE_NULL" })
+        }
+        if (typeof boundary.isRoot !== 'boolean') {
+            throw Object.assign(
+                new Error(`isRoot can only be true or false. It is invalid for '${boundary.code}'`),
+                { code: "IS_ROOT_INVALID" }
+            );
+        }
+        if (typeof boundary.includeAllChildren !== 'boolean') {
+            throw Object.assign(
+                new Error(`includeAllChildren can only be true or false. It is invalid for '${boundary.code}'`),
+                { code: "INCLUDE_ALL_CHILDREN_INVALID" }
+            );
+        }
+        if (!boundaryMap.has(boundary?.code)) {
+            throw Object.assign(new Error(`Boundary data with code '${boundary.code}' specified in 'Filters' of the request body was not found for the given hierarchy.`), { code: "BOUNDARY_CODE_IN_FILTERS_INVALID" });
+        }
+        if (!hierarchy.includes(boundary?.boundaryType)) {
+            throw Object.assign(new Error(`${boundary.boundaryType} boundary Type not found for given hierachy`), { code: "BOUNDARY_TYPE_INVALID" });
+        }
+        if (boundaryMap.get(boundary.code) !== boundary.boundaryType) {
+            throw Object.assign(new Error(`Boundary type mismatch for code '${boundary.code}' specified in 'Filters' of the request body. Expected type: ${boundaryMap.get(boundary.code)}, but found a different type.`), { code: "BOUNDARY_CODE_AND_TYPE_IN_FILTERS_MISMATCH" });
         }
     }
 }
@@ -484,28 +507,17 @@ async function validateHierarchyType(request: any) {
     }
 }
 
-async function validateBoundarySheetData(boundaryData: any, request: any) {
+async function validateBoundarySheetData(headersOfBoundarySheet: any, request: any) {
     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-    validateBoundarySheetHeaders(boundaryData, hierarchy, request);
+    validateBoundarySheetHeaders(headersOfBoundarySheet, hierarchy, request);
 }
-function validateBoundarySheetHeaders(boundaryData: any, hierarchy: any, request: any) {
-    let maxLength = 0;
-    let longestObject: any;
-    for (const obj of boundaryData) {
-        const length = Object.keys(obj).length;
-        if (length > maxLength) {
-            longestObject = obj;
-            maxLength = length;
-        }
-    }
-    const headersOfBoundarySheet = Object.keys(longestObject);
+function validateBoundarySheetHeaders(headersOfBoundarySheet: any, hierarchy: any, request: any) {
     const boundaryCodeIndex = headersOfBoundarySheet.indexOf('Boundary Code');
     const keysBeforeBoundaryCode = boundaryCodeIndex === -1 ? headersOfBoundarySheet : headersOfBoundarySheet.slice(0, boundaryCodeIndex);
     if (keysBeforeBoundaryCode.some((key: string, index: number) => key !== hierarchy[index])) {
         const errorMessage = `"Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy type: ${request?.body?.ResourceDetails?.hierarchyType}"`;
         throwError(errorMessage, 500, "BOUNDARY_SHEET_HEADER_ERROR");
     }
-
 }
 
 

@@ -695,18 +695,16 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   }
   const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
   const string = boundaryCodes.join(', ');
-  const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: "pg", codes: string });
-
+  const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.query?.tenantId, codes: string });
   const boundaryCodeNameMapping: { [key: string]: string } = {};
   boundaryEntityResponse?.Boundary?.forEach((data: any) => {
     boundaryCodeNameMapping[data?.code] = data?.additionalDetails?.name;
   });
-
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const headers = [...reducedHierarchy, "Boundary Code",
-    // "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"
+    "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"
   ];
   const data = boundaryList.map(boundary => {
     const boundaryParts = boundary.split(',');

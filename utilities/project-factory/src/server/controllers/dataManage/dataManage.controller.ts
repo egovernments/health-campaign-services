@@ -68,7 +68,7 @@ class dataManageController {
             return sendResponse(response, { fileStoreIds: transformedResponse }, request);
         } catch (e: any) {
             logger.error(String(e));
-            return errorResponder({ message: String(e) + "    Check Logs" }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
         }
     }
 
@@ -84,7 +84,7 @@ class dataManageController {
         }
         catch (e: any) {
             logger.error(String(e));
-            return errorResponder({ message: String(e) + "    Checodeck Logs" }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
         }
     };
 

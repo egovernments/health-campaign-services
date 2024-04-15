@@ -5,10 +5,12 @@ import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
 import { validateSheetData } from '../utils/validators/campaignValidators';
-import { getCampaignNumber } from "./genericApis";
+import { getCampaignNumber, getWorkbook } from "./genericApis";
 import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
+import * as XLSX from 'xlsx';
+
 
 
 
@@ -426,6 +428,14 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
   }
 };
 
+const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false) => {
+  const workbook = await getWorkbook(fileUrl, sheetName)
+  const columnsToValidate = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+    header: 1,
+  })[0];
+  return columnsToValidate;
+}
+
 export {
   enrichCampaign,
   getAllFacilities,
@@ -438,5 +448,6 @@ export {
   processCreate,
   projectCreate,
   generateHierarchyList,
-  getHierarchy
+  getHierarchy,
+  getHeadersOfBoundarySheet
 };
