@@ -33,14 +33,17 @@ const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
 /* 
 Send The Error Response back to client with proper response code 
 */
-const throwError = (
-  message = "Internal Server Error"
-) => {
-  let error = new Error(message)
-  //   error.status = status;
-  //   error.code = code;
+const throwErrorViaRequest = (message = "Internal Server Error") => {
+  let error: any = new Error(message);
+  error = Object.assign(error, { status: 500 });
   logger.error("Error : " + error);
+  throw error;
+};
 
+const throwError = (message = "Unknown Error", status = 500, code = "UNKNOWN_ERROR") => {
+  let error: any = new Error(message);
+  error = Object.assign(error, { status, code });
+  logger.error("Error : " + error);
   throw error;
 };
 
@@ -157,12 +160,13 @@ const errorResponder = (
   status: any = 500,
   next: any = null
 ) => {
-  response.header("Content-Type", "application/json");
-  const errorResponse = getErrorResponse(error.code || "INTERNAL_SERVER_ERROR", trimError(error.message || "Some Error Occurred!!"));
   if (error?.status) {
-    response.status(error.status).send(errorResponse);
+    status = error?.status;
   }
-  else response.status(status).send(errorResponse);
+  const code = error?.code || (status === 500 ? "INTERNAL_SERVER_ERROR" : (status === 400 ? "BAD_REQUEST" : "UNKNOWN_ERROR"));
+  response.header("Content-Type", "application/json");
+  const errorResponse = getErrorResponse(code, trimError(error.message || "Some Error Occurred!!"));
+  response.status(status).send(errorResponse);
 };
 
 const trimError = (e: any) => {
@@ -202,7 +206,7 @@ async function generateXlsxFromJson(request: any, response: any, simplifiedData:
   } catch (e: any) {
     const errorMessage = "Error occurred while fetching the file store ID: " + e.message;
     logger.error(errorMessage)
-    throw new Error(errorMessage + "    Check Logs");
+    throwError(errorMessage + "    Check Logs", 500, "INTERNAL_SERVER_ERROR");
   }
 }
 
@@ -459,7 +463,7 @@ async function modifyData(request: any, response: any, responseDatas: any) {
       try {
         const processResult = await httpRequest(`${hostHcmBff}${config.app.contextPath}/bulk/_process`, batchRequestBody, undefined, undefined, undefined, undefined);
         if (processResult.Error) {
-          throw new Error(processResult.Error);
+          throwError(processResult.Error, 500, "INTERNAL_SERVER_ERROR");
         }
         allUpdatedData.push(...processResult.updatedDatas);
       } catch (error: any) {
@@ -672,7 +676,7 @@ function modifyBoundaryData(boundaryData: unknown[]) {
 async function getDataFromSheet(fileStoreId: any, tenantId: any, createAndSearchConfig: any) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
-    throw new Error("Not any download url returned for given fileStoreId")
+    throwError("Not any download URL returned for the given fileStoreId", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true)
 }
@@ -687,7 +691,7 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
-    throw new Error("Boundary list is empty or not an array.");
+    throwError("Boundary list is empty or not an array.", 400, "VALIDATION_ERROR");
   }
   const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
   const string = boundaryCodes.join(', ');
@@ -726,6 +730,7 @@ export {
   invalidPathHandler,
   getResponseInfo,
   throwError,
+  throwErrorViaRequest,
   sendResponse,
   appCache,
   cacheResponse,

@@ -3,7 +3,7 @@ import config from "../config";
 import FormData from 'form-data';
 import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
-import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails } from "../utils/genericUtils";
+import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails, throwError } from "../utils/genericUtils";
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator";
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils';
 import { validateFilters } from '../utils/validators/campaignValidators';
@@ -18,7 +18,7 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
         const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
         const workbook = XLSX.read(responseFile, { type: 'buffer' });
         if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-            throw Object.assign(new Error(`Sheet with name "${sheetName}" is not present in the file.`), { code: "INVALID_SHEETNAME" });
+            throwError(`Sheet with name "${sheetName}" is not present in the file.`, 500, "INVALID_SHEETNAME");
         }
         return workbook;
     } catch (error) {
@@ -89,7 +89,7 @@ const getCampaignNumber: any = async (requestBody: any, idFormat: String, idName
     if (result?.idResponses?.[0]?.id) {
         return result?.idResponses?.[0]?.id;
     }
-    throw Object.assign(new Error("Error during generating campaign number"), { code: "IDGEN_ERROR" });
+    throwError("Error during generating campaign number", 500, "IDGEN_ERROR");
 }
 
 const getResouceNumber: any = async (RequestInfo: any, idFormat: String, idName: string) => {
@@ -325,7 +325,7 @@ async function getBoundarySheetData(request: any) {
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
     if (!boundaryData) {
-        throw Object.assign(new Error("No boundary data found in the system."), { code: "BOUNDARY_DATA_NOT_FOUND" });
+        throwError("No boundary data found in the system.", 500, "BOUNDARY_DATA_NOT_FOUND");
     }
     logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
     if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
@@ -547,7 +547,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
         };
     } catch (error) {
         console.error('Error creating boundary relationship:', error);
-        throw Object.assign(new Error('Error creating boundary relationship: Boundary already exist in the system'), { code: 'BOUNDARY_ALREADY_EXIST' });
+        throwError("Error creating boundary relationship: Boundary already exists in the system", 500, "BOUNDARY_ALREADY_EXIST");
     }
 }
 

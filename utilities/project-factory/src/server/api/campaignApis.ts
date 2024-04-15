@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, matchData, generateActivityMessage } from "../utils/genericUtils";
+import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
 import { validateSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber } from "./genericApis";
 import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
@@ -31,7 +31,8 @@ async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchP
     searchedFacilities.push(...response?.Facilities);
     return response.Facilities.length >= 50; // Return true if there are more facilities to fetch, false otherwise
   } else {
-    throw Object.assign(new Error("Search failed for Facility. Check Logs"), { code: "FACILITY_SEARCH_FAILED", status: 400 });
+    throwError("Search failed for Facility. Check Logs", 500, "FACILITY_SEARCH_FAILED");
+    return false;
   }
 }
 
@@ -361,7 +362,7 @@ async function createProjectCampaignResourcData(request: any) {
       } catch (error: any) {
         // Handle error for individual resource creation
         logger.error(`Error creating resource: ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
-        throw Object.assign(new Error(String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error)), { code: "RESOURCE_CREATION_ERROR", status: 400 });
+        throwError(error?.response?.data?.Errors?.[0]?.message || String(error), 500, "RESOURCE_CREATION_ERROR");
       }
     }
   }
@@ -377,7 +378,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
-    throw Object.assign(new Error("Project creation failed, for the request: " + JSON.stringify(projectCreateBody)), { code: "PROJECT_CREATION_FAILED", status: 400 });
+    throwError("Project creation failed, for the request: " + JSON.stringify(projectCreateBody), 500, "PROJECT_CREATION_FAILED");
   }
 }
 

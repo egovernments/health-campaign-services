@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { logger } from "./logger";
-import { cacheResponse, getCachedResponse, throwError } from "./genericUtils";
+import { cacheResponse, getCachedResponse, throwErrorViaRequest } from "./genericUtils";
 
 var Axios = require("axios").default;
 var get = require("lodash/get");
@@ -112,10 +112,10 @@ const httpRequest = async (
       (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message))
     logger.error(":: ERROR STACK :: " + error?.stack || error);
     if (errorResponse?.data?.Errors) {
-      throwError(JSON.stringify(errorResponse?.data?.Errors));
+      throwErrorViaRequest(JSON.stringify(errorResponse?.data?.Errors));
     }
     else {
-      throwError(
+      throwErrorViaRequest(
         "error occured while making request to " +
         getServiceName(_url) +
         ": error response :" +

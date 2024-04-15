@@ -3,6 +3,7 @@ import { logger } from "../logger";
 import Ajv from "ajv";
 import config from "../../config/index";
 import { httpRequest } from "../request";
+import { throwError } from "../genericUtils";
 // import RequestCampaignDetails from "../config/interfaces/requestCampaignDetails.interface";
 
 
@@ -37,32 +38,18 @@ function processValidationWithSchema(processResult: any, validationErrors: any, 
     }
 }
 
-async function getTransformAndParsingTemplates(APIResource: any, request: any, response: any) {
-    if (!APIResource.mdms || Object.keys(APIResource.mdms).length === 0) {
-        const errorMessage = "Invalid APIResourceType Type";
-        logger.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-
-    const transformTemplate = APIResource?.mdms?.[0]?.data?.transformTemplateName;
-    const parsingTemplate = APIResource?.mdms?.[0]?.data?.parsingTemplateName;
-
-    return { transformTemplate, parsingTemplate };
-}
-
-
 function validateBoundaries(requestBody: any) {
     const { boundaryCode } = requestBody?.Campaign;
     if (!boundaryCode) {
-        throw new Error("Enter BoundaryCode In Campaign")
+        throwError("Enter BoundaryCode In Campaign", 400, "VALIDATION_ERROR");
     }
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
         const { boundaryCode: campaignBoundaryCode, parentBoundaryCode } = campaignDetails;
         if (!parentBoundaryCode && boundaryCode != campaignBoundaryCode) {
-            throw new Error("Enter ParentBoundaryCode In CampaignDetails")
+            throwError("Enter ParentBoundaryCode In CampaignDetails", 400, "VALIDATION_ERROR");
         }
         if (!campaignBoundaryCode) {
-            throw new Error("Enter BoundaryCode In CampaignDetails")
+            throwError("Enter BoundaryCode In CampaignDetails", 400, "VALIDATION_ERROR");
         }
     }
 }
@@ -76,7 +63,7 @@ async function validateUserId(resourceId: any, requestBody: any) {
     logger.info("userSearchBody : " + JSON.stringify(userSearchBody));
     const response = await httpRequest(config.host.userHost + config.paths.userSearch, userSearchBody);
     if (!response?.user?.[0]?.uuid) {
-        throw new Error("Invalid resourceId for resource type staff with id " + resourceId);
+        throwError("Invalid resourceId for resource type staff with id " + resourceId, 400, "VALIDATION_ERROR");
     }
 }
 async function validateProductVariantId(resourceId: any, requestBody: any) {
@@ -94,7 +81,7 @@ async function validateProductVariantId(resourceId: any, requestBody: any) {
     logger.info("productVariantSearchParams : " + JSON.stringify(productVariantSearchParams));
     const response = await httpRequest(config.host.productHost + config.paths.productVariantSearch, productVariantSearchBody, productVariantSearchParams);
     if (!response?.ProductVariant?.[0]?.id) {
-        throw new Error("Invalid resourceId for resource type resource with id " + resourceId);
+        throwError("Invalid resourceId for resource type resource with id " + resourceId, 400, "VALIDATION_ERROR");
     }
 }
 async function validateProjectFacilityId(resourceId: any, requestBody: any) {
@@ -114,7 +101,7 @@ async function validateProjectFacilityId(resourceId: any, requestBody: any) {
     logger.info("facilitySearchParams : " + JSON.stringify(facilitySearchParams));
     const response = await httpRequest(config.host.facilityHost + config.paths.facilitySearch, facilitySearchBody, facilitySearchParams);
     if (!response?.Facilities?.[0]?.id) {
-        throw new Error("Invalid resourceId for resource type facility with id " + resourceId);
+        throwError("Invalid resourceId for resource type facility with id " + resourceId, 400, "VALIDATION_ERROR");
     }
 }
 async function validateResourceId(type: any, resourceId: any, requestBody: any) {
@@ -128,7 +115,7 @@ async function validateResourceId(type: any, resourceId: any, requestBody: any) 
         await validateProjectFacilityId(resourceId, requestBody)
     }
     else {
-        throw new Error("Invalid resource type " + type)
+        throwError("Invalid resource type " + type, 400, "VALIDATION_ERROR");
     }
 }
 async function validateProjectResource(requestBody: any) {
@@ -137,16 +124,17 @@ async function validateProjectResource(requestBody: any) {
             const type = resource?.type;
             for (const resourceId of resource?.resourceIds) {
                 if (!type) {
-                    throw new Error("Enter Type In Resources")
+                    throwError("Enter Type In Resources", 400, "VALIDATION_ERROR");
                 }
                 if (!resourceId) {
-                    throw new Error("Enter ResourceId In Resources")
+                    throwError("Enter ResourceId In Resources", 400, "VALIDATION_ERROR");
                 }
-                await validateResourceId(type, resourceId, requestBody)
+                await validateResourceId(type, resourceId, requestBody);
             }
         }
     }
 }
+
 
 async function validateCampaign(requestBody: any) {
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
@@ -156,7 +144,7 @@ async function validateCampaign(requestBody: any) {
 
         // Check if startDate and endDate are valid integers
         if (isNaN(startDate) || isNaN(endDate)) {
-            throw new Error("Start date or end date is not a valid epoch timestamp");
+            throwError("Start date or end date is not a valid epoch timestamp", 400, "VALIDATION_ERROR");
         }
     }
     await validateProjectResource(requestBody)
@@ -164,50 +152,51 @@ async function validateCampaign(requestBody: any) {
 async function validateCampaignRequest(requestBody: any) {
     if (requestBody?.Campaign) {
         if (!requestBody?.Campaign?.tenantId) {
-            throw new Error("Enter TenantId")
+            throwError("Enter TenantId", 400, "VALIDATION_ERROR");
         }
-        validateBoundaries(requestBody)
-        const { projectType } = requestBody?.Campaign
+        validateBoundaries(requestBody);
+        const { projectType } = requestBody?.Campaign;
         if (!projectType) {
-            throw new Error("Enter ProjectType")
+            throwError("Enter ProjectType", 400, "VALIDATION_ERROR");
         }
-        await validateCampaign(requestBody)
+        await validateCampaign(requestBody);
     }
     else {
-        throw new Error("Campaign is required")
+        throwError("Campaign is required", 400, "VALIDATION_ERROR");
     }
-
 }
 
 
 function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: any, campaignDetails: any) {
     if (projectBody?.Projects?.length != projectResponse?.Project?.length) {
-        throw new Error("Project creation failed. Check Logs")
-    }
-    else {
+        throwError("Project creation failed. Check Logs", 500, "PROJECT_CREATION_ERROR");
+    } else {
         for (const project of projectResponse?.Project) {
             if (!project?.id) {
-                throw new Error("Project creation failed. Check Logs")
-            }
-            else {
+                throwError("Project creation failed. Check Logs", 500, "PROJECT_CREATION_ERROR");
+            } else {
                 campaignDetails.projectId = project.id;
             }
         }
     }
 }
+
+
 function validateStaffResponse(staffResponse: any) {
     if (!staffResponse?.ProjectStaff?.id) {
-        throw new Error("Project staff creation failed. Check Logs")
+        throwError("Project staff creation failed. Check Logs", 500, "RESOURCE_CREATION_ERROR");
     }
 }
+
 function validateProjectResourceResponse(projectResouceResponse: any) {
     if (!projectResouceResponse?.ProjectResource?.id) {
-        throw new Error("Project Resource creation failed. Check Logs")
+        throwError("Project Resource creation failed. Check Logs", 500, "RESOURCE_CREATION_ERROR");
     }
 }
+
 function validateProjectFacilityResponse(projectFacilityResponse: any) {
     if (!projectFacilityResponse?.ProjectFacility?.id) {
-        throw new Error("Project Facility creation failed. Check Logs")
+        throwError("Project Facility creation failed. Check Logs", 500, "RESOURCE_CREATION_ERROR");
     }
 }
 async function validateHierarchyType(request: any, hierarchyType: any) {
@@ -221,47 +210,47 @@ async function validateHierarchyType(request: any, hierarchyType: any) {
         }
     }
     logger.info("Hierarchy Search Url : " + config.host.boundaryHost + config.paths.boundaryHierarchy);
-    logger.info("SearchBo")
+    logger.info("SearchBody : " + JSON.stringify(searchBody))
     const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
     if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
         logger.info("Hierarchy Search Response : " + JSON.stringify(response?.BoundaryHierarchy))
     }
     else {
-        throw Object.assign(new Error(`hierarchyType ${hierarchyType} not found`), { code: "HIERARCHYTYPE_NOT_FOUND", status: 400 });
+        throwError(`hierarchyType ${hierarchyType} not found`, 400, "HIERARCHYTYPE_VALIDATION_ERROR");
     }
 }
 async function validateGenerateRequest(request: express.Request) {
     const { tenantId, type, hierarchyType, forceUpdate } = request.query;
     if (!tenantId) {
-        throw new Error("tenantId is required");
+        throwError("tenantId is required", 400, "VALIDATION_ERROR");
     }
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
-        throw new Error("tenantId in userInfo and query should be same");
+        throwError("tenantId in userInfo and query should be the same", 400, "VALIDATION_ERROR");
     }
     if (!type) {
-        throw new Error("type is required");
+        throwError("type is required", 400, "VALIDATION_ERROR");
     }
     if (!hierarchyType) {
-        throw new Error("hierarchyType is required");
+        throwError("hierarchyType is required", 400, "VALIDATION_ERROR");
     }
     if (forceUpdate) {
         if (forceUpdate !== 'true' && forceUpdate !== 'false') {
-            throw new Error("forceUpdate should be either 'true' or 'false'");
+            throwError("forceUpdate should be either 'true' or 'false'", 400, "VALIDATION_ERROR");
         }
     }
     else {
-        throw new Error("forceUpdate is required");
+        throwError("forceUpdate is required", 400, "VALIDATION_ERROR");
     }
     if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
-        throw new Error("Type should be facility, user, boundary or facilityWithBoundary");
+        throwError("Type should be facility, user, boundary, or facilityWithBoundary", 400, "VALIDATION_ERROR");
     }
     await validateHierarchyType(request, hierarchyType);
 }
 
+
 export {
     validateDataWithSchema,
     processValidationWithSchema,
-    getTransformAndParsingTemplates,
     validateCampaignRequest,
     validatedProjectResponseAndUpdateId,
     validateStaffResponse,
