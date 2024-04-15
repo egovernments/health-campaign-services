@@ -99,10 +99,9 @@ public class DownsyncService {
 			downsync.setDownsyncCriteria(downsyncRequest.getDownsyncCriteria());
 			/* search household */
 			households = searchHouseholds(downsyncRequest, downsync);
-			householdIds = households.stream().map(Household::getId).collect(Collectors.toList());
 			householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
 
-			if (!CollectionUtils.isEmpty(householdIds))
+			if (!CollectionUtils.isEmpty(householdClientRefIds))
 				/* search household member using household ids */
 				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
 
