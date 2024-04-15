@@ -104,7 +104,7 @@ public class DownsyncService {
 
 			if (!CollectionUtils.isEmpty(householdIds))
 				/* search household member using household ids */
-				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdIds);
+				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
 
 			if (!CollectionUtils.isEmpty(individualClientRefIds)) {
 
@@ -215,7 +215,7 @@ public class DownsyncService {
 		private List<String> searchMembers(DownsyncRequest downsyncRequest, Downsync downsync,
 				List<String> householdIds) {
 			
-			String memberIdsquery = "SELECT id from HOUSEHOLD_MEMBER where householdId IN (:householdIds)";
+			String memberIdsquery = "SELECT id from HOUSEHOLD_MEMBER where householdClientReferenceId IN (:householdIds)";
 			
 			Map<String, Object> paramMap = new HashMap<>();
 	        paramMap.put("householdIds", householdIds);
