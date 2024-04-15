@@ -4,7 +4,9 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -68,18 +70,19 @@ public class ParsingUtil {
 
 
 
-    public List<String> getAttributeNameFromExcel(Sheet sheet) {
-        List<String> columnNames = new ArrayList<>();
+    public Map<String, Integer> getAttributeNameIndexFromExcel(Sheet sheet) {
+        Map<String, Integer> columnIndexMap = new HashMap<>();
         DataFormatter dataFormatter = new DataFormatter();
 
         // Assuming the first row contains column headers
         Row headerRow = sheet.getRow(0);
-        for (Cell cell : headerRow) {
+        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+            Cell cell = headerRow.getCell(i);
             String columnHeader = dataFormatter.formatCellValue(cell);
-            columnNames.add(columnHeader);
+            columnIndexMap.put(columnHeader, i);
         }
 
-        return columnNames;
+        return columnIndexMap;
     }
 
     /**

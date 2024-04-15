@@ -18,13 +18,7 @@ public class ResourceEstimationService {
     private PlanConfigurationUtil planConfigurationUtil;
 
     private ExcelParser parser;
-/**
- * Converts a byte array to a File object.
- *
- * @param byteArray The byte array to convert.
- * @param fileName  The name of the file to create.
- * @return The File object representing the byte array.
- */
+
     public ResourceEstimationService(PlanConfigurationUtil planConfigurationUtil, ExcelParser parser) {
         this.planConfigurationUtil = planConfigurationUtil;
         this.parser = parser;
@@ -38,6 +32,6 @@ public class ResourceEstimationService {
         PlanConfigurationSearchRequest planConfigurationSearchRequest = PlanConfigurationSearchRequest.builder().planConfigurationSearchCriteria(planConfigurationSearchCriteria).requestInfo(new RequestInfo()).build();
         List<PlanConfiguration> planConfigurationls = planConfigurationUtil.search(planConfigurationSearchRequest);
 
-        parser.parseFileData(planConfigurationls.get(0));
+        parser.parseFileData(planRequest.getPlan(), planConfigurationls.get(0));
     }
 }

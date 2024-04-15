@@ -3,7 +3,11 @@ package org.egov.processor.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Cell;
@@ -14,6 +18,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
+import org.egov.processor.web.models.Operation;
+import org.egov.processor.web.models.Plan;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.springframework.stereotype.Service;
@@ -35,7 +41,7 @@ public class ExcelParser implements FileParser {
     }
 
 
-    public void parseFileData(PlanConfiguration planConfig) {
+    public void parseFileData(Plan plan, PlanConfiguration planConfig) {
 
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
@@ -50,7 +56,8 @@ public class ExcelParser implements FileParser {
             Sheet sheet = workbook.getSheetAt(0);
             DataFormatter dataFormatter = new DataFormatter();
 
-            List<String> columnNames = parsingUtil.getAttributeNameFromExcel(sheet);
+            Map<String, Integer> mapOfColumnNameandIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+            List<String> columnNames = new ArrayList<>(mapOfColumnNameandIndex.keySet());
             List<ResourceMapping> resourceMappingList = planConfig.getResourceMapping();
 
             // Validate the attribute mapping
@@ -61,24 +68,51 @@ public class ExcelParser implements FileParser {
                 log.info("Attribute mapping is invalid.");
             }
 
-            for (int n = 1; n < sheet.getPhysicalNumberOfRows(); n++) {
-                Row row = sheet.getRow(n);
-                if (row != null) {
-                    for (int i = 0; i < row.getLastCellNum(); i++) {
-                        Cell cell = row.getCell(i);
-                        if (cell != null) {
-                            String cellValue = dataFormatter.formatCellValue(cell);
-//                          System.out.println("Row: " + n + ", Column: " + i + ", Value: " + cellValue);
-                        }
-                    }
-                }
+            //TODO: Figure out where you will get the column to calculate population sum
+            int populationColumnIndex = mapOfColumnNameandIndex.get("tp1");
+            double populationSum = sumColumnValues(sheet, dataFormatter, populationColumnIndex);
+            System.out.println("Sum of population column: " + populationSum);
 
-            }
         }
         catch (IOException | InvalidFormatException e)
         {
             log.error(e.getMessage());
         }
     }
+
+    private double sumColumnValues(Sheet sheet, DataFormatter dataFormatter, int columnIndex) {
+        double sum = 0.0;
+        //TODO figure out how to skip the heirarchy related rows
+        for (int n = 4; n < sheet.getPhysicalNumberOfRows(); n++) {
+            Row row = sheet.getRow(n);
+            if (row != null) {
+                Cell cell = row.getCell(columnIndex);
+                if (cell != null) {
+                    String cellValue = dataFormatter.formatCellValue(cell);
+                    try {
+                        Double value = Double.parseDouble(cellValue);
+                        sum += value;
+                    } catch (NumberFormatException e) {
+                        // Ignore if the cell value is not a valid number
+                        log.error("NumberFormatException");
+                    }
+                }
+            }
+        }
+        return sum;
+    }
+
+    private void calculateResources(Plan plan, PlanConfiguration planConfiguration)
+    {
+        List<Operation> operationList = planConfiguration.getOperations();
+
+        for(Operation operation : operationList)
+        {
+            //TODO: calculation
+
+        }
+
+    }
+
 
 }
