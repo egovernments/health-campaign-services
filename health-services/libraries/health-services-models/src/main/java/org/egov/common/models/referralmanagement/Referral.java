@@ -47,6 +47,10 @@ public class Referral extends EgovOfflineModel {
     @Size(min=1)
     private List<String> reasons;
 
+    @JsonProperty("referralCode")
+    @Size(max=100)
+    private String referralCode;
+
     @JsonProperty("sideEffect")
     private SideEffect sideEffect;
 
