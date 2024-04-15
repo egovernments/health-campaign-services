@@ -43,7 +43,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -98,8 +97,6 @@ public class DownsyncService {
 
 			List<Household> households = null;
 			List<String> householdClientRefIds = null;
-			List<String> householdIds = null;
-			Set<String> individualIds = null;
 			List<String> individualClientRefIds = null;
 			List<String> beneficiaryClientRefIds = null;
 			List<String> householdBeneficiaryClientRefIds = null;
@@ -225,11 +222,11 @@ public class DownsyncService {
 		 * @return
 		 */
 		private List<String> searchMembers(DownsyncRequest downsyncRequest, Downsync downsync,
-				List<String> householdIds) {
+				List<String> householdClientRefIds) {
 
 			Long lastChangedSince = downsyncRequest.getDownsyncCriteria().getLastSyncedTime();
 
-			List<String> memberids = getPrimaryIds(householdIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
+			List<String> memberids = getPrimaryIds(householdClientRefIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
 
 			if (CollectionUtils.isEmpty(memberids))
 				return Collections.emptyList();
@@ -361,7 +358,7 @@ public class DownsyncService {
 		}
 
 		/**
-		 * common method to fetch Ids with list of relation Ids like id of member with householdIds
+		 * common method to fetch Ids with list of relation Ids like id of member with householdClientRefIds
 		 * @param idList
 		 * @param idListFeildName
 		 * @param tableName
@@ -400,7 +397,7 @@ public class DownsyncService {
 		}
 
 		/**
-		 * common method to fetch Ids with list of relation Ids like id of member with householdIds
+		 * common method to fetch Ids with list of relation Ids like id of member with householdClientRefIds
 		 * @param idList
 		 * @param idListFeildName
 		 * @param tableName
