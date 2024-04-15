@@ -372,6 +372,7 @@ const SetupCampaign = () => {
 
     setShouldUpdate(true);
 
+    console.log("filteredConfig",filteredConfig)
     if (!filteredConfig?.[0]?.form?.[0]?.isLast) {
       setCurrentKey(currentKey + 1);
     }

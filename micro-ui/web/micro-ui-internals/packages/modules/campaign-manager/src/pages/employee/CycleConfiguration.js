@@ -121,6 +121,7 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
             <div className="date-field-container">
               <TextInput
                 type="date"
+                placeholder={t("FROM_DATE")}
                 value={cycleData?.find((j) => j.key === index + 1)?.fromDate}
                 min={dateRange?.startDate}
                 max={dateRange?.endDate}
@@ -128,6 +129,7 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
               />
               <TextInput
                 type="date"
+                placeholder={t("TO_DATE")}
                 value={cycleData?.find((j) => j.key === index + 1)?.toDate}
                 min={cycleData?.find((j) => j.key === index + 1)?.fromDate}
                 max={dateRange?.endDate}

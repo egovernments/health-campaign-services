@@ -11,6 +11,7 @@ export const CampaignConfig = (totalFormData) => {
               isMandatory: true,
               key: "projectType",
               type: "component",
+              skipAPICall: true,
               component: "CampaignType",
               withoutLabel: true,
               disable: false,
@@ -35,6 +36,7 @@ export const CampaignConfig = (totalFormData) => {
               key: "campaignName",
               type: "component",
               component: "CampaignName",
+              mandatoryOnAPI: true,
               withoutLabel: true,
               disable: false,
               customProps: {
@@ -62,7 +64,7 @@ export const CampaignConfig = (totalFormData) => {
               disable: false,
               customProps: {
                 module: "HCM",
-                sessionData: totalFormData
+                sessionData: totalFormData,
               },
               populators: {
                 name: "campaignDates",
