@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -46,13 +47,14 @@ public class ParsingUtil {
         return attributeNames;
     }
 
-    public boolean validateAttributeMapping(List<String> attributeNames, List<ResourceMapping> resourceMappingList) {
+    public boolean validateAttributeMapping(List<String> attributeNamesFromFile, List<ResourceMapping> resourceMappingList, String fileStoreId) {
         Set<String> mappedFromSet = resourceMappingList.stream()
+                .filter(mapping -> Objects.equals(mapping.getFilestoreId(), fileStoreId))
                 .map(ResourceMapping::getMappedFrom)
                 .collect(Collectors.toSet());
 
-        for (String attributeName : attributeNames) {
-            if (!mappedFromSet.contains(attributeName)) {
+        for (String attributeName : mappedFromSet) {
+            if (!attributeNamesFromFile.contains(attributeName)) {
                 return false;
             }
         }
