@@ -54,7 +54,7 @@ config:
     build:
       - work-dir: "health-services/household"
         image-name: "household"
-        dockerfile: "build/maven/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/household/src/main/resources/db"
         image-name: "household-db"
   - name: "builds/health-campaign-services/health-services/individual"
@@ -78,13 +78,6 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/attendance/src/main/resources/db"
         image-name: "health-attendance-db"
-  - name: "builds/health-campaign-services/health-services/household"
-    build:
-      - work-dir: "health-services/household"
-        image-name: "household"
-        dockerfile: "build/maven/Dockerfile"
-      - work-dir: "health-services/household/src/main/resources/db"
-        image-name: "household-db"
   - name: "builds/health-campaign-services/core-services/error-handler"
     build:
       - work-dir: "core-services/error-handler"
