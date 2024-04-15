@@ -187,6 +187,8 @@ async function validateCreateRequest(request: any) {
         if (!request?.body?.ResourceDetails?.hierarchyType) {
             throwError("hierarchyType is missing", 400, "VALIDATION_ERROR");
         }
+        await validateHierarchyType(request);
+
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("tenantId is not matching with userInfo", 400, "VALIDATION_ERROR");
         }
@@ -468,22 +470,17 @@ function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string,
 }
 
 async function validateHierarchyType(request: any) {
-    try {
-        const requestBody = {
-            "RequestInfo": { ...request?.body?.RequestInfo },
-            "BoundaryTypeHierarchySearchCriteria": {
-                "tenantId": request?.body?.ResourceDetails?.tenantId,
-                "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
-            }
-        }
-        const url = config?.host?.boundaryHost + config?.paths?.boundaryHierarchy;
-        const response = await httpRequest(url, requestBody, undefined, "post", undefined, undefined);
-        if (!response?.BoundaryHierarchy) {
-            throw Error("Boundary Hierarchy not present for given tenant and hierarchy Type")
+    const requestBody = {
+        "RequestInfo": { ...request?.body?.RequestInfo },
+        "BoundaryTypeHierarchySearchCriteria": {
+            "tenantId": request?.body?.ResourceDetails?.tenantId,
+            "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
         }
     }
-    catch (error: any) {
-        throwError(`Error while validating HierarchyType: ${error.message}`, 500, "INTERNAL_SERVER_ERROR");
+    const url = config?.host?.boundaryHost + config?.paths?.boundaryHierarchy;
+    const response = await httpRequest(url, requestBody, undefined, "post", undefined, undefined);
+    if (!response?.BoundaryHierarchy) {
+        throwError("Boundary Hierarchy not present for given tenantId", 400, "VALIDATION_ERROR")
     }
 }
 
