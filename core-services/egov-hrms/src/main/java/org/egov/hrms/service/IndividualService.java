@@ -71,18 +71,88 @@ public class IndividualService implements UserService {
 
     @Override
     public UserResponse updateUser(UserRequest userRequest) {
-        IndividualRequest request = mapToIndividualRequest(userRequest);
+        IndividualSearchRequest request = mapToIndividualSearchRequest(userRequest);
+        IndividualBulkResponse individualSearchResponse =
+                getIndividualResponse(userRequest.getUser().getTenantId(), request);
+        UserResponse userResponse = null;
+        if (individualSearchResponse == null || individualSearchResponse.getIndividual() == null || individualSearchResponse.getIndividual().size() == 0) {
+            return userResponse;
+        }
+        Individual individual = individualSearchResponse.getIndividual().get(0);
+        IndividualRequest updateRequest = mapToIndividualUpdateRequest(individual, userRequest);
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualUpdateEndpoint());
         IndividualResponse response = restCallRepository
-                .fetchResult(uri, request, IndividualResponse.class);
-        UserResponse userResponse = null;
+                .fetchResult(uri, updateRequest, IndividualResponse.class);
         if (response != null && response.getIndividual() != null) {
             log.info("response received from individual service");
             userResponse = mapToUserResponse(response);
         }
         return userResponse;
+    }
+
+    private IndividualRequest mapToIndividualUpdateRequest(Individual individual, UserRequest userRequest) {
+        Individual updatedIndividual = Individual.builder()
+                .id(individual.getId())
+                .userId(individual.getUserId())
+                .userUuid(individual.getUserUuid())
+                .isSystemUser(true)
+                .isSystemUserActive(userRequest.getUser().getActive())
+                .name(Name.builder()
+                        .givenName(userRequest.getUser().getName())
+                        .build())
+                .gender(Gender.fromValue(userRequest.getUser().getGender()))
+                .email(userRequest.getUser().getEmailId())
+                .mobileNumber(userRequest.getUser().getMobileNumber())
+                .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
+                .tenantId(userRequest.getUser().getTenantId())
+                .address(Collections.singletonList(Address.builder()
+                        .type(AddressType.CORRESPONDENCE)
+                        .addressLine1(userRequest.getUser().getCorrespondenceAddress())
+                        .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                        .isDeleted(Boolean.FALSE)
+                        .build()))
+                /*
+                 * FIXME (HCM specific change) clientReferenceId is the primary key in the individual table of the FrontEnd Worker Application's local database.
+                 */
+                // Generating a unique client reference ID using UUID
+                .clientReferenceId(individual.getClientReferenceId())
+                .userDetails(UserDetails.builder()
+                        .username(userRequest.getUser().getUserName())
+                        .password(userRequest.getUser().getPassword())
+                        .tenantId(userRequest.getUser().getTenantId())
+                        .roles(userRequest.getUser().getRoles().stream().map(role -> Role.builder()
+                                .code(role.getCode())
+                                .name(role.getName())
+                                .tenantId(userRequest.getUser().getTenantId())
+                                .description(role.getDescription())
+                                .build()).collect(Collectors.toList()))
+                        .userType(UserType.fromValue(userRequest.getUser().getType()))
+                        .build())
+                .isDeleted(Boolean.FALSE)
+                .clientAuditDetails(AuditDetails.builder()
+                        .createdBy(individual.getAuditDetails().getCreatedBy())
+                        .createdTime(individual.getAuditDetails().getCreatedTime())
+                        .lastModifiedBy(userRequest.getRequestInfo().getUserInfo().getUuid()).build())
+                .rowVersion(userRequest.getUser().getRowVersion())
+                .build();
+        return IndividualRequest.builder()
+                .requestInfo(userRequest.getRequestInfo())
+                .individual(updatedIndividual)
+                .build();
+    }
+
+    private IndividualSearchRequest mapToIndividualSearchRequest(UserRequest userRequest) {
+        return IndividualSearchRequest.builder()
+                .requestInfo(userRequest.getRequestInfo())
+                .individual(
+                        IndividualSearch.builder()
+                        .id(Collections.singletonList(userRequest.getUser().getUuid()))
+                        .userUuid(Collections.singletonList(userRequest.getUser().getUserServiceUuid()))
+                        .build()
+                )
+                .build();
     }
 
     @Override
