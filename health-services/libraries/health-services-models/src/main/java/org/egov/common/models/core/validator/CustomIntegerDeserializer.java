@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.egov.tracer.model.CustomException;
 
 // Custom deserializer for Integer values
-//TODO why we created this where is this needed?
 public class CustomIntegerDeserializer extends StdDeserializer<Integer> {
 
     public CustomIntegerDeserializer() {
