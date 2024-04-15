@@ -1,14 +1,14 @@
 package org.egov.common.models.product;
 
 import java.util.List;
-import jakarta.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
 
@@ -21,7 +21,7 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ProductVariantSearch extends EgovSearchModel {
 

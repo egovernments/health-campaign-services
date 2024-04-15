@@ -1,21 +1,21 @@
 package org.egov.common.models.individual;
 
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.egov.common.models.core.EgovOfflineSearchModel;
-import org.springframework.validation.annotation.Validated;
-
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineSearchModel;
+import org.springframework.validation.annotation.Validated;
 
 /**
 * A representation of an Individual.
@@ -27,8 +27,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
+@SuperBuilder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class IndividualSearch extends EgovOfflineSearchModel {
     @JsonProperty("individualId")
     private List<String> individualId = null;
