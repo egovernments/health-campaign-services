@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 // import CampaignHeader from "../../components/CampaignHeader";
 import SetupCampaign from "./SetupCampaign";
+import SelectingBoundaries from "./SelectingBoundaries";
 
 const CampaignBreadCrumb = ({ location, defaultPath }) => {
   const { t } = useTranslation();
@@ -51,6 +52,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/my-campaign`} component={() => <MyCampaign />} />
           <PrivateRoute path={`${path}/preview`} component={() => <CampaignSummary />} />
           <PrivateRoute path={`${path}/response`} component={() => <Response />} />
+          <PrivateRoute path={`${path}/selecting-boundary`} component={() => <SelectingBoundaries />} />
         </AppContainer>
       </Switch>
     </React.Fragment>

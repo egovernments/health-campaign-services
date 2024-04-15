@@ -35,13 +35,18 @@ export const useProductList = () => {
 
   let productList;
   if (productVariant && product) {
-    productList = productVariant?.map((item) => {
-      const target = product?.find((j) => j.id === item.productId);
-      return {
-        ...item,
-        displayName: `${target.name} - ${item.variation}`,
-      };
-    });
+    productList = productVariant
+      ?.map((item) => {
+        const target = product?.find((j) => j.id === item.productId);
+        if (!target?.name || !item?.variation) {
+          return null;
+        }
+        return {
+          ...item,
+          displayName: `${target?.name} - ${item?.variation}`,
+        };
+      })
+      ?.filter((i) => i !== null);
   }
 
   return productList;

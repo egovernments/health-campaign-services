@@ -128,19 +128,22 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "3",
           key: "6",
+          name: "HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA",
           body: [
             {
               isMandatory: false,
-              key: "campaignName3",
-              type: "text",
-              withoutLabel: false,
-              label: "boundary",
+              key: "boundaryType",
+              type: "component",
+              component: "SelectingBoundaries",
+              withoutLabelFieldPair: true,
+              withoutLabel: true,
               disable: false,
               customProps: {
                 module: "HCM",
+                sessionData: totalFormData,
               },
               populators: {
-                name: "campaignName3",
+                name: "boundaryType",
                 // optionsKey: "code",
                 error: "ES__REQUIRED",
                 required: true,

@@ -17,6 +17,7 @@ import UploadFacilityData from "./pages/employee/UploadFacilityData";
 import CampaignSummary from "./components/CampaignSummary";
 import CycleDetaisPreview from "./components/CycleDetaisPreview";
 import Response from "./pages/employee/Response";
+import SelectingBoundaries from "./pages/employee/SelectingBoundaries";
 
 const CampaignModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["campaignmanager", "workbench", "mdms", "schema"];
@@ -56,6 +57,7 @@ const componentsToRegister = {
   CampaignSummary,
   CycleDetaisPreview,
   Response,
+  SelectingBoundaries: SelectingBoundaries
 };
 
 const overrideHooks = () => {

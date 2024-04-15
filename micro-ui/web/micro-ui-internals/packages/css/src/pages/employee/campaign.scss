@@ -3,7 +3,7 @@
 .date-field-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-gap: 1.5rem;
+    grid-gap: 2rem;
     width: 70%;
     padding-top: 0.3rem;
     margin-top: 1rem;
@@ -49,6 +49,10 @@
   margin-bottom: 2rem;
 }
 .dates-description{
-  margin-top: 2rem;
-  margin-bottom: 2rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1.2rem
+}
+.selecting-boundary-div{
+  padding-top: 0.5rem;
 }

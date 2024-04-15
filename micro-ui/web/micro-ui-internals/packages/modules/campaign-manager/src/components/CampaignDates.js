@@ -18,13 +18,10 @@ const CampaignDates = ({onSelect, formData , ...props}) => {
   function setEnd(date) {
     setEndDate(date);
   }
-  useEffect(() => {
-    setDates({ startDate, endDate });
-  }, [startDate, endDate]);
-
   useEffect(() =>{
-    onSelect("campaignDates", dates);
-  }, [dates])
+    onSelect("campaignDates", {startDate:startDate , endDate:endDate});
+  }, [startDate , endDate])
+
 
   return (
     <React.Fragment>
