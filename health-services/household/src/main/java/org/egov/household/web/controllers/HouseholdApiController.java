@@ -1,11 +1,14 @@
 package org.egov.household.web.controllers;
 
 
+import java.util.List;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.ds.Tuple;
-import org.egov.common.models.core.URLParams;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdBulkResponse;
@@ -17,6 +20,7 @@ import org.egov.common.models.household.HouseholdMemberResponse;
 import org.egov.common.models.household.HouseholdMemberSearchRequest;
 import org.egov.common.models.household.HouseholdRequest;
 import org.egov.common.models.household.HouseholdResponse;
+import org.egov.common.models.household.HouseholdSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.household.config.HouseholdConfiguration;
@@ -28,16 +32,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-
-import java.util.List;
 
 
 
@@ -193,10 +191,9 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdBulkResponse> householdV1SearchPost(@ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdSearchRequest request,
-                                                                       @ModelAttribute URLParams searchCriteria) {
+    public ResponseEntity<HouseholdBulkResponse> householdV1SearchPost(@ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdSearchRequest request) {
 
-        Tuple<Long, List<Household>> householdsTuple = householdService.search(request.getHousehold(), searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        Tuple<Long, List<Household>> householdsTuple = householdService.search(request.getHousehold(), request.getHousehold().getLimit(), request.getHousehold().getOffset(), request.getHousehold().getTenantId(), request.getHousehold().getLastChangedSince(), request.getHousehold().getIncludeDeleted());
         HouseholdBulkResponse response = HouseholdBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).totalCount(householdsTuple.getX()).households(householdsTuple.getY()).build();
 
