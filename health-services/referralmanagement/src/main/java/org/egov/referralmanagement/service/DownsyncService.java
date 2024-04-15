@@ -41,7 +41,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -89,8 +88,6 @@ public class DownsyncService {
 
 			List<Household> households = null;
 			List<String> householdClientRefIds = null;
-			List<String> householdIds = null;
-			Set<String> individualIds = null;
 			List<String> individualClientRefIds = null;
 			List<String> beneficiaryClientRefIds = null;
 			List<String> householdBeneficiaryClientRefIds = null;
@@ -208,16 +205,16 @@ public class DownsyncService {
 		/**
 		 * 
 		 * @param downsyncRequest
-		 * @param householdIds
+		 * @param householdClientRefIds
 		 * @return
 		 */
 		private List<String> searchMembers(DownsyncRequest downsyncRequest, Downsync downsync,
-				List<String> householdIds) {
+				List<String> householdClientRefIds) {
 			
-			String memberIdsquery = "SELECT id from HOUSEHOLD_MEMBER where householdClientReferenceId IN (:householdIds)";
+			String memberIdsquery = "SELECT id from HOUSEHOLD_MEMBER where householdClientReferenceId IN (:householdClientRefIds)";
 			
 			Map<String, Object> paramMap = new HashMap<>();
-	        paramMap.put("householdIds", householdIds);
+	        paramMap.put("householdClientRefIds", householdClientRefIds);
 
 	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
 	        List<String> memberids = jdbcTemplate.queryForList(memberIdsquery, paramMap, String.class);
