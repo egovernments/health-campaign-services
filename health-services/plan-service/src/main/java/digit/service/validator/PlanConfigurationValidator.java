@@ -174,7 +174,6 @@ public class PlanConfigurationValidator {
      */
     public void validateSearchRequest(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
         validateSearchCriteria(planConfigurationSearchRequest);
-        validateUserUuid(planConfigurationSearchRequest);
     }
 
     private void validateSearchCriteria(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
@@ -184,23 +183,6 @@ public class PlanConfigurationValidator {
 
         if (StringUtils.isEmpty(planConfigurationSearchRequest.getPlanConfigurationSearchCriteria().getTenantId())) {
             throw new CustomException(TENANT_ID_EMPTY_CODE, TENANT_ID_EMPTY_MESSAGE);
-        }
-    }
-
-    private void validateUserUuid(PlanConfigurationSearchRequest planConfigurationSearchRequest) {
-        String userUuid = planConfigurationSearchRequest.getPlanConfigurationSearchCriteria().getUserUuid();
-        String requestUuid = planConfigurationSearchRequest.getRequestInfo().getUserInfo().getUuid();
-
-        if (userUuid == null || userUuid.isEmpty()) {
-            return;
-        }
-
-        if (StringUtils.isEmpty(requestUuid)) {
-            throw new CustomException(REQUEST_UUID_EMPTY_CODE, REQUEST_UUID_EMPTY_MESSAGE);
-        }
-
-        if (!userUuid.equals(requestUuid)) {
-            throw new CustomException(USER_UUID_MISMATCH_CODE, USER_UUID_MISMATCH_MESSAGE);
         }
     }
 
