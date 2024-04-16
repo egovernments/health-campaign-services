@@ -652,7 +652,71 @@ async function reorderBoundaries(request: any) {
     logger.info("Reordered Boundaries " + JSON.stringify(request?.body?.CampaignDetails?.boundaries));
 }
 
-async function createProject(request: any) {
+function convertToProjectsArray(Projects: any, currentArray: any = []) {
+    for (const project of Projects) {
+        const descendants = project?.descendants
+        delete project?.descendants
+        currentArray.push(project);
+        if (descendants && Array.isArray(descendants) && descendants?.length > 0) {
+            convertToProjectsArray(descendants, currentArray)
+        }
+    }
+    return currentArray;
+}
+
+async function getRelatedProjects(request: any) {
+    const { projectId, tenantId } = request?.body?.CampaignDetails;
+    const projectSearchBody = {
+        RequestInfo: request?.body?.RequestInfo,
+        Projects: [
+            {
+                id: projectId,
+                tenantId: tenantId
+            }
+        ]
+    }
+    const projectSearchParams = {
+        tenantId: tenantId,
+        offset: 0,
+        limit: 1,
+        includeDescendants: true
+    }
+    logger.info("Project search params " + JSON.stringify(projectSearchParams))
+    logger.info("Project search body " + JSON.stringify(projectSearchBody))
+    logger.info("Project search url " + config?.host?.projectHost + config?.paths?.projectSearch)
+    const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
+    if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
+        return convertToProjectsArray(projectSearchResponse?.Project)
+    }
+    else {
+        throwError("Error occured during project search , Check projectId", 500, "PROJECT_SEARCH_ERROR")
+        return []
+    }
+}
+
+async function updateProjectDates(request: any) {
+    const projects = await getRelatedProjects(request);
+    const { startDate, endDate } = request?.body?.CampaignDetails;
+    for (const project of projects) {
+        project.startDate = startDate || project.startDate;
+        project.endDate = endDate || project.endDate;
+        delete project?.address;
+    }
+    logger.info("Projects related to current Campaign : " + JSON.stringify(projects));
+    const projectUpdateBody = {
+        RequestInfo: request?.body?.RequestInfo,
+        Projects: projects
+    }
+    const projectUpdateResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectUpdate, projectUpdateBody);
+    if (projectUpdateResponse?.Project && Array.isArray(projectUpdateResponse?.Project) && projectUpdateResponse?.Project?.length == projects?.length) {
+        logger.info("Project dates updated successfully")
+    }
+    else {
+        throwError("Error occured during project update , Check projectId", 500, "PROJECT_UPDATE_ERROR")
+    }
+}
+
+async function createProject(request: any, actionUrl: any) {
     const { tenantId, boundaries, projectType, projectId, startDate, endDate } = request?.body?.CampaignDetails;
     if (boundaries && projectType && !projectId) {
         var Projects: any = [{
@@ -683,6 +747,9 @@ async function createProject(request: any) {
             await new Promise(resolve => setTimeout(resolve, 3000));
         }
     }
+    else if ((startDate || endDate) && projectId && actionUrl == "update") {
+        await updateProjectDates(request);
+    }
 }
 
 async function processBasedOnAction(request: any, actionInUrl: any) {
@@ -691,7 +758,7 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     }
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProjectCampaignResourcData(request);
-        await createProject(request)
+        await createProject(request, actionInUrl)
         await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
     }
     else {

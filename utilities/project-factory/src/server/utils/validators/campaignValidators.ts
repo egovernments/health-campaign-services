@@ -105,7 +105,7 @@ async function validateViaSchema(data: any, schema: any, request: any) {
             }).join(' , ');
             throwError(errorMessage, 400, "VALIDATION_ERROR");
         } else {
-            logger.info("All Facilities rows are valid.");
+            logger.info("All Data rows are valid.");
         }
     }
 
