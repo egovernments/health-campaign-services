@@ -65,13 +65,14 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
 
   const updateCycle = (d) => {
     if (d === 0 || d > 5) return;
-    if (d?.target?.value.trim() === "") return;
-    dispatch({ type: "UPDATE_CYCLE", payload: d?.target?.value ? Number(d?.target?.value) : d });
+    // if (d?.target?.value.trim() === "") return;
+    dispatch({ type: "UPDATE_CYCLE", payload: d?.target?.value ? Number(d?.target?.value) : d?.target?.value === "" ? d.target.value : d });
   };
 
   const updateDelivery = (d) => {
     if (d === 0 || d > 5) return;
-    dispatch({ type: "UPDATE_DELIVERY", payload: d });
+    // if (d?.target?.value.trim() === "") return;
+    dispatch({ type: "UPDATE_DELIVERY", payload: d?.target?.value ? Number(d?.target?.value) : d });
   };
 
   const selectToDate = (index, d) => {

@@ -146,3 +146,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
   }
 }
+
+.popup-wrap.campaign-data-preview {
+  flex-direction: column;
+}

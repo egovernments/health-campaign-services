@@ -16,7 +16,7 @@ function XlsPreview({ file, ...props }) {
     : null;
 
   return (
-    <PopUp style={{ flexDirection: "column" }}>
+    <PopUp className="campaign-data-preview" style={{ flexDirection: "column" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginLeft: "2.5rem", marginRight: "2.5rem", marginTop: "2.5rem" }}>
         <Button
           label={t("BACK")}
