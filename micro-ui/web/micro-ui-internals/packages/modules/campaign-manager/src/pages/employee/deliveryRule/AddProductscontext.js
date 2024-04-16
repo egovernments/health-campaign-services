@@ -149,6 +149,7 @@ function AddProducts({ stref, selectedDelivery }) {
   const incrementC = (data, value) => {
     if (value?.target?.value.trim() === "") return;
     if (value === 0) return;
+    if (value > 10) return;
     setProducts((prevState) => {
       return prevState.map((item) => {
         if (item.key === data.key) {
