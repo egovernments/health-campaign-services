@@ -58,6 +58,14 @@ public class ServiceConstants {
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE = "TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS";
     public static final String TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE = "Template Identifier is not present in MDMS";
 
+    public static final String INPUT_KEY_NOT_FOUND_CODE = "INPUT_KEY_NOT_FOUND";
+    public static final String INPUT_KEY_NOT_FOUND_MESSAGE = "Operation's Input key not present in MDMS";
+
+    public static final String LOCALITY_NOT_PRESENT_IN_MAPPED_TO_CODE = "LOCALITY_NOT_PRESENT_IN_MAPPED_TO";
+    public static final String LOCALITY_NOT_PRESENT_IN_MAPPED_TO_MESSAGE = "Resource Mapping's MappedTo must contain 'Locality'";
+
+    public static final String MAPPED_TO_VALIDATION_ERROR_CODE = "MAPPED_TO_VALIDATION_ERROR";
+
     public static final String TENANT_NOT_FOUND_IN_MDMS_CODE = "TENANT_ID_NOT_FOUND_IN_MDMS";
     public static final String TENANT_NOT_FOUND_IN_MDMS_MESSAGE = "Tenant Id is not present in MDMS";
 
@@ -83,6 +91,7 @@ public class ServiceConstants {
     public static final String MDMS_PLAN_MODULE_NAME = "hcm-microplanning";
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
+    public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
 
     public static final String MDSM_MASTER_TENANTS = "tenants";
     public static final String MDMS_TENANT_MODULE_NAME = "tenant";
@@ -95,5 +104,8 @@ public class ServiceConstants {
 
     public static final String FILTER_ID = "$.*.id";
 
+    public static final String FILTER_DATA = "$.*.data";
+
+    public static final String LOCALITY_CODE = "Locality";
 
 }
