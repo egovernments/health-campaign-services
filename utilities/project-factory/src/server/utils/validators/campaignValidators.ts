@@ -300,7 +300,7 @@ function validateProjectCampaignMissingFields(CampaignDetails: any) {
     }
     const today: any = Date.now();
     if (startDate <= today) {
-        throwError("startDate cannot be in the future", 400, "VALIDATION_ERROR");
+        throwError("startDate cannot be today or past date", 400, "VALIDATION_ERROR");
     }
 }
 
