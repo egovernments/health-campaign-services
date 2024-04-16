@@ -307,7 +307,7 @@ async function enrichAndPersistCampaignForUpdate(request: any) {
         enrichRootProjectId(request.body);
     }
     else {
-        request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || null
+        request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId
     }
     logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
