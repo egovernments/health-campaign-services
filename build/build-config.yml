@@ -175,3 +175,7 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/plan-service/src/main/resources/db"
         image-name: "plan-service-db"
+  - name: "builds/health-campaign-services/analytics/auth-proxy"
+    build:
+      - work-dir: "analytics/auth-proxy"
+        image-name: "auth-proxy"
