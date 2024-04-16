@@ -688,6 +688,7 @@ async function getBoundaryRelationshipData(request: any, params: any) {
 }
 
 async function getDataSheetReady(boundaryData: any, request: any) {
+  const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
@@ -703,9 +704,9 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
-  const headers = [...reducedHierarchy, "Boundary Code",
+  const headers = type != "facilityWithBoundary" ? [...reducedHierarchy, "Boundary Code",
     "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"
-  ];
+  ] : [...reducedHierarchy, "Boundary Code"];
   const data = boundaryList.map(boundary => {
     const boundaryParts = boundary.split(',');
     const boundaryCode = boundaryParts[boundaryParts.length - 1];
