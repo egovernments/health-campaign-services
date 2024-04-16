@@ -92,6 +92,10 @@ const config = {
       || "boundary-service/boundary-hierarchy-definition/_search",
     projectCreate: process.env.HEALTH_PROJECT_CREATE_PATH
       || "health-project/v1/_create",
+    projectUpdate: process.env.HEALTH_PROJECT_UPDATE_PATH
+      || "health-project/v1/_update",
+    projectSearch: process.env.HEALTH_PROJECT_SEARCH_PATH
+      || "health-project/v1/_search",
     staffCreate: process.env.EGOV_PROJECT_STAFF_CREATE_PATH
       || "health-project/staff/v1/_create",
     projectResourceCreate: process.env.EGOV_PROJECT_RESOURCE_CREATE_PATH
