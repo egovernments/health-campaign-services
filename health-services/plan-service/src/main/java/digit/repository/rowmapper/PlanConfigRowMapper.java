@@ -46,6 +46,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
                 planConfigEntry.setTenantId(rs.getString("plan_configuration_tenant_id"));
                 planConfigEntry.setName(rs.getString("plan_configuration_name"));
                 planConfigEntry.setExecutionPlanId(rs.getString("plan_configuration_execution_plan_id"));
+                planConfigEntry.setStatus(PlanConfiguration.StatusEnum.valueOf(rs.getString("plan_configuration_status").toUpperCase()));
                 planConfigEntry.setAuditDetails(auditDetails);
 
             }

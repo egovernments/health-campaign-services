@@ -1,6 +1,8 @@
 package digit.web.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import jakarta.validation.constraints.NotEmpty;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,10 @@ public class PlanConfiguration {
     @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Execution Plan Id must not contain only special characters")
     private String executionPlanId = null;
 
+    @JsonProperty("status")
+    @NotNull
+    private StatusEnum status = null;
+
     @JsonProperty("files")
     @NotNull
     @NotEmpty
@@ -72,5 +78,13 @@ public class PlanConfiguration {
 
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
+
+    /**
+     * The status used in the Plan Configuration
+     */
+    public enum StatusEnum {
+            DRAFT ,
+            GENERATED
+    }
 
 }
