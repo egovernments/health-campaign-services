@@ -641,7 +641,6 @@ function reorderBoundariesWithParentFirst(reorderedBoundaries: any[], boundaryPr
     return reorderedBoundaries;
 }
 
-
 // TODO: FIX THIS FUNCTION...NOT REORDERING CORRECTLY
 async function reorderBoundaries(request: any) {
     request.body.boundaryProjectMapping = {}
