@@ -298,6 +298,10 @@ function validateProjectCampaignMissingFields(CampaignDetails: any) {
     if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
         throwError("endDate must be at least one day after startDate", 400, "VALIDATION_ERROR");
     }
+    const today: any = Date.now();
+    if (startDate <= today) {
+        throwError("startDate cannot be today or past date", 400, "VALIDATION_ERROR");
+    }
 }
 
 async function validateCampaignName(request: any) {
