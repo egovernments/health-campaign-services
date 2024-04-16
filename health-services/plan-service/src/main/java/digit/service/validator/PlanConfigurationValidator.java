@@ -302,17 +302,13 @@ public class PlanConfigurationValidator {
         // Validate plan existence
         validatePlanConfigExistence(request);
 
-        //Validate Assumption keys against MDMS data
         validateAssumptionKeyAgainstMDMS(request, mdmsData);
-
-        //Validate Assumption values under operations with assumption keys
         validateAssumptionValue(planConfiguration);
-
-        //Validate Resource Mapping's Filestore Ids
         validateFilestoreId(planConfiguration);
-
-        //validate Template Identifier against MDMS data
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
+        validateOperationsInputAgainstMDMS(request, mdmsData);
+        validateMappedToForLocality(planConfiguration);
+        validateTemplateIdentifierAgainstResourceMapping(planConfiguration);
 
     }
 
