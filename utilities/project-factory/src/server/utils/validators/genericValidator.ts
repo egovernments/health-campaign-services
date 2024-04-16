@@ -239,7 +239,7 @@ async function validateGenerateRequest(request: express.Request) {
         }
     }
     else {
-        throwError("forceUpdate is required", 400, "VALIDATION_ERROR");
+        request.query.forceUpdate = "false";
     }
     if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
         throwError("Type should be facility, user, boundary, or facilityWithBoundary", 400, "VALIDATION_ERROR");
