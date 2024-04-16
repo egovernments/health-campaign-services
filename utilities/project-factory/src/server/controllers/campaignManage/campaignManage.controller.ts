@@ -74,7 +74,6 @@ class campaignManageController {
             logger.error(String(e))
             return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
         }
-
     };
 
     createCampaign = async (

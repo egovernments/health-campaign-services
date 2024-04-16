@@ -311,7 +311,8 @@ async function getNewEntryResponse(modifiedResponse: any, request: any) {
       createdBy: request?.body?.RequestInfo?.userInfo.uuid,
       lastModifiedBy: request?.body?.RequestInfo?.userInfo.uuid,
     },
-    additionalDetails: {}
+    additionalDetails: {},
+    count: null
   };
   return [newEntry];
 }
@@ -580,7 +581,8 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
     request.body.generatedResource = oldEntryResponse;
   }
   if (responseData.length === 0 || forceUpdateBool) {
-    await fullProcessFlowForNewEntry(newEntryResponse, request, response);
+    request.body.generatedResource = newEntryResponse;
+    fullProcessFlowForNewEntry(newEntryResponse, request, response);
   }
   else {
     request.body.generatedResource = responseData
