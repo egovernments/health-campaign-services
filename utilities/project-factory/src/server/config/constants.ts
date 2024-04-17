@@ -2,47 +2,83 @@ import Error from "./error.interface"
 
 export const CONSTANTS: any = {
     ERROR_CODES: {
-
-        CAMPAIGN: {
-            NO_MUSTER_ROLL_FOUND: "No Muster Roll Found for given Criteria",
-            FACILITY_SEARCH_FAILED: "Search failed for Facility. Check Logs",
+        COMMON: {
             UNKNOWN_ERROR: "Unknown Error. Check Logs",
             IDGEN_ERROR: "Error during generating campaign number",
-            BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
-            GENERATION_REQUIRE: "First Generate then Download",
-            INVALID_FILE: "No download URL returned for the given fileStoreId",
-            STATUS_FILE_CREATION_ERROR: "Error in Creating Status File",
-            PROJECT_CREATION_FAILED: "Error occured in project creation",
-            INVALID_SHEETNAME: "Invalid Sheet Name",
-            FETCHING_SHEET_ERROR: "Error occured while fetching sheet data",
-            BOUNDARY_HIERARCHY_INSERT_ERROR: "Insert boundary hierarchy level wise",
-            PROJECT_SEARCH_ERROR: "Error occured during project search , Check projectId",
-            PROJECT_UPDATE_ERROR: "Error occured during project update , Check projectId",
             VALIDATION_ERROR: "Validation Error",
             INTERNAL_SERVER_ERROR: "Internal Server Error",
+            INVALID_PAGINATION: "Invalid pagination",
+        },
+        FILE: {
+            INVALID_FILE: "No download URL returned for the given fileStoreId",
+            INVALID_SHEETNAME: "Invalid Sheet Name",
+            STATUS_FILE_CREATION_ERROR: "Error in Creating Status File",
+            FETCHING_SHEET_ERROR: "Error occured while fetching sheet data",
             INVALID_FILE_ERROR: "Invalid File",
             DOWNLOAD_URL_NOT_FOUND: "Not any download URL returned for the given fileStoreId",
-            BOUNDARY_SEARCH_ERROR: "Error in Boundary Search. Check Boundary codes",
-            BOUNDARY_NOT_FOUND: "Boundary not found",
+        },
+        FACILITY: {
+            FACILITY_SEARCH_FAILED: "Search failed for Facility. Check Logs",
+        },
+        CAMPAIGN: {
             CAMPAIGN_SEARCH_ERROR: "Error in Campaign Search",
             CAMPAIGNNAME_MISMATCH: "CampaignName is not matching",
             CAMPAIGN_NOT_FOUND: "Campaign not found",
-            INVALID_PAGINATION: "Invalid pagination",
-            BOUNDARY_SHEET_HEADER_ERROR: "Boundary Sheet Header Error",
-            PROJECT_CREATION_ERROR: "Some error occured during project creation",
+            GENERATION_REQUIRE: "First Generate then Download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
+        },
+        BOUNDARY: {
+            BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
+            BOUNDARY_HIERARCHY_INSERT_ERROR: "Insert boundary hierarchy level wise",
+            BOUNDARY_SEARCH_ERROR: "Error in Boundary Search. Check Boundary codes",
+            BOUNDARY_NOT_FOUND: "Boundary not found",
+            BOUNDARY_SHEET_HEADER_ERROR: "Boundary Sheet Header Error",
             BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation"
+        },
+        PROJECT: {
+            PROJECT_CREATION_FAILED: "Error occured in project creation",
+            PROJECT_SEARCH_ERROR: "Error occured during project search , Check projectId",
+            PROJECT_UPDATE_ERROR: "Error occured during project update , Check projectId",
+            PROJECT_CREATION_ERROR: "Some error occured during project creation",
         }
-
     }
-
 }
 
+const unknownError = "Unknown Error. Check Logs";
+
+
+//  Retrieves the error message associated with the given error key.
+const getMessage = (key: any) => {
+    // Retrieve the error codes from the CONSTANTS object
+    const errors = CONSTANTS.ERROR_CODES;
+
+    // Iterate over each module and error key to find the matching error message
+    for (const moduleKey in errors) {
+        for (const errorKey in errors[moduleKey]) {
+            if (key === errorKey) {
+                return errors[moduleKey][errorKey];
+            }
+        }
+    }
+
+    // Return 'unknownError' if the error key is not found
+    return unknownError;
+}
+
+
+// Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
+    // Retrieve the error message from the CONSTANTS object
+    const message = CONSTANTS.ERROR_CODES?.[module]?.[key] || getMessage(key)
+
+    // Determine the error code based on whether the message is 'unknownError' or not
+    const code = message == unknownError ? "UNKNOWN_ERROR" : key
+
+    // Return the error object
     return {
-        code: key,
+        code: code,
         notFound: true,
-        message: CONSTANTS.ERROR_CODES?.[module]?.[key]
+        message: message
     }
 }

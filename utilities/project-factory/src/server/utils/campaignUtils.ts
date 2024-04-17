@@ -107,7 +107,7 @@ async function updateStatusFile(request: any) {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
 
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throwError("CAMPAIGN", 500, "INVALID_FILE");
+        throwError("FILE", 500, "INVALID_FILE");
     }
 
     const headers = {
@@ -122,7 +122,7 @@ async function updateStatusFile(request: any) {
 
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throwError("CAMPAIGN", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+        throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
     processErrorData(request, createAndSearchConfig, workbook, sheetName);
 
@@ -132,7 +132,7 @@ async function updateStatusFile(request: any) {
         request.body.ResourceDetails.processedFileStoreId = responseData?.[0]?.fileStoreId;
     }
     else {
-        throwError("CAMPAIGN", 500, "STATUS_FILE_CREATION_ERROR");
+        throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
     }
 }
 
@@ -353,7 +353,7 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[]) {
             if (mappingMap.has(grandParent)) {
                 countMap.set(grandParent, (countMap.get(grandParent) || 0) + 1);
             } else {
-                throwError("CAMPAIGN", 400, "BOUNDARY_HIERARCHY_INSERT_ERROR");
+                throwError("BOUNDARY", 400, "BOUNDARY_HIERARCHY_INSERT_ERROR");
             }
         }
         mappingMap.set(row[len - 2], row[len - 1]);
@@ -416,14 +416,9 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
 
 
 async function getTotalCount(request: any) {
-    try {
-        const query = "SELECT COUNT(*) FROM health.eg_cm_campaign_details";
-        const queryResult = await pool.query(query);
-        request.body.totalCount = parseInt(queryResult.rows[0].count, 10);
-    } catch (error: any) {
-        logger.error("Error getting total count: " + error.message + ", Stack: " + error.stack);
-        throw error;
-    }
+    const query = "SELECT COUNT(*) FROM health.eg_cm_campaign_details";
+    const queryResult = await pool.query(query);
+    request.body.totalCount = parseInt(queryResult.rows[0].count, 10);
 }
 
 async function searchProjectCampaignResourcData(request: any) {
@@ -688,7 +683,7 @@ async function getRelatedProjects(request: any) {
         return convertToProjectsArray(projectSearchResponse?.Project)
     }
     else {
-        throwError("CAMPAIGN", 500, "PROJECT_SEARCH_ERROR")
+        throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
         return []
     }
 }
@@ -711,7 +706,7 @@ async function updateProjectDates(request: any) {
         logger.info("Project dates updated successfully")
     }
     else {
-        throwError("CAMPAIGN", 500, "PROJECT_UPDATE_ERROR")
+        throwError("PROJECT", 500, "PROJECT_UPDATE_ERROR")
     }
 }
 
@@ -834,7 +829,7 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
 
         if (!boundary.children.length) {
             if (!filter.includeAllChildren) {
-                throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary cannot have includeAllChildren filter false if it does not have any children");
+                throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary cannot have includeAllChildren filter false if it does not have any children");
             }
             // If boundary has no children and includeAllChildren is true, return as is
             return {
@@ -863,15 +858,8 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
             children: filteredChildren
         };
     }
-    try {
-        const filteredData = boundaryData.map(filterRecursive);
-        return filteredData;
-    }
-    catch (e: any) {
-        const errorMessage = "Error occurred while fetching boundaries: " + e.message;
-        logger.error(errorMessage)
-        throwError("CAMPAIGN", 500, "INTERNAL_SERVER_ERROR", "Error occurred while fetching boundaries: " + e.message);
-    }
+    const filteredData = boundaryData.map(filterRecursive);
+    return filteredData;
 }
 
 
@@ -924,46 +912,41 @@ function createBoundaryMap(boundaries: any[], boundaryMap: Map<string, string>):
 }
 
 const autoGenerateBoundaryCodes = async (request: any) => {
-    try {
-        await validateHierarchyType(request);
-        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
-        if (!fileResponse?.fileStoreIds?.[0]?.url) {
-            throwError("CAMPAIGN", 400, "INVALID_FILE_ERROR");
+    await validateHierarchyType(request);
+    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
+    if (!fileResponse?.fileStoreIds?.[0]?.url) {
+        throwError("FILE", 400, "INVALID_FILE_ERROR");
+    }
+    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
+    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
+    await validateBoundarySheetData(headersOfBoundarySheet, request);
+    const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
+    const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
+    const childParentMap = getChildParentMap(withoutBoundaryCode);
+    const boundaryMap = await getBoundaryCodesHandler(withoutBoundaryCode, childParentMap, mappingMap, countMap, request);
+    const boundaryTypeMap = getBoundaryTypeMap(boundaryData, boundaryMap);
+    await createBoundaryEntities(request, boundaryMap);
+    const modifiedMap: Map<string, string | null> = new Map();
+    childParentMap.forEach((value, key) => {
+        const modifiedKey = boundaryMap.get(key);
+        let modifiedValue = null;
+        if (value !== null && boundaryMap.has(value)) {
+            modifiedValue = boundaryMap.get(value);
         }
-        const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
-        const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
-        await validateBoundarySheetData(headersOfBoundarySheet, request);
-        const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
-        const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
-        const childParentMap = getChildParentMap(withoutBoundaryCode);
-        const boundaryMap = await getBoundaryCodesHandler(withoutBoundaryCode, childParentMap, mappingMap, countMap, request);
-        const boundaryTypeMap = getBoundaryTypeMap(boundaryData, boundaryMap);
-        await createBoundaryEntities(request, boundaryMap);
-        const modifiedMap: Map<string, string | null> = new Map();
-        childParentMap.forEach((value, key) => {
-            const modifiedKey = boundaryMap.get(key);
-            let modifiedValue = null;
-            if (value !== null && boundaryMap.has(value)) {
-                modifiedValue = boundaryMap.get(value);
-            }
-            modifiedMap.set(modifiedKey, modifiedValue);
-        });
-        await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap);
-        const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
-        const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-        const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
-        const boundarySheetData = await createExcelSheet(data, hierarchy);
-        const boundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
-        request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
-    }
-    catch (error: any) {
-        throwError("CAMPAIGN", 500, "INTERNAL_SERVER_ERROR", error?.message);
-    }
+        modifiedMap.set(modifiedKey, modifiedValue);
+    });
+    await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap);
+    const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
+    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
+    const boundarySheetData = await createExcelSheet(data, hierarchy);
+    const boundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
+    request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
 }
 async function convertSheetToDifferentTabs(request: any, fileStoreId: any) {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.query?.tenantId, fileStoreIds: fileStoreId }, "get");
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throwError("CAMPAIGN", 400, "INVALID_FILE_ERROR");
+        throwError("FILE", 400, "INVALID_FILE_ERROR");
     }
     const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Sheet1");
     const updatedWorkbook = await appendSheetsToWorkbook(boundaryData);

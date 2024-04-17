@@ -33,7 +33,7 @@ async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchP
     searchedFacilities.push(...response?.Facilities);
     return response.Facilities.length >= 50; // Return true if there are more facilities to fetch, false otherwise
   } else {
-    throwError("CAMPAIGN", 500, "FACILITY_SEARCH_FAILED");
+    throwError("FACILITY", 500, "FACILITY_SEARCH_FAILED");
     return false;
   }
 }
@@ -356,16 +356,10 @@ async function createProjectCampaignResourcData(request: any) {
         hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
         additionalDetails: {}
       };
-      try {
-        await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
-          RequestInfo: request.body.RequestInfo,
-          ResourceDetails: resourceDetails
-        });
-      } catch (error: any) {
-        // Handle error for individual resource creation
-        logger.error(`Error creating resource: ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
-        throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", error?.response?.data?.Errors?.[0]?.message || String(error));
-      }
+      await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+        RequestInfo: request.body.RequestInfo,
+        ResourceDetails: resourceDetails
+      });
     }
   }
 }
@@ -380,7 +374,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
-    throwError("CAMPAIGN", 500, "PROJECT_CREATION_FAILED", "Project creation failed, for the request: " + JSON.stringify(projectCreateBody));
+    throwError("PROJECT", 500, "PROJECT_CREATION_FAILED", "Project creation failed, for the request: " + JSON.stringify(projectCreateBody));
   }
 }
 
@@ -418,14 +412,9 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
     }
   };
 
-  try {
-    const response = await httpRequest(url, requestBody);
-    const boundaryList = response?.BoundaryHierarchy?.[0].boundaryHierarchy;
-    return generateHierarchy(boundaryList);
-  } catch (error: any) {
-    logger.error(`Error fetching hierarchy data: ${error.message}`, error);
-    throw error;
-  }
+  const response = await httpRequest(url, requestBody);
+  const boundaryList = response?.BoundaryHierarchy?.[0].boundaryHierarchy;
+  return generateHierarchy(boundaryList);
 };
 
 const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false) => {
