@@ -127,7 +127,9 @@ const SetupCampaign = () => {
       const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
     }
     if (shouldUpdate === true) {
-      if (filteredConfig?.[0]?.form?.[0]?.isLast) {
+      if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
+        return;
+      } else if (filteredConfig?.[0]?.form?.[0]?.isLast) {
         const reqCreate = async () => {
           let payloadData = {};
           payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
@@ -188,12 +190,17 @@ const SetupCampaign = () => {
 
           await mutate(payloadData, {
             onError: (error, variables) => {
-              console.log(error);
+              if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.mandatoryOnAPI) {
+                setShowToast({ key: "error", label: error });
+              }
             },
             onSuccess: async (data) => {
               updateUrlParams({ id: data?.CampaignDetails?.id });
               setIsDraftCreated(true);
               draftRefetch();
+              if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.mandatoryOnAPI) {
+                setCurrentKey(currentKey + 1);
+              }
             },
           });
         };
@@ -380,7 +387,7 @@ const SetupCampaign = () => {
 
     setShouldUpdate(true);
 
-    if (!filteredConfig?.[0]?.form?.[0]?.isLast) {
+    if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].mandatoryOnAPI) {
       setCurrentKey(currentKey + 1);
     }
     // convertFormData(totalFormData);
