@@ -12,8 +12,8 @@
   ],
   "homepage": "/workbench-ui",
   "dependencies": {
-    "@egovernments/digit-ui-libraries": "1.8.1-beta.1",
-    "@egovernments/digit-ui-module-core": "1.8.1-beta.6",
+    "@egovernments/digit-ui-libraries": "1.8.1-beta.4",
+    "@egovernments/digit-ui-module-core": "1.8.1-beta.8",
     "@egovernments/digit-ui-module-utilities": "1.0.1-beta.1",
     "@egovernments/digit-ui-react-components": "1.8.1-beta.12",
     "@egovernments/digit-ui-components": "0.0.1-beta.9",
