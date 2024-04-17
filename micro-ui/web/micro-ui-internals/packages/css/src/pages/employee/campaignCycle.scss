@@ -78,6 +78,9 @@
     margin-bottom: 1.5rem;
   }
 }
+.uploaded-file-container {
+  margin-left: 0rem;
+}
 .bulk-drag-drop-container {
   background-color: #fafafa;
   border: 1.5px dashed #d6d5d4;
@@ -102,6 +105,18 @@
       text-decoration: underline;
       cursor: pointer;
     }
+  }
+}
+
+.drag-drop-container{
+  margin-left: 0rem;
+  .drag-drop{
+    color: #B1B4B6;
+  }
+  .browse-text {
+    text-decoration: underline;
+    color: #f47738;
+    transition: color 0.3s;
   }
 }
 

@@ -2,7 +2,6 @@ import { Loader, FormComposerV2, Header, MultiUploadWrapper, Button, Close, Logo
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useParams } from "react-router-dom";
-import TimelineCampaign from "../../components/TimelineCampaign";
 import { CampaignConfig } from "../../configs/CampaignConfig";
 import { QueryClient, useQueryClient } from "react-query";
 import { Stepper, Toast } from "@egovernments/digit-ui-components";
@@ -24,6 +23,7 @@ const SetupCampaign = () => {
   const id = searchParams.get("id");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const client = useQueryClient();
+  const hierarchyType = "ADMIN";
 
   const { isLoading: draftLoading, data: draftData, error: draftError, refetch: draftRefetch } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
@@ -37,6 +37,10 @@ const SetupCampaign = () => {
       },
     },
   });
+
+  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary",hierarchyType);
+  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary",hierarchyType);
+  // const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary"); // to be integrated later
 
   function updateUrlParams(params) {
     const url = new URL(window.location.href);
@@ -126,6 +130,9 @@ const SetupCampaign = () => {
     if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
       const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
     }
+    if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA) {
+      const temp = Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA , hierarchyType); // to be enchanced later
+    }
     if (shouldUpdate === true) {
       if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
         return;
@@ -142,7 +149,7 @@ const SetupCampaign = () => {
           payloadData.action = "create";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
-          payloadData.resources = [];
+          payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
           payloadData.projectType = null;
           payloadData.additionalDetails = {};
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
@@ -180,7 +187,7 @@ const SetupCampaign = () => {
           payloadData.action = "draft";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
-          payloadData.resources = [];
+          payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
           payloadData.projectType = null;
           payloadData.additionalDetails = {};
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
@@ -219,7 +226,7 @@ const SetupCampaign = () => {
           payloadData.action = "draft";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
-          payloadData.resources = [];
+          payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
           payloadData.projectType = null;
           payloadData.additionalDetails = {};
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
@@ -372,6 +379,9 @@ const SetupCampaign = () => {
     setParams({
       ...params,
       [name]: { ...formData },
+      facilityId : facilityId,
+      boundaryId : boundaryId,
+      hierarchyType: hierarchyType
     });
 
     const dummyData = {
