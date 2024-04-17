@@ -44,9 +44,9 @@ function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries
         const responseCodes = responseBoundaries.map(boundary => boundary.code);
         const missingCodes = uniqueBoundaries.filter(code => !responseCodes.includes(code));
         if (missingCodes.length > 0) {
-            throwError(`Boundary codes ${missingCodes.join(', ')} do not exist`, 500, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 500, "VALIDATION_ERROR", `Boundary codes ${missingCodes.join(', ')} do not exist`);
         } else {
-            throwError("Error in Boundary Search. Check Boundary codes", 500, "BOUNDARY_SEARCH_ERROR");
+            throwError("CAMPAIGN", 500, "BOUNDARY_SEARCH_ERROR");
         }
     }
 }
@@ -64,17 +64,17 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
     data.forEach((element, index) => {
         const boundaries = element[boundaryColumn];
         if (!boundaries) {
-            throwError(`Boundary Code is required for element at index ${index}`, 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Boundary Code is required for element at index ${index}`);
         }
 
         const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
         if (boundaryList.length === 0) {
-            throwError(`At least 1 boundary is required for element at index ${index}`, 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element at index ${index}`);
         }
 
         for (const boundary of boundaryList) {
             if (!boundary) {
-                throwError(`Boundary format is invalid at ${index}. Put it with one comma between boundary codes`, 400, "VALIDATION_ERROR");
+                throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Boundary format is invalid at ${index}. Put it with one comma between boundary codes`);
             }
             boundarySet.add(boundary); // Add boundary to the set
         }
@@ -103,7 +103,7 @@ async function validateViaSchema(data: any, schema: any, request: any) {
                 const formattedErrors = errors.map((error: any) => `${error.dataPath}: ${error.message}`).join(', ');
                 return `Data at index ${index}: ${formattedErrors}`;
             }).join(' , ');
-            throwError(errorMessage, 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", errorMessage);
         } else {
             logger.info("All Data rows are valid.");
         }
@@ -124,80 +124,78 @@ async function validateSheetData(data: any, request: any, schema: any, boundaryV
 }
 function validateBooleanField(obj: any, fieldName: any, index: any) {
     if (!obj.hasOwnProperty(fieldName)) {
-        throwError(`Object at index ${index} is missing field "${fieldName}".`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "${fieldName}".`);
     }
 
     if (typeof obj[fieldName] !== 'boolean') {
-        throwError(`Object at index ${index} has invalid type for field "${fieldName}". It should be a boolean.`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "${fieldName}". It should be a boolean.`);
     }
 }
 
 function validateStringField(obj: any, fieldName: any, index: any) {
     if (!obj.hasOwnProperty(fieldName)) {
-        throwError(`Object at index ${index} is missing field "${fieldName}".`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "${fieldName}".`);
     }
     if (typeof obj[fieldName] !== 'string') {
-        throwError(`Object at index ${index} has invalid type for field "${fieldName}". It should be a string.`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "${fieldName}". It should be a string.`);
     }
     if (obj[fieldName].length < 1) {
-        throwError(`Object at index ${index} has empty value for field "${fieldName}".`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} has empty value for field "${fieldName}".`);
     }
     if (obj[fieldName].length > 128) {
-        throwError(`Object at index ${index} has value for field "${fieldName}" that exceeds the maximum length of 128 characters.`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} has value for field "${fieldName}" that exceeds the maximum length of 128 characters.`);
     }
 }
 
 function validateStorageCapacity(obj: any, index: any) {
     if (!obj.hasOwnProperty('storageCapacity')) {
-        throwError(`Object at index ${index} is missing field "storageCapacity".`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "storageCapacity".`);
     }
     if (typeof obj.storageCapacity !== 'number') {
-        throwError(`Object at index ${index} has invalid type for field "storageCapacity". It should be a number.`, 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "storageCapacity". It should be a number.`);
     }
 }
 
 function validateAction(action: string) {
     if (!(action == "create" || action == "validate")) {
-        throwError("Invalid action", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Invalid action");
     }
 }
 
 function validateResourceType(type: string) {
     if (!createAndSearch[type]) {
-        throwError("Invalid resource type", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Invalid resource type");
     }
 }
 
 async function validateCreateRequest(request: any) {
     if (!request?.body?.ResourceDetails) {
-        throwError("ResourceDetails is missing", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "ResourceDetails is missing");
     } else {
         if (!request?.body?.ResourceDetails?.fileStoreId) {
-            throwError("fileStoreId is missing", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "fileStoreId is missing");
         }
         if (!request?.body?.ResourceDetails?.type) {
-            throwError("type is missing", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "type is missing");
         }
         if (!request?.body?.ResourceDetails?.tenantId) {
-            throwError("tenantId is missing", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "tenantId is missing");
         }
         if (!request?.body?.ResourceDetails?.action) {
-            throwError("action is missing", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "action is missing");
         }
         if (!request?.body?.ResourceDetails?.hierarchyType) {
-            throwError("hierarchyType is missing", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "hierarchyType is missing");
         }
         await validateHierarchyType(request);
 
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
-            throwError("tenantId is not matching with userInfo", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
         validateAction(request?.body?.ResourceDetails?.action);
         validateResourceType(request?.body?.ResourceDetails?.type);
     }
 }
-
-
 
 function validateFacilityCreateData(data: any) {
     data.forEach((obj: any) => {
@@ -228,17 +226,17 @@ async function validateCampaignBoundary(boundary: any, hierarchyType: any, tenan
     };
     const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, { RequestInfo: request.body.RequestInfo }, params);
     if (!boundaryResponse?.TenantBoundary || !Array.isArray(boundaryResponse.TenantBoundary) || boundaryResponse.TenantBoundary.length === 0) {
-        throwError(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`, 400, "BOUNDARY_NOT_FOUND");
+        throwError("CAMPAIGN", 400, "BOUNDARY_NOT_FOUND", `Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
     }
 
     const boundaryData = boundaryResponse.TenantBoundary[0]?.boundary;
 
     if (!boundaryData || !Array.isArray(boundaryData) || boundaryData.length === 0) {
-        throwError(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`, 400, "BOUNDARY_NOT_FOUND");
+        throwError("CAMPAIGN", 400, "BOUNDARY_NOT_FOUND", `Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
     }
 
     if (boundary.isRoot && boundaryData[0]?.code !== boundary.code) {
-        throwError(`Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`, 400, "BOUNDARY_NOT_FOUND");
+        throwError("CAMPAIGN", 400, "BOUNDARY_NOT_FOUND", `Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
     }
 }
 
@@ -246,15 +244,15 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     if (!request?.body?.CampaignDetails?.projectId) {
         if (boundaries) {
             if (!Array.isArray(boundaries)) {
-                throwError("boundaries should be an array", 400, "VALIDATION_ERROR");
+                throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "boundaries should be an array");
             }
             let rootBoundaryCount = 0;
             for (const boundary of boundaries) {
                 if (!boundary.code) {
-                    throwError("Boundary code is required", 400, "VALIDATION_ERROR");
+                    throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary code is required");
                 }
                 if (!boundary.type) {
-                    throwError("Boundary type is required", 400, "VALIDATION_ERROR");
+                    throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary type is required");
                 }
 
                 if (boundary.isRoot) {
@@ -263,11 +261,11 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
                 await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
             }
             if (rootBoundaryCount !== 1) {
-                throwError("Exactly one boundary should have isRoot=true", 400, "VALIDATION_ERROR");
+                throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Exactly one boundary should have isRoot=true");
             }
         }
         else {
-            throwError("Missing boundaries array", 400, "MISSING_BOUNDARY");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Missing boundaries array");
         }
     }
 }
@@ -275,12 +273,12 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
 async function validateProjectCampaignResources(resources: any[]) {
     if (resources) {
         if (!Array.isArray(resources)) {
-            throwError("resources should be an array", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "resources should be an array");
         }
         for (const resource of resources) {
             const { type } = resource;
             if (!createAndSearch[type]) {
-                throwError("Invalid resource type", 400, "VALIDATION_ERROR");
+                throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Invalid resource type");
             }
         }
     }
@@ -292,15 +290,15 @@ function validateProjectCampaignMissingFields(CampaignDetails: any) {
     const validate = ajv.compile(campaignDetailsSchema);
     const valid = validate(CampaignDetails);
     if (!valid) {
-        throwError('Invalid data: ' + ajv.errorsText(validate.errors), 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", 'Invalid data: ' + ajv.errorsText(validate.errors));
     }
     const { startDate, endDate } = CampaignDetails;
     if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
-        throwError("endDate must be at least one day after startDate", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
     }
     const today: any = Date.now();
     if (startDate <= today) {
-        throwError("startDate cannot be today or past date", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
     }
 }
 
@@ -308,10 +306,10 @@ async function validateCampaignName(request: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { campaignName, tenantId } = CampaignDetails;
     if (!campaignName) {
-        throwError("campaignName is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "campaignName is required");
     }
     if (!tenantId) {
-        throwError("tenantId is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "tenantId is required");
     }
     const searchBody = {
         RequestInfo: request.body.RequestInfo,
@@ -326,23 +324,23 @@ async function validateCampaignName(request: any) {
         const searchResponse: any = await axios.post(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
         if (Array.isArray(searchResponse?.data?.CampaignDetails)) {
             if (searchResponse?.data?.CampaignDetails?.length > 0) {
-                throwError("Campaign name already exists", 400, "VALIDATION_ERROR");
+                throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Campaign name already exists");
             }
         }
         else {
-            throwError("Some error occurred during campaignName search", 500, "CAMPAIGN_SEARCH_ERROR");
+            throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
         }
     } catch (error: any) {
         // Handle error for individual resource creation
         logger.error(`Error searching campaign name ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
-        throwError(String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error), 500, "CAMPAIGN_SEARCH_ERROR");
+        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error));
     }
 }
 
 async function validateById(request: any) {
     const { id, tenantId } = request?.body?.CampaignDetails
     if (!id) {
-        throwError("id is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "id is required");
     }
     const searchBody = {
         RequestInfo: request.body.RequestInfo,
@@ -360,20 +358,21 @@ async function validateById(request: any) {
                 logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.data?.CampaignDetails));
                 request.body.ExistingCampaignDetails = searchResponse?.data?.CampaignDetails[0];
                 if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName) {
-                    throwError(`CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`, 400, "CAMPAIGNNAME_MISMATCH");
+                    throwError("CAMPAIGN", 400, "CAMPAIGNNAME_MISMATCH", `CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`);
                 }
             }
             else {
-                throwError("Campaign not found", 400, "CAMPAIGN_NOT_FOUND");
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
             }
         }
         else {
-            throwError("Some error occurred during campaignDetails search", 500, "CAMPAIGN_SEARCH_ERROR");
+            throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
         }
+
     } catch (error: any) {
         // Handle error for individual resource creation
         logger.error(`Error searching campaign ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
-        throwError(String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error), 500, "CAMPAIGN_SEARCH_ERROR");
+        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error));
     }
 }
 
@@ -381,19 +380,21 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { hierarchyType, action, tenantId, boundaries, resources } = CampaignDetails;
     if (!CampaignDetails) {
-        throwError("CampaignDetails is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "CampaignDetails is required");
     }
     if (!(action == "create" || action == "draft")) {
-        throwError("action can only be create or draft", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "action can only be create or draft");
     }
     if (actionInUrl == "create") {
         await validateCampaignName(request);
     }
     if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
+
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
-            throwError("tenantId is not matching with userInfo", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
+
         await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources);
     }
@@ -405,24 +406,24 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
 async function validateSearchProjectCampaignRequest(request: any) {
     const CampaignDetails = request.body.CampaignDetails;
     if (!CampaignDetails) {
-        throwError("CampaignDetails is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "CampaignDetails is required");
     }
     if (!CampaignDetails.tenantId) {
-        throwError("tenantId is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "tenantId is required");
     }
     if (CampaignDetails.ids) {
         if (!Array.isArray(CampaignDetails.ids)) {
-            throwError("ids should be an array", 400, "VALIDATION_ERROR");
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "ids should be an array");
         }
     }
     const { pagination } = CampaignDetails;
     if (pagination?.limit || pagination?.limit === 0) {
         if (typeof pagination.limit === 'number') {
             if (pagination.limit > 100 || pagination.limit < 1) {
-                throwError("Pagination Limit should be from 1 to 100", 400, "INVALID_PAGINATION");
+                throwError("CAMPAIGN", 400, "INVALID_PAGINATION", "Pagination Limit should be from 1 to 100");
             }
         } else {
-            throwError("Pagination Limit should be a number", 400, "INVALID_PAGINATION");
+            throwError("CAMPAIGN", 400, "INVALID_PAGINATION", "Pagination Limit should be a number");
         }
     }
 }
@@ -430,18 +431,19 @@ async function validateSearchProjectCampaignRequest(request: any) {
 async function validateSearchRequest(request: any) {
     const { SearchCriteria } = request.body;
     if (!SearchCriteria) {
-        throwError("SearchCriteria is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "SearchCriteria is required");
     }
     const { tenantId } = SearchCriteria;
     if (!tenantId) {
-        throwError("tenantId is required", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "tenantId is required");
     }
 }
+
 
 async function validateFilters(request: any, boundaryData: any[]) {
     const boundaries = request?.body?.Filters?.boundaries;
     if (!Array.isArray(boundaries)) {
-        throwError("Invalid Filter Criteria: 'boundaries' should be an array.", 400, "VALIDATION_ERROR");
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be an array.");
     }
 
     const boundaryMap = new Map<string, string>();
@@ -452,7 +454,7 @@ async function validateFilters(request: any, boundaryData: any[]) {
     const rootBoundaries = boundaries.filter((boundary: any) => boundary.isRoot);
 
     if (rootBoundaries.length !== 1) {
-        throw Object.assign(new Error(`Invalid Filter Criteria: Exactly one root boundary is required, but found "${rootBoundaries.length}`), { code: "ROOT_BOUNDARY_ERROR" })
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Invalid Filter Criteria: Exactly one root boundary is required, but found "${rootBoundaries.length}`);
     }
 
     const boundaryTypeOfRoot = rootBoundaries[0]?.boundaryType;
@@ -460,41 +462,36 @@ async function validateFilters(request: any, boundaryData: any[]) {
     const boundariesOfTypeOfSameAsRoot = boundaries.filter((boundary: any) => boundary.boundaryType === boundaryTypeOfRoot);
 
     if (boundariesOfTypeOfSameAsRoot.length > 1) {
-        throw Object.assign(new Error(`"Invalid Filter Criteria: Multiple boundaries of the same type as the root found. Only one is allowed.`), { code: "MORE_THAN_ONE_BOUNDARY_AT_ROOT_LEVEL_ERROR" })
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `"Invalid Filter Criteria: Multiple boundaries of the same type as the root found. Only one is allowed.`);
     }
 }
 
 function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string, string>, hierarchy: any) {
     for (const boundary of boundaries) {
         if (!boundary.code) {
-            throw Object.assign(new Error(`Boundary Code is null or empty or undefined in Filters of Request Body`), { code: "BOUNDRY_CODE_NULL" })
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary Code is null or empty or undefined in Filters of Request Body");
         }
         if (!boundary.boundaryType) {
-            throw Object.assign(new Error(`Boundary Type is null or empty or undefined in Filters of Request Body`), { code: "BOUNDRY_TYPE_NULL" })
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary Type is null or empty or undefined in Filters of Request Body");
         }
         if (typeof boundary.isRoot !== 'boolean') {
-            throw Object.assign(
-                new Error(`isRoot can only be true or false. It is invalid for '${boundary.code}'`),
-                { code: "IS_ROOT_INVALID" }
-            );
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `isRoot can only be true or false. It is invalid for '${boundary.code}'`);
         }
         if (typeof boundary.includeAllChildren !== 'boolean') {
-            throw Object.assign(
-                new Error(`includeAllChildren can only be true or false. It is invalid for '${boundary.code}'`),
-                { code: "INCLUDE_ALL_CHILDREN_INVALID" }
-            );
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `includeAllChildren can only be true or false. It is invalid for '${boundary.code}'`);
         }
         if (!boundaryMap.has(boundary?.code)) {
-            throw Object.assign(new Error(`Boundary data with code '${boundary.code}' specified in 'Filters' of the request body was not found for the given hierarchy.`), { code: "BOUNDARY_CODE_IN_FILTERS_INVALID" });
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Boundary data with code '${boundary.code}' specified in 'Filters' of the request body was not found for the given hierarchy.`);
         }
         if (!hierarchy.includes(boundary?.boundaryType)) {
-            throw Object.assign(new Error(`${boundary.boundaryType} boundary Type not found for given hierachy`), { code: "BOUNDARY_TYPE_INVALID" });
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `${boundary.boundaryType} boundary Type not found for given hierachy`);
         }
         if (boundaryMap.get(boundary.code) !== boundary.boundaryType) {
-            throw Object.assign(new Error(`Boundary type mismatch for code '${boundary.code}' specified in 'Filters' of the request body. Expected type: ${boundaryMap.get(boundary.code)}, but found a different type.`), { code: "BOUNDARY_CODE_AND_TYPE_IN_FILTERS_MISMATCH" });
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `Boundary type mismatch for code '${boundary.code}' specified in 'Filters' of the request body. Expected type: ${boundaryMap.get(boundary.code)}, but found a different type.`);
         }
     }
 }
+
 
 async function validateHierarchyType(request: any) {
     const requestBody = {
@@ -507,7 +504,7 @@ async function validateHierarchyType(request: any) {
     const url = config?.host?.boundaryHost + config?.paths?.boundaryHierarchy;
     const response = await httpRequest(url, requestBody, undefined, "post", undefined, undefined);
     if (!response?.BoundaryHierarchy) {
-        throwError("Boundary Hierarchy not present for given tenantId", 400, "VALIDATION_ERROR")
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary Hierarchy not present for given tenantId");
     }
 }
 
@@ -520,7 +517,7 @@ function validateBoundarySheetHeaders(headersOfBoundarySheet: any, hierarchy: an
     const keysBeforeBoundaryCode = boundaryCodeIndex === -1 ? headersOfBoundarySheet : headersOfBoundarySheet.slice(0, boundaryCodeIndex);
     if (keysBeforeBoundaryCode.some((key: string, index: number) => key !== hierarchy[index])) {
         const errorMessage = `"Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy type: ${request?.body?.ResourceDetails?.hierarchyType}"`;
-        throwError(errorMessage, 500, "BOUNDARY_SHEET_HEADER_ERROR");
+        throwError("CAMPAIGN", 500, "BOUNDARY_SHEET_HEADER_ERROR", errorMessage);
     }
 }
 

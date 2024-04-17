@@ -33,7 +33,7 @@ async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchP
     searchedFacilities.push(...response?.Facilities);
     return response.Facilities.length >= 50; // Return true if there are more facilities to fetch, false otherwise
   } else {
-    throwError("Search failed for Facility. Check Logs", 500, "FACILITY_SEARCH_FAILED");
+    throwError("CAMPAIGN", 500, "FACILITY_SEARCH_FAILED");
     return false;
   }
 }
@@ -364,7 +364,7 @@ async function createProjectCampaignResourcData(request: any) {
       } catch (error: any) {
         // Handle error for individual resource creation
         logger.error(`Error creating resource: ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
-        throwError(error?.response?.data?.Errors?.[0]?.message || String(error), 500, "RESOURCE_CREATION_ERROR");
+        throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", error?.response?.data?.Errors?.[0]?.message || String(error));
       }
     }
   }
@@ -380,7 +380,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
-    throwError("Project creation failed, for the request: " + JSON.stringify(projectCreateBody), 500, "PROJECT_CREATION_FAILED");
+    throwError("CAMPAIGN", 500, "PROJECT_CREATION_FAILED", "Project creation failed, for the request: " + JSON.stringify(projectCreateBody));
   }
 }
 
@@ -429,7 +429,7 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
 };
 
 const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false) => {
-  const workbook = await getWorkbook(fileUrl, sheetName)
+  const workbook: any = await getWorkbook(fileUrl, sheetName)
   const columnsToValidate = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
     header: 1,
   })[0];
