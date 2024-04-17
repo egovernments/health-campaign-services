@@ -3,7 +3,7 @@ import { UploadIcon, FileIcon, DeleteIconv2, Toast, Card, Header, Dropdown } fro
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
 
-const CampaignType = ({ onSelect, formData, ...props }) => {
+const CampaignSelection = ({ onSelect, formData, ...props }) => {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getStateId();
   const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS("mz", "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
@@ -43,11 +43,11 @@ const CampaignType = ({ onSelect, formData, ...props }) => {
       {showBeneficiary && (
         <LabelFieldPair>
           <div className="beneficiary-type">{`${t("HCM_BENEFICIARY_TYPE")}`}</div>
-          <div>{beneficiaryType}</div>
+          <div>{t(`CAMPAIGN_TYPE_${beneficiaryType}`)}</div>
         </LabelFieldPair>
       )}
     </React.Fragment>
   );
 };
 
-export default CampaignType;
+export default CampaignSelection;

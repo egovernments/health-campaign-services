@@ -8,11 +8,11 @@ export const CampaignConfig = (totalFormData) => {
           name: "HCM_CAMPAIGN_TYPE",
           body: [
             {
-              isMandatory: true,
+              isMandatory: false,
               key: "projectType",
               type: "component",
               skipAPICall: true,
-              component: "CampaignType",
+              component: "CampaignSelection",
               withoutLabel: true,
               disable: false,
               customProps: {
@@ -21,7 +21,6 @@ export const CampaignConfig = (totalFormData) => {
               },
               populators: {
                 name: "projectType",
-                required: true,
               },
             },
           ],

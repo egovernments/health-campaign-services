@@ -150,7 +150,7 @@ const SetupCampaign = () => {
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
-          payloadData.projectType = null;
+          payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {};
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -188,7 +188,7 @@ const SetupCampaign = () => {
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
-          payloadData.projectType = null;
+          payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {};
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -227,7 +227,7 @@ const SetupCampaign = () => {
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
-          payloadData.projectType = null;
+          payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {};
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -317,18 +317,31 @@ const SetupCampaign = () => {
         if (typeof formData?.campaignName !== "string" || !formData?.campaignName.trim()) {
           setShowToast({ key: "error", label: "CAMPAIGN_NAME_MISSING_TYPE_ERROR" });
           return false;
-        } else {
+      } else if (formData.campaignName.length > 50) {
+          setShowToast({ key: "error", label: "CAMPAIGN_NAME_TOO_LONG_ERROR" });
+          return false;
+      } else {
           return true;
-        }
+      }
+      case "projectType":
+        if (!formData?.projectType) {
+          setShowToast({ key: "error", label: "PROJECT_TYPE_UNDEFINED_ERROR" });
+          return false;
+      } else {
+          return true;
+      }
       case "campaignDates":
         const startDateObj = new Date(formData?.campaignDates?.startDate);
         const endDateObj = new Date(formData?.campaignDates?.endDate);
-        if (formData?.campaignDates?.startDate && formData?.campaignDates?.endDate && endDateObj > startDateObj) {
-          return true;
-        } else {
-          setShowToast({ key: "error", label: "CAMPAIGN_DATES_MISSING_ERROR" });
+        if (!formData?.campaignDates?.startDate || !formData?.campaignDates?.endDate) {
+          setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_DATE_MISSING")}` });
           return false;
-        }
+      } else if (endDateObj <= startDateObj) {
+          setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_BEFORE_START_DATE")}` });
+          return false;
+      } else {
+          return true;
+      }
       case "cycleConfigure":
         const cycleNumber = formData?.cycleConfigure?.cycleConfgureDate?.cycle;
         const deliveryNumber = formData?.cycleConfigure?.cycleConfgureDate?.deliveries;
