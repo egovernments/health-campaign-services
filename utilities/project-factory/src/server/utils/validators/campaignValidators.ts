@@ -345,28 +345,21 @@ async function validateById(request: any) {
     }
     logger.info("searchBody : " + JSON.stringify(searchBody));
     logger.info("Url : " + config.host.projectFactoryBff + "project-factory/v1/project-type/search");
-    try {
-        const searchResponse: any = await axios.post(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
-        if (Array.isArray(searchResponse?.data?.CampaignDetails)) {
-            if (searchResponse?.data?.CampaignDetails?.length > 0) {
-                logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.data?.CampaignDetails));
-                request.body.ExistingCampaignDetails = searchResponse?.data?.CampaignDetails[0];
-                if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName) {
-                    throwError("CAMPAIGN", 400, "CAMPAIGNNAME_MISMATCH", `CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`);
-                }
-            }
-            else {
-                throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
+    const searchResponse: any = await axios.post(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
+    if (Array.isArray(searchResponse?.data?.CampaignDetails)) {
+        if (searchResponse?.data?.CampaignDetails?.length > 0) {
+            logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.data?.CampaignDetails));
+            request.body.ExistingCampaignDetails = searchResponse?.data?.CampaignDetails[0];
+            if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName) {
+                throwError("CAMPAIGN", 400, "CAMPAIGNNAME_MISMATCH", `CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`);
             }
         }
         else {
-            throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
+            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
         }
-
-    } catch (error: any) {
-        // Handle error for individual resource creation
-        logger.error(`Error searching campaign ${error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error}`);
-        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR", String(error?.response?.data?.Errors?.[0]?.message ? error?.response?.data?.Errors?.[0]?.message : error));
+    }
+    else {
+        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
     }
 }
 

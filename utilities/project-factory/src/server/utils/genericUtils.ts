@@ -187,33 +187,27 @@ const trimError = (e: any) => {
 }
 
 async function generateXlsxFromJson(request: any, response: any, simplifiedData: any) {
-  try {
-    const ws = XLSX.utils.json_to_sheet(simplifiedData);
+  const ws = XLSX.utils.json_to_sheet(simplifiedData);
 
-    // Create a new workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet 1');
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-    const formData = new FormData();
-    formData.append('file', buffer, 'filename.xlsx');
-    formData.append('tenantId', request?.body?.RequestInfo?.userInfo?.tenantId);
-    formData.append('module', 'pgr');
+  // Create a new workbook
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet 1');
+  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+  const formData = new FormData();
+  formData.append('file', buffer, 'filename.xlsx');
+  formData.append('tenantId', request?.body?.RequestInfo?.userInfo?.tenantId);
+  formData.append('module', 'pgr');
 
-    logger.info("File uploading url : " + config.host.filestore + config.paths.filestore);
-    var fileCreationResult = await httpRequest(config.host.filestore + config.paths.filestore, formData, undefined, undefined, undefined,
-      {
-        'Content-Type': 'multipart/form-data',
-        'auth-token': request?.body?.RequestInfo?.authToken
-      }
-    );
-    const responseData = fileCreationResult?.files;
-    logger.info("Response data after File Creation : " + JSON.stringify(responseData));
-    return responseData;
-  } catch (e: any) {
-    const errorMessage = "Error occurred while fetching the file store ID: " + e.message;
-    logger.error(errorMessage)
-    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", errorMessage + "    Check Logs");
-  }
+  logger.info("File uploading url : " + config.host.filestore + config.paths.filestore);
+  var fileCreationResult = await httpRequest(config.host.filestore + config.paths.filestore, formData, undefined, undefined, undefined,
+    {
+      'Content-Type': 'multipart/form-data',
+      'auth-token': request?.body?.RequestInfo?.authToken
+    }
+  );
+  const responseData = fileCreationResult?.files;
+  logger.info("Response data after File Creation : " + JSON.stringify(responseData));
+  return responseData;
 }
 
 async function generateActivityMessage(tenantId: any, requestBody: any, requestPayload: any, responsePayload: any, type: any, url: any, status: any) {

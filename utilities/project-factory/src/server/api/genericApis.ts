@@ -60,14 +60,9 @@ const searchMDMS: any = async (uniqueIdentifiers: any[], schemaCode: string, req
         },
         "RequestInfo": requestinfo
     }
-    try {
-        const result = await httpRequest(apiUrl, data, undefined, undefined, undefined, undefined);
-        logger.info("Template search Result : " + JSON.stringify(result))
-        return result;
-    } catch (error: any) {
-        logger.error("Error: " + error)
-        return error?.response?.data?.Errors[0].message;
-    }
+    const result = await httpRequest(apiUrl, data, undefined, undefined, undefined, undefined);
+    logger.info("Template search Result : " + JSON.stringify(result))
+    return result;
 
 }
 
@@ -465,91 +460,81 @@ async function createRelatedResouce(requestBody: any) {
 }
 
 async function createBoundaryEntities(request: any, boundaryMap: Map<string, string>) {
-    try {
-        const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; Boundary?: any };
-        const boundaries: any[] = [];
-        const boundaryCodes: any[] = [];
-        Array.from(boundaryMap.entries()).forEach(([, boundaryCode]) => {
-            boundaryCodes.push(boundaryCode);
-        });
-        const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.body?.ResourceDetails?.tenantId, codes: boundaryCodes.join(', ') });
-        const codesFromResponse = boundaryEntityResponse.Boundary.map((boundary: any) => boundary.code);
-        const codeSet = new Set(codesFromResponse);  // Creating a set and filling it with the codes from the response
-        Array.from(boundaryMap.entries()).forEach(async ([boundaryName, boundaryCode]) => {
-            if (!codeSet.has(boundaryCode)) {
-                const boundary = {
-                    tenantId: request?.body?.ResourceDetails?.tenantId,
-                    code: boundaryCode,
-                    geometry: null,
-                    additionalDetails: {
-                        name: boundaryName
-                    }
-                };
-                boundaries.push(boundary);
-            }
-        });
-        if (!(boundaries.length === 0)) {
-            requestBody.Boundary = boundaries;
-            const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary/_create`, requestBody, {}, 'POST',);
-            console.log('Boundary entities created:', response);
+    const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; Boundary?: any };
+    const boundaries: any[] = [];
+    const boundaryCodes: any[] = [];
+    Array.from(boundaryMap.entries()).forEach(([, boundaryCode]) => {
+        boundaryCodes.push(boundaryCode);
+    });
+    const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.body?.ResourceDetails?.tenantId, codes: boundaryCodes.join(', ') });
+    const codesFromResponse = boundaryEntityResponse.Boundary.map((boundary: any) => boundary.code);
+    const codeSet = new Set(codesFromResponse);  // Creating a set and filling it with the codes from the response
+    Array.from(boundaryMap.entries()).forEach(async ([boundaryName, boundaryCode]) => {
+        if (!codeSet.has(boundaryCode)) {
+            const boundary = {
+                tenantId: request?.body?.ResourceDetails?.tenantId,
+                code: boundaryCode,
+                geometry: null,
+                additionalDetails: {
+                    name: boundaryName
+                }
+            };
+            boundaries.push(boundary);
         }
-        else {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
-        }
-    } catch (error: any) {
-        console.error('Error creating boundary entities:', error);
-        throwError("BOUNDARY", 500, "BOUNDARY_ENTITY_CREATE_ERROR", error?.response?.data?.Errors?.[0]?.message || String(error));
+    });
+    if (!(boundaries.length === 0)) {
+        requestBody.Boundary = boundaries;
+        const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary/_create`, requestBody, {}, 'POST',);
+        console.log('Boundary entities created:', response);
+    }
+    else {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
     }
 }
 
 async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key: string]: string } = {}, modifiedChildParentMap: any) {
-    try {
-        let activityMessage = [];
-        const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; BoundaryRelationship?: any };
-        const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-        const params = {
-            "type": request?.body?.ResourceDetails?.type,
-            "tenantId": request?.body?.ResourceDetails?.tenantId,
-            "boundaryType": null,
-            "codes": null,
-            "includeChildren": true,
-            "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
-        };
-        const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
-        const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-        const allCodes = extractCodesFromBoundaryRelationshipResponse(boundaryData);
-        let flag = 1;
-        for (const [boundaryCode, boundaryType] of Object.entries(boundaryTypeMap)) {
-            if (!allCodes.has(boundaryCode)) {
-                const boundary = {
-                    tenantId: request?.body?.ResourceDetails?.tenantId,
-                    boundaryType: boundaryType,
-                    code: boundaryCode,
-                    hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
-                    parent: modifiedChildParentMap.get(boundaryCode)
-                }
-                flag = 0;
-                requestBody.BoundaryRelationship = boundary;
-                const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary-relationships/_create`, requestBody, {}, 'POST', undefined, undefined, true);
-                console.log('Boundary relationship created:', response);
-                const newRequestBody = JSON.parse(JSON.stringify(request.body));
-                activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, url, response?.statusCode));
+    let activityMessage = [];
+    const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; BoundaryRelationship?: any };
+    const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
+    const params = {
+        "type": request?.body?.ResourceDetails?.type,
+        "tenantId": request?.body?.ResourceDetails?.tenantId,
+        "boundaryType": null,
+        "codes": null,
+        "includeChildren": true,
+        "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
+    };
+    const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
+    const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
+    const allCodes = extractCodesFromBoundaryRelationshipResponse(boundaryData);
+    let flag = 1;
+    for (const [boundaryCode, boundaryType] of Object.entries(boundaryTypeMap)) {
+        if (!allCodes.has(boundaryCode)) {
+            const boundary = {
+                tenantId: request?.body?.ResourceDetails?.tenantId,
+                boundaryType: boundaryType,
+                code: boundaryCode,
+                hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+                parent: modifiedChildParentMap.get(boundaryCode)
             }
-            else {
-                continue
-            }
+            flag = 0;
+            requestBody.BoundaryRelationship = boundary;
+            const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary-relationships/_create`, requestBody, {}, 'POST', undefined, undefined, true);
+            console.log('Boundary relationship created:', response);
+            const newRequestBody = JSON.parse(JSON.stringify(request.body));
+            activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, url, response?.statusCode));
         }
-        if (flag) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary already present in the system");
+        else {
+            continue
         }
-        request.body = {
-            ...request.body,
-            Activities: activityMessage
-        };
-    } catch (error: any) {
-        console.error('Error creating boundary relationship:', error);
-        throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR", error?.response?.data?.Errors?.[0]?.message || String(error));
     }
+    if (flag) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary already present in the system");
+    }
+    request.body = {
+        ...request.body,
+        Activities: activityMessage
+    };
 }
 
 export {
