@@ -8,6 +8,7 @@ import Ajv from "ajv";
 import axios from "axios";
 import { createBoundaryMap } from "../campaignUtils";
 import { throwError } from "../genericUtils";
+import { validateHierarchyType } from "./genericValidator";
 
 
 async function fetchBoundariesInChunks(request: any) {
@@ -187,7 +188,7 @@ async function validateCreateRequest(request: any) {
         if (!request?.body?.ResourceDetails?.hierarchyType) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is missing");
         }
-        await validateHierarchyType(request);
+        await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
 
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
@@ -480,20 +481,7 @@ function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string,
 }
 
 
-async function validateHierarchyType(request: any) {
-    const requestBody = {
-        "RequestInfo": { ...request?.body?.RequestInfo },
-        "BoundaryTypeHierarchySearchCriteria": {
-            "tenantId": request?.body?.ResourceDetails?.tenantId,
-            "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
-        }
-    }
-    const url = config?.host?.boundaryHost + config?.paths?.boundaryHierarchy;
-    const response = await httpRequest(url, requestBody, undefined, "post", undefined, undefined);
-    if (!response?.BoundaryHierarchy) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary Hierarchy not present for given tenantId");
-    }
-}
+
 
 async function validateBoundarySheetData(headersOfBoundarySheet: any, request: any) {
     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
@@ -509,6 +497,25 @@ function validateBoundarySheetHeaders(headersOfBoundarySheet: any, hierarchy: an
 }
 
 
+async function validateDownloadRequest(request: any) {
+    const { tenantId, type, hierarchyType } = request.query;
+    if (!tenantId) {
+        throwError("tenantId is required", 400, "VALIDATION_ERROR");
+    }
+    if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
+        throwError("tenantId in userInfo and query should be the same", 400, "VALIDATION_ERROR");
+    }
+    if (!type) {
+        throwError("type is required", 400, "VALIDATION_ERROR");
+    }
+    if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
+        throwError("Type should be facility, user, boundary, or facilityWithBoundary", 400, "VALIDATION_ERROR");
+    }
+    if (!hierarchyType) {
+        throwError("hierarchyType is required", 400, "VALIDATION_ERROR");
+    }
+    await validateHierarchyType(request, hierarchyType,tenantId);
+}
 
 
 
@@ -523,5 +530,6 @@ export {
     validateSearchRequest,
     validateFilters,
     validateHierarchyType,
-    validateBoundarySheetData
+    validateBoundarySheetData,
+    validateDownloadRequest
 }
