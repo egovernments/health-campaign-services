@@ -4,7 +4,7 @@
 import { getErrorCodes } from "./constants";
 
 const HOST = process.env.EGOV_HOST ||
-  "http://127.0.0.1:8080/" ||
+  // "http://127.0.0.1:8080/" ||
   "https://unified-dev.digit.org/";
 
 if (!HOST) {
@@ -16,7 +16,7 @@ const config = {
   auth_token: process.env.AUTH_TOKEN,
   waitTime: process.env.WAIT_FOR_GENERIC_CREATE || "30000",
   KAFKA_BROKER_HOST:
-    "localhost:9092" ||
+    // "localhost:9092" ||
     // "localhost:9093" ||
     process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
   KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC:
@@ -51,20 +51,20 @@ const config = {
       // || "http://localhost:8084/"
       || "https://unified-dev.digit.org/",
     filestore: process.env.EGOV_FILESTORE_SERVICE_HOST
-      || "http://localhost:8083/"
+      // || "http://localhost:8083/"
       || "https://unified-dev.digit.org/",
     projectFactoryBff: "http://localhost:8080/",
     idGenHost: process.env.EGOV_IDGEN_HOST
-      || "http://localhost:8085/"
+      // || "http://localhost:8085/"
       || "https://unified-dev.digit.org/",
     facilityHost: process.env.EGOV_FACILITY_HOST
-      || "http://localhost:8086/"
+      // || "http://localhost:8086/"
       || "https://unified-dev.digit.org/",
     boundaryHost: process.env.EGOV_BOUNDARY_HOST
-      || "http://localhost:8087/"
+      // || "http://localhost:8087/"
       || "https://unified-dev.digit.org/",
     projectHost: process.env.EGOV_PROJECT_HOST
-      || "http://localhost:8088/"
+      // || "http://localhost:8088/"
       || "https://unified-dev.digit.org/",
     userHost: process.env.EGOV_USER_HOST
       // || "http://localhost:8089/"

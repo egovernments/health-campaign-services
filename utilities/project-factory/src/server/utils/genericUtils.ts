@@ -44,7 +44,7 @@ const throwError = (module = "CAMPAIGN", status = 500, code = "UNKNOWN_ERROR", d
   const errorResult: any = getErrorCodes(module, code);
   let error: any = new Error(errorResult?.message);
   error = Object.assign(error, { status, code: errorResult?.code, description });
-  logger.error("Error : " + error);
+  logger.error(error);
   throw error;
 };
 
@@ -53,14 +53,15 @@ Error Object
 */
 const getErrorResponse = (
   code = "INTERNAL_SERVER_ERROR",
-  message = "Some Error Occured!!"
+  message = "Some Error Occured!!",
+  description: any = null
 ) => ({
   ResponseInfo: null,
   Errors: [
     {
       code: code,
       message: message,
-      description: null,
+      description: description,
       params: null,
     },
   ],
@@ -166,9 +167,12 @@ const errorResponder = (
   }
   const code = error?.code || (status === 500 ? "INTERNAL_SERVER_ERROR" : (status === 400 ? "BAD_REQUEST" : "UNKNOWN_ERROR"));
   response.header("Content-Type", "application/json");
-  const errorResponse = getErrorResponse(code, trimError(error.message || "Some Error Occurred!!"));
+  const errorMessage = trimError(error.message || "Some Error Occurred!!");
+  const errorDescription = error.description || null;
+  const errorResponse = getErrorResponse(code, errorMessage, errorDescription);
   response.status(status).send(errorResponse);
 };
+
 
 const trimError = (e: any) => {
   if (typeof e === "string") {
