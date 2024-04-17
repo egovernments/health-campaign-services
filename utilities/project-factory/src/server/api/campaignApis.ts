@@ -33,7 +33,7 @@ async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchP
     searchedFacilities.push(...response?.Facilities);
     return response.Facilities.length >= 50; // Return true if there are more facilities to fetch, false otherwise
   } else {
-    throwError("CAMPAIGN", 500, "FACILITY_SEARCH_FAILED");
+    throwError("FACILITY", 500, "FACILITY_SEARCH_FAILED");
     return false;
   }
 }
@@ -380,7 +380,7 @@ async function projectCreate(projectCreateBody: any, request: any) {
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {
-    throwError("CAMPAIGN", 500, "PROJECT_CREATION_FAILED", "Project creation failed, for the request: " + JSON.stringify(projectCreateBody));
+    throwError("PROJECT", 500, "PROJECT_CREATION_FAILED", "Project creation failed, for the request: " + JSON.stringify(projectCreateBody));
   }
 }
 

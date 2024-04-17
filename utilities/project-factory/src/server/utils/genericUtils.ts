@@ -40,8 +40,9 @@ const throwErrorViaRequest = (message = "Internal Server Error") => {
   throw error;
 };
 
-const throwError = (module = "CAMPAIGN", status = 500, code = "UNKNOWN_ERROR", description: any = null) => {
+const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", description: any = null) => {
   const errorResult: any = getErrorCodes(module, code);
+  status = errorResult?.code == "UNKNOWN_ERROR" ? 500 : status;
   let error: any = new Error(errorResult?.message);
   error = Object.assign(error, { status, code: errorResult?.code, description });
   logger.error(error);
@@ -211,7 +212,7 @@ async function generateXlsxFromJson(request: any, response: any, simplifiedData:
   } catch (e: any) {
     const errorMessage = "Error occurred while fetching the file store ID: " + e.message;
     logger.error(errorMessage)
-    throwError("CAMPAIGN", 500, "INTERNAL_SERVER_ERROR", errorMessage + "    Check Logs");
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", errorMessage + "    Check Logs");
   }
 }
 
@@ -257,7 +258,7 @@ function modifyAuditdetailsAndCases(responseData: any) {
     delete item.tenantid;
   })
 }
-
+/*   add documentation on every fun*/
 async function getResponseFromDb(request: any, response: any) {
   const pool = new Pool({
     user: config.DB_USER,
@@ -469,7 +470,7 @@ async function modifyData(request: any, response: any, responseDatas: any) {
       try {
         const processResult = await httpRequest(`${hostHcmBff}${config.app.contextPath}/bulk/_process`, batchRequestBody, undefined, undefined, undefined, undefined);
         if (processResult.Error) {
-          throwError("CAMPAIGN", 500, "INTERNAL_SERVER_ERROR", processResult.Error);
+          throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", processResult.Error);
         }
         allUpdatedData.push(...processResult.updatedDatas);
       } catch (error: any) {
@@ -593,7 +594,9 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
     request.body.generatedResource = responseData
   }
 }
+/* 
 
+*/
 async function processGenerate(request: any, response: any) {
   const responseData = await getResponseFromDb(request, response);
   const modifiedResponse = await getModifiedResponse(responseData);
@@ -601,7 +604,10 @@ async function processGenerate(request: any, response: any) {
   const oldEntryResponse = await getOldEntryResponse(modifiedResponse, request);
   await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, response);
 }
+/*
+TODO add comments @nitish-egov
 
+*/
 async function enrichResourceDetails(request: any) {
   request.body.ResourceDetails.id = uuidv4();
   if (request?.body?.ResourceDetails?.action == "create") {
@@ -683,7 +689,7 @@ function modifyBoundaryData(boundaryData: unknown[]) {
 async function getDataFromSheet(fileStoreId: any, tenantId: any, createAndSearchConfig: any) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
-    throwError("CAMPAIGN", 500, "DOWNLOAD_URL_NOT_FOUND");
+    throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true)
 }
@@ -699,7 +705,7 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
-    throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
+    throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
   const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
   const string = boundaryCodes.join(', ');

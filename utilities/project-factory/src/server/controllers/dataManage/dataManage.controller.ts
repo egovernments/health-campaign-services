@@ -36,27 +36,51 @@ class dataManageController {
     }
 
 
+    /**
+ * Generates data based on the request and sends the response.
+ * @param request The Express request object.
+ * @param response The Express response object.
+ */
     generateData = async (request: express.Request, response: express.Response) => {
         try {
+            // Validate the generate request
             await validateGenerateRequest(request);
+
+            // Process the data generation
             await processGenerate(request, response);
+
+            // Send response with generated resource details
             return sendResponse(response, { GeneratedResource: request?.body?.generatedResource }, request);
         } catch (e: any) {
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 
-
+    /**
+     * Downloads data based on the request and sends the response.
+     * @param request The Express request object.
+     * @param response The Express response object.
+     */
     downloadData = async (request: express.Request, response: express.Response) => {
         try {
             const type = request.query.type;
+
+            // Get response data from the database
             const responseData = await getResponseFromDb(request, response);
+
+            // Check if response data is available
             if (!responseData || responseData.length === 0) {
                 logger.error("No data of type  " + type + " with status Completed present in db")
+                // Throw error if data is not found
                 throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
             }
+
+            // Generate audit details
             const auditDetails = generateAuditDetails(request);
+
+            // Transform response data
             const transformedResponse = responseData.map((item: any) => {
                 return {
                     fileStoreId: item.fileStoreid,
@@ -65,54 +89,92 @@ class dataManageController {
                     auditDetails: auditDetails
                 };
             });
+
+            // Send response with transformed data
             return sendResponse(response, { fileStoreIds: transformedResponse }, request);
         } catch (e: any) {
             logger.error(String(e));
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
 
-
+    /**
+     * Retrieves boundary data based on the request.
+     * @param request The Express request object.
+     * @param response The Express response object.
+     */
     getBoundaryData = async (
         request: express.Request,
         response: express.Response
     ) => {
         try {
+            // Retrieve boundary sheet data
             const boundarySheetData: any = await getBoundarySheetData(request);
+
+            // Create and upload file
             const BoundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
+
+            // Return boundary file details
             return BoundaryFileDetails;
         }
         catch (e: any) {
             logger.error(String(e));
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 
-
-
+    /**
+     * Creates data based on the request and sends the response.
+     * @param request The Express request object.
+     * @param response The Express response object.
+     */
     createData = async (request: any, response: any) => {
         try {
+            // Validate the create request
             await validateCreateRequest(request);
+
+            // Process the generic request
             await processGenericRequest(request);
+
+            // Enrich resource details
             await enrichResourceDetails(request);
+
+            // Generate processed file and persist
             await generateProcessedFileAndPersist(request);
+
+            // Send response with resource details
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
 
+    /**
+     * Searches for data based on the request and sends the response.
+     * @param request The Express request object.
+     * @param response The Express response object.
+     */
     searchData = async (request: any, response: any) => {
         try {
+            // Validate the search request
             await validateSearchRequest(request);
+
+            // Process the data search request
             await processDataSearchRequest(request);
+
+            // Send response with resource details
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
+            // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
+
 
 };
 export default dataManageController;
