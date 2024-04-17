@@ -18,16 +18,17 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
         const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
         const workbook = XLSX.read(responseFile, { type: 'buffer' });
         if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-            throwError(`Sheet with name "${sheetName}" is not present in the file.`, 500, "INVALID_SHEETNAME");
+            throwError("CAMPAIGN", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
         }
         return workbook;
     } catch (error) {
-        throw Error("Error while fetching sheet data: " + error)
+        throwError("CAMPAIGN", 500, "FETCHING_SHEET_ERROR", "Error while fetching sheet data: " + error);
+        return {}
     }
 
 }
 const getSheetData = async (fileUrl: string, sheetName: string, getRow = false) => {
-    const workbook = await getWorkbook(fileUrl, sheetName)
+    const workbook: any = await getWorkbook(fileUrl, sheetName)
     const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
     const jsonData = sheetData.map((row: any, index: number) => {
         const rowData: any = {};
@@ -89,7 +90,7 @@ const getCampaignNumber: any = async (requestBody: any, idFormat: String, idName
     if (result?.idResponses?.[0]?.id) {
         return result?.idResponses?.[0]?.id;
     }
-    throwError("Error during generating campaign number", 500, "IDGEN_ERROR");
+    throwError("CAMPAIGN", 500, "IDGEN_ERROR");
 }
 
 const getResouceNumber: any = async (RequestInfo: any, idFormat: String, idName: string) => {
@@ -325,7 +326,7 @@ async function getBoundarySheetData(request: any) {
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
     if (!boundaryData) {
-        throwError("No boundary data found in the system.", 500, "BOUNDARY_DATA_NOT_FOUND");
+        throwError("CAMPAIGN", 500, "BOUNDARY_DATA_NOT_FOUND");
     }
     logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
     if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
@@ -493,11 +494,11 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
             console.log('Boundary entities created:', response);
         }
         else {
-            throw Object.assign(new Error('Boundary entity already present in the system'), { code: 'BOUNDARY_ENTRY_ALREADY_EXISTS' });
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
         }
     } catch (error: any) {
         console.error('Error creating boundary entities:', error);
-        throw Object.assign(new Error(`Error creating boundary entities: ${error.message}`), { code: 'BOUNDARY_ENTITY_CREATE_ERROR' });
+        throwError("CAMPAIGN", 500, "BOUNDARY_ENTITY_CREATE_ERROR", error?.response?.data?.Errors?.[0]?.message || String(error));
     }
 }
 
@@ -539,7 +540,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
             }
         }
         if (flag) {
-            throw Object.assign(new Error('Boundary already present in the system'), { code: 'BOUNDARY_ALREADY_EXISTS' });
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary already present in the system");
         }
         request.body = {
             ...request.body,
@@ -547,7 +548,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
         };
     } catch (error: any) {
         console.error('Error creating boundary relationship:', error);
-        throw Object.assign(new Error(`Error creating boundary relationship: ${error.message}`), { code: 'BOUNDARY_RELATIONSHIP_CREATE_ERROR' });
+        throwError("CAMPAIGN", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR", error?.response?.data?.Errors?.[0]?.message || String(error));
     }
 }
 

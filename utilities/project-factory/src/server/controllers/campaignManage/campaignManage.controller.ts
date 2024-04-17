@@ -44,7 +44,7 @@ class campaignManageController {
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 
@@ -58,7 +58,7 @@ class campaignManageController {
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 
@@ -72,7 +72,7 @@ class campaignManageController {
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails, totalCount: request?.body?.totalCount }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 
@@ -89,7 +89,7 @@ class campaignManageController {
         }
         catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 };

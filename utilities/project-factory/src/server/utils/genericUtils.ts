@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { httpRequest } from "./request";
-import config from "../config/index";
+import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from '../Kafka/Listener'
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
@@ -40,10 +40,11 @@ const throwErrorViaRequest = (message = "Internal Server Error") => {
   throw error;
 };
 
-const throwError = (message = "Unknown Error", status = 500, code = "UNKNOWN_ERROR") => {
-  let error: any = new Error(message);
-  error = Object.assign(error, { status, code });
-  logger.error("Error : " + error);
+const throwError = (module = "CAMPAIGN", status = 500, code = "UNKNOWN_ERROR", description: any = null) => {
+  const errorResult: any = getErrorCodes(module, code);
+  let error: any = new Error(errorResult?.message);
+  error = Object.assign(error, { status, code: errorResult?.code, description });
+  logger.error(error);
   throw error;
 };
 
@@ -52,14 +53,15 @@ Error Object
 */
 const getErrorResponse = (
   code = "INTERNAL_SERVER_ERROR",
-  message = "Some Error Occured!!"
+  message = "Some Error Occured!!",
+  description: any = null
 ) => ({
   ResponseInfo: null,
   Errors: [
     {
       code: code,
       message: message,
-      description: null,
+      description: description,
       params: null,
     },
   ],
@@ -165,9 +167,12 @@ const errorResponder = (
   }
   const code = error?.code || (status === 500 ? "INTERNAL_SERVER_ERROR" : (status === 400 ? "BAD_REQUEST" : "UNKNOWN_ERROR"));
   response.header("Content-Type", "application/json");
-  const errorResponse = getErrorResponse(code, trimError(error.message || "Some Error Occurred!!"));
+  const errorMessage = trimError(error.message || "Some Error Occurred!!");
+  const errorDescription = error.description || null;
+  const errorResponse = getErrorResponse(code, errorMessage, errorDescription);
   response.status(status).send(errorResponse);
 };
+
 
 const trimError = (e: any) => {
   if (typeof e === "string") {
@@ -206,7 +211,7 @@ async function generateXlsxFromJson(request: any, response: any, simplifiedData:
   } catch (e: any) {
     const errorMessage = "Error occurred while fetching the file store ID: " + e.message;
     logger.error(errorMessage)
-    throwError(errorMessage + "    Check Logs", 500, "INTERNAL_SERVER_ERROR");
+    throwError("CAMPAIGN", 500, "INTERNAL_SERVER_ERROR", errorMessage + "    Check Logs");
   }
 }
 
@@ -464,7 +469,7 @@ async function modifyData(request: any, response: any, responseDatas: any) {
       try {
         const processResult = await httpRequest(`${hostHcmBff}${config.app.contextPath}/bulk/_process`, batchRequestBody, undefined, undefined, undefined, undefined);
         if (processResult.Error) {
-          throwError(processResult.Error, 500, "INTERNAL_SERVER_ERROR");
+          throwError("CAMPAIGN", 500, "INTERNAL_SERVER_ERROR", processResult.Error);
         }
         allUpdatedData.push(...processResult.updatedDatas);
       } catch (error: any) {
@@ -678,7 +683,7 @@ function modifyBoundaryData(boundaryData: unknown[]) {
 async function getDataFromSheet(fileStoreId: any, tenantId: any, createAndSearchConfig: any) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
-    throwError("Not any download URL returned for the given fileStoreId", 500, "DOWNLOAD_URL_NOT_FOUND");
+    throwError("CAMPAIGN", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true)
 }
@@ -694,7 +699,7 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
-    throwError("Boundary list is empty or not an array.", 400, "VALIDATION_ERROR");
+    throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
   const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
   const string = boundaryCodes.join(', ');

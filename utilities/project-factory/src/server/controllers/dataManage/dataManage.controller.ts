@@ -43,7 +43,7 @@ class dataManageController {
             return sendResponse(response, { GeneratedResource: request?.body?.generatedResource }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 
@@ -54,7 +54,7 @@ class dataManageController {
             const responseData = await getResponseFromDb(request, response);
             if (!responseData || responseData.length === 0) {
                 logger.error("No data of type  " + type + " with status Completed present in db")
-                throwError("First Generate then Download", 500, "GENERATION_REQUIRE");
+                throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
             }
             const auditDetails = generateAuditDetails(request);
             const transformedResponse = responseData.map((item: any) => {
@@ -68,7 +68,7 @@ class dataManageController {
             return sendResponse(response, { fileStoreIds: transformedResponse }, request);
         } catch (e: any) {
             logger.error(String(e));
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
 
@@ -84,7 +84,7 @@ class dataManageController {
         }
         catch (e: any) {
             logger.error(String(e));
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status ? e?.status : 400);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
 
@@ -99,7 +99,7 @@ class dataManageController {
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
 
@@ -110,7 +110,7 @@ class dataManageController {
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
-            return errorResponder({ message: String(e), code: e?.code }, request, response, e?.status || 500);
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
 
