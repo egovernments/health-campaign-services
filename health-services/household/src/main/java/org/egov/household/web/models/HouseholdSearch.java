@@ -1,19 +1,19 @@
 package org.egov.household.web.models;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import org.egov.common.data.query.annotations.Exclude;
 import org.egov.common.data.query.annotations.Table;
 import org.springframework.validation.annotation.Validated;
-
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import java.util.List;
 
 /**
 * A representation of Household.
@@ -24,8 +24,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
+@SuperBuilder
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Table(name = "household h")
     @Deprecated
 public class HouseholdSearch {

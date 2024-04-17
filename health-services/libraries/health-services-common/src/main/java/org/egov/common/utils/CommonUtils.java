@@ -56,6 +56,8 @@ public class CommonUtils {
     }
 
 
+    //TODO To be removed as it is only used by Product service which is now depricated
+    @Deprecated
     public static boolean isForUpdate(Object obj) {
         Method getApiOperationMethod = getMethod(GET_API_OPERATION, obj.getClass());
         Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, obj);
@@ -66,6 +68,8 @@ public class CommonUtils {
         return "UPDATE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation));
     }
 
+    //TODO To be removed as it is only used by Product service which is now depricated
+    @Deprecated
     public static boolean isForDelete(Object obj) {
         Method getApiOperationMethod = getMethod(GET_API_OPERATION, obj.getClass());
         Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, obj);
@@ -76,6 +80,8 @@ public class CommonUtils {
         return "DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation));
     }
 
+    //TODO To be removed as it is only used by Product service which is now depricated
+    @Deprecated
     public static boolean isForCreate(Object obj) {
         Method getApiOperationMethod = getMethod(GET_API_OPERATION, obj.getClass());
         Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, obj);
@@ -102,6 +108,8 @@ public class CommonUtils {
         return newList;
     }
 
+    //TODO To be removed as it is only used by Product service which is now depricated
+    @Deprecated
     public static <T> void validateIds(Set<T> idsToValidate, UnaryOperator<List<T>> validator) {
         List<T> idsToValidateList = new ArrayList<>(idsToValidate);
         List<T> validIds = validator.apply(idsToValidateList);
@@ -112,6 +120,13 @@ public class CommonUtils {
         }
     }
 
+    /**
+     * Retrieves audit details for creating an entity.
+     * This method generates audit details including creation and last modified timestamps.
+     *
+     * @param requestInfo The request information containing user details.
+     * @return The audit details for create operation.
+     */
     public static AuditDetails getAuditDetailsForCreate(RequestInfo requestInfo) {
         log.info("Creating audit details for create api");
         Long time = System.currentTimeMillis();
@@ -119,7 +134,8 @@ public class CommonUtils {
                 .createdBy(requestInfo.getUserInfo().getUuid())
                 .createdTime(time)
                 .lastModifiedBy(requestInfo.getUserInfo().getUuid())
-                .lastModifiedTime(time).build();
+                .lastModifiedTime(time)
+                .build();
     }
 
     /**
@@ -142,10 +158,21 @@ public class CommonUtils {
         }
     }
 
+    /**
+     * Checks if the search is performed by ID only.
+     * @param obj The object to check.
+     * @return True if the search is by ID only, false otherwise.
+     */
     public static boolean isSearchByIdOnly(Object obj) {
         return isSearchByIdOnly(obj, "id");
     }
 
+    /**
+     * Checks if the search is performed by a specific field name.
+     * @param obj The object to check.
+     * @param fieldName The name of the field to check.
+     * @return True if the search is by the specified field only, false otherwise.
+     */
     public static boolean isSearchByIdOnly(Object obj, String fieldName) {
         Class<?> objClass = obj.getClass();
         String propertyName = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
@@ -170,11 +197,15 @@ public class CommonUtils {
         return actual.equals(expected);
     }
 
+    //TODO To be removed as it is only used by Product service which is now depricated
+    @Deprecated
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList) {
         Class<?> objClass = getObjClass(objList);
         checkRowVersion(idToObjMap, objList, getMethod("getId", objClass));
     }
 
+    //TODO To be removed as it is only used by Product service which is now depricated
+    @Deprecated
     public static <T> void checkRowVersion(Map<String, T> idToObjMap, List<T> objList, Method idMethod) {
         Class<?> objClass = getObjClass(objList);
         Method rowVersionMethod = getMethod("getRowVersion", objClass);
@@ -189,10 +220,21 @@ public class CommonUtils {
         }
     }
 
+    /**
+     * Retrieves entities from a list with mismatched row versions compared to a map of IDs to objects.
+     * @param idToObjMap A map of IDs to objects.
+     * @param objList The list of objects to check.
+     * @param idMethod The method to retrieve the ID of an object.
+     * @param <T> The type of objects in the list.
+     * @return A list of entities with mismatched row versions.
+     */
     public static <T> List<T> getEntitiesWithMismatchedRowVersion(Map<String, T> idToObjMap,
                                                                   List<T> objList, Method idMethod) {
+        // Get the class of objects in the list
         Class<?> objClass = getObjClass(objList);
+        // Get the method to retrieve the row version
         Method rowVersionMethod = getMethod("getRowVersion", objClass);
+        // Filter the object list to include only those with mismatched row versions
         return objList.stream()
                 .filter(obj -> !Objects.equals(ReflectionUtils.invokeMethod(rowVersionMethod, obj),
                         ReflectionUtils.invokeMethod(rowVersionMethod,
@@ -201,10 +243,20 @@ public class CommonUtils {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Retrieves the tenant ID from a list of objects.
+     * @param objList The list of objects from which to retrieve the tenant ID.
+     * @param <T> The type of objects in the list.
+     * @return The tenant ID.
+     */
     public static <T> String getTenantId(List<T> objList) {
+        // Retrieve any object from the list
         Object obj = objList.stream().findAny().get();
+        // Get the method to retrieve the tenant ID
         Method getTenantIdMethod = getMethod("getTenantId", obj.getClass());
+        // Invoke the method to retrieve the tenant ID
         String tenantId = (String) ReflectionUtils.invokeMethod(getTenantIdMethod, obj);
+        // Log the retrieved tenant ID
         log.info("tenantId is {}", tenantId);
         return tenantId;
     }
@@ -236,6 +288,7 @@ public class CommonUtils {
      * @param updateRowVersion denoting whether to update rowVersion or not
      * @param <T> is any type that has an id field, auditDetails field, rowVersion field and isDeleted field with setters and getters
      */
+    //TODO COMPARE the size and throw error when objList and idList are not equal
     public static <T> void enrichForCreate(List<T> objList, List<String> idList, RequestInfo requestInfo,
                                            boolean updateRowVersion) {
         AuditDetails auditDetails = getAuditDetailsForCreate(requestInfo);
@@ -256,148 +309,263 @@ public class CommonUtils {
                 });
     }
 
+    /**
+     * Retrieves the ID method from a list of objects, prioritizing "id" and "clientReferenceId" fields.
+     * @param objList The list of objects from which to retrieve the ID method.
+     * @param <T> The type of objects in the list.
+     * @return The ID method.
+     */
     public static <T> Method getIdMethod(List<T> objList) {
         return getIdMethod(objList, "id", "clientReferenceId");
     }
 
+    /**
+     * Retrieves the ID method from a list of objects based on a specified ID field name.
+     * @param objList The list of objects from which to retrieve the ID method.
+     * @param idFieldName The name of the ID field.
+     * @param <T> The type of objects in the list.
+     * @return The ID method.
+     */
     public static <T> Method getIdMethod(List<T> objList, String idFieldName) {
-        String idMethodName = "get" + idFieldName.substring(0, 1).toUpperCase()
-                + idFieldName.substring(1);
+        // Construct the method name based on the ID field name
+        String idMethodName = "get" + idFieldName.substring(0, 1).toUpperCase() + idFieldName.substring(1);
+        // Get the ID method using the constructed method name
         return getMethod(idMethodName, getObjClass(objList));
     }
 
+    /**
+     * Retrieves the ID method from a list of objects based on specified ID and client reference ID field names.
+     * @param objList The list of objects from which to retrieve the ID method.
+     * @param idField The name of the ID field.
+     * @param clientReferenceIdField The name of the client reference ID field.
+     * @param <T> The type of objects in the list.
+     * @return The ID method.
+     */
     public static <T> Method getIdMethod(List<T> objList, String idField, String clientReferenceIdField) {
-        String idMethodName = "get" + idField.substring(0, 1).toUpperCase()
-                + idField.substring(1);
-        String clientReferenceIdMethodName = "get" + clientReferenceIdField.substring(0, 1).toUpperCase()
-                + clientReferenceIdField.substring(1);
-        try{
+        // Construct the method names based on the specified field names
+        String idMethodName = "get" + idField.substring(0, 1).toUpperCase() + idField.substring(1);
+        String clientReferenceIdMethodName = "get" + clientReferenceIdField.substring(0, 1).toUpperCase() + clientReferenceIdField.substring(1);
+        try {
+            // Attempt to retrieve the ID method
             Method getId = getMethod(idMethodName, getObjClass(objList));
+            // Invoke the ID method on an object from the list to check if it returns a non-null value
             Object value = ReflectionUtils.invokeMethod(getId, objList.stream().findAny().get());
+            // If the value is not null, return the ID method
             if (value != null) {
                 return getId;
             }
-        } catch (CustomException e){
+        } catch (CustomException e) {
+            // Log and handle any custom exceptions
             log.error(e.getMessage());
         }
-
+        // If the ID method does not return a non-null value, return the client reference ID method
         return getMethod(clientReferenceIdMethodName, getObjClass(objList));
     }
 
+
+    /**
+     * Enriches the objects in a list with IDs from a corresponding list of IDs.
+     * @param objList The list of objects to enrich with IDs.
+     * @param idList The list of IDs to use for enrichment.
+     * @param <T> The type of objects in the list.
+     */
     public static <T> void enrichId(List<T> objList, List<String> idList) {
+        // Get the class of objects in the list
         Class<?> objClass = getObjClass(objList);
+        // Get the method to set the ID
         Method setIdMethod = getMethod("setId", objClass);
+        // Iterate over the indices of the object list
         IntStream.range(0, objList.size())
                 .forEach(i -> {
+                    // Get the object at the current index
                     final Object obj = objList.get(i);
+                    // Invoke the method to set the ID on the object using the corresponding ID from the ID list
                     ReflectionUtils.invokeMethod(setIdMethod, obj, idList.get(i));
                 });
     }
 
+    /**
+     * Enriches objects for update based on a map of IDs to objects and a request object.
+     * @param idToObjMap A map of IDs to objects.
+     * @param request The request object.
+     * @param <T> The type of objects in the map.
+     */
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, Object request) {
+        // Get the class of objects in the map
         Class<?> objClass = getObjClass(Arrays.asList(idToObjMap.values().toArray()));
+        // Get the class of the request object
         Class<?> requestObjClass = request.getClass();
+        // Get methods related to row version, audit details, and request information
         Method getRowVersionMethod = getMethod("getRowVersion", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
         Method getAuditDetailsMethod = getMethod("getAuditDetails", objClass);
-
         Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
+        // Iterate over the keys (IDs) in the map
         idToObjMap.keySet().forEach(i -> {
+            // Get the object corresponding to the current ID
             Object obj = idToObjMap.get(i);
+            // Retrieve row version and update it
             Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
             ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
-            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
-                    .invokeMethod(getRequestInfoMethod, request);
+            // Retrieve request information
+            RequestInfo requestInfo = (RequestInfo) ReflectionUtils.invokeMethod(getRequestInfoMethod, request);
+            // Retrieve existing audit details and update them
             AuditDetails existingAuditDetails = (AuditDetails) ReflectionUtils.invokeMethod(getAuditDetailsMethod, obj);
             AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(existingAuditDetails, requestInfo.getUserInfo().getUuid());
             ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
         });
     }
 
-    public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
-        Class<?> objClass = getObjClass(existingObjList);
-        enrichForUpdate(idToObjMap, existingObjList, request, getMethod("getId", objClass));
-    }
-
+    /**
+     * Enriches objects for update based on a map of IDs to objects, a list of existing objects, a request object, and an ID method.
+     * @param idToObjMap A map of IDs to objects.
+     * @param existingObjList The list of existing objects.
+     * @param request The request object.
+     * @param idMethod The method to retrieve the ID.
+     * @param <T> The type of objects in the list.
+     */
     public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request, Method idMethod) {
+        // Get the class of objects in the list
         Class<?> objClass = getObjClass(existingObjList);
+        // Get the class of the request object
         Class<?> requestObjClass = request.getClass();
+        // Get methods related to deletion, row version, audit details, and request information
         Method setIsDeletedMethod = getMethod("setIsDeleted", objClass);
         Method getRowVersionMethod = getMethod("getRowVersion", objClass);
         Method setRowVersionMethod = getMethod("setRowVersion", objClass);
         Method getAuditDetailsMethod = getMethod("getAuditDetails", objClass);
         Method setAuditDetailsMethod = getMethod("setAuditDetails", objClass);
         Method getRequestInfoMethod = getMethod("getRequestInfo", requestObjClass);
+        // Iterate over the indices of the existing object list
         IntStream.range(0, existingObjList.size()).forEach(i -> {
-            Object obj = idToObjMap.get(ReflectionUtils.invokeMethod(idMethod,
-                    existingObjList.get(i)));
+            // Get the object corresponding to the current index
+            Object obj = idToObjMap.get(ReflectionUtils.invokeMethod(idMethod, existingObjList.get(i)));
             try {
+                // Get the API operation method and API operation name
                 Method getApiOperationMethod = getMethod(GET_API_OPERATION, requestObjClass);
                 Object apiOperation = ReflectionUtils.invokeMethod(getApiOperationMethod, request);
                 Method nameMethod = CommonUtils.getMethod("name", Enum.class);
+                // If the API operation is DELETE, set the object's "isDeleted" flag to true
                 if ("DELETE".equals(ReflectionUtils.invokeMethod(nameMethod, apiOperation))) {
                     ReflectionUtils.invokeMethod(setIsDeletedMethod, obj, true);
                 }
             } catch (Exception exception) {
-                // Do nothing remove later
+                // Do nothing; remove later
             }
-
+            // Retrieve row version and update it
             Integer rowVersion = (Integer) ReflectionUtils.invokeMethod(getRowVersionMethod, obj);
             ReflectionUtils.invokeMethod(setRowVersionMethod, obj, rowVersion + 1);
-            RequestInfo requestInfo = (RequestInfo) ReflectionUtils
-                    .invokeMethod(getRequestInfoMethod, request);
-            AuditDetails existingAuditDetails = (AuditDetails) ReflectionUtils
-                    .invokeMethod(getAuditDetailsMethod, existingObjList.get(i));
-            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(existingAuditDetails,
-                    requestInfo.getUserInfo().getUuid());
+            // Retrieve request information
+            RequestInfo requestInfo = (RequestInfo) ReflectionUtils.invokeMethod(getRequestInfoMethod, request);
+            // Retrieve existing audit details and update them
+            AuditDetails existingAuditDetails = (AuditDetails) ReflectionUtils.invokeMethod(getAuditDetailsMethod, existingObjList.get(i));
+            AuditDetails auditDetailsForUpdate = getAuditDetailsForUpdate(existingAuditDetails, requestInfo.getUserInfo().getUuid());
             ReflectionUtils.invokeMethod(setAuditDetailsMethod, obj, auditDetailsForUpdate);
         });
     }
 
+
+    /**
+     * Creates a map of IDs to objects using the default ID method.
+     * @param objList The list of objects from which to create the map.
+     * @param <T> The type of objects in the list.
+     * @return A map of IDs to objects.
+     */
     public static <T> Map<String, T> getIdToObjMap(List<T> objList) {
+        // Get the class of objects in the list
         Class<?> objClass = getObjClass(objList);
-        return getIdToObjMap(objList, getMethod("getId", objClass));
+        // Get the default ID method
+        Method idMethod = getMethod("getId", objClass);
+        // Delegate to the overloaded method to create the map
+        return getIdToObjMap(objList, idMethod);
     }
 
+    /**
+     * Creates a map of IDs to objects using the specified ID method.
+     * @param objList The list of objects from which to create the map.
+     * @param idMethod The method to retrieve the ID from an object.
+     * @param <T> The type of objects in the list.
+     * @return A map of IDs to objects.
+     */
     public static <T> Map<String, T> getIdToObjMap(List<T> objList, Method idMethod) {
-        return objList.stream().collect(Collectors.toMap(obj -> (String) ReflectionUtils
-                .invokeMethod(idMethod, obj), obj -> obj, (obj1, obj2) -> obj2));
+        // Collect the objects into a map using the specified ID method
+        return objList.stream().collect(Collectors.toMap(
+                obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj),
+                obj -> obj,
+                (obj1, obj2) -> obj2
+        ));
     }
 
+
+    /**
+     * Validates entities by comparing the number of entities in the request map with those in the database list.
+     * @param idToObjInRequestMap A map of IDs to objects in the request.
+     * @param objInDbList The list of objects in the database.
+     * @param <T> The type of objects in the lists.
+     */
     public static <T> void validateEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList) {
+        // Check if the number of entities in the request map exceeds those in the database list
         if (idToObjInRequestMap.size() > objInDbList.size()) {
+            // Get the list of IDs for objects in the database
             List<String> idsForObjInDb = getIdList(objInDbList);
+            // Identify the IDs for invalid objects in the request map
             List<String> idsForInvalidObj = idToObjInRequestMap.keySet().stream()
                     .filter(id -> !idsForObjInDb.contains(id))
                     .collect(Collectors.toList());
+            // Log and throw an exception for the invalid entities
             log.error("Invalid entities {}", idsForInvalidObj);
             throw new CustomException("INVALID_ENTITY", idsForInvalidObj.toString());
         }
     }
 
-    public static <T> void validateEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList,
-                                            Method idMethod) {
+    /**
+     * Validates entities by comparing the number of entities in the request map with those in the database list,
+     * using a specified ID retrieval method.
+     * @param idToObjInRequestMap A map of IDs to objects in the request.
+     * @param objInDbList The list of objects in the database.
+     * @param idMethod The method to retrieve the ID from an object.
+     * @param <T> The type of objects in the lists.
+     */
+    public static <T> void validateEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList, Method idMethod) {
+        // Check if the number of entities in the request map exceeds those in the database list
         if (idToObjInRequestMap.size() > objInDbList.size()) {
+            // Get the list of IDs for objects in the database using the specified ID retrieval method
             List<String> idsForObjInDb = getIdList(objInDbList, idMethod);
+            // Identify the IDs for invalid objects in the request map
             List<String> idsForInvalidObj = idToObjInRequestMap.keySet().stream()
                     .filter(id -> !idsForObjInDb.contains(id))
                     .collect(Collectors.toList());
+            // Log and throw an exception for the invalid entities
             log.error("Invalid entities {}", idsForInvalidObj);
             throw new CustomException("INVALID_ENTITY", idsForInvalidObj.toString());
         }
     }
 
+
+    /**
+     * Checks for non-existent entities in the request map based on the ID method, comparing them with entities in the database list.
+     * @param idToObjInRequestMap A map of IDs to objects in the request.
+     * @param objInDbList The list of objects in the database.
+     * @param idMethod The method to retrieve the ID from an object.
+     * @param <T> The type of objects in the lists.
+     * @return A list of entities from the request map that do not exist in the database.
+     */
     public static <T> List<T> checkNonExistentEntities(Map<String, T> idToObjInRequestMap, List<T> objInDbList,
                                                        Method idMethod) {
+        // Check if the number of entities in the request map exceeds those in the database list
         if (idToObjInRequestMap.size() > objInDbList.size()) {
+            // Get the list of IDs for objects in the database using the specified ID retrieval method
             List<String> idsForObjInDb = getIdList(objInDbList, idMethod);
+            // Filter out entities from the request map that do not exist in the database list
             return idToObjInRequestMap.entrySet().stream()
-                    .filter(e -> !idsForObjInDb.contains(e.getKey())).map(Map.Entry::getValue)
-                    .collect(Collectors.toList());
+                    .filter(e -> !idsForObjInDb.contains(e.getKey())) // Filter non-existent entities
+                    .map(Map.Entry::getValue) // Map to the corresponding object
+                    .collect(Collectors.toList()); // Collect into a list
         }
-        return Collections.emptyList();
+        return Collections.emptyList(); // Return an empty list if no non-existent entities are found
     }
+
 
     public static <T> List<String> getIdList(List<T> objList) {
         if (objList == null || objList.isEmpty()) {
@@ -868,10 +1036,10 @@ public class CommonUtils {
     }
 
     /**
-     * Checks if the value matches the regex pattern
-     * @param value
-     * @param regexPattern
-     * @return
+     * Checks if the value matches the regex pattern.
+     * @param value The value to be checked.
+     * @param regexPattern The regex pattern to match against.
+     * @return true if the value matches the pattern, false otherwise.
      */
     public static boolean isValidPattern(String value, String regexPattern) {
 

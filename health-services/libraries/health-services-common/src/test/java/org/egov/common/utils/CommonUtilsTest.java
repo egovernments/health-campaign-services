@@ -152,30 +152,30 @@ class CommonUtilsTest {
         assertEquals(0, CommonUtils.getDifference(idList, otherIdList).size());
     }
 
-    @Test
-    @DisplayName("should validate the ids as per the given validator")
-    void shouldValidateTheIdsAsPerTheGivenValidator() {
-        Set<String> idSet = new HashSet<>();
-        idSet.add("some-id");
-        idSet.add("other-id");
-        UnaryOperator<List<String>> validator = UnaryOperator.identity();
-
-        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
-    }
-
-    @Test
-    @DisplayName("should throw exception in case an invalid id is found")
-    void shouldThrowExceptionInCaseAnInvalidIdIsFound() {
-        Set<String> idSet = new HashSet<>();
-        idSet.add("some-id");
-        idSet.add("other-id");
-        UnaryOperator<List<String>> validator = (idList) -> {
-            idList.remove(0);
-            return idList;
-        };
-
-        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
-    }
+//    @Test
+//    @DisplayName("should validate the ids as per the given validator")
+//    void shouldValidateTheIdsAsPerTheGivenValidator() {
+//        Set<String> idSet = new HashSet<>();
+//        idSet.add("some-id");
+//        idSet.add("other-id");
+//        UnaryOperator<List<String>> validator = UnaryOperator.identity();
+//
+//        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
+//    }
+//
+//    @Test
+//    @DisplayName("should throw exception in case an invalid id is found")
+//    void shouldThrowExceptionInCaseAnInvalidIdIsFound() {
+//        Set<String> idSet = new HashSet<>();
+//        idSet.add("some-id");
+//        idSet.add("other-id");
+//        UnaryOperator<List<String>> validator = (idList) -> {
+//            idList.remove(0);
+//            return idList;
+//        };
+//
+//        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
+//    }
 
     @Test
     @DisplayName("should get audit details for create")
