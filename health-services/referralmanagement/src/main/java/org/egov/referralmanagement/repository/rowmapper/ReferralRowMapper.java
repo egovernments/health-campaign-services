@@ -77,6 +77,7 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                     .recipientId(resultSet.getString("recipientId"))
                     .recipientType(resultSet.getString("recipientType"))
                     .sideEffect(sideEffect)
+                    .referralCode(resultSet.getString("referralCode"))
                     .tenantId(resultSet.getString("tenantid"))
                     .reasons(resultSet.getString("reasons") == null ? null : objectMapper.readValue(resultSet.getString("reasons"), ArrayList.class))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper

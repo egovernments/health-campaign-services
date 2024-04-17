@@ -56,6 +56,9 @@ public class Referral {
     @JsonProperty("sideEffect")
     private SideEffect sideEffect;
 
+    @JsonProperty("referralCode")
+    private String referralCode;
+
     @JsonProperty("tenantId")
     @NotNull
     @Size(min=2, max = 1000)
