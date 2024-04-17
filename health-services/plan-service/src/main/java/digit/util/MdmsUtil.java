@@ -70,10 +70,12 @@ public class MdmsUtil {
     private ModuleDetail getPlanModuleDetail() {
         List<MasterDetail> assumptionMasterDetails = new ArrayList<>();
 
-        MasterDetail assumptionMasterDetail = MasterDetail.builder().name(MDMS_MASTER_ASSUMPTION).filter(FILTER_CODE).build();
+        MasterDetail assumptionMasterDetail = MasterDetail.builder().name(MDMS_MASTER_ASSUMPTION).build();
         MasterDetail uploadConfigMasterDetail = MasterDetail.builder().name(MDMS_MASTER_UPLOAD_CONFIGURATION).filter(FILTER_ID).build();
+        MasterDetail ruleConfigureInputsMasterDetail = MasterDetail.builder().name(MDMS_MASTER_RULE_CONFIGURE_INPUTS).filter(FILTER_DATA).build();
         assumptionMasterDetails.add(assumptionMasterDetail);
         assumptionMasterDetails.add(uploadConfigMasterDetail);
+        assumptionMasterDetails.add(ruleConfigureInputsMasterDetail);
 
         return ModuleDetail.builder().masterDetails(assumptionMasterDetails).moduleName(MDMS_PLAN_MODULE_NAME).build();
     }

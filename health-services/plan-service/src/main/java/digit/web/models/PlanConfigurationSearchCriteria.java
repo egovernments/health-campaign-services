@@ -31,6 +31,9 @@ public class PlanConfigurationSearchCriteria {
     @JsonProperty("executionPlanId")
     private String executionPlanId = null;
 
+    @JsonProperty("status")
+    private String status = null;
+
     @JsonProperty("userUuid")
     private String userUuid = null;
 
