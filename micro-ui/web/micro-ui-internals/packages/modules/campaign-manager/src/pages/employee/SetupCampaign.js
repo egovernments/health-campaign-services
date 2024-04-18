@@ -131,7 +131,7 @@ const SetupCampaign = () => {
       const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
     }
     if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA) {
-      const temp = Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA , hierarchyType); // to be enchanced later
+      const temp = Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType); // to be enchanced later
     }
     if (shouldUpdate === true) {
       if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
@@ -317,31 +317,34 @@ const SetupCampaign = () => {
         if (typeof formData?.campaignName !== "string" || !formData?.campaignName.trim()) {
           setShowToast({ key: "error", label: "CAMPAIGN_NAME_MISSING_TYPE_ERROR" });
           return false;
-      } else if (formData.campaignName.length > 50) {
+        } else if (formData.campaignName.length > 250) {
           setShowToast({ key: "error", label: "CAMPAIGN_NAME_TOO_LONG_ERROR" });
           return false;
-      } else {
+        } else {
           return true;
-      }
+        }
       case "projectType":
         if (!formData?.projectType) {
           setShowToast({ key: "error", label: "PROJECT_TYPE_UNDEFINED_ERROR" });
           return false;
-      } else {
+        } else {
           return true;
-      }
+        }
       case "campaignDates":
         const startDateObj = new Date(formData?.campaignDates?.startDate);
         const endDateObj = new Date(formData?.campaignDates?.endDate);
         if (!formData?.campaignDates?.startDate || !formData?.campaignDates?.endDate) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_DATE_MISSING")}` });
           return false;
-      } else if (endDateObj <= startDateObj) {
+        } else if ((endDateObj == startDateObj)) {
+          setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_EQUAL_START_DATE")}` });
+          return false;
+        } else if (endDateObj < startDateObj) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_BEFORE_START_DATE")}` });
           return false;
-      } else {
+        } else {
           return true;
-      }
+        }
       case "cycleConfigure":
         const cycleNumber = formData?.cycleConfigure?.cycleConfgureDate?.cycle;
         const deliveryNumber = formData?.cycleConfigure?.cycleConfgureDate?.deliveries;

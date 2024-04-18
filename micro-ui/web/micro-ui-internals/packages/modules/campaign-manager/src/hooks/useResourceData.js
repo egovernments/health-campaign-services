@@ -3,7 +3,7 @@ export const useResourceData = async (data , hierarchyType) => {
         url: "/project-factory/v1/data/_create",
         body: {
             "ResourceDetails": {
-                "type": data?.uploadFacility?.[0]?.type,
+                "type": "facility",
                 "hierarchyType": hierarchyType,
                 "tenantId": Digit.ULBService.getCurrentTenantId(),
                 "fileStoreId": data?.uploadFacility?.[0]?.id,
