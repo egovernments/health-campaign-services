@@ -638,7 +638,7 @@ function matchData(request: any, datas: any, searchedDatas: any, createAndSearch
       var errorFound = false;
       for (const key of keys) {
         if (searchData.hasOwnProperty(key) && searchData[key] !== data[key] && key != "!row#number!") {
-          errorString += `Value mismatch for key "${key}" at index ${data["!row#number!"] - 1}. Expected: "${data[key]}", Found: "${searchData[key]}"`
+          errorString += `Value mismatch for key "${key}. Expected: "${data[key]}", Found: "${searchData[key]}"`
           errorFound = true;
         }
       }
@@ -685,7 +685,7 @@ async function getDataFromSheet(fileStoreId: any, tenantId: any, createAndSearch
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
-  return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true)
+  return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true, createAndSearchConfig)
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {

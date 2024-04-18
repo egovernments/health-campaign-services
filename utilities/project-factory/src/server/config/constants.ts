@@ -16,6 +16,8 @@ export const CONSTANTS: any = {
             FETCHING_SHEET_ERROR: "Error occured while fetching sheet data",
             INVALID_FILE_ERROR: "Invalid File",
             DOWNLOAD_URL_NOT_FOUND: "Not any download URL returned for the given fileStoreId",
+            INVALID_FILE_FORMAT: "The uploaded file is not a valid Excel file (xlsx or xls).",
+            INVALID_COLUMNS: "Columns are invalid"
         },
         FACILITY: {
             FACILITY_SEARCH_FAILED: "Search failed for Facility. Check Logs",

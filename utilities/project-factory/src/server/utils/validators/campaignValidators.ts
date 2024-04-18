@@ -47,7 +47,6 @@ function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries
 
 async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
     const responseBoundaries = await fetchBoundariesInChunks(request);
-    console.log(uniqueBoundaries, responseBoundaries, " uurrrrrrrrrrrrr")
     compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries);
 }
 

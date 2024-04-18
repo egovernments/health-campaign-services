@@ -173,14 +173,16 @@ function processData(dataFromSheet: any[], createAndSearchConfig: any) {
     for (const data of dataFromSheet) {
         const resultantElement: any = {};
         for (const element of parseLogic) {
-            let dataToSet = _.get(data, element.sheetColumnName);
-            if (element.conversionCondition) {
-                dataToSet = element.conversionCondition[dataToSet];
+            if (element?.resultantPath) {
+                let dataToSet = _.get(data, element.sheetColumnName);
+                if (element.conversionCondition) {
+                    dataToSet = element.conversionCondition[dataToSet];
+                }
+                if (element.type) {
+                    dataToSet = convertToType(dataToSet, element.type);
+                }
+                _.set(resultantElement, element.resultantPath, dataToSet);
             }
-            if (element.type) {
-                dataToSet = convertToType(dataToSet, element.type);
-            }
-            _.set(resultantElement, element.resultantPath, dataToSet);
         }
         resultantElement["!row#number!"] = data["!row#number!"];
         var addToCreate = true;
