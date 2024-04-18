@@ -41,6 +41,9 @@ const createAndSearch: any = {
                 "Facility Status",
                 "Capacity"
             ],
+            "unique": [
+                "Facility Name"
+            ]
         },
         uniqueIdentifier: "id",
         uniqueIdentifierColumn: "A",

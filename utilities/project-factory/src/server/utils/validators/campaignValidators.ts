@@ -77,6 +77,40 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
     await validateUniqueBoundaries(uniqueBoundaries, request);
 }
 
+async function validateUnique(schema: any, data: any[], request: any) {
+    if (schema?.unique) {
+        const uniqueElements = schema.unique;
+        const errors = [];
+
+        for (const element of uniqueElements) {
+            const uniqueMap = new Map();
+
+            // Iterate over each data object and check uniqueness
+            for (const item of data) {
+                const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
+                const value = item[element];
+                const rowNum = item['!row#number!'] + 1;
+
+                if (!uniqueIdentifierColumnName || !item[uniqueIdentifierColumnName]) {
+                    // Check if the value is already in the map
+                    if (uniqueMap.has(value)) {
+                        errors.push(`Duplicate value '${value}' found for '${element}' at row number ${rowNum}.`);
+                    }
+                    // Add the value to the map
+                    uniqueMap.set(value, rowNum);
+                }
+            }
+        }
+
+        if (errors.length > 0) {
+            // Throw an error or return the errors based on your requirement
+            throwError("FILE", 400, "INVALID_FILE_ERROR", errors.join(" ; "));
+        }
+    }
+}
+
+
+
 
 async function validateViaSchema(data: any, schema: any, request: any) {
     if (schema) {
@@ -89,6 +123,7 @@ async function validateViaSchema(data: any, schema: any, request: any) {
                     validationErrors.push({ index: item?.["!row#number!"] + 1, errors: validate.errors });
                 }
         });
+        await validateUnique(schema, data, request)
 
         // Throw errors if any
         if (validationErrors.length > 0) {
