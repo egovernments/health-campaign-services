@@ -28,6 +28,9 @@ public class PlanConfigurationResponse {
     @Valid
     private List<PlanConfiguration> planConfiguration = null;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    private Integer totalCount = null;
 
     public PlanConfigurationResponse addPlanConfigurationResponseItem(PlanConfiguration planConfigurationResponseItem) {
         if (this.planConfiguration == null) {

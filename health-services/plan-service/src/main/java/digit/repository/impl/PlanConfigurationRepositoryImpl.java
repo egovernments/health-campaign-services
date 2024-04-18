@@ -5,6 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.querybuilder.PlanConfigQueryBuilder;
 import digit.repository.rowmapper.PlanConfigRowMapper;
+import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationSearchCriteria;
@@ -48,7 +49,7 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
 
     /**
      * Searches for plan configurations based on the provided search criteria.
-     * @param planConfigurationSearchCriteria The criteria to use for searching plan configurations.
+     * @param planConfigurationSearchRequest The criteria to use for searching plan configurations.
      * @return A list of plan configurations that match the search criteria.
      */
     @Override
@@ -58,6 +59,25 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
         log.info("Plan Config query: " + query);
         log.info("preparedStmtList: " + preparedStmtList);
         return jdbcTemplate.query(query, preparedStmtList.toArray(), planConfigRowMapper);
+    }
+
+    /**
+     * Counts the number of plan configurations based on the provided search criteria.
+     *
+     * @param planConfigurationSearchCriteria The search criteria for filtering plan configurations.
+     * @return The total count of plan configurations matching the search criteria.
+     */
+    public Integer count(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planConfigQueryBuilder.getPlanConfigCountQuery(planConfigurationSearchCriteria, preparedStmtList);
+
+        log.info("Plan Config count query: " + query);
+        log.info("preparedStmtList: " + preparedStmtList);
+
+        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
+        log.info("Total plan config count is : " + count);
+
+        return count;
     }
 
     /**
