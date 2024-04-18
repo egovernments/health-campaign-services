@@ -107,20 +107,20 @@ function getParamsViaElements(elements: any, request: any) {
   return params
 }
 
-function changeBodyViaElements(elements: any, request: any) {
+function changeBodyViaElements(elements: any, requestBody: any) {
   if (!elements) {
     return;
   }
   for (const element of elements) {
     if (element?.isInBody) {
       if (element?.value) {
-        _.set(request.body, element?.keyPath, element?.value);
+        _.set(requestBody, element?.keyPath, element?.value);
       }
       else if (element?.getValueViaPath) {
-        _.set(request.body, element?.keyPath, _.get(request.body, element?.getValueViaPath))
+        _.set(requestBody, element?.keyPath, _.get(requestBody, element?.getValueViaPath))
       }
       else {
-        _.set(request.body, element?.keyPath, {})
+        _.set(requestBody, element?.keyPath, {})
       }
     }
   }
@@ -230,10 +230,14 @@ async function performSearch(createAndSearchConfig: any, request: any, params: a
   let searchAgain = true;
 
   while (searchAgain) {
+    const searcRequestBody = {
+      RequestInfo: request?.body?.RequestInfo
+    }
+    changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, searcRequestBody)
     logger.info("Search url : " + createAndSearchConfig?.searchDetails?.url);
     logger.info("Search params : " + JSON.stringify(params));
-    logger.info("Search body : " + JSON.stringify(request.body));
-    const response = await httpRequest(createAndSearchConfig?.searchDetails?.url, request.body, params);
+    logger.info("Search body : " + JSON.stringify(searcRequestBody));
+    const response = await httpRequest(createAndSearchConfig?.searchDetails?.url, searcRequestBody, params);
     const resultArray = _.get(response, createAndSearchConfig?.searchDetails?.searchPath);
     if (resultArray && Array.isArray(resultArray)) {
       arraysToMatch.push(...resultArray);
@@ -277,7 +281,6 @@ async function confirmCreation(createAndSearchConfig: any, request: any, facilit
   // wait for 5 seconds
   await new Promise(resolve => setTimeout(resolve, 5000));
   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
   matchViaUserIdAndCreationTime(facilityCreateData, arraysToMatch, request, creationTime, createAndSearchConfig, activity)
 }
@@ -309,7 +312,9 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       const end = (i + 1) * limit;
       const chunkData = dataToCreate.slice(start, end); // Get a chunk of data
       const creationTime = Date.now();
-      const newRequestBody = JSON.parse(JSON.stringify(request.body));
+      const newRequestBody = {
+        RequestInfo: request?.body?.RequestInfo,
+      }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
       const responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
