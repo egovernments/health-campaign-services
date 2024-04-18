@@ -275,7 +275,7 @@ async function processSearchAndValidation(request: any, createAndSearchConfig: a
 
 async function confirmCreation(createAndSearchConfig: any, request: any, facilityCreateData: any[], creationTime: any, activity: any) {
   // wait for 5 seconds
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  await new Promise(resolve => setTimeout(resolve, 5000));
   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
