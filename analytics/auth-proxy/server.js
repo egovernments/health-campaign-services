@@ -46,8 +46,8 @@ app.use((req, res, next) => {
 
     logger.info("Received request");
 
-    // Extract auth token from headers
-    const authToken = req.headers['x-auth-token'];
+    // Extract auth token from params
+    const authToken = req.params['x-auth-token'];
 
     // Check if authToken is empty or null
     if (!authToken || authToken.trim() === '') {
