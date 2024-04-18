@@ -8,6 +8,7 @@ const app = express()
 
 let serverPort = envVariables.SERVER_PORT;
 let kibanaHost = envVariables.KIBANA_HOST;
+let kibanaServerBasePath = envVariables.KIBANA_BASE_PATH;
 
 // Authenticate token
 function authenticateToken(token) {
@@ -63,7 +64,7 @@ app.use((req, res, next) => {
 });
 
 // Proxy request to Kibana if authentication is successful
-app.use('/', proxy(kibanaHost));
+app.use('/', proxy(kibanaHost + kibanaServerBasePath));
 
 // Listen on configured port
 app.listen(serverPort, () => {
