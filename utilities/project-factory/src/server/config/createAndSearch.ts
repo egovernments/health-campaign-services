@@ -29,9 +29,10 @@ const createAndSearch: any = {
                     "enum": ["Temporary", "Permanent"]
                 },
                 "Capacity": {
-                    "type": "number",
+                    "type": "integer",
                     "minimum": 0,
-                    "maximum": 9223372036854775807
+                    "maximum": 9223372036854775807,
+                    "multipleOf": 1
                 }
             },
             "required": [
@@ -39,7 +40,7 @@ const createAndSearch: any = {
                 "Facility Type",
                 "Facility Status",
                 "Capacity"
-            ]
+            ],
         },
         uniqueIdentifier: "id",
         uniqueIdentifierColumn: "A",

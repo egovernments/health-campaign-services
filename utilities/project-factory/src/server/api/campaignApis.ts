@@ -159,14 +159,14 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
       if (match) {
         foundMatch = true;
         newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
-        errors.push({ status: "PERSISTED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: searchedElement[createAndSearchConfig.uniqueIdentifier], errorDetails: "" })
+        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: searchedElement[createAndSearchConfig.uniqueIdentifier], errorDetails: "" })
         break;
       }
     }
     if (!foundMatch) {
-      errors.push({ status: "NOT_PERSISTED", rowNumber: createdElement["!row#number!"], errorDetails: `Can't confirm persistence of this data` })
+      errors.push({ status: "NOT_CREATED", rowNumber: createdElement["!row#number!"], errorDetails: `Can't confirm creation of this data` })
       activity.status = 2001 // means not persisted
-      logger.info("Can't confirm persistence of this data of row number : " + createdElement["!row#number!"]);
+      logger.info("Can't confirm creation of this data of row number : " + createdElement["!row#number!"]);
     }
   });
 }
@@ -233,7 +233,6 @@ async function performSearch(createAndSearchConfig: any, request: any, params: a
     logger.info("Search url : " + createAndSearchConfig?.searchDetails?.url);
     logger.info("Search params : " + JSON.stringify(params));
     logger.info("Search body : " + JSON.stringify(request.body));
-
     const response = await httpRequest(createAndSearchConfig?.searchDetails?.url, request.body, params);
     const resultArray = _.get(response, createAndSearchConfig?.searchDetails?.searchPath);
     if (resultArray && Array.isArray(resultArray)) {
@@ -264,11 +263,13 @@ function updateOffset(createAndSearchConfig: any, params: any, requestBody: any)
 }
 
 async function processSearchAndValidation(request: any, createAndSearchConfig: any, dataFromSheet: any[]) {
-  const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
-  changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
-  const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
+  if (request?.body?.dataToSearch?.length > 0) {
+    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
+    changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
+    changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
+    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
+    matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
+  }
 }
 
 

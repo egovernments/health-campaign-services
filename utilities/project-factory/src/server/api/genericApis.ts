@@ -33,7 +33,7 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false) 
     const jsonData = sheetData.map((row: any, index: number) => {
         const rowData: any = {};
         Object.keys(row).forEach(key => {
-            rowData[key] = row[key] === undefined || row[key] === '' ? null : row[key];
+            rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
         });
         if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
         return rowData;
