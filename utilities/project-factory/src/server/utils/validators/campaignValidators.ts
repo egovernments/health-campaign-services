@@ -87,7 +87,7 @@ async function validateViaSchema(data: any, schema: any, request: any) {
         data.forEach((item: any) => {
             if (!item?.[createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName])
                 if (!validate(item)) {
-                    validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
+                    validationErrors.push({ index: item?.["!row#number!"] + 1, errors: validate.errors });
                 }
         });
 

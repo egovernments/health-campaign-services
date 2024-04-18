@@ -35,7 +35,7 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false) 
         Object.keys(row).forEach(key => {
             rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
         });
-        if (getRow) rowData['!row#number!'] = index + 2; // Adding row number
+        if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
         return rowData;
     });
     logger.info("Sheet Data : " + JSON.stringify(jsonData))
