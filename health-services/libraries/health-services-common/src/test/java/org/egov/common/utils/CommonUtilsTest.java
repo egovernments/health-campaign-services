@@ -45,6 +45,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -303,7 +305,7 @@ class CommonUtilsTest {
         objList.add(otherObject);
         objList.add(otherInvalidObject);
 
-        Method idMethod = CommonUtils.getMethod("getId", SomeObject.class);
+        Method idMethod = getMethod("getId", SomeObject.class);
 
         assertEquals("some-other-id",
                 CommonUtils.getEntitiesWithMismatchedRowVersion(idToObjMap, objList, idMethod).get(0).getId());
@@ -436,7 +438,10 @@ class CommonUtilsTest {
                 .build())
                 .build();
 
-        CommonUtils.enrichForUpdate(idToObjInRequestMap, objInDbList, someRequest);
+        Class<?> objClass = getObjClass(objInDbList);
+        Method getIdMethod = getMethod("getId", objClass);
+
+        CommonUtils.enrichForUpdate(idToObjInRequestMap, objInDbList, someRequest, getIdMethod);
 
         assertEquals(idToObjInRequestMap.get("some-id").getRowVersion(),
                 objInDbList.get(0).getRowVersion() + 1);
@@ -595,8 +600,7 @@ class CommonUtilsTest {
     void shouldGetIdFieldNameFromMethod() {
         SomeObjectWithClientRefId someObject = SomeObjectWithClientRefId.builder()
                 .clientReferenceId("some-client-reference-id").build();
-        assertEquals("clientReferenceId", CommonUtils.getIdFieldName(CommonUtils
-                .getMethod("getClientReferenceId", someObject.getClass())));
+        assertEquals("clientReferenceId", CommonUtils.getIdFieldName(getMethod("getClientReferenceId", someObject.getClass())));
     }
 
     @Test
