@@ -50,21 +50,25 @@ const createAndSearch: any = {
             sheetName: "List of Available Facilities",
             parseLogic: [
                 {
+                    sheetColumn: "A",
                     sheetColumnName: "Facility Code",
                     resultantPath: "id",
                     type: "string"
                 },
                 {
+                    sheetColumn: "B",
                     sheetColumnName: "Facility Name",
                     resultantPath: "name",
                     type: "string"
                 },
                 {
+                    sheetColumn: "C",
                     sheetColumnName: "Facility Type",
                     resultantPath: "usage",
                     type: "string"
                 },
                 {
+                    sheetColumn: "D",
                     sheetColumnName: "Facility Status",
                     resultantPath: "isPermanent",
                     type: "boolean",
@@ -74,9 +78,14 @@ const createAndSearch: any = {
                     }
                 },
                 {
+                    sheetColumn: "E",
                     sheetColumnName: "Capacity",
                     resultantPath: "storageCapacity",
                     type: "number"
+                },
+                {
+                    sheetColumn: "F",
+                    sheetColumnName: "Boundary Code"
                 }
             ],
             tenantId: {

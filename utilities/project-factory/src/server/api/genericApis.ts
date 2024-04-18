@@ -10,25 +10,40 @@ import { validateFilters } from '../utils/validators/campaignValidators';
 const _ = require('lodash');
 
 const getWorkbook = async (fileUrl: string, sheetName: string) => {
-    try {
-        const headers = {
-            'Content-Type': 'application/json',
-            Accept: 'application/pdf',
-        };
-        const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
-        const workbook = XLSX.read(responseFile, { type: 'buffer' });
-        if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-            throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+    const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/pdf',
+    };
+    const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
+    const workbook = XLSX.read(responseFile, { type: 'buffer' });
+    if (!workbook.Sheets.hasOwnProperty(sheetName)) {
+        throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+    }
+    return workbook;
+}
+const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any) => {
+    const workbook: any = await getWorkbook(fileUrl, sheetName)
+    // Get the first row of column A
+    if (createAndSearchConfig && createAndSearchConfig.parseArrayConfig && createAndSearchConfig.parseArrayConfig.parseLogic) {
+        const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
+
+        // Iterate over each column configuration
+        for (const columnConfig of parseLogic) {
+            const { sheetColumn } = columnConfig;
+            const expectedColumnName = columnConfig.sheetColumnName;
+
+            // Get the value of the first row in the current column
+            if (sheetColumn && expectedColumnName) {
+                const firstRowValue = workbook.Sheets[sheetName][`${sheetColumn}1`]?.v;
+
+                // Validate the first row of the current column
+                if (firstRowValue !== expectedColumnName) {
+                    throwError("FILE", 400, "INVALID_COLUMNS", `Invalid format: Expected '${expectedColumnName}' in the first row of column ${sheetColumn}.`);
+                }
+            }
         }
-        return workbook;
-    } catch (error) {
-        throwError("FILE", 500, "FETCHING_SHEET_ERROR", "Error while fetching sheet data: " + error);
-        return {}
     }
 
-}
-const getSheetData = async (fileUrl: string, sheetName: string, getRow = false) => {
-    const workbook: any = await getWorkbook(fileUrl, sheetName)
     const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
     const jsonData = sheetData.map((row: any, index: number) => {
         const rowData: any = {};
