@@ -39,7 +39,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
     <div className="drag-drop-container">
       <UploadIcon />
       <p className="drag-drop-text">
-        {t("WBH_DRAG_DROP")} <text className="browse-text">{t("WBH_BULK_BROWSE_FILES")}</text>
+      <text className="drag-drop"> {t("WBH_DRAG_DROP")}</text> <text className="browse-text">{t("WBH_BULK_BROWSE_FILES")}</text>
       </p>
     </div>
   );
@@ -98,7 +98,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
 
   const handleChange = async (newFiles) => {
     try {
-      await validateExcel(newFiles[0]);
+      // await validateExcel(newFiles[0]);
       onSubmit([...newFiles]);
     } catch (error) {
       // Handle the validation error, you can display a message or take appropriate actions.

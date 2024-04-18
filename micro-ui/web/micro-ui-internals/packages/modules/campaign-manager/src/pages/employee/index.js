@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-react-components";
 // import CampaignHeader from "../../components/CampaignHeader";
 import SetupCampaign from "./SetupCampaign";
-import SelectingBoundaries from "./SelectingBoundaries";
+import SelectingBoundaries from "../../components/SelectingBoundaries";
 
 const CampaignBreadCrumb = ({ location, defaultPath }) => {
   const { t } = useTranslation();

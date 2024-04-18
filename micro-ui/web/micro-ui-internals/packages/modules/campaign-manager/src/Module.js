@@ -5,7 +5,6 @@ import EmployeeApp from "./pages/employee";
 import { CustomisedHooks } from "./hooks";
 import { UICustomizations } from "./configs/UICustomizations";
 import CampaignCard from "./components/CampaignCard";
-import UploadBoundaryData from "./pages/employee/UploadBoundaryData";
 import CycleConfiguration from "./pages/employee/CycleConfiguration";
 import DeliverySetup from "./pages/employee/deliveryRule";
 import TimelineCampaign from "./components/TimelineCampaign";
@@ -13,11 +12,13 @@ import CampaignDates from "./components/CampaignDates";
 import CampaignType from "./components/CampaignType";
 import CampaignName from "./components/CampaignName";
 import MyCampaign from "./pages/employee/MyCampaign";
-import UploadFacilityData from "./pages/employee/UploadFacilityData";
 import CampaignSummary from "./components/CampaignSummary";
 import CycleDetaisPreview from "./components/CycleDetaisPreview";
 import Response from "./pages/employee/Response";
-import SelectingBoundaries from "./pages/employee/SelectingBoundaries";
+import SelectingBoundaries from "./components/SelectingBoundaries";
+import UploadData from "./components/UploadData";
+import CampaignSelection from "./components/CampaignType";
+
 
 const CampaignModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["campaignmanager", "workbench", "mdms", "schema"];
@@ -45,7 +46,7 @@ const componentsToRegister = {
   // campaignModule: CampaignModule,
   // campaignCard: CampaignCard,
   CampaignCard: CampaignCard,
-  UploadBoundaryData,
+  UploadData,
   DeliveryRule: DeliverySetup,
   CycleConfiguration: CycleConfiguration,
   TimelineCampaign,
@@ -53,11 +54,11 @@ const componentsToRegister = {
   CampaignType,
   CampaignName,
   MyCampaign,
-  UploadFacilityData,
   CampaignSummary,
   CycleDetaisPreview,
   Response,
-  SelectingBoundaries: SelectingBoundaries
+  SelectingBoundaries,
+  CampaignSelection
 };
 
 const overrideHooks = () => {

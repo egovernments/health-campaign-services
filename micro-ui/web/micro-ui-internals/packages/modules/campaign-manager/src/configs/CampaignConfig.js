@@ -8,11 +8,11 @@ export const CampaignConfig = (totalFormData) => {
           name: "HCM_CAMPAIGN_TYPE",
           body: [
             {
-              isMandatory: true,
+              isMandatory: false,
               key: "projectType",
               type: "component",
               skipAPICall: true,
-              component: "CampaignType",
+              component: "CampaignSelection",
               withoutLabel: true,
               disable: false,
               customProps: {
@@ -21,7 +21,6 @@ export const CampaignConfig = (totalFormData) => {
               },
               populators: {
                 name: "projectType",
-                required: true,
               },
             },
           ],
@@ -156,16 +155,19 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "4",
           key: "7",
+          name: "HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA",
           body: [
             {
               isMandatory: false,
               key: "uploadBoundary",
               type: "component",
-              component: "UploadBoundaryData",
+              component: "UploadData",
               withoutLabel: true,
               disable: false,
               customProps: {
                 module: "HCM",
+                sessionData: totalFormData,
+                type: "boundary"
               },
               populators: {
                 name: "uploadBoundary",
@@ -179,21 +181,46 @@ export const CampaignConfig = (totalFormData) => {
         {
           stepCount: "5",
           key: "8",
+          name: "HCM_CAMPAIGN_UPLOAD_FACILITY_DATA",
           body: [
             {
               isMandatory: false,
               key: "uploadFacility",
               type: "component",
-              component: "UploadFacilityData",
+              component: "UploadData",
               withoutLabel: true,
               disable: false,
               customProps: {
                 module: "HCM",
+                sessionData: totalFormData,
+                type: "facilityWithBoundary"
               },
               populators: {
                 name: "uploadFacility",
-                // optionsKey: "code",
-                // error: "ES__REQUIRED",
+                required: true,
+              },
+            },
+          ],
+        },
+        {
+          stepCount: "6",
+          key: "9",
+          name: "HCM_CAMPAIGN_UPLOAD_USER_DATA",
+          body: [
+            {
+              isMandatory: false,
+              key: "uploadUser",
+              type: "component",
+              component: "UploadData",
+              withoutLabel: true,
+              disable: false,
+              customProps: {
+                module: "HCM",
+                sessionData: totalFormData,
+                type: "user"
+              },
+              populators: {
+                name: "uploadUser",
                 required: true,
               },
             },
@@ -201,7 +228,7 @@ export const CampaignConfig = (totalFormData) => {
         },
         {
           stepCount: "7",
-          key: "9",
+          key: "10",
           isLast: true,
           body: [
             {
