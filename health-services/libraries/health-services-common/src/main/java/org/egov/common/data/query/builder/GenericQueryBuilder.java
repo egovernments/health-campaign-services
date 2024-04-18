@@ -31,7 +31,7 @@ public interface GenericQueryBuilder {
     static String generateClause(String clauseName, String seperator, List<String> queryParameters){
         StringBuilder clauseBuilder = new StringBuilder();
         if (queryParameters.isEmpty()) {
-            return "";
+            return " ";
         }
         clauseBuilder.append(String.format(" %s ", clauseName));
         clauseBuilder.append(String.format(queryParameters.get(0)));
