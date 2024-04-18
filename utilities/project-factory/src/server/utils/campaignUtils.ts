@@ -229,9 +229,18 @@ async function generateProcessedFileAndPersist(request: any) {
         await updateStatusFile(request);
     }
     updateActivityResourceId(request);
+    request.body.ResourceDetails = {
+        ...request?.body?.ResourceDetails,
+        status: "completed",
+        auditDetails: {
+            ...request?.body?.ResourceDetails?.auditDetails,
+            lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+            lastModifiedTime: Date.now()
+        }
+    };
+    produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info("ResourceDetails to persist : " + JSON.stringify(request?.body?.ResourceDetails));
     logger.info("Activities to persist : " + JSON.stringify(request?.body?.Activities));
-    produceModifiedMessages(request?.body, config.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
     await new Promise(resolve => setTimeout(resolve, 2000));
     produceModifiedMessages(request?.body, config.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
 }

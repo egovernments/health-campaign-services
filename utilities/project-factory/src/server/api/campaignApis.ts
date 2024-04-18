@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
 import { validateSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber, getWorkbook } from "./genericApis";
-import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
+import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
@@ -275,11 +275,18 @@ async function processSearchAndValidation(request: any, createAndSearchConfig: a
 
 async function confirmCreation(createAndSearchConfig: any, request: any, facilityCreateData: any[], creationTime: any, activity: any) {
   // wait for 5 seconds
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  await new Promise(resolve => setTimeout(resolve, 3000));
   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
   matchViaUserIdAndCreationTime(facilityCreateData, arraysToMatch, request, creationTime, createAndSearchConfig, activity)
+}
+
+async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any) {
+  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
+  request.body.dataToSearch = typeData.searchData;
+  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+  await generateProcessedFileAndPersist(request);
 }
 
 async function processValidate(request: any) {
@@ -287,9 +294,7 @@ async function processValidate(request: any) {
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
   await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
-  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
-  request.body.dataToSearch = typeData.searchData;
-  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+  processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig)
 }
 
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any) {
@@ -312,6 +317,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       logger.info("Activity : " + JSON.stringify(activity));
     }
   }
+  await generateProcessedFileAndPersist(request);
 }
 
 async function processGenericRequest(request: any) {
@@ -323,26 +329,31 @@ async function processGenericRequest(request: any) {
   }
 }
 
+async function processAfterValidation(dataFromSheet: any, createAndSearchConfig: any, request: any) {
+  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
+  request.body.dataToCreate = typeData.createData;
+  request.body.dataToSearch = typeData.searchData;
+  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+  if (createAndSearchConfig?.createBulkDetails) {
+    _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
+    const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
+    changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
+    await performAndSaveResourceActivity(request, createAndSearchConfig, params, request.body.ResourceDetails.type);
+  }
+}
+
 
 async function processCreate(request: any) {
   const type: string = request.body.ResourceDetails.type;
   if (type == "boundary") {
     await autoGenerateBoundaryCodes(request);
+    await generateProcessedFileAndPersist(request);
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
     const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
     await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
-    const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
-    request.body.dataToCreate = typeData.createData;
-    request.body.dataToSearch = typeData.searchData;
-    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-    if (createAndSearchConfig?.createBulkDetails) {
-      _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
-      const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
-      changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
-      await performAndSaveResourceActivity(request, createAndSearchConfig, params, type);
-    }
+    processAfterValidation(dataFromSheet, createAndSearchConfig, request)
   }
 }
 

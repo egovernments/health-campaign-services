@@ -107,7 +107,6 @@ async function validateViaSchema(data: any, schema: any, request: any) {
             logger.info("All Data rows are valid.");
         }
     }
-
     else {
         logger.info("skipping schema validation")
     }

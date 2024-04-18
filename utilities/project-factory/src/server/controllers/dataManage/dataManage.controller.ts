@@ -1,11 +1,11 @@
 import * as express from "express";
 import { logger } from "../../utils/logger";
 import { validateGenerateRequest } from "../../utils/validators/genericValidator";
-import { enrichResourceDetails, errorResponder, processGenerate, sendResponse, getResponseFromDb, generateAuditDetails, throwError } from "../../utils/genericUtils";
+import { errorResponder, processGenerate, sendResponse, getResponseFromDb, generateAuditDetails, throwError, enrichResourceDetails } from "../../utils/genericUtils";
 import { processGenericRequest } from "../../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../../api/genericApis";
 import { validateCreateRequest, validateSearchRequest } from "../../utils/validators/campaignValidators";
-import { generateProcessedFileAndPersist, processDataSearchRequest } from "../../utils/campaignUtils";
+import { processDataSearchRequest } from "../../utils/campaignUtils";
 
 
 
@@ -135,14 +135,11 @@ class dataManageController {
             // Validate the create request
             await validateCreateRequest(request);
 
-            // Process the generic request
-            await processGenericRequest(request);
-
             // Enrich resource details
             await enrichResourceDetails(request);
 
-            // Generate processed file and persist
-            await generateProcessedFileAndPersist(request);
+            // Process the generic request
+            await processGenericRequest(request);
 
             // Send response with resource details
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
