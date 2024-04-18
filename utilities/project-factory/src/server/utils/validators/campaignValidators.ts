@@ -85,23 +85,28 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
 
 
 async function validateViaSchema(data: any, schema: any, request: any) {
-
     if (schema) {
         const ajv = new Ajv();
         const validate = ajv.compile(schema);
         const validationErrors: any[] = [];
-        data.forEach((item: any, index: any) => {
+        data.forEach((item: any) => {
             if (!item?.[createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName])
                 if (!validate(item)) {
-                    validationErrors.push({ index, errors: validate.errors });
+                    validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
                 }
         });
 
         // Throw errors if any
         if (validationErrors.length > 0) {
             const errorMessage = validationErrors.map(({ index, errors }) => {
-                const formattedErrors = errors.map((error: any) => `${error.dataPath}: ${error.message}`).join(', ');
-                return `Data at index ${index}: ${formattedErrors}`;
+                const formattedErrors = errors.map((error: any) => {
+                    let formattedError = `${error.dataPath}: ${error.message}`;
+                    if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                        formattedError += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+                    }
+                    return formattedError;
+                }).join(', ');
+                return `Data at row ${index}: ${formattedErrors}`;
             }).join(' , ');
             throwError("COMMON", 400, "VALIDATION_ERROR", errorMessage);
         } else {
