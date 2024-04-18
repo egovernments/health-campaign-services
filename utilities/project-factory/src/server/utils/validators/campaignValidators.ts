@@ -38,21 +38,16 @@ async function fetchBoundariesInChunks(request: any) {
 
 
 function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[]) {
-    if (responseBoundaries.length >= uniqueBoundaries.length) {
-        logger.info("Boundary codes exist");
-    } else {
-        const responseCodes = responseBoundaries.map(boundary => boundary.code);
-        const missingCodes = uniqueBoundaries.filter(code => !responseCodes.includes(code));
-        if (missingCodes.length > 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary codes ${missingCodes.join(', ')} do not exist`);
-        } else {
-            throwError("BOUNDARY", 500, "BOUNDARY_SEARCH_ERROR");
-        }
+    const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code);
+    const missingCodes = uniqueBoundaries.filter(code => !responseBoundaryCodes.includes(code));
+    if (missingCodes.length > 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary codes ${missingCodes.join(', ')} do not exist`);
     }
 }
 
 async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
     const responseBoundaries = await fetchBoundariesInChunks(request);
+    console.log(uniqueBoundaries, responseBoundaries, " uurrrrrrrrrrrrr")
     compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries);
 }
 
@@ -92,7 +87,7 @@ async function validateViaSchema(data: any, schema: any, request: any) {
         data.forEach((item: any) => {
             if (!item?.[createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName])
                 if (!validate(item)) {
-                    validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
+                    validationErrors.push({ index: item?.["!row#number!"] + 1, errors: validate.errors });
                 }
         });
 
