@@ -39,7 +39,7 @@ public class Assumption {
     @Valid
     @DecimalMin(value = "0.01", inclusive = true, message = "Assumption value must be greater than 0")
     @DecimalMax(value = "999.99", inclusive = true, message = "Assumption value must be less than 1000")
-    @Digits(integer = 3, fraction = 2, message = "Value must have up to 3 digits and up to 2 decimal points")
+    @Digits(integer = 3, fraction = 2, message = "Assumption value must have up to 3 digits and up to 2 decimal points")
     private BigDecimal value = null;
 
 }
