@@ -946,7 +946,7 @@ const autoGenerateBoundaryCodes = async (request: any) => {
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
         const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
         if (!fileResponse?.fileStoreIds?.[0]?.url) {
-            throwError("Invalid file", 400, "INVALID_FILE_ERROR");
+            throwError("FILE", 400, "INVALID_FILE_ERROR");
         }
         const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
         const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
@@ -975,7 +975,7 @@ const autoGenerateBoundaryCodes = async (request: any) => {
         request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
     }
     catch (error: any) {
-        throwError(error.message, 500, "BOUNDARY_CREATION_ERROR");
+        throwError("BOUNDARY", 500, "BOUNDARY_CREATION_ERROR", error.message);
     }
 }
 async function convertSheetToDifferentTabs(request: any, boundaryData: any, differentTabsBasedOnLevel: any) {
@@ -988,7 +988,7 @@ async function getBoundaryDataAfterGeneration(result: any, request: any) {
     const fileStoreId = result[0].fileStoreId;
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.query?.tenantId, fileStoreIds: fileStoreId }, "get");
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throwError("Invalid file", 400, "INVALID_FILE_ERROR");
+        throwError("FILE", 400, "INVALID_FILE_ERROR");
     }
     const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName);
     return boundaryData;
