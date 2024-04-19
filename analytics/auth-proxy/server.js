@@ -27,6 +27,8 @@ function authenticateToken(token) {
     //     return false; // Return false if authentication fails
     // }
 
+    logger.info("Making API call to - " + url);
+
     axios.post(url, null, { params: queryParams })
         .then(response => {
             result = response.status === 200;
