@@ -141,7 +141,7 @@ function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet
   }
 }
 
-function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any, activity: any) {
+function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any) {
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
     for (const searchedElement of newSearchedData) {
@@ -165,13 +165,12 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
     }
     if (!foundMatch) {
       errors.push({ status: "NOT_CREATED", rowNumber: createdElement["!row#number!"], errorDetails: `Can't confirm creation of this data` })
-      activity.status = 2001 // means not persisted
       logger.info("Can't confirm creation of this data of row number : " + createdElement["!row#number!"]);
     }
   });
 }
 
-function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any, activity: any) {
+function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any, activities: any) {
   const newCreatedData = JSON.parse(JSON.stringify(createdData));
   const newSearchedData = JSON.parse(JSON.stringify(searchedData));
   const uid = createAndSearchConfig.uniqueIdentifier;
@@ -179,11 +178,11 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
     delete element[uid];
   })
   var errors: any[] = []
-  updateErrors(newCreatedData, newSearchedData, errors, createAndSearchConfig, activity);
+  updateErrors(newCreatedData, newSearchedData, errors, createAndSearchConfig);
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
-  request.body.Activities = [...(request?.body?.Activities ? request?.body?.Activities : []), activity]
+  request.body.Activities = activities
 }
-function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], request: any, creationTime: any, createAndSearchConfig: any, activity: any) {
+function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], request: any, creationTime: any, createAndSearchConfig: any, activities: any) {
   var matchingSearchData = [];
   const userUuid = request?.body?.RequestInfo?.userInfo?.uuid
   var count = 0;
@@ -196,7 +195,7 @@ function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], 
   if (count < createdData.length) {
     request.body.ResourceDetails.status = "PERSISTER_ERROR"
   }
-  matchCreatedAndSearchedData(createdData, matchingSearchData, request, createAndSearchConfig, activity);
+  matchCreatedAndSearchedData(createdData, matchingSearchData, request, createAndSearchConfig, activities);
   logger.info("New created resources count : " + count);
 }
 
@@ -277,12 +276,11 @@ async function processSearchAndValidation(request: any, createAndSearchConfig: a
 }
 
 
-async function confirmCreation(createAndSearchConfig: any, request: any, facilityCreateData: any[], creationTime: any, activity: any) {
+async function confirmCreation(createAndSearchConfig: any, request: any, facilityCreateData: any[], creationTime: any, activities: any) {
   // wait for 5 seconds
-  await new Promise(resolve => setTimeout(resolve, 5000));
   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  matchViaUserIdAndCreationTime(facilityCreateData, arraysToMatch, request, creationTime, createAndSearchConfig, activity)
+  matchViaUserIdAndCreationTime(facilityCreateData, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
 }
 
 async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any) {
@@ -307,20 +305,23 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
     const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
+    const creationTime = Date.now();
+    var activities = [];
     for (let i = 0; i < chunks; i++) {
       const start = i * limit;
       const end = (i + 1) * limit;
       const chunkData = dataToCreate.slice(start, end); // Get a chunk of data
-      const creationTime = Date.now();
       const newRequestBody = {
         RequestInfo: request?.body?.RequestInfo,
       }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
       const responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
-      await confirmCreation(createAndSearchConfig, request, chunkData, creationTime, activity);
       logger.info("Activity : " + JSON.stringify(activity));
+      activities.push(activity);
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
+    await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
   }
   await generateProcessedFileAndPersist(request);
 }
