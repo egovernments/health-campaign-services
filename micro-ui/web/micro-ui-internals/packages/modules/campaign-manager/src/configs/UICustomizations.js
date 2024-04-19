@@ -21,6 +21,7 @@ export const UICustomizations = {
       data.body.CampaignDetails = {
         tenantId: tenantId,
         status: "started",
+        startDate: Date.now(),
         pagination: {
           sortBy: "campaignNumber",
           sortOrder: "asc",
@@ -32,7 +33,7 @@ export const UICustomizations = {
         data.body.CampaignDetails.campaignName = campaignName;
       }
       if (campaignType) {
-        data.body.CampaignDetails.projectType = campaignType;
+        data.body.CampaignDetails.projectType = campaignType?.[0]?.id;
       }
       delete data.body.custom;
       delete data.body.inbox;
@@ -43,22 +44,28 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-workflow-v2/egov-wf/businessservice/_search",
-        params: { tenantId, businessServices: businessServiceMap?.tqm },
-        body: {},
+        url: "/egov-mdms-service/v1/_search",
+        params: { tenantId },
+        body: {
+          MdmsCriteria: {
+            tenantId: tenantId,
+            moduleDetails: [
+              {
+                moduleName: "HCM-PROJECT-TYPES",
+                masterDetails: [
+                  {
+                    name: "projectTypes",
+                  },
+                ],
+              },
+            ],
+          },
+        },
         changeQueryName: "setWorkflowStatus",
         config: {
           enabled: true,
           select: (data) => {
-            const wfStates = data?.BusinessServices?.[0]?.states
-              ?.filter((state) => state.applicationStatus)
-              ?.map((state) => {
-                return {
-                  i18nKey: `WF_STATUS_${businessServiceMap?.tqm}_${state?.applicationStatus}`,
-                  ...state,
-                };
-              });
-            return wfStates;
+            return data?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes;
           },
         },
       };
@@ -71,7 +78,7 @@ export const UICustomizations = {
         case "CAMPAIGN_NAME":
           return (
             <span className="link">
-              <Link to={`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}`}>
+              <Link to={`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}`}>
                 {String(value ? (column.translate ? t(column.prefix ? `${column.prefix}${value}` : value) : value) : t("ES_COMMON_NA"))}
               </Link>
             </span>
@@ -100,9 +107,11 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
       data.body = { RequestInfo: data.body.RequestInfo };
       const { limit, offset } = data?.state?.tableForm || {};
+      const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
         status: "started",
+        endDate: Date.now() - 24 * 60 * 60 * 1000,
         pagination: {
           sortBy: "campaignNumber",
           sortOrder: "asc",
@@ -110,6 +119,12 @@ export const UICustomizations = {
           offset: offset,
         },
       };
+      if (campaignName) {
+        data.body.CampaignDetails.campaignName = campaignName;
+      }
+      if (campaignType) {
+        data.body.CampaignDetails.projectType = campaignType?.[0]?.id;
+      }
       delete data.body.custom;
       delete data.body.inbox;
       delete data.params;
@@ -119,22 +134,28 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-workflow-v2/egov-wf/businessservice/_search",
-        params: { tenantId, businessServices: businessServiceMap?.tqm },
-        body: {},
+        url: "/egov-mdms-service/v1/_search",
+        params: { tenantId },
+        body: {
+          MdmsCriteria: {
+            tenantId: tenantId,
+            moduleDetails: [
+              {
+                moduleName: "HCM-PROJECT-TYPES",
+                masterDetails: [
+                  {
+                    name: "projectTypes",
+                  },
+                ],
+              },
+            ],
+          },
+        },
         changeQueryName: "setWorkflowStatus",
         config: {
           enabled: true,
           select: (data) => {
-            const wfStates = data?.BusinessServices?.[0]?.states
-              ?.filter((state) => state.applicationStatus)
-              ?.map((state) => {
-                return {
-                  i18nKey: `WF_STATUS_${businessServiceMap?.tqm}_${state?.applicationStatus}`,
-                  ...state,
-                };
-              });
-            return wfStates;
+            return data?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes;
           },
         },
       };
@@ -147,7 +168,7 @@ export const UICustomizations = {
         case "CAMPAIGN_NAME":
           return (
             <span className="link">
-              <Link to={`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}`}>
+              <Link to={`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}`}>
                 {String(value ? (column.translate ? t(column.prefix ? `${column.prefix}${value}` : value) : value) : t("ES_COMMON_NA"))}
               </Link>
             </span>
@@ -176,9 +197,10 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
       data.body = { RequestInfo: data.body.RequestInfo };
       const { limit, offset } = data?.state?.tableForm || {};
+      const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: "started",
+        status: "drafted",
         pagination: {
           sortBy: "campaignNumber",
           sortOrder: "asc",
@@ -186,6 +208,13 @@ export const UICustomizations = {
           offset: offset,
         },
       };
+      if (campaignName) {
+        data.body.CampaignDetails.campaignName = campaignName;
+      }
+      if (campaignType) {
+        data.body.CampaignDetails.projectType = campaignType?.[0]?.id;
+      }
+      delete data.body.custom;
       delete data.body.custom;
       delete data.body.inbox;
       delete data.params;
@@ -195,22 +224,28 @@ export const UICustomizations = {
       const tenantId = Digit.ULBService.getCurrentTenantId();
 
       return {
-        url: "/egov-workflow-v2/egov-wf/businessservice/_search",
-        params: { tenantId, businessServices: businessServiceMap?.tqm },
-        body: {},
+        url: "/egov-mdms-service/v1/_search",
+        params: { tenantId },
+        body: {
+          MdmsCriteria: {
+            tenantId: tenantId,
+            moduleDetails: [
+              {
+                moduleName: "HCM-PROJECT-TYPES",
+                masterDetails: [
+                  {
+                    name: "projectTypes",
+                  },
+                ],
+              },
+            ],
+          },
+        },
         changeQueryName: "setWorkflowStatus",
         config: {
           enabled: true,
           select: (data) => {
-            const wfStates = data?.BusinessServices?.[0]?.states
-              ?.filter((state) => state.applicationStatus)
-              ?.map((state) => {
-                return {
-                  i18nKey: `WF_STATUS_${businessServiceMap?.tqm}_${state?.applicationStatus}`,
-                  ...state,
-                };
-              });
-            return wfStates;
+            return data?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes;
           },
         },
       };
@@ -223,7 +258,7 @@ export const UICustomizations = {
         case "CAMPAIGN_NAME":
           return (
             <span className="link">
-              <Link to={`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}`}>
+              <Link to={`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&draft=${true}`}>
                 {String(value ? (column.translate ? t(column.prefix ? `${column.prefix}${value}` : value) : value) : t("ES_COMMON_NA"))}
               </Link>
             </span>
