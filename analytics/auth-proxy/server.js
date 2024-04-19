@@ -65,10 +65,12 @@ app.use((req, res, next) => {
             next(); // Proceed to the proxy if authenticated
         } else {
             res.status(403).send('Access denied'); // Send a 403 error if not authenticated
+            return;
         }
+    } else {
+        next();
     }
 
-    next();
 });
 
 // Proxy request to Kibana if authentication is successful
