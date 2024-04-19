@@ -988,7 +988,7 @@ async function getBoundaryDataAfterGeneration(result: any, request: any) {
     const fileStoreId = result[0].fileStoreId;
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.query?.tenantId, fileStoreIds: fileStoreId }, "get");
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throwError("FILE", 400, "INVALID_FILE_ERROR");
+        throwError("FILE", 400, "INVALID_FILE");
     }
     const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName);
     return boundaryData;
