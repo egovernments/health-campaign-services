@@ -279,7 +279,6 @@ async function getResponseFromDb(request: any, response: any) {
     else {
       queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2 AND hierarchyType = $3 AND tenantId = $4";
       const status = 'Completed';
-      const hierarchyType = request?.query?.hierarchyType;
       const queryResult = await pool.query(queryString, [type, status, hierarchyType, tenantId]);
       const responseData = queryResult.rows;
       modifyAuditdetailsAndCases(responseData);
