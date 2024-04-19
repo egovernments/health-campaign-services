@@ -179,11 +179,11 @@ function validateProjectFacilityResponse(projectFacilityResponse: any) {
         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Facility creation failed.");
     }
 }
-async function validateHierarchyType(request: any, hierarchyType: any) {
+async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
     const searchBody = {
         RequestInfo: request?.body?.RequestInfo,
         BoundaryTypeHierarchySearchCriteria: {
-            "tenantId": request?.query?.tenantId,
+            "tenantId": tenantId,
             "limit": 5,
             "offset": 0,
             "hierarchyType": hierarchyType
@@ -225,7 +225,7 @@ async function validateGenerateRequest(request: express.Request) {
     if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary");
     }
-    await validateHierarchyType(request, hierarchyType);
+    await validateHierarchyType(request, hierarchyType,tenantId);
 }
 
 export {
@@ -235,5 +235,6 @@ export {
     validateStaffResponse,
     validateProjectFacilityResponse,
     validateProjectResourceResponse,
-    validateGenerateRequest
+    validateGenerateRequest,
+    validateHierarchyType
 };

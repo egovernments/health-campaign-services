@@ -770,48 +770,67 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
         await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
     }
 }
-async function appendSheetsToWorkbook(boundaryData: any[]) {
+async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnLevel: any) {
     try {
-        const uniqueDistricts: string[] = [];
         const uniqueDistrictsForMainSheet: string[] = [];
         const workbook = XLSX.utils.book_new();
         const mainSheetData: any[] = [];
         const headersForMainSheet = Object.keys(boundaryData[0]);
         mainSheetData.push(headersForMainSheet);
+        const districtLevelRowBoundaryCodeMap = new Map();
+
 
         for (const data of boundaryData) {
             const rowData = Object.values(data);
-            const districtIndex = data.District !== null ? rowData.indexOf(data.District) : -1;
-            const districtLevelRow = districtIndex !== -1 ? rowData.slice(0, districtIndex + 1) : rowData;
-            if (!uniqueDistrictsForMainSheet.includes(districtLevelRow.join('_'))) {
-                uniqueDistrictsForMainSheet.push(districtLevelRow.join('_'));
+            const districtIndex = data[differentTabsBasedOnLevel] !== null ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
+            if (districtIndex == -1) {
                 mainSheetData.push(rowData);
+            }
+            else {
+                const districtLevelRow = rowData.slice(0, districtIndex + 1);
+                if (!uniqueDistrictsForMainSheet.includes(districtLevelRow.join('_'))) {
+                    uniqueDistrictsForMainSheet.push(districtLevelRow.join('_'));
+                    districtLevelRowBoundaryCodeMap.set(districtLevelRow.join('_'), data['Boundary Code']);
+                    mainSheetData.push(rowData);
+                }
             }
         }
         const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData);
         XLSX.utils.book_append_sheet(workbook, mainSheet, 'ReadMe');
 
-        for (const item of boundaryData) {
-            if (item.District && !uniqueDistricts.includes(item.District)) {
-                uniqueDistricts.push(item.District);
-            }
-        }
-        for (const district of uniqueDistricts) {
-            const districtDataFiltered = boundaryData.filter(item => item.District === district);
-            const districtIndex = Object.keys(districtDataFiltered[0]).indexOf('District');
-            const headers = Object.keys(districtDataFiltered[0]).slice(districtIndex);
+        for (const uniqueData of uniqueDistrictsForMainSheet) {
+            const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
+            const districtDataFiltered = boundaryData.filter(boundary => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs);
+            const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData));
+            const districtIndex = Object.keys(modifiedFilteredData[0]).indexOf(differentTabsBasedOnLevel);
+            const headers = Object.keys(modifiedFilteredData[0]).slice(districtIndex);
             const newSheetData = [headers];
-            for (const data of districtDataFiltered) {
+            for (const data of modifiedFilteredData) {
                 const rowData = Object.values(data).slice(districtIndex).map(value => value === null ? '' : String(value)); // Replace null with empty string
                 newSheetData.push(rowData);
             }
             const ws = XLSX.utils.aoa_to_sheet(newSheetData);
-            XLSX.utils.book_append_sheet(workbook, ws, district);
+            XLSX.utils.book_append_sheet(workbook, ws, districtLevelRowBoundaryCodeMap.get(uniqueData));
         }
         return workbook;
     } catch (error) {
         throw Error("An error occurred while creating tabs based on district:");
     }
+}
+function modifyFilteredData(districtDataFiltered: any, targetBoundaryCode: any): any {
+
+    // Step 2: Slice the boundary code up to the last underscore
+    const slicedBoundaryCode = targetBoundaryCode.slice(0, targetBoundaryCode.lastIndexOf('_') + 1);
+
+    // Step 3: Filter the rows that contain the sliced boundary code
+    const modifiedFilteredData = districtDataFiltered.filter((row: any, index: any) => {
+        // Extract the boundary code from the current row
+        const boundaryCode = row['Boundary Code'];
+        // Check if the boundary code starts with the sliced boundary code
+        return boundaryCode.startsWith(slicedBoundaryCode);
+    });
+    // Step 4: Return the modified filtered data
+    return modifiedFilteredData;
 }
 
 async function generateFilteredBoundaryData(request: any) {
@@ -923,46 +942,56 @@ function createBoundaryMap(boundaries: any[], boundaryMap: Map<string, string>):
 }
 
 const autoGenerateBoundaryCodes = async (request: any) => {
-    await validateHierarchyType(request);
-    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
-    if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throwError("FILE", 400, "INVALID_FILE_ERROR");
-    }
-    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
-    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, "Boundary Data", false);
-    await validateBoundarySheetData(headersOfBoundarySheet, request);
-    const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
-    const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
-    const childParentMap = getChildParentMap(withoutBoundaryCode);
-    const boundaryMap = await getBoundaryCodesHandler(withoutBoundaryCode, childParentMap, mappingMap, countMap, request);
-    const boundaryTypeMap = getBoundaryTypeMap(boundaryData, boundaryMap);
-    await createBoundaryEntities(request, boundaryMap);
-    const modifiedMap: Map<string, string | null> = new Map();
-    childParentMap.forEach((value, key) => {
-        const modifiedKey = boundaryMap.get(key);
-        let modifiedValue = null;
-        if (value !== null && boundaryMap.has(value)) {
-            modifiedValue = boundaryMap.get(value);
+    try {
+        await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
+        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
+        if (!fileResponse?.fileStoreIds?.[0]?.url) {
+            throwError("Invalid file", 400, "INVALID_FILE_ERROR");
         }
-        modifiedMap.set(modifiedKey, modifiedValue);
-    });
-    await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap);
-    const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
-    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-    const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
-    const boundarySheetData = await createExcelSheet(data, hierarchy);
-    const boundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
-    request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
-}
-async function convertSheetToDifferentTabs(request: any, fileStoreId: any) {
-    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.query?.tenantId, fileStoreIds: fileStoreId }, "get");
-    if (!fileResponse?.fileStoreIds?.[0]?.url) {
-        throwError("FILE", 400, "INVALID_FILE_ERROR");
+        const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
+        const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
+        await validateBoundarySheetData(headersOfBoundarySheet, request);
+        const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
+        const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
+        const childParentMap = getChildParentMap(withoutBoundaryCode);
+        const boundaryMap = await getBoundaryCodesHandler(withoutBoundaryCode, childParentMap, mappingMap, countMap, request);
+        const boundaryTypeMap = getBoundaryTypeMap(boundaryData, boundaryMap);
+        await createBoundaryEntities(request, boundaryMap);
+        const modifiedMap: Map<string, string | null> = new Map();
+        childParentMap.forEach((value, key) => {
+            const modifiedKey = boundaryMap.get(key);
+            let modifiedValue = null;
+            if (value !== null && boundaryMap.has(value)) {
+                modifiedValue = boundaryMap.get(value);
+            }
+            modifiedMap.set(modifiedKey, modifiedValue);
+        });
+        await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap);
+        const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
+        const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+        const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
+        const boundarySheetData = await createExcelSheet(data, hierarchy, config.sheetName);
+        const boundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
+        request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
     }
-    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, "Sheet1");
-    const updatedWorkbook = await appendSheetsToWorkbook(boundaryData);
+    catch (error: any) {
+        throwError(error.message, 500, "BOUNDARY_CREATION_ERROR");
+    }
+}
+async function convertSheetToDifferentTabs(request: any, boundaryData: any, differentTabsBasedOnLevel: any) {
+    const updatedWorkbook = await appendSheetsToWorkbook(boundaryData, differentTabsBasedOnLevel);
     const boundaryDetails = await createAndUploadFile(updatedWorkbook, request);
     return boundaryDetails;
+}
+
+async function getBoundaryDataAfterGeneration(result: any, request: any) {
+    const fileStoreId = result[0].fileStoreId;
+    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.query?.tenantId, fileStoreIds: fileStoreId }, "get");
+    if (!fileResponse?.fileStoreIds?.[0]?.url) {
+        throwError("Invalid file", 400, "INVALID_FILE_ERROR");
+    }
+    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName);
+    return boundaryData;
 }
 
 export {
@@ -982,5 +1011,6 @@ export {
     generateHierarchy,
     createBoundaryMap,
     autoGenerateBoundaryCodes,
-    convertSheetToDifferentTabs
+    convertSheetToDifferentTabs,
+    getBoundaryDataAfterGeneration
 }
