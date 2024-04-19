@@ -245,7 +245,7 @@ public class ProjectService {
         try {
             JsonNode response = fetchMdmsResponse(requestInfo, tenantId, transformerProperties.getBoundaryHierarchyMaster(),
                     transformerProperties.getBoundaryHierarchyModule(), filter);
-            projectTypes = convertToProjectTypeJsonNodeList(response);
+            projectTypes = convertToProjectTypeJsonNodeListv2(response);
             JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
             return requiredProjectType.get(Constants.BOUNDARY_DATA);
         } catch (IOException e) {
@@ -262,7 +262,7 @@ public class ProjectService {
         try {
             JsonNode response = fetchMdmsResponse(requestInfo, tenantId, transformerProperties.getBoundaryHierarchyMaster(),
                     transformerProperties.getBoundaryHierarchyModule(), filter);
-            projectTypes = convertToProjectTypeJsonNodeList(response);
+            projectTypes = convertToProjectTypeJsonNodeListv2(response);
             for (JsonNode projectType : projectTypes) {
                 JsonNode boundaryData = projectType.get(Constants.BOUNDARY_DATA);
                 if (boundaryData != null) {
@@ -337,6 +337,12 @@ public class ProjectService {
 
     private List<JsonNode> convertToProjectTypeJsonNodeList(JsonNode jsonNode) throws IOException {
         JsonNode projectTypesNode = jsonNode.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
+        return objectMapper.readValue(projectTypesNode.traverse(), new TypeReference<List<JsonNode>>() {
+        });
+    }
+
+    private List<JsonNode> convertToProjectTypeJsonNodeListv2(JsonNode jsonNode) throws IOException {
+        JsonNode projectTypesNode = jsonNode.get(transformerProperties.getBoundaryHierarchyModule()).withArray(transformerProperties.getBoundaryHierarchyMaster());
         return objectMapper.readValue(projectTypesNode.traverse(), new TypeReference<List<JsonNode>>() {
         });
     }
