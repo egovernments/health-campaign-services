@@ -154,3 +154,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .digit-employee-card-input.numeric {
   pointer-events: none;
 }
+.product-tag-container {
+  display: flex;
+  gap: 1.5rem;
+}

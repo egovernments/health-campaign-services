@@ -497,11 +497,22 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           index={index}
           key={key}
         />
-
-        {delivery?.products?.length > 0 &&
-          delivery?.products?.map((i) => {
-            return i?.value && i?.count ? <RemoveableTagNew text={{ value: i.value }} onClick={() => removeProduct(i)} /> : null;
-          })}
+        <div className="product-tag-container">
+          {delivery?.products?.length > 0 &&
+            delivery?.products?.map((i) => {
+              return i?.value && i?.count ? (
+                <RemoveableTagNew
+                  extraStyles={{
+                    closeIconStyles: {
+                      fill: "#505A5F",
+                    },
+                  }}
+                  text={{ value: i.value }}
+                  onClick={() => removeProduct(i)}
+                />
+              ) : null;
+            })}
+        </div>
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)}

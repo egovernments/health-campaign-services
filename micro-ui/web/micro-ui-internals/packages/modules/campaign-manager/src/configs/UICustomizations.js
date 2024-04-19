@@ -21,7 +21,7 @@ export const UICustomizations = {
       data.body.CampaignDetails = {
         tenantId: tenantId,
         status: "started",
-        startDate: Date.now(),
+        // startDate: Date.now(),
         pagination: {
           sortBy: "campaignNumber",
           sortOrder: "asc",
