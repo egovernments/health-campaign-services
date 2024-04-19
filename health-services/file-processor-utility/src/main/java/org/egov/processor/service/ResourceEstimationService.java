@@ -20,44 +20,43 @@ import static org.egov.processor.web.models.File.InputFileTypeEnum.SHAPEFILE;
 @Slf4j
 public class ResourceEstimationService {
 
-    private PlanConfigurationUtil planConfigurationUtil;
+    private final PlanConfigurationUtil planConfigurationUtil;
+    private final FileParser excelParser;
+    private final FileParser geoJsonParser;
+    private final FileParser shapeFileParser;
 
-    private FileParser parser;
-
-    private ExcelParser excelParser;
-    private ShapeFileParser shapeFileParser;
-    private GeoJsonParser geoJsonParser;
-
-    public ResourceEstimationService(PlanConfigurationUtil planConfigurationUtil, FileParser parser, ExcelParser excelParser, ShapeFileParser shapeFileParser, GeoJsonParser geoJsonParser) {
+    public ResourceEstimationService(PlanConfigurationUtil planConfigurationUtil, FileParser excelParser, FileParser geoJsonParser, FileParser shapeFileParser) {
         this.planConfigurationUtil = planConfigurationUtil;
-        this.parser = parser;
         this.excelParser = excelParser;
-        this.shapeFileParser = shapeFileParser;
         this.geoJsonParser = geoJsonParser;
+        this.shapeFileParser = shapeFileParser;
     }
 
-    public void estimateResources(PlanRequest planRequest)
-    {
+    public void estimateResources(PlanRequest planRequest) {
         log.info("Plan Configuration ID - " + planRequest.getPlan().getPlanConfigurationId());
         PlanConfigurationSearchCriteria planConfigurationSearchCriteria = PlanConfigurationSearchCriteria.builder()
                 .tenantId(planRequest.getPlan().getTenantId()).id(planRequest.getPlan().getPlanConfigurationId()).build();
         PlanConfigurationSearchRequest planConfigurationSearchRequest = PlanConfigurationSearchRequest.builder().planConfigurationSearchCriteria(planConfigurationSearchCriteria).requestInfo(new RequestInfo()).build();
         List<PlanConfiguration> planConfigurationls = planConfigurationUtil.search(planConfigurationSearchRequest);
-
-        //TODO: based on Filetype call parser
+        //TODO:
+        // filter by templateIdentifier as pop
         File.InputFileTypeEnum fileType = planConfigurationls.get(0).getFiles().get(0).getInputFileType();
         FileParser parser;
-        if (EXCEL.equals(fileType)) {
+        if (File.InputFileTypeEnum.EXCEL.equals(fileType)) {
             parser = excelParser;
-        } else if (SHAPEFILE.equals(fileType)) {
+            log.info("excelParser");
+        } else if (File.InputFileTypeEnum.SHAPEFILE.equals(fileType)) {
             parser = shapeFileParser;
-        } else if (GEOJSON.equals(fileType)) {
+            log.info("shapeFileParser");
+        } else if (File.InputFileTypeEnum.GEOJSON.equals(fileType)) {
             parser = geoJsonParser;
+            log.info("geoJsonParser");
+
         } else {
             throw new IllegalArgumentException("Unsupported file type: " + fileType);
         }
 
-        parser.parseFileData(planRequest.getPlan(), planConfigurationls.get(0));
-
+        parser.fetchPopulationData(planConfigurationls.get(0), planConfigurationls.get(0).getFiles().get(0).getFilestoreId());
     }
 }
+
