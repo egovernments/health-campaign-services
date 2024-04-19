@@ -3,6 +3,7 @@ package org.egov.processor.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,8 +49,8 @@ public class ExcelParser implements FileParser {
         this.filestoreUtil = filestoreUtil;
     }
 
-
-    public void parseFileData(Plan plan, PlanConfiguration planConfig, String fileStoreId) {
+    @Override
+    public Object parseFileData(PlanConfiguration planConfig, String fileStoreId, String attributeToFetch) {
 
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
@@ -85,6 +86,7 @@ public class ExcelParser implements FileParser {
         {
             log.error(e.getMessage());
         }
+        return null;
     }
 
     private double sumColumnValues(Sheet sheet, DataFormatter dataFormatter, int columnIndex) {
@@ -109,8 +111,8 @@ public class ExcelParser implements FileParser {
         return sum;
     }
 
-
-
-
-
+    @Override
+    public BigDecimal fetchPopulationData(PlanConfiguration planConfiguration, String fileStoreId) {
+        return null;
+    }
 }

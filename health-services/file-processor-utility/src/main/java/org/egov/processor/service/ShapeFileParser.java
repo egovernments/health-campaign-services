@@ -2,6 +2,7 @@ package org.egov.processor.service;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -30,10 +31,10 @@ public class ShapeFileParser implements FileParser {
         this.parsingUtil = parsingUtil;
     }
 
-    public void parseFileData(PlanConfiguration planConfig) {
-        // Define the path to the shapefile
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
-        File file = parsingUtil.convertByteArrayToFile(byteArray, "shapefile");
+    @Override
+    public Object parseFileData(PlanConfiguration planConfiguration, String fileStoreId, String attributeToFetch)
+    {
+        File file = parsingUtil.getFileFromByteArray(planConfiguration, fileStoreId);
 
         // Check if the GeoJSON file exists
         if (file == null || !file.exists()) log.info("FILE NOT FOUND - ");
@@ -62,10 +63,10 @@ public class ShapeFileParser implements FileParser {
                 // Get the attribute names from the SimpleFeatureCollection
                 List<String> attributeNames = parsingUtil.getAttributeNames(simpleFeatureCollection);
                 // Get the resource mapping list from the plan configuration
-                List<ResourceMapping> resourceMappingList = planConfig.getResourceMapping();
+                List<ResourceMapping> resourceMappingList = planConfiguration.getResourceMapping();
 
                 // Validate the attribute mapping
-                boolean isValid = parsingUtil.validateAttributeMapping(attributeNames, resourceMappingList);
+                boolean isValid = parsingUtil.validateAttributeMapping(attributeNames, resourceMappingList, fileStoreId);
                 if (isValid) {
                     log.info("Attribute mapping is valid.");
                 } else {
@@ -86,6 +87,12 @@ public class ShapeFileParser implements FileParser {
             // Throw a runtime exception if an IOException occurs
             throw new CustomException("SHAPEFILE_PROCESSING_ERROR", "Exception while processing Shape File data");
         }
+        return null;
+    }
+
+    @Override
+    public BigDecimal fetchPopulationData(PlanConfiguration planConfiguration, String fileStoreId) {
+        return null;
     }
 
 }

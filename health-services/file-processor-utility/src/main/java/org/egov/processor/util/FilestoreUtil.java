@@ -37,8 +37,8 @@ public class FilestoreUtil {
             response = serviceRequestRepository.fetchResultWithGET(new StringBuilder(fileStoreServiceLink));
             responseInByteArray = (byte[]) response;
         } catch (Exception ex) {
-            log.error("PDF file store id response error!!", ex);
-            throw new CustomException("FILESTORE_PDF_EXCEPTION", "PDF response can not parsed!!!");
+            log.error("File store id response error!!", ex);
+            throw new CustomException("FILESTORE_EXCEPTION", "File Store response can not parsed!!!");
         }
         return responseInByteArray;
     }

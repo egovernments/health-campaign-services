@@ -47,7 +47,7 @@ public class FileController {
         PlanConfigurationSearchRequest planConfigurationSearchRequest = PlanConfigurationSearchRequest.builder().planConfigurationSearchCriteria(planConfigurationSearchCriteria).requestInfo(new RequestInfo()).build();
         List<PlanConfiguration> planConfigurationls = planConfigurationUtil.search(planConfigurationSearchRequest);
 
-        parser.parseFileData(planConfigurationls.get(0));
+//        parser.parseFileData(planConfigurationls.get(0));
         return ResponseEntity.status(HttpStatus.OK).body("Okay");
     }
 

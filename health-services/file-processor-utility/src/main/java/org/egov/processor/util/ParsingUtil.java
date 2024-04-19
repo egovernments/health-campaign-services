@@ -16,6 +16,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
@@ -27,9 +28,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class ParsingUtil {
 
+
     private PlanConfigurationUtil planConfigurationUtil;
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil) {
+    private FilestoreUtil filestoreUtil;
+
+    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil) {
         this.planConfigurationUtil = planConfigurationUtil;
+        this.filestoreUtil = filestoreUtil;
     }
 
     public List<String> getAttributeNames(SimpleFeatureCollection simpleFeatureCollection) {
@@ -53,8 +58,15 @@ public class ParsingUtil {
                 .map(ResourceMapping::getMappedFrom)
                 .collect(Collectors.toSet());
 
-        for (String attributeName : mappedFromSet) {
-            if (!attributeNamesFromFile.contains(attributeName)) {
+        //TODO: discuss with dev
+//        for (String attributeName : mappedFromSet) {
+//            if (!attributeNamesFromFile.contains(attributeName)) {
+//                return false;
+//            }
+//        }
+
+        for (String attributeName : attributeNamesFromFile) {
+            if (!mappedFromSet.contains(attributeName)) {
                 return false;
             }
         }
@@ -110,6 +122,17 @@ public class ParsingUtil {
             log.error("CANNOT_CONVERT_BYTE_ARRAY_TO_FILE", "Cannot convert byte array from response to File object");
         }
         return null;
+    }
+
+    public Map<String, String> createMappingMapForFilestoreId(List<ResourceMapping> resourceMappingList, String filestoreId) {
+        return resourceMappingList.stream()
+                .filter(mapping -> filestoreId.equals(mapping.getFilestoreId()))
+                .collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+    }
+
+    public File getFileFromByteArray(PlanConfiguration planConfig, String fileStoreId) {
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        return convertByteArrayToFile(byteArray, "geojson");
     }
 
 }
