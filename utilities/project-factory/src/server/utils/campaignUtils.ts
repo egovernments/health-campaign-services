@@ -274,9 +274,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     }
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
-    if (firstPersist) {
-        request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
-    }
+    request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
     request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType || null;
     request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails || {};
@@ -288,14 +286,15 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
         lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
         lastModifiedTime: Date.now(),
     }
-    if (action == "create" && !request?.body?.CampaignDetails?.projectId) {
+    if (action == "create" && !request?.body?.CampaignDetails?.projectId && !firstPersist) {
         enrichRootProjectId(request.body);
     }
     else {
         request.body.CampaignDetails.projectId = null
     }
     logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
-    produceModifiedMessages(request?.body, config.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+    const topic = firstPersist ? config.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    produceModifiedMessages(request?.body, topic);
     delete request.body.CampaignDetails.campaignDetails
 }
 
@@ -761,11 +760,7 @@ async function createProject(request: any, actionUrl: any) {
     }
 }
 
-async function processBasedOnAction(request: any, actionInUrl: any) {
-    if (actionInUrl == "create") {
-        request.body.CampaignDetails.id = uuidv4()
-    }
-    await enrichAndPersistProjectCampaignRequest(request, actionInUrl, true)
+async function processAfterPersist(request: any, actionInUrl: any) {
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProjectCampaignResourcData(request);
         await createProject(request, actionInUrl)
@@ -774,6 +769,14 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     else {
         await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
     }
+}
+
+async function processBasedOnAction(request: any, actionInUrl: any) {
+    if (actionInUrl == "create") {
+        request.body.CampaignDetails.id = uuidv4()
+    }
+    await enrichAndPersistProjectCampaignRequest(request, actionInUrl, true)
+    processAfterPersist(request, actionInUrl)
 }
 async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnLevel: any) {
     try {
