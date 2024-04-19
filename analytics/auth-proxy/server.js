@@ -54,7 +54,7 @@ app.use((req, res, next) => {
 
     logger.info("Received request path - " + req.url);
 
-    if(req.originalUrl.includes('kibana/app/kibana')) {
+    if(req.originalUrl.includes('/app/kibana') && !req.originalUrl.includes('/bundles/')) {
         // Check if authToken is empty or null
         if (!authToken || authToken.trim() === '') {
             res.status(401).send('Unauthorized: No auth token provided');
