@@ -20,7 +20,7 @@ public class HouseholdRepository {
 	@Autowired
 	private HouseholdRowMapper householdRowMapper;
 	
-	 public Tuple<Long, List<Household>> findByView (String localityCode, Integer limit, Integer offset, String tenantId) {
+	 public Tuple<Long, List<Household>> findByView (String localityCode, Integer limit, Integer offset, String tenantId, Long lastModifiedTime) {
 	    	
 	    	
 	    	String query = "select * from household_address_mv where localitycode=:localitycode and rank between :start and :end ";
@@ -32,7 +32,8 @@ public class HouseholdRepository {
 
 	        Map<String, Object> paramsMapCount = new HashMap<>();
 	        paramsMapCount.put("localitycode", localityCode);
-	        Integer maxRank = namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_mv where localitycode=:localitycode", paramsMapCount, Integer.class);
+	        paramsMapCount.put("lastModifiedTime", lastModifiedTime);
+	        Integer maxRank = namedParameterJdbcTemplate.queryForObject("select max(rank) from  household_address_mv where localitycode=:localitycode and lastModifiedTime>=:lastModifiedTime", paramsMapCount, Integer.class);
 	        Long totalCount = maxRank == null ? 0L : Long.valueOf(maxRank);
 	        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, householdRowMapper));
 	    }

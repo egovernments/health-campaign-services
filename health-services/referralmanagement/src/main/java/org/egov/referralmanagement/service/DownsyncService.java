@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -39,12 +40,13 @@ import org.springframework.util.CollectionUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class DownsyncService {
 	
 	private ServiceRequestClient restClient;
@@ -59,6 +61,8 @@ public class DownsyncService {
 	
 	private HouseholdRepository householdRepository;
 
+	private MasterDataService masterDataService;
+
 	private static final Integer SEARCH_MAX_COUNT = 1000;
 	
 	@Autowired
@@ -67,15 +71,16 @@ public class DownsyncService {
 							NamedParameterJdbcTemplate jdbcTemplate,
 							SideEffectService sideEffectService,
 							ReferralManagementService referralService,
-							HouseholdRepository householdRepository) {
+							HouseholdRepository householdRepository,
+							MasterDataService masterDataService) {
 
-		this.restClient = serviceRequestClient;
-		this.configs = referralManagementConfiguration;
-		this.jdbcTemplate = jdbcTemplate;
-		this.sideEffectService=sideEffectService;
-		this.referralService=referralService;
-		this.householdRepository = householdRepository;
-		
+			this.restClient = serviceRequestClient;
+			this.configs = referralManagementConfiguration;
+			this.jdbcTemplate = jdbcTemplate;
+			this.sideEffectService = sideEffectService;
+			this.referralService = referralService;
+			this.householdRepository = householdRepository;
+			this.masterDataService = masterDataService;
 		}
 
 		/**
@@ -86,38 +91,42 @@ public class DownsyncService {
 		public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) {
 
 			Downsync downsync = new Downsync();
+			DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
+			/* FIXME SHOULD BE REMOVED for enabling lastsynced time issue*/
+			downsyncCriteria.setLastSyncedTime(null);
 
 			List<Household> households = null;
 			List<String> householdClientRefIds = null;
-			List<String> householdIds = null;
-			Set<String> individualIds = null;
 			List<String> individualClientRefIds = null;
 			List<String> beneficiaryClientRefIds = null;
 			List<String> householdBeneficiaryClientRefIds = null;
 			List<String> taskClientRefIds = null;
 
-			downsync.setDownsyncCriteria(downsyncRequest.getDownsyncCriteria());
+			downsync.setDownsyncCriteria(downsyncCriteria);
+			boolean isSyncTimeAvalable = null != downsyncCriteria.getLastSyncedTime();
+
+			LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
+
 			/* search household */
 			households = searchHouseholds(downsyncRequest, downsync);
-			householdIds = households.stream().map(Household::getId).collect(Collectors.toList());
 			householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
 
-			if (!CollectionUtils.isEmpty(householdIds))
+			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdClientRefIds))
 				/* search household member using household ids */
-				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdIds);
+				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
 
-			if (!CollectionUtils.isEmpty(individualClientRefIds)) {
+			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
 
 				/* search individuals using individual ids */
 				individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualClientRefIds);
 			}
 
-			if (!CollectionUtils.isEmpty(individualClientRefIds)) {
+			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
 				/* search beneficiary using individual ids */
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
 			}
 
-			if (!CollectionUtils.isEmpty(householdClientRefIds)) {
+			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdClientRefIds)) {
 				/* search beneficiary using household ids */
 				householdBeneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds);
 				if (CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
@@ -127,16 +136,16 @@ public class DownsyncService {
 				}
 			}
 
-			if (!CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
+			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
 
 				/* search tasks using beneficiary uuids */
-				taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds);
+				taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, projectType);
 
 				/* ref search */
 				referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
 			}
 
-			if (!CollectionUtils.isEmpty(taskClientRefIds)) {
+			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(taskClientRefIds)) {
 
 				searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
 			}
@@ -155,7 +164,7 @@ public class DownsyncService {
 			DownsyncCriteria  criteria = downsyncRequest.getDownsyncCriteria();
 			
 			//HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
-			Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null);
+			Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null, criteria.getLastSyncedTime() != null ? criteria.getLastSyncedTime() : 0L);
 			List<Household> households = res.getY();
 			downsync.setHouseholds(households);
 			downsync.getDownsyncCriteria().setTotalCount(res.getX());
@@ -186,7 +195,7 @@ public class DownsyncService {
 			for (List<String> list : subLists) {
 				StringBuilder url = new StringBuilder(configs.getIndividualHost())
 						.append(configs.getIndividualSearchUrl());
-				url = appendUrlParams(url, criteria, 0, list.size());
+				url = appendUrlParams(url, criteria, 0, list.size(), true);
 
 				IndividualSearch individualSearch = IndividualSearch.builder()
 						.clientReferenceId(list)
@@ -213,25 +222,22 @@ public class DownsyncService {
 		 * @return
 		 */
 		private List<String> searchMembers(DownsyncRequest downsyncRequest, Downsync downsync,
-				List<String> householdIds) {
-			
-			String memberIdsquery = "SELECT id from HOUSEHOLD_MEMBER where householdId IN (:householdIds)";
-			
-			Map<String, Object> paramMap = new HashMap<>();
-	        paramMap.put("householdIds", householdIds);
+				List<String> householdClientRefIds) {
 
-	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
-	        List<String> memberids = jdbcTemplate.queryForList(memberIdsquery, paramMap, String.class);
-			
+			Long lastChangedSince = downsyncRequest.getDownsyncCriteria().getLastSyncedTime();
+
+			List<String> memberids = getPrimaryIds(householdClientRefIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
+
 			if (CollectionUtils.isEmpty(memberids))
 				return Collections.emptyList();
+
 
 			List<List<String>> subLists = splitList(memberids, SEARCH_MAX_COUNT);
 			List<HouseholdMember> members = new ArrayList<>();
 			for (List<String> list : subLists) {
 				StringBuilder memberUrl = new StringBuilder(configs.getHouseholdHost())
 						.append(configs.getHouseholdMemberSearchUrl());
-				appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, list.size());
+				appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, list.size(), false);
 
 				HouseholdMemberSearch memberSearch = HouseholdMemberSearch.builder()
 						.id(list)
@@ -251,6 +257,7 @@ public class DownsyncService {
 			return members.stream().map(HouseholdMember::getIndividualClientReferenceId).collect(Collectors.toList());
 		}
 
+
 		/**
 		 * 
 		 * @param downsyncRequest
@@ -263,15 +270,11 @@ public class DownsyncService {
 
 			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-			
-			String beneficiaryIdQuery = "SELECT id from PROJECT_BENEFICIARY where beneficiaryclientreferenceid IN (:beneficiaryIds)";
-			
-			Map<String, Object> paramMap = new HashMap<>();
-	        paramMap.put("beneficiaryIds", individualClientRefIds);
-	        
-	        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of beneficiary ids*/
-	        List<String> ids = jdbcTemplate.queryForList(beneficiaryIdQuery, paramMap, String.class);
-					
+			Long lastChangedSince =criteria.getLastSyncedTime();
+
+			/* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of beneficiary ids*/
+			List<String> ids = getPrimaryIds(individualClientRefIds, "beneficiaryclientreferenceid","PROJECT_BENEFICIARY",lastChangedSince);
+
 	        if(CollectionUtils.isEmpty(ids))
 	        	return Collections.emptyList();
 
@@ -281,7 +284,7 @@ public class DownsyncService {
 			for (List<String> list : subLists) {
 				StringBuilder url = new StringBuilder(configs.getProjectHost())
 						.append(configs.getProjectBeneficiarySearchUrl());
-				url = appendUrlParams(url, criteria, 0, list.size());
+				url = appendUrlParams(url, criteria, 0, list.size(), false);
 
 				ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
 						.id(list)
@@ -311,20 +314,21 @@ public class DownsyncService {
 		 * @return
 		 */
 		private List<String> searchTasks(DownsyncRequest downsyncRequest, Downsync downsync,
-				List<String> beneficiaryClientRefIds) {
+				List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType) {
 
 			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-			
-			String taskIdQuery = "SELECT id from PROJECT_TASK where projectBeneficiaryClientReferenceId IN (:beneficiaryClientRefIds)";
-			
-			Map<String, Object> paramMap = new HashMap<>();
-	        paramMap.put("beneficiaryClientRefIds", beneficiaryClientRefIds);
-	        
-	        /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-	        List<String> taskIds = jdbcTemplate.queryForList(taskIdQuery, paramMap, String.class);
-	        
-	        if(CollectionUtils.isEmpty(taskIds))
+
+			List<String> taskIds;
+			List<Integer> cycleIndicesForTaskDownload = masterDataService.getCycleIndicesForTask(projectType);
+			if (!CollectionUtils.isEmpty(cycleIndicesForTaskDownload))
+				taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK_CYCLE_INDEX_MATERIALIZED_VIEW",
+						criteria.getLastSyncedTime(), cycleIndicesForTaskDownload);
+			else
+				taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+						criteria.getLastSyncedTime());
+
+			if(CollectionUtils.isEmpty(taskIds))
 	        	return Collections.emptyList();
 
 			List<List<String>> subLists = splitList(taskIds, SEARCH_MAX_COUNT);
@@ -333,7 +337,7 @@ public class DownsyncService {
 			for (List<String> list : subLists) {
 				StringBuilder url = new StringBuilder(configs.getProjectHost())
 						.append(configs.getProjectTaskSearchUrl());
-				url = appendUrlParams(url, criteria, 0, list.size());
+				url = appendUrlParams(url, criteria, 0, list.size(), false);
 
 				TaskSearch search = TaskSearch.builder()
 						.id(list)
@@ -354,6 +358,91 @@ public class DownsyncService {
 		}
 
 		/**
+		 * common method to fetch Ids with list of relation Ids like id of member with householdClientRefIds
+		 * @param idList
+		 * @param idListFeildName
+		 * @param tableName
+		 * @param lastChangedSince
+		 * @param paramMap
+		 * @return
+		 */
+		private List<String> getPrimaryIds(List<String> idList, String idListFieldName,String tableName, Long lastChangedSince) {
+
+			/**
+			 * Adding lastShangedSince to id query to avoid load on API search for members
+			 */
+			boolean isAndRequired = false;
+			Map<String, Object> paramMap = new HashMap<>();
+			StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
+
+
+			if (!CollectionUtils.isEmpty(idList)) {
+
+				memberIdsquery.append("%s IN (:%s)");
+				paramMap.put(idListFieldName, idList);
+				isAndRequired = true;
+			}
+
+			if (null != lastChangedSince) {
+				if(isAndRequired)
+					memberIdsquery.append(" AND ");
+				memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
+				paramMap.put("lastChangedSince", lastChangedSince);
+			}
+
+			String finalQuery = String.format(memberIdsquery.toString(), tableName, idListFieldName, idListFieldName);
+			/* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
+			List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
+			return memberids;
+		}
+
+		/**
+		 * common method to fetch Ids with list of relation Ids like id of member with householdClientRefIds
+		 * @param idList
+		 * @param idListFeildName
+		 * @param tableName
+		 * @param lastChangedSince
+		 * @param paramMap
+		 * @return
+		 */
+		private List<String> getPrimaryIds(List<String> idList, String idListFieldName,String tableName, Long lastChangedSince, List<Integer> cycleIndices) {
+
+			/**
+			 * Adding lastShangedSince to id query to avoid load on API search for members
+			 */
+			boolean isAndRequired = false;
+			Map<String, Object> paramMap = new HashMap<>();
+			StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
+
+
+			if (!CollectionUtils.isEmpty(idList)) {
+
+				memberIdsquery.append("%s IN (:%s)");
+				paramMap.put(idListFieldName, idList);
+				isAndRequired = true;
+			}
+
+			if (null != lastChangedSince) {
+				if(isAndRequired)
+					memberIdsquery.append(" AND ");
+				isAndRequired = true;
+				memberIdsquery.append(" lastModifiedTime >= (:lastChangedSince)");
+				paramMap.put("lastChangedSince", lastChangedSince);
+			}
+
+			if(!CollectionUtils.isEmpty(cycleIndices)) {
+				if(isAndRequired)
+					memberIdsquery.append(" AND ");
+				memberIdsquery.append(" cycleindex IN (:cycleIndices)");
+				paramMap.put("cycleIndices", cycleIndices);
+			}
+
+			String finalQuery = String.format(memberIdsquery.toString(), tableName, idListFieldName, idListFieldName);
+			/* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
+			List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
+			return memberids;
+		}
+		/**
 		 * 
 		 * @param downsyncRequest
 		 * @param downsync
@@ -365,14 +454,7 @@ public class DownsyncService {
 			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
-			// search side effect FIXME - tasks id array search not available
-			String sEIdQuery = "SELECT id from SIDE_EFFECT where taskClientReferenceId IN (:taskClientRefIds)";
-			
-			Map<String, Object> paramMap = new HashMap<>();
-	        paramMap.put("taskClientRefIds", taskClientRefIds);
-	        
-	        /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-	        List<String> SEIds = jdbcTemplate.queryForList(sEIdQuery, paramMap, String.class);
+			List<String> SEIds = getPrimaryIds(taskClientRefIds, "taskClientReferenceId", "SIDE_EFFECT", criteria.getLastSyncedTime());
 					
 	        if(CollectionUtils.isEmpty(SEIds))
 	        	return;
@@ -401,11 +483,16 @@ public class DownsyncService {
 
 			DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-        		
+			Integer limit = beneficiaryClientRefIds.size();
+
 			ReferralSearch search = ReferralSearch.builder()
-			.projectBeneficiaryClientReferenceId(beneficiaryClientRefIds)
 			.build();
-	
+
+			if(!CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
+				search.setProjectBeneficiaryClientReferenceId(beneficiaryClientRefIds);
+				limit = null;
+			}
+
 			ReferralSearchRequest searchRequest = ReferralSearchRequest.builder()
 					.referral(search)
 					.requestInfo(requestInfo)
@@ -413,7 +500,7 @@ public class DownsyncService {
 	
 			List<Referral> referrals = referralService.search(
 								searchRequest,
-								beneficiaryClientRefIds.size(),
+								limit,
 								0,
 								criteria.getTenantId(),
 								criteria.getLastSyncedTime(),
@@ -432,15 +519,14 @@ public class DownsyncService {
 	 * @param includeLimitOffset
 	 * @return
 	 */
-	private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Integer offset, Integer limit) {
-		
+	private StringBuilder appendUrlParams(StringBuilder url, DownsyncCriteria criteria, Integer offset, Integer limit, boolean sendPrevSyncTime) {
 		url.append("?tenantId=")
 			.append(criteria.getTenantId())
 			.append("&includeDeleted=")
 			.append(criteria.getIncludeDeleted())
 			.append("&limit=");
 
-		if (null != limit)
+		if (null != limit && limit != 0)
 			url.append(limit);
 		else
 			url.append(criteria.getLimit());
@@ -451,7 +537,8 @@ public class DownsyncService {
 			url.append(offset);
 		else 
 			url.append(criteria.getOffset());
-		
+		if(sendPrevSyncTime && null != criteria.getLastSyncedTime())
+			url.append("&lastChangedSince=").append(criteria.getLastSyncedTime());
 		return url;
 	}
 
