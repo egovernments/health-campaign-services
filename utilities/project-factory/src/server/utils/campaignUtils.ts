@@ -779,10 +779,9 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
         mainSheetData.push(headersForMainSheet);
         const districtLevelRowBoundaryCodeMap = new Map();
 
-
         for (const data of boundaryData) {
             const rowData = Object.values(data);
-            const districtIndex = data[differentTabsBasedOnLevel] !== null ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
+            const districtIndex = data[differentTabsBasedOnLevel] !== '' ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
             if (districtIndex == -1) {
                 mainSheetData.push(rowData);
             }

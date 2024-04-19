@@ -264,6 +264,9 @@ async function getResponseFromDb(request: any, response: any) {
 
   try {
     const { type } = request.query;
+    const { tenantId, hierarchyType } = request.query
+    const status = 'Completed';
+    let queryResult: any;
 
     let queryString: string;
     if (request?.query?.id) {
@@ -275,16 +278,29 @@ async function getResponseFromDb(request: any, response: any) {
       return responseData;
     }
     else {
-      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2";
-      const status = 'Completed';
-      const queryResult = await pool.query(queryString, [type, status]);
+
+      if (type == 'boundary') {
+        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE  tenantid = $1 AND hierarchytype = $2 AND status =$3 ";
+        const queryValues = [tenantId, hierarchyType, status];
+        if (request.body.Filters === null) {
+          queryString += " AND (additionaldetails->'Filters' IS NULL OR additionaldetails->'Filters' = 'null')";
+        } else {
+          queryString += " AND additionaldetails->'Filters' @> $4::jsonb";
+          queryValues.push(request.body.Filters);
+        }
+        queryResult = await pool.query(queryString, queryValues);
+      }
+      else {
+        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2 AND tenantId AND hierarchyType AND ";
+      }
+
       const responseData = queryResult.rows;
       modifyAuditdetailsAndCases(responseData);
       return responseData;
     }
-  } catch (error) {
-    logger.error('Error fetching data from the database:', error);
-    throw error;
+  } catch (error: any) {
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message)
   } finally {
     try {
       await pool.end();
@@ -309,19 +325,23 @@ async function getModifiedResponse(responseData: any) {
 
 async function getNewEntryResponse(modifiedResponse: any, request: any) {
   const { type } = request.query;
+  const additionalDetails = type === 'boundary'
+    ? { Filters: request?.body?.Filters ?? null }
+    : {};
   const newEntry = {
     id: uuidv4(),
     fileStoreid: null,
     type: type,
     status: "In Progress",
     tenantId: request?.query?.tenantId,
+    hierarchyType: request?.query?.hierarchyType,
     auditDetails: {
       lastModifiedTime: Date.now(),
       createdTime: Date.now(),
       createdBy: request?.body?.RequestInfo?.userInfo.uuid,
       lastModifiedBy: request?.body?.RequestInfo?.userInfo.uuid,
     },
-    additionalDetails: {},
+    additionalDetails: additionalDetails,
     count: null
   };
   return [newEntry];

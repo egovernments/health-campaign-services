@@ -7,6 +7,7 @@ import { correctParentValues, generateActivityMessage, getBoundaryRelationshipDa
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator";
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils';
 import { validateFilters } from '../utils/validators/campaignValidators';
+import { getHierarchy } from './campaignApis';
 const _ = require('lodash');
 
 const getWorkbook = async (fileUrl: string, sheetName: string) => {
@@ -335,17 +336,24 @@ async function getBoundarySheetData(request: any) {
         includeChildren: true
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
-    if (!boundaryData) {
-        throwError("BOUNDARY", 500, "BOUNDARY_DATA_NOT_FOUND");
-    }
-    logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
-        await validateFilters(request, boundaryData);
-        const filteredBoundaryData = await generateFilteredBoundaryData(request);
-        return await getDataSheetReady(filteredBoundaryData, request);
+    console.log(boundaryData,"fffffffffffffff")
+    if (!boundaryData || boundaryData.length ==0) {
+        const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+        const headers = hierarchy;
+        console.log("bbbbbbb")
+        return await createExcelSheet(boundaryData, headers, config.sheetName);
     }
     else {
-        return await getDataSheetReady(boundaryData, request);
+        console.log("aaaaaaaaaaaaaaaa")
+        logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
+        if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
+            await validateFilters(request, boundaryData);
+            const filteredBoundaryData = await generateFilteredBoundaryData(request);
+            return await getDataSheetReady(filteredBoundaryData, request);
+        }
+        else {
+            return await getDataSheetReady(boundaryData, request);
+        }
     }
 }
 
