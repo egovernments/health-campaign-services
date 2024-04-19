@@ -55,7 +55,7 @@ class dataManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
-    
+
     /**
     * Downloads data based on the request and sends the response.
     * @param request The Express request object.
@@ -68,7 +68,7 @@ class dataManageController {
             // Get response data from the database
             const responseData = await getResponseFromDb(request, response);
             // Check if response data is available
-            if (!responseData || responseData.length === 0) {
+            if (!responseData || responseData.length === 0 && !request?.query?.id) {
                 logger.error("No data of type  " + type + " with status Completed or with given id presnt in db ")
                 // Throw error if data is not found
                 throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
@@ -103,7 +103,7 @@ class dataManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
-    
+
     /**
    * Creates data based on the request and sends the response.
    * @param request The Express request object.
@@ -128,7 +128,7 @@ class dataManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
-    
+
     /**
          * Searches for data based on the request and sends the response.
          * @param request The Express request object.

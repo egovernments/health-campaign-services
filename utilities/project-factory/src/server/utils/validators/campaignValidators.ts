@@ -533,25 +533,22 @@ function validateBoundarySheetHeaders(headersOfBoundarySheet: any, hierarchy: an
 async function validateDownloadRequest(request: any) {
     const { tenantId, type, hierarchyType } = request.query;
     if (!tenantId) {
-        throwError("tenantId is required", 400, "VALIDATION_ERROR");
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
     }
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
-        throwError("tenantId in userInfo and query should be the same", 400, "VALIDATION_ERROR");
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
     }
     if (!type) {
-        throwError("type is required", 400, "VALIDATION_ERROR");
+        throwError("COMMON", 400, "VALIDATION_ERROR", "type is required");
     }
     if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
-        throwError("Type should be facility, user, boundary, or facilityWithBoundary", 400, "VALIDATION_ERROR");
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary");
     }
     if (!hierarchyType) {
-        throwError("hierarchyType is required", 400, "VALIDATION_ERROR");
+        throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is required");
     }
-    await validateHierarchyType(request, hierarchyType,tenantId);
+    await validateHierarchyType(request, hierarchyType, tenantId);
 }
-
-
-
 
 
 export {
