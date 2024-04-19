@@ -52,16 +52,20 @@ app.use((req, res, next) => {
     // Extract auth token from params
     const authToken = req.query['x-auth-token'];
 
-    // Check if authToken is empty or null
-    if (!authToken || authToken.trim() === '') {
-        res.status(401).send('Unauthorized: No auth token provided');
-        return;
-    }
+    logger.info("Received request path - " + req.url);
 
-    if (authenticateToken(authToken)) {
-        next(); // Proceed to the proxy if authenticated
-    } else {
-        res.status(403).send('Access denied'); // Send a 403 error if not authenticated
+    if(req.originalUrl.includes('/app/kibana')) {
+        // Check if authToken is empty or null
+        if (!authToken || authToken.trim() === '') {
+            res.status(401).send('Unauthorized: No auth token provided');
+            return;
+        }
+
+        if (authenticateToken(authToken)) {
+            next(); // Proceed to the proxy if authenticated
+        } else {
+            res.status(403).send('Access denied'); // Send a 403 error if not authenticated
+        }
     }
 });
 
