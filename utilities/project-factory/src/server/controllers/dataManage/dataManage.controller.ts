@@ -39,8 +39,6 @@ class dataManageController {
 * @param request The Express request object.
 * @param response The Express response object.
 */
-
-
     generateData = async (request: express.Request, response: express.Response) => {
         try {
             // Validate the generate request
@@ -57,12 +55,12 @@ class dataManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
+    
     /**
     * Downloads data based on the request and sends the response.
     * @param request The Express request object.
     * @param response The Express response object.
     */
-
     downloadData = async (request: express.Request, response: express.Response) => {
         try {
             await validateDownloadRequest(request);
@@ -105,14 +103,12 @@ class dataManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
+    
     /**
    * Creates data based on the request and sends the response.
    * @param request The Express request object.
    * @param response The Express response object.
    */
-
-
-
     createData = async (request: any, response: any) => {
         try {
             // Validate the create request
@@ -132,6 +128,7 @@ class dataManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
+    
     /**
          * Searches for data based on the request and sends the response.
          * @param request The Express request object.
