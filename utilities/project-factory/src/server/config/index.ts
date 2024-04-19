@@ -13,8 +13,8 @@ if (!HOST) {
 }
 
 const config = {
-  sheetName: "Boundary Data",
-  generateDifferentTabsOnBasisOf: "District",
+  sheetName: process.env.SHEET_NAME||"Boundary Data",
+  generateDifferentTabsOnBasisOf: process.env.GENERATE_DIFFERENT_TABS_ON_BASIS_OF||"District",
   auth_token: process.env.AUTH_TOKEN,
   waitTime: process.env.WAIT_FOR_GENERIC_CREATE || "30000",
   KAFKA_BROKER_HOST:

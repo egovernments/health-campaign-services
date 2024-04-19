@@ -196,7 +196,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
         logger.info("Hierarchy Search Response : " + JSON.stringify(response?.BoundaryHierarchy))
     }
     else {
-        throwError(`hierarchyType ${hierarchyType} not found`, 400, "HIERARCHYTYPE_VALIDATION_ERROR");
+        throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `hierarchyType ${hierarchyType} not found`);
     }
 }
 
