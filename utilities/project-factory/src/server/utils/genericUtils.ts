@@ -264,20 +264,22 @@ async function getResponseFromDb(request: any, response: any) {
 
   try {
     const { type } = request.query;
+    const hierarchyType = request?.query?.hierarchyType;
+    const tenantId = request?.query?.tenantId;
 
     let queryString: string;
     if (request?.query?.id) {
       const id = request?.query?.id;
-      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1";
-      const queryResult = await pool.query(queryString, [id]);
+      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1 AND type = $2 AND hierarchyType = $3 AND tenantId = $4";
+      const queryResult = await pool.query(queryString, [id, type, hierarchyType, tenantId]);
       const responseData = queryResult.rows;
       modifyAuditdetailsAndCases(responseData);
       return responseData;
     }
     else {
-      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2";
+      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2 AND hierarchyType = $3 AND tenantId = $4";
       const status = 'Completed';
-      const queryResult = await pool.query(queryString, [type, status]);
+      const queryResult = await pool.query(queryString, [type, status, hierarchyType, tenantId]);
       const responseData = queryResult.rows;
       modifyAuditdetailsAndCases(responseData);
       return responseData;
@@ -307,13 +309,17 @@ async function getModifiedResponse(responseData: any) {
   });
 }
 
-async function getNewEntryResponse(modifiedResponse: any, request: any) {
+async function getNewEntryResponse(request: any) {
   const { type } = request.query;
+  const additionalDetails = type === 'boundary'
+    ? { Filters: request?.body?.Filters ?? null }
+    : {};
   const newEntry = {
     id: uuidv4(),
     fileStoreid: null,
     type: type,
     status: "In Progress",
+    hierarchyType: request?.query?.hierarchyType,
     tenantId: request?.query?.tenantId,
     auditDetails: {
       lastModifiedTime: Date.now(),
@@ -321,7 +327,7 @@ async function getNewEntryResponse(modifiedResponse: any, request: any) {
       createdBy: request?.body?.RequestInfo?.userInfo.uuid,
       lastModifiedBy: request?.body?.RequestInfo?.userInfo.uuid,
     },
-    additionalDetails: {},
+    additionalDetails: additionalDetails,
     count: null
   };
   return [newEntry];
@@ -340,7 +346,7 @@ async function getFinalUpdatedResponse(result: any, responseData: any, request: 
     return {
       ...item,
       tenantId: request?.query?.tenantId,
-      count: parseInt(request?.body?.generatedResourceCount ? request?.body?.generatedResourceCount : null),
+      count: parseInt(request?.body?.generatedResourceCount || null),
       auditDetails: {
         ...item.auditDetails,
         lastModifiedTime: Date.now(),
@@ -608,7 +614,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
 async function processGenerate(request: any, response: any) {
   const responseData = await getResponseFromDb(request, response);
   const modifiedResponse = await getModifiedResponse(responseData);
-  const newEntryResponse = await getNewEntryResponse(modifiedResponse, request);
+  const newEntryResponse = await getNewEntryResponse(request);
   const oldEntryResponse = await getOldEntryResponse(modifiedResponse, request);
   await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, response);
 }
@@ -740,9 +746,10 @@ async function getDataSheetReady(boundaryData: any, request: any) {
     mappedRowData[boundaryCodeIndex] = boundaryCode;
     return mappedRowData;
   });
-
   const sheetRowCount = data.length;
-  request.body.generatedResourceCount = sheetRowCount;
+  if (type != "facilityWithBoundary") {
+    request.body.generatedResourceCount = sheetRowCount;
+  }
   return await createExcelSheet(data, headers, config.sheetName);
 }
 
