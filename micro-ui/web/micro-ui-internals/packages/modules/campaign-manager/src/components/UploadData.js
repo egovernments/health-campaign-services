@@ -178,7 +178,8 @@ const UploadData = ({formData , onSelect , ...props}) => {
   };
 
   const onFileDownload = (file) => {
-    window.open(file?.[0]?.url, "_blank", `name=${file?.[0]?.fileName}`);
+    // window.open(file?.url, "_blank", `name=${file?.fileName}`);
+    window.location.href = file?.url;
   };
 
   const Template = {
