@@ -435,10 +435,7 @@ class CommonUtilsTest {
                 .build())
                 .build();
 
-        Class<?> objClass = getObjClass(objInDbList);
-        Method getIdMethod = getMethod("getId", objClass);
-
-        CommonUtils.enrichForUpdate(idToObjInRequestMap, objInDbList, someRequest, getIdMethod);
+        CommonUtils.enrichForUpdate(idToObjInRequestMap, objInDbList, someRequest);
 
         assertEquals(idToObjInRequestMap.get("some-id").getRowVersion(),
                 objInDbList.get(0).getRowVersion() + 1);

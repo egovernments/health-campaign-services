@@ -60,7 +60,7 @@ public class HouseholdMemberEnrichmentService {
         List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
                 "id", false);
         log.info("updating lastModifiedTime and lastModifiedBy");
-//        enrichForUpdate(hMap, existingHouseholdMembers, beneficiaryRequest);
+        enrichForUpdate(hMap, existingHouseholdMembers, beneficiaryRequest);
         log.info("household Members updated successfully.");
     }
 

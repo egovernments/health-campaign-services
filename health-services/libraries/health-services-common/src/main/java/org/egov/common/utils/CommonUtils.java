@@ -465,6 +465,21 @@ public class CommonUtils {
         });
     }
 
+    /**
+     * Enriches objects for update based on a map of IDs to objects, a list of existing objects, and a request object.
+     *
+     * @param idToObjMap      A map of IDs to objects.
+     * @param existingObjList The list of existing objects.
+     * @param request         The request object.
+     * @param <T>             The type of objects in the list.
+     */
+    public static <T> void enrichForUpdate(Map<String, T> idToObjMap, List<T> existingObjList, Object request) {
+        Class<?> objClass = getObjClass(existingObjList);
+        Method getIdMethod = getMethod("getId", objClass);
+
+        enrichForUpdate(idToObjMap, existingObjList, request, getIdMethod);
+    }
+
 
     /**
      * Creates a map of IDs to objects using the default ID method.

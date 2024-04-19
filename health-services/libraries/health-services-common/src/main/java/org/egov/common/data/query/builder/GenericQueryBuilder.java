@@ -28,17 +28,37 @@ public interface GenericQueryBuilder {
         return String.format("UPDATE %s", tableName);
     }
 
-    static String generateClause(String clauseName, String seperator, List<String> queryParameters){
+    /**
+     * Generates a clause for a SQL query.
+     *
+     * @param clauseName      the name of the clause (e.g., "WHERE", "AND", "OR")
+     * @param separator       the separator between query parameters (e.g., "=", "LIKE")
+     * @param queryParameters the list of query parameters to be included in the clause
+     * @return the generated clause as a string
+     */
+    static String generateClause(String clauseName, String separator, List<String> queryParameters) {
+        // Initialize a StringBuilder to construct the clause
         StringBuilder clauseBuilder = new StringBuilder();
+
+        // If there are no query parameters, return an empty string
         if (queryParameters.isEmpty()) {
             return " ";
         }
+
+        // Append the clause name to the clauseBuilder
         clauseBuilder.append(String.format(" %s ", clauseName));
+
+        // Append the first query parameter to the clauseBuilder
         clauseBuilder.append(String.format(queryParameters.get(0)));
+
+        // Append the remaining query parameters to the clauseBuilder with the specified separator
         IntStream.range(1, queryParameters.size()).forEach(i ->
-                clauseBuilder.append(String.format(" %s %s", seperator ,queryParameters.get(i))));
+                clauseBuilder.append(String.format(" %s %s", separator, queryParameters.get(i))));
+
+        // Convert the clauseBuilder to a string and return it
         return clauseBuilder.toString();
     }
+
 
     static StringBuilder generateQuery(String queryTemplate, List<String> setClauseFields, List<String> whereClauseFields){
         StringBuilder stringBuilder = new StringBuilder();
