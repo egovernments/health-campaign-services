@@ -902,7 +902,7 @@
   resolved "https://registry.npmjs.org/@types/uuid/-/uuid-9.0.8.tgz"
   integrity sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==
 
-"@types/xlsx@^0.0.36":
+"@types/xlsx@0.0.36":
   version "0.0.36"
   resolved "https://registry.npmjs.org/@types/xlsx/-/xlsx-0.0.36.tgz"
   integrity sha512-mvfrKiKKMErQzLMF8ElYEH21qxWCZtN59pHhWGmWCWFJStYdMWjkDSAy6mGowFxHXaXZWe5/TW7pBUiWclIVOw==
@@ -5066,7 +5066,7 @@ xlsx-populate@1.21.0:
     lodash "^4.17.15"
     sax "^1.2.4"
 
-xlsx@*, xlsx@^0.18.5:
+xlsx@*, xlsx@0.18.5:
   version "0.18.5"
   resolved "https://registry.npmjs.org/xlsx/-/xlsx-0.18.5.tgz"
   integrity sha512-dmg3LCjBPHZnQp5/F/+nnTa+miPJxUXB6vtk42YjBBKayDNagxGEeIdWApkYPOf3Z3pm3k62Knjzp7lMeTEtFQ==

@@ -10,7 +10,7 @@ import FormData from 'form-data';
 import { Pool } from 'pg';
 import { logger } from "./logger";
 import dataManageController from "../controllers/dataManage/dataManage.controller";
-import { convertSheetToDifferentTabs } from "./campaignUtils";
+import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration } from "./campaignUtils";
 const NodeCache = require("node-cache");
 const _ = require('lodash');
 
@@ -265,13 +265,23 @@ async function getResponseFromDb(request: any, response: any) {
   try {
     const { type } = request.query;
 
-    let queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2";
-    // let queryString = "SELECT * FROM eg_cm_generated_resource_details WHERE type = $1 AND status = $2";
-    const status = 'Completed';
-    const queryResult = await pool.query(queryString, [type, status]);
-    const responseData = queryResult.rows;
-    modifyAuditdetailsAndCases(responseData);
-    return responseData;
+    let queryString: string;
+    if (request?.query?.id) {
+      const id = request?.query?.id;
+      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1";
+      const queryResult = await pool.query(queryString, [id]);
+      const responseData = queryResult.rows;
+      modifyAuditdetailsAndCases(responseData);
+      return responseData;
+    }
+    else {
+      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2";
+      const status = 'Completed';
+      const queryResult = await pool.query(queryString, [type, status]);
+      const responseData = queryResult.rows;
+      modifyAuditdetailsAndCases(responseData);
+      return responseData;
+    }
   } catch (error) {
     logger.error('Error fetching data from the database:', error);
     throw error;
@@ -338,7 +348,7 @@ async function getFinalUpdatedResponse(result: any, responseData: any, request: 
         lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid
       },
       fileStoreid: result?.[0]?.fileStoreId,
-      status: "Completed",
+      status: "Completed"
     };
   });
 }
@@ -414,8 +424,12 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
       const dataManagerController = new dataManageController();
       const result = await dataManagerController.getBoundaryData(request, response);
       let updatedResult = result;
-      if (request?.body?.Filters && request?.body?.Filters?.boundaries.length > 0) {
-        updatedResult = await convertSheetToDifferentTabs(request, result[0].fileStoreId);
+      const boundaryData = await getBoundaryDataAfterGeneration(result, request);
+      const differentTabsBasedOnLevel = config.generateDifferentTabsOnBasisOf;
+      const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
+      const districtEntries = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
+      if (isKeyOfThatTypePresent && districtEntries.length >= 2) {
+        updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel);
       }
       const finalResponse = await getFinalUpdatedResponse(updatedResult, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
@@ -726,7 +740,10 @@ async function getDataSheetReady(boundaryData: any, request: any) {
     mappedRowData[boundaryCodeIndex] = boundaryCode;
     return mappedRowData;
   });
-  return await createExcelSheet(data, headers);
+
+  const sheetRowCount = data.length;
+  request.body.generatedResourceCount = sheetRowCount;
+  return await createExcelSheet(data, headers, config.sheetName);
 }
 
 
