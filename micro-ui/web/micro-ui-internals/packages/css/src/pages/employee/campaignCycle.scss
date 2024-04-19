@@ -81,11 +81,10 @@
 .uploaded-file-container {
   margin-left: 0rem;
 }
-.bulk-drag-drop-container {
+.upload-drag-drop-container {
   background-color: #fafafa;
   border: 1.5px dashed #d6d5d4;
   border-radius: 5px;
-  margin-top: 1.5rem;
   padding: 1rem 1rem 1rem 1rem;
   display: flex;
   align-items: center;
@@ -108,7 +107,7 @@
   }
 }
 
-.drag-drop-container{
+.upload-drag-drop-container{
   margin-left: 0rem;
   .drag-drop{
     color: #B1B4B6;

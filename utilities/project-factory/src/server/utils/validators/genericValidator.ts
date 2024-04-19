@@ -17,27 +17,6 @@ function validateDataWithSchema(data: any, schema: any): { isValid: boolean; err
     return { isValid, error: validate.errors };
 }
 
-function processValidationWithSchema(processResult: any, validationErrors: any, validatedData: any, schemaDef: any) {
-    if (schemaDef) {
-        processResult.updatedDatas.forEach((data: any) => {
-            const validationResult = validateDataWithSchema(data, schemaDef);
-            if (!validationResult.isValid) {
-                validationErrors.push({ data, error: validationResult.error });
-            }
-            else {
-                validatedData.push(data)
-            }
-        });
-    }
-    else {
-        logger.info("Skipping Validation of Data as Schema is not defined");
-        validationErrors.push("NO_VALIDATION_SCHEMA_FOUND");
-        processResult.updatedDatas.forEach((data: any) => {
-            validatedData.push(data)
-        });
-    }
-}
-
 function validateBoundaries(requestBody: any) {
     const { boundaryCode } = requestBody?.Campaign;
     if (!boundaryCode) {
@@ -251,7 +230,6 @@ async function validateGenerateRequest(request: express.Request) {
 
 export {
     validateDataWithSchema,
-    processValidationWithSchema,
     validateCampaignRequest,
     validatedProjectResponseAndUpdateId,
     validateStaffResponse,

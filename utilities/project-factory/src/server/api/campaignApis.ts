@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
 import { validateSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber, getWorkbook } from "./genericApis";
-import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy } from "../utils/campaignUtils";
+import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
@@ -107,20 +107,20 @@ function getParamsViaElements(elements: any, request: any) {
   return params
 }
 
-function changeBodyViaElements(elements: any, request: any) {
+function changeBodyViaElements(elements: any, requestBody: any) {
   if (!elements) {
     return;
   }
   for (const element of elements) {
     if (element?.isInBody) {
       if (element?.value) {
-        _.set(request.body, element?.keyPath, element?.value);
+        _.set(requestBody, element?.keyPath, element?.value);
       }
       else if (element?.getValueViaPath) {
-        _.set(request.body, element?.keyPath, _.get(request.body, element?.getValueViaPath))
+        _.set(requestBody, element?.keyPath, _.get(requestBody, element?.getValueViaPath))
       }
       else {
-        _.set(request.body, element?.keyPath, {})
+        _.set(requestBody, element?.keyPath, {})
       }
     }
   }
@@ -159,14 +159,14 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
       if (match) {
         foundMatch = true;
         newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
-        errors.push({ status: "PERSISTED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: searchedElement[createAndSearchConfig.uniqueIdentifier], errorDetails: "" })
+        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: searchedElement[createAndSearchConfig.uniqueIdentifier], errorDetails: "" })
         break;
       }
     }
     if (!foundMatch) {
-      errors.push({ status: "NOT_PERSISTED", rowNumber: createdElement["!row#number!"], errorDetails: `Can't confirm persistence of this data` })
+      errors.push({ status: "NOT_CREATED", rowNumber: createdElement["!row#number!"], errorDetails: `Can't confirm creation of this data` })
       activity.status = 2001 // means not persisted
-      logger.info("Can't confirm persistence of this data of row number : " + createdElement["!row#number!"]);
+      logger.info("Can't confirm creation of this data of row number : " + createdElement["!row#number!"]);
     }
   });
 }
@@ -230,11 +230,14 @@ async function performSearch(createAndSearchConfig: any, request: any, params: a
   let searchAgain = true;
 
   while (searchAgain) {
+    const searcRequestBody = {
+      RequestInfo: request?.body?.RequestInfo
+    }
+    changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, searcRequestBody)
     logger.info("Search url : " + createAndSearchConfig?.searchDetails?.url);
     logger.info("Search params : " + JSON.stringify(params));
-    logger.info("Search body : " + JSON.stringify(request.body));
-
-    const response = await httpRequest(createAndSearchConfig?.searchDetails?.url, request.body, params);
+    logger.info("Search body : " + JSON.stringify(searcRequestBody));
+    const response = await httpRequest(createAndSearchConfig?.searchDetails?.url, searcRequestBody, params);
     const resultArray = _.get(response, createAndSearchConfig?.searchDetails?.searchPath);
     if (resultArray && Array.isArray(resultArray)) {
       arraysToMatch.push(...resultArray);
@@ -264,11 +267,13 @@ function updateOffset(createAndSearchConfig: any, params: any, requestBody: any)
 }
 
 async function processSearchAndValidation(request: any, createAndSearchConfig: any, dataFromSheet: any[]) {
-  const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
-  changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
-  const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
+  if (request?.body?.dataToSearch?.length > 0) {
+    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
+    changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
+    changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
+    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
+    matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
+  }
 }
 
 
@@ -276,9 +281,15 @@ async function confirmCreation(createAndSearchConfig: any, request: any, facilit
   // wait for 5 seconds
   await new Promise(resolve => setTimeout(resolve, 5000));
   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
   matchViaUserIdAndCreationTime(facilityCreateData, arraysToMatch, request, creationTime, createAndSearchConfig, activity)
+}
+
+async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any) {
+  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
+  request.body.dataToSearch = typeData.searchData;
+  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+  await generateProcessedFileAndPersist(request);
 }
 
 async function processValidate(request: any) {
@@ -286,9 +297,7 @@ async function processValidate(request: any) {
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
   await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
-  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
-  request.body.dataToSearch = typeData.searchData;
-  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+  processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig)
 }
 
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any) {
@@ -303,7 +312,9 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       const end = (i + 1) * limit;
       const chunkData = dataToCreate.slice(start, end); // Get a chunk of data
       const creationTime = Date.now();
-      const newRequestBody = JSON.parse(JSON.stringify(request.body));
+      const newRequestBody = {
+        RequestInfo: request?.body?.RequestInfo,
+      }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
       const responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
@@ -311,6 +322,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       logger.info("Activity : " + JSON.stringify(activity));
     }
   }
+  await generateProcessedFileAndPersist(request);
 }
 
 async function processGenericRequest(request: any) {
@@ -322,26 +334,31 @@ async function processGenericRequest(request: any) {
   }
 }
 
+async function processAfterValidation(dataFromSheet: any, createAndSearchConfig: any, request: any) {
+  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
+  request.body.dataToCreate = typeData.createData;
+  request.body.dataToSearch = typeData.searchData;
+  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+  if (createAndSearchConfig?.createBulkDetails) {
+    _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
+    const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
+    changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
+    await performAndSaveResourceActivity(request, createAndSearchConfig, params, request.body.ResourceDetails.type);
+  }
+}
+
 
 async function processCreate(request: any) {
   const type: string = request.body.ResourceDetails.type;
   if (type == "boundary") {
     await autoGenerateBoundaryCodes(request);
+    await generateProcessedFileAndPersist(request);
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
     const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
     await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
-    const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
-    request.body.dataToCreate = typeData.createData;
-    request.body.dataToSearch = typeData.searchData;
-    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-    if (createAndSearchConfig?.createBulkDetails) {
-      _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
-      const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
-      changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
-      await performAndSaveResourceActivity(request, createAndSearchConfig, params, type);
-    }
+    processAfterValidation(dataFromSheet, createAndSearchConfig, request)
   }
 }
 

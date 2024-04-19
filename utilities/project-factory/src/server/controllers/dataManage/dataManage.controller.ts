@@ -5,7 +5,7 @@ import { enrichResourceDetails, errorResponder, processGenerate, sendResponse, g
 import { processGenericRequest } from "../../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../../api/genericApis";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../../utils/validators/campaignValidators";
-import { generateProcessedFileAndPersist, processDataSearchRequest } from "../../utils/campaignUtils";
+import { processDataSearchRequest } from "../../utils/campaignUtils";
 
 
 
@@ -85,9 +85,14 @@ class dataManageController {
     createData = async (request: any, response: any) => {
         try {
             await validateCreateRequest(request);
-            await processGenericRequest(request);
+
+            // Enrich resource details
             await enrichResourceDetails(request);
-            await generateProcessedFileAndPersist(request);
+
+            // Process the generic request
+            await processGenericRequest(request);
+
+            // Send response with resource details
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))

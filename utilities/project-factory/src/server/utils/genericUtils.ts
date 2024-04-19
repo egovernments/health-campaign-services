@@ -618,11 +618,12 @@ TODO add comments @nitish-egov
 */
 async function enrichResourceDetails(request: any) {
   request.body.ResourceDetails.id = uuidv4();
+  request.body.ResourceDetails.processedFileStoreId = null;
   if (request?.body?.ResourceDetails?.action == "create") {
     request.body.ResourceDetails.status = "data-accepted"
   }
   else {
-    request.body.ResourceDetails.status = "data-validated"
+    request.body.ResourceDetails.status = "validation-started"
   }
   request.body.ResourceDetails.auditDetails = {
     createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
@@ -630,7 +631,7 @@ async function enrichResourceDetails(request: any) {
     lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
     lastModifiedTime: Date.now()
   }
-  // delete request.body.ResourceDetails.dataToCreate
+  produceModifiedMessages(request?.body, config.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
 }
 
 function getFacilityIds(data: any) {
@@ -652,7 +653,7 @@ function matchData(request: any, datas: any, searchedDatas: any, createAndSearch
       var errorFound = false;
       for (const key of keys) {
         if (searchData.hasOwnProperty(key) && searchData[key] !== data[key] && key != "!row#number!") {
-          errorString += `Value mismatch for key "${key}" at index ${data["!row#number!"] - 1}. Expected: "${data[key]}", Found: "${searchData[key]}"`
+          errorString += `Value mismatch for key "${key}. Expected: "${data[key]}", Found: "${searchData[key]}"`
           errorFound = true;
         }
       }
@@ -699,7 +700,7 @@ async function getDataFromSheet(fileStoreId: any, tenantId: any, createAndSearch
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
-  return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true)
+  return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true, createAndSearchConfig)
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {
