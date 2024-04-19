@@ -276,7 +276,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("userUuid", searchObject.getUserUuid());
         }
 
-        if(StringUtils.isEmpty(searchObject.getType())){
+        if(!StringUtils.isEmpty(searchObject.getType())){
             query = query + "AND type = :type ";
             paramsMap.put("type", searchObject.getType());
         }
