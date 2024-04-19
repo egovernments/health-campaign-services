@@ -304,7 +304,29 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     }
 }
 
-async function validateProjectCampaignResources(resources: any[]) {
+async function validateResources(resources: any, request: any) {
+    for (const resource of resources) {
+        const resourceDetails = {
+            type: resource.type,
+            fileStoreId: resource.filestoreId,
+            tenantId: request?.body?.CampaignDetails?.tenantId,
+            action: "validate",
+            hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+            additionalDetails: {}
+        };
+        try {
+            await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+                RequestInfo: request.body.RequestInfo,
+                ResourceDetails: resourceDetails
+            });
+        } catch (error: any) {
+            logger.error(`Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
+            throwError("COMMON", error?.response?.status, error?.response?.data?.Errors?.[0]?.code, `Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
+        }
+    }
+}
+
+async function validateProjectCampaignResources(resources: any, request: any) {
     if (resources) {
         if (!Array.isArray(resources)) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be an array");
@@ -315,8 +337,12 @@ async function validateProjectCampaignResources(resources: any[]) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resource type");
             }
         }
+        if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
+            await validateResources(request.body.CampaignDetails.resources, request);
+        }
     }
 }
+
 
 
 function validateProjectCampaignMissingFields(CampaignDetails: any) {
@@ -417,7 +443,7 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         }
 
         await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
-        await validateProjectCampaignResources(resources);
+        await validateProjectCampaignResources(resources, request);
     }
     if (actionInUrl == "update") {
         await validateById(request);
