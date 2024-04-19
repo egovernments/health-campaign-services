@@ -1,4 +1,4 @@
-package org.egov.common.helpers;
+package org.egov.common.helper;
 
 import digit.models.coremodels.AuditDetails;
 
