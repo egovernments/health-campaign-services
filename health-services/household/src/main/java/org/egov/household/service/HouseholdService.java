@@ -12,8 +12,9 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.repository.HouseholdRepository;
+import org.egov.household.validators.household.HExistentEntityValidator;
 import org.egov.household.validators.household.HIsDeletedValidator;
-import org.egov.household.validators.household.HNonExsistentEntityValidator;
+import org.egov.household.validators.household.HNonExistentEntityValidator;
 import org.egov.household.validators.household.HNullIdValidator;
 import org.egov.household.validators.household.HRowVersionValidator;
 import org.egov.household.validators.household.HUniqueEntityValidator;
@@ -56,16 +57,18 @@ public class HouseholdService {
 
     private final HouseholdEnrichmentService enrichmentService;
 
+    private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
+            validator.getClass().equals(HExistentEntityValidator.class);
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HNullIdValidator.class)
                     || validator.getClass().equals(HIsDeletedValidator.class)
                     || validator.getClass().equals(HUniqueEntityValidator.class)
-                    || validator.getClass().equals(HNonExsistentEntityValidator.class)
+                    || validator.getClass().equals(HNonExistentEntityValidator.class)
                     || validator.getClass().equals(HRowVersionValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForDelete = validator ->
             validator.getClass().equals(HNullIdValidator.class)
-                    || validator.getClass().equals(HNonExsistentEntityValidator.class)
+                    || validator.getClass().equals(HNonExistentEntityValidator.class)
                     || validator.getClass().equals(HRowVersionValidator.class);
 
     @Autowired

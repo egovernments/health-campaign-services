@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
+import org.egov.common.models.household.HouseholdMemberSearch;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
