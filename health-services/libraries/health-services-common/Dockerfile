@@ -15,6 +15,5 @@ COPY ${WORK_DIR}/src ./src
 # RUN mvn -B dependency:go-offline
 RUN cd ${WORK_DIR} \
     && mvn -B -f /app/pom.xml test verify deploy -s settings.xml  \
-    -Dnexus.user=${nexusUsername} -Dnexus.password=${nexusPassword} \
-    -Dmaven.compiler.args="--add-opens java.base/java.util=ALL-UNNAMED"
+    -Dnexus.user=${nexusUsername} -Dnexus.password=${nexusPassword}
 FROM scratch
