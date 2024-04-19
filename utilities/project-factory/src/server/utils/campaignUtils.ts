@@ -267,15 +267,19 @@ function enrichRootProjectId(requestBody: any) {
     }
 }
 
-async function enrichAndPersistCampaignForCreate(request: any) {
+async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
-    request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
+    if (firstPersist) {
+        request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
+    }
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
-    request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
-    request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType ? request?.body?.CampaignDetails?.projectType : null;
-    request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType ? request?.body?.CampaignDetails?.hierarchyType : null;
-    request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails ? request?.body?.CampaignDetails?.additionalDetails : {};
+    if (firstPersist) {
+        request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
+    }
+    request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
+    request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType || null;
+    request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails || {};
     request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || null
     request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate || null
     request.body.CampaignDetails.auditDetails = {
@@ -295,7 +299,7 @@ async function enrichAndPersistCampaignForCreate(request: any) {
     delete request.body.CampaignDetails.campaignDetails
 }
 
-async function enrichAndPersistCampaignForUpdate(request: any) {
+async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
@@ -327,12 +331,12 @@ async function enrichAndPersistCampaignForUpdate(request: any) {
 }
 
 
-async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl: any) {
+async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl: any, firstPersist: boolean = false) {
     if (actionInUrl == "create") {
-        await enrichAndPersistCampaignForCreate(request)
+        await enrichAndPersistCampaignForCreate(request, firstPersist)
     }
     else if (actionInUrl == "update") {
-        await enrichAndPersistCampaignForUpdate(request)
+        await enrichAndPersistCampaignForUpdate(request, firstPersist)
     }
 }
 
@@ -761,6 +765,7 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     if (actionInUrl == "create") {
         request.body.CampaignDetails.id = uuidv4()
     }
+    await enrichAndPersistProjectCampaignRequest(request, actionInUrl, true)
     if (request?.body?.CampaignDetails?.action == "create") {
         await createProjectCampaignResourcData(request);
         await createProject(request, actionInUrl)
