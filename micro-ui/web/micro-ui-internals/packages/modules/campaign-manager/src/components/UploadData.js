@@ -6,6 +6,7 @@ import BulkUpload from "./BulkUpload";
 import Ajv from "ajv";
 import XLSX from "xlsx";
 import { InfoCard } from "@egovernments/digit-ui-components";
+import { schemaConfig } from "../configs/schemaConfig";
 
 /**
  * The `UploadData` function in JavaScript handles the uploading, validation, and management of files
@@ -19,9 +20,10 @@ const UploadData = ({formData , onSelect , ...props}) => {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [uploadedFile, setUploadedFile] = useState([]);
-  const [params] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
+  const [params] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
   const [showInfoCard, setShowInfoCard] = useState(false);
   const [errorsType , setErrorsType] = useState({});
+  const [schema , setSchema] = useState(null);
   const type = props?.props?.type;
   useEffect(() => {
     if(type==="facilityWithBoundary"){
@@ -56,40 +58,18 @@ const UploadData = ({formData , onSelect , ...props}) => {
   },[type,errorsType]);
 
 
-  const schema = {
-    $schema: "http://json-schema.org/draft-07/schema#",
-    title: "FacilityTemplateSchema",
-    type: "object",
-    properties: {
-      "Facility Name": {
-        type: "string",
-        maxLength: 2000,
-        minLength: 1,
-      },
-      "Facility Type": {
-        type: "string",
-        enum: ["Warehouse", "Health Facility"],
-      },
-      "Facility Status": {
-        type: "string",
-        enum: ["Temporary", "Permanent"],
-      },
-      Capacity: {
-        type: "number",
-        minimum: 0,
-        maximum: 9223372036854775807,
-      },
-      "Boundary Code": {
-        type: "string",
-        minLength: 1,
-      },
-    },
-    required: ["Facility Name", "Facility Type", "Facility Status", "Capacity", "Boundary Code"],
-  };
-
   const validateData = (data) => {
     const ajv = new Ajv(); // Initialize Ajv
-    const validate = ajv.compile(schema); // Compile schema
+    // const validate = ajv.compile(schema); // Compile schema
+    let validate;
+    if (type === 'facilityWithBoundary') {
+      validate = ajv.compile(schemaConfig?.facilityWithBoundary);
+    } else if (type === 'boundary') {
+      validate = ajv.compile(schemaConfig?.Boundary);
+    }
+    else{
+      validate =  ajv.compile(schemaConfig?.User);
+    }
     const errors = []; // Array to hold validation errors
 
     data.forEach((item, index) => {
@@ -170,7 +150,7 @@ const UploadData = ({formData , onSelect , ...props}) => {
     const fileData = fileUrl.map((i) => {
       const urlParts = i?.url?.split("/");
       const fileName = urlParts[urlParts?.length - 1]?.split("?")?.[0];
-      const fileType = (type === "facility") ? "facilityWithBoundary" : type;
+      const fileType = (type === "facilityWithBoundary") ? "facility" : type;
       return {
         ...i,
         fileName: fileName,
@@ -197,9 +177,13 @@ const UploadData = ({formData , onSelect , ...props}) => {
       type: type,
       forceUpdate: false,
       hierarchyType: params.hierarchyType,
-      id: params?.facilityId,
+      id: (type === 'boundary' ? params?.boundaryId : (type === 'facilityWithBoundary' ? params?.facilityId : params?.userId))
     },
-    body: {},
+    // body: (type === 'boundary' ? {
+    //   "Filters":{
+    //     "boundaries": filteredBoundaryData
+    //   }
+    // } :{}),
   };
   const mutation = Digit.Hooks.useCustomAPIMutationHook(Template);
 
@@ -211,14 +195,19 @@ const UploadData = ({formData , onSelect , ...props}) => {
           type: type,
           forceUpdate: false,
           hierarchyType: params.hierarchyType,
-          id: params?.facilityId,
+          id: (type === 'boundary' ? params?.boundaryId : (type === 'facilityWithBoundary' ? params?.facilityId : params?.userId))
         },
+        // body: (type === 'boundary' ? {
+        //   "Filters":{
+        //     "boundaries": filteredBoundaryData
+        //   }
+        // } :{})
       },
       {
         onSuccess: async (result) => {
           const filesArray = [result?.fileStoreIds?.[0]?.fileStoreId];
           const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch(filesArray, tenantId);
-          const fileData = fileUrl.map((i) => {
+          const fileData = fileUrl?.map((i) => {
             const urlParts = i?.url?.split("/");
             const fileName = urlParts[urlParts?.length - 1]?.split("?")?.[0];
             return {

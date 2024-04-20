@@ -25,19 +25,20 @@ const SetupCampaign = () => {
   const [campaignConfig, setCampaignConfig] = useState(CampaignConfig(totalFormData));
   const [shouldUpdate, setShouldUpdate] = useState(false);
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
+  const [dataParams, setDataParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
   const [showToast, setShowToast] = useState(null);
   const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
   const { mutate: updateCampaign } = Digit.Hooks.campaign.useUpdateCampaign(tenantId);
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
+  const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
   const hierarchyType = "ADMIN";
   const [currentKey, setCurrentKey] = useState(() => {
     const keyParam = searchParams.get("key");
     return keyParam ? parseInt(keyParam) : 1;
   });
-
 
   const { isLoading: draftLoading, data: draftData, error: draftError, refetch: draftRefetch } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
@@ -52,9 +53,19 @@ const SetupCampaign = () => {
     },
   });
 
-  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary",hierarchyType);
-  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary",hierarchyType);
-  // const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary"); // to be integrated later
+  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType);
+  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType, filteredBoundaryData);
+  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary" ,hierarchyType ); // to be integrated later
+
+  useEffect(() => {
+    if (Object.keys(dataParams).length === 0) {
+      setDataParams({
+        facilityId: facilityId,
+        boundaryId: boundaryId,
+        hierarchyType: hierarchyType,
+      });
+    }
+  }, [dataParams]); // Only run if dataParams changes
 
   function updateUrlParams(params) {
     const url = new URL(window.location.href);
@@ -101,7 +112,7 @@ const SetupCampaign = () => {
   };
 
   useEffect(() => {
-    updateUrlParams({ key : currentKey});
+    updateUrlParams({ key: currentKey });
   }, [currentKey]);
 
   function restructureData(data) {
@@ -122,7 +133,7 @@ const SetupCampaign = () => {
           };
 
           rule.attributes.forEach((attribute) => {
-            if (attribute.operator.code === "IN_BETWEEN") {
+            if (attribute?.operator?.code === "IN_BETWEEN") {
               restructuredRule.conditions.push({
                 attribute: attribute.attribute.code,
                 operator: "LESS_THAN",
@@ -368,10 +379,10 @@ const SetupCampaign = () => {
         if (!formData?.campaignDates?.startDate || !formData?.campaignDates?.endDate) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_DATE_MISSING")}` });
           return false;
-        } else if ((endDateObj == startDateObj)) {
+        } else if (endDateObj.getTime() === startDateObj.getTime()) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_EQUAL_START_DATE")}` });
           return false;
-        } else if (endDateObj < startDateObj) {
+        } else if (endDateObj.getTime() < startDateObj) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_BEFORE_START_DATE")}` });
           return false;
         } else {
@@ -427,9 +438,6 @@ const SetupCampaign = () => {
     setParams({
       ...params,
       [name]: { ...formData },
-      facilityId : facilityId,
-      boundaryId : boundaryId,
-      hierarchyType: hierarchyType
     });
 
     const dummyData = {
