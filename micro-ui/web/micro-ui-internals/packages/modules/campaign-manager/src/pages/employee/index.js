@@ -60,7 +60,6 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/create-campaign/upload-boundary-data`} component={() => <UploadBoundaryData />} />
           <PrivateRoute path={`${path}/create-campaign/cycle-configure`} component={() => <CycleConfiguration />} />
           <PrivateRoute path={`${path}/create-campaign/delivery-details`} component={() => <DeliveryRule />} />
-          <PrivateRoute path={`${path}/sample`} component={() => <div>Home Campaign Loaded</div>} />
           <PrivateRoute path={`${path}/setup-campaign`} component={() => <SetupCampaign />} />
           <PrivateRoute path={`${path}/my-campaign`} component={() => <MyCampaign />} />
           <PrivateRoute path={`${path}/preview`} component={() => <CampaignSummary />} />

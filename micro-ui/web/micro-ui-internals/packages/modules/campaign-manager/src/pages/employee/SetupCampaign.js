@@ -113,11 +113,25 @@ const SetupCampaign = () => {
           };
 
           rule.attributes.forEach((attribute) => {
-            restructuredRule.conditions.push({
-              attribute: attribute.attribute ? attribute.attribute.code : null,
-              operator: attribute.operator ? attribute.operator.code : null,
-              value: parseInt(attribute.value),
-            });
+            if (attribute.operator.code === "IN_BETWEEN") {
+              restructuredRule.conditions.push({
+                attribute: attribute.attribute.code,
+                operator: "LESS_THAN",
+                value: parseInt(attribute.fromValue),
+              });
+              attribute;
+              restructuredRule.conditions.push({
+                attribute: attribute.attribute.code,
+                operator: "GREATER_THAN",
+                value: parseInt(attribute.toValue),
+              });
+            } else {
+              restructuredRule.conditions.push({
+                attribute: attribute.attribute ? attribute.attribute.code : null,
+                operator: attribute.operator ? attribute.operator.code : null,
+                value: attribute.attribute.code === "Gender" ? attribute.value : parseInt(attribute.value),
+              });
+            }
           });
 
           rule.products.forEach((prod) => {
@@ -170,7 +184,6 @@ const SetupCampaign = () => {
             onError: (error, variables) => {},
             onSuccess: async (data) => {
               draftRefetch();
-              Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
               history.push(
                 `/${window.contextPath}/employee/campaign/response?campaignId=${data?.CampaignDetails?.campaignNumber}&isSuccess=${true}`,
                 {
@@ -178,6 +191,7 @@ const SetupCampaign = () => {
                   text: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT",
                 }
               );
+              Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
             },
           });
         };
@@ -258,7 +272,7 @@ const SetupCampaign = () => {
       }
       setShouldUpdate(false);
     }
-  }, [shouldUpdate, totalFormData, currentKey]);
+  }, [shouldUpdate]);
 
   function validateCycleData(data) {
     const { cycle, deliveries } = data.cycleConfigure.cycleConfgureDate;
@@ -420,7 +434,9 @@ const SetupCampaign = () => {
       ],
     };
 
-    setShouldUpdate(true);
+    if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].skipAPICall) {
+      setShouldUpdate(true);
+    }
 
     if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].mandatoryOnAPI) {
       setCurrentKey(currentKey + 1);

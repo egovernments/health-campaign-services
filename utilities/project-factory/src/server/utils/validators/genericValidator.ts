@@ -1,12 +1,12 @@
+// Importing necessary modules
 import * as express from "express";
 import { logger } from "../logger";
 import Ajv from "ajv";
 import config from "../../config/index";
 import { httpRequest } from "../request";
 import { throwError } from "../genericUtils";
-// import RequestCampaignDetails from "../config/interfaces/requestCampaignDetails.interface";
 
-
+// Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: Ajv.ErrorObject[] | null | undefined } {
     const ajv = new Ajv();
     const validate = ajv.compile(schema);
@@ -17,6 +17,7 @@ function validateDataWithSchema(data: any, schema: any): { isValid: boolean; err
     return { isValid, error: validate.errors };
 }
 
+// Function to validate boundaries in the request body
 function validateBoundaries(requestBody: any) {
     const { boundaryCode } = requestBody?.Campaign;
     if (!boundaryCode) {
@@ -32,20 +33,32 @@ function validateBoundaries(requestBody: any) {
         }
     }
 }
+
+// Function to validate the user ID
 async function validateUserId(resourceId: any, requestBody: any) {
+    // Constructing the search body for user validation
     const userSearchBody = {
         RequestInfo: requestBody?.RequestInfo,
         tenantId: requestBody?.Campaign?.tenantId.split('.')?.[0],
         uuid: [resourceId]
     }
+    
+    // Logging user search URL and request body
     logger.info("User search url : " + config.host.userHost + config.paths.userSearch);
     logger.info("userSearchBody : " + JSON.stringify(userSearchBody));
+    
+    // Performing the HTTP request to validate the user ID
     const response = await httpRequest(config.host.userHost + config.paths.userSearch, userSearchBody);
+    
+    // Handling response errors if user ID is invalid
     if (!response?.user?.[0]?.uuid) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type staff with id " + resourceId);
     }
 }
+
+// Function to validate the product variant ID
 async function validateProductVariantId(resourceId: any, requestBody: any) {
+    // Constructing the search body for product variant validation
     const productVariantSearchBody = {
         RequestInfo: requestBody?.RequestInfo,
         ProductVariant: { id: [resourceId] }
@@ -55,15 +68,24 @@ async function validateProductVariantId(resourceId: any, requestBody: any) {
         offset: 0,
         tenantId: requestBody?.Campaign?.tenantId.split('.')?.[0]
     }
+    
+    // Logging product variant search URL and request body
     logger.info("ProductVariant search url : " + config.host.productHost + config.paths.productVariantSearch);
     logger.info("productVariantSearchBody : " + JSON.stringify(productVariantSearchBody));
     logger.info("productVariantSearchParams : " + JSON.stringify(productVariantSearchParams));
+    
+    // Performing the HTTP request to validate the product variant ID
     const response = await httpRequest(config.host.productHost + config.paths.productVariantSearch, productVariantSearchBody, productVariantSearchParams);
+    
+    // Handling response errors if product variant ID is invalid
     if (!response?.ProductVariant?.[0]?.id) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type resource with id " + resourceId);
     }
 }
+
+// Function to validate the project facility ID
 async function validateProjectFacilityId(resourceId: any, requestBody: any) {
+    // Constructing the search body for project facility validation
     const facilitySearchBody = {
         RequestInfo: requestBody?.RequestInfo,
         Facility: {
@@ -75,15 +97,24 @@ async function validateProjectFacilityId(resourceId: any, requestBody: any) {
         offset: 0,
         tenantId: requestBody?.Campaign?.tenantId?.split('.')?.[0]
     }
+    
+    // Logging facility search URL and request body
     logger.info("Facility search url : " + config.host.facilityHost + config.paths.facilitySearch);
     logger.info("facilitySearchBody : " + JSON.stringify(facilitySearchBody));
     logger.info("facilitySearchParams : " + JSON.stringify(facilitySearchParams));
+    
+    // Performing the HTTP request to validate the project facility ID
     const response = await httpRequest(config.host.facilityHost + config.paths.facilitySearch, facilitySearchBody, facilitySearchParams);
+    
+    // Handling response errors if project facility ID is invalid
     if (!response?.Facilities?.[0]?.id) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type facility with id " + resourceId);
     }
 }
+
+// Function to validate the resource ID based on its type
 async function validateResourceId(type: any, resourceId: any, requestBody: any) {
+    // Dispatching validation based on resource type
     if (type == "staff") {
         await validateUserId(resourceId, requestBody)
     }
@@ -97,24 +128,27 @@ async function validateResourceId(type: any, resourceId: any, requestBody: any) 
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resource type " + type);
     }
 }
+// Function to validate the resources associated with a campaign
 async function validateProjectResource(requestBody: any) {
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
         for (const resource of campaignDetails?.resources) {
             const type = resource?.type;
             for (const resourceId of resource?.resourceIds) {
+                // Check if resource type and ID are provided
                 if (!type) {
                     throwError("COMMON", 400, "VALIDATION_ERROR", "Enter Type In Resources");
                 }
                 if (!resourceId) {
                     throwError("COMMON", 400, "VALIDATION_ERROR", "Enter ResourceId In Resources");
                 }
+                // Validate the resource ID based on its type
                 await validateResourceId(type, resourceId, requestBody);
             }
         }
     }
 }
 
-
+// Function to validate the campaign details including resource validation
 async function validateCampaign(requestBody: any) {
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
         var { startDate, endDate } = campaignDetails;
@@ -129,6 +163,7 @@ async function validateCampaign(requestBody: any) {
     await validateProjectResource(requestBody)
 }
 
+// Function to validate the entire campaign request
 async function validateCampaignRequest(requestBody: any) {
     if (requestBody?.Campaign) {
         if (!requestBody?.Campaign?.tenantId) {
@@ -146,7 +181,7 @@ async function validateCampaignRequest(requestBody: any) {
     }
 }
 
-
+// Function to validate and update project response and its ID
 function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: any, campaignDetails: any) {
     if (projectBody?.Projects?.length != projectResponse?.Project?.length) {
         throwError("PROJECT", 500, "PROJECT_CREATION_ERROR");
@@ -161,24 +196,28 @@ function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: 
     }
 }
 
-
+// Function to validate project staff response
 function validateStaffResponse(staffResponse: any) {
     if (!staffResponse?.ProjectStaff?.id) {
         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project staff creation failed.");
     }
 }
 
+// Function to validate project resource response
 function validateProjectResourceResponse(projectResouceResponse: any) {
     if (!projectResouceResponse?.ProjectResource?.id) {
         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Resource creation failed.");
     }
 }
 
+// Function to validate project facility response
 function validateProjectFacilityResponse(projectFacilityResponse: any) {
     if (!projectFacilityResponse?.ProjectFacility?.id) {
         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Facility creation failed.");
     }
 }
+
+// Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
     const searchBody = {
         RequestInfo: request?.body?.RequestInfo,
@@ -200,6 +239,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
     }
 }
 
+// Function to validate the generation request
 async function validateGenerateRequest(request: express.Request) {
     const { tenantId, type, hierarchyType, forceUpdate } = request.query;
     if (!tenantId) {
