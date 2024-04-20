@@ -16,9 +16,11 @@ if (!HOST) {
 // Configuration object containing various environment variables
 const config = {
   // Default sheet name for boundary data
-  sheetName: process.env.SHEET_NAME || "Boundary Data",
+  sheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
   // Default criteria for generating different tabs
-  generateDifferentTabsOnBasisOf: process.env.GENERATE_DIFFERENT_TABS_ON_BASIS_OF || "District",
+  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "District",
+  // default configurable number of data of boundary type on which generate different tabs
+  numberOfBoundaryDataOnWhichWeSplit: 2,
   // Authentication token
   auth_token: process.env.AUTH_TOKEN,
   // Wait time for generic create

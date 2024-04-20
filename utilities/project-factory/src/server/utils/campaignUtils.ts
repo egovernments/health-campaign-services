@@ -787,10 +787,9 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
         mainSheetData.push(headersForMainSheet);
         const districtLevelRowBoundaryCodeMap = new Map();
 
-
         for (const data of boundaryData) {
             const rowData = Object.values(data);
-            const districtIndex = data[differentTabsBasedOnLevel] !== null ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
+            const districtIndex = data[differentTabsBasedOnLevel] !== '' ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
             if (districtIndex == -1) {
                 mainSheetData.push(rowData);
             }
@@ -951,14 +950,14 @@ function createBoundaryMap(boundaries: any[], boundaryMap: Map<string, string>):
 
 const autoGenerateBoundaryCodes = async (request: any) => {
     try {
-        await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
+        await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId); // todo revisit
         const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
         if (!fileResponse?.fileStoreIds?.[0]?.url) {
             throwError("FILE", 400, "INVALID_FILE");
-        }
+        } // revisit 
         const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
         const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
-        await validateBoundarySheetData(headersOfBoundarySheet, request);
+        await validateBoundarySheetData(headersOfBoundarySheet, request); /// revisit
         const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
         const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
         const childParentMap = getChildParentMap(withoutBoundaryCode);
@@ -987,7 +986,9 @@ const autoGenerateBoundaryCodes = async (request: any) => {
     }
 }
 async function convertSheetToDifferentTabs(request: any, boundaryData: any, differentTabsBasedOnLevel: any) {
+    // create different tabs on the level of hierarchy we want to 
     const updatedWorkbook = await appendSheetsToWorkbook(boundaryData, differentTabsBasedOnLevel);
+    // upload the excel and generate file store id
     const boundaryDetails = await createAndUploadFile(updatedWorkbook, request);
     return boundaryDetails;
 }

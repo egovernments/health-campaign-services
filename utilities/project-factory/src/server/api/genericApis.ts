@@ -8,6 +8,7 @@ import { correctParentValues, generateActivityMessage, getBoundaryRelationshipDa
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator"; // Import validation functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils'; // Import utility functions
 import { validateFilters } from '../utils/validators/campaignValidators'; // Import validation function
+import { getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 
 // Function to retrieve workbook from Excel file URL and sheet name
@@ -449,17 +450,22 @@ async function getBoundarySheetData(request: any) {
         includeChildren: true
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
-    if (!boundaryData) {
-        throwError("BOUNDARY", 500, "BOUNDARY_DATA_NOT_FOUND");
-    }
-    logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
-        await validateFilters(request, boundaryData);
-        const filteredBoundaryData = await generateFilteredBoundaryData(request);
-        return await getDataSheetReady(filteredBoundaryData, request);
+    if (!boundaryData || boundaryData.length ==0) {
+        const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+        const headers = hierarchy;
+        // create empty sheet if no boundary present in system
+        return await createExcelSheet(boundaryData, headers, config.sheetName);
     }
     else {
-        return await getDataSheetReady(boundaryData, request);
+        logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
+        if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
+            await validateFilters(request, boundaryData);
+            const filteredBoundaryData = await generateFilteredBoundaryData(request);
+            return await getDataSheetReady(filteredBoundaryData, request);
+        }
+        else {
+            return await getDataSheetReady(boundaryData, request);
+        }
     }
 }
 
