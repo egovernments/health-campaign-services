@@ -261,7 +261,7 @@ async function getResponseFromDb(request: any, response: any) {
     password: config.DB_PASSWORD,
     port: parseInt(config.DB_PORT)
   });
-
+// simplify 
   try {
     const { type } = request.query;
     const { tenantId, hierarchyType } = request.query
@@ -271,22 +271,27 @@ async function getResponseFromDb(request: any, response: any) {
     let queryString: string;
     if (request?.query?.id) {
       const id = request?.query?.id;
-      queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1 AND type = $2 AND hierarchyType = $3 AND tenantId = $4";
-      const queryResult = await pool.query(queryString, [id, type, hierarchyType, tenantId]);
-      const responseData = queryResult.rows;
-      modifyAuditdetailsAndCases(responseData);
-      return responseData;
+      if (type == "boundary") {
+        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1 ";
+        queryResult = await pool.query(queryString, [id]);
+      }
+      else {
+        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1 AND type = $2 AND hierarchyType = $3 AND tenantId = $4";
+        queryResult = await pool.query(queryString, [id, type, hierarchyType, tenantId]);
+      }
     }
     else {
 
       if (type == 'boundary') {
-        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE  tenantid = $1 AND hierarchytype = $2 AND status =$3 ";
-        const queryValues = [tenantId, hierarchyType, status];
-        if (request.body.Filters === null) {
-          queryString += " AND (additionaldetails->'Filters' IS NULL OR additionaldetails->'Filters' = 'null')";
-        } else {
-          queryString += " AND additionaldetails->'Filters' @> $4::jsonb";
-          queryValues.push(request.body.Filters);
+        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE  tenantid = $1 AND hierarchytype = $2 AND status =$3 AND type = $4 ";
+        const queryValues = [tenantId, hierarchyType, status, type];
+        if (request?.body?.Filters) {
+          if (request.body.Filters === null) {
+            queryString += " AND (additionaldetails->'Filters' IS NULL OR additionaldetails->'Filters' = 'null')";
+          } else {
+            queryString += " AND additionaldetails->'Filters' @> $5::jsonb";
+            queryValues.push(request.body.Filters);
+          }
         }
         queryResult = await pool.query(queryString, queryValues);
       }

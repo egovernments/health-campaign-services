@@ -336,15 +336,12 @@ async function getBoundarySheetData(request: any) {
         includeChildren: true
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
-    console.log(boundaryData,"fffffffffffffff")
     if (!boundaryData || boundaryData.length ==0) {
         const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
         const headers = hierarchy;
-        console.log("bbbbbbb")
         return await createExcelSheet(boundaryData, headers, config.sheetName);
     }
     else {
-        console.log("aaaaaaaaaaaaaaaa")
         logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
         if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
             await validateFilters(request, boundaryData);

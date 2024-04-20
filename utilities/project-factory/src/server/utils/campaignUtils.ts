@@ -942,14 +942,14 @@ function createBoundaryMap(boundaries: any[], boundaryMap: Map<string, string>):
 
 const autoGenerateBoundaryCodes = async (request: any) => {
     try {
-        await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
+        await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId); // todo revisit
         const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
         if (!fileResponse?.fileStoreIds?.[0]?.url) {
             throwError("FILE", 400, "INVALID_FILE");
-        }
+        } // revisit 
         const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
         const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
-        await validateBoundarySheetData(headersOfBoundarySheet, request);
+        await validateBoundarySheetData(headersOfBoundarySheet, request); /// revisit
         const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
         const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
         const childParentMap = getChildParentMap(withoutBoundaryCode);
