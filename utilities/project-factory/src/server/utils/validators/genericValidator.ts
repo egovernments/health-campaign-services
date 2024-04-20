@@ -266,7 +266,7 @@ async function validateGenerateRequest(request: express.Request) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary");
     }
     if (type == "boundary" && request?.body?.Filters === undefined) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "For Boundary Filters Object should be present in request body")
+        throwError("COMMON", 400, "VALIDATION_ERROR", "For type boundary Filters Object should be present in request body")
     }
     await validateHierarchyType(request, hierarchyType, tenantId);
 }

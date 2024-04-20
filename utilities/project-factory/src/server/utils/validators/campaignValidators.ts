@@ -494,8 +494,10 @@ async function validateFilters(request: any, boundaryData: any[]) {
     }
 
     const boundaryMap = new Map<string, string>();
+    // map boundary code and type 
     createBoundaryMap(boundaryData, boundaryMap);
     const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+    // validation of filters object
     validateBoundariesOfFilters(boundaries, boundaryMap, hierarchy);
 
     const rootBoundaries = boundaries.filter((boundary: any) => boundary.isRoot);

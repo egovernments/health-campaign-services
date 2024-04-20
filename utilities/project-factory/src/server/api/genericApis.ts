@@ -453,6 +453,7 @@ async function getBoundarySheetData(request: any) {
     if (!boundaryData || boundaryData.length ==0) {
         const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
         const headers = hierarchy;
+        // create empty sheet if no boundary present in system
         return await createExcelSheet(boundaryData, headers, config.sheetName);
     }
     else {

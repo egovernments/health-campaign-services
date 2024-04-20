@@ -252,7 +252,7 @@ function modifyAuditdetailsAndCases(responseData: any) {
     delete item.tenantid;
   })
 }
-/*   add documentation on every fun*/
+/* to fetch db data */
 async function getResponseFromDb(request: any, response: any) {
   const pool = new Pool({
     user: config.DB_USER,
@@ -261,51 +261,42 @@ async function getResponseFromDb(request: any, response: any) {
     password: config.DB_PASSWORD,
     port: parseInt(config.DB_PORT)
   });
-// simplify 
   try {
     const { type } = request.query;
     const { tenantId, hierarchyType } = request.query
     const status = 'Completed';
     let queryResult: any;
-
     let queryString: string;
+    let queryValues: any[] = [];
+
+    queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE ";
+     // query for download with id
     if (request?.query?.id) {
-      const id = request?.query?.id;
-      if (type == "boundary") {
-        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1 ";
-        queryResult = await pool.query(queryString, [id]);
-      }
-      else {
-        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE id=$1 AND type = $2 AND hierarchyType = $3 AND tenantId = $4";
-        queryResult = await pool.query(queryString, [id, type, hierarchyType, tenantId]);
-      }
+      queryString += "id = $1 AND type = $2 AND hierarchytype = $3 AND tenantid = $4 ";
+      queryValues = [request.query.id, type, hierarchyType, tenantId];
     }
     else {
-
-      if (type == 'boundary') {
-        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE  tenantid = $1 AND hierarchytype = $2 AND status =$3 AND type = $4 ";
-        const queryValues = [tenantId, hierarchyType, status, type];
-        if (request?.body?.Filters) {
-          if (request.body.Filters === null) {
-            queryString += " AND (additionaldetails->'Filters' IS NULL OR additionaldetails->'Filters' = 'null')";
-          } else {
-            queryString += " AND additionaldetails->'Filters' @> $5::jsonb";
-            queryValues.push(request.body.Filters);
-          }
+      if (type == 'boundary' && request?.body?.Filters !== undefined) {
+        queryString += "type = $1 AND hierarchytype = $2 AND  tenantid = $3  AND status =$4 ";
+        if (request.body.Filters === null) {
+          queryString += " AND (additionaldetails->'Filters' IS NULL OR additionaldetails->'Filters' = 'null')";
+          queryValues = [type, hierarchyType, tenantId, status];
+        } else {
+          queryString += " AND additionaldetails->'Filters' @> $5::jsonb";
+          queryValues = [type, hierarchyType, tenantId, status, request.body.Filters];
         }
-        queryResult = await pool.query(queryString, queryValues);
       }
       else {
-
-        queryString = "SELECT * FROM health.eg_cm_generated_resource_details WHERE type = $1 AND status = $2 AND hierarchyType = $3 AND tenantId = $4";
-        queryResult = await pool.query(queryString, [type, status, hierarchyType, tenantId]);
+        queryString += " type = $1 AND hierarchytype = $2 AND tenantid = $3 AND status = $4";
+        queryValues = [type, hierarchyType, tenantId, status];
       }
-
-      const responseData = queryResult.rows;
-      modifyAuditdetailsAndCases(responseData);
-      return responseData;
     }
-  } catch (error: any) {
+    queryResult = await pool.query(queryString, queryValues);
+    const responseData = queryResult.rows;
+    modifyAuditdetailsAndCases(responseData);
+    return responseData;
+  }
+  catch (error: any) {
     logger.error(`Error fetching data from the database: ${error.message}`);
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message)
   } finally {
@@ -316,6 +307,7 @@ async function getResponseFromDb(request: any, response: any) {
     }
   }
 }
+
 async function getModifiedResponse(responseData: any) {
   return responseData.map((item: any) => {
     return {
@@ -446,20 +438,25 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
   try {
     const type = request?.query?.type;
     const generatedResource: any = { generatedResource: newEntryResponse }
+    // send message to create toppic
     produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
     if (type === 'boundary') {
       const dataManagerController = new dataManageController();
+      // get boundary data from boundary relationship search api
       const result = await dataManagerController.getBoundaryData(request, response);
       let updatedResult = result;
+      // get boundary sheet data after being generated
       const boundaryData = await getBoundaryDataAfterGeneration(result, request);
       const differentTabsBasedOnLevel = config.generateDifferentTabsOnBasisOf;
       const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
-      const districtEntries = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
-      if (isKeyOfThatTypePresent && districtEntries.length >= 2) {
+      const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
+      if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= config.numberOfBoundaryDataOnWhichWeSplit) {
         updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel);
       }
+      // final upodated response to be sent to update topic 
       const finalResponse = await getFinalUpdatedResponse(updatedResult, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
+      // send to update topic
       produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
@@ -618,11 +615,13 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
   let generatedResource: any;
   if (forceUpdateBool && responseData.length > 0) {
     generatedResource = { generatedResource: oldEntryResponse };
+    // send message to update topic 
     produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
     request.body.generatedResource = oldEntryResponse;
   }
   if (responseData.length === 0 || forceUpdateBool) {
     request.body.generatedResource = newEntryResponse;
+    // generate data if response from db is empty or force update true  
     fullProcessFlowForNewEntry(newEntryResponse, request, response);
   }
   else {
@@ -633,10 +632,15 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
 
 */
 async function processGenerate(request: any, response: any) {
+  // fetch the data from db 
   const responseData = await getResponseFromDb(request, response);
+  // modify response from db 
   const modifiedResponse = await getModifiedResponse(responseData);
+  // generate new random id and make filestore id null
   const newEntryResponse = await getNewEntryResponse(request);
+  // make old data status as expired
   const oldEntryResponse = await getOldEntryResponse(modifiedResponse, request);
+  // generate data 
   await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, response);
 }
 /*
