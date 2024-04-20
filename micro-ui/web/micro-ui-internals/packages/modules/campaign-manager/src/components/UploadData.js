@@ -7,6 +7,14 @@ import Ajv from "ajv";
 import XLSX from "xlsx";
 import { InfoCard } from "@egovernments/digit-ui-components";
 
+/**
+ * The `UploadData` function in JavaScript handles the uploading, validation, and management of files
+ * for different types of data in a web application.
+ * @returns The `UploadData` component is returning a JSX structure that includes a div with class
+ * names, a Header component, a Button component for downloading a template, an info-text div, a
+ * BulkUpload component for handling file uploads, and an InfoCard component for displaying error
+ * messages if any validation errors occur during file upload.
+ */
 const UploadData = ({formData , onSelect , ...props}) => {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();

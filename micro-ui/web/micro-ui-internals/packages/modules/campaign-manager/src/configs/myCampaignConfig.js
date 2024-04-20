@@ -1,3 +1,8 @@
+/* The above code defines a JavaScript object `myCampaignConfig` which contains configurations for
+different types of campaigns - ongoing, completed, and drafts. Each campaign type has its own search
+configuration with fields like campaign name, type, start date, end date, etc. The configurations
+also include API details for fetching data, UI styles, search result columns, pagination settings,
+and more. The object is exported for use in other parts of the codebase. */
 export const myCampaignConfig = {
   tenantId: "mz",
   moduleName: "commonCampaignUiConfig",

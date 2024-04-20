@@ -4,6 +4,14 @@ import { Button, Header, InboxSearchComposer, Loader } from "@egovernments/digit
 import { useLocation } from "react-router-dom";
 import { myCampaignConfig } from "../../configs/myCampaignConfig";
 
+/**
+ * The `MyCampaign` function is a React component that displays a header with a campaign search title
+ * and an inbox search composer with tabs for different configurations.
+ * @returns The `MyCampaign` component is returning a React fragment containing a Header component with
+ * a title fetched using the `useTranslation` hook, and a div with a className of
+ * "inbox-search-wrapper" that contains an `InboxSearchComposer` component. The `InboxSearchComposer`
+ * component is being passed props such as `configs`, `showTab`, `tabData`, and `onTabChange
+ */
 const MyCampaign = () => {
   const { t } = useTranslation();
   const location = useLocation();

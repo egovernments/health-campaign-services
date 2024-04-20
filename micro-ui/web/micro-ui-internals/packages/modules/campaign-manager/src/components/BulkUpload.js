@@ -5,6 +5,15 @@ import { useTranslation } from "react-i18next";
 import XLSX from "xlsx";
 import XlsPreview from "./XlsPreview";
 
+/**
+ * The BulkUpload component in JavaScript allows users to upload, validate, preview, download, and
+ * delete files in bulk with support for Excel file validation.
+ * @returns The `BulkUpload` component is returning a JSX structure that includes conditional rendering
+ * based on the presence of `fileData`. If `fileData` is empty or null, it renders a `FileUploader`
+ * component with drag and drop functionality. If `fileData` contains files, it renders file cards for
+ * each file with options to download and delete. Additionally, it includes a preview component for
+ * Excel files
+ */
 const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileDownload }) => {
   const { t } = useTranslation();
   const [files, setFiles] = useState([]);

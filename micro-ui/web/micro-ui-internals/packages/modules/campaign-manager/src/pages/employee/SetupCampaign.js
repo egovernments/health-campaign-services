@@ -6,6 +6,15 @@ import { CampaignConfig } from "../../configs/CampaignConfig";
 import { QueryClient, useQueryClient } from "react-query";
 import { Stepper, Toast } from "@egovernments/digit-ui-components";
 
+/**
+ * The `SetupCampaign` function in JavaScript handles the setup and management of campaign details,
+ * including form data handling, validation, and submission.
+ * @returns The `SetupCampaign` component is being returned. It consists of a form setup for creating
+ * or updating a campaign with multiple steps like campaign details, delivery details, boundary
+ * details, targets, facility details, user details, and review details. The form data is validated at
+ * each step, and the user can navigate between steps using a stepper component. The form submission
+ * triggers API calls to create or update the campaign
+ */
 const SetupCampaign = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { t } = useTranslation();
