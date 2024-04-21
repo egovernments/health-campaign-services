@@ -151,9 +151,9 @@ const createAndSearch: any = {
                     "minLength": 1
                 },
                 "Phone Number": {
-                    "type": "number",
-                    "maxLength": 128,
-                    "minLength": 6
+                    "type": "string",
+                    "maxLength": 10,
+                    "minLength": 10
                 },
                 "Role (Mandatory)": {
                     "type": "string",
