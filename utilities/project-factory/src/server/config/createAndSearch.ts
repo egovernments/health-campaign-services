@@ -135,6 +135,101 @@ const createAndSearch: any = {
         parseArrayConfig: {
             sheetName: "Sheet1",
         }
+    },
+    "user": {
+        boundaryValidation: {
+            column: "Boundary Code"
+        },
+        sheetSchema: {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "UserTemplateSchema",
+            "type": "object",
+            "properties": {
+                "Name of the Person (Mandatory)": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 1
+                },
+                "Phone Number": {
+                    "type": "number",
+                    "maxLength": 128,
+                    "minLength": 6
+                },
+                "Role (Mandatory)": {
+                    "type": "string",
+                    "enum": [
+                        "Registrar",
+                        "Distributor",
+                        "Monitor Local",
+                        "Supervisor",
+                        "Help Desk",
+                        "Logistical officer"
+                    ]
+                },
+                "Employment Type (Mandatory)": {
+                    "type": "string",
+                    "enum": ["Temporary", "Permanent"]
+                },
+                "Capacity": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9223372036854775807,
+                    "multipleOf": 1
+                }
+            },
+            "required": [
+                "Name of the Person (Mandatory)",
+                "Phone Number",
+                "Role (Mandatory)",
+                "Employment Type (Mandatory)",
+            ],
+            "unique": [
+                "Phone Number"
+            ]
+        },
+        parseArrayConfig: {
+            sheetName: "Create List of Users",
+            parseLogic: [
+                {
+                    sheetColumn: "A",
+                    sheetColumnName: "Name of the Person (Mandatory)",
+                    resultantPath: "name",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "B",
+                    sheetColumnName: "Phone Number",
+                    resultantPath: "mobileNumber",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "C",
+                    sheetColumnName: "Role (Mandatory)",
+                    resultantPath: "roles",
+                    type: "array",
+                    conversionCondition: {
+                        "Monitor Local": [
+                            {
+                                "name": "Monitor Local",
+                                "code": "MONITOR_LOCAL"
+                            }
+                        ]
+                    }
+                },
+                {
+                    sheetColumn: "D",
+                    sheetColumnName: "Employment Type (Mandatory)"
+                },
+                {
+                    sheetColumn: "E",
+                    sheetColumnName: "Boundary Code"
+                }
+            ],
+            tenantId: {
+                getValueViaPath: "ResourceDetails.tenantId",
+                resultantPath: "tenantId"
+            }
+        }
     }
 }
 

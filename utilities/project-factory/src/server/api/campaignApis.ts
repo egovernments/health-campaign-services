@@ -140,7 +140,7 @@ function getParamsViaElements(elements: any, request: any) {
  */
 function changeBodyViaElements(elements: any, requestBody: any) {
   // Modify request body based on elements
-if (!elements) {
+  if (!elements) {
     return;
   }
   for (const element of elements) {

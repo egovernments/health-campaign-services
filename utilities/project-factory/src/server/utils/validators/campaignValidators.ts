@@ -11,6 +11,17 @@ import { throwError } from "../genericUtils";
 import { validateHierarchyType } from "./genericValidator";
 
 
+
+function processBoundary(responseBoundaries: any[], request: any, boundaryItems: any[], parentId?: string) {
+    const { tenantId, hierarchyType } = request.body.ResourceDetails;
+    boundaryItems.forEach((boundaryItem: any) => {
+        const { id, code, boundaryType, children } = boundaryItem;
+        responseBoundaries.push({ tenantId, hierarchyType, parentId, id, code, boundaryType });
+        if (children.length > 0) {
+            processBoundary(responseBoundaries, request, children, id);
+        }
+    });
+}
 async function fetchBoundariesInChunks(request: any) {
     const { tenantId, hierarchyType } = request.body.ResourceDetails;
     const boundaryEnitiySearchParams: any = {
@@ -20,36 +31,44 @@ async function fetchBoundariesInChunks(request: any) {
     logger.info("Boundary search url : " + config.host.boundaryHost + config.paths.boundaryRelationship);
     logger.info("Boundary search params : " + JSON.stringify(boundaryEnitiySearchParams));
     var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEnitiySearchParams);
-    const processBoundary = (boundaryItems: any[], parentId?: string) => {
-        boundaryItems.forEach((boundaryItem: any) => {
-            const { id, code, boundaryType, children } = boundaryItem;
-            responseBoundaries.push({ tenantId, hierarchyType, parentId, id, code, boundaryType });
-            if (children.length > 0) {
-                processBoundary(children, id);
-            }
-        });
-    };
     const TenantBoundary = response.TenantBoundary;
     TenantBoundary.forEach((tenantBoundary: any) => {
         const { boundary } = tenantBoundary;
-        processBoundary(boundary);
+        processBoundary(responseBoundaries, request, boundary);
     });
     return responseBoundaries;
 }
 
 
-function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[]) {
+
+// Compares unique boundaries with response boundaries and throws error for missing codes.
+function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
+    // Extracts boundary codes from response boundaries
     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code);
+
+    // Finds missing codes from unique boundaries
     const missingCodes = uniqueBoundaries.filter(code => !responseBoundaryCodes.includes(code));
+
+    // Throws error if missing codes exist
     if (missingCodes.length > 0) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary codes ${missingCodes.join(', ')} do not exist`);
+        throwError(
+            "COMMON",
+            400,
+            "VALIDATION_ERROR",
+            `Boundary codes ${missingCodes.join(', ')} do not exist in hierarchyType ${request?.body?.ResourceDetails?.hierarchyType}`
+        );
     }
 }
 
+// Validates unique boundaries against the response boundaries.
 async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
+    // Fetches response boundaries in chunks
     const responseBoundaries = await fetchBoundariesInChunks(request);
-    compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries);
+
+    // Compares unique boundaries with response boundaries
+    compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
 }
+
 
 
 
