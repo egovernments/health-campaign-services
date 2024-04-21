@@ -1,29 +1,45 @@
-import * as XLSX from 'xlsx';
-import config from "../config";
-import FormData from 'form-data';
-import { httpRequest } from "../utils/request";
-import { logger } from "../utils/logger";
-import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails, throwError } from "../utils/genericUtils";
-import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator";
-import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils';
-import { validateFilters } from '../utils/validators/campaignValidators';
-const _ = require('lodash');
+// Import necessary modules and libraries
+import * as XLSX from 'xlsx'; // Import XLSX library for Excel file processing
+import config from "../config"; // Import configuration settings
+import FormData from 'form-data'; // Import FormData for handling multipart/form-data requests
+import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
+import { logger } from "../utils/logger"; // Import logger for logging
+import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
+import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator"; // Import validation functions
+import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils'; // Import utility functions
+import { validateFilters } from '../utils/validators/campaignValidators'; // Import validation function
+import { getHierarchy } from './campaignApis';
+const _ = require('lodash'); // Import lodash library
 
+// Function to retrieve workbook from Excel file URL and sheet name
 const getWorkbook = async (fileUrl: string, sheetName: string) => {
+    // Define headers for HTTP request
     const headers = {
         'Content-Type': 'application/json',
         Accept: 'application/pdf',
     };
+    
+    // Make HTTP request to retrieve Excel file as arraybuffer
     const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
+    
+    // Read Excel file into workbook
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
+    
+    // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
         throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
+    
+    // Return the workbook
     return workbook;
 }
+
+// Function to retrieve data from a specific sheet in an Excel file
 const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any) => {
+    // Retrieve workbook using the getWorkbook function
     const workbook: any = await getWorkbook(fileUrl, sheetName)
-    // Get the first row of column A
+    
+    // If parsing array configuration is provided, validate first row of each column
     if (createAndSearchConfig && createAndSearchConfig.parseArrayConfig && createAndSearchConfig.parseArrayConfig.parseLogic) {
         const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
 
@@ -44,6 +60,7 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
         }
     }
 
+    // Convert sheet data to JSON format
     const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
     const jsonData = sheetData.map((row: any, index: number) => {
         const rowData: any = {};
@@ -53,20 +70,25 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
         if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
         return rowData;
     });
+    
+    // Log sheet data
     logger.info("Sheet Data : " + JSON.stringify(jsonData))
+    
+    // Return JSON data
     return jsonData;
 };
 
-
-
-
-
+// Function to search MDMS for specific unique identifiers
 const searchMDMS: any = async (uniqueIdentifiers: any[], schemaCode: string, requestinfo: any, response: any) => {
+    // Check if unique identifiers are provided
     if (!uniqueIdentifiers) {
         return;
     }
+    
+    // Construct API URL for MDMS search
     const apiUrl = config.host.mdms + config.paths.mdms_search;
-    logger.info("Mdms url : " + apiUrl)
+    
+    // Construct request data for MDMS search
     const data = {
         "MdmsCriteria": {
             "tenantId": requestinfo?.userInfo?.tenantId,
@@ -75,14 +97,20 @@ const searchMDMS: any = async (uniqueIdentifiers: any[], schemaCode: string, req
         },
         "RequestInfo": requestinfo
     }
-    const result = await httpRequest(apiUrl, data, undefined, undefined, undefined, undefined);
+    
+    // Make HTTP request to MDMS API
+    const result = await httpRequest(apiUrl, data, undefined, undefined, undefined);
+    
+    // Log search result
     logger.info("Template search Result : " + JSON.stringify(result))
+    
+    // Return search result
     return result;
-
 }
 
-
+// Function to generate a campaign number
 const getCampaignNumber: any = async (requestBody: any, idFormat: String, idName: string, tenantId: string) => {
+    // Construct request data
     const data = {
         RequestInfo: requestBody?.RequestInfo,
         "idRequests": [
@@ -93,17 +121,29 @@ const getCampaignNumber: any = async (requestBody: any, idFormat: String, idName
             }
         ]
     }
+    
+    // Construct URL for ID generation service
     const idGenUrl = config.host.idGenHost + config.paths.idGen;
+    
+    // Log ID generation URL and request
     logger.info("IdGen url : " + idGenUrl)
     logger.info("Idgen Request : " + JSON.stringify(data))
+    
+    // Make HTTP request to ID generation service
     const result = await httpRequest(idGenUrl, data, undefined, undefined, undefined, undefined);
+    
+    // Return generated campaign number
     if (result?.idResponses?.[0]?.id) {
         return result?.idResponses?.[0]?.id;
     }
+    
+    // Throw error if ID generation fails
     throwError("COMMON", 500, "IDGEN_ERROR");
 }
 
+// Function to generate a resource number
 const getResouceNumber: any = async (RequestInfo: any, idFormat: String, idName: string) => {
+    // Construct request data
     const data = {
         RequestInfo,
         "idRequests": [
@@ -114,22 +154,37 @@ const getResouceNumber: any = async (RequestInfo: any, idFormat: String, idName:
             }
         ]
     }
+    
+    // Construct URL for ID generation service
     const idGenUrl = config.host.idGenHost + config.paths.idGen;
+    
+    // Log ID generation URL and request
     logger.info("IdGen url : " + idGenUrl)
     logger.info("Idgen Request : " + JSON.stringify(data))
+    
     try {
+        // Make HTTP request to ID generation service
         const result = await httpRequest(idGenUrl, data, undefined, undefined, undefined, undefined);
+        
+        // Return generated resource number
         if (result?.idResponses?.[0]?.id) {
+
+
             return result?.idResponses?.[0]?.id;
         }
+        
+        // Return null if ID generation fails
         return result;
     } catch (error: any) {
+        // Log error if ID generation fails
         logger.error("Error: " + error)
+        
+        // Return error
         return error;
     }
-
 }
 
+// Function to get schema definition based on code and request info
 const getSchema: any = async (code: string, RequestInfo: any) => {
     const data = {
         RequestInfo,
@@ -154,41 +209,59 @@ const getSchema: any = async (code: string, RequestInfo: any) => {
 
 }
 
-
-
+// Function to get count from response data
 const getCount: any = async (responseData: any, request: any, response: any) => {
     try {
+        // Extract host and URL from response data
         const host = responseData?.host;
         const url = responseData?.searchConfig?.countUrl;
-        const requestInfo = { "RequestInfo": request?.body?.RequestInfo }
+
+        // Extract request information
+        const requestInfo = { "RequestInfo": request?.body?.RequestInfo };
+
+        // Make HTTP request to get count
         const result = await httpRequest(host + url, requestInfo, undefined, undefined, undefined, undefined);
+
+        // Extract count from result using lodash
         const count = _.get(result, responseData?.searchConfig?.countPath);
-        return count;
+
+        return count; // Return the count
     } catch (error: any) {
-        logger.error("Error: " + error)
+        // Log and throw error if any
+        logger.error("Error: " + error);
         throw error;
     }
-
 }
 
+// Function to create Excel sheet and upload it
 async function createAndUploadFile(updatedWorkbook: XLSX.WorkBook, request: any, tenantId?: any) {
+    // Write the updated workbook to a buffer
     const buffer = XLSX.write(updatedWorkbook, { bookType: 'xlsx', type: 'buffer' });
+
+    // Create form data for file upload
     const formData = new FormData();
     formData.append('file', buffer, 'filename.xlsx');
     formData.append('tenantId', tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId);
     formData.append('module', 'pgr');
 
+    // Log file uploading URL
     logger.info("File uploading url : " + config.host.filestore + config.paths.filestore);
+
+    // Make HTTP request to upload file
     var fileCreationResult = await httpRequest(config.host.filestore + config.paths.filestore, formData, undefined, undefined, undefined,
         {
             'Content-Type': 'multipart/form-data',
             'auth-token': request?.body?.RequestInfo?.authToken
         }
     );
+
+    // Extract response data
     const responseData = fileCreationResult?.files;
-    return responseData;
+
+    return responseData; // Return the response data
 }
 
+// Function to generate a list of hierarchy codes
 function generateHierarchyList(data: any[], parentChain: any = []) {
     let result: any[] = [];
 
@@ -205,10 +278,10 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
             result = result.concat(childResults);
         }
     }
-    return result;
-
+    return result; // Return the hierarchy list
 }
 
+// Function to generate hierarchy from boundaries
 function generateHierarchy(boundaries: any[]) {
     // Create an object to store boundary types and their parents
     const parentMap: any = {};
@@ -231,9 +304,10 @@ function generateHierarchy(boundaries: any[]) {
             }
         }
     }
-    return hierarchyList;
+    return hierarchyList; // Return the hierarchy list
 }
 
+// Recursive function to traverse children and generate hierarchy
 function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
     for (const boundaryType in parentMap) {
         if (Object.prototype.hasOwnProperty.call(parentMap, boundaryType)) {
@@ -248,8 +322,12 @@ function traverseChildren(parent: any, parentMap: any, hierarchyList: any[]) {
     }
 }
 
+// Function to create an Excel sheet
 async function createExcelSheet(data: any, headers: any, sheetName: string = 'Sheet1') {
+    // Create a new Excel workbook
     const workbook = XLSX.utils.book_new();
+
+    // Combine headers and data into sheet data
     const sheetData = [headers, ...data];
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
@@ -259,22 +337,42 @@ async function createExcelSheet(data: any, headers: any, sheetName: string = 'Sh
     // Apply column widths to the sheet
     ws['!cols'] = columnWidths;
 
+    // Append sheet to the workbook
     XLSX.utils.book_append_sheet(workbook, ws, sheetName);
-    return { wb: workbook, ws: ws, sheetName: sheetName };
+
+    return { wb: workbook, ws: ws, sheetName: sheetName }; // Return the workbook, worksheet, and sheet name
 }
 
+// Function to handle getting boundary codes
 async function getBoundaryCodesHandler(boundaryList: any, childParentMap: any, elementCodesMap: any, countMap: any, request: any) {
     try {
+        // Get updated element codes map
         const updatedelementCodesMap = await getAutoGeneratedBoundaryCodes(boundaryList, childParentMap, elementCodesMap, countMap, request);
-        return updatedelementCodesMap;
+        return updatedelementCodesMap; // Return the updated element codes map
     } catch (error) {
+        // Log and propagate the error
         console.error("Error in getBoundaryCodesHandler:", error);
-        throw error; // Propagate the error
+        throw error;
     }
 }
 
+
+
+/**
+ * Function to generate auto-generated boundary codes based on boundary list, child-parent mapping,
+ * element codes map, count map, and request information.
+ * @param boundaryList List of boundary data
+ * @param childParentMap Map of child-parent relationships
+ * @param elementCodesMap Map of element codes
+ * @param countMap Map of counts for each element
+ * @param request HTTP request object
+ * @returns Updated element codes map
+ */
 async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: any, elementCodesMap: any, countMap: any, request: any) {
+    // Initialize an array to store column data
     const columnsData: string[][] = [];
+
+    // Extract unique elements from each column
     for (const row of boundaryList) {
         row.forEach((element: any, index: any) => {
             if (!columnsData[index]) {
@@ -286,6 +384,7 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
         });
     }
 
+    // Create a set to store unique elements
     const elementSet = new Set<string>();
     columnsData.forEach(column => {
         column.forEach(element => {
@@ -293,6 +392,7 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
         });
     });
 
+    // Iterate over columns to generate boundary codes
     for (let i = 0; i < columnsData.length; i++) {
         const column = columnsData[i];
         for (const element of column) {
@@ -300,7 +400,6 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
                 const parentCode = childParentMap.get(element)!;
                 if (parentCode !== undefined && parentCode !== null && elementSet.has(parentCode)) {
                     countMap.set(parentCode, (countMap.get(parentCode) || 0) + 1);
-
                     let code;
                     const grandParentCode = childParentMap.get(parentCode);
                     if (grandParentCode != null && grandParentCode != undefined) {
@@ -311,47 +410,74 @@ async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: 
                     } else {
                         code = generateElementCode(countMap.get(parentCode), elementCodesMap.get(parentCode), element);
                     }
-
                     elementCodesMap.set(element, code); // Store the code of the element in the map
-                }
-                else {
+                } else {
+                    // Generate default code if parent code is not found
                     elementCodesMap.set(element, (request?.body?.ResourceDetails?.hierarchyType + "_").toUpperCase() + element.toString().substring(0, 2).toUpperCase());
                 }
+            } else {
+                continue;
             }
-            else { continue; }
         }
     }
-    return elementCodesMap;
+    return elementCodesMap; // Return the updated element codes map
 }
 
+/**
+ * Function to generate an element code based on sequence, parent code, and element.
+ * @param sequence Sequence number
+ * @param parentCode Parent code
+ * @param element Element
+ * @returns Generated element code
+ */
 function generateElementCode(sequence: any, parentCode: any, element: any) {
-    let paddedSequence = sequence.toString().padStart(2, '0'); // Pad single-digit numbers with leading zero
+    // Pad single-digit numbers with leading zero
+    let paddedSequence = sequence.toString().padStart(2, '0');
     return parentCode.toUpperCase() + '_' + paddedSequence + '_' + element.toUpperCase();
 }
 
+
+
+/**
+ * Asynchronously retrieves boundary sheet data based on the provided request.
+ * @param request The HTTP request object.
+ * @returns Boundary sheet data.
+ */
 async function getBoundarySheetData(request: any) {
+    // Retrieve boundary data based on the request parameters
     const params = {
         ...request?.query,
         includeChildren: true
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
-    if (!boundaryData) {
-        throwError("BOUNDARY", 500, "BOUNDARY_DATA_NOT_FOUND");
-    }
-    logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-    if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
-        await validateFilters(request, boundaryData);
-        const filteredBoundaryData = await generateFilteredBoundaryData(request);
-        return await getDataSheetReady(filteredBoundaryData, request);
+    if (!boundaryData || boundaryData.length ==0) {
+        const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+        const headers = hierarchy;
+        // create empty sheet if no boundary present in system
+        return await createExcelSheet(boundaryData, headers, config.sheetName);
     }
     else {
-        return await getDataSheetReady(boundaryData, request);
+        logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
+        if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
+            await validateFilters(request, boundaryData);
+            const filteredBoundaryData = await generateFilteredBoundaryData(request);
+            return await getDataSheetReady(filteredBoundaryData, request);
+        }
+        else {
+            return await getDataSheetReady(boundaryData, request);
+        }
     }
 }
 
-
-
+/**
+ * Asynchronously creates a project and updates its ID using the provided project body, boundary-project ID mapping, boundary code, and campaign details.
+ * @param projectBody The body of the project.
+ * @param boundaryProjectIdMapping Mapping of boundary codes to project IDs.
+ * @param boundaryCode The boundary code.
+ * @param campaignDetails Details of the campaign.
+ */
 async function createProjectAndUpdateId(projectBody: any, boundaryProjectIdMapping: any, boundaryCode: any, campaignDetails: any) {
+    // Create a project and update its ID
     const projectCreateUrl = `${config.host.projectHost}` + `${config.paths.projectCreate}`
     logger.info("Project Creation url " + projectCreateUrl)
     logger.info("Project Creation body " + JSON.stringify(projectBody))
@@ -362,7 +488,12 @@ async function createProjectAndUpdateId(projectBody: any, boundaryProjectIdMappi
     await new Promise(resolve => setTimeout(resolve, 3000));
 }
 
+/**
+ * Asynchronously creates projects if they do not exist based on the provided request body.
+ * @param requestBody The request body.
+ */
 async function createProjectIfNotExists(requestBody: any) {
+    // Create projects if they do not exist
     const { projectType, tenantId } = requestBody?.Campaign
     sortCampaignDetails(requestBody?.Campaign?.CampaignDetails)
     correctParentValues(requestBody?.Campaign?.CampaignDetails)
@@ -389,7 +520,12 @@ async function createProjectIfNotExists(requestBody: any) {
     }
 }
 
+/**
+ * Asynchronously creates staff based on the provided resource body.
+ * @param resouceBody The resource body.
+ */
 async function createStaff(resouceBody: any) {
+    // Create staff
     const staffCreateUrl = `${config.host.projectHost}` + `${config.paths.staffCreate}`
     logger.info("Staff Creation url " + staffCreateUrl)
     logger.info("Staff Creation body " + JSON.stringify(resouceBody))
@@ -398,7 +534,12 @@ async function createStaff(resouceBody: any) {
     validateStaffResponse(staffResponse);
 }
 
+/**
+ * Asynchronously creates project resources based on the provided resource body.
+ * @param resouceBody The resource body.
+ */
 async function createProjectResource(resouceBody: any) {
+    // Create project resources
     const projectResourceCreateUrl = `${config.host.projectHost}` + `${config.paths.projectResourceCreate}`
     logger.info("Project Resource Creation url " + projectResourceCreateUrl)
     logger.info("Project Resource Creation body " + JSON.stringify(resouceBody))
@@ -407,7 +548,12 @@ async function createProjectResource(resouceBody: any) {
     validateProjectResourceResponse(projectResourceResponse);
 }
 
+/**
+ * Asynchronously creates project facilities based on the provided resource body.
+ * @param resouceBody The resource body.
+ */
 async function createProjectFacility(resouceBody: any) {
+    // Create project facilities
     const projectFacilityCreateUrl = `${config.host.projectHost}` + `${config.paths.projectFacilityCreate}`
     logger.info("Project Facility Creation url " + projectFacilityCreateUrl)
     logger.info("Project Facility Creation body " + JSON.stringify(resouceBody))
@@ -415,7 +561,18 @@ async function createProjectFacility(resouceBody: any) {
     logger.info("Project Facility Creation response" + JSON.stringify(projectFacilityResponse))
     validateProjectFacilityResponse(projectFacilityResponse);
 }
+
+/**
+ * Asynchronously creates related entities such as staff, resources, and facilities based on the provided resources, tenant ID, project ID, start date, end date, and resource body.
+ * @param resources List of resources.
+ * @param tenantId The tenant ID.
+ * @param projectId The project ID.
+ * @param startDate The start date.
+ * @param endDate The end date.
+ * @param resouceBody The resource body.
+ */
 async function createRelatedEntity(resources: any, tenantId: any, projectId: any, startDate: any, endDate: any, resouceBody: any) {
+    // Create related entities
     for (const resource of resources) {
         const type = resource?.type
         for (const resourceId of resource?.resourceIds) {
@@ -460,7 +617,12 @@ async function createRelatedEntity(resources: any, tenantId: any, projectId: any
     }
 }
 
+/**
+ * Asynchronously creates related resources based on the provided request body.
+ * @param requestBody The request body.
+ */
 async function createRelatedResouce(requestBody: any) {
+    // Create related resources
     const { tenantId } = requestBody?.Campaign
 
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
@@ -474,7 +636,13 @@ async function createRelatedResouce(requestBody: any) {
     }
 }
 
+/**
+ * Asynchronously creates boundary entities based on the provided request and boundary map.
+ * @param request The HTTP request object.
+ * @param boundaryMap Map of boundary names to codes.
+ */
 async function createBoundaryEntities(request: any, boundaryMap: Map<string, string>) {
+    // Create boundary entities
     const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; Boundary?: any };
     const boundaries: any[] = [];
     const boundaryCodes: any[] = [];
@@ -507,7 +675,14 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
     }
 }
 
+/**
+ * Asynchronously creates boundary relationships based on the provided request, boundary type map, and modified child-parent map.
+ * @param request The HTTP request object.
+ * @param boundaryTypeMap Map of boundary codes to types.
+ * @param modifiedChildParentMap Modified child-parent map.
+ */
 async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key: string]: string } = {}, modifiedChildParentMap: any) {
+    // Create boundary relationships
     let activityMessage = [];
     const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; BoundaryRelationship?: any };
     const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;

@@ -6,6 +6,15 @@ import { CampaignConfig } from "../../configs/CampaignConfig";
 import { QueryClient, useQueryClient } from "react-query";
 import { Stepper, Toast } from "@egovernments/digit-ui-components";
 
+/**
+ * The `SetupCampaign` function in JavaScript handles the setup and management of campaign details,
+ * including form data handling, validation, and submission.
+ * @returns The `SetupCampaign` component is being returned. It consists of a form setup for creating
+ * or updating a campaign with multiple steps like campaign details, delivery details, boundary
+ * details, targets, facility details, user details, and review details. The form data is validated at
+ * each step, and the user can navigate between steps using a stepper component. The form submission
+ * triggers API calls to create or update the campaign
+ */
 const SetupCampaign = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { t } = useTranslation();
@@ -16,19 +25,20 @@ const SetupCampaign = () => {
   const [campaignConfig, setCampaignConfig] = useState(CampaignConfig(totalFormData));
   const [shouldUpdate, setShouldUpdate] = useState(false);
   const [params, setParams, clearParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_FORM_DATA", {});
+  const [dataParams, setDataParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
   const [showToast, setShowToast] = useState(null);
   const { mutate } = Digit.Hooks.campaign.useCreateCampaign(tenantId);
   const { mutate: updateCampaign } = Digit.Hooks.campaign.useUpdateCampaign(tenantId);
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
+  const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
   const hierarchyType = "ADMIN";
   const [currentKey, setCurrentKey] = useState(() => {
     const keyParam = searchParams.get("key");
     return keyParam ? parseInt(keyParam) : 1;
   });
-
 
   const { isLoading: draftLoading, data: draftData, error: draftError, refetch: draftRefetch } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
@@ -43,9 +53,19 @@ const SetupCampaign = () => {
     },
   });
 
-  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary",hierarchyType);
-  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary",hierarchyType);
-  // const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary"); // to be integrated later
+  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType);
+  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType, filteredBoundaryData);
+  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary" ,hierarchyType ); // to be integrated later
+
+  useEffect(() => {
+    if (Object.keys(dataParams).length === 0) {
+      setDataParams({
+        facilityId: facilityId,
+        boundaryId: boundaryId,
+        hierarchyType: hierarchyType,
+      });
+    }
+  }, [dataParams]); // Only run if dataParams changes
 
   function updateUrlParams(params) {
     const url = new URL(window.location.href);
@@ -92,7 +112,7 @@ const SetupCampaign = () => {
   };
 
   useEffect(() => {
-    updateUrlParams({ key : currentKey});
+    updateUrlParams({ key: currentKey });
   }, [currentKey]);
 
   function restructureData(data) {
@@ -113,11 +133,25 @@ const SetupCampaign = () => {
           };
 
           rule.attributes.forEach((attribute) => {
-            restructuredRule.conditions.push({
-              attribute: attribute.attribute ? attribute.attribute.code : null,
-              operator: attribute.operator ? attribute.operator.code : null,
-              value: parseInt(attribute.value),
-            });
+            if (attribute?.operator?.code === "IN_BETWEEN") {
+              restructuredRule.conditions.push({
+                attribute: attribute.attribute.code,
+                operator: "LESS_THAN",
+                value: parseInt(attribute.fromValue),
+              });
+              attribute;
+              restructuredRule.conditions.push({
+                attribute: attribute.attribute.code,
+                operator: "GREATER_THAN",
+                value: parseInt(attribute.toValue),
+              });
+            } else {
+              restructuredRule.conditions.push({
+                attribute: attribute.attribute ? attribute.attribute.code : null,
+                operator: attribute.operator ? attribute.operator.code : null,
+                value: attribute.attribute.code === "Gender" ? attribute.value : parseInt(attribute.value),
+              });
+            }
           });
 
           rule.products.forEach((prod) => {
@@ -170,7 +204,6 @@ const SetupCampaign = () => {
             onError: (error, variables) => {},
             onSuccess: async (data) => {
               draftRefetch();
-              Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
               history.push(
                 `/${window.contextPath}/employee/campaign/response?campaignId=${data?.CampaignDetails?.campaignNumber}&isSuccess=${true}`,
                 {
@@ -178,6 +211,7 @@ const SetupCampaign = () => {
                   text: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT",
                 }
               );
+              Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
             },
           });
         };
@@ -258,7 +292,7 @@ const SetupCampaign = () => {
       }
       setShouldUpdate(false);
     }
-  }, [shouldUpdate, totalFormData, currentKey]);
+  }, [shouldUpdate]);
 
   function validateCycleData(data) {
     const { cycle, deliveries } = data.cycleConfigure.cycleConfgureDate;
@@ -345,10 +379,10 @@ const SetupCampaign = () => {
         if (!formData?.campaignDates?.startDate || !formData?.campaignDates?.endDate) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_DATE_MISSING")}` });
           return false;
-        } else if ((endDateObj == startDateObj)) {
+        } else if (endDateObj.getTime() === startDateObj.getTime()) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_EQUAL_START_DATE")}` });
           return false;
-        } else if (endDateObj < startDateObj) {
+        } else if (endDateObj.getTime() < startDateObj) {
           setShowToast({ key: "error", label: `${t("HCM_CAMPAIGN_END_DATE_BEFORE_START_DATE")}` });
           return false;
         } else {
@@ -404,9 +438,6 @@ const SetupCampaign = () => {
     setParams({
       ...params,
       [name]: { ...formData },
-      facilityId : facilityId,
-      boundaryId : boundaryId,
-      hierarchyType: hierarchyType
     });
 
     const dummyData = {
@@ -420,7 +451,9 @@ const SetupCampaign = () => {
       ],
     };
 
-    setShouldUpdate(true);
+    if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].skipAPICall) {
+      setShouldUpdate(true);
+    }
 
     if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].mandatoryOnAPI) {
       setCurrentKey(currentKey + 1);

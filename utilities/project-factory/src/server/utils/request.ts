@@ -1,50 +1,57 @@
-import { Response } from "express";
-import { logger } from "./logger";
-import { cacheResponse, getCachedResponse, throwErrorViaRequest } from "./genericUtils";
+import { Response } from "express"; // Importing necessary module Response from Express
+import { logger } from "./logger"; // Importing logger from logger module
+import { cacheResponse, getCachedResponse, throwErrorViaRequest } from "./genericUtils"; // Importing necessary functions from genericUtils module
 
-var Axios = require("axios").default;
-var get = require("lodash/get");
+var Axios = require("axios").default; // Importing axios library
+var get = require("lodash/get"); // Importing get function from lodash library
 
+// Axios interceptor to handle response errors
 Axios.interceptors.response.use(
   (res: Response) => {
     return res;
   },
   (err: any) => {
+    // If there is no response object in the error, create one with status 400
     if (err && !err.response) {
       err.response = {
         status: 400,
       };
     }
+    // If there is a response but no data, create an error object with the error message
     if (err && err.response && !err.response.data) {
       err.response.data = {
         Errors: [{ code: err.message }],
       };
     }
-    throw err;
+    throw err; // Throw the error
   }
 );
 
+// Default header for HTTP requests
 export const defaultheader = {
   "content-type": "application/json;charset=UTF-8",
   accept: "application/json, text/plain, */*",
 };
 
+// Function to extract service name from URL
 const getServiceName = (url = "") => url && url.slice && url.slice(url.lastIndexOf(url.split("/")[3]));
-const cacheEnabled = true;
-/*
- 
-Used to Make API call through axios library
 
-  @author jagankumar-egov
+const cacheEnabled = true; // Variable to indicate whether caching is enabled or not
 
- * @param {string} _url
- * @param {Object} _requestBody
- * @param {Object} _params
- * @returns {string} _method default to post
- * @returns {string} responseType
- * @param {Object} headers
-
-*/
+/**
+ * Used to Make API call through axios library
+ * 
+ * @author jagankumar-egov
+ * 
+ * @param {string} _url - The URL to make the HTTP request to
+ * @param {Object} _requestBody - The request body
+ * @param {Object} _params - The request parameters
+ * @param {string} _method - The HTTP method (default to post)
+ * @param {string} responseType - The response type
+ * @param {Object} headers - The request headers
+ * @param {any} sendStatusCode - Flag to determine whether to send status code along with response data
+ * @returns {Promise<any>} - Returns the response data or throws an error
+ */
 const httpRequest = async (
   _url: string,
   _requestBody: any,
@@ -53,12 +60,12 @@ const httpRequest = async (
   responseType: string = "",
   headers: any = defaultheader,
   sendStatusCode: any = false
-) => {
+): Promise<any> => {
   try {
     if (headers && headers.cachekey && cacheEnabled) {
-      const cacheData = getCachedResponse(headers.cachekey);
+      const cacheData = getCachedResponse(headers.cachekey); // Get cached response data
       if (cacheData) {
-        return cacheData;
+        return cacheData; // Return cached data if available
       }
       logger.info(
         "NO CACHE FOUND :: REQUEST :: " +
@@ -72,6 +79,7 @@ const httpRequest = async (
       JSON.stringify(_params)
     );
     logger.debug(JSON.stringify(_requestBody))
+    // Make HTTP request using Axios
     const response = await Axios({
       method: _method,
       url: _url,
@@ -81,23 +89,26 @@ const httpRequest = async (
       responseType,
     });
 
-    const responseStatus = parseInt(get(response, "status"), 10);
+    const responseStatus = parseInt(get(response, "status"), 10); // Get response status
     logger.info(
       "INTER-SERVICE :: SUCCESS :: " +
       getServiceName(_url) +
       ":: CODE :: " +
       responseStatus
     );
+    // If response status is successful, cache the response data if caching is enabled
     if (responseStatus === 200 || responseStatus === 201 || responseStatus === 202) {
       if (headers && headers.cachekey) {
         cacheResponse(response.data, headers.cachekey)
       }
+      // Return response data with status code if sendStatusCode flag is false
       if (!sendStatusCode)
         return response.data;
       else return { ...response.data, "statusCode": responseStatus }
     }
   } catch (error: any) {
-    var errorResponse = error?.response;
+    var errorResponse = error?.response; // Get error response
+    // Log error details
     logger.error(
       "INTER-SERVICE :: FAILURE :: " +
       getServiceName(_url) +
@@ -111,10 +122,12 @@ const httpRequest = async (
       ": error response :" +
       (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message))
     logger.error(":: ERROR STACK :: " + error?.stack || error);
+    // Throw error response via request if error response contains errors
     if (errorResponse?.data?.Errors) {
       throwErrorViaRequest(JSON.stringify(errorResponse?.data?.Errors));
     }
     else {
+      // Throw error message via request
       throwErrorViaRequest(
         "error occured while making request to " +
         getServiceName(_url) +
@@ -125,4 +138,4 @@ const httpRequest = async (
   }
 };
 
-export { httpRequest };
+export { httpRequest }; // Exporting the httpRequest function for use in other modules

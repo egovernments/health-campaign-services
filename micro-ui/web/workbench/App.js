@@ -1,3 +1,11 @@
+/**
+ * The above code initializes various Digit UI modules and components, sets up customizations, and
+ * renders the DigitUI component based on the enabled modules and state code.
+ * @returns The `App` component is being returned, which renders the `DigitUI` component with the
+ * specified props such as `stateCode`, `enabledModules`, `moduleReducers`, and `defaultLanding`. The
+ * `DigitUI` component is responsible for rendering the UI based on the provided configuration and
+ * modules.
+ */
 import React from "react";
 import { initLibraries } from "@egovernments/digit-ui-libraries";
 import { DigitUI } from "@egovernments/digit-ui-module-core";

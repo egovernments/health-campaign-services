@@ -6,6 +6,13 @@ import { PrivateRoute, AppContainer, BreadCrumb } from "@egovernments/digit-ui-r
 import SetupCampaign from "./SetupCampaign";
 import SelectingBoundaries from "../../components/SelectingBoundaries";
 
+/**
+ * The CampaignBreadCrumb function generates breadcrumb navigation for a campaign setup page in a React
+ * application.
+ * @returns The CampaignBreadCrumb component is returning a BreadCrumb component with the specified
+ * crumbs array and spanStyle prop. The crumbs array contains two objects with path, content, and show
+ * properties for each breadcrumb item. The spanStyle prop is set to { maxWidth: "min-content" }.
+ */
 const CampaignBreadCrumb = ({ location, defaultPath }) => {
   const { t } = useTranslation();
   const search = useLocation().search;
@@ -27,6 +34,14 @@ const CampaignBreadCrumb = ({ location, defaultPath }) => {
   return <BreadCrumb className="campaign-breadcrumb" crumbs={crumbs} spanStyle={{ maxWidth: "min-content" }} />;
 };
 
+/**
+ * The `App` function in JavaScript defines a component that handles different routes and renders
+ * corresponding components based on the path provided.
+ * @returns The `App` component is returning a JSX structure that includes a `div` with a className of
+ * "wbh-header-container" containing a `CampaignBreadCrumb` component and a `Switch` component. Inside
+ * the `Switch` component, there are several `PrivateRoute` components with different paths and
+ * corresponding components such as `UploadBoundaryData`, `CycleConfiguration`, `DeliveryRule`, `
+ */
 const App = ({ path }) => {
   const location = useLocation();
   const UploadBoundaryData = Digit?.ComponentRegistryService?.getComponent("UploadBoundaryData");
@@ -60,7 +75,6 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/create-campaign/upload-boundary-data`} component={() => <UploadBoundaryData />} />
           <PrivateRoute path={`${path}/create-campaign/cycle-configure`} component={() => <CycleConfiguration />} />
           <PrivateRoute path={`${path}/create-campaign/delivery-details`} component={() => <DeliveryRule />} />
-          <PrivateRoute path={`${path}/sample`} component={() => <div>Home Campaign Loaded</div>} />
           <PrivateRoute path={`${path}/setup-campaign`} component={() => <SetupCampaign />} />
           <PrivateRoute path={`${path}/my-campaign`} component={() => <MyCampaign />} />
           <PrivateRoute path={`${path}/preview`} component={() => <CampaignSummary />} />

@@ -3,15 +3,41 @@ import React, { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import DetailsTable from "./DetailsTable";
 
-const CycleDetaisPreview = ({ data, item, index }) => {
+function mergeObjects(item) {
+  const arr = item?.conditions;
+  const mergedArr = [];
+  const mergedAttributes = new Set();
+
+  arr.forEach((obj) => {
+    if (!mergedAttributes.has(obj.attribute)) {
+      const sameAttrObjs = arr.filter((o) => o.attribute === obj.attribute);
+
+      if (sameAttrObjs.length > 1) {
+        const fromValue = Math.min(...sameAttrObjs.map((o) => o.value));
+        const toValue = Math.max(...sameAttrObjs.map((o) => o.value));
+
+        mergedArr.push({
+          fromValue,
+          toValue,
+          value: `${fromValue} to ${toValue}`,
+          operator: "IN_BETWEEN",
+          attribute: obj.attribute,
+        });
+
+        mergedAttributes.add(obj.attribute);
+      } else {
+        mergedArr.push(obj);
+      }
+    }
+  });
+
+  return { ...item, conditions: mergedArr };
+}
+
+const CycleDetaisPreview = ({ data, items, index }) => {
   const { t } = useTranslation();
-  // const { cycleNumber, deliveryNumber } = data?.campaignDetails?.deliveryRules.reduce(
-  //   (acc, { cycleNumber, deliveryNumber }) => ({
-  //     cycleNumber: Math.max(acc.cycleNumber, cycleNumber),
-  //     deliveryNumber: Math.max(acc.deliveryNumber, deliveryNumber),
-  //   }),
-  //   { cycleNumber: 0, deliveryNumber: 0 }
-  // );
+  const item = mergeObjects(items);
+
   return (
     <>
       <Row

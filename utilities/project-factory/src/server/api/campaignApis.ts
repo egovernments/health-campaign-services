@@ -13,8 +13,12 @@ import * as XLSX from 'xlsx';
 
 
 
-
+/**
+ * Enriches the campaign data with unique IDs and generates campaign numbers.
+ * @param requestBody The request body containing the campaign data.
+ */
 async function enrichCampaign(requestBody: any) {
+  // Enrich campaign data with unique IDs and generate campaign numbers
   if (requestBody?.Campaign) {
     requestBody.Campaign.id = uuidv4();
     requestBody.Campaign.campaignNo = await getCampaignNumber(requestBody, config.values.idgen.format, config.values.idgen.idName, requestBody?.Campaign?.tenantId);
@@ -38,7 +42,14 @@ async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchP
   }
 }
 
+/**
+ * Retrieves all facilities for a given tenant ID.
+ * @param tenantId The ID of the tenant.
+ * @param requestBody The request body containing additional parameters.
+ * @returns An array of facilities.
+ */
 async function getAllFacilities(tenantId: string, requestBody: any) {
+  // Retrieve all facilities for the given tenant ID
   const facilitySearchBody = {
     RequestInfo: requestBody?.RequestInfo,
     Facility: { isPermanent: true }
@@ -63,7 +74,15 @@ async function getAllFacilities(tenantId: string, requestBody: any) {
   return searchedFacilities;
 }
 
+/**
+ * Retrieves facilities by their IDs.
+ * @param tenantId The ID of the tenant.
+ * @param ids An array of facility IDs.
+ * @param requestBody The request body containing additional parameters.
+ * @returns An array of facilities.
+ */
 async function getFacilitiesViaIds(tenantId: string, ids: any[], requestBody: any) {
+  // Retrieve facilities by their IDs
   const facilitySearchBody: any = {
     RequestInfo: requestBody?.RequestInfo,
     Facility: {}
@@ -89,7 +108,14 @@ async function getFacilitiesViaIds(tenantId: string, ids: any[], requestBody: an
   return searchedFacilities;
 }
 
+/**
+ * Retrieves parameters based on elements.
+ * @param elements An array of elements.
+ * @param request The HTTP request object.
+ * @returns Parameters extracted from elements.
+ */
 function getParamsViaElements(elements: any, request: any) {
+  // Extract parameters based on elements
   var params: any = {};
   if (!elements) {
     return params;
@@ -107,8 +133,14 @@ function getParamsViaElements(elements: any, request: any) {
   return params
 }
 
+/**
+ * Changes request body based on elements.
+ * @param elements An array of elements.
+ * @param requestBody The request body to be modified.
+ */
 function changeBodyViaElements(elements: any, requestBody: any) {
-  if (!elements) {
+  // Modify request body based on elements
+if (!elements) {
     return;
   }
   for (const element of elements) {
@@ -276,8 +308,16 @@ async function processSearchAndValidation(request: any, createAndSearchConfig: a
 }
 
 
+/**
+ * Confirms the creation of resources by matching created and searched data.
+ * @param createAndSearchConfig The configuration for create and search operations.
+ * @param request The HTTP request object.
+ * @param facilityCreateData An array of data for created facilities.
+ * @param creationTime The timestamp of creation.
+ * @param activities An array of activity logs.
+ */
 async function confirmCreation(createAndSearchConfig: any, request: any, facilityCreateData: any[], creationTime: any, activities: any) {
-  // wait for 5 seconds
+  // Confirm creation of resources by matching data  // wait for 5 seconds
   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
   matchViaUserIdAndCreationTime(facilityCreateData, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
@@ -326,7 +366,12 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
   await generateProcessedFileAndPersist(request);
 }
 
+/**
+ * Processes generic requests such as create or validate.
+ * @param request The HTTP request object.
+ */
 async function processGenericRequest(request: any) {
+  // Process generic requests
   if (request?.body?.ResourceDetails?.action == "create") {
     await processCreate(request)
   }
@@ -348,8 +393,12 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
   }
 }
 
-
+/**
+ * Processes the creation of resources.
+ * @param request The HTTP request object.
+ */
 async function processCreate(request: any) {
+  // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
   if (type == "boundary") {
     await autoGenerateBoundaryCodes(request);
@@ -363,7 +412,12 @@ async function processCreate(request: any) {
   }
 }
 
+/**
+ * Creates resources for a project campaign.
+ * @param request The HTTP request object.
+ */
 async function createProjectCampaignResourcData(request: any) {
+  // Create resources for a project campaign
   if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
     for (const resource of request?.body?.CampaignDetails?.resources) {
       const resourceDetails = {

@@ -20,6 +20,12 @@ import UploadData from "./components/UploadData";
 import CampaignSelection from "./components/CampaignType";
 
 
+/**
+ * The CampaignModule function fetches store data based on state code, module code, and language, and
+ * renders the EmployeeApp component within a TourProvider component if the data is not loading.
+ * @returns The CampaignModule component returns either a Loader component if data is still loading, or
+ * a TourProvider component wrapping an EmployeeApp component with specific props passed to it.
+ */
 const CampaignModule = ({ stateCode, userType, tenants }) => {
   const moduleCode = ["campaignmanager", "workbench", "mdms", "schema"];
   const { path, url } = useRouteMatch();
@@ -103,6 +109,10 @@ const updateCustomConfigs = () => {
   // setupLibraries("Utils", "parsingUtils", { ...window?.Digit?.Utils?.parsingUtils, ...parsingUtils });
 };
 
+/**
+ * The `initCampaignComponents` function initializes campaign components by overriding hooks, updating
+ * custom configurations, and registering components.
+ */
 const initCampaignComponents = () => {
   overrideHooks();
   updateCustomConfigs();

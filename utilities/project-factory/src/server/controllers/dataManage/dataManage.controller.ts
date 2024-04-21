@@ -63,6 +63,7 @@ class dataManageController {
     */
     downloadData = async (request: express.Request, response: express.Response) => {
         try {
+            // validate downlaod request body
             await validateDownloadRequest(request);
             const type = request.query.type;
             // Get response data from the database

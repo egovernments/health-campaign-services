@@ -3,6 +3,15 @@ import { CardText, LabelFieldPair, Card, Header, CardLabel } from "@egovernments
 import { useTranslation } from "react-i18next";
 import { Dropdown, InfoCard, MultiSelectDropdown } from "@egovernments/digit-ui-components";
 import { mailConfig } from "../configs/mailConfig";
+/**
+ * The function `SelectingBoundaries` in JavaScript handles the selection of boundaries based on
+ * hierarchy data and allows users to choose specific boundaries within the hierarchy.
+ * @returns The `SelectingBoundaries` component is being returned. It consists of JSX elements
+ * including Cards, Headers, Dropdowns, MultiSelectDropdowns, and InfoCard. The component allows users
+ * to select hierarchy types and boundaries based on the data fetched from API calls. It also handles
+ * the selection of boundaries and updates the state accordingly. The component is designed to be
+ * interactive and user-friendly for selecting boundaries within
+ */
 function SelectingBoundaries({ onSelect, formData, ...props }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();

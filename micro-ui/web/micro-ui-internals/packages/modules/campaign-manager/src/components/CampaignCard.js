@@ -8,6 +8,13 @@ const ROLES = {
   DSS: ["STADMIN"],
 };
 
+/**
+ * The CampaignCard component renders a card with links related to campaign management, filtering out
+ * links based on employee roles.
+ * @returns The CampaignCard component is being returned. It contains a list of links related to
+ * campaign actions, such as setting up a campaign and viewing personal campaigns. The links are
+ * filtered based on employee roles before being displayed in the EmployeeModuleCard component.
+ */
 const CampaignCard = () => {
   // if (!Digit.Utils.didEmployeeHasAtleastOneRole(Object.values(ROLES).flatMap((e) => e))) {
   // return null;
