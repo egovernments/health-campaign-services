@@ -619,7 +619,7 @@ async function processGenerateForNew(request: any, response: any, generatedResou
 }
 
 function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
-  newEntryResponse.map((item: any) => { item.status = "failed", item.additionalDetails = { ...item.additionalDetails, error: error.message } })
+  newEntryResponse.map((item: any) => { item.status = "failed", item.additionalDetails = { ...item.additionalDetails, error: error.message || String(error) } })
   generatedResource = { generatedResource: newEntryResponse };
   logger.error(String(error));
   produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);

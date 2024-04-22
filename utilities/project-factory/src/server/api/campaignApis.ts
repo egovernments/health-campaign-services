@@ -10,6 +10,7 @@ import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy, genera
 import axios from "axios";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
+import { produceModifiedMessages } from "../Kafka/Listener";
 
 
 
@@ -324,10 +325,14 @@ async function confirmCreation(createAndSearchConfig: any, request: any, facilit
 }
 
 async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any) {
-  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
-  request.body.dataToSearch = typeData.searchData;
-  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-  await generateProcessedFileAndPersist(request);
+  try {
+    const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
+    request.body.dataToSearch = typeData.searchData;
+    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await generateProcessedFileAndPersist(request);
+  } catch (error) {
+    await handleResouceDetailsError(request, error);
+  }
 }
 
 async function processValidate(request: any) {
@@ -380,16 +385,36 @@ async function processGenericRequest(request: any) {
   }
 }
 
+async function handleResouceDetailsError(request: any, error: any) {
+  logger.error("Error while processing after validation : " + error)
+  if (request?.body?.ResourceDetails) {
+    request.body.ResourceDetails.status = "failed";
+    request.body.ResourceDetails.additionalDetails = {
+      ...request?.body?.ResourceDetails?.additionalDetails,
+      error: String(error?.message || error)
+    }
+    produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+  }
+  if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    produceModifiedMessages(request?.body, config.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC);
+  }
+}
+
 async function processAfterValidation(dataFromSheet: any, createAndSearchConfig: any, request: any) {
-  const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
-  request.body.dataToCreate = typeData.createData;
-  request.body.dataToSearch = typeData.searchData;
-  await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-  if (createAndSearchConfig?.createBulkDetails) {
-    _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
-    const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
-    changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
-    await performAndSaveResourceActivity(request, createAndSearchConfig, params, request.body.ResourceDetails.type);
+  try {
+    const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
+    request.body.dataToCreate = typeData.createData;
+    request.body.dataToSearch = typeData.searchData;
+    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    if (createAndSearchConfig?.createBulkDetails) {
+      _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
+      const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
+      changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
+      await performAndSaveResourceActivity(request, createAndSearchConfig, params, request.body.ResourceDetails.type);
+    }
+  } catch (error: any) {
+    await handleResouceDetailsError(request, error)
   }
 }
 
