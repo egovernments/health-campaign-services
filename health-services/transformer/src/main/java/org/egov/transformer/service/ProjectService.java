@@ -1,21 +1,37 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import digit.models.coremodels.mdms.MasterDetail;
-import digit.models.coremodels.mdms.MdmsCriteria;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
-import digit.models.coremodels.mdms.ModuleDetail;
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.transformer.Constants.CYCLES;
+import static org.egov.transformer.Constants.CYCLE_NUMBER;
+import static org.egov.transformer.Constants.DELIVERIES;
+import static org.egov.transformer.Constants.DOSE_NUMBER;
+import static org.egov.transformer.Constants.ID;
+import static org.egov.transformer.Constants.INTERNAL_SERVER_ERROR;
+import static org.egov.transformer.Constants.MDMS_RESPONSE;
+import static org.egov.transformer.Constants.PROJECT_TYPES;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
-import org.egov.common.models.project.*;
+import org.egov.common.models.project.BeneficiaryBulkResponse;
+import org.egov.common.models.project.BeneficiarySearchRequest;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
+import org.egov.common.models.project.ProjectRequest;
+import org.egov.common.models.project.ProjectResponse;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.project.ProjectStaffBulkResponse;
+import org.egov.common.models.project.ProjectStaffSearch;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.Constants;
 import org.egov.transformer.boundary.BoundaryNode;
@@ -24,15 +40,19 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import static org.egov.transformer.Constants.*;
+import digit.models.coremodels.mdms.MasterDetail;
+import digit.models.coremodels.mdms.MdmsCriteria;
+import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import digit.models.coremodels.mdms.ModuleDetail;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Slf4j
@@ -378,7 +398,7 @@ public class ProjectService {
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
-                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
+                .projectStaff(ProjectStaffSearch.builder().staffId(Arrays.asList(userId)).tenantId(tenantId).build())
                 .build();
 
         ProjectStaffBulkResponse response;

@@ -1,13 +1,28 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.transformer.Constants.CITY;
+import static org.egov.transformer.Constants.COMMA;
+import static org.egov.transformer.Constants.CYCLE_NUMBER;
+import static org.egov.transformer.Constants.PROJECT;
+import static org.egov.transformer.Constants.ROLE;
+import static org.egov.transformer.Constants.TYPE_KEY;
+import static org.egov.transformer.Constants.USERNAME;
+import static org.egov.transformer.Constants.WAREHOUSE;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.egov.common.models.facility.AdditionalFields;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.Field;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
@@ -17,10 +32,10 @@ import org.egov.transformer.service.transformer.Transformer;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import static org.egov.transformer.Constants.*;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class StockTransformationService implements TransformationService<Stock> {
@@ -90,8 +105,21 @@ public abstract class StockTransformationService implements TransformationServic
             String projectId = stock.getReferenceId();
             Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
-            Facility facility = facilityService.findFacilityById(stock.getFacilityId(), stock.getTenantId());
-            Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
+            
+            /*
+             * FIXME index stock model has to be updated
+             */
+            Facility facility = null;
+			if (stock.getSenderType().equals(SenderReceiverType.WAREHOUSE)) {
+				facility = facilityService.findFacilityById(stock.getSenderId(), stock.getTenantId());
+			}
+            
+			Facility transactingFacility = null;
+			if (stock.getReceiverId().equals(SenderReceiverType.WAREHOUSE)) {
+				transactingFacility = facilityService.findFacilityById(stock.getReceiverId(),
+						stock.getTenantId());
+			}
+            
             if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                     && facility.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
@@ -127,13 +155,13 @@ public abstract class StockTransformationService implements TransformationServic
                     .tenantId(stock.getTenantId())
                     .productVariant(stock.getProductVariantId())
                     .productName(productName)
-                    .facilityId(stock.getFacilityId())
-                    .facilityName(facility != null ? facility.getName() : stock.getFacilityId())
-                    .transactingFacilityId(stock.getTransactingPartyId())
+                    .facilityId(stock.getSenderId())
+                    .facilityName(facility != null ? facility.getName() : stock.getSenderId())
+                    .transactingFacilityId(stock.getReceiverId())
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
                     .userAddress(userInfoMap.get(CITY))
-                    .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : stock.getTransactingPartyId())
+                    .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : stock.getReceiverId())
                     .facilityType(facilityType)
                     .transactingFacilityType(transactingFacilityType)
                     .physicalCount(stock.getQuantity())

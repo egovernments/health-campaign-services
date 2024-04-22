@@ -149,7 +149,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                     .userAddress(userInfoMap.get(CITY))
                     .productVariant(taskResource.getProductVariantId())
                     .isDelivered(taskResource.getIsDelivered())
-                    .quantity(taskResource.getQuantity())
+                    .quantity(Double.valueOf(taskResource.getQuantity()))
                     .deliveredTo(projectBeneficiaryType)
                     .deliveryComments(taskResource.getDeliveryComment())
                     .latitude(task.getAddress().getLatitude())
@@ -208,10 +208,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
                 addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
                 addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
             }
-            if (taskResource.getAdditionalFields() != null) {
-                addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
-                addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
-            }
+
             projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
             return projectTaskIndexV1;
