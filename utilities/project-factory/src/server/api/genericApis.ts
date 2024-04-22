@@ -7,7 +7,6 @@ import { logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator"; // Import validation functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils'; // Import utility functions
-import { validateFilters } from '../utils/validators/campaignValidators'; // Import validation function
 import { getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 
@@ -459,7 +458,6 @@ async function getBoundarySheetData(request: any) {
     else {
         logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
         if (request?.body?.Filters != null) {
-            await validateFilters(request, boundaryData);
             const filteredBoundaryData = await generateFilteredBoundaryData(request);
             return await getDataSheetReady(filteredBoundaryData, request);
         }

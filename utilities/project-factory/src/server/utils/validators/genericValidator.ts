@@ -4,7 +4,8 @@ import { logger } from "../logger";
 import Ajv from "ajv";
 import config from "../../config/index";
 import { httpRequest } from "../request";
-import { throwError } from "../genericUtils";
+import { getBoundaryRelationshipData, throwError } from "../genericUtils";
+import { validateFilters } from "./campaignValidators";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: Ajv.ErrorObject[] | null | undefined } {
@@ -42,14 +43,14 @@ async function validateUserId(resourceId: any, requestBody: any) {
         tenantId: requestBody?.Campaign?.tenantId.split('.')?.[0],
         uuid: [resourceId]
     }
-    
+
     // Logging user search URL and request body
     logger.info("User search url : " + config.host.userHost + config.paths.userSearch);
     logger.info("userSearchBody : " + JSON.stringify(userSearchBody));
-    
+
     // Performing the HTTP request to validate the user ID
     const response = await httpRequest(config.host.userHost + config.paths.userSearch, userSearchBody);
-    
+
     // Handling response errors if user ID is invalid
     if (!response?.user?.[0]?.uuid) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type staff with id " + resourceId);
@@ -68,15 +69,15 @@ async function validateProductVariantId(resourceId: any, requestBody: any) {
         offset: 0,
         tenantId: requestBody?.Campaign?.tenantId.split('.')?.[0]
     }
-    
+
     // Logging product variant search URL and request body
     logger.info("ProductVariant search url : " + config.host.productHost + config.paths.productVariantSearch);
     logger.info("productVariantSearchBody : " + JSON.stringify(productVariantSearchBody));
     logger.info("productVariantSearchParams : " + JSON.stringify(productVariantSearchParams));
-    
+
     // Performing the HTTP request to validate the product variant ID
     const response = await httpRequest(config.host.productHost + config.paths.productVariantSearch, productVariantSearchBody, productVariantSearchParams);
-    
+
     // Handling response errors if product variant ID is invalid
     if (!response?.ProductVariant?.[0]?.id) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type resource with id " + resourceId);
@@ -97,15 +98,15 @@ async function validateProjectFacilityId(resourceId: any, requestBody: any) {
         offset: 0,
         tenantId: requestBody?.Campaign?.tenantId?.split('.')?.[0]
     }
-    
+
     // Logging facility search URL and request body
     logger.info("Facility search url : " + config.host.facilityHost + config.paths.facilitySearch);
     logger.info("facilitySearchBody : " + JSON.stringify(facilitySearchBody));
     logger.info("facilitySearchParams : " + JSON.stringify(facilitySearchParams));
-    
+
     // Performing the HTTP request to validate the project facility ID
     const response = await httpRequest(config.host.facilityHost + config.paths.facilitySearch, facilitySearchBody, facilitySearchParams);
-    
+
     // Handling response errors if project facility ID is invalid
     if (!response?.Facilities?.[0]?.id) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resourceId for resource type facility with id " + resourceId);
@@ -265,10 +266,24 @@ async function validateGenerateRequest(request: express.Request) {
     if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary");
     }
-    if (type == "boundary" && request?.body?.Filters === undefined) {
+    await validateHierarchyType(request, hierarchyType, tenantId);
+    if (type == 'boundary') {
+        await validateFiltersInRequestBody(request);
+    }
+}
+
+async function validateFiltersInRequestBody(request: any) {
+    if (request?.body?.Filters === undefined) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "For type boundary Filters Object should be present in request body")
     }
-    await validateHierarchyType(request, hierarchyType, tenantId);
+    const params = {
+        ...request?.query,
+        includeChildren: true
+    };
+    const boundaryData = await getBoundaryRelationshipData(request, params);
+    if (boundaryData && request?.body?.Filters!= null ) {
+        await validateFilters(request, boundaryData);
+    }
 }
 
 export {
