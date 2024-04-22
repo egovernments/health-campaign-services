@@ -3,12 +3,14 @@ import config from "../../config";
 import { logger } from "../logger";
 import { httpRequest } from "../request";
 import { getHierarchy } from "../../api/campaignApis";
-import { campaignDetailsSchema } from "../../config/campaignDetails";
+import { campaignDetailsSchema } from "../../config/models/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
 import { createBoundaryMap } from "../campaignUtils";
 import { throwError } from "../genericUtils";
-import { validateHierarchyType } from "./genericValidator";
+import { validateBodyViaSchema, validateHierarchyType } from "./genericValidator";
+import { searchCriteriaSchema } from "../../config/models/SearchCriteria";
+import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignDetails";
 
 
 
@@ -474,24 +476,7 @@ async function validateSearchProjectCampaignRequest(request: any) {
     if (!CampaignDetails) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
     }
-    if (!CampaignDetails.tenantId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
-    }
-    if (CampaignDetails.ids) {
-        if (!Array.isArray(CampaignDetails.ids)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "ids should be an array");
-        }
-    }
-    const { pagination } = CampaignDetails;
-    if (pagination?.limit || pagination?.limit === 0) {
-        if (typeof pagination.limit === 'number') {
-            if (pagination.limit > 100 || pagination.limit < 1) {
-                throwError("COMMON", 400, "INVALID_PAGINATION", "Pagination Limit should be from 1 to 100");
-            }
-        } else {
-            throwError("COMMON", 400, "INVALID_PAGINATION", "Pagination Limit should be a number");
-        }
-    }
+    validateBodyViaSchema(searchCampaignDetailsSchema, CampaignDetails);
 }
 
 async function validateSearchRequest(request: any) {
@@ -499,10 +484,7 @@ async function validateSearchRequest(request: any) {
     if (!SearchCriteria) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "SearchCriteria is required");
     }
-    const { tenantId } = SearchCriteria;
-    if (!tenantId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
-    }
+    validateBodyViaSchema(searchCriteriaSchema, SearchCriteria);
 }
 
 
@@ -513,7 +495,7 @@ async function validateFilters(request: any, boundaryData: any[]) {
     }
     const boundaries = request?.body?.Filters?.boundaries;
     // boundaries should be an array and not empty
-    if (!Array.isArray(boundaries) ||  boundaries?.length == 0) {
+    if (!Array.isArray(boundaries) || boundaries?.length == 0) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be an array and should not be empty.");
     }
 

@@ -18,6 +18,34 @@ function validateDataWithSchema(data: any, schema: any): { isValid: boolean; err
     return { isValid, error: validate.errors };
 }
 
+function validateBodyViaSchema(schema: any, objectData: any) {
+    const properties: any = { jsonPointers: true, allowUnknownAttributes: true }
+    const ajv = new Ajv(properties);
+    const validate = ajv.compile(schema);
+    const isValid = validate(objectData);
+    if (!isValid) {
+        const formattedError = validate?.errors?.map((error: any) => {
+            let formattedErrorMessage = "";
+            if (error?.dataPath) {
+                formattedErrorMessage = `${error.dataPath}: ${error.message}`;
+            }
+            else {
+                formattedErrorMessage = `${error.message}`
+            }
+            if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                formattedErrorMessage += `. Allowed values are: ${error.params.allowedValues.join(', ')}`;
+            }
+            if (error.keyword === 'additionalProperties' && error.params && error.params.additionalProperty) {
+                formattedErrorMessage += `, Additional property '${error.params.additionalProperty}' found.`;
+            }
+            return formattedErrorMessage;
+        }).join("; ");
+        console.error(formattedError);
+        throwError("COMMON", 400, "VALIDATION_ERROR", formattedError);
+    }
+}
+
+
 // Function to validate boundaries in the request body
 function validateBoundaries(requestBody: any) {
     const { boundaryCode } = requestBody?.Campaign;
@@ -281,13 +309,14 @@ async function validateFiltersInRequestBody(request: any) {
         includeChildren: true
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
-    if (boundaryData && request?.body?.Filters!= null ) {
+    if (boundaryData && request?.body?.Filters != null) {
         await validateFilters(request, boundaryData);
     }
 }
 
 export {
     validateDataWithSchema,
+    validateBodyViaSchema,
     validateCampaignRequest,
     validatedProjectResponseAndUpdateId,
     validateStaffResponse,
