@@ -37,7 +37,7 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
           <span className="mandatory-span">*</span>
         </div>
         <Dropdown
-          style={{ width: "50%" }}
+          style={{ width: "40rem" }}
           t={t}
           option={projectType?.["HCM-PROJECT-TYPES"]?.projectTypes}
           optionKey={"code"}

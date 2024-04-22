@@ -24,7 +24,7 @@ const CampaignName = ({ onSelect, formData, control, ...props }) => {
           <span>{`${t("HCM_CAMPAIGN_NAME")}`}</span>
           <span className="mandatory-span">*</span>
         </div>
-        <TextInput style={{ width: "50%" }} name="campaignName" value={name} onChange={(event) => setName(event.target.value)} />
+        <TextInput style={{ width: "40rem" }} name="campaignName" value={name} onChange={(event) => setName(event.target.value)} />
       </LabelFieldPair>
     </React.Fragment>
   );
