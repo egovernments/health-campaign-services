@@ -155,8 +155,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   pointer-events: none;
 }
 .product-tag-container {
-  display: flex;
   gap: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 15rem);
+  grid-row-gap: 1rem;
 }
 
 .workbench-download-template-btn {
