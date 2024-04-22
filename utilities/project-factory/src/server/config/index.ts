@@ -20,7 +20,7 @@ const config = {
   // Default criteria for generating different tabs
   generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "District",
   // default configurable number of data of boundary type on which generate different tabs
-  numberOfBoundaryDataOnWhichWeSplit: 2,
+  numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
   // Authentication token
   auth_token: process.env.AUTH_TOKEN,
   // Wait time for generic create

@@ -789,7 +789,7 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
         const workbook = XLSX.utils.book_new();
         const mainSheetData: any[] = [];
         const headersForMainSheet = Object.keys(boundaryData[0]);
-        mainSheetData.push(headersForMainSheet);
+        mainSheetData.push([...headersForMainSheet, "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"]);
         const districtLevelRowBoundaryCodeMap = new Map();
 
         for (const data of boundaryData) {
@@ -808,7 +808,7 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
             }
         }
         const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData);
-        XLSX.utils.book_append_sheet(workbook, mainSheet, 'ReadMe');
+        XLSX.utils.book_append_sheet(workbook, mainSheet, config.sheetName);
 
         for (const uniqueData of uniqueDistrictsForMainSheet) {
             const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
@@ -816,7 +816,8 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
             const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData));
             const districtIndex = Object.keys(modifiedFilteredData[0]).indexOf(differentTabsBasedOnLevel);
             const headers = Object.keys(modifiedFilteredData[0]).slice(districtIndex);
-            const newSheetData = [headers];
+            const modifiedHeaders = [...headers, "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"];
+            const newSheetData = [modifiedHeaders];
             for (const data of modifiedFilteredData) {
                 const rowData = Object.values(data).slice(districtIndex).map(value => value === null ? '' : String(value)); // Replace null with empty string
                 newSheetData.push(rowData);

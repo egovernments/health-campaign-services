@@ -3,6 +3,16 @@ import React from "react";
 import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
 import { useTranslation } from "react-i18next";
 
+const ArrowBack = ({ className = "", height = "15", width = "15", styles = {} }) => {
+  return (
+    <svg className={className} style={styles} width={width} height={height} viewBox="0 0 15 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M14.1663 6.16658H4.02467L8.68301 1.50825L7.49967 0.333252L0.833008 6.99992L7.49967 13.6666L8.67467 12.4916L4.02467 7.83325H14.1663V6.16658Z"
+        fill="#F47738"
+      />
+    </svg>
+  );
+};
 function XlsPreview({ file, ...props }) {
   const { t } = useTranslation();
   const documents = file
@@ -21,7 +31,7 @@ function XlsPreview({ file, ...props }) {
         <Button
           label={t("BACK")}
           variation="secondary"
-          icon={<SVG.ArrowBackIos styles={{ height: "1.25rem", width: "1.25rem" }} fill="#F47738" />}
+          icon={<ArrowBack styles={{ height: "1.25rem", width: "1.25rem" }} fill="#F47738" />}
           type="button"
           className="workbench-download-template-btn"
           onButtonClick={() => props?.onBack()}

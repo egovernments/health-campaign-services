@@ -92,39 +92,32 @@ import { useTranslation } from "react-i18next";
 //   let currentDelivery = null;
 
 //   data.forEach((item, index) => {
-//       if (currentCycleIndex !== item.cycleNumber) {
-//           currentCycleIndex = item.cycleNumber;
-//           currentCycle = {
-//               cycleIndex: currentCycleIndex.toString(),
-//               active: index === 0, // Set active to true only for the first index
-//               deliveries: []
-//           };
-//           reversedData.push(currentCycle);
-//       }
+//     if (currentCycleIndex !== item.cycleNumber) {
+//       currentCycleIndex = item.cycleNumber;
+//       currentCycle = {
+//         cycleIndex: currentCycleIndex.toString(),
+//         active: index === 0, // Set active to true only for the first index
+//         deliveries: [],
+//       };
+//       reversedData.push(currentCycle);
+//     }
 
-//       if (currentDeliveryIndex !== item.deliveryNumber) {
-//           currentDeliveryIndex = item.deliveryNumber;
-//           currentDelivery = {
-//               deliveryIndex: currentDeliveryIndex.toString(),
-//               active: index === 0, // Set active to true only for the first index
-//               deliveryRules: []
-//           };
-//           currentCycle.deliveries.push(currentDelivery);
-//       }
+//     if (currentDeliveryIndex !== item.deliveryNumber) {
+//       currentDeliveryIndex = item.deliveryNumber;
+//       currentDelivery = {
+//         deliveryIndex: currentDeliveryIndex.toString(),
+//         active: index === 0, // Set active to true only for the first index
+//         deliveryRules: [],
+//       };
+//       currentCycle.deliveries.push(currentDelivery);
+//     }
 
-//       currentDelivery.deliveryRules.push({
-//           ruleKey: item.deliveryRuleNumber.toString(),
-//           delivery: {},
-//           attributes: [
-//               {
-//                   key: 1,
-//                   attribute: null,
-//                   operator: null,
-//                   value: ""
-//               }
-//           ],
-//           products: []
-//       });
+//     currentDelivery.deliveryRules.push({
+//       ruleKey: currentDelivery.deliveryRules.length + 1,
+//       delivery: {},
+//       attributes: item.conditions.map((i, c) => ({ key: c + 1, ...i })),
+//       products: [...item.products],
+//     });
 //   });
 
 //   return reversedData;
