@@ -268,8 +268,41 @@ function enrichRootProjectId(requestBody: any) {
         }
     }
     if (rootBoundary) {
-        requestBody.CampaignDetails.projectId = requestBody?.boundaryProjectMapping?.[rootBoundary]?.projectId
+        requestBody.CampaignDetails.projectId = requestBody?.boundaryProjectMapping?.[rootBoundary]?.projectId || null
     }
+}
+
+async function enrichAndPersistCampaignWithError(request: any, error: any) {
+    const action = request?.body?.CampaignDetails?.action;
+    request.body.CampaignDetails.campaignNumber = request?.body?.CampaignDetails?.campaignNumber || null
+    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
+    request.body.CampaignDetails.status = "failed";
+    request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries) || null
+    request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
+    request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType || null;
+    request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails || {};
+    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || null
+    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate || null
+    request.body.CampaignDetails.auditDetails = {
+        createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
+        createdTime: Date.now(),
+        lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+        lastModifiedTime: Date.now(),
+    }
+    if (action == "create" && !request?.body?.CampaignDetails?.projectId) {
+        enrichRootProjectId(request.body);
+    }
+    else {
+        request.body.CampaignDetails.projectId = null
+    }
+    request.body.CampaignDetails.additionalDetails = {
+        ...request?.body?.CampaignDetails?.additionalDetails,
+        error: String(error?.message || error)
+    }
+    logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
+    const topic = config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    produceModifiedMessages(request?.body, topic);
+    delete request.body.CampaignDetails.campaignDetails
 }
 
 async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boolean = false) {
@@ -766,13 +799,18 @@ async function createProject(request: any, actionUrl: any) {
 }
 
 async function processAfterPersist(request: any, actionInUrl: any) {
-    if (request?.body?.CampaignDetails?.action == "create") {
-        await createProjectCampaignResourcData(request);
-        await createProject(request, actionInUrl)
-        await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
-    }
-    else {
-        await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
+    try {
+        if (request?.body?.CampaignDetails?.action == "create") {
+            await createProjectCampaignResourcData(request);
+            await createProject(request, actionInUrl)
+            await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
+        }
+        else {
+            await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
+        }
+    } catch (error: any) {
+        logger.error(error)
+        enrichAndPersistCampaignWithError(request, error)
     }
 }
 
