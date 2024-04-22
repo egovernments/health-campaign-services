@@ -507,9 +507,14 @@ async function validateSearchRequest(request: any) {
 
 
 async function validateFilters(request: any, boundaryData: any[]) {
+    // boundaries should be present under filters object 
+    if (!request?.body?.Filters?.boundaries) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be present under filters ");
+    }
     const boundaries = request?.body?.Filters?.boundaries;
-    if (!Array.isArray(boundaries)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be an array.");
+    // boundaries should be an array and not empty
+    if (!Array.isArray(boundaries) && boundaries?.length>0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be an array and should not be empty.");
     }
 
     const boundaryMap = new Map<string, string>();

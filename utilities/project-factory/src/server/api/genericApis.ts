@@ -18,18 +18,18 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
         'Content-Type': 'application/json',
         Accept: 'application/pdf',
     };
-    
+
     // Make HTTP request to retrieve Excel file as arraybuffer
     const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
-    
+
     // Read Excel file into workbook
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
-    
+
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
         throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
-    
+
     // Return the workbook
     return workbook;
 }
@@ -38,7 +38,7 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
 const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any) => {
     // Retrieve workbook using the getWorkbook function
     const workbook: any = await getWorkbook(fileUrl, sheetName)
-    
+
     // If parsing array configuration is provided, validate first row of each column
     if (createAndSearchConfig && createAndSearchConfig.parseArrayConfig && createAndSearchConfig.parseArrayConfig.parseLogic) {
         const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
@@ -70,10 +70,10 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
         if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
         return rowData;
     });
-    
+
     // Log sheet data
     logger.info("Sheet Data : " + JSON.stringify(jsonData))
-    
+
     // Return JSON data
     return jsonData;
 };
@@ -84,10 +84,10 @@ const searchMDMS: any = async (uniqueIdentifiers: any[], schemaCode: string, req
     if (!uniqueIdentifiers) {
         return;
     }
-    
+
     // Construct API URL for MDMS search
     const apiUrl = config.host.mdms + config.paths.mdms_search;
-    
+
     // Construct request data for MDMS search
     const data = {
         "MdmsCriteria": {
@@ -97,13 +97,13 @@ const searchMDMS: any = async (uniqueIdentifiers: any[], schemaCode: string, req
         },
         "RequestInfo": requestinfo
     }
-    
+
     // Make HTTP request to MDMS API
     const result = await httpRequest(apiUrl, data, undefined, undefined, undefined);
-    
+
     // Log search result
     logger.info("Template search Result : " + JSON.stringify(result))
-    
+
     // Return search result
     return result;
 }
@@ -121,22 +121,22 @@ const getCampaignNumber: any = async (requestBody: any, idFormat: String, idName
             }
         ]
     }
-    
+
     // Construct URL for ID generation service
     const idGenUrl = config.host.idGenHost + config.paths.idGen;
-    
+
     // Log ID generation URL and request
     logger.info("IdGen url : " + idGenUrl)
     logger.info("Idgen Request : " + JSON.stringify(data))
-    
+
     // Make HTTP request to ID generation service
     const result = await httpRequest(idGenUrl, data, undefined, undefined, undefined, undefined);
-    
+
     // Return generated campaign number
     if (result?.idResponses?.[0]?.id) {
         return result?.idResponses?.[0]?.id;
     }
-    
+
     // Throw error if ID generation fails
     throwError("COMMON", 500, "IDGEN_ERROR");
 }
@@ -154,31 +154,31 @@ const getResouceNumber: any = async (RequestInfo: any, idFormat: String, idName:
             }
         ]
     }
-    
+
     // Construct URL for ID generation service
     const idGenUrl = config.host.idGenHost + config.paths.idGen;
-    
+
     // Log ID generation URL and request
     logger.info("IdGen url : " + idGenUrl)
     logger.info("Idgen Request : " + JSON.stringify(data))
-    
+
     try {
         // Make HTTP request to ID generation service
         const result = await httpRequest(idGenUrl, data, undefined, undefined, undefined, undefined);
-        
+
         // Return generated resource number
         if (result?.idResponses?.[0]?.id) {
 
 
             return result?.idResponses?.[0]?.id;
         }
-        
+
         // Return null if ID generation fails
         return result;
     } catch (error: any) {
         // Log error if ID generation fails
         logger.error("Error: " + error)
-        
+
         // Return error
         return error;
     }
@@ -450,7 +450,7 @@ async function getBoundarySheetData(request: any) {
         includeChildren: true
     };
     const boundaryData = await getBoundaryRelationshipData(request, params);
-    if (!boundaryData || boundaryData.length ==0) {
+    if (!boundaryData || boundaryData.length === 0) {
         const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
         const headers = hierarchy;
         // create empty sheet if no boundary present in system
@@ -458,7 +458,7 @@ async function getBoundarySheetData(request: any) {
     }
     else {
         logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
-        if (request?.body?.Filters != null && request?.body?.Filters?.boundaries.length > 0) {
+        if (request?.body?.Filters != null) {
             await validateFilters(request, boundaryData);
             const filteredBoundaryData = await generateFilteredBoundaryData(request);
             return await getDataSheetReady(filteredBoundaryData, request);
