@@ -4,13 +4,15 @@ import { useTranslation } from "react-i18next";
 import { TextInput } from "@egovernments/digit-ui-components";
 
 const initialState = (saved) => {
-  return {
+  const data = {
     cycleConfgureDate: {
       cycle: saved?.cycleConfgureDate?.cycle ? saved?.cycleConfgureDate?.cycle : 1,
       deliveries: saved?.cycleConfgureDate?.deliveries ? saved?.cycleConfgureDate?.deliveries : 1,
     },
     cycleData: saved?.cycleData ? [...saved?.cycleData] : [],
   };
+  // onSelect("cycleConfigure", state);
+  return data;
 };
 
 const reducer = (state, action) => {

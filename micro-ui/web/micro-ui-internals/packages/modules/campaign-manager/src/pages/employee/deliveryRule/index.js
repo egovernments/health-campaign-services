@@ -15,7 +15,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   // Campaign Tab Skeleton function
   const [cycleData, setCycleData] = useState(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
   const saved = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule;
-  const selectedProjectType = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA").HCM_CAMPAIGN_TYPE.projectType.code;
+  const selectedProjectType = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_TYPE?.projectType?.code;
   const filteredDeliveryConfig = deliveryConfig.find((i) => i.projectType === selectedProjectType);
   useEffect(() => {
     setCycleData(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);

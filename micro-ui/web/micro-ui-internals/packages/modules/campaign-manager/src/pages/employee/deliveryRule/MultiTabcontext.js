@@ -209,9 +209,9 @@ const MultiTab = ({ tabCount = 3, subTabCount = 2 }) => {
       <Paragraph
         customClassName="cycle-paragraph"
         value={`(${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-          .split("-")
-          .reverse()
-          .join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate.split("-").reverse().join("/")})`}
+          ?.split("-")
+          ?.reverse()
+          ?.join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate?.split("-")?.reverse()?.join("/")})`}
       />
       <div className="campaign-cycle-container">
         <div className="campaign-tabs-container">
