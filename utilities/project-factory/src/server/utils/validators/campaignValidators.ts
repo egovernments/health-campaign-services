@@ -513,7 +513,7 @@ async function validateFilters(request: any, boundaryData: any[]) {
     }
     const boundaries = request?.body?.Filters?.boundaries;
     // boundaries should be an array and not empty
-    if (!Array.isArray(boundaries) && boundaries?.length>0) {
+    if (!Array.isArray(boundaries) ||  boundaries?.length == 0) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be an array and should not be empty.");
     }
 
