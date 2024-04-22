@@ -450,7 +450,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
       const differentTabsBasedOnLevel = config.generateDifferentTabsOnBasisOf;
       const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
       const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
-      if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= config.numberOfBoundaryDataOnWhichWeSplit) {
+      if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config.numberOfBoundaryDataOnWhichWeSplit)) {
         updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel);
       }
       // final upodated response to be sent to update topic 
