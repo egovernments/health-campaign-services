@@ -14,6 +14,10 @@ function AddProducts({ stref, selectedDelivery }) {
     },
   ]);
   const data = Digit.Hooks.campaign.useProductList();
+
+  const filteredData = data?.filter((item) => !selectedDelivery?.products?.some((entry) => entry?.value === item?.id));
+  const temp = filteredData?.filter((item) => !products?.some((entry) => entry?.value?.id === item?.id));
+
   // const onDeleteProduct = (i, c) => {
   //   const updatedProducts = selectedDelivery.products.filter((product) => product.key !== i.key);
   //   const updatedProductsSequentialKeys = updatedProducts.map((product, index) => ({ ...product, key: index + 1 }));
@@ -196,7 +200,7 @@ function AddProducts({ stref, selectedDelivery }) {
                 selected={i?.value}
                 disable={false}
                 isMandatory={true}
-                option={data}
+                option={temp ? temp : filteredData}
                 select={(d) => updateValue(i, d)}
                 optionKey="displayName"
               />
@@ -209,13 +213,15 @@ function AddProducts({ stref, selectedDelivery }) {
           </div>
         </div>
       ))}
-      <Button
-        variation="secondary"
-        label={t(`CAMPAIGN_PRODUCTS_MODAL_SECONDARY_ACTION`)}
-        className={"add-rule-btn"}
-        icon={<AddIcon fill="#f47738" styles={{ height: "1.5rem", width: "1.5rem" }} />}
-        onButtonClick={add}
-      />
+      {(temp === undefined || temp.length > 0) && (
+        <Button
+          variation="secondary"
+          label={t(`CAMPAIGN_PRODUCTS_MODAL_SECONDARY_ACTION`)}
+          className={"add-rule-btn"}
+          icon={<AddIcon fill="#f47738" styles={{ height: "1.5rem", width: "1.5rem" }} />}
+          onButtonClick={add}
+        />
+      )}
     </div>
   );
 }

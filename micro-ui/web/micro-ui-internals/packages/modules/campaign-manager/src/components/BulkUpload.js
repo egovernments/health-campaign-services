@@ -48,7 +48,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
     <div className="upload-drag-drop-container">
       <UploadIcon />
       <p className="drag-drop-text">
-      <text className="drag-drop"> {t("WBH_DRAG_DROP")}</text> <text className="browse-text">{t("WBH_BULK_BROWSE_FILES")}</text>
+        <text className="drag-drop"> {t("WBH_DRAG_DROP")}</text> <text className="browse-text">{t("WBH_BULK_BROWSE_FILES")}</text>
       </p>
     </div>
   );
@@ -127,7 +127,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
           }}
         >
           <FileIcon className="icon" />
-          <div style={{ marginLeft: "0.5rem" }}>{file.fileName}</div>
+          <div style={{ marginLeft: "0.5rem", color: "#505A5F", fontWeight: "700" }}>{file.fileName}</div>
         </div>
         <div className="delete-and-download-button">
           <Button
@@ -141,7 +141,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
           <Button
             label={t("WBH_DELETE")}
             variation="secondary"
-            icon={<DeleteIconv2 styles={{ height: "1.3rem", width: "1.3rem" }} fill="#F47738" />}
+            icon={<DeleteIconv2 styles={{ height: "1.25rem", width: "2.5rem" }} fill="#F47738" />}
             type="button"
             className="workbench-download-template-btn"
             onButtonClick={() => {

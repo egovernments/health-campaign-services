@@ -10,6 +10,13 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
   const [type, setType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType || {});
   const [beneficiaryType, setBeneficiaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType || "");
   const [showBeneficiary, setShowBeneficiaryType] = useState(Boolean(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType));
+
+  useEffect(() => {
+    setType(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType);
+    setBeneficiaryType(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType);
+    setShowBeneficiaryType(Boolean(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType));
+  }, [props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType]);
+
   const handleChange = (data) => {
     setType(data);
     setBeneficiaryType(data?.beneficiaryType);

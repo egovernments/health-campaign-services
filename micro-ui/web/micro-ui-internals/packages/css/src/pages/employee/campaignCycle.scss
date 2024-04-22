@@ -35,8 +35,23 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     grid-gap: 2rem;
+    .options-card{
+      max-height: 10rem;
+    } 
   }
   .popup-wrap {
+    .popup-module-main {
+      max-height: 707px;
+      overflow-y: auto;
+      &::-webkit-scrollbar {
+        width: 0.5rem;
+        background: transparent;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: #d6d5d4; /* Color of the scrollbar thumb */
+        border-radius: 5px; /* Adjust the border-radius for rounded corners */
+      }
+    }
     .popup-module-action-bar {
       .selector-button-primary {
         padding: 0.6rem 2.5rem;
@@ -107,10 +122,10 @@
   }
 }
 
-.upload-drag-drop-container{
+.upload-drag-drop-container {
   margin-left: 0rem;
-  .drag-drop{
-    color: #B1B4B6;
+  .drag-drop {
+    color: #b1b4b6;
   }
   .browse-text {
     text-decoration: underline;
