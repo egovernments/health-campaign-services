@@ -164,23 +164,6 @@ const SetupCampaign = () => {
     return keyParam ? parseInt(keyParam) : 1;
   });
 
-  useEffect(() => {
-    if (isPreview === "true") {
-      setIsDraftCreated(true);
-      setCurrentKey(10);
-      return;
-    }
-    if (isDraft === "true") {
-      setIsDraftCreated(true);
-      currentKey !== 1 ? null : setCurrentKey(1);
-      return;
-    }
-  }, [isPreview, isDraft]);
-
-  useEffect(() => {
-    setTotalFormData(params);
-  }, [params]);
-
   const { isLoading: draftLoading, data: draftData, error: draftError, refetch: draftRefetch } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
     filter: {
@@ -195,6 +178,23 @@ const SetupCampaign = () => {
   });
 
   const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS("mz", "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
+
+  useEffect(() => {
+    if (isPreview === "true") {
+      setIsDraftCreated(true);
+      setCurrentKey(10);
+      return;
+    }
+    if (isDraft === "true") {
+      setIsDraftCreated(true);
+      currentKey !== 1 && draftData?.additionalDetails?.key ? setCurrentKey(draftData?.additionalDetails?.key) : setCurrentKey(1);
+      return;
+    }
+  }, [isPreview, isDraft, draftData]);
+
+  useEffect(() => {
+    setTotalFormData(params);
+  }, [params]);
 
   useEffect(() => {
     if (Object.keys(params).length !== 0) return;
@@ -373,7 +373,10 @@ const SetupCampaign = () => {
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
-          payloadData.additionalDetails = {};
+          payloadData.additionalDetails = {
+            beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
+            key: currentKey,
+          };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
             payloadData.deliveryRules = temp;
@@ -411,7 +414,10 @@ const SetupCampaign = () => {
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
-          payloadData.additionalDetails = {};
+          payloadData.additionalDetails = {
+            beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
+            key: currentKey,
+          };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
             payloadData.deliveryRules = temp;
@@ -450,7 +456,10 @@ const SetupCampaign = () => {
           payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
-          payloadData.additionalDetails = {};
+          payloadData.additionalDetails = {
+            beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
+            key: currentKey,
+          };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
             payloadData.deliveryRules = temp;
@@ -725,6 +734,7 @@ const SetupCampaign = () => {
         showSecondaryLabel={currentKey > 1 ? true : false}
         secondaryLabel={t("HCM_BACK")}
         actionClassName={"actionBarClass"}
+        className="setup-campaign"
         noCardStyle={currentStep === 1 || currentStep === 6 || currentStep === 2 ? true : false}
         onSecondayActionClick={onSecondayActionClick}
         label={filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}

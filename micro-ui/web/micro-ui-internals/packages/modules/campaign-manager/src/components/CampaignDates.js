@@ -37,7 +37,7 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
     <React.Fragment>
       <Header>{t(`HCM_CAMPAIGN_DATES_HEADER`)}</Header>
       <p className="dates-description">{t(`HCM_CAMPAIGN_DATES_DESCRIPTION`)}</p>
-      <LabelFieldPair style={{ display: "grid", gridTemplateColumns: "1fr 2fr", alignItems: "start" }}>
+      <LabelFieldPair style={{ display: "grid", gridTemplateColumns: "13rem 2fr", alignItems: "start" }}>
         <div className="campaign-dates">
           <p>{t(`HCM_CAMPAIGN_DATES`)}</p>
           <span className="mandatory-date">*</span>

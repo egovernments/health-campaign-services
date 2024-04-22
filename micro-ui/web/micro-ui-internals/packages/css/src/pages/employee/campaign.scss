@@ -2,7 +2,7 @@
 
 .date-field-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 20rem 20rem;
     grid-gap: 2rem;
     width: 70%;
     padding-top: 0.3rem;
@@ -19,10 +19,10 @@
   font-weight: bold;
 }
 .name-container{
-  margin-right: 5rem;
+  margin-right: 4rem;
   padding-bottom: 1.2rem;
   font-weight: bold;
-  min-width: 30%;
+  text-wrap: nowrap;
 }
 .beneficiary-type{
   margin-right: 5.4rem;
