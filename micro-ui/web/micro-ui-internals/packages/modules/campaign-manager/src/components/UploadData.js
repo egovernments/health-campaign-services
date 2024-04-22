@@ -181,11 +181,6 @@ const UploadData = ({formData , onSelect , ...props}) => {
       hierarchyType: params.hierarchyType,
       id: (type === 'boundary' ? params?.boundaryId : (type === 'facilityWithBoundary' ? params?.facilityId : params?.userId))
     },
-    // body: (type === 'boundary' ? {
-    //   "Filters":{
-    //     "boundaries": filteredBoundaryData
-    //   }
-    // } :{}),
   };
   const mutation = Digit.Hooks.useCustomAPIMutationHook(Template);
 
@@ -199,15 +194,10 @@ const UploadData = ({formData , onSelect , ...props}) => {
           hierarchyType: params.hierarchyType,
           id: (type === 'boundary' ? params?.boundaryId : (type === 'facilityWithBoundary' ? params?.facilityId : params?.userId))
         },
-        // body: (type === 'boundary' ? {
-        //   "Filters":{
-        //     "boundaries": filteredBoundaryData
-        //   }
-        // } :{})
       },
       {
         onSuccess: async (result) => {
-          const filesArray = [result?.fileStoreIds?.[0]?.fileStoreId];
+          const filesArray = [result?.GeneratedResource?.[0]?.fileStoreid]
           const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch(filesArray, tenantId);
           const fileData = fileUrl?.map((i) => {
             const urlParts = i?.url?.split("/");

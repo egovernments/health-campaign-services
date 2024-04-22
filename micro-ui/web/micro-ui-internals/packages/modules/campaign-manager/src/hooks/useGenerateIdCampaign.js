@@ -8,11 +8,7 @@ export const useGenerateIdCampaign = (type ,hierarchyType, filters) => {
       forceUpdate: true,
       hierarchyType: hierarchyType,
     },
-    body: (type === 'boundary' ? {
-      "Filters":{
-        "boundaries": filters
-      }
-    } :{}),
+    body: (type === 'boundary' ? (filters === undefined ? { "Filters": null } : { "Filters": { "boundaries": filters } }) : {}),
   };
 
   const { isLoading, data: Data } = Digit.Hooks.useCustomAPIHook(reqCriteriaFacility);
