@@ -15,4 +15,12 @@ export const operatorConfig = [
     key: 4,
     code: "EQUAL_TO",
   },
+  {
+    key: 5,
+    code: "GREATER_THAN_EQUAL_TO",
+  },
+  {
+    key: 6,
+    code: "LESSER_THAN_EQUAL_TO",
+  },
 ];

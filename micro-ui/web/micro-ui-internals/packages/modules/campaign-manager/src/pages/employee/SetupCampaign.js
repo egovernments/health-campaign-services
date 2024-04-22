@@ -118,21 +118,21 @@ function groupByTypeRemap(data) {
 
   const result = {};
 
-  data.forEach(item => {
-      const type = item.type;
-      const obj = {
-          TenantBoundary: [
-              {
-                  boundary: [item]
-              }
-          ]
-      };
+  data.forEach((item) => {
+    const type = item.type;
+    const obj = {
+      TenantBoundary: [
+        {
+          boundary: [item],
+        },
+      ],
+    };
 
-      if (result[type]) {
-          result[type][0].TenantBoundary[0].boundary.push(item);
-      } else {
-          result[type] = [obj];
-      }
+    if (result[type]) {
+      result[type][0].TenantBoundary[0].boundary.push(item);
+    } else {
+      result[type] = [obj];
+    }
   });
 
   return result;
@@ -239,14 +239,12 @@ const SetupCampaign = () => {
   const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType); // to be integrated later
 
   useEffect(() => {
-    if (Object.keys(dataParams).length === 0) {
-      setDataParams({
-        facilityId: facilityId,
-        boundaryId: boundaryId,
-        hierarchyType: hierarchyType,
-      });
-    }
-  }, [dataParams]); // Only run if dataParams changes
+    setDataParams({
+      facilityId: facilityId,
+      boundaryId: boundaryId,
+      hierarchyType: hierarchyType,
+    });
+  }, [facilityId, boundaryId]); // Only run if dataParams changes
 
   // Example usage:
   // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
