@@ -167,7 +167,9 @@ const UploadData = ({formData , onSelect , ...props}) => {
 
   const onFileDownload = (file) => {
     // window.open(file?.url, "_blank", `name=${file?.fileName}`);
-    window.location.href = file?.url;
+    if (file && file?.url) {
+      window.location.href = file?.url;
+    }
   };
 
   const Template = {
@@ -215,7 +217,9 @@ const UploadData = ({formData , onSelect , ...props}) => {
               fileName: fileName,
             };
           });
-          window.location.href = fileData?.[0]?.url;
+          if (fileData && fileData?.[0]?.url) {
+            window.location.href = fileData?.[0]?.url;
+          }
         },
       }
     );

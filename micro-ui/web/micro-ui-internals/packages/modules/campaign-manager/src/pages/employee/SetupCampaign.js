@@ -94,6 +94,50 @@ function reverseDeliveryRemap(data) {
   return reversedData;
 }
 
+function groupByType(data) {
+  if (!data) return null;
+  const result = {};
+
+  data.forEach((item) => {
+    if (result[item.type]) {
+      result[item.type].push(item);
+    } else {
+      result[item.type] = [item];
+    }
+  });
+
+  return {
+    TenantBoundary: {
+      boundary: result,
+    },
+  };
+}
+
+function groupByTypeRemap(data) {
+  if (!data) return null;
+
+  const result = {};
+
+  data.forEach(item => {
+      const type = item.type;
+      const obj = {
+          TenantBoundary: [
+              {
+                  boundary: [item]
+              }
+          ]
+      };
+
+      if (result[type]) {
+          result[type][0].TenantBoundary[0].boundary.push(item);
+      } else {
+          result[type] = [obj];
+      }
+  });
+
+  return result;
+}
+
 const SetupCampaign = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { t } = useTranslation();
@@ -179,6 +223,12 @@ const SetupCampaign = () => {
       },
       HCM_CAMPAIGN_DELIVERY_DATA: {
         deliveryRule: reverseDeliveryRemap(delivery),
+      },
+      HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA: {
+        boundaryType: {
+          boundaryData: groupByTypeRemap(draftData?.boundaries),
+        },
+        selectedData: draftData?.boundaries,
       },
     };
     setParams({ ...restructureFormData });
