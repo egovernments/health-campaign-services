@@ -20,7 +20,7 @@ export const operatorConfig = [
     code: "GREATER_THAN_EQUAL_TO",
   },
   {
-    key: 5,
+    key: 6,
     code: "LESSER_THAN_EQUAL_TO",
   },
 ];
