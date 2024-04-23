@@ -176,3 +176,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     grid-gap: 10rem;
   }
 }
+.setup-campaign {
+  .digit-dropdown-options-card {
+    max-height: 10rem !important;
+  }
+}

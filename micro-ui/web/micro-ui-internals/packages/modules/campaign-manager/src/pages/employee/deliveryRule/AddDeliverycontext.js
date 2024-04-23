@@ -586,7 +586,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
 const AddDeliveryRuleWrapper = ({}) => {
   const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
   const [targetedData, setTargetedData] = useState(campaignData.find((i) => i.active === true).deliveries.find((d) => d.active === true));
-  const [deliveryRules, setDeliveryRules] = useState(targetedData.deliveryRules);
+  const [deliveryRules, setDeliveryRules] = useState(targetedData?.deliveryRules);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -595,7 +595,7 @@ const AddDeliveryRuleWrapper = ({}) => {
   }, [campaignData]);
 
   useEffect(() => {
-    const tt = targetedData.deliveryRules;
+    const tt = targetedData?.deliveryRules;
     setDeliveryRules(tt);
   }, [targetedData]);
 
@@ -628,7 +628,7 @@ const AddDeliveryRuleWrapper = ({}) => {
 
   return (
     <>
-      {deliveryRules.map((item, index) => (
+      {deliveryRules?.map((item, index) => (
         <AddDeliveryRule
           targetedData={targetedData}
           deliveryRules={deliveryRules}

@@ -16,20 +16,29 @@ import { Stepper, Toast } from "@egovernments/digit-ui-components";
  * triggers API calls to create or update the campaign
  */
 
-function loopAndReturn(data) {
+function loopAndReturn(dataa) {
   let newArray = [];
+  const data = dataa?.map((i) => ({ ...i, operator: { code: i?.operator }, attribute: { code: i?.attribute } }));
+
   data.forEach((item) => {
     // Check if an object with the same attribute already exists in the newArray
-    const existingIndex = newArray.findIndex((element) => element.attribute === item.attribute);
+    const existingIndex = newArray.findIndex((element) => element.attribute.code === item.attribute.code);
     if (existingIndex !== -1) {
       // If an existing item is found, replace it with the new object
       const existingItem = newArray[existingIndex];
       newArray[existingIndex] = {
         attribute: existingItem.attribute,
-        operator: "IN_BETWEEN",
-        fromValue: Math.min(existingItem.value, item.value),
-        toValue: Math.max(existingItem.value, item.value),
+        operator: { code: "IN_BETWEEN" },
+        toValue: Math.min(existingItem.value, item.value),
+        fromValue: Math.max(existingItem.value, item.value),
       };
+    } else if (item?.operator?.code === "EQUAL_TO") {
+      newArray.push({
+        ...item,
+        value: {
+          code: item?.value,
+        },
+      });
     } else {
       // If no existing item with the same attribute is found, push the current item
       newArray.push(item);
@@ -46,12 +55,13 @@ function cycleDataRemap(data) {
       return acc;
     }, {})
   );
-
-  return uniqueCycleObjects.map((i, n) => ({
-    key: i.cycleNumber,
-    startDate: i?.startDate ? new Date(i?.startDate)?.toISOString()?.split("T")?.[0] : null,
-    endDate: i?.endDate ? new Date(i?.endDate)?.toISOString()?.split("T")?.[0] : null,
-  }));
+  return uniqueCycleObjects.map((i, n) => {
+    return {
+      key: i.cycleNumber,
+      fromDate: i?.startDate ? new Date(i?.startDate)?.toISOString()?.split("T")?.[0] : null,
+      toDate: i?.endDate ? new Date(i?.endDate)?.toISOString()?.split("T")?.[0] : null,
+    };
+  });
 }
 
 function reverseDeliveryRemap(data) {
@@ -77,7 +87,7 @@ function reverseDeliveryRemap(data) {
       currentDeliveryIndex = item.deliveryNumber;
       currentDelivery = {
         deliveryIndex: currentDeliveryIndex.toString(),
-        active: index === 0, // Set active to true only for the first index
+        active: item?.deliveryNumber === 1, // Set active to true only for the first index
         deliveryRules: [],
       };
       currentCycle.deliveries.push(currentDelivery);
@@ -187,7 +197,7 @@ const SetupCampaign = () => {
     }
     if (isDraft === "true") {
       setIsDraftCreated(true);
-      currentKey !== 1 && draftData?.additionalDetails?.key ? setCurrentKey(draftData?.additionalDetails?.key) : setCurrentKey(1);
+      currentKey !== 1 ? null : setCurrentKey(1);
       return;
     }
   }, [isPreview, isDraft, draftData]);
@@ -208,8 +218,8 @@ const SetupCampaign = () => {
       },
       HCM_CAMPAIGN_DATE: {
         campaignDates: {
-          startDate: draftData?.campaignDetails?.startDate ? new Date(draftData?.campaignDetails?.startDate)?.toISOString()?.split("T")?.[0] : null,
-          endDate: draftData?.campaignDetails?.startDate ? new Date(draftData?.campaignDetails?.endDate)?.toISOString()?.split("T")?.[0] : null,
+          startDate: draftData?.startDate ? new Date(draftData?.startDate)?.toISOString()?.split("T")?.[0] : null,
+          endDate: draftData?.endDate ? new Date(draftData?.endDate)?.toISOString()?.split("T")?.[0] : null,
         },
       },
       HCM_CAMPAIGN_CYCLE_CONFIGURE: {
@@ -382,8 +392,25 @@ const SetupCampaign = () => {
             payloadData.deliveryRules = temp;
           }
 
-          await mutate(payloadData, {
-            onError: (error, variables) => {},
+          // await mutate(payloadData, {
+          //   onError: (error, variables) => {},
+          //   onSuccess: async (data) => {
+          //     draftRefetch();
+          //     history.push(
+          //       `/${window.contextPath}/employee/campaign/response?campaignId=${data?.CampaignDetails?.campaignNumber}&isSuccess=${true}`,
+          //       {
+          //         message: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE",
+          //         text: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT",
+          //       }
+          //     );
+          //     Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+          //   },
+          // });
+          await updateCampaign(payloadData, {
+            onError: (error, variables) => {
+              console.log(error);
+              setShowToast({ key: "error", label: error });
+            },
             onSuccess: async (data) => {
               draftRefetch();
               history.push(
@@ -527,14 +554,18 @@ const SetupCampaign = () => {
 
           rule.attributes.forEach((attribute) => {
             // Check if attribute, operator, and value are empty
-            if (attribute.attribute !== "" || attribute.operator !== null || attribute.value !== "") {
-              isValid = false;
+            if (attribute.attribute === "" || attribute.operator === null || attribute.value === "") {
+              if (attribute?.operator?.code === "IN_BETWEEN" && attribute?.toValue !== "" && attribute?.fromValue !== "") {
+                isValid = true;
+              } else {
+                isValid = false;
+              }
             }
           });
 
           rule.products.forEach((product) => {
             // Check if count and value are empty
-            if (product.count !== null || product.value !== null) {
+            if (product.count === null || product.value === null) {
               isValid = false;
             }
           });
@@ -664,7 +695,7 @@ const SetupCampaign = () => {
       [name]: { ...formData },
     });
 
-    if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].skipAPICall) {
+    if (filteredConfig?.[0]?.form?.[0]?.isLast || !filteredConfig[0].form[0].body[0].skipAPICall) {
       setShouldUpdate(true);
     }
 
