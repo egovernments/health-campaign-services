@@ -515,10 +515,17 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
 };
 
 const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false) => {
-  const workbook: any = await getWorkbook(fileUrl, sheetName)
+  const workbook: any = await getWorkbook(fileUrl, sheetName);
   const columnsToValidate = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
     header: 1,
-  })[0];
+  })[0] as (any)[];
+
+  // Filter out empty items and return the result
+  for (let i = 0; i < columnsToValidate.length; i++) {
+    if (typeof columnsToValidate[i] !== 'string') {
+      columnsToValidate[i] = undefined;
+    }
+  }
   return columnsToValidate;
 }
 
