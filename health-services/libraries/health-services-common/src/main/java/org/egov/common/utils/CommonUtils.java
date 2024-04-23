@@ -215,11 +215,42 @@ public class CommonUtils {
             finalUrlParamsObj.setLastChangedSince(urlParamsObj.getLastChangedSince());
         }
 
-        // Convert objects to strings and compare them
-        String actual = obj.toString();
-        String expected = finalObject.toString();
-        return actual.equals(expected);
+        // compare both objects
+        return areObjectsEqual(obj, finalObject);
     }
+
+    public static boolean areObjectsEqual(Object obj1, Object obj2) {
+        if (obj1 == null || obj2 == null) {
+            return false;
+        }
+
+        // Get the class of the objects
+        Class<?> objClass = obj1.getClass();
+
+        // Iterate through all fields in the class, including parent fields
+        StringBuilder obj1Fields = new StringBuilder();
+        StringBuilder obj2Fields = new StringBuilder();
+
+        for (Field field : objClass.getDeclaredFields()) {
+            field.setAccessible(true); // Ensure private fields are accessible
+
+            try {
+                // Get the value of the field for each object
+                Object value1 = field.get(obj1);
+                Object value2 = field.get(obj2);
+
+                // Append the field name and value to the string representation
+                obj1Fields.append(field.getName()).append(":").append(value1).append(",");
+                obj2Fields.append(field.getName()).append(":").append(value2).append(",");
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        // Compare the string representations of the objects
+        return obj1Fields.toString().equals(obj2Fields.toString());
+    }
+
 
     //TODO To be removed as it is only used by Product service which is now depricated
     @Deprecated
