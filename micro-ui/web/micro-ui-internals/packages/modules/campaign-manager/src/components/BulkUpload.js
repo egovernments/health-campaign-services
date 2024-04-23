@@ -101,7 +101,8 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
     });
   };
 
-  const handleFileDownload = async (file) => {
+  const handleFileDownload = async (e, file) => {
+    e.stopPropagation();
     onFileDownload(file);
   };
 
@@ -118,13 +119,19 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
 
   const renderFileCards = useMemo(() => {
     return fileData?.map((file, index) => (
-      <div className="uploaded-file-container" key={index}>
+      <div
+        className="uploaded-file-container"
+        key={index}
+        onClick={() => {
+          setShowPreview(true);
+        }}
+      >
         <div
           className="uploaded-file-container-sub"
           style={{ cursor: "pointer" }}
-          onClick={() => {
-            setShowPreview(true);
-          }}
+          // onClick={() => {
+          //   setShowPreview(true);
+          // }}
         >
           <FileIcon className="icon" />
           <div style={{ marginLeft: "0.5rem", color: "#505A5F", fontWeight: "700" }}>{file.fileName}</div>
@@ -136,7 +143,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
             icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill="#F47738" />}
             type="button"
             className="workbench-download-template-btn"
-            onButtonClick={() => handleFileDownload(file)}
+            onButtonClick={(e) => handleFileDownload(e, file)}
           />
           <Button
             label={t("WBH_DELETE")}
@@ -144,7 +151,8 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
             icon={<DeleteIconv2 styles={{ height: "1.25rem", width: "2.5rem" }} fill="#F47738" />}
             type="button"
             className="workbench-download-template-btn"
-            onButtonClick={() => {
+            onButtonClick={(e) => {
+              e.stopPropagation();
               handleFileDelete(file, index);
               setShowPreview(false);
             }}

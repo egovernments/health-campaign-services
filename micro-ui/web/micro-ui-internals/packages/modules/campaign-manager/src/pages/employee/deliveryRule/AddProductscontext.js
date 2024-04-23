@@ -187,9 +187,11 @@ function AddProducts({ stref, selectedDelivery }) {
             <CardText>
               {t(`CAMPAIGN_RESOURCE`)} {c + 1}
             </CardText>
-            <div className="delete-resource-icon" onClick={() => deleteItem(i, c)}>
-              <DustbinIcon />
-            </div>
+            {products?.length > 1 ? (
+              <div className="delete-resource-icon" onClick={() => deleteItem(i, c)}>
+                <DustbinIcon />
+              </div>
+            ) : null}
           </div>
           <div className="add-resource-label-field-container">
             <LabelFieldPair>

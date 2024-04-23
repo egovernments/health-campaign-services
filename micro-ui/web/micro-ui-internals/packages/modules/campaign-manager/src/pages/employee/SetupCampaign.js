@@ -489,7 +489,7 @@ const SetupCampaign = () => {
   }, [shouldUpdate]);
 
   function validateCycleData(data) {
-    const { cycle, deliveries } = data.cycleConfigure.cycleConfgureDate;
+    const { cycle, deliveries } = data?.cycleConfigure?.cycleConfgureDate;
     const cycleData = data.cycleConfigure.cycleData;
 
     // Validate cycle and deliveries
@@ -547,6 +547,29 @@ const SetupCampaign = () => {
     // : "Attributes, operators, values, count, or value are not empty in delivery rules or attributes/products length is 0";
   }
 
+  function checkAttributeValidity(data) {
+    for (const rule of data?.deliveryRule) {
+      for (const delivery of rule?.deliveries) {
+        for (const rule of delivery?.deliveryRules) {
+          for (const attribute of rule?.attributes) {
+            if (
+              attribute?.operator &&
+              attribute?.operator?.code === "IN_BETWEEN" &&
+              attribute?.fromValue !== "" &&
+              attribute?.toValue !== "" &&
+              parseInt(attribute?.toValue) >= parseInt(attribute?.fromValue)
+            ) {
+              // return `Error: Attribute "${attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute}" has invalid range (${
+              //   attribute.toValue
+              // } to ${attribute.fromValue})`;
+              return "CAMPAIGN_IN_BETWEEN_ERROR";
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
   const handleValidate = (formData) => {
     const key = Object.keys(formData)?.[0];
     switch (key) {
@@ -591,6 +614,13 @@ const SetupCampaign = () => {
         } else {
           return true;
         }
+      case "deliveryRule":
+        const isAttributeValid = checkAttributeValidity(formData);
+        if (isAttributeValid) {
+          setShowToast({ key: "error", label: isAttributeValid });
+          return false;
+        }
+        return;
       case "summary":
         const cycleConfigureData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE;
         const isCycleError = validateCycleData(cycleConfigureData);

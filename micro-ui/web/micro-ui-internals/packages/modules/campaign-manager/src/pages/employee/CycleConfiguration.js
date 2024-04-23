@@ -99,9 +99,9 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
       <Paragraph
         customClassName="cycle-paragraph"
         value={`(${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-          .split("-")
-          .reverse()
-          .join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate.split("-").reverse().join("/")})`}
+          ?.split("-")
+          ?.reverse()
+          ?.join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate?.split("-")?.reverse()?.join("/")})`}
       />
       <Card className="campaign-counter-container">
         <CardText>{t(`CAMPAIGN_CYCLE_CONFIGURE_HEADING`)}</CardText>

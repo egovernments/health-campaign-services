@@ -168,3 +168,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .digit-employee-card-input.numeric {
   text-align: center;
 }
+.in-between {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  @media screen and (min-width: 1024px) {
+    grid-gap: 10rem;
+  }
+}
