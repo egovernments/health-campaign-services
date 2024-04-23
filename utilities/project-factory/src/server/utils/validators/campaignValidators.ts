@@ -2,7 +2,7 @@ import createAndSearch from "../../config/createAndSearch";
 import config from "../../config";
 import { logger } from "../logger";
 import { httpRequest } from "../request";
-import { getHierarchy } from "../../api/campaignApis";
+import { getHeadersOfBoundarySheet, getHierarchy } from "../../api/campaignApis";
 import { campaignDetailsSchema } from "../../config/models/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
@@ -249,6 +249,25 @@ async function validateCreateRequest(request: any) {
         }
         validateAction(request?.body?.ResourceDetails?.action);
         validateResourceType(request?.body?.ResourceDetails?.type);
+        const fileUrl = await validateFile(request);
+        if (request.body.ResourceDetails.type == 'boundary') {
+            await validateBoundarySheetData(request, fileUrl);
+        }
+    }
+}
+
+async function validateBoundarySheetData(request: any, fileUrl: any) {
+    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, config.sheetName, false);
+    await validateHeaders(headersOfBoundarySheet, request)
+}
+
+async function validateFile(request: any) {
+    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
+    if (!fileResponse || !fileResponse.fileStoreIds || !fileResponse.fileStoreIds[0] || !fileResponse.fileStoreIds[0].url) {
+        throwError("FILE", 400, "INVALID_FILE");
+    }
+    else {
+        return (fileResponse?.fileStoreIds?.[0]?.url);
     }
 }
 
@@ -550,14 +569,14 @@ function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string,
 
 
 
-async function validateBoundarySheetData(headersOfBoundarySheet: any, request: any) {
+async function validateHeaders(headersOfBoundarySheet: any, request: any) {
     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     validateBoundarySheetHeaders(headersOfBoundarySheet, hierarchy, request);
 }
-function validateBoundarySheetHeaders(headersOfBoundarySheet: any, hierarchy: any, request: any) {
+function validateBoundarySheetHeaders(headersOfBoundarySheet: any[], hierarchy: any[], request: any) {
     const boundaryCodeIndex = headersOfBoundarySheet.indexOf('Boundary Code');
     const keysBeforeBoundaryCode = boundaryCodeIndex === -1 ? headersOfBoundarySheet : headersOfBoundarySheet.slice(0, boundaryCodeIndex);
-    if (keysBeforeBoundaryCode.some((key: string, index: number) => key !== hierarchy[index])) {
+    if (keysBeforeBoundaryCode.some((key: any, index: any) => (key === undefined || key === null) || key !== hierarchy[index]) || keysBeforeBoundaryCode.length !== hierarchy.length) {
         const errorMessage = `"Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy type: ${request?.body?.ResourceDetails?.hierarchyType}"`;
         throwError("BOUNDARY", 500, "BOUNDARY_SHEET_HEADER_ERROR", errorMessage);
     }
