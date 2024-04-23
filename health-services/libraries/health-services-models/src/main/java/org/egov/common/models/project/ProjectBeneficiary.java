@@ -44,7 +44,9 @@ public class ProjectBeneficiary extends EgovOfflineModel {
     @JsonProperty("dateOfRegistration")
     @Min(value = 0, message = "Date must be greater than or equal to 0")
     private Long dateOfRegistration = null;
-
+    /*
+    * This is the client reference id of the beneficiary type entity (i.e. household, individual)
+    * */
     @JsonProperty("beneficiaryClientReferenceId")
     @Size(min=2,max=64)
     private String beneficiaryClientReferenceId = null;

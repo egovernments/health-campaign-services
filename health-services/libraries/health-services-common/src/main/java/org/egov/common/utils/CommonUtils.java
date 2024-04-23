@@ -1,23 +1,5 @@
 package org.egov.common.utils;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
-import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.ds.Tuple;
-import org.egov.common.error.handler.ErrorHandler;
-import org.egov.common.models.ApiDetails;
-import org.egov.common.models.Error;
-import org.egov.common.models.ErrorDetails;
-import org.egov.common.validator.Validator;
-import org.egov.tracer.model.CustomException;
-import org.egov.tracer.model.ErrorDetail;
-import org.egov.tracer.model.ErrorEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.util.ReflectionUtils;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -38,6 +20,25 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.models.coremodels.AuditDetails;
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
+import org.egov.common.error.handler.ErrorHandler;
+import org.egov.common.models.ApiDetails;
+import org.egov.common.models.Error;
+import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.URLParams;
+import org.egov.common.validator.Validator;
+import org.egov.tracer.model.CustomException;
+import org.egov.tracer.model.ErrorDetail;
+import org.egov.tracer.model.ErrorEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.ValidatorUtils.getErrorForNullId;
 
@@ -168,30 +169,53 @@ public class CommonUtils {
     }
 
     /**
-     * Checks if the search is performed by a specific field name.
-     * @param obj The object to check.
-     * @param fieldName The name of the field to check.
-     * @return True if the search is by the specified field only, false otherwise.
+     * Checks if the search is performed only by the specified field.
+     *
+     * @param obj The object to perform the search on.
+     * @param fieldName The name of the field to search.
+     * @return true if the search is performed only by the specified field, otherwise false.
      */
     public static boolean isSearchByIdOnly(Object obj, String fieldName) {
+        // Get the class of the object
         Class<?> objClass = obj.getClass();
+        // Capitalize the first letter of the field name
         String propertyName = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
-        Method setIdMethod = getMethod("set"+propertyName, objClass);
-        Method getIdMethod = getMethod("get"+propertyName, objClass);
+        // Get the method to set the field
+        Method setFieldMethod = getMethod("set" + propertyName, objClass);
+        // Get the method to get the field value
+        Method getFieldMethod = getMethod("get" + propertyName, objClass);
 
+        // Create a new instance of the object
         Object finalObject = null;
         try {
             finalObject = objClass.newInstance();
         } catch (InstantiationException | IllegalAccessException e) {
+            // Throw a runtime exception if instantiation fails
             throw new RuntimeException(e);
         }
-        Object id = ReflectionUtils.invokeMethod(getIdMethod, obj);
-        ReflectionUtils.invokeMethod(setIdMethod, finalObject, id);
 
+        // Get the ID of the object
+        Object id = ReflectionUtils.invokeMethod(getFieldMethod, obj);
+        // If ID is null, return false
         if (id == null) {
             return false;
         }
 
+        // Set the ID to the final object
+        ReflectionUtils.invokeMethod(setFieldMethod, finalObject, id);
+
+        // If the object is an instance of URLParams, set common properties
+        if (obj instanceof URLParams) {
+            URLParams urlParamsObj = ((URLParams) obj);
+            URLParams finalUrlParamsObj = ((URLParams) finalObject);
+            finalUrlParamsObj.setIncludeDeleted(urlParamsObj.getIncludeDeleted());
+            finalUrlParamsObj.setTenantId(urlParamsObj.getTenantId());
+            finalUrlParamsObj.setOffset(urlParamsObj.getOffset());
+            finalUrlParamsObj.setLimit(urlParamsObj.getLimit());
+            finalUrlParamsObj.setLastChangedSince(urlParamsObj.getLastChangedSince());
+        }
+
+        // Convert objects to strings and compare them
         String actual = obj.toString();
         String expected = finalObject.toString();
         return actual.equals(expected);

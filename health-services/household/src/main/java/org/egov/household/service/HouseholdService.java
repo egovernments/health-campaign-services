@@ -94,8 +94,11 @@ public class HouseholdService {
 
     public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
         log.info("received request to create households");
-        Map<Household, ErrorDetails> errorDetailsMap = new HashMap<>();
-        List<Household> validEntities = request.getHouseholds();
+        Tuple<List<Household>, Map<Household, ErrorDetails>> tuple = validate(validators,
+                isApplicableForCreate, request,
+                isBulk);
+        Map<Household, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Household> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);

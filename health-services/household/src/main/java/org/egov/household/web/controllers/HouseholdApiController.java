@@ -32,6 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -95,7 +96,7 @@ public class HouseholdApiController {
     }
 
     @RequestMapping(value = "/member/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(@ApiParam(value = "Details for existing household member.", required = true) @Valid @RequestBody HouseholdMemberSearchRequest householdMemberSearchRequest) {
+    public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(@ApiParam(value = "Details for existing household member.", required = true) @Valid @ModelAttribute HouseholdMemberSearchRequest householdMemberSearchRequest) {
         List<HouseholdMember> households = householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), householdMemberSearchRequest.getHouseholdMemberSearch().getLimit(), householdMemberSearchRequest.getHouseholdMemberSearch().getOffset(), householdMemberSearchRequest.getHouseholdMemberSearch().getTenantId(), householdMemberSearchRequest.getHouseholdMemberSearch().getLastChangedSince(), householdMemberSearchRequest.getHouseholdMemberSearch().getIncludeDeleted());
         HouseholdMemberBulkResponse response = HouseholdMemberBulkResponse.builder().responseInfo(ResponseInfoFactory
                                                 .createResponseInfo(householdMemberSearchRequest.getRequestInfo(), true))
