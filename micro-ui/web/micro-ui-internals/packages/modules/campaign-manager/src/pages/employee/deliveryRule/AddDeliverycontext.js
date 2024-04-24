@@ -41,6 +41,9 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
 
   const selectValue = (e) => {
     let val = e.target.value;
+    if (val.startsWith("-")) {
+      val = val.slice(1); // Remove the negative sign
+    }
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
       return;
@@ -48,7 +51,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
     const updatedData = deliveryRules.map((item, index) => {
       if (item.ruleKey === deliveryRuleIndex) {
-        item.attributes.find((i) => i.key === attribute.key).value = e.target.value;
+        item.attributes.find((i) => i.key === attribute.key).value = val;
       }
       return item;
     });
@@ -68,6 +71,10 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
 
   const selectToFromValue = (e, range) => {
     let val = e.target.value;
+    if (val.startsWith("-")) {
+      val = val.slice(1); // Remove the negative sign
+    }
+
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
       return;
@@ -75,7 +82,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     if (range === "to") {
       const updatedData = deliveryRules.map((item, index) => {
         if (item.ruleKey === deliveryRuleIndex) {
-          item.attributes.find((i) => i.key === attribute.key).toValue = e.target.value;
+          item.attributes.find((i) => i.key === attribute.key).toValue = val;
         }
         return item;
       });
@@ -83,7 +90,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     } else {
       const updatedData = deliveryRules.map((item, index) => {
         if (item.ruleKey === deliveryRuleIndex) {
-          item.attributes.find((i) => i.key === attribute.key).fromValue = e.target.value;
+          item.attributes.find((i) => i.key === attribute.key).fromValue = val;
         }
         return item;
       });
@@ -96,6 +103,9 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     const updatedData = deliveryRules.map((item, index) => {
       if (item.ruleKey === deliveryRuleIndex) {
         item.attributes.find((i) => i.key === attribute.key).attribute = value;
+        item.attributes.find((i) => i.key === attribute.key).value = "";
+        item.attributes.find((i) => i.key === attribute.key).toValue = "";
+        item.attributes.find((i) => i.key === attribute.key).fromValue = "";
         if (value.code === "Gender") {
           item.attributes.find((i) => i.key === attribute.key).operator = {
             code: "EQUAL_TO",
@@ -113,6 +123,8 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
     const updatedData = deliveryRules.map((item, index) => {
       if (item.ruleKey === deliveryRuleIndex) {
         item.attributes.find((i) => i.key === attribute.key).operator = value;
+        delete item.attributes.find((i) => i.key === attribute.key).toValue;
+        delete item.attributes.find((i) => i.key === attribute.key).fromValue;
       }
       return item;
     });
@@ -152,58 +164,68 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
           t={t}
         />
       </LabelFieldPair>
-      <LabelFieldPair>
-        {attribute?.operator?.code === "IN_BETWEEN" ? (
-          <div className="in-between">
+
+      {attribute?.operator?.code === "IN_BETWEEN" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <LabelFieldPair>
             <CardLabel className="card-label-smaller">{t(`CAMPAIGN_FROM_LABEL`)}</CardLabel>
-            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_TO_LABEL`)}</CardLabel>
-          </div>
-        ) : (
-          <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
-        )}
-        <div className="field" style={{ display: "flex", width: "100%" }}>
-          {attribute?.operator?.code === "IN_BETWEEN" ? (
-            <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-              <TextInput
-                className=""
-                textInputStyle={{ width: "45%" }}
-                value={attribute?.toValue}
-                onChange={(e) => selectToFromValue(e, "to")}
-                disable={false}
-              />
-              <TextInput
-                className=""
-                textInputStyle={{ width: "45%" }}
-                value={attribute?.fromValue}
-                onChange={(e) => selectToFromValue(e, "from")}
-                disable={false}
-              />
+            <div className="field" style={{ display: "flex", width: "100%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <TextInput
+                  className=""
+                  // textInputStyle={{ width: "80%" }}
+                  value={attribute?.toValue}
+                  onChange={(e) => selectToFromValue(e, "to")}
+                  disable={false}
+                />
+              </div>
             </div>
-          ) : attribute?.attribute?.code === "Gender" ? (
-            <Dropdown
-              className="form-field"
-              selected={{code: attribute?.value}}
-              disable={false}
-              isMandatory={true}
-              option={[
-                {
-                  key: 1,
-                  code: "Male",
-                },
-                {
-                  key: 2,
-                  code: "Female",
-                },
-              ]}
-              select={(value) => selectGender(value)}
-              optionKey="code"
-              t={t}
-            />
-          ) : (
-            <TextInput textInputStyle={{ width: "100%" }} value={attribute?.value} onChange={selectValue} disable={false} />
-          )}
+          </LabelFieldPair>
+          <LabelFieldPair>
+            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_TO_LABEL`)}</CardLabel>
+            <div className="field" style={{ display: "flex", width: "100%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <TextInput
+                  className=""
+                  // textInputStyle={{ width: "80%" }}
+                  value={attribute?.fromValue}
+                  onChange={(e) => selectToFromValue(e, "from")}
+                  disable={false}
+                />
+              </div>
+            </div>
+          </LabelFieldPair>
         </div>
-      </LabelFieldPair>
+      ) : (
+        <LabelFieldPair>
+          <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
+          <div className="field" style={{ display: "flex", width: "100%" }}>
+            {attribute?.attribute?.code === "Gender" ? (
+              <Dropdown
+                className="form-field"
+                selected={{ code: attribute?.value }}
+                disable={false}
+                isMandatory={true}
+                option={[
+                  {
+                    key: 1,
+                    code: "Male",
+                  },
+                  {
+                    key: 2,
+                    code: "Female",
+                  },
+                ]}
+                select={(value) => selectGender(value)}
+                optionKey="code"
+                t={t}
+              />
+            ) : (
+              <TextInput textInputStyle={{ width: "100%" }} value={attribute?.value} onChange={selectValue} disable={false} />
+            )}
+          </div>
+        </LabelFieldPair>
+      )}
       {delivery.attributes.length !== 1 && (
         <div
           onClick={() => onDelete()}
@@ -251,13 +273,16 @@ const AddCustomAttributeField = ({
 
   const selectValue = (e) => {
     let val = e.target.value;
+    if (val.startsWith("-")) {
+      val = val.slice(1); // Remove the negative sign
+    }
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
     }
     // setAttributes((pre) => pre.map((item) => (item.key === attribute.key ? { ...item, value: e.target.value } : item)));
     const updatedData = deliveryRules.map((item, index) => {
       if (item.ruleKey === deliveryRuleIndex) {
-        item.attributes.find((i) => i.key === attribute.key).value = e.target.value;
+        item.attributes.find((i) => i.key === attribute.key).value = val;
       }
       return item;
     });
@@ -278,6 +303,9 @@ const AddCustomAttributeField = ({
 
   const selectToFromValue = (e, range) => {
     let val = e.target.value;
+    if (val.startsWith("-")) {
+      val = val.slice(1); // Remove the negative sign
+    }
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
       return;
@@ -285,7 +313,7 @@ const AddCustomAttributeField = ({
     if (range === "to") {
       const updatedData = deliveryRules.map((item, index) => {
         if (item.ruleKey === deliveryRuleIndex) {
-          item.attributes.find((i) => i.key === attribute.key).toValue = e.target.value;
+          item.attributes.find((i) => i.key === attribute.key).toValue = val;
         }
         return item;
       });
@@ -293,7 +321,7 @@ const AddCustomAttributeField = ({
     } else {
       const updatedData = deliveryRules.map((item, index) => {
         if (item.ruleKey === deliveryRuleIndex) {
-          item.attributes.find((i) => i.key === attribute.key).fromValue = e.target.value;
+          item.attributes.find((i) => i.key === attribute.key).fromValue = val;
         }
         return item;
       });
@@ -334,58 +362,67 @@ const AddCustomAttributeField = ({
           t={t}
         />
       </LabelFieldPair>
-      <LabelFieldPair>
-        {attribute?.operator?.code === "IN_BETWEEN" ? (
-          <div className="in-between">
+      {attribute?.operator?.code === "IN_BETWEEN" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+          <LabelFieldPair>
             <CardLabel className="card-label-smaller">{t(`CAMPAIGN_FROM_LABEL`)}</CardLabel>
-            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_TO_LABEL`)}</CardLabel>
-          </div>
-        ) : (
-          <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
-        )}
-        <div className="field" style={{ display: "flex", width: "100%" }}>
-          {attribute?.operator?.code === "IN_BETWEEN" ? (
-            <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-              <TextInput
-                className=""
-                textInputStyle={{ width: "45%" }}
-                value={attribute?.toValue}
-                onChange={(e) => selectToFromValue(e, "to")}
-                disable={false}
-              />
-              <TextInput
-                className=""
-                textInputStyle={{ width: "45%" }}
-                value={attribute?.fromValue}
-                onChange={(e) => selectToFromValue(e, "from")}
-                disable={false}
-              />
+            <div className="field" style={{ display: "flex", width: "100%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <TextInput
+                  className=""
+                  // textInputStyle={{ width: "80%" }}
+                  value={attribute?.toValue}
+                  onChange={(e) => selectToFromValue(e, "to")}
+                  disable={false}
+                />
+              </div>
             </div>
-          ) : attribute?.attribute?.code === "Gender" ? (
-            <Dropdown
-              className="form-field"
-              selected={attribute?.value}
-              disable={false}
-              isMandatory={true}
-              option={[
-                {
-                  key: 1,
-                  code: "Male",
-                },
-                {
-                  key: 2,
-                  code: "Female",
-                },
-              ]}
-              select={(value) => selectGender(value)}
-              optionKey="code"
-              t={t}
-            />
-          ) : (
-            <TextInput textInputStyle={{ width: "100%" }} value={attribute?.value} onChange={selectValue} disable={false} />
-          )}
+          </LabelFieldPair>
+          <LabelFieldPair>
+            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_TO_LABEL`)}</CardLabel>
+            <div className="field" style={{ display: "flex", width: "100%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                <TextInput
+                  className=""
+                  // textInputStyle={{ width: "80%" }}
+                  value={attribute?.fromValue}
+                  onChange={(e) => selectToFromValue(e, "from")}
+                  disable={false}
+                />
+              </div>
+            </div>
+          </LabelFieldPair>
         </div>
-      </LabelFieldPair>
+      ) : (
+        <LabelFieldPair>
+          <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
+          <div className="field" style={{ display: "flex", width: "100%" }}>
+            {attribute?.attribute?.code === "Gender" ? (
+              <Dropdown
+                className="form-field"
+                selected={{ code: attribute?.value }}
+                disable={false}
+                isMandatory={true}
+                option={[
+                  {
+                    key: 1,
+                    code: "Male",
+                  },
+                  {
+                    key: 2,
+                    code: "Female",
+                  },
+                ]}
+                select={(value) => selectGender(value)}
+                optionKey="code"
+                t={t}
+              />
+            ) : (
+              <TextInput textInputStyle={{ width: "100%" }} value={attribute?.value} onChange={selectValue} disable={false} />
+            )}
+          </div>
+        </LabelFieldPair>
+      )}
     </div>
   );
 };
@@ -478,12 +515,20 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
 const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index, key, delivery, onDelete }) => {
   const { campaignData, dispatchCampaignData } = useContext(CycleContext);
   const [showModal, setShowModal] = useState(false);
+  const [showToast, setShowToast] = useState(null);
   const { t } = useTranslation();
   const prodRef = useRef();
+  const closeToast = () => setShowToast(null);
+  useEffect(() => {
+    if (showToast) {
+      setTimeout(closeToast, 5000);
+    }
+  }, [showToast]);
 
   const confirmResources = () => {
     const isValid = prodRef.current?.every((item) => item?.count !== null && item?.value !== null);
     if (!isValid) {
+      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_MISSING_ERROR" });
       return;
     }
     dispatchCampaignData({
@@ -576,7 +621,15 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
               <CloseSvg />
             </div>
           }
-          children={<AddProducts stref={prodRef} selectedDelivery={delivery} confirmResources={confirmResources} />}
+          children={
+            <AddProducts
+              stref={prodRef}
+              selectedDelivery={delivery}
+              confirmResources={confirmResources}
+              showToast={showToast}
+              closeToast={closeToast}
+            />
+          }
         />
       )}
     </>

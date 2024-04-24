@@ -53,7 +53,9 @@ function loopAndReturn(dataa) {
       // }
     }
   });
-  return newArray;
+
+  const withKey = newArray.map((i, c) => ({ key: c + 1, ...i }));
+  return withKey;
 }
 
 function cycleDataRemap(data) {
@@ -174,6 +176,7 @@ const SetupCampaign = () => {
   const id = searchParams.get("id");
   const isPreview = searchParams.get("preview");
   const isDraft = searchParams.get("draft");
+  const isSkip = searchParams.get("skip");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
@@ -206,7 +209,11 @@ const SetupCampaign = () => {
     }
     if (isDraft === "true") {
       setIsDraftCreated(true);
-      currentKey !== 1 ? null : setCurrentKey(1);
+      if (isSkip === "false") {
+        currentKey !== 1 ? null : setCurrentKey(1);
+      } else {
+        setCurrentKey(draftData?.additionalDetails?.key);
+      }
       return;
     }
   }, [isPreview, isDraft, draftData]);
@@ -335,19 +342,19 @@ const SetupCampaign = () => {
               restructuredRule.conditions.push({
                 attribute: attribute.attribute.code,
                 operator: "LESS_THAN",
-                value: parseInt(attribute.fromValue),
+                value: Number(attribute.fromValue),
               });
               attribute;
               restructuredRule.conditions.push({
                 attribute: attribute.attribute.code,
                 operator: "GREATER_THAN",
-                value: parseInt(attribute.toValue),
+                value: Number(attribute.toValue),
               });
             } else {
               restructuredRule.conditions.push({
                 attribute: attribute.attribute ? attribute.attribute.code : null,
                 operator: attribute.operator ? attribute.operator.code : null,
-                value: attribute?.attribute?.code === "Gender" ? attribute?.value : parseInt(attribute?.value),
+                value: attribute?.attribute?.code === "Gender" ? attribute?.value : Number(attribute?.value),
               });
             }
           });
@@ -597,7 +604,7 @@ const SetupCampaign = () => {
               attribute?.operator?.code === "IN_BETWEEN" &&
               attribute?.fromValue !== "" &&
               attribute?.toValue !== "" &&
-              parseInt(attribute?.toValue) >= parseInt(attribute?.fromValue)
+              Number(attribute?.toValue) >= Number(attribute?.fromValue)
             ) {
               // return `Error: Attribute "${attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute}" has invalid range (${
               //   attribute.toValue
@@ -710,6 +717,9 @@ const SetupCampaign = () => {
 
     if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].mandatoryOnAPI) {
       setCurrentKey(currentKey + 1);
+    }
+    if (isDraft === "true" && isSkip !== "false") {
+      updateUrlParams({ skip: "false" });
     }
   };
 
