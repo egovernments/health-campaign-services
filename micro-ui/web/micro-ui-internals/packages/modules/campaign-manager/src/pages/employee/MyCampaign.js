@@ -28,6 +28,10 @@ const MyCampaign = () => {
     setConfig(myCampaignConfig?.myCampaignConfig?.[n]);
   };
 
+  useEffect(() => {
+    window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+  }, []);
+
   return (
     <React.Fragment>
       <Header styles={{ fontSize: "32px" }}>{t("CAMPAIGN_SEARCH_TITLE")}</Header>

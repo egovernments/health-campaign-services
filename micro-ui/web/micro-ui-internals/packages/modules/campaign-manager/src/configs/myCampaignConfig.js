@@ -104,13 +104,13 @@ export const myCampaignConfig = {
               },
               {
                 label: "CAMPAIGN_START_DATE",
-                jsonPath: "campaignDetails.startDate",
+                jsonPath: "startDate",
                 additionalCustomization: true,
                 disableSortBy: true,
               },
               {
                 label: "CAMPAIGN_END_DATE",
-                jsonPath: "campaignDetails.endDate",
+                jsonPath: "endDate",
                 additionalCustomization: true,
                 disableSortBy: true,
               },
@@ -235,13 +235,13 @@ export const myCampaignConfig = {
               },
               {
                 label: "CAMPAIGN_START_DATE",
-                jsonPath: "campaignDetails.startDate",
+                jsonPath: "startDate",
                 additionalCustomization: true,
                 disableSortBy: true,
               },
               {
                 label: "CAMPAIGN_END_DATE",
-                jsonPath: "campaignDetails.endDate",
+                jsonPath: "endDate",
                 additionalCustomization: true,
                 disableSortBy: true,
               },
@@ -366,13 +366,13 @@ export const myCampaignConfig = {
               },
               {
                 label: "CAMPAIGN_START_DATE",
-                jsonPath: "campaignDetails.startDate",
+                jsonPath: "startDate",
                 additionalCustomization: true,
                 disableSortBy: true,
               },
               {
                 label: "CAMPAIGN_END_DATE",
-                jsonPath: "campaignDetails.endDate",
+                jsonPath: "endDate",
                 additionalCustomization: true,
                 disableSortBy: true,
               },

@@ -10,6 +10,7 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
   const [type, setType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType || {});
   const [beneficiaryType, setBeneficiaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType || "");
   const [showBeneficiary, setShowBeneficiaryType] = useState(Boolean(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType));
+  const [executionCount, setExecutionCount] = useState(0);
 
   useEffect(() => {
     setType(props?.props?.sessionData?.HCM_CAMPAIGN_TYPE?.projectType);
@@ -26,7 +27,13 @@ const CampaignSelection = ({ onSelect, formData, ...props }) => {
   useEffect(() => {
     onSelect("projectType", type);
   }, [type]);
-
+  
+  useEffect(() => {
+    if (executionCount < 5) {
+      onSelect("projectType", type);
+      setExecutionCount(prevCount => prevCount + 1);
+    }
+  });
   return (
     <React.Fragment>
       <Header>{t(`HCM_CAMPAIGN_TYPE_HEADER`)}</Header>

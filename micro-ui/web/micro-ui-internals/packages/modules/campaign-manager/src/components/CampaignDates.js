@@ -13,6 +13,7 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
   });
   const [startDate, setStartDate] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate); // Set default start date to today
   const [endDate, setEndDate] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate); // Default end date
+  const [executionCount, setExecutionCount] = useState(0);
 
   useEffect(() => {
     setDates({
@@ -22,6 +23,18 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
     setStartDate(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate);
     setEndDate(props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate);
   }, [props?.props?.sessionData?.HCM_CAMPAIGN_DATE?.campaignDates]);
+  
+  useEffect(() => {
+    onSelect("campaignDates", { startDate: startDate, endDate: endDate });
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    if (executionCount < 5) {
+      onSelect("campaignDates", { startDate: startDate, endDate: endDate });
+      setExecutionCount(prevCount => prevCount + 1);
+    }
+  });
+  
   function setStart(value) {
     setStartDate(value);
   }
@@ -29,9 +42,6 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
   function setEnd(date) {
     setEndDate(date);
   }
-  useEffect(() => {
-    onSelect("campaignDates", { startDate: startDate, endDate: endDate });
-  }, [startDate, endDate]);
 
   return (
     <React.Fragment>

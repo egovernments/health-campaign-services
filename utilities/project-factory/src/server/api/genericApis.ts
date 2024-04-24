@@ -649,7 +649,7 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
     Array.from(boundaryMap.entries()).forEach(([, boundaryCode]) => {
         boundaryCodes.push(boundaryCode);
     });
-    const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.body?.ResourceDetails?.tenantId, codes: boundaryCodes.join(', ') });
+    const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.body?.ResourceDetails?.tenantId, codes: boundaryCodes.join(',') });
     const codesFromResponse = boundaryEntityResponse.Boundary.map((boundary: any) => boundary.code);
     const codeSet = new Set(codesFromResponse);  // Creating a set and filling it with the codes from the response
     Array.from(boundaryMap.entries()).forEach(async ([boundaryName, boundaryCode]) => {
@@ -671,7 +671,8 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
         console.log('Boundary entities created:', response);
     }
     else {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
+        // throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
+        logger.info("Boundary Entities are already in the system")
     }
 }
 
@@ -709,6 +710,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
             }
             flag = 0;
             requestBody.BoundaryRelationship = boundary;
+            await new Promise(resolve => setTimeout(resolve, 5000));
             const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary-relationships/_create`, requestBody, {}, 'POST', undefined, undefined, true);
             console.log('Boundary relationship created:', response);
             const newRequestBody = JSON.parse(JSON.stringify(request.body));

@@ -24,7 +24,7 @@ export const UICustomizations = {
         // startDate: Date.now(),
         pagination: {
           sortBy: "campaignNumber",
-          sortOrder: "asc",
+          sortOrder: "desc",
           limit: limit,
           offset: offset,
         },
@@ -114,7 +114,7 @@ export const UICustomizations = {
         endDate: Date.now() - 24 * 60 * 60 * 1000,
         pagination: {
           sortBy: "campaignNumber",
-          sortOrder: "asc",
+          sortOrder: "desc",
           limit: limit,
           offset: offset,
         },
@@ -203,7 +203,7 @@ export const UICustomizations = {
         status: "drafted",
         pagination: {
           sortBy: "campaignNumber",
-          sortOrder: "asc",
+          sortOrder: "desc",
           limit: limit,
           offset: offset,
         },

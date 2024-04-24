@@ -79,6 +79,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
         }
         return item;
       });
+      setDeliveryRules(updatedData);
     } else {
       const updatedData = deliveryRules.map((item, index) => {
         if (item.ruleKey === deliveryRuleIndex) {
@@ -152,7 +153,14 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
         />
       </LabelFieldPair>
       <LabelFieldPair>
-        <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
+        {attribute?.operator?.code === "IN_BETWEEN" ? (
+          <div className="in-between">
+            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_FROM_LABEL`)}</CardLabel>
+            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_TO_LABEL`)}</CardLabel>
+          </div>
+        ) : (
+          <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
+        )}
         <div className="field" style={{ display: "flex", width: "100%" }}>
           {attribute?.operator?.code === "IN_BETWEEN" ? (
             <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
@@ -169,13 +177,12 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
                 value={attribute?.fromValue}
                 onChange={(e) => selectToFromValue(e, "from")}
                 disable={false}
-                min={attribute?.toValue}
               />
             </div>
           ) : attribute?.attribute?.code === "Gender" ? (
             <Dropdown
               className="form-field"
-              selected={attribute?.value}
+              selected={{code: attribute?.value}}
               disable={false}
               isMandatory={true}
               option={[
@@ -269,6 +276,31 @@ const AddCustomAttributeField = ({
     setDeliveryRules(updatedData);
   };
 
+  const selectToFromValue = (e, range) => {
+    let val = e.target.value;
+    if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
+      val = val.slice(0, -1);
+      return;
+    }
+    if (range === "to") {
+      const updatedData = deliveryRules.map((item, index) => {
+        if (item.ruleKey === deliveryRuleIndex) {
+          item.attributes.find((i) => i.key === attribute.key).toValue = e.target.value;
+        }
+        return item;
+      });
+      setDeliveryRules(updatedData);
+    } else {
+      const updatedData = deliveryRules.map((item, index) => {
+        if (item.ruleKey === deliveryRuleIndex) {
+          item.attributes.find((i) => i.key === attribute.key).fromValue = e.target.value;
+        }
+        return item;
+      });
+      setDeliveryRules(updatedData);
+    }
+  };
+
   return (
     <div key={attribute?.key} className="attribute-field-wrapper">
       <LabelFieldPair>
@@ -303,7 +335,14 @@ const AddCustomAttributeField = ({
         />
       </LabelFieldPair>
       <LabelFieldPair>
-        <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
+        {attribute?.operator?.code === "IN_BETWEEN" ? (
+          <div className="in-between">
+            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_FROM_LABEL`)}</CardLabel>
+            <CardLabel className="card-label-smaller">{t(`CAMPAIGN_TO_LABEL`)}</CardLabel>
+          </div>
+        ) : (
+          <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
+        )}
         <div className="field" style={{ display: "flex", width: "100%" }}>
           {attribute?.operator?.code === "IN_BETWEEN" ? (
             <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
@@ -547,7 +586,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
 const AddDeliveryRuleWrapper = ({}) => {
   const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
   const [targetedData, setTargetedData] = useState(campaignData.find((i) => i.active === true).deliveries.find((d) => d.active === true));
-  const [deliveryRules, setDeliveryRules] = useState(targetedData.deliveryRules);
+  const [deliveryRules, setDeliveryRules] = useState(targetedData?.deliveryRules);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -556,7 +595,7 @@ const AddDeliveryRuleWrapper = ({}) => {
   }, [campaignData]);
 
   useEffect(() => {
-    const tt = targetedData.deliveryRules;
+    const tt = targetedData?.deliveryRules;
     setDeliveryRules(tt);
   }, [targetedData]);
 
@@ -589,7 +628,7 @@ const AddDeliveryRuleWrapper = ({}) => {
 
   return (
     <>
-      {deliveryRules.map((item, index) => (
+      {deliveryRules?.map((item, index) => (
         <AddDeliveryRule
           targetedData={targetedData}
           deliveryRules={deliveryRules}

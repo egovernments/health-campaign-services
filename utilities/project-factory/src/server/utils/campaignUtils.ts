@@ -3,14 +3,13 @@ import { httpRequest } from "./request";
 import config from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from '../Kafka/Listener'
-import { createProjectCampaignResourcData, getHeadersOfBoundarySheet, getHierarchy, projectCreate } from "../api/campaignApis";
+import { createProjectCampaignResourcData, getHierarchy, projectCreate } from "../api/campaignApis";
 import { getCampaignNumber, createAndUploadFile, getSheetData, getBoundaryCodesHandler, createBoundaryRelationship, createExcelSheet, createBoundaryEntities } from "../api/genericApis";
 import { logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import pool from "../config/dbPoolConfig";
 import * as XLSX from 'xlsx';
 import { getBoundaryRelationshipData, modifyBoundaryData, throwError } from "./genericUtils";
-import { validateBoundarySheetData, validateHierarchyType } from "./validators/campaignValidators";
 
 // import * as xlsx from 'xlsx-populate';
 const _ = require('lodash');
@@ -827,7 +826,7 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
         const workbook = XLSX.utils.book_new();
         const mainSheetData: any[] = [];
         const headersForMainSheet = Object.keys(boundaryData[0]);
-        mainSheetData.push([...headersForMainSheet, "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"]);
+        mainSheetData.push([...headersForMainSheet]);
         const districtLevelRowBoundaryCodeMap = new Map();
 
         for (const data of boundaryData) {
@@ -994,14 +993,8 @@ function createBoundaryMap(boundaries: any[], boundaryMap: Map<string, string>):
 
 const autoGenerateBoundaryCodes = async (request: any) => {
     try {
-        await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId); // todo revisit
         const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
-        if (!fileResponse?.fileStoreIds?.[0]?.url) {
-            throwError("FILE", 400, "INVALID_FILE");
-        } // revisit 
         const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
-        const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
-        await validateBoundarySheetData(headersOfBoundarySheet, request); /// revisit
         const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
         const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
         const childParentMap = getChildParentMap(withoutBoundaryCode);
