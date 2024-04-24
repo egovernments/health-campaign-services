@@ -41,7 +41,16 @@ function loopAndReturn(dataa) {
       });
     } else {
       // If no existing item with the same attribute is found, push the current item
+      // if (item?.operator?.code === "EQUAL_TO" && item?.attribute?.code === "Gender") {
+      //   newArray.push({
+      //     ...item,
+      //     value: {
+      //       code: item?.value,
+      //     },
+      //   });
+      // } else {
       newArray.push(item);
+      // }
     }
   });
   return newArray;

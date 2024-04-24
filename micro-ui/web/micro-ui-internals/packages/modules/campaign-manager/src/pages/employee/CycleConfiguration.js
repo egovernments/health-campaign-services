@@ -60,10 +60,18 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
     startDate: tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate,
     endDate: tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate,
   });
+  const [executionCount, setExecutionCount] = useState(0);
 
   useEffect(() => {
     onSelect("cycleConfigure", state);
   }, [state]);
+
+  useEffect(() => {
+    if (executionCount < 5) {
+      onSelect("cycleConfigure", state);
+      setExecutionCount((prevCount) => prevCount + 1);
+    }
+  });
 
   const updateCycle = (d) => {
     if (d === 0 || d > 5) return;

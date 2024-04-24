@@ -186,6 +186,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
     campaignDataReducer,
     generateTabsData(cycleData?.cycleConfgureDate?.cycle, cycleData?.cycleConfgureDate?.deliveries)
   );
+  const [executionCount, setExecutionCount] = useState(0);
 
   useEffect(() => {
     dispatchCampaignData({
@@ -198,6 +199,12 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   useEffect(() => {
     onSelect("deliveryRule", campaignData);
   }, [campaignData]);
+  useEffect(() => {
+    if (executionCount < 5) {
+      onSelect("deliveryRule", campaignData);
+      setExecutionCount((prevCount) => prevCount + 1);
+    }
+  });
 
   return (
     <CycleContext.Provider

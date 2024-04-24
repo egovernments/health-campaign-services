@@ -6,6 +6,7 @@ import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
 const CampaignName = ({ onSelect, formData, control, ...props }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_NAME?.campaignName || null);
+  const [executionCount, setExecutionCount] = useState(0);
 
   useEffect(() => {
     setName(props?.props?.sessionData?.HCM_CAMPAIGN_NAME?.campaignName);
@@ -14,6 +15,13 @@ const CampaignName = ({ onSelect, formData, control, ...props }) => {
   useEffect(() => {
     onSelect("campaignName", name);
   }, [name, props?.props?.sessionData?.HCM_CAMPAIGN_NAME?.campaignName]);
+
+  useEffect(() => {
+    if (executionCount < 5) {
+      onSelect("campaignName", name);
+      setExecutionCount(prevCount => prevCount + 1);
+    }
+  });
 
   return (
     <React.Fragment>
