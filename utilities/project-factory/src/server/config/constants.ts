@@ -68,6 +68,13 @@ const getMessage = (key: any) => {
     return unknownError;
 }
 
+export const userRoles: any = {
+    "Registrar": "REGISTRAR",
+    "Distributor": "DISTRIBUTOR",
+    "Supervisor": "SUPERVISOR",
+    "HELPDESK USER": "HELPDESK_USER"
+}
+
 
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {

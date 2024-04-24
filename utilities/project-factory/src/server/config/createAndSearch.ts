@@ -151,20 +151,12 @@ const createAndSearch: any = {
                     "minLength": 1
                 },
                 "Phone Number": {
-                    "type": "string",
-                    "maxLength": 10,
-                    "minLength": 10
+                    "type": "integer",
+                    "minimum": 100000000,
+                    "maximum": 9999999999
                 },
                 "Role (Mandatory)": {
-                    "type": "string",
-                    "enum": [
-                        "Registrar",
-                        "Distributor",
-                        "Monitor Local",
-                        "Supervisor",
-                        "Help Desk",
-                        "Logistical officer"
-                    ]
+                    "type": "string"
                 },
                 "Employment Type (Mandatory)": {
                     "type": "string",
@@ -193,42 +185,70 @@ const createAndSearch: any = {
                 {
                     sheetColumn: "A",
                     sheetColumnName: "Name of the Person (Mandatory)",
-                    resultantPath: "name",
+                    resultantPath: "user.name",
                     type: "string"
                 },
                 {
                     sheetColumn: "B",
                     sheetColumnName: "Phone Number",
-                    resultantPath: "mobileNumber",
+                    resultantPath: "user.mobileNumber",
                     type: "string"
                 },
                 {
                     sheetColumn: "C",
                     sheetColumnName: "Role (Mandatory)",
-                    resultantPath: "roles",
-                    type: "array",
-                    conversionCondition: {
-                        "Monitor Local": [
-                            {
-                                "name": "Monitor Local",
-                                "code": "MONITOR_LOCAL"
-                            }
-                        ]
-                    }
+                    resultantPath: "user.roles",
+                    type: "string"
                 },
                 {
                     sheetColumn: "D",
-                    sheetColumnName: "Employment Type (Mandatory)"
+                    sheetColumnName: "Employment Type (Mandatory)",
+                    resultantPath: "employeeType",
+                    conversionCondition: {
+                        "Permanent": "PERMANENT",
+                        "Temporary": "TEMPORARY"
+                    }
                 },
                 {
                     sheetColumn: "E",
-                    sheetColumnName: "Boundary Code"
+                    sheetColumnName: "Boundary Code",
+                    resultantPath: "jurisdictions",
+                    type: "string"
                 }
             ],
             tenantId: {
                 getValueViaPath: "ResourceDetails.tenantId",
                 resultantPath: "tenantId"
             }
+        },
+        createBulkDetails: {
+            limit: 50,
+            createPath: "Employees",
+            url: config.host.hrmsHost + config.paths.hrmsEmployeeCreate
+        },
+        searchDetails: {
+            searchElements: [
+                {
+                    keyPath: "tenantId",
+                    getValueViaPath: "ResourceDetails.tenantId",
+                    isInParams: true,
+                    isInBody: false,
+                }
+            ],
+            searchLimit: {
+                keyPath: "limit",
+                value: "200",
+                isInParams: true,
+                isInBody: false,
+            },
+            searchOffset: {
+                keyPath: "offset",
+                value: "0",
+                isInParams: true,
+                isInBody: false,
+            },
+            url: config.host.hrmsHost + config.paths.hrmsEmployeeSearch,
+            searchPath: "Employees"
         }
     }
 }

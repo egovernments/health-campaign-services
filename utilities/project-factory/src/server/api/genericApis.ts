@@ -26,7 +26,7 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
 
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
 
     // Return the workbook
@@ -60,17 +60,19 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
     }
 
     // Convert sheet data to JSON format
-    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    const jsonData = sheetData.map((row: any, index: number) => {
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { blankrows: true });
+    var jsonData = sheetData.map((row: any, index: number) => {
         const rowData: any = {};
-        Object.keys(row).forEach(key => {
-            rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
-        });
-        if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
-        return rowData;
+        if (Object.keys(row).length > 0) {
+            Object.keys(row).forEach(key => {
+                rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
+            });
+            if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
+            return rowData;
+        }
     });
 
-    // Log sheet data
+    jsonData = jsonData.filter(element => element !== undefined);
     logger.info("Sheet Data : " + JSON.stringify(jsonData))
 
     // Return JSON data
