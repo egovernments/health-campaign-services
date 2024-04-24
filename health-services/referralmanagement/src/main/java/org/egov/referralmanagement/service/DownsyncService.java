@@ -104,28 +104,47 @@ public class DownsyncService {
 
 			downsync.setDownsyncCriteria(downsyncCriteria);
 			boolean isSyncTimeAvalable = null != downsyncCriteria.getLastSyncedTime();
-
+			
+			Long startTime = System.currentTimeMillis(); 
+			log.info("The masterDataService start time : " + startTime);
+			
 			LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
 
+			log.info("The masterDataService call time : " + (startTime-System.currentTimeMillis())/1000);
+			
 			/* search household */
+			startTime = System.currentTimeMillis(); 
+			log.info("The Household start time : " + startTime);
 			households = searchHouseholds(downsyncRequest, downsync);
 			householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
+			log.info("The household call time : " + (startTime-System.currentTimeMillis())/1000);
 
+			startTime = System.currentTimeMillis(); 
+			log.info("The members start time : " + startTime);
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdClientRefIds))
 				/* search household member using household ids */
 				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
+			log.info("The members call time : " + (startTime-System.currentTimeMillis())/1000);
 
+			startTime = System.currentTimeMillis(); 
+			log.info("The individualas start time : " + startTime);
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
 
 				/* search individuals using individual ids */
 				individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualClientRefIds);
 			}
+			log.info("The individual call time : " + (startTime-System.currentTimeMillis())/1000);
 
+			startTime = System.currentTimeMillis(); 
+			log.info("The beneficiary start time : " + startTime);
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
 				/* search beneficiary using individual ids */
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
 			}
+			log.info("The beneficiary call time : " + (startTime-System.currentTimeMillis())/1000);
 
+			startTime = System.currentTimeMillis(); 
+			log.info("The house beneficiary start time : " + startTime);
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdClientRefIds)) {
 				/* search beneficiary using household ids */
 				householdBeneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds);
@@ -135,7 +154,10 @@ public class DownsyncService {
 					beneficiaryClientRefIds.addAll(householdBeneficiaryClientRefIds);
 				}
 			}
+			log.info("The  house beneficiary time : " + (startTime-System.currentTimeMillis())/1000);
 
+			startTime = System.currentTimeMillis(); 
+			log.info("The task ref start time : " + startTime);
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
 
 				/* search tasks using beneficiary uuids */
@@ -144,11 +166,15 @@ public class DownsyncService {
 				/* ref search */
 				referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
 			}
+			log.info("The task ref call time : " + (startTime-System.currentTimeMillis())/1000);
 
+			startTime = System.currentTimeMillis(); 
+			log.info("The side effect start time : " + startTime);
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(taskClientRefIds)) {
 
 				searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
 			}
+			log.info("The side effect call time : " + (startTime-System.currentTimeMillis())/1000);
 
 			return downsync;
 		}
