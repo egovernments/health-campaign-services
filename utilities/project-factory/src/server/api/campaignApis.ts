@@ -4,13 +4,14 @@ import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
-import { validateSheetData } from '../utils/validators/campaignValidators';
+import { fetchBoundariesInChunks, validateSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber, getWorkbook } from "./genericApis";
 import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
 import { produceModifiedMessages } from "../Kafka/Listener";
+import { userRoles } from "../config/constants";
 
 
 
@@ -174,6 +175,24 @@ function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet
   }
 }
 
+function updateErrorsForUser(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any) {
+  newCreatedData.forEach((createdElement: any) => {
+    let foundMatch = false;
+    for (const searchedElement of newSearchedData) {
+      if (searchedElement?.code === createdElement?.code) {
+        foundMatch = true;
+        newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
+        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: searchedElement[createAndSearchConfig.uniqueIdentifier], errorDetails: "" })
+        break;
+      }
+    }
+    if (!foundMatch) {
+      errors.push({ status: "NOT_CREATED", rowNumber: createdElement["!row#number!"], errorDetails: `Can't confirm creation of this data` })
+      logger.info("Can't confirm creation of this data of row number : " + createdElement["!row#number!"]);
+    }
+  });
+}
+
 function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any) {
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
@@ -203,6 +222,8 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
   });
 }
 
+
+
 function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any, activities: any) {
   const newCreatedData = JSON.parse(JSON.stringify(createdData));
   const newSearchedData = JSON.parse(JSON.stringify(searchedData));
@@ -211,18 +232,60 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
     delete element[uid];
   })
   var errors: any[] = []
-  updateErrors(newCreatedData, newSearchedData, errors, createAndSearchConfig);
+  if (request?.body?.ResourceDetails?.type != "user") {
+    updateErrors(newCreatedData, newSearchedData, errors, createAndSearchConfig);
+  }
+  else {
+    updateErrorsForUser(newCreatedData, newSearchedData, errors, createAndSearchConfig);
+  }
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
   request.body.Activities = activities
+}
+
+function matchUserValidation(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any) {
+  var count = 0;
+  const errors = []
+  const codeSet = new Set(searchedData.map(item => item?.code));
+  const numberSet = new Set(searchedData.map(item => item?.user?.mobileNumber));
+  for (const data of createdData) {
+    if (codeSet.has(data.code) && numberSet.has(data?.user?.mobileNumber)) {
+      errors.push({ status: "INVALID", rowNumber: data["!row#number!"], errorDetails: `User with mobileNumber ${data?.user?.mobileNumber} and userName ${data.code} already exists` })
+      count++;
+    }
+    else if (codeSet.has(data.code)) {
+      errors.push({ status: "INVALID", rowNumber: data["!row#number!"], errorDetails: `User with userName ${data.code} already exists` })
+      count++;
+    }
+    else if (numberSet.has(data?.user?.mobileNumber)) {
+      errors.push({ status: "INVALID", rowNumber: data["!row#number!"], errorDetails: `User with mobileNumber ${data?.user?.mobileNumber} already exists` })
+      count++;
+    }
+  }
+  if (count) {
+    request.body.ResourceDetails.status = "invalid"
+  }
+  logger.info("Invalid resources count : " + count);
+  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
 }
 function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], request: any, creationTime: any, createAndSearchConfig: any, activities: any) {
   var matchingSearchData = [];
   const userUuid = request?.body?.RequestInfo?.userInfo?.uuid
   var count = 0;
-  for (const data of searchedData) {
-    if (data?.auditDetails?.createdBy == userUuid && data?.auditDetails?.createdTime >= creationTime) {
-      matchingSearchData.push(data);
-      count++;
+  if (request?.body?.ResourceDetails?.type != "user") {
+    for (const data of searchedData) {
+      if (data?.auditDetails?.createdBy == userUuid && data?.auditDetails?.createdTime >= creationTime) {
+        matchingSearchData.push(data);
+        count++;
+      }
+    }
+  }
+  else {
+    const codeSet = new Set(createdData.map(item => item.code));
+    for (const data of searchedData) {
+      if (codeSet.has(data.code)) {
+        matchingSearchData.push(data);
+        count++;
+      }
     }
   }
   if (count < createdData.length) {
@@ -298,6 +361,7 @@ function updateOffset(createAndSearchConfig: any, params: any, requestBody: any)
   }
 }
 
+
 async function processSearchAndValidation(request: any, createAndSearchConfig: any, dataFromSheet: any[]) {
   if (request?.body?.dataToSearch?.length > 0) {
     const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
@@ -306,28 +370,29 @@ async function processSearchAndValidation(request: any, createAndSearchConfig: a
     const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
     matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
   }
+  if (request?.body?.ResourceDetails?.type == "user") {
+    await enrichEmployees(request?.body?.dataToCreate, request)
+    const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
+    const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
+    matchUserValidation(request.body.dataToCreate, arraysToMatch, request, createAndSearchConfig)
+  }
 }
 
 
-/**
- * Confirms the creation of resources by matching created and searched data.
- * @param createAndSearchConfig The configuration for create and search operations.
- * @param request The HTTP request object.
- * @param facilityCreateData An array of data for created facilities.
- * @param creationTime The timestamp of creation.
- * @param activities An array of activity logs.
- */
-async function confirmCreation(createAndSearchConfig: any, request: any, facilityCreateData: any[], creationTime: any, activities: any) {
+
+// Confirms the creation of resources by matching created and searched data.
+async function confirmCreation(createAndSearchConfig: any, request: any, dataToCreate: any[], creationTime: any, activities: any) {
   // Confirm creation of resources by matching data  // wait for 5 seconds
   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  matchViaUserIdAndCreationTime(facilityCreateData, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
+  matchViaUserIdAndCreationTime(dataToCreate, arraysToMatch, request, creationTime, createAndSearchConfig, activities)
 }
 
 async function processValidateAfterSchema(dataFromSheet: any, request: any, createAndSearchConfig: any) {
   try {
     const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
     request.body.dataToSearch = typeData.searchData;
+    request.body.dataToCreate = typeData.createData;
     await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
     await generateProcessedFileAndPersist(request);
   } catch (error) {
@@ -343,6 +408,75 @@ async function processValidate(request: any) {
   processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig)
 }
 
+function convertUserRoles(employees: any[], request: any) {
+  for (const employee of employees) {
+    if (employee?.user?.roles) {
+      var newRoles: any[] = []
+      const rolesArray = employee.user.roles.split(',').map((role: any) => role.trim());
+      for (const role of rolesArray) {
+        newRoles.push({ name: role, code: userRoles[role], tenantId: request?.body?.ResourceDetails?.tenantId })
+      }
+      employee.user.roles = newRoles
+    }
+  }
+}
+
+function generateHash(input: string): string {
+  const prime = 31; // Prime number
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * prime + input.charCodeAt(i)) % 100000; // Limit hash to 5 digits
+  }
+  return hash.toString().padStart(5, '0');
+}
+
+function enrichUserNameAndPassword(employees: any[]) {
+  const epochTime = Date.now();
+  employees.forEach((employee) => {
+    const { user, "!row#number!": rowNumber } = employee;
+    const nameInitials = user.name.split(' ').map((name: any) => name.charAt(0)).join('');
+    const generatedCode = `${nameInitials}${generateHash(`${epochTime}`)}${rowNumber}`;
+    user.userName = generatedCode;
+    user.password = "eGov@123";
+    employee.code = generatedCode
+  });
+}
+
+async function enrichJurisdictions(employee: any, request: any) {
+  const boundaryCodeArray = employee.jurisdictions.split(',').map((code: any) => code.trim());
+  const boundaryCodeSet = new Set(boundaryCodeArray);
+  const boundaryCodeArrayUnique: any[] = Array.from(boundaryCodeSet);
+  const responseBoundaries = await fetchBoundariesInChunks(request);
+  var boundaryObject: any = {};
+  responseBoundaries.forEach((element: any) => {
+    element.boundary = element.code
+    element.roles = employee.user.roles
+    element.hierarchy = element.hierarchyType
+    delete element.hierarchyType
+    delete element.code
+    delete element.parentId
+    delete element.id
+    boundaryObject[element.boundary] = element;
+  });
+  var newJurisdictions: any[] = [];
+  for (const boundaryCode of boundaryCodeArrayUnique) {
+    newJurisdictions.push(boundaryObject[boundaryCode])
+  }
+  employee.jurisdictions = newJurisdictions
+}
+
+async function enrichEmployees(employees: any[], request: any) {
+  convertUserRoles(employees, request)
+  for (const employee of employees) {
+    enrichUserNameAndPassword(employees)
+    await enrichJurisdictions(employee, request)
+    if (employee?.user) {
+      employee.user.tenantId = request?.body?.ResourceDetails?.tenantId
+      employee.user.dob = 0
+    }
+  }
+}
+
 async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any) {
   logger.info(type + " create data : " + JSON.stringify(request?.body?.dataToCreate));
   logger.info(type + " bulk create url : " + createAndSearchConfig?.createBulkDetails?.url, params);
@@ -356,11 +490,18 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       const start = i * limit;
       const end = (i + 1) * limit;
       const chunkData = dataToCreate.slice(start, end); // Get a chunk of data
-      const newRequestBody = {
+      const newRequestBody: any = {
         RequestInfo: request?.body?.RequestInfo,
       }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
-      const responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+      if (type == "facility") {
+        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+      }
+      else if (type == "user") {
+        logger.info("User create data : " + JSON.stringify(newRequestBody));
+        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+        logger.info("User create response : " + JSON.stringify(responsePayload));
+      }
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
       logger.info("Activity : " + JSON.stringify(activity));
       activities.push(activity);
@@ -407,11 +548,14 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
     request.body.dataToCreate = typeData.createData;
     request.body.dataToSearch = typeData.searchData;
     await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-    if (createAndSearchConfig?.createBulkDetails) {
+    if (createAndSearchConfig?.createBulkDetails && request.body.ResourceDetails.status != "invalid") {
       _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
       const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
       changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
       await performAndSaveResourceActivity(request, createAndSearchConfig, params, request.body.ResourceDetails.type);
+    }
+    else if (request.body.ResourceDetails.status == "invalid") {
+      await generateProcessedFileAndPersist(request);
     }
   } catch (error: any) {
     await handleResouceDetailsError(request, error)

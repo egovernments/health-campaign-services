@@ -80,17 +80,17 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
     data.forEach((element, index) => {
         const boundaries = element[boundaryColumn];
         if (!boundaries) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element at index ${index}`);
+            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Code is required for element in rowNumber ${element['!row#number!'] + 1}`);
         }
 
         const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
         if (boundaryList.length === 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element at index ${index}`);
+            throwError("COMMON", 400, "VALIDATION_ERROR", `At least 1 boundary is required for element in rowNumber ${element['!row#number!'] + 1}`);
         }
 
         for (const boundary of boundaryList) {
             if (!boundary) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary format is invalid at ${index}. Put it with one comma between boundary codes`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary format is invalid in rowNumber ${element['!row#number!'] + 1}. Put it with one comma between boundary codes`);
             }
             boundarySet.add(boundary); // Add boundary to the set
         }
@@ -112,7 +112,6 @@ async function validateUnique(schema: any, data: any[], request: any) {
                 const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
                 const value = item[element];
                 const rowNum = item['!row#number!'] + 1;
-
                 if (!uniqueIdentifierColumnName || !item[uniqueIdentifierColumnName]) {
                     // Check if the value is already in the map
                     if (uniqueMap.has(value)) {
@@ -586,6 +585,7 @@ async function validateDownloadRequest(request: any) {
 
 
 export {
+    fetchBoundariesInChunks,
     validateSheetData,
     validateCreateRequest,
     validateFacilityCreateData,

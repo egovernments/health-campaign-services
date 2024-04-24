@@ -123,7 +123,7 @@ async function updateStatusFile(request: any) {
 
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
     processErrorData(request, createAndSearchConfig, workbook, sheetName);
 
@@ -234,7 +234,7 @@ async function generateProcessedFileAndPersist(request: any) {
     updateActivityResourceId(request);
     request.body.ResourceDetails = {
         ...request?.body?.ResourceDetails,
-        status: "completed",
+        status: request.body.ResourceDetails.status != "invalid" ? "completed" : "invalid",
         auditDetails: {
             ...request?.body?.ResourceDetails?.auditDetails,
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
