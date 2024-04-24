@@ -6,6 +6,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.service.ResourceEstimationService;
 import org.egov.processor.web.models.Plan;
+import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.PlanRequest;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
@@ -26,11 +27,11 @@ public class PlanConsumer {
         this.resourceEstimationService = resourceEstimationService;
     }
 
-    @KafkaListener(topics = "${plan.consumer.kafka.topic}")
+    @KafkaListener(topics = "${plan.config.consumer.kafka.topics}")
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            PlanRequest planRequest = objectMapper.convertValue(consumerRecord, PlanRequest.class);
-            resourceEstimationService.estimateResources(planRequest);
+            PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
+            resourceEstimationService.estimateResources(planConfigurationRequest);
         } catch (Exception exception) {
             log.error("Error in Plan consumer", exception);
         }
