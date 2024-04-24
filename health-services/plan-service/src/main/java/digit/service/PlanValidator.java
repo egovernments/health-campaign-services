@@ -1,5 +1,6 @@
 package digit.service;
 
+import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
 import digit.web.models.*;
 import org.egov.tracer.model.CustomException;
@@ -13,13 +14,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_CODE;
+import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_MESSAGE;
+
 @Component
 public class PlanValidator {
 
     private PlanRepository planRepository;
 
-    public PlanValidator(PlanRepository planRepository) {
+    private PlanConfigurationRepository planConfigurationRepository;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository) {
         this.planRepository = planRepository;
+        this.planConfigurationRepository = planConfigurationRepository;
     }
 
     /**
@@ -149,7 +156,12 @@ public class PlanValidator {
      * @param request
      */
     private void validatePlanConfigurationExistence(PlanRequest request) {
-
+        // If plan id provided is invalid, throw an exception
+        if(CollectionUtils.isEmpty(planConfigurationRepository.search(PlanConfigurationSearchCriteria.builder()
+                .id(request.getPlan().getPlanConfigurationId())
+                .build()))) {
+            throw new CustomException(INVALID_PLAN_CONFIG_ID_CODE, INVALID_PLAN_CONFIG_ID_MESSAGE);
+        }
     }
 
     /**
