@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,9 +21,12 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
 import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.data.geojson.GeoJSONReader;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.feature.simple.SimpleFeatureBuilder;
+import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.springframework.stereotype.Service;
 
 
@@ -69,6 +73,21 @@ public class GeoJsonParser implements FileParser {
 
                     Map<String, BigDecimal> resultMap = new HashMap<>();
 
+                    // Define the new attribute (output) in the feature type
+                    SimpleFeatureType featureType = feature.getFeatureType();
+                    SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
+                    builder.init(featureType);
+
+                    for (Operation operation : planConfig.getOperations()) {
+                        String output = operation.getOutput();
+                            builder.add(output, BigDecimal.class); // Define the output attribute if not already present
+                    }
+                    featureType = builder.buildFeatureType();
+
+                    // Create a new feature with the updated feature type
+                    SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(featureType);
+                    featureBuilder.addAll(feature.getAttributes());
+
                     for (Operation operation : planConfig.getOperations()) {
                         String input = operation.getInput();
                         BigDecimal inputValue = null;
@@ -94,11 +113,12 @@ public class GeoJsonParser implements FileParser {
 
                         // Store the result in the map with the key as the output
                         resultMap.put(output, result);
-
-
-//                    calculationUtil.calculateResources(planConfig, inputAttributeValue);
-
+                        //TODO: update geojson with the result in a new column output
+                        // Set the output attribute for the feature
+                        featureBuilder.set(output, result);
                     }
+                    SimpleFeature newFeature = featureBuilder.buildFeature(feature.getID());
+                    System.out.println("new feature -> " + newFeature);
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -130,5 +150,9 @@ public class GeoJsonParser implements FileParser {
         }
         return null;
     }
+
+
+
+
 
 }
