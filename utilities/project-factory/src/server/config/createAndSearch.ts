@@ -31,7 +31,7 @@ const createAndSearch: any = {
                 "Capacity": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 9223372036854775807,
+                    "maximum": 100000000,
                     "multipleOf": 1
                 }
             },
