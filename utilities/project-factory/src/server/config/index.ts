@@ -63,6 +63,7 @@ const config = {
     projectHost: process.env.EGOV_PROJECT_HOST || "https://unified-dev.digit.org/",
     userHost: process.env.EGOV_USER_HOST || "https://unified-dev.digit.org/",
     productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-dev.digit.org/",
+    hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-dev.digit.org/",
   },
   // Paths for different services
   paths: {
@@ -83,7 +84,9 @@ const config = {
     facilitySearch: process.env.EGOV_FACILITY_SEARCH_PATH || "facility/v1/_search",
     productVariantSearch: process.env.EGOV_PRODUCT_VARIANT_SEARCH_PATH || "product/variant/v1/_search",
     boundaryEntity: process.env.EGOV_BOUNDARY_ENTITY_SEARCHPATH || "boundary-service/boundary/_search",
-    facilityBulkCreate: process.env.EGOV_FACILITY_BULK_CREATE || "facility/v1/bulk/_create"
+    facilityBulkCreate: process.env.EGOV_FACILITY_BULK_CREATE || "facility/v1/bulk/_create",
+    hrmsEmployeeCreate: process.env.EGOV_HRMS_EMPLOYEE_CREATE_PATH || "health-hrms/employees/_create",
+    hrmsEmployeeSearch: process.env.EGOV_HRMS_EMPLOYEE_SEARCH_PATH || "health-hrms/employees/_search"
   },
   // Values configuration
   values: {
