@@ -7,6 +7,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.processor.util.PlanConfigurationUtil;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.PlanConfigurationSearchCriteria;
 import org.egov.processor.web.models.PlanConfigurationSearchRequest;
 import org.egov.processor.web.models.PlanRequest;
@@ -32,15 +33,16 @@ public class ResourceEstimationService {
         this.shapeFileParser = shapeFileParser;
     }
 
-    public void estimateResources(PlanRequest planRequest) {
-        log.info("Plan Configuration ID - " + planRequest.getPlan().getPlanConfigurationId());
-        PlanConfigurationSearchCriteria planConfigurationSearchCriteria = PlanConfigurationSearchCriteria.builder()
-                .tenantId(planRequest.getPlan().getTenantId()).id(planRequest.getPlan().getPlanConfigurationId()).build();
-        PlanConfigurationSearchRequest planConfigurationSearchRequest = PlanConfigurationSearchRequest.builder().planConfigurationSearchCriteria(planConfigurationSearchCriteria).requestInfo(new RequestInfo()).build();
-        List<PlanConfiguration> planConfigurationls = planConfigurationUtil.search(planConfigurationSearchRequest);
-        //TODO:
+    public void estimateResources(PlanConfigurationRequest planConfigurationRequest) {
+//        log.info("Plan Configuration ID - " + planRequest.getPlan().getPlanConfigurationId());
+//        PlanConfigurationSearchCriteria planConfigurationSearchCriteria = PlanConfigurationSearchCriteria.builder()
+//                .tenantId(planRequest.getPlan().getTenantId()).id(planRequest.getPlan().getPlanConfigurationId()).build();
+//        PlanConfigurationSearchRequest planConfigurationSearchRequest = PlanConfigurationSearchRequest.builder().planConfigurationSearchCriteria(planConfigurationSearchCriteria).requestInfo(new RequestInfo()).build();
+//        List<PlanConfiguration> planConfigurationls = planConfigurationUtil.search(planConfigurationSearchRequest);
+//
+        PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
         // filter by templateIdentifier as pop
-        File.InputFileTypeEnum fileType = planConfigurationls.get(0).getFiles().get(0).getInputFileType();
+        File.InputFileTypeEnum fileType = planConfiguration.getFiles().get(0).getInputFileType();
         FileParser parser;
         if (File.InputFileTypeEnum.EXCEL.equals(fileType)) {
             parser = excelParser;
@@ -56,7 +58,7 @@ public class ResourceEstimationService {
             throw new IllegalArgumentException("Unsupported file type: " + fileType);
         }
 
-        parser.fetchPopulationData(planConfigurationls.get(0), planConfigurationls.get(0).getFiles().get(0).getFilestoreId());
+        parser.fetchPopulationData(planConfiguration, planConfiguration.getFiles().get(0).getFilestoreId());
     }
 }
 
