@@ -203,7 +203,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
             {attribute?.attribute?.code === "Gender" ? (
               <Dropdown
                 className="form-field"
-                selected={{ code: attribute?.value }}
+                selected={attribute?.value?.code ? attribute?.value : { code: attribute?.value }}
                 disable={false}
                 isMandatory={true}
                 option={[

@@ -75,39 +75,92 @@ function cycleDataRemap(data) {
   });
 }
 
+// function reverseDeliveryRemap(data) {
+//   if (!data) return null;
+//   const reversedData = [];
+//   let currentCycleIndex = null;
+//   let currentDeliveryIndex = null;
+//   let currentCycle = null;
+//   let currentDelivery = null;
+
+//   data.forEach((item, index) => {
+//     if (currentCycleIndex !== item.cycleNumber) {
+//       currentCycleIndex = item.cycleNumber;
+//       currentCycle = {
+//         cycleIndex: currentCycleIndex.toString(),
+//         active: index === 0, // Set active to true only for the first index
+//         deliveries: [],
+//       };
+//       reversedData.push(currentCycle);
+//     }
+
+//     if (currentDeliveryIndex !== item.deliveryNumber) {
+//       currentDeliveryIndex = item.deliveryNumber;
+//       currentDelivery = {
+//         deliveryIndex: currentDeliveryIndex.toString(),
+//         active: item?.deliveryNumber === 1, // Set active to true only for the first index
+//         deliveryRules: [],
+//       };
+//       currentCycle.deliveries.push(currentDelivery);
+//     }
+
+//     currentDelivery.deliveryRules.push({
+//       ruleKey: currentDelivery.deliveryRules.length + 1,
+//       delivery: {},
+//       attributes: loopAndReturn(item.conditions),
+//       products: [...item.products],
+//     });
+//   });
+
+//   return reversedData;
+// }
+
 function reverseDeliveryRemap(data) {
   if (!data) return null;
   const reversedData = [];
   let currentCycleIndex = null;
-  let currentDeliveryIndex = null;
   let currentCycle = null;
-  let currentDelivery = null;
 
   data.forEach((item, index) => {
     if (currentCycleIndex !== item.cycleNumber) {
       currentCycleIndex = item.cycleNumber;
       currentCycle = {
         cycleIndex: currentCycleIndex.toString(),
-        active: index === 0, // Set active to true only for the first index
+        active: index === 0, // Initialize active to false
         deliveries: [],
       };
       reversedData.push(currentCycle);
     }
 
-    if (currentDeliveryIndex !== item.deliveryNumber) {
-      currentDeliveryIndex = item.deliveryNumber;
-      currentDelivery = {
-        deliveryIndex: currentDeliveryIndex.toString(),
-        active: item?.deliveryNumber === 1, // Set active to true only for the first index
+    const deliveryIndex = item.deliveryNumber.toString();
+
+    let delivery = currentCycle.deliveries.find((delivery) => delivery.deliveryIndex === deliveryIndex);
+
+    if (!delivery) {
+      delivery = {
+        deliveryIndex: deliveryIndex,
+        active: item.deliveryNumber === 1, // Set active to true only for the first delivery
         deliveryRules: [],
       };
-      currentCycle.deliveries.push(currentDelivery);
+      currentCycle.deliveries.push(delivery);
     }
 
-    currentDelivery.deliveryRules.push({
-      ruleKey: currentDelivery.deliveryRules.length + 1,
+    delivery.deliveryRules.push({
+      ruleKey: item.deliveryRuleNumber,
       delivery: {},
-      attributes: loopAndReturn(item.conditions),
+      attributes: item.conditions.map((condition) => ({
+        value: condition?.value ? condition?.value : "",
+        operator: condition?.operator
+          ? {
+              code: condition.operator,
+            }
+          : null,
+        attribute: condition?.attribute
+          ? {
+              code: condition.attribute,
+            }
+          : null,
+      })),
       products: [...item.products],
     });
   });
