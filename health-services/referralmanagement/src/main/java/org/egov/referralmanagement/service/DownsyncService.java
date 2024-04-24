@@ -1,6 +1,13 @@
 package org.egov.referralmanagement.service;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -37,13 +44,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -105,26 +106,27 @@ public class DownsyncService {
 			downsync.setDownsyncCriteria(downsyncCriteria);
 			boolean isSyncTimeAvalable = null != downsyncCriteria.getLastSyncedTime();
 			
+			Long startTime0 = System.currentTimeMillis(); 
 			Long startTime = System.currentTimeMillis(); 
 			log.info("The masterDataService start time : " + startTime);
 			
 			LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
 
-			log.info("The masterDataService call time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The masterDataService call time : " + (System.currentTimeMillis()-startTime)/1000);
 			
 			/* search household */
 			startTime = System.currentTimeMillis(); 
 			log.info("The Household start time : " + startTime);
 			households = searchHouseholds(downsyncRequest, downsync);
 			householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
-			log.info("The household call time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The household call time : " + (System.currentTimeMillis()-startTime)/1000);
 
 			startTime = System.currentTimeMillis(); 
 			log.info("The members start time : " + startTime);
 			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdClientRefIds))
 				/* search household member using household ids */
 				individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
-			log.info("The members call time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The members call time : " + (System.currentTimeMillis()-startTime)/1000);
 
 			startTime = System.currentTimeMillis(); 
 			log.info("The individualas start time : " + startTime);
@@ -133,7 +135,7 @@ public class DownsyncService {
 				/* search individuals using individual ids */
 				individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualClientRefIds);
 			}
-			log.info("The individual call time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The individual call time : " + (System.currentTimeMillis()-startTime)/1000);
 
 			startTime = System.currentTimeMillis(); 
 			log.info("The beneficiary start time : " + startTime);
@@ -141,7 +143,7 @@ public class DownsyncService {
 				/* search beneficiary using individual ids */
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
 			}
-			log.info("The beneficiary call time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The beneficiary call time : " + (System.currentTimeMillis()-startTime)/1000);
 
 			startTime = System.currentTimeMillis(); 
 			log.info("The house beneficiary start time : " + startTime);
@@ -154,7 +156,7 @@ public class DownsyncService {
 					beneficiaryClientRefIds.addAll(householdBeneficiaryClientRefIds);
 				}
 			}
-			log.info("The  house beneficiary time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The  house beneficiary time : " + (System.currentTimeMillis()-startTime)/1000);
 
 			startTime = System.currentTimeMillis(); 
 			log.info("The task ref start time : " + startTime);
@@ -166,7 +168,7 @@ public class DownsyncService {
 				/* ref search */
 				referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
 			}
-			log.info("The task ref call time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The task ref call time : " + (System.currentTimeMillis()-startTime)/1000);
 
 			startTime = System.currentTimeMillis(); 
 			log.info("The side effect start time : " + startTime);
@@ -174,7 +176,11 @@ public class DownsyncService {
 
 				searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
 			}
-			log.info("The side effect call time : " + (startTime-System.currentTimeMillis())/1000);
+			log.info("The side effect call time : " + (System.currentTimeMillis()-startTime)/1000);
+			
+			log.info("The total call time -- : " + (System.currentTimeMillis()-startTime0)/1000);
+			log.info("The end total call time -- : " + System.currentTimeMillis());
+			
 
 			return downsync;
 		}
