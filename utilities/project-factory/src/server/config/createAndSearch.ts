@@ -133,7 +133,7 @@ const createAndSearch: any = {
     },
     "boundary": {
         parseArrayConfig: {
-            sheetName: "Sheet1",
+            sheetName: "Boundary Data",
         }
     },
     "user": {
@@ -244,6 +244,14 @@ const createAndSearch: any = {
             },
             url: config.host.hrmsHost + config.paths.hrmsEmployeeSearch,
             searchPath: "Employees"
+        }
+    },
+    "boundaryWithTarget":{
+        parseArrayConfig: {
+            sheetName: "Boundary Data",
+        },
+        boundaryValidation: {
+            column: "Boundary Code"
         }
     }
 }
