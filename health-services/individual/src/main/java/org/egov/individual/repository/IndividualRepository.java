@@ -73,7 +73,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
         String individualQuery = String.format(
         		getQueryWithAlias("SELECT i.id as iid, userid, i.clientreferenceid as iclientreferenceid, i.tenantid as itenantid, givenname, familyname, othernames, dateofbirth, gender, bloodgroup, mobilenumber, altcontactnumber, email, fathername, husbandname, photo, additionaldetails,\n"
-        		+ "i.createdby as tenantid, i.lastmodifiedby as ilastmodifiedby, i.createdtime as icreatedtime, i.lastmodifiedtime as ilastmodifiedtime, rowversion, i.isdeleted as iisdeleted,\n"
+        		+ "i.createdby as icreatedby, i.lastmodifiedby as ilastmodifiedby, i.createdtime as icreatedtime, i.lastmodifiedtime as ilastmodifiedtime, rowversion, i.isdeleted as iisdeleted,\n"
         		+ "i.individualid as iindividualid, relationship,\n"
         		+ "issystemuser, username, password, i.type as itype, roles, useruuid, issystemuseractive, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby,\n"
         		+ "ia.individualid as iaindividualid, ia.addressid as iaaddressid,a.id as aid , a.tenantid as atenantid , a.doorno as adoorno, a.latitude as alatitude, a.longitude as alongitude, a.locationaccuracy as alocationaccuracy,\n"
