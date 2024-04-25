@@ -54,13 +54,16 @@ const App = ({ path }) => {
   useEffect(() => {
     if (window.location.pathname !== "/workbench-ui/employee/campaign/setup-campaign") {
       window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+      window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_UPLOAD_ID");
     }
     if (window.location.pathname === "/workbench-ui/employee/campaign/response") {
       window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+      window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_UPLOAD_ID");
     }
     return () => {
       if (window.location.pathname !== "/workbench-ui/employee/campaign/setup-campaign") {
         window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+        window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_UPLOAD_ID");
       }
     };
   }, []);
