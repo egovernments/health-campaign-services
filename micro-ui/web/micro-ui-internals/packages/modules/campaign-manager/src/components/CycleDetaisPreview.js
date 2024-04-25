@@ -45,8 +45,8 @@ const CycleDetaisPreview = ({ data, items, index }) => {
         label={`${t("CYCLE_NUMBER")}`}
         text={item?.cycleNumber}
         className="border-none"
-        rowContainerStyle={{ display: "flex" }}
-        labelStyle={{ fontWeight: "700" }}
+        rowContainerStyle={{ display: "flex", marginBottom: "1rem" }}
+        labelStyle={{ fontWeight: "700"}}
         textStyle={{ width: "60%" }}
       />
       <Row
@@ -54,7 +54,7 @@ const CycleDetaisPreview = ({ data, items, index }) => {
         label={`${t("DELIVERY_NUMBER")}`}
         text={item?.deliveryNumber}
         className="border-none"
-        rowContainerStyle={{ display: "flex" }}
+        rowContainerStyle={{ display: "flex", marginBottom: "1rem" }}
         labelStyle={{ fontWeight: "700" }}
         textStyle={{ width: "60%" }}
       />
@@ -80,7 +80,7 @@ const CycleDetaisPreview = ({ data, items, index }) => {
               text={Digit.Utils.date.convertEpochToDate(item?.startDate)}
               className="border-none"
               rowContainerStyle={{ display: "flex" }}
-              labelStyle={{ fontWeight: "700" }}
+              labelStyle={{ fontWeight: "500" }}
             />
           )}
           {item?.endDate && (
@@ -90,7 +90,7 @@ const CycleDetaisPreview = ({ data, items, index }) => {
               text={Digit.Utils.date.convertEpochToDate(item?.endDate)}
               className="border-none"
               rowContainerStyle={{ display: "flex" }}
-              labelStyle={{ fontWeight: "700" }}
+              labelStyle={{ fontWeight: "500" }}
             />
           )}
         </Card>

@@ -415,6 +415,7 @@ const SetupCampaign = () => {
           rule.products.forEach((prod) => {
             restructuredRule.products.push({
               value: prod?.value,
+              name: prod?.name,
               count: prod?.count,
             });
           });
@@ -516,6 +517,7 @@ const SetupCampaign = () => {
           };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+
             payloadData.deliveryRules = temp;
           }
 

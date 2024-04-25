@@ -30,6 +30,7 @@ const MyCampaign = () => {
 
   useEffect(() => {
     window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+    window.Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_UPLOAD_ID");
   }, []);
 
   return (
