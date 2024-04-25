@@ -149,11 +149,11 @@ public class IndividualResultSetExtractor implements ResultSetExtractor<List<Ind
         .street(resultSet.getString("astreet"))
         .locality(resultSet.getString("alocalityCode") != null ? Boundary.builder().code(resultSet.getString("alocalityCode")).build() : null)
         .ward(resultSet.getString("awardCode") != null ? Boundary.builder().code(resultSet.getString("awardCode")).build() : null)
-        .auditDetails(AuditDetails.builder().createdBy(resultSet.getString("acreatedBy"))
-                .lastModifiedBy(resultSet.getString("alastModifiedBy"))
-                .createdTime(resultSet.getLong("acreatedTime"))
-                .lastModifiedTime(resultSet.getLong("alastModifiedTime")).build())
-        .isDeleted(resultSet.getBoolean("aisDeleted"))
+        .auditDetails(AuditDetails.builder().createdBy(resultSet.getString("icreatedBy"))
+                .lastModifiedBy(resultSet.getString("ilastModifiedBy"))
+                .createdTime(resultSet.getLong("icreatedTime"))
+                .lastModifiedTime(resultSet.getLong("ilastModifiedTime")).build())
+        .isDeleted(resultSet.getBoolean("iisDeleted"))
                 .build();
     }
 
