@@ -30,7 +30,7 @@ const createAndSearch: any = {
                 },
                 "Capacity": {
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "maximum": 100000000,
                     "multipleOf": 1
                 }
@@ -161,12 +161,6 @@ const createAndSearch: any = {
                 "Employment Type (Mandatory)": {
                     "type": "string",
                     "enum": ["Temporary", "Permanent"]
-                },
-                "Capacity": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9223372036854775807,
-                    "multipleOf": 1
                 }
             },
             "required": [
@@ -221,6 +215,7 @@ const createAndSearch: any = {
                 resultantPath: "tenantId"
             }
         },
+        uniqueIdentifier: "uuid",
         createBulkDetails: {
             limit: 50,
             createPath: "Employees",

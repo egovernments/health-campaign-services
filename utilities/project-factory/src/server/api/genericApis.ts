@@ -5,7 +5,7 @@ import FormData from 'form-data'; // Import FormData for handling multipart/form
 import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
-import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse, validatedProjectResponseAndUpdateId } from "../utils/validators/genericValidator"; // Import validation functions
+import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse } from "../utils/validators/genericValidator"; // Import validation functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils'; // Import utility functions
 import { getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
@@ -468,62 +468,6 @@ async function getBoundarySheetData(request: any) {
         }
     }
 }
-
-/**
- * Asynchronously creates a project and updates its ID using the provided project body, boundary-project ID mapping, boundary code, and campaign details.
- * @param projectBody The body of the project.
- * @param boundaryProjectIdMapping Mapping of boundary codes to project IDs.
- * @param boundaryCode The boundary code.
- * @param campaignDetails Details of the campaign.
- */
-async function createProjectAndUpdateId(projectBody: any, boundaryProjectIdMapping: any, boundaryCode: any, campaignDetails: any) {
-    // Create a project and update its ID
-    const projectCreateUrl = `${config.host.projectHost}` + `${config.paths.projectCreate}`
-    logger.info("Project Creation url " + projectCreateUrl)
-    logger.info("Project Creation body " + JSON.stringify(projectBody))
-    const projectResponse = await httpRequest(projectCreateUrl, projectBody, undefined, "post", undefined, undefined);
-    logger.info("Project Creation response" + JSON.stringify(projectResponse))
-    validatedProjectResponseAndUpdateId(projectResponse, projectBody, campaignDetails);
-    boundaryProjectIdMapping[boundaryCode] = projectResponse?.Project[0]?.id
-    await new Promise(resolve => setTimeout(resolve, 3000));
-}
-
-/**
- * Asynchronously creates projects if they do not exist based on the provided request body.
- * @param requestBody The request body.
- */
-async function createProjectIfNotExists(requestBody: any) {
-    // Create projects if they do not exist
-    const { projectType, tenantId } = requestBody?.Campaign
-    sortCampaignDetails(requestBody?.Campaign?.CampaignDetails)
-    correctParentValues(requestBody?.Campaign?.CampaignDetails)
-    var boundaryProjectIdMapping: any = {};
-    for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
-        const projectBody: any = {
-            RequestInfo: requestBody.RequestInfo,
-            Projects: []
-        }
-        var { projectId, startDate, endDate, boundaryCode, boundaryType, parentBoundaryCode, description, department, referenceID, projectSubType, isTaskEnabled = true, documents = [], rowVersion = 0 } = campaignDetails;
-        const address = {
-            tenantId,
-            boundary: boundaryCode,
-            boundaryType
-        }
-        startDate = parseInt(startDate);
-        endDate = parseInt(endDate);
-        if (!projectId) {
-            projectBody.Projects.push({
-                tenantId, parent: boundaryProjectIdMapping[parentBoundaryCode] || null, address, description, department, referenceID, projectSubType, projectType, startDate, endDate, isTaskEnabled, documents, rowVersion
-            })
-            await createProjectAndUpdateId(projectBody, boundaryProjectIdMapping, boundaryCode, campaignDetails)
-        }
-    }
-}
-
-/**
- * Asynchronously creates staff based on the provided resource body.
- * @param resouceBody The resource body.
- */
 async function createStaff(resouceBody: any) {
     // Create staff
     const staffCreateUrl = `${config.host.projectHost}` + `${config.paths.staffCreate}`
@@ -622,6 +566,8 @@ async function createRelatedEntity(resources: any, tenantId: any, projectId: any
  * @param requestBody The request body.
  */
 async function createRelatedResouce(requestBody: any) {
+    sortCampaignDetails(requestBody?.Campaign?.CampaignDetails)
+    correctParentValues(requestBody?.Campaign?.CampaignDetails)
     // Create related resources
     const { tenantId } = requestBody?.Campaign
 
@@ -743,7 +689,6 @@ export {
     getCount,
     getBoundarySheetData,
     createAndUploadFile,
-    createProjectIfNotExists,
     createRelatedResouce,
     createExcelSheet,
     generateHierarchy,

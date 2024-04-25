@@ -269,7 +269,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
         }
     } catch (error: any) {
         console.error("Error occurred during hierarchy definition search:", error);
-        throwError(`COMMON`, 400, "INTERNAL_SERVER_ERROR", 'error occured during hierarchy definition search Check logs');
+        throwError(`COMMON`, 400, "INTERNAL_SERVER_ERROR", 'error occured during hierarchy definition search : ' + String(error));
     }
 }
 

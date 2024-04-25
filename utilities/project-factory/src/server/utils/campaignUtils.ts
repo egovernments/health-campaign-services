@@ -238,7 +238,8 @@ async function generateProcessedFileAndPersist(request: any) {
             ...request?.body?.ResourceDetails?.auditDetails,
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
-        }
+        },
+        additionalDetails: request?.body?.ResourceDetails?.additionalDetails || {}
     };
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info("ResourceDetails to persist : " + JSON.stringify(request?.body?.ResourceDetails));
@@ -274,7 +275,7 @@ function enrichRootProjectId(requestBody: any) {
 async function enrichAndPersistCampaignWithError(request: any, error: any) {
     const action = request?.body?.CampaignDetails?.action;
     request.body.CampaignDetails.campaignNumber = request?.body?.CampaignDetails?.campaignNumber || null
-    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
+    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
     request.body.CampaignDetails.status = "failed";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries) || null
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
@@ -309,7 +310,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     if (firstPersist) {
         request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
     }
-    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
+    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
