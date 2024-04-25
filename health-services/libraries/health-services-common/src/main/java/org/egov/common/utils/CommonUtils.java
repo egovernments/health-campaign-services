@@ -747,16 +747,31 @@ public class CommonUtils {
             if (idFieldValue != null) {
                 return "id";
             }
-            Field clientReferenceIdField = obj.getClass().getDeclaredField("clientReferenceId");
+            Field clientReferenceIdField = getParentClassField(obj.getClass(), "clientReferenceId");
             clientReferenceIdField.setAccessible(true);
             Object clientReferenceIdFieldValue = clientReferenceIdField.get(obj);
             if (clientReferenceIdFieldValue != null) {
                 return "clientReferenceId";
             }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException | NullPointerException e) {
             return defaultVal;
         }
         return defaultVal;
+    }
+
+    // Method to get the field from the parent class
+    public static Field getParentClassField(Class<?> clazz, String fieldName) {
+        Class<?> parentClass = clazz;
+        while (parentClass != null) {
+            try {
+                return parentClass.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                // Field not found in this class, proceed to the parent class
+                parentClass = parentClass.getSuperclass();
+            }
+        }
+        // Field not found in the class hierarchy
+        return null;
     }
 
     public static String getIdFieldName(Method method) {
