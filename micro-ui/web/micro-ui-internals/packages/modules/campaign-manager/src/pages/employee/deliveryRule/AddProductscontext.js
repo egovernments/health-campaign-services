@@ -2,9 +2,9 @@ import { AddIcon, Button, CardText, Dropdown, DustbinIcon, Label, LabelFieldPair
 import React, { Fragment, useEffect, useState } from "react";
 import PlusMinusInput from "../../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
-import { TextInput } from "@egovernments/digit-ui-components";
+import { TextInput, Toast } from "@egovernments/digit-ui-components";
 
-function AddProducts({ stref, selectedDelivery }) {
+function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
   const { t } = useTranslation();
   const [products, setProducts] = useState([
     {
@@ -224,6 +224,7 @@ function AddProducts({ stref, selectedDelivery }) {
           onButtonClick={add}
         />
       )}
+      {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
     </div>
   );
 }
