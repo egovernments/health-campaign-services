@@ -100,6 +100,32 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
     workbook.Sheets[sheetName] = desiredSheet;
 }
 
+function processErrorDataForTargets(request: any, createAndSearchConfig: any, workbook: any, sheetName: any) {
+    const desiredSheet: any = workbook.Sheets[sheetName];
+    const columns = findColumns(desiredSheet);
+    const statusColumn = columns.statusColumn;
+    const errorDetailsColumn = columns.errorDetailsColumn;
+
+    const errorData = request.body.sheetErrorDetails.filter((error: any) => error.sheetName === sheetName);
+    if (errorData) {
+        errorData.forEach((error: any) => {
+            const rowIndex = error.rowNumber;
+            if (error.isUniqueIdentifier) {
+                const uniqueIdentifierCell = createAndSearchConfig.uniqueIdentifierColumn + (rowIndex + 1);
+                desiredSheet[uniqueIdentifierCell] = { v: error.uniqueIdentifier, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: error.uniqueIdentifier, w: error.uniqueIdentifier };
+            }
+
+            const statusCell = statusColumn + (rowIndex + 1);
+            const errorDetailsCell = errorDetailsColumn + (rowIndex + 1);
+            desiredSheet[statusCell] = { v: error.status, t: 's', r: '<t xml:space="preserve">#status#</t>', h: error.status, w: error.status };
+            desiredSheet[errorDetailsCell] = { v: error.errorDetails, t: 's', r: '<t xml:space="preserve">#errorDetails#</t>', h: error.errorDetails, w: error.errorDetails };
+
+        });
+    }
+    desiredSheet['!ref'] = desiredSheet['!ref'].replace(/:[A-Z]+/, ':' + errorDetailsColumn);
+    workbook.Sheets[sheetName] = desiredSheet;
+}
+
 async function updateStatusFile(request: any) {
     const fileStoreId = request?.body?.ResourceDetails?.fileStoreId;
     const tenantId = request?.body?.ResourceDetails?.tenantId;
@@ -119,12 +145,50 @@ async function updateStatusFile(request: any) {
     const sheetName = createAndSearchConfig?.parseArrayConfig?.sheetName;
     const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
-
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
         throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
     processErrorData(request, createAndSearchConfig, workbook, sheetName);
+    const responseData = await createAndUploadFile(workbook, request);
+    logger.info('File updated successfully:' + JSON.stringify(responseData));
+    if (responseData?.[0]?.fileStoreId) {
+        request.body.ResourceDetails.processedFileStoreId = responseData?.[0]?.fileStoreId;
+    }
+    else {
+        throwError("FILE", 500, "STATUS_FILE_CREATION_ERROR");
+    }
+}
+async function updateStatusFileForTargets(request: any) {
+    const fileStoreId = request?.body?.ResourceDetails?.fileStoreId;
+    const tenantId = request?.body?.ResourceDetails?.tenantId;
+    const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
+    const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
+
+    if (!fileResponse?.fileStoreIds?.[0]?.url) {
+        throwError("FILE", 500, "INVALID_FILE");
+    }
+
+    const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/pdf',
+    };
+
+    const fileUrl = fileResponse?.fileStoreIds?.[0]?.url;
+    const sheetName = createAndSearchConfig?.parseArrayConfig?.sheetName;
+    const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
+    const workbook = XLSX.read(responseFile, { type: 'buffer' });
+    const sheetNames = workbook.SheetNames;
+    // Check if the specified sheet exists in the workbook
+    if (!workbook.Sheets.hasOwnProperty(sheetName)) {
+        throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+    }
+    sheetNames.forEach(sheetName => {
+        processErrorDataForTargets(request, createAndSearchConfig, workbook, sheetName);
+    });
+
+
+
 
     const responseData = await createAndUploadFile(workbook, request);
     logger.info('File updated successfully:' + JSON.stringify(responseData));
@@ -227,9 +291,15 @@ function updateActivityResourceId(request: any) {
 }
 
 async function generateProcessedFileAndPersist(request: any) {
-    if (request.body.ResourceDetails.type !== "boundary") {
-        await updateStatusFile(request);
+    if (request.body.ResourceDetails.type  == 'boundaryWithTarget') {
+        await updateStatusFileForTargets(request);
+    } else {
+        if (request.body.ResourceDetails.type !== "boundary") {
+            await updateStatusFile(request);
+        }
     }
+
+
     updateActivityResourceId(request);
     request.body.ResourceDetails = {
         ...request?.body?.ResourceDetails,
@@ -238,7 +308,8 @@ async function generateProcessedFileAndPersist(request: any) {
             ...request?.body?.ResourceDetails?.auditDetails,
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
-        }
+        },
+        additionalDetails: request?.body?.ResourceDetails?.additionalDetails || {}
     };
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info("ResourceDetails to persist : " + JSON.stringify(request?.body?.ResourceDetails));
@@ -274,7 +345,7 @@ function enrichRootProjectId(requestBody: any) {
 async function enrichAndPersistCampaignWithError(request: any, error: any) {
     const action = request?.body?.CampaignDetails?.action;
     request.body.CampaignDetails.campaignNumber = request?.body?.CampaignDetails?.campaignNumber || null
-    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
+    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
     request.body.CampaignDetails.status = "failed";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries) || null
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
@@ -309,7 +380,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     if (firstPersist) {
         request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
     }
-    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
+    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
@@ -339,7 +410,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     const action = request?.body?.CampaignDetails?.action;
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
-    request.body.CampaignDetails.campaignDetails = request?.body?.CampaignDetails?.deliveryRules ? { deliveryRules: request?.body?.CampaignDetails?.deliveryRules } : ExistingCampaignDetails?.campaignDetails;
+    request.body.CampaignDetails.campaignDetails = (request?.body?.CampaignDetails?.deliveryRules || request?.body?.CampaignDetails?.resources) ? { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] } : ExistingCampaignDetails?.campaignDetails;
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     const boundaryCode = !(request?.body?.CampaignDetails?.projectId) ? getRootBoundaryCode(request.body.CampaignDetails.boundaries) : (request?.body?.CampaignDetails?.boundaryCode || ExistingCampaignDetails?.boundaryCode)
     request.body.CampaignDetails.boundaryCode = boundaryCode
@@ -1013,8 +1084,9 @@ const autoGenerateBoundaryCodes = async (request: any) => {
         await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap);
         const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
         const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+        const headers = [...hierarchy, "Boundary Code"];
         const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);
-        const boundarySheetData = await createExcelSheet(data, hierarchy, config.sheetName);
+        const boundarySheetData = await createExcelSheet(data, headers, config.sheetName);
         const boundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
         request.body.ResourceDetails.processedFileStoreId = boundaryFileDetails?.[0]?.fileStoreId;
     }

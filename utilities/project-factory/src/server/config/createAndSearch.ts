@@ -30,7 +30,7 @@ const createAndSearch: any = {
                 },
                 "Capacity": {
                     "type": "integer",
-                    "minimum": 0,
+                    "minimum": 1,
                     "maximum": 100000000,
                     "multipleOf": 1
                 }
@@ -133,7 +133,7 @@ const createAndSearch: any = {
     },
     "boundary": {
         parseArrayConfig: {
-            sheetName: "Sheet1",
+            sheetName: "Boundary Data",
         }
     },
     "user": {
@@ -161,12 +161,6 @@ const createAndSearch: any = {
                 "Employment Type (Mandatory)": {
                     "type": "string",
                     "enum": ["Temporary", "Permanent"]
-                },
-                "Capacity": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9223372036854775807,
-                    "multipleOf": 1
                 }
             },
             "required": [
@@ -221,6 +215,7 @@ const createAndSearch: any = {
                 resultantPath: "tenantId"
             }
         },
+        uniqueIdentifier: "uuid",
         createBulkDetails: {
             limit: 50,
             createPath: "Employees",
@@ -249,6 +244,14 @@ const createAndSearch: any = {
             },
             url: config.host.hrmsHost + config.paths.hrmsEmployeeSearch,
             searchPath: "Employees"
+        }
+    },
+    "boundaryWithTarget":{
+        parseArrayConfig: {
+            sheetName: "Boundary Data",
+        },
+        boundaryValidation: {
+            column: "Boundary Code"
         }
     }
 }

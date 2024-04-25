@@ -259,17 +259,12 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
     }
     logger.info("Hierarchy Search Url : " + config.host.boundaryHost + config.paths.boundaryHierarchy);
     logger.info("SearchBody : " + JSON.stringify(searchBody))
-    try {
-        const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
-        if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
-            logger.info("Hierarchy Search Response : " + JSON.stringify(response?.BoundaryHierarchy))
-        }
-        else {
-            throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `hierarchyType ${hierarchyType} not found`);
-        }
-    } catch (error: any) {
-        console.error("Error occurred during hierarchy definition search:", error);
-        throwError(`COMMON`, 400, "INTERNAL_SERVER_ERROR", 'error occured during hierarchy definition search Check logs');
+    const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
+    if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
+        logger.info("Hierarchy Search Response : " + JSON.stringify(response?.BoundaryHierarchy))
+    }
+    else {
+        throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `hierarchyType ${hierarchyType} not found`);
     }
 }
 
