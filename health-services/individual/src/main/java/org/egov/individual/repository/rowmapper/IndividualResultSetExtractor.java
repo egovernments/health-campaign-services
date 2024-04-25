@@ -47,7 +47,7 @@ public class IndividualResultSetExtractor implements ResultSetExtractor<List<Ind
 			
 			if(null == currentInd) {
 				
-				Address address = getAdress(rs);
+				Address address = getAdress(rs, IndUUID);
 				
 				Individual individual = getIndividual(rs, IndUUID);
 				
@@ -128,11 +128,11 @@ public class IndividualResultSetExtractor implements ResultSetExtractor<List<Ind
     }
     }
 
-    private Address getAdress (ResultSet resultSet) throws SQLException {
+    private Address getAdress (ResultSet resultSet, String IndUUID) throws SQLException {
     	
     	return Address.builder()
         .id(resultSet.getString("aid"))
-        .individualId(resultSet.getString("aindividualId"))
+        .individualId(IndUUID)
         .clientReferenceId(resultSet.getString("aclientReferenceId"))
         .tenantId(resultSet.getString("atenantId"))
         .doorNo(resultSet.getString("adoorNo"))
