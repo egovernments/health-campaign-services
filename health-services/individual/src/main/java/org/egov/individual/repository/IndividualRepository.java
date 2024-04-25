@@ -84,7 +84,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         		+ "\n"
         		+ "FROM individual i INNER JOIN INDIVIDUAL_ADDRESS ia ON i.id=ia.INDIVIDUALID INNER JOIN ADDRESS a ON a.ID=ia.ADDRESSID \n"
         		+ "INNER JOIN individual_identifier ii ON ii.individualid=i.id WHERE %s IN (:ids)",
-                includeDeleted), idColumn);
+                includeDeleted), "i."+idColumn);
         
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
