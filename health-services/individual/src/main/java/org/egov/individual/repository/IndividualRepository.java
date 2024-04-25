@@ -65,13 +65,26 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
         }
 
-        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
+        String individualQuery = String.format(getQuery("SELECT i.id as iid, userid, i.clientreferenceid as iclientreferenceid, i.tenantid as itenantid, givenname, familyname, othernames, dateofbirth, gender, bloodgroup, mobilenumber, altcontactnumber, email, fathername, husbandname, photo, additionaldetails,\n"
+        		+ "i.createdby as tenantid, i.lastmodifiedby as ilastmodifiedby, i.createdtime as icreatedtime, i.lastmodifiedtime as ilastmodifiedtime, rowversion, i.isdeleted as iisdeleted,\n"
+        		+ "i.individualid as iindividualid, relationship,\n"
+        		+ "issystemuser, username, password, i.type as itype, roles, useruuid, issystemuseractive, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby,\n"
+        		+ "ia.individualid as iaindividualid, ia.addressid as iaaddressid,a.id as aid , a.tenantid as atenantid , a.doorno as adoorno, a.latitude as alatitude, a.longitude as alongitude, a.locationaccuracy as alocationaccuracy,\n"
+        		+ "a.type as atype, a.addressline1 as aaddressline1 , a.addressline2 as aaddressline2, a.landmark as alandmark , a.city as acity , a.pincode as apincode,\n"
+        		+ "a.buildingname as abuildingname, a.street as astreet, a.localitycode as alocalitycode, a.clientreferenceid as aclientreferenceid, a.wardcode as awardcode,\n"
+        		+ "ii.individualid as iiindividualid, ii.identifiertype as iiidentifiertype, ii.identifierid as iiidentifierid, ii.createdby as iicreatedby,\n"
+        		+ "ii.lastmodifiedby as iilastmodifiedby, ii.createdtime as iicreatedtime, ii.lastmodifiedtime as iilastmodifiedtime,\n"
+        		+ "ii.isdeleted as iiisdeleted, ii.id as iiid, ii.clientreferenceid as iiclientreferenceid\n"
+        		+ "\n"
+        		+ "FROM individual i INNER JOIN INDIVIDUAL_ADDRESS ia ON i.id=ia.INDIVIDUALID INNER JOIN ADDRESS a ON a.ID=ia.ADDRESSID \n"
+        		+ "INNER JOIN individual_identifier ii ON ii.individualid=i.id WHERE %s IN (:ids)",
                 includeDeleted), idColumn);
+        
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
         List<Individual> individuals = this.namedParameterJdbcTemplate
                 .query(individualQuery, paramMap, this.rowMapper);
-        enrichIndividuals(individuals, includeDeleted);
+        // enrichIndividuals(individuals, includeDeleted);
         objFound.addAll(individuals);
         putInCache(objFound);
         return objFound;
