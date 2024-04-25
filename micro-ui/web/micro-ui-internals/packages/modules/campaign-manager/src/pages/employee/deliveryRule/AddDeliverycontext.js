@@ -41,9 +41,11 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
 
   const selectValue = (e) => {
     let val = e.target.value;
-    if (val.startsWith("-")) {
-      val = val.slice(1); // Remove the negative sign
-    }
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
+    // if (val.startsWith("-")) {
+    //   val = val.slice(1); // Remove the negative sign
+    // }
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
       return;
@@ -71,9 +73,11 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
 
   const selectToFromValue = (e, range) => {
     let val = e.target.value;
-    if (val.startsWith("-")) {
-      val = val.slice(1); // Remove the negative sign
-    }
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
+    // if (val.startsWith("-")) {
+    //   val = val.slice(1); // Remove the negative sign
+    // }
 
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
@@ -166,7 +170,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
       </LabelFieldPair>
 
       {attribute?.operator?.code === "IN_BETWEEN" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <div style={{ marginBottom: "24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
           <LabelFieldPair>
             <CardLabel className="card-label-smaller">{t(`CAMPAIGN_FROM_LABEL`)}</CardLabel>
             <div className="field" style={{ display: "flex", width: "100%" }}>
@@ -199,7 +203,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
       ) : (
         <LabelFieldPair>
           <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
-          <div className="field" style={{ display: "flex", width: "100%" }}>
+          <div className="field" style={{ display: "flex", width: "100%", marginBottom: attribute?.attribute?.code === "Gender" ? null : "24px" }}>
             {attribute?.attribute?.code === "Gender" ? (
               <Dropdown
                 className="form-field"
@@ -273,9 +277,11 @@ const AddCustomAttributeField = ({
 
   const selectValue = (e) => {
     let val = e.target.value;
-    if (val.startsWith("-")) {
-      val = val.slice(1); // Remove the negative sign
-    }
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
+    // if (val.startsWith("-")) {
+    //   val = val.slice(1); // Remove the negative sign
+    // }
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
     }
@@ -303,9 +309,11 @@ const AddCustomAttributeField = ({
 
   const selectToFromValue = (e, range) => {
     let val = e.target.value;
-    if (val.startsWith("-")) {
-      val = val.slice(1); // Remove the negative sign
-    }
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
+    // if (val.startsWith("-")) {
+    //   val = val.slice(1); // Remove the negative sign
+    // }
     if (isNaN(val) || [" ", "e", "E"].some((f) => val.includes(f))) {
       val = val.slice(0, -1);
       return;
@@ -335,7 +343,9 @@ const AddCustomAttributeField = ({
         <CardLabel isMandatory={true} className="card-label-smaller">
           {t(`CAMPAIGN_ATTRIBUTE_LABEL`)}
         </CardLabel>
-        <TextInput type="text" textInputStyle={{ width: "100%" }} value={config?.attrValue} disabled={true} />
+        <div className="field" style={{ display: "flex", width: "100%", marginBottom: "24px" }}>
+          <TextInput type="text" textInputStyle={{ width: "100%" }} value={config?.attrValue} disabled={true} />
+        </div>
         {/* <Dropdown
           className="form-field"
           selected={attribute?.attribute}
@@ -363,7 +373,7 @@ const AddCustomAttributeField = ({
         />
       </LabelFieldPair>
       {attribute?.operator?.code === "IN_BETWEEN" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "24px" }}>
           <LabelFieldPair>
             <CardLabel className="card-label-smaller">{t(`CAMPAIGN_FROM_LABEL`)}</CardLabel>
             <div className="field" style={{ display: "flex", width: "100%" }}>
@@ -396,7 +406,7 @@ const AddCustomAttributeField = ({
       ) : (
         <LabelFieldPair>
           <CardLabel className="card-label-smaller">{t(`CAMPAIGN_VALUE_LABEL`)}</CardLabel>
-          <div className="field" style={{ display: "flex", width: "100%" }}>
+          <div className="field" style={{ display: "flex", width: "100%", marginBottom: "24px" }}>
             {attribute?.attribute?.code === "Gender" ? (
               <Dropdown
                 className="form-field"
