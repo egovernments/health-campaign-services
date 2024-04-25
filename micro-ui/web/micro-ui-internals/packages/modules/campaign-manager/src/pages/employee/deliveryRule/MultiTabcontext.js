@@ -205,7 +205,15 @@ const MultiTab = ({ tabCount = 3, subTabCount = 2 }) => {
 
   return (
     <>
-      <Header>{t(`CAMPAIGN_PROJECT_${tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code?.toUpperCase()}`)}</Header>
+      <Header>
+        {t(
+          `CAMPAIGN_PROJECT_${
+            tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code
+              ? tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code?.toUpperCase()
+              : tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.toUpperCase()
+          }`
+        )}
+      </Header>
       <Paragraph
         customClassName="cycle-paragraph"
         value={`(${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate

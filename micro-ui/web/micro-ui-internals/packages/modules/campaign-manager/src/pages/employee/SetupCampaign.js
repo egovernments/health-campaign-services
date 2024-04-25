@@ -53,7 +53,9 @@ function loopAndReturn(dataa) {
       // }
     }
   });
-  return newArray;
+
+  const withKey = newArray.map((i, c) => ({ key: c + 1, ...i }));
+  return withKey;
 }
 
 function cycleDataRemap(data) {
@@ -73,39 +75,92 @@ function cycleDataRemap(data) {
   });
 }
 
+// function reverseDeliveryRemap(data) {
+//   if (!data) return null;
+//   const reversedData = [];
+//   let currentCycleIndex = null;
+//   let currentDeliveryIndex = null;
+//   let currentCycle = null;
+//   let currentDelivery = null;
+
+//   data.forEach((item, index) => {
+//     if (currentCycleIndex !== item.cycleNumber) {
+//       currentCycleIndex = item.cycleNumber;
+//       currentCycle = {
+//         cycleIndex: currentCycleIndex.toString(),
+//         active: index === 0, // Set active to true only for the first index
+//         deliveries: [],
+//       };
+//       reversedData.push(currentCycle);
+//     }
+
+//     if (currentDeliveryIndex !== item.deliveryNumber) {
+//       currentDeliveryIndex = item.deliveryNumber;
+//       currentDelivery = {
+//         deliveryIndex: currentDeliveryIndex.toString(),
+//         active: item?.deliveryNumber === 1, // Set active to true only for the first index
+//         deliveryRules: [],
+//       };
+//       currentCycle.deliveries.push(currentDelivery);
+//     }
+
+//     currentDelivery.deliveryRules.push({
+//       ruleKey: currentDelivery.deliveryRules.length + 1,
+//       delivery: {},
+//       attributes: loopAndReturn(item.conditions),
+//       products: [...item.products],
+//     });
+//   });
+
+//   return reversedData;
+// }
+
 function reverseDeliveryRemap(data) {
   if (!data) return null;
   const reversedData = [];
   let currentCycleIndex = null;
-  let currentDeliveryIndex = null;
   let currentCycle = null;
-  let currentDelivery = null;
 
   data.forEach((item, index) => {
     if (currentCycleIndex !== item.cycleNumber) {
       currentCycleIndex = item.cycleNumber;
       currentCycle = {
         cycleIndex: currentCycleIndex.toString(),
-        active: index === 0, // Set active to true only for the first index
+        active: index === 0, // Initialize active to false
         deliveries: [],
       };
       reversedData.push(currentCycle);
     }
 
-    if (currentDeliveryIndex !== item.deliveryNumber) {
-      currentDeliveryIndex = item.deliveryNumber;
-      currentDelivery = {
-        deliveryIndex: currentDeliveryIndex.toString(),
-        active: item?.deliveryNumber === 1, // Set active to true only for the first index
+    const deliveryIndex = item.deliveryNumber.toString();
+
+    let delivery = currentCycle.deliveries.find((delivery) => delivery.deliveryIndex === deliveryIndex);
+
+    if (!delivery) {
+      delivery = {
+        deliveryIndex: deliveryIndex,
+        active: item.deliveryNumber === 1, // Set active to true only for the first delivery
         deliveryRules: [],
       };
-      currentCycle.deliveries.push(currentDelivery);
+      currentCycle.deliveries.push(delivery);
     }
 
-    currentDelivery.deliveryRules.push({
-      ruleKey: currentDelivery.deliveryRules.length + 1,
+    delivery.deliveryRules.push({
+      ruleKey: item.deliveryRuleNumber,
       delivery: {},
-      attributes: loopAndReturn(item.conditions),
+      attributes: item.conditions.map((condition) => ({
+        value: condition?.value ? condition?.value : "",
+        operator: condition?.operator
+          ? {
+              code: condition.operator,
+            }
+          : null,
+        attribute: condition?.attribute
+          ? {
+              code: condition.attribute,
+            }
+          : null,
+      })),
       products: [...item.products],
     });
   });
@@ -174,6 +229,7 @@ const SetupCampaign = () => {
   const id = searchParams.get("id");
   const isPreview = searchParams.get("preview");
   const isDraft = searchParams.get("draft");
+  const isSkip = searchParams.get("skip");
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
@@ -206,7 +262,11 @@ const SetupCampaign = () => {
     }
     if (isDraft === "true") {
       setIsDraftCreated(true);
-      currentKey !== 1 ? null : setCurrentKey(1);
+      if (isSkip === "false") {
+        currentKey !== 1 ? null : setCurrentKey(1);
+      } else {
+        setCurrentKey(draftData?.additionalDetails?.key);
+      }
       return;
     }
   }, [isPreview, isDraft, draftData]);
@@ -335,19 +395,19 @@ const SetupCampaign = () => {
               restructuredRule.conditions.push({
                 attribute: attribute.attribute.code,
                 operator: "LESS_THAN",
-                value: parseInt(attribute.fromValue),
+                value: Number(attribute.fromValue),
               });
               attribute;
               restructuredRule.conditions.push({
                 attribute: attribute.attribute.code,
                 operator: "GREATER_THAN",
-                value: parseInt(attribute.toValue),
+                value: Number(attribute.toValue),
               });
             } else {
               restructuredRule.conditions.push({
                 attribute: attribute.attribute ? attribute.attribute.code : null,
                 operator: attribute.operator ? attribute.operator.code : null,
-                value: attribute?.attribute?.code === "Gender" ? attribute?.value : parseInt(attribute?.value),
+                value: attribute?.attribute?.code === "Gender" ? attribute?.value : Number(attribute?.value),
               });
             }
           });
@@ -435,7 +495,7 @@ const SetupCampaign = () => {
         };
 
         reqCreate();
-      } else if (!isDraftCreated) {
+      } else if (!isDraftCreated && !id) {
         const reqCreate = async () => {
           let payloadData = {};
           payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
@@ -597,12 +657,14 @@ const SetupCampaign = () => {
               attribute?.operator?.code === "IN_BETWEEN" &&
               attribute?.fromValue !== "" &&
               attribute?.toValue !== "" &&
-              parseInt(attribute?.toValue) >= parseInt(attribute?.fromValue)
+              Number(attribute?.toValue) >= Number(attribute?.fromValue)
             ) {
               // return `Error: Attribute "${attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute}" has invalid range (${
               //   attribute.toValue
               // } to ${attribute.fromValue})`;
               return "CAMPAIGN_IN_BETWEEN_ERROR";
+            } else if (attribute?.value === 0 || attribute?.value === "0") {
+              return "CAMPAIGN_VALUE_ZERO_ERROR";
             }
           }
         }
@@ -710,6 +772,9 @@ const SetupCampaign = () => {
 
     if (!filteredConfig?.[0]?.form?.[0]?.isLast && !filteredConfig[0].form[0].body[0].mandatoryOnAPI) {
       setCurrentKey(currentKey + 1);
+    }
+    if (isDraft === "true" && isSkip !== "false") {
+      updateUrlParams({ skip: "false" });
     }
   };
 

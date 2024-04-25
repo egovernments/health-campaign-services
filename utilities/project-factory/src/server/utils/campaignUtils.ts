@@ -147,7 +147,7 @@ async function updateStatusFile(request: any) {
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
     processErrorData(request, createAndSearchConfig, workbook, sheetName);
     const responseData = await createAndUploadFile(workbook, request);
@@ -303,12 +303,13 @@ async function generateProcessedFileAndPersist(request: any) {
     updateActivityResourceId(request);
     request.body.ResourceDetails = {
         ...request?.body?.ResourceDetails,
-        status: "completed",
+        status: request.body.ResourceDetails.status != "invalid" ? "completed" : "invalid",
         auditDetails: {
             ...request?.body?.ResourceDetails?.auditDetails,
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
-        }
+        },
+        additionalDetails: request?.body?.ResourceDetails?.additionalDetails || {}
     };
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info("ResourceDetails to persist : " + JSON.stringify(request?.body?.ResourceDetails));
@@ -344,7 +345,7 @@ function enrichRootProjectId(requestBody: any) {
 async function enrichAndPersistCampaignWithError(request: any, error: any) {
     const action = request?.body?.CampaignDetails?.action;
     request.body.CampaignDetails.campaignNumber = request?.body?.CampaignDetails?.campaignNumber || null
-    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
+    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
     request.body.CampaignDetails.status = "failed";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries) || null
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
@@ -379,7 +380,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     if (firstPersist) {
         request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
     }
-    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules };
+    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
