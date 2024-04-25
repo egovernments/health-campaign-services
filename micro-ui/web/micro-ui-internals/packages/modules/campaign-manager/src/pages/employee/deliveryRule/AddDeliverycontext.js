@@ -41,8 +41,8 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
 
   const selectValue = (e) => {
     let val = e.target.value;
-    val = val.replace(/[^\d.]/g, "")
-    val = val.match(/^\d*\.?\d{0,2}/)[0] || '';
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
     // if (val.startsWith("-")) {
     //   val = val.slice(1); // Remove the negative sign
     // }
@@ -73,8 +73,8 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
 
   const selectToFromValue = (e, range) => {
     let val = e.target.value;
-    val = val.replace(/[^\d.]/g, "")
-    val = val.match(/^\d*\.?\d{0,2}/)[0] || '';
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
     // if (val.startsWith("-")) {
     //   val = val.slice(1); // Remove the negative sign
     // }
@@ -277,8 +277,8 @@ const AddCustomAttributeField = ({
 
   const selectValue = (e) => {
     let val = e.target.value;
-    val = val.replace(/[^\d.]/g, "")
-    val = val.match(/^\d*\.?\d{0,2}/)[0] || '';
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
     // if (val.startsWith("-")) {
     //   val = val.slice(1); // Remove the negative sign
     // }
@@ -309,8 +309,8 @@ const AddCustomAttributeField = ({
 
   const selectToFromValue = (e, range) => {
     let val = e.target.value;
-    val = val.replace(/[^\d.]/g, "")
-    val = val.match(/^\d*\.?\d{0,2}/)[0] || '';
+    val = val.replace(/[^\d.]/g, "");
+    val = val.match(/^\d*\.?\d{0,2}/)[0] || "";
     // if (val.startsWith("-")) {
     //   val = val.slice(1); // Remove the negative sign
     // }
