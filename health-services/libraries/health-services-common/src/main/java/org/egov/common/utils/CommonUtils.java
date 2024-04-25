@@ -755,7 +755,7 @@ public class CommonUtils {
             if (clientReferenceIdFieldValue != null) {
                 return "clientReferenceId";
             }
-        } catch (NoSuchFieldException | IllegalAccessException | NullPointerException e) {
+        } catch (IllegalAccessException | NullPointerException e) {
             return defaultVal;
         }
         return defaultVal;
