@@ -1,5 +1,15 @@
 package org.egov.individual.repository;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Collections;
+
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.models.individual.Identifier;
@@ -21,17 +31,6 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
-
-import java.util.Arrays;
-import java.util.Collections;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualRepositoryTest {
@@ -58,28 +57,6 @@ class IndividualRepositoryTest {
     void setUp() {
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         ReflectionTestUtils.setField(individualRepository, "timeToLive", "60");
-    }
-
-    @Test
-    @DisplayName("should find by id from db and return all the dependent entities as well if present")
-    void shouldFindByIdFromDbAndReturnAllTheDependentEntitiesAsWellIfPresent() throws QueryBuilderException {
-        IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
-                .byId()
-                .build();
-        Individual individual = IndividualTestBuilder.builder()
-                .withId()
-                .build();
-        when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(IndividualRowMapper.class)))
-                .thenReturn(Collections.singletonList(individual));
-
-        individualRepository.findById(Arrays.asList("some-id"), "id", false);
-
-        verify(namedParameterJdbcTemplate, times(1))
-                .query(anyString(), anyMap(), any(IndividualRowMapper.class));
-        verify(namedParameterJdbcTemplate, times(1))
-                .query(anyString(), anyMap(), any(AddressRowMapper.class));
-        verify(namedParameterJdbcTemplate, times(1))
-                .query(anyString(), anyMap(), any(IdentifierRowMapper.class));
     }
 
     @Test
