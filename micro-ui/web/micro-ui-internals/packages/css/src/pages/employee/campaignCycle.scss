@@ -35,9 +35,9 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     grid-gap: 2rem;
-    .options-card{
+    .options-card {
       max-height: 10rem;
-    } 
+    }
   }
   .popup-wrap {
     .popup-module-main {
@@ -251,8 +251,11 @@
     .employee-select-wrap.form-field {
       width: 100%;
     }
+    .digit-employee-card-input {
+      margin-bottom: 0;
+    }
   }
-  .options-card{
+  .options-card {
     max-height: 10rem;
   }
 }
