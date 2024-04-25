@@ -1,26 +1,6 @@
 package org.egov.individual.repository;
 
-import lombok.extern.slf4j.Slf4j;
-import org.egov.common.data.query.builder.GenericQueryBuilder;
-import org.egov.common.data.query.builder.QueryFieldChecker;
-import org.egov.common.data.query.builder.SelectQueryBuilder;
-import org.egov.common.data.repository.GenericRepository;
-import org.egov.common.models.individual.Address;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.Skill;
-import org.egov.common.producer.Producer;
-import org.egov.individual.repository.rowmapper.AddressRowMapper;
-import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
-import org.egov.individual.repository.rowmapper.IndividualRowMapper;
-import org.egov.individual.repository.rowmapper.SkillRowMapper;
-import org.egov.individual.web.models.IndividualSearch;
-import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Repository;
-import org.springframework.util.ReflectionUtils;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -32,11 +12,37 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdMethod;
+import org.egov.common.data.query.builder.GenericQueryBuilder;
+import org.egov.common.data.query.builder.QueryFieldChecker;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.individual.Address;
+import org.egov.common.models.individual.Identifier;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.Skill;
+import org.egov.common.producer.Producer;
+import org.egov.individual.repository.rowmapper.AddressRowMapper;
+import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
+import org.egov.individual.repository.rowmapper.IndividualResultSetExtractor;
+import org.egov.individual.repository.rowmapper.IndividualRowMapper;
+import org.egov.individual.repository.rowmapper.SkillRowMapper;
+import org.egov.individual.web.models.IndividualSearch;
+import org.egov.tracer.model.CustomException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+import org.springframework.util.ReflectionUtils;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Repository
 @Slf4j
 public class IndividualRepository extends GenericRepository<Individual> {
+	
+	@Autowired
+	private IndividualResultSetExtractor individualResultSetExtractor;
 
     protected IndividualRepository(@Qualifier("individualProducer")  Producer producer,
                                    NamedParameterJdbcTemplate namedParameterJdbcTemplate,
@@ -83,7 +89,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
         List<Individual> individuals = this.namedParameterJdbcTemplate
-                .query(individualQuery, paramMap, this.rowMapper);
+                .query(individualQuery, paramMap, individualResultSetExtractor);
         // enrichIndividuals(individuals, includeDeleted);
         objFound.addAll(individuals);
         putInCache(objFound);
