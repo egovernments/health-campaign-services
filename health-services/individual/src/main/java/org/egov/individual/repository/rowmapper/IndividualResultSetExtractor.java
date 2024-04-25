@@ -2,7 +2,8 @@ package org.egov.individual.repository.rowmapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,7 +39,7 @@ public class IndividualResultSetExtractor implements ResultSetExtractor<List<Ind
     @Override
 	public List<Individual> extractData(ResultSet rs) throws SQLException, DataAccessException {
 
-		Map<String, Individual> individualIdMap = new HashMap<>();
+		Map<String, Individual> individualIdMap = new LinkedHashMap<>();
 		
 		while(rs.next()) {
 			
@@ -58,9 +59,9 @@ public class IndividualResultSetExtractor implements ResultSetExtractor<List<Ind
 				individual.setIdentifiers(Stream.of(identifier).collect(Collectors.toList()));
 				
 			}
-			
+			individualIdMap.put(IndUUID, currentInd);
 		}
-		return null;
+		return new ArrayList<>(individualIdMap.values());
 	}
 
 
