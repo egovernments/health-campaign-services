@@ -223,6 +223,19 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
 }
 
 
+function enrichUids(request: any) {
+  const sheetErrorDetails = request.body.sheetErrorDetails;
+  if (!request?.body?.ResourceDetails?.additionalDetails) {
+    request.body.ResourceDetails.additionalDetails = {};
+  }
+  request.body.ResourceDetails.additionalDetails = { ...request?.body?.ResourceDetails?.additionalDetails, createdUids: [] };
+  sheetErrorDetails.forEach((detail: any) => {
+    if (detail.status === 'CREATED' && detail.uniqueIdentifier) {
+      request.body.ResourceDetails.additionalDetails.createdUids.push(detail.uniqueIdentifier);
+    }
+  });
+}
+
 
 function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any, activities: any) {
   const newCreatedData = JSON.parse(JSON.stringify(createdData));
@@ -240,6 +253,7 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   }
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
   request.body.Activities = activities
+  enrichUids(request)
 }
 
 function matchUserValidation(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any) {

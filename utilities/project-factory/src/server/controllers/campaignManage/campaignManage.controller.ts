@@ -11,7 +11,7 @@ import {
 import { validateCampaignRequest } from "../../utils/validators/genericValidator";
 import { enrichCampaign } from "../../api/campaignApis";
 import { validateProjectCampaignRequest, validateSearchProjectCampaignRequest } from "../../utils/validators/campaignValidators";
-import { createProjectIfNotExists, createRelatedResouce } from "../../api/genericApis";
+import { createRelatedResouce } from "../../api/genericApis";
 
 
 
@@ -121,9 +121,6 @@ class campaignManageController {
         try {
             // Validate the request for creating a campaign
             await validateCampaignRequest(request.body)
-
-            // Create project if it doesn't exist
-            await createProjectIfNotExists(request.body)
 
             // Create related resource
             await createRelatedResouce(request.body)
