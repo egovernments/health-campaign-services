@@ -133,7 +133,7 @@ const createAndSearch: any = {
     },
     "boundary": {
         parseArrayConfig: {
-            sheetName: "Sheet1",
+            sheetName: "Boundary Data",
         }
     },
     "user": {
@@ -229,6 +229,14 @@ const createAndSearch: any = {
                 getValueViaPath: "ResourceDetails.tenantId",
                 resultantPath: "tenantId"
             }
+        }
+    },
+    "boundaryWithTarget":{
+        parseArrayConfig: {
+            sheetName: "Boundary Data",
+        },
+        boundaryValidation: {
+            column: "Boundary Code"
         }
     }
 }

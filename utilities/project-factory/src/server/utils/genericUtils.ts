@@ -4,7 +4,7 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from '../Kafka/Listener'
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
-import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet } from "../api/genericApis";
+import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
 import { Pool } from 'pg';
@@ -740,10 +740,14 @@ function modifyBoundaryData(boundaryData: unknown[]) {
   return [withBoundaryCode, withoutBoundaryCode];
 }
 
-async function getDataFromSheet(fileStoreId: any, tenantId: any, createAndSearchConfig: any) {
+async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any) {
+  const type = request?.body?.ResourceDetails?.type;
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
+  }
+  if (type == 'boundaryWithTarget') {
+    return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true , true);
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true, createAndSearchConfig)
 }
@@ -792,6 +796,23 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   return await createExcelSheet(data, headers, config.sheetName);
 }
 
+function modifyTargetData(data: any) {
+  const dataArray: any[] = [];
+  Object.keys(data).forEach(key => {
+    data[key].forEach((item: any) => {
+      dataArray.push(item);
+    });
+  });
+  return dataArray;
+}
+
+function calculateKeyIndex(obj: any, hierachy: any[]) {
+  const keys = Object.keys(obj);
+  const boundaryCodeIndex = keys.indexOf('Boundary Code');
+  const keyBeforeBoundaryCode = keys[boundaryCodeIndex - 1];
+  return hierachy.indexOf(keyBeforeBoundaryCode);
+}
+
 
 
 export {
@@ -826,7 +847,9 @@ export {
   enrichResourceDetails,
   modifyBoundaryData,
   getBoundaryRelationshipData,
-  getDataSheetReady
+  getDataSheetReady,
+  modifyTargetData,
+  calculateKeyIndex
 };
 
 

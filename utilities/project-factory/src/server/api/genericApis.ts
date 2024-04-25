@@ -33,6 +33,25 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
     return workbook;
 }
 
+//Function to get Workbook with different tabs (for type target)
+const getTargetWorkbook = async (fileUrl: string) => {
+    // Define headers for HTTP request
+    const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'application/pdf',
+    };
+
+    // Make HTTP request to retrieve Excel file as arraybuffer
+    const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
+
+    // Read Excel file into workbook
+    const workbook = XLSX.read(responseFile, { type: 'buffer' });
+
+    // Return the workbook
+    return workbook;
+}
+
+
 // Function to retrieve data from a specific sheet in an Excel file
 const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any) => {
     // Retrieve workbook using the getWorkbook function
@@ -76,6 +95,33 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
     // Return JSON data
     return jsonData;
 };
+
+const getTargetSheetData = async (fileUrl: string, getRow = false, getSheetName = false) => {
+    const workbook: any = await getTargetWorkbook(fileUrl);
+    const sheetNames = workbook.SheetNames;
+
+    const workbookData: { [key: string]: any[] } = {}; // Object to store data from each sheet
+
+    for (const sheetName of sheetNames) {
+        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        const jsonData = sheetData.map((row: any, index: number) => {
+            const rowData: any = {};
+            Object.keys(row).forEach(key => {
+                rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
+            });
+            if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
+            if (getSheetName) rowData['!sheet#name!'] = sheetName;
+            return rowData;
+        });
+
+        workbookData[sheetName] = jsonData; // Store sheet data in the object
+        logger.info(`Sheet Data (${sheetName}): ${JSON.stringify(jsonData)}`);
+    }
+
+    // Return data from all sheets
+    return workbookData;
+};
+
 
 // Function to search MDMS for specific unique identifiers
 const searchMDMS: any = async (uniqueIdentifiers: any[], schemaCode: string, requestinfo: any, response: any) => {
@@ -708,7 +754,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
             }
             flag = 0;
             requestBody.BoundaryRelationship = boundary;
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
             const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary-relationships/_create`, requestBody, {}, 'POST', undefined, undefined, true);
             console.log('Boundary relationship created:', response);
             const newRequestBody = JSON.parse(JSON.stringify(request.body));
@@ -745,5 +791,7 @@ export {
     createRelatedResouce,
     createExcelSheet,
     generateHierarchy,
-    generateHierarchyList
+    generateHierarchyList,
+    getTargetWorkbook,
+    getTargetSheetData
 }
