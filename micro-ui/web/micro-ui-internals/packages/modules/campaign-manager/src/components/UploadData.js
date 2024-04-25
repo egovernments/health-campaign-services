@@ -74,21 +74,27 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
     data.forEach((item, index) => {
       if (!validate(item)) {
-        errors.push({ index, errors: validate.errors });
+        errors.push({ index: item?.["!row#number!"] + 1, errors: validate.errors });
       }
     });
 
     if (errors.length > 0) {
       const errorMessage = errors
         .map(({ index, errors }) => {
-          const formattedErrors = errors.map((error) => `${error.instancePath}: ${error.message}`).join(", ");
-          return `Data at index ${index}: ${formattedErrors}`;
+          const formattedErrors = errors.map((error) => {
+            let formattedError = `${error.instancePath}: ${error.message}`;
+            if (error.keyword === 'enum' && error.params && error.params.allowedValues) {
+                formattedError += `. Allowed values are: ${error.params.allowedValues.join('/ ')}`;
+            }
+            return formattedError;
+        }).join(', ');
+        return `Data at row ${index}: ${formattedErrors}`;
         })
         .join(" , ");
 
       setErrorsType((prevErrors) => ({
         ...prevErrors,
-        [type]: errorMessage
+        [type]: errorMessage,
       }));
       return false;
     } else {
@@ -117,16 +123,21 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: "array" });
 
-          // Assuming your columns are in the first sheet
-          const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-
-          const jsonData = sheetData.map((row, index) => {
+          const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { blankrows: true });
+          var jsonData = sheetData.map((row, index) => {
             const rowData = {};
-            Object.keys(row).forEach((key) => {
-              rowData[key] = row[key] === undefined || row[key] === "" ? null : row[key];
-            });
-            return rowData;
+            if (Object.keys(row).length > 0) {
+              Object.keys(row).forEach((key) => {
+                rowData[key] = row[key] === undefined || row[key] === "" ? "" : row[key];
+              });
+              rowData["!row#number!"] = index + 1; // Adding row number
+              return rowData;
+            }
           });
+          
+          jsonData = jsonData.filter((element) => element !== undefined);
+
+          console.log("jsonData", jsonData);
 
           if (validateData(jsonData)) {
             resolve(true);
@@ -218,7 +229,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   return (
     <React.Fragment>
       <div className="campaign-bulk-upload">
-        <Header className="digit-form-composer-sub-header">{type === "boundary" ? t("WBH_UPLOAD_TARGET") : (type === "facilityWithBoundary" ? t("WBH_UPLOAD_FACILITY") : t("WBH_UPLOAD_USER"))}</Header>
+        <Header className="digit-form-composer-sub-header">
+          {type === "boundary" ? t("WBH_UPLOAD_TARGET") : type === "facilityWithBoundary" ? t("WBH_UPLOAD_FACILITY") : t("WBH_UPLOAD_USER")}
+        </Header>
         <Button
           label={t("WBH_DOWNLOAD_TEMPLATE")}
           variation="secondary"
@@ -228,7 +241,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           onButtonClick={downloadTemplate}
         />
       </div>
-      <div className="info-text">{type === "boundary" ? t("HCM_BOUNDARY_MESSAGE") : (type === "facilityWithBoundary" ? t("HCM_FACILITY_MESSAGE") : t("HCM_USER_MESSAGE"))}</div>
+      <div className="info-text">
+        {type === "boundary" ? t("HCM_BOUNDARY_MESSAGE") : type === "facilityWithBoundary" ? t("HCM_FACILITY_MESSAGE") : t("HCM_USER_MESSAGE")}
+      </div>
       <BulkUpload onSubmit={onBulkUploadSubmit} fileData={uploadedFile} onFileDelete={onFileDelete} onFileDownload={onFileDownload} />
       {showInfoCard && (
         <InfoCard
