@@ -410,7 +410,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     const action = request?.body?.CampaignDetails?.action;
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
-    request.body.CampaignDetails.campaignDetails = request?.body?.CampaignDetails?.deliveryRules ? { deliveryRules: request?.body?.CampaignDetails?.deliveryRules } : ExistingCampaignDetails?.campaignDetails;
+    request.body.CampaignDetails.campaignDetails = (request?.body?.CampaignDetails?.deliveryRules || request?.body?.CampaignDetails?.resources) ? { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] } : ExistingCampaignDetails?.campaignDetails;
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     const boundaryCode = !(request?.body?.CampaignDetails?.projectId) ? getRootBoundaryCode(request.body.CampaignDetails.boundaries) : (request?.body?.CampaignDetails?.boundaryCode || ExistingCampaignDetails?.boundaryCode)
     request.body.CampaignDetails.boundaryCode = boundaryCode
