@@ -50,13 +50,13 @@ public class IndividualResultSetExtractor implements ResultSetExtractor<List<Ind
 				
 				Address address = getAdress(rs, IndUUID);
 				
-				Individual individual = getIndividual(rs, IndUUID);
+				currentInd = getIndividual(rs, IndUUID);
 				
 				Identifier identifier = getIdentifier(rs);
 				
-				individual.setAddress(Stream.of(address).collect(Collectors.toList()));
+				currentInd.setAddress(Stream.of(address).collect(Collectors.toList()));
 				
-				individual.setIdentifiers(Stream.of(identifier).collect(Collectors.toList()));
+				currentInd.setIdentifiers(Stream.of(identifier).collect(Collectors.toList()));
 				
 			}
 			individualIdMap.put(IndUUID, currentInd);
