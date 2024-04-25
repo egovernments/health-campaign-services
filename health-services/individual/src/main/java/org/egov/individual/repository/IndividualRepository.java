@@ -71,7 +71,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
         }
 
-        String individualQuery = String.format(getQuery("SELECT i.id as iid, userid, i.clientreferenceid as iclientreferenceid, i.tenantid as itenantid, givenname, familyname, othernames, dateofbirth, gender, bloodgroup, mobilenumber, altcontactnumber, email, fathername, husbandname, photo, additionaldetails,\n"
+        String individualQuery = String.format(
+        		getQueryWithAlias("SELECT i.id as iid, userid, i.clientreferenceid as iclientreferenceid, i.tenantid as itenantid, givenname, familyname, othernames, dateofbirth, gender, bloodgroup, mobilenumber, altcontactnumber, email, fathername, husbandname, photo, additionaldetails,\n"
         		+ "i.createdby as tenantid, i.lastmodifiedby as ilastmodifiedby, i.createdtime as icreatedtime, i.lastmodifiedtime as ilastmodifiedtime, rowversion, i.isdeleted as iisdeleted,\n"
         		+ "i.individualid as iindividualid, relationship,\n"
         		+ "issystemuser, username, password, i.type as itype, roles, useruuid, issystemuseractive, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby,\n"
@@ -268,6 +269,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return getQuery(baseQuery, includeDeleted, null);
     }
 
+    private String getQueryWithAlias (String baseQuery, Boolean includeDeleted) {
+        return getQuery(baseQuery, includeDeleted, "i");
+    }
+    
     private String getQuery(String baseQuery, Boolean includeDeleted, String alias) {
         String isDeletedClause = " AND %sisDeleted = false";
         if (alias != null) {
