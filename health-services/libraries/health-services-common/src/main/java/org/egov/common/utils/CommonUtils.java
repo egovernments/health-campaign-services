@@ -741,11 +741,13 @@ public class CommonUtils {
     public static String getIdFieldName(Object obj) {
         String defaultVal = "id";
         try {
-            Field idField = obj.getClass().getDeclaredField("id");
-            idField.setAccessible(true);
-            Object idFieldValue = idField.get(obj);
-            if (idFieldValue != null) {
-                return "id";
+            Field idField = getParentClassField(obj.getClass(), "id");
+            if(idField != null) {
+                idField.setAccessible(true);
+                Object idFieldValue = idField.get(obj);
+                if (idFieldValue != null) {
+                    return "id";
+                }
             }
             Field clientReferenceIdField = getParentClassField(obj.getClass(), "clientReferenceId");
             clientReferenceIdField.setAccessible(true);
@@ -753,7 +755,7 @@ public class CommonUtils {
             if (clientReferenceIdFieldValue != null) {
                 return "clientReferenceId";
             }
-        } catch (NoSuchFieldException | IllegalAccessException | NullPointerException e) {
+        } catch (NoSuchFieldException | IllegalAccessException | NullPointerExceptione) {
             return defaultVal;
         }
         return defaultVal;
