@@ -68,7 +68,7 @@ class HouseholdFindTest {
 
     @Test
     @DisplayName("should not call findById if more search parameters are available")
-    void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
+    void shouldNotCallFindByIdIfMoreParametersAreAvailable() throws QueryBuilderException {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearch.builder().id(Collections.singletonList("someid"))

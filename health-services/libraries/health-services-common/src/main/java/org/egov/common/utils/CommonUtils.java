@@ -231,20 +231,23 @@ public class CommonUtils {
         StringBuilder obj1Fields = new StringBuilder();
         StringBuilder obj2Fields = new StringBuilder();
 
-        for (Field field : objClass.getDeclaredFields()) {
-            field.setAccessible(true); // Ensure private fields are accessible
+        while(objClass.getSuperclass() != null) {
+            for (Field field : objClass.getDeclaredFields()) {
+                field.setAccessible(true); // Ensure private fields are accessible
 
-            try {
-                // Get the value of the field for each object
-                Object value1 = field.get(obj1);
-                Object value2 = field.get(obj2);
+                try {
+                    // Get the value of the field for each object
+                    Object value1 = field.get(obj1);
+                    Object value2 = field.get(obj2);
 
-                // Append the field name and value to the string representation
-                obj1Fields.append(field.getName()).append(":").append(value1).append(",");
-                obj2Fields.append(field.getName()).append(":").append(value2).append(",");
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
+                    // Append the field name and value to the string representation
+                    obj1Fields.append(field.getName()).append(":").append(value1).append(",");
+                    obj2Fields.append(field.getName()).append(":").append(value2).append(",");
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
             }
+            objClass = objClass.getSuperclass();
         }
 
         // Compare the string representations of the objects
