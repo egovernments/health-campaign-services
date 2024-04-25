@@ -1,5 +1,5 @@
 export const useGenerateIdCampaign = (type ,hierarchyType, filters) => {
-  const reqCriteriaFacility = {
+  const reqCriteria = {
     url: `/project-factory/v1/data/_generate`,
     changeQueryName :`${type}${hierarchyType}${filters}`,
     params: {
@@ -11,7 +11,7 @@ export const useGenerateIdCampaign = (type ,hierarchyType, filters) => {
     body: (type === 'boundary' ? (filters === undefined ? { "Filters": null } : { "Filters": { "boundaries": filters } }) : {}),
   };
 
-  const { isLoading, data: Data } = Digit.Hooks.useCustomAPIHook(reqCriteriaFacility);
+  const { data: Data } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
   return Data?.GeneratedResource?.[0]?.id;
 };
