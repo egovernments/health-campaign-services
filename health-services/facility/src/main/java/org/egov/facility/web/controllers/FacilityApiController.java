@@ -1,10 +1,13 @@
 package org.egov.facility.web.controllers;
 
 
+import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.CommonSearchCriteria;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.models.facility.FacilityBulkResponse;
@@ -19,20 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import java.util.List;
-
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-21T14:37:54.683+05:30")
 
 @Controller
 @RequestMapping("")
@@ -113,9 +105,8 @@ public class FacilityApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<FacilityBulkResponse> facilityV1SearchPost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilitySearchRequest request,
-                                                                     @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
-        List<Facility> facilities = facilityService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+    public ResponseEntity<FacilityBulkResponse> facilityV1SearchPost(@ApiParam(value = "Details for existing facility.", required = true) @Valid @RequestBody FacilitySearchRequest request) throws Exception {
+        List<Facility> facilities = facilityService.search(request, request.getFacility().getLimit(), request.getFacility().getOffset(), request.getFacility().getTenantId(), request.getFacility().getLastChangedSince(), request.getFacility().getIncludeDeleted());
         FacilityBulkResponse response = FacilityBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).facilities(facilities).build();
 
