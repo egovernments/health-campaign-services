@@ -58,7 +58,7 @@ public class ResourceEstimationService {
             throw new IllegalArgumentException("Unsupported file type: " + fileType);
         }
 
-        parser.fetchPopulationData(planConfiguration, planConfiguration.getFiles().get(0).getFilestoreId());
+        parser.parseFileData(planConfiguration, planConfiguration.getFiles().get(0).getFilestoreId());
     }
 }
 

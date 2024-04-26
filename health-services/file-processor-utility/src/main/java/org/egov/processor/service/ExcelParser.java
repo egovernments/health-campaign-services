@@ -50,7 +50,7 @@ public class ExcelParser implements FileParser {
     }
 
     @Override
-    public Object parseFileData(PlanConfiguration planConfig, String fileStoreId, String attributeToFetch) {
+    public Object parseFileData(PlanConfiguration planConfig, String fileStoreId) {
 
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         File file = parsingUtil.convertByteArrayToFile(byteArray, "excel");
@@ -111,8 +111,4 @@ public class ExcelParser implements FileParser {
         return sum;
     }
 
-    @Override
-    public BigDecimal fetchPopulationData(PlanConfiguration planConfiguration, String fileStoreId) {
-        return null;
-    }
 }
