@@ -158,18 +158,6 @@ public class DownsyncService {
 			}
 			log.info("The beneficiary call time : " + (System.currentTimeMillis()-startTime)/1000);
 
-			startTime = System.currentTimeMillis(); 
-			log.info("The house beneficiary start time : " + startTime);
-			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(householdClientRefIds)) {
-				/* search beneficiary using household ids */
-				householdBeneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, householdClientRefIds);
-				if (CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
-					beneficiaryClientRefIds = householdBeneficiaryClientRefIds;
-				} else if(!CollectionUtils.isEmpty(householdBeneficiaryClientRefIds)) {
-					beneficiaryClientRefIds.addAll(householdBeneficiaryClientRefIds);
-				}
-			}
-			log.info("The  house beneficiary time : " + (System.currentTimeMillis()-startTime)/1000);
 
 			startTime = System.currentTimeMillis(); 
 			log.info("The task ref start time : " + startTime);
