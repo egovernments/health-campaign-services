@@ -7,8 +7,6 @@ import org.egov.processor.web.models.PlanConfiguration;
 
 public interface FileParser {
 
-    Object parseFileData(PlanConfiguration planConfig, String fileStoreId, String attributeToFetch);
-
-    BigDecimal fetchPopulationData(PlanConfiguration planConfiguration, String fileStoreId);
+    Object parseFileData(PlanConfiguration planConfig, String fileStoreId);
 
    }

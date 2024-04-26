@@ -1,8 +1,17 @@
 package org.egov.processor.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,6 +19,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.ss.usermodel.Cell;
@@ -18,18 +29,22 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
+import org.egov.tracer.model.CustomException;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.springframework.stereotype.Component;
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 
+import java.io.*;
 @Slf4j
 @Component
 public class ParsingUtil {
 
-
     private PlanConfigurationUtil planConfigurationUtil;
+
     private FilestoreUtil filestoreUtil;
 
     public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil) {
@@ -66,6 +81,8 @@ public class ParsingUtil {
 //        }
 
         for (String attributeName : attributeNamesFromFile) {
+            if (attributeName.equalsIgnoreCase("the_geom"))
+                continue;
             if (!mappedFromSet.contains(attributeName)) {
                 return false;
             }
@@ -133,6 +150,63 @@ public class ParsingUtil {
     public File getFileFromByteArray(PlanConfiguration planConfig, String fileStoreId) {
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         return convertByteArrayToFile(byteArray, "geojson");
+    }
+
+    public String convertByteArrayToString(PlanConfiguration planConfig, String fileStoreId) {
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+        return new String(byteArray, StandardCharsets.UTF_8);
+    }
+
+    public File writeToFile(JsonNode jsonNode, ObjectMapper objectMapper) {
+        String outputFileName = "processed.geojson";
+        File outputFile;
+        try {
+            String processedGeoJSON = objectMapper.writeValueAsString(jsonNode);
+            Object jsonObject = objectMapper.readValue(processedGeoJSON, Object.class);
+            outputFile = new File(outputFileName);
+            objectMapper.writeValue(outputFile, jsonObject);
+            return outputFile;
+        } catch (IOException e) {
+            throw new CustomException("NOT_ABLE_TO_WRITE_TO_FILE", "Not able to write processed geojson to file");
+        }
+    }
+
+    public JsonNode parseJson(String geoJSON, ObjectMapper objectMapper) {
+        try {
+            return objectMapper.readTree(geoJSON);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+            throw new CustomException("JSON_PARSE_ERROR", "Error parsing JSON: " + e.getMessage());
+        }
+    }
+
+    public File extractFileFromZip(PlanConfiguration planConfig, String fileStoreId, String fileName) throws IOException {
+        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+
+        try (ByteArrayInputStream byteInputStream = new ByteArrayInputStream(byteArray);
+             ZipArchiveInputStream zipInputStream = new ZipArchiveInputStream(byteInputStream)) {
+
+            ZipArchiveEntry entry;
+            while ((entry = zipInputStream.getNextZipEntry()) != null) {
+                if (!entry.isDirectory() && entry.getName().toLowerCase().endsWith(".shp")) {
+                    // Create a temporary file
+                    File tempFile = File.createTempFile(fileName, ".shp");
+                    tempFile.deleteOnExit();
+
+                    // Write the entry contents to the temporary file
+                    try (OutputStream outputStream = new FileOutputStream(tempFile)) {
+                        byte[] buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = zipInputStream.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, bytesRead);
+                        }
+                        return tempFile;
+                    }
+                }
+            }
+        }
+
+        throw new FileNotFoundException("File " + fileName + " not found in the zip file.");
     }
 
 }
