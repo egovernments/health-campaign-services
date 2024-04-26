@@ -291,7 +291,7 @@ function updateActivityResourceId(request: any) {
 }
 
 async function generateProcessedFileAndPersist(request: any) {
-    if (request.body.ResourceDetails.type  == 'boundaryWithTarget') {
+    if (request.body.ResourceDetails.type == 'boundaryWithTarget') {
         await updateStatusFileForTargets(request);
     } else {
         if (request.body.ResourceDetails.type !== "boundary") {
@@ -380,7 +380,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     if (firstPersist) {
         request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
     }
-    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
+    request.body.CampaignDetails.campaignDetails = { ...request?.body?.CampaignDetails?.campaignDetails, deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
@@ -403,14 +403,34 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     const topic = firstPersist ? config.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     produceModifiedMessages(request?.body, topic);
-    delete request.body.CampaignDetails.campaignDetails
+}
+
+function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: any, existingInnerCampaignDetails: any) {
+    if (request?.body?.CampaignDetails?.resources) {
+        updatedInnerCampaignDetails.resources = request?.body?.CampaignDetails?.resources
+    }
+    else {
+        updatedInnerCampaignDetails.resources = existingInnerCampaignDetails.resources || []
+    }
+    if (request?.body?.CampaignDetails?.deliveryRules) {
+        updatedInnerCampaignDetails.deliveryRules = request?.body?.CampaignDetails?.deliveryRules
+    }
+    else {
+        updatedInnerCampaignDetails.deliveryRules = existingInnerCampaignDetails.deliveryRules || {}
+    }
+    if (request?.body?.CampaignDetails?.resourceDetailsIds) {
+        updatedInnerCampaignDetails.resourceDetailsIds = request?.body?.CampaignDetails?.resourceDetailsIds
+    }
 }
 
 async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    var existingInnerCampaignDetails = ExistingCampaignDetails?.campaignDetails || {}
+    var updatedInnerCampaignDetails = request?.body?.CampaignDetails?.campaignDetails || {}
+    enrichInnerCampaignDetails(request, updatedInnerCampaignDetails, existingInnerCampaignDetails)
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
-    request.body.CampaignDetails.campaignDetails = (request?.body?.CampaignDetails?.deliveryRules || request?.body?.CampaignDetails?.resources) ? { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] } : ExistingCampaignDetails?.campaignDetails;
+    request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     const boundaryCode = !(request?.body?.CampaignDetails?.projectId) ? getRootBoundaryCode(request.body.CampaignDetails.boundaries) : (request?.body?.CampaignDetails?.boundaryCode || ExistingCampaignDetails?.boundaryCode)
     request.body.CampaignDetails.boundaryCode = boundaryCode
@@ -433,8 +453,30 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     }
     logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
-    delete request.body.CampaignDetails.campaignDetails
     delete request.body.ExistingCampaignDetails
+}
+
+async function persistForCampaignProjectMapping(request: any) {
+    console.log((request?.body?.CampaignDetails?.campaignDetails?.resourceDetailsIds && request?.body?.CampaignDetails?.projectId))
+    if (request?.body?.CampaignDetails?.campaignDetails?.resourceDetailsIds && request?.body?.CampaignDetails?.projectId) {
+        var requestBody: any = {
+            RequestInfo: request?.body?.RequestInfo,
+            Campaign: {}
+        }
+        requestBody.Campaign.hierarchyType = request?.body?.CampaignDetails?.hierarchyType
+        requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId
+        requestBody.Campaign.campaignName = request?.body?.CampaignDetails?.campaignName
+        requestBody.Campaign.boundaryCode = request?.body?.CampaignDetails?.boundaryCode
+        requestBody.Campaign.startDate = request?.body?.CampaignDetails?.startDate
+        requestBody.Campaign.endDate = request?.body?.CampaignDetails?.endDate
+        requestBody.Campaign.projectType = request?.body?.CampaignDetails?.projectType
+        requestBody.Campaign.additionalDetails = request?.body?.CampaignDetails?.additionalDetails
+        requestBody.Campaign.deliveryRules = request?.body?.CampaignDetails?.deliveryRules
+        requestBody.Campaign.rootProjectId = request?.body?.CampaignDetails?.projectId
+        requestBody.Campaign.resourceDetailsIds = request?.body?.CampaignDetails?.campaignDetails?.resourceDetailsIds
+        logger.info("Persisting CampaignProjectMapping : " + JSON.stringify(requestBody));
+        produceModifiedMessages(requestBody, config.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
+    }
 }
 
 
@@ -445,6 +487,7 @@ async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl:
     else if (actionInUrl == "update") {
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
     }
+    await persistForCampaignProjectMapping(request);
 }
 
 
@@ -538,10 +581,47 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
 
 
 async function getTotalCount(request: any) {
-    const query = "SELECT COUNT(*) FROM health.eg_cm_campaign_details";
-    const queryResult = await pool.query(query);
-    request.body.totalCount = parseInt(queryResult.rows[0].count, 10);
+    const CampaignDetails = request.body.CampaignDetails;
+    const { tenantId, pagination, ids, ...searchFields } = CampaignDetails;
+    let conditions = [];
+    let values = [tenantId];
+    let index = 2;
+
+    for (const field in searchFields) {
+        if (searchFields[field] !== undefined) {
+            if (field === 'startDate') {
+                conditions.push(`startDate >= $${index}`);
+            } else if (field === 'endDate') {
+                conditions.push(`endDate <= $${index}`);
+            } else {
+                conditions.push(`${field} = $${index}`);
+            }
+            values.push(searchFields[field]);
+            index++;
+        }
+    }
+
+    let query = `
+        SELECT count(*)
+        FROM health.eg_cm_campaign_details
+        WHERE tenantId = $1
+    `;
+
+    if (ids && ids.length > 0) {
+        const idParams = ids.map((id: string, i: number) => `$${index + i}`);
+        query += ` AND id IN (${idParams.join(', ')})`;
+        values.push(...ids);
+    }
+
+    if (conditions.length > 0) {
+        query += ` AND ${conditions.join(' AND ')}`;
+    }
+    const queryResult = await pool.query(query, values);
+    const totalCount = parseInt(queryResult.rows[0].count, 10);
+    request.body.totalCount = totalCount;
 }
+
+
 
 async function searchProjectCampaignResourcData(request: any) {
     const CampaignDetails = request.body.CampaignDetails;
