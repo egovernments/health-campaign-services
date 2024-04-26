@@ -43,6 +43,7 @@
     .popup-module-main {
       max-height: 707px;
       overflow-y: auto;
+      width: 99%;
       &::-webkit-scrollbar {
         width: 0.5rem;
         background: transparent;
@@ -50,6 +51,7 @@
       &::-webkit-scrollbar-thumb {
         background: #d6d5d4; /* Color of the scrollbar thumb */
         border-radius: 5px; /* Adjust the border-radius for rounded corners */
+        height: 0.5rem;
       }
     }
     .popup-module-action-bar {
@@ -235,7 +237,9 @@
       justify-content: center;
       h2 {
         font-size: 1rem;
+        font-family: Roboto;
         width: unset !important;
+        font-weight: 600;
       }
     }
   }
@@ -262,10 +266,18 @@
 .add-rule-btn {
   margin: auto;
   h2 {
+    font-family: Roboto;
     font-size: 1rem;
+    font-weight: 600;
   }
 }
-
+.add-product-btn {
+  h2 {
+    font-family: Roboto;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
 .popup-wrap.campaign-product-wrapper {
   .popup-module {
     width: 70%;

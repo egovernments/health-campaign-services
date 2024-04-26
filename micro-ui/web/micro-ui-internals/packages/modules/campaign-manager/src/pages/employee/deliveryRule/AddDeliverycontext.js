@@ -1,7 +1,6 @@
 import {
   LabelFieldPair,
   AddIcon,
-  DustbinIcon,
   CardLabel,
   Dropdown,
   // TextInput,
@@ -20,6 +19,15 @@ import RemoveableTagNew from "../../../components/RemovableTagNew";
 import AddProducts from "./AddProductscontext";
 import { CycleContext } from ".";
 import { TextInput } from "@egovernments/digit-ui-components";
+
+const DustbinIcon = () => (
+  <svg width="12" height="16" viewBox="0 0 12 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M0.999837 13.8333C0.999837 14.75 1.74984 15.5 2.6665 15.5L9.33317 15.5C10.2498 15.5 10.9998 14.75 10.9998 13.8333L10.9998 3.83333L0.999837 3.83333L0.999837 13.8333ZM11.8332 1.33333L8.9165 1.33333L8.08317 0.5L3.9165 0.5L3.08317 1.33333L0.166504 1.33333L0.166504 3L11.8332 3V1.33333Z"
+      fill="#F47738"
+    />
+  </svg>
+);
 
 const makeSequential = (jsonArray, keyName) => {
   return jsonArray.map((item, index) => ({
@@ -601,7 +609,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
                       fill: "#505A5F",
                     },
                   }}
-                  text={{ value: i.value }}
+                  text={{ value: i?.name }}
                   onClick={() => removeProduct(i)}
                 />
               ) : null;
@@ -609,6 +617,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
         </div>
         <Button
           variation="secondary"
+          className={"add-product-btn"}
           label={t(`CAMPAIGN_ADD_PRODUCTS_BUTTON_TEXT`)}
           icon={<SVG.AppRegistration />}
           onButtonClick={() => setShowModal(true)}
@@ -618,8 +627,8 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
         <Modal
           formId="product-action"
           customClass={"campaign-product-wrapper"}
-          popupStyles={{ width: "70%", paddingLeft: "1.5rem" }}
-          headerBarMainStyle={{ fontWeight: 700, fontSize: "1.5rem" }}
+          popupStyles={{ width: "70%", paddingLeft: "1.5rem", borderRadius: "4px" }}
+          headerBarMainStyle={{ fontWeight: 700, fontSize: "1.5rem", alignItems: "baseline" }}
           // popupModuleMianStyles={}
           // popupModuleActionBarStyles={}
           hideSubmit={false}
@@ -627,9 +636,9 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           actionSaveOnSubmit={confirmResources}
           headerBarMain={t(`CAMPAIGN_PRODUCTS_MODAL_HEADER_TEXT`)}
           headerBarEnd={
-            <div className="icon-bg-secondary" onClick={() => setShowModal(false)}>
+            // <div className="icon-bg-secondary" onClick={() => setShowModal(false)}>
               <CloseSvg />
-            </div>
+            // </div>
           }
           children={
             <AddProducts

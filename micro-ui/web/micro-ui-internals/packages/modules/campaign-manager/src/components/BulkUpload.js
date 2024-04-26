@@ -102,7 +102,9 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
   };
 
   const handleFileDownload = async (e, file) => {
-    e.stopPropagation();
+    if (e?.stopPropagation) {
+      e.stopPropagation();
+    }
     onFileDownload(file);
   };
 
@@ -168,7 +170,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
         <FileUploader multiple={multiple} handleChange={handleChange} name="file" types={fileTypes} children={dragDropJSX} />
       )}
       {fileData?.length > 0 && renderFileCards}
-      {showPreview && <XlsPreview file={fileUrl} onDownload={() => handleFileDownload(fileUrl)} onBack={() => setShowPreview(false)} />}
+      {showPreview && <XlsPreview file={fileUrl} onDownload={() => handleFileDownload(null, fileUrl)} onBack={() => setShowPreview(false)} />}
       {showToast && <Toast label={showToast.label} error={showToast?.isError} isDleteBtn={true} onClose={() => setShowToast(null)}></Toast>}
     </React.Fragment>
   );

@@ -113,7 +113,9 @@ const CampaignSummary = () => {
   return (
     <>
       <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
-      <ViewComposer data={data} />
+      <div className="campaign-summary-container">
+        <ViewComposer data={data} />
+      </div>
     </>
   );
 };
