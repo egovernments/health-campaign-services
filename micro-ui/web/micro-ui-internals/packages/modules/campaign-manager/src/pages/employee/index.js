@@ -27,7 +27,12 @@ const CampaignBreadCrumb = ({ location, defaultPath }) => {
     {
       path: `/${window?.contextPath}/employee/campaign/setup-campaign`,
       content: t("CREATE_NEW_CAMPAIGN"),
-      show: true,
+      show: pathVar === "setup-campaign" ? true : false,
+    },
+    {
+      path: `/${window?.contextPath}/employee/campaign/my-campaign`,
+      content: t("MY_CAMPAIGN"),
+      show: pathVar === "my-campaign" ? true : false,
     },
   ];
 

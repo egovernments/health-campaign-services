@@ -148,19 +148,20 @@ function reverseDeliveryRemap(data) {
     delivery.deliveryRules.push({
       ruleKey: item.deliveryRuleNumber,
       delivery: {},
-      attributes: item.conditions.map((condition) => ({
-        value: condition?.value ? condition?.value : "",
-        operator: condition?.operator
-          ? {
-              code: condition.operator,
-            }
-          : null,
-        attribute: condition?.attribute
-          ? {
-              code: condition.attribute,
-            }
-          : null,
-      })),
+      attributes: loopAndReturn(item.conditions),
+      // .map((condition) => ({
+      // value: condition?.value ? condition?.value : "",
+      // operator: condition?.operator
+      // ? {
+      // code: condition.operator,
+      // }
+      // : null,
+      // attribute: condition?.attribute
+      // ? {
+      // code: condition.attribute,
+      // }
+      // : null,
+      // })),
       products: [...item.products],
     });
   });
@@ -310,10 +311,13 @@ const SetupCampaign = () => {
         selectedData: draftData?.boundaries,
       },
       HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA: {
-        uploadBoundary: [],
+        uploadBoundary: draftData?.campaignDetails?.resources?.filter((i) => i?.type === "boundary"),
       },
       HCM_CAMPAIGN_UPLOAD_FACILITY_DATA: {
-        uploadFacility: draftData?.campaignDetails?.resources?.filter((i) => i.type === "facility"),
+        uploadFacility: draftData?.campaignDetails?.resources?.filter((i) => i?.type === "facility"),
+      },
+      HCM_CAMPAIGN_UPLOAD_USER_DATA: {
+        uploadUser: draftData?.campaignDetails?.resources?.filter((i) => i?.type === "user"),
       },
     };
     setParams({ ...restructureFormData });

@@ -18,7 +18,7 @@ import Response from "./pages/employee/Response";
 import SelectingBoundaries from "./components/SelectingBoundaries";
 import UploadData from "./components/UploadData";
 import CampaignSelection from "./components/CampaignType";
-
+import CampaignDocumentsPreview from "./components/CampaignDocumentsPreview";
 
 /**
  * The CampaignModule function fetches store data based on state code, module code, and language, and
@@ -64,7 +64,8 @@ const componentsToRegister = {
   CycleDetaisPreview,
   Response,
   SelectingBoundaries,
-  CampaignSelection
+  CampaignSelection,
+  CampaignDocumentsPreview: CampaignDocumentsPreview,
 };
 
 const overrideHooks = () => {
