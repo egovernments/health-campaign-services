@@ -6,7 +6,7 @@ import digit.models.coremodels.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.Address;
 import org.egov.common.models.project.AddressType;
-import org.egov.common.models.project.Boundary;
+import org.egov.common.models.core.Boundary;
 import org.egov.common.models.project.Task;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
