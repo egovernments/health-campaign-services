@@ -309,6 +309,12 @@ const SetupCampaign = () => {
         },
         selectedData: draftData?.boundaries,
       },
+      HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA: {
+        uploadBoundary: [],
+      },
+      HCM_CAMPAIGN_UPLOAD_FACILITY_DATA: {
+        uploadFacility: draftData?.campaignDetails?.resources?.filter((i) => i.type === "facility"),
+      },
     };
     setParams({ ...restructureFormData });
   }, [params, draftData]);
@@ -429,23 +435,22 @@ const SetupCampaign = () => {
     return restructuredData;
   }
 
-
   useEffect(async () => {
     if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
       const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
     }
     if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA) {
-      const FacilityTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType , "facility");
+      const FacilityTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType, "facility");
       setDataParams({
         ...dataParams,
-        ValidateFacilityId: FacilityTemp?.ResourceDetails?.id
+        ValidateFacilityId: FacilityTemp?.ResourceDetails?.id,
       });
     }
     if (totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA) {
-      const UserTemp =  await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA, hierarchyType , "user");
+      const UserTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA, hierarchyType, "user");
       setDataParams({
         ...dataParams,
-        ValidateUserId: UserTemp?.ResourceDetails?.id
+        ValidateUserId: UserTemp?.ResourceDetails?.id,
       });
     }
     if (shouldUpdate === true) {
