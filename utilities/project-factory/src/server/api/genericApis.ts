@@ -106,7 +106,7 @@ const getTargetSheetData = async (fileUrl: string, getRow = false, getSheetName 
 
     for (const sheetName of sheetNames) {
         const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        const jsonData = sheetData.map((row: any, index: number) => {
+        var jsonData = sheetData.map((row: any, index: number) => {
             const rowData: any = {};
             Object.keys(row).forEach(key => {
                 rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
@@ -115,7 +115,7 @@ const getTargetSheetData = async (fileUrl: string, getRow = false, getSheetName 
             if (getSheetName) rowData['!sheet#name!'] = sheetName;
             return rowData;
         });
-
+        jsonData = jsonData.filter(element => element !== undefined);
         workbookData[sheetName] = jsonData; // Store sheet data in the object
         logger.info(`Sheet Data (${sheetName}): ${JSON.stringify(jsonData)}`);
     }
