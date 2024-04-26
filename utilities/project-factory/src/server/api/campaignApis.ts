@@ -223,20 +223,6 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
 }
 
 
-function enrichUids(request: any) {
-  const sheetErrorDetails = request.body.sheetErrorDetails;
-  if (!request?.body?.ResourceDetails?.additionalDetails) {
-    request.body.ResourceDetails.additionalDetails = {};
-  }
-  request.body.ResourceDetails.additionalDetails = { ...request?.body?.ResourceDetails?.additionalDetails, createdUids: [] };
-  sheetErrorDetails.forEach((detail: any) => {
-    if (detail.status === 'CREATED' && detail.uniqueIdentifier) {
-      request.body.ResourceDetails.additionalDetails.createdUids.push(detail.uniqueIdentifier);
-    }
-  });
-}
-
-
 function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any, activities: any) {
   const newCreatedData = JSON.parse(JSON.stringify(createdData));
   const newSearchedData = JSON.parse(JSON.stringify(searchedData));
@@ -253,7 +239,6 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   }
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
   request.body.Activities = activities
-  enrichUids(request)
 }
 
 function matchUserValidation(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any) {
@@ -601,6 +586,7 @@ async function processCreate(request: any) {
  */
 async function createProjectCampaignResourcData(request: any) {
   // Create resources for a project campaign
+  var resourceDetailsIds: any[] = []
   if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
     for (const resource of request?.body?.CampaignDetails?.resources) {
       const resourceDetails = {
@@ -611,12 +597,18 @@ async function createProjectCampaignResourcData(request: any) {
         hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
         additionalDetails: {}
       };
-      await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+      const response = await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
         RequestInfo: request.body.RequestInfo,
         ResourceDetails: resourceDetails
       });
+      console.log(response?.data?.ResourceDetails, " rrrrrrrrrrrr222222222222222222222")
+      if (response?.data?.ResourceDetails?.id) {
+        resourceDetailsIds.push(response?.data?.ResourceDetails?.id)
+      }
     }
   }
+  request.body.CampaignDetails.campaignDetails = { ...request.body.CampaignDetails.campaignDetails, resourceDetailsIds: resourceDetailsIds }
+  console.log(request?.body?.CampaignDetails, " rrrrrrrrrrrr1111111111111111111111")
 }
 
 async function projectCreate(projectCreateBody: any, request: any) {
