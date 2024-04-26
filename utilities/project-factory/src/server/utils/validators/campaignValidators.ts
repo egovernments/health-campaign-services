@@ -2,12 +2,12 @@ import createAndSearch from "../../config/createAndSearch";
 import config from "../../config";
 import { logger } from "../logger";
 import { httpRequest } from "../request";
-import { getHeadersOfBoundarySheet, getHierarchy } from "../../api/campaignApis";
+import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } from "../../api/campaignApis";
 import { campaignDetailsSchema } from "../../config/models/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
-import { createBoundaryMap } from "../campaignUtils";
-import { throwError } from "../genericUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist } from "../campaignUtils";
+import { calculateKeyIndex, modifyTargetData, throwError } from "../genericUtils";
 import { validateBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignDetails";
@@ -26,13 +26,13 @@ function processBoundary(responseBoundaries: any[], request: any, boundaryItems:
 }
 async function fetchBoundariesInChunks(request: any) {
     const { tenantId, hierarchyType } = request.body.ResourceDetails;
-    const boundaryEnitiySearchParams: any = {
+    const boundaryEntitySearchParams: any = {
         tenantId, hierarchyType, includeChildren: true
     };
     const responseBoundaries: any[] = [];
     logger.info("Boundary search url : " + config.host.boundaryHost + config.paths.boundaryRelationship);
-    logger.info("Boundary search params : " + JSON.stringify(boundaryEnitiySearchParams));
-    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEnitiySearchParams);
+    logger.info("Boundary search params : " + JSON.stringify(boundaryEntitySearchParams));
+    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEntitySearchParams);
     const TenantBoundary = response.TenantBoundary;
     TenantBoundary.forEach((tenantBoundary: any) => {
         const { boundary } = tenantBoundary;
@@ -97,6 +97,75 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
     });
     const uniqueBoundaries = Array.from(boundarySet);
     await validateUniqueBoundaries(uniqueBoundaries, request);
+}
+
+async function validateTargetBoundaryData(data: any[], request: any, boundaryColumn: any, errors: any[]) {
+    const responseBoundaries = await fetchBoundariesInChunks(request);
+    const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code);
+
+    // Iterate through each array of objects
+    for (const key in data) {
+        if (Array.isArray(data[key])) {
+            const boundaryData = data[key];
+            const boundarySet = new Set(); // Create a Set to store unique boundaries for given sheet 
+            boundaryData.forEach((element: any, index: number) => {
+                console.log(boundaryData, "dattttttttttttttttttttttttt")
+                const boundaries = element[boundaryColumn]; // Access "Boundary Code" property directly
+                if (!boundaries) {
+                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"] + 1} for sheet ${key}`, sheetName: key })
+                }
+                const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
+                if (boundaryList.length === 0) {
+                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
+                }
+                if (boundaryList.length > 1) {
+                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                }
+                if (boundaryList.length === 1) {
+                    const boundaryCode = boundaryList[0];
+                    if (boundarySet.has(boundaryCode)) {
+                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                    }
+                    if (!responseBoundaryCodes.includes(boundaryCode)) {
+                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key}not found in the system`, sheetName: key })
+                    }
+                    boundarySet.add(boundaryCode);
+                }
+            });
+        }
+    }
+}
+
+
+
+async function validateTargetsAtLowestLevelPresentOrNot(data: any[], request: any, errors: any[]) {
+    const hierachy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    const dataToBeValidated = modifyTargetData(data);
+    let maxKeyIndex = -1;
+    dataToBeValidated.forEach(obj => {
+        const keyIndex = calculateKeyIndex(obj, hierachy);
+        if (keyIndex > maxKeyIndex) {
+            maxKeyIndex = keyIndex;
+        }
+    })
+    const lowestLevelHierarchy = hierachy[maxKeyIndex];
+    validateTargets(data, lowestLevelHierarchy, errors);
+}
+//
+function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[]) {
+    for (const key in data) {
+        if (Array.isArray(data[key])) {
+            const boundaryData = data[key];
+            boundaryData.forEach((obj: any, index: number) => {
+                if (obj.hasOwnProperty(lowestLevelHierarchy)) {
+                    const target = obj['Target at the Selected Boundary level'];
+                    if (target === undefined || typeof target !== 'number' || target < 0 || !Number.isInteger(target)) {
+                        errors.push({ status: "INVALID", rowNumber: obj["!row#number!"], errorDetails: `Invalid target value at row ${obj['!row#number!'] + 1}. of sheet ${key}`, sheetName: key })
+                    }
+                }
+            });
+        }
+    }
 }
 
 async function validateUnique(schema: any, data: any[], request: any) {
@@ -176,6 +245,22 @@ async function validateSheetData(data: any, request: any, schema: any, boundaryV
         await validateBoundaryData(data, request, boundaryValidation?.column);
     }
 }
+
+async function validateTargetSheetData(data: any, request: any, boundaryValidation: any) {
+    try {
+        const errors: any[] = [];
+        if (boundaryValidation) {
+            await validateTargetBoundaryData(data, request, boundaryValidation?.column, errors);
+            await validateTargetsAtLowestLevelPresentOrNot(data, request, errors);
+        }
+        request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
+        await generateProcessedFileAndPersist(request);
+    }
+    catch (error) {
+        await handleResouceDetailsError(request, error);
+    }
+}
+
 function validateBooleanField(obj: any, fieldName: any, index: any) {
     if (!obj.hasOwnProperty(fieldName)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "${fieldName}".`);
@@ -614,5 +699,6 @@ export {
     validateFilters,
     validateHierarchyType,
     validateBoundarySheetData,
-    validateDownloadRequest
+    validateDownloadRequest,
+    validateTargetSheetData
 }

@@ -32,6 +32,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     else if (type === "boundary") {
       onSelect("uploadBoundary", uploadedFile);
     }
+    else{
+      onSelect("uploadUser", uploadedFile);
+    }
   }, [uploadedFile]);
 
   useEffect(() => {
@@ -145,6 +148,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             setShowInfoCard(true);
           }
         } catch (error) {
+          console.log("error", error);
           reject("HCM_FILE_UNAVAILABLE");
         }
       };

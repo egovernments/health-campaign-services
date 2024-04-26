@@ -4,7 +4,7 @@ import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
-import { fetchBoundariesInChunks, validateSheetData } from '../utils/validators/campaignValidators';
+import { fetchBoundariesInChunks, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber, getWorkbook } from "./genericApis";
 import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
 import axios from "axios";
@@ -392,7 +392,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
-    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
     await generateProcessedFileAndPersist(request);
   } catch (error) {
     await handleResouceDetailsError(request, error);
@@ -402,9 +402,14 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
 async function processValidate(request: any) {
   const type: string = request.body.ResourceDetails.type;
   const createAndSearchConfig = createAndSearch[type]
-  const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
-  await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
-  processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig)
+  const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
+  if (type == 'boundaryWithTarget') {
+    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation);
+  }
+  else {
+    await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
+    processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig)
+  }
 }
 
 function convertUserRoles(employees: any[], request: any) {
@@ -574,7 +579,7 @@ async function processCreate(request: any) {
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
-    const dataFromSheet = await getDataFromSheet(request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
+    const dataFromSheet = await getDataFromSheet(request,request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
     await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
     processAfterValidation(dataFromSheet, createAndSearchConfig, request)
   }
@@ -692,5 +697,6 @@ export {
   projectCreate,
   generateHierarchyList,
   getHierarchy,
-  getHeadersOfBoundarySheet
+  getHeadersOfBoundarySheet,
+  handleResouceDetailsError
 };
