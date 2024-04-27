@@ -586,11 +586,9 @@ public class DownsyncService {
 	
 	private void cacheByKey(Downsync downsync, String key) {
 
-		Map<String, Downsync> map = new HashMap<>();
-		map.put(key, downsync);
 		try {
 
-			redisTemplate.opsForHash().put("downsync", key, downsync);
+			redisTemplate.opsForHash().put(key, key, downsync);
 			redisTemplate.expire(key, 600l, TimeUnit.SECONDS);
 
 		} catch (Exception exception) {
