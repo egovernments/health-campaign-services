@@ -588,7 +588,7 @@ public class DownsyncService {
 
 		try {
 
-			redisTemplate.opsForHash().put(key, key, downsync);
+			redisTemplate.opsForValue().set(key, downsync);	
 			redisTemplate.expire(key, 600l, TimeUnit.SECONDS);
 
 		} catch (Exception exception) {
@@ -601,7 +601,7 @@ public class DownsyncService {
 		Object res = null;
 
 		try {
-			res = redisTemplate.opsForHash().get("downsync", key);
+			res = redisTemplate.opsForValue().get(key);
 		} catch (Exception exception) {
 			log.warn("Error while retrieving from cache: {}", ExceptionUtils.getStackTrace(exception));
 		}
