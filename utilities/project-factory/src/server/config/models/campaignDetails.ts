@@ -14,7 +14,7 @@ export const campaignDetailsSchema = {
         },
         "campaignName": {
             "type": "string",
-            "maxLength": 128,
+            "maxLength": 250,
             "minLength": 1
         },
         "action": {

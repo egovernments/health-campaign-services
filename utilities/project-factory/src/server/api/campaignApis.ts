@@ -579,7 +579,7 @@ async function processCreate(request: any) {
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
-    const dataFromSheet = await getDataFromSheet(request,request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
+    const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
     await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
     processAfterValidation(dataFromSheet, createAndSearchConfig, request)
   }

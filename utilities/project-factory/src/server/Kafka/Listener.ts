@@ -29,6 +29,9 @@ export function listener() {
         try {
             // Parse the message value as an array of objects
             const messageObject: any = JSON.parse(message.value?.toString() || '{}');
+            // await processCampaignMapping(messageObject);
+            console.log(messageObject, " mmmmmmmmmmmmmmmmmmmmmmmm")
+
             logger.info(`Received message: ${JSON.stringify(messageObject)}`)
         } catch (error) {
             console.error(`Error processing message: ${error}`);
