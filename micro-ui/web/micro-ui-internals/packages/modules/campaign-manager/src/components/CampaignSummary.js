@@ -33,7 +33,7 @@ const CampaignSummary = () => {
                   values: [
                     {
                       key: "CAMPAIGN_TYPE",
-                      value: t(data?.[0]?.projectType) || t("CAMPAIGN_SUMMARY_NA"),
+                      value: data?.[0]?.projectType ? t(`CAMPAIGN_PROJECT_${data?.[0]?.projectType?.toUpperCase()}`) : t("CAMPAIGN_SUMMARY_NA"),
                     },
                     {
                       key: "CAMPAIGN_NAME",

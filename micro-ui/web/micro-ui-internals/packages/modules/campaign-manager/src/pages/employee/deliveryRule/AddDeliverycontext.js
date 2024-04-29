@@ -352,7 +352,7 @@ const AddCustomAttributeField = ({
           {t(`CAMPAIGN_ATTRIBUTE_LABEL`)}
         </CardLabel>
         <div className="field" style={{ display: "flex", width: "100%", marginBottom: "24px" }}>
-          <TextInput type="text" textInputStyle={{ width: "100%" }} value={config?.attrValue} disabled={true} />
+          <TextInput type="text" textInputStyle={{ width: "100%" }} value={t(config?.attrValue)} disabled={true} />
         </div>
         {/* <Dropdown
           className="form-field"

@@ -9,7 +9,11 @@ const DetailsTable = ({ className = "", columnsData, rowsData, summaryRows, card
   const columns = React.useMemo(() => columnsData, [t]);
 
   const data = React.useMemo(() => {
-    const temp = rowsData.map((i) => ({ ...i, operator: t(i?.operator) }));
+    const temp = rowsData.map((i) => ({
+      ...i,
+      operator: t(i?.operator),
+      attribute: i?.attribute ? t(`CAMPAIGN_ATTRIBUTE_${i?.attribute?.toUpperCase()}`) : "",
+    }));
     return temp;
   }, [rowsData]);
 
