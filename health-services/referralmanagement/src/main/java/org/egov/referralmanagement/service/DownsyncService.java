@@ -118,8 +118,15 @@ public class DownsyncService {
 			}
 
 			/* search beneficiary using individual ids OR household ids */
-			// get boolean is-project inbdividual or household
-			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(individualClientRefIds)) {
+			
+			String beneficiaryType = (String) projectType.get("beneficiaryType");
+			
+			List<String> benefinicaryClientRefIds = individualClientRefIds;
+			
+			if("HOUSEHOLD".equalsIgnoreCase(beneficiaryType))
+				beneficiaryClientRefIds = downsync.getHouseholds().stream().map(Household::getClientReferenceId).collect(Collectors.toList());
+			
+			if (isSyncTimeAvalable || !CollectionUtils.isEmpty(benefinicaryClientRefIds)) {
 				beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, individualClientRefIds);
 			}
 
