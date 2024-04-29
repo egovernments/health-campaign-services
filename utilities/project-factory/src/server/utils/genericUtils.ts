@@ -33,11 +33,19 @@ const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
 /* 
 Send The Error Response back to client with proper response code 
 */
-const throwErrorViaRequest = (message = "Internal Server Error") => {
-  let error: any = new Error(message);
-  error = Object.assign(error, { status: 500 });
-  logger.error("Error : " + error);
-  throw error;
+const throwErrorViaRequest = (message: any = "Internal Server Error") => {
+  if (message?.message || message?.code) {
+    let error: any = new Error(message?.message || message?.code);
+    error = Object.assign(error, { status: message?.status || 500 });
+    logger.error("Error : " + error);
+    throw error;
+  }
+  else {
+    let error: any = new Error(message);
+    error = Object.assign(error, { status: 500 });
+    logger.error("Error : " + error);
+    throw error;
+  }
 };
 
 const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", description: any = null) => {
@@ -747,7 +755,7 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
   if (type == 'boundaryWithTarget') {
-    return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true , true);
+    return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true);
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true, createAndSearchConfig)
 }
