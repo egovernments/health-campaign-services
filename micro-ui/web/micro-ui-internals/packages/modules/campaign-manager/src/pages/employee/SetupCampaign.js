@@ -458,7 +458,7 @@ const SetupCampaign = () => {
       });
     }
   }, [shouldUpdate]);
-  
+
   useEffect(async () => {
     // if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
     //   const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -800,15 +800,31 @@ const SetupCampaign = () => {
 
     const name = filteredConfig?.[0]?.form?.[0]?.name;
 
-    setTotalFormData((prevData) => ({
-      ...prevData,
-      [name]: formData,
-    }));
+    if (name === "HCM_CAMPAIGN_TYPE") {
+      setTotalFormData((prevData) => ({
+        ...prevData,
+        [name]: formData,
+        ["HCM_CAMPAIGN_CYCLE_CONFIGURE"]: {},
+        ["HCM_CAMPAIGN_DELIVERY_DATA"]: {},
+      }));
     //to set the data in the local storage
-    setParams({
-      ...params,
-      [name]: { ...formData },
-    });
+      setParams({
+        ...params,
+        [name]: { ...formData },
+        ["HCM_CAMPAIGN_CYCLE_CONFIGURE"]: {},
+        ["HCM_CAMPAIGN_DELIVERY_DATA"]: {},
+      });
+    } else {
+      setTotalFormData((prevData) => ({
+        ...prevData,
+        [name]: formData,
+      }));
+      //to set the data in the local storage
+      setParams({
+        ...params,
+        [name]: { ...formData },
+      });
+    }
 
     if (filteredConfig?.[0]?.form?.[0]?.isLast || !filteredConfig[0].form[0].body[0].skipAPICall) {
       setShouldUpdate(true);
