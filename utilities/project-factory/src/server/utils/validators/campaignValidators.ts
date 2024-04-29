@@ -553,6 +553,9 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     if (!CampaignDetails) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
     }
+    if (!action) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.action is required")
+    }
     if (!(action == "create" || action == "draft")) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create or draft");
     }

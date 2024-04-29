@@ -205,6 +205,10 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "E",
+                    sheetColumnName: "User Uuids(Let It Empty)"
+                },
+                {
+                    sheetColumn: "F",
                     sheetColumnName: "Boundary Code",
                     resultantPath: "jurisdictions",
                     type: "string"
@@ -216,6 +220,8 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "uuid",
+        uniqueIdentifierColumn: "E",
+        uniqueIdentifierColumnName: "User Uuids(Let It Empty)",
         createBulkDetails: {
             limit: 50,
             createPath: "Employees",
@@ -246,7 +252,7 @@ const createAndSearch: any = {
             searchPath: "Employees"
         }
     },
-    "boundaryWithTarget":{
+    "boundaryWithTarget": {
         parseArrayConfig: {
             sheetName: "Boundary Data",
         },
