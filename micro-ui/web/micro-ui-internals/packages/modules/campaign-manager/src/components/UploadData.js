@@ -26,6 +26,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [schema, setSchema] = useState(null);
   const [showToast, setShowToast] = useState(null);
   const type = props?.props?.type;
+  const [executionCount, setExecutionCount] = useState(0);
   useEffect(() => {
     if (type === "facilityWithBoundary") {
       onSelect("uploadFacility", uploadedFile);
