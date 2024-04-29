@@ -1,6 +1,8 @@
 package digit.web.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -30,12 +32,45 @@ public class MetricDetail {
 
     @JsonProperty("comparator")
     @NotNull
-    @Size(min = 1, max = 64)
-    private String metricComparator = null;
+    private MetricComparatorEnum metricComparator = null;
 
     @JsonProperty("unit")
     @NotNull
     @Size(min = 1, max = 128)
     private String metricUnit = null;
+
+    public enum MetricComparatorEnum {
+        GREATER_THAN(">"),
+
+        LESS_THAN("<"),
+
+        GREATER_THAN_OR_EQUAL_TO(">="),
+
+        LESS_THAN_OR_EQUAL_TO("<="),
+
+        EQUAL("=");
+
+        private final String symbol;
+
+        MetricComparatorEnum(String symbol) {
+            this.symbol = symbol;
+        }
+
+        @Override
+        @JsonValue
+        public String toString() {
+            return String.valueOf(symbol);
+        }
+
+        @JsonCreator
+        public static MetricDetail.MetricComparatorEnum fromValue(String text) {
+            for (MetricDetail.MetricComparatorEnum b : MetricDetail.MetricComparatorEnum.values()) {
+                if (String.valueOf(b.symbol).equals(text)) {
+                    return b;
+                }
+            }
+            return null;
+        }
+    }
 
 }
