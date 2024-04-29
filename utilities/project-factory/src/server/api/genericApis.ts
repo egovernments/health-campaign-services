@@ -712,7 +712,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
                 flag = 0;
                 requestBody.BoundaryRelationship = boundary;
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary-relationships/_create2`, requestBody, {}, 'POST', undefined, undefined, true);
+                const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary-relationships/_create`, requestBody, {}, 'POST', undefined, undefined, true);
                 if (!response.TenantBoundary || !Array.isArray(response.TenantBoundary) || response.TenantBoundary.length === 0) {
                     throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR");
                 }
