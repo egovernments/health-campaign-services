@@ -25,14 +25,14 @@ const CampaignBreadCrumb = ({ location, defaultPath }) => {
       show: true,
     },
     {
-      path: `/${window?.contextPath}/employee/campaign/setup-campaign`,
-      content: t("CREATE_NEW_CAMPAIGN"),
-      show: pathVar === "setup-campaign" ? true : false,
-    },
-    {
-      path: `/${window?.contextPath}/employee/campaign/my-campaign`,
+      path: pathVar === "my-campaign" ? "" : `/${window?.contextPath}/employee/campaign/my-campaign`,
       content: t("MY_CAMPAIGN"),
       show: pathVar === "my-campaign" ? true : false,
+    },
+    {
+      path: pathVar === "setup-campaign" ? "" : `/${window?.contextPath}/employee/campaign/setup-campaign`,
+      content: t("CREATE_NEW_CAMPAIGN"),
+      show: pathVar === "setup-campaign" ? true : false,
     },
   ];
 
