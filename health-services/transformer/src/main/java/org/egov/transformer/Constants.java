@@ -64,6 +64,12 @@ public interface Constants {
     String CHILDREN_PRESENTED_APE = "childrenPresentedAPE";
     String MALARIA_POSITIVE_APE = "malariaPositiveAPE";
     String MALARIA_NEGATIVE_APE = "malariaNegativeAPE";
+    String HF_TESTED_FOR_MALARIA = "testedForMalaria";
+    String HF_MALARIA_RESULT = "malariaResult";
+    String HF_ADMITTED_WITH_ILLNESS = "admittedWithSeriousIllness";
+    String HF_NEGATIVE_ADMITTED_WITH_ILLNESS = "negativeAndAdmittedWithSeriousIllness";
+    String HF_TREATED_WITH_ANTI_MALARIALS = "treatedWithAntiMalarials";
+    String HF_NAME_OF_ANTI_MALARIALS = "nameOfAntiMalarials";
     String DEFAULT_FACILITY_NAME = "APS";
     String START_DATE = "startDate";
     String END_DATE = "endDate";
