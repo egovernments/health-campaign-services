@@ -51,7 +51,7 @@ const CampaignSummary = () => {
                 },
               ],
             },
-            data?.[0]?.campaignDetails?.resources?.find((i) => i.type === "boundary")
+            data?.[0]?.campaignDetails?.resources?.find((i) => i?.type === "boundary")
               ? {
                   sections: [
                     {
@@ -71,7 +71,7 @@ const CampaignSummary = () => {
                   ],
                 }
               : {},
-            data?.[0]?.campaignDetails?.resources?.find((i) => i.type === "facility")
+            data?.[0]?.campaignDetails?.resources?.find((i) => i?.type === "facility")
               ? {
                   sections: [
                     {
@@ -91,7 +91,7 @@ const CampaignSummary = () => {
                   ],
                 }
               : {},
-            data?.[0]?.campaignDetails?.resources?.find((i) => i.type === "user")
+            data?.[0]?.campaignDetails?.resources?.find((i) => i?.type === "user")
               ? {
                   sections: [
                     {

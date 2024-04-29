@@ -457,6 +457,26 @@ const SetupCampaign = () => {
         ValidateUserId: UserTemp?.ResourceDetails?.id,
       });
     }
+  }, [shouldUpdate]);
+  
+  useEffect(async () => {
+    // if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+    //   const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+    // }
+    // if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA) {
+    //   const FacilityTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType, "facility");
+    //   setDataParams({
+    //     ...dataParams,
+    //     ValidateFacilityId: FacilityTemp?.ResourceDetails?.id,
+    //   });
+    // }
+    // if (totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA) {
+    //   const UserTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA, hierarchyType, "user");
+    //   setDataParams({
+    //     ...dataParams,
+    //     ValidateUserId: UserTemp?.ResourceDetails?.id,
+    //   });
+    // }
     if (shouldUpdate === true) {
       if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
         return;
