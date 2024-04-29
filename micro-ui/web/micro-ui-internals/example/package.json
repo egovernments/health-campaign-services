@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@egovernments/digit-ui-libraries": "1.8.1-beta.4",
-    "@egovernments/digit-ui-module-core": "1.8.1-beta.10",
+    "@egovernments/digit-ui-module-core": "1.8.1-beta.11",
     "@egovernments/digit-ui-module-utilities": "1.0.1-beta.2",
     "@egovernments/digit-ui-react-components": "1.8.1-beta.12",
     "@egovernments/digit-ui-components": "0.0.1-beta.9",
