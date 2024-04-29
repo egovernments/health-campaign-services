@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
 import { fetchBoundariesInChunks, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber, getWorkbook } from "./genericApis";
-import { autoGenerateBoundaryCodes, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
+import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
@@ -536,8 +536,13 @@ async function handleResouceDetailsError(request: any, error: any) {
     request.body.ResourceDetails.status = "failed";
     request.body.ResourceDetails.additionalDetails = {
       ...request?.body?.ResourceDetails?.additionalDetails,
-      error: String(error?.message || error)
-    }
+      error: JSON.stringify({
+        status: error.status || '',
+        code: error.code || '',
+        description: error.description || '',
+        message: error.message || ''
+      })
+    };
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
   }
   if (request?.body?.Activities && Array.isArray(request?.body?.Activities && request?.body?.Activities.length > 0)) {
@@ -574,8 +579,7 @@ async function processCreate(request: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
   if (type == "boundary") {
-    await autoGenerateBoundaryCodes(request);
-    await generateProcessedFileAndPersist(request);
+    boundaryBulkUpload(request);
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
