@@ -593,6 +593,8 @@ async function getTotalCount(request: any) {
                 conditions.push(`startDate >= $${index}`);
             } else if (field === 'endDate') {
                 conditions.push(`endDate <= $${index}`);
+            } else if (field === 'campaignName') {
+                conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
             } else {
                 conditions.push(`${field} = $${index}`);
             }
@@ -623,6 +625,7 @@ async function getTotalCount(request: any) {
 
 
 
+
 async function searchProjectCampaignResourcData(request: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { tenantId, pagination, ids, ...searchFields } = CampaignDetails;
@@ -644,6 +647,8 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
                 conditions.push(`startDate >= $${index}`);
             } else if (field === 'endDate') {
                 conditions.push(`endDate <= $${index}`);
+            } else if (field === 'campaignName') {
+                conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
             } else {
                 conditions.push(`${field} = $${index}`);
             }
@@ -690,6 +695,7 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
 
     return { query, values };
 }
+
 
 
 async function executeSearchQuery(query: string, values: any[]) {

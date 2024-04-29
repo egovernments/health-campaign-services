@@ -25,7 +25,8 @@ export const searchCampaignDetailsSchema = {
             "type": "string"
         },
         "campaignName": {
-            "type": "string"
+            "type": "string",
+            "minLength": 2
         },
         "status": {
             "type": "string"
