@@ -504,8 +504,8 @@ async function validateCampaignName(request: any) {
     }
     logger.info("searchBody : " + JSON.stringify(searchBody));
     logger.info("Url : " + config.host.projectFactoryBff + "project-factory/v1/project-type/search");
-    const searchResponse: any = await axios.post(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
-    if (Array.isArray(searchResponse?.data?.CampaignDetails)) {
+    const searchResponse: any = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
+    if (Array.isArray(searchResponse?.CampaignDetails)) {
         if (searchResponse?.data?.CampaignDetails?.length > 0) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign name already exists");
         }
@@ -547,6 +547,42 @@ async function validateById(request: any) {
     }
 }
 
+async function validateDeliveryRules(request: any) {
+    const { deliveryRules } = request?.body?.CampaignDetails;
+    if (deliveryRules) {
+        for (let i = 0; i < deliveryRules.length; i++) {
+            const rule = deliveryRules[i];
+            // Convert timestamps to dates
+            var startDate = new Date(rule.startDate);
+            startDate.setHours(0, 0, 0, 0);
+            var endDate = new Date(rule.endDate);
+            endDate.setHours(0, 0, 0, 0);
+
+            // Validation 1: startDate should be less than endDate
+            if (startDate >= endDate) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", `DeliveryRule ${i + 1}: Start date should be before end date.`);
+            }
+
+            // Validation 3: Check for overlapping dates
+            for (let j = i + 1; j < deliveryRules.length; j++) {
+                const otherRule = deliveryRules[j];
+                var otherStartDate = new Date(otherRule.startDate);
+                otherStartDate.setHours(0, 0, 0, 0);
+                var otherEndDate = new Date(otherRule.endDate);
+                endDate.setHours(0, 0, 0, 0);
+                if ((startDate >= otherStartDate && startDate <= otherEndDate) ||
+                    (endDate >= otherStartDate && endDate <= otherEndDate) ||
+                    (startDate <= otherStartDate && endDate >= otherEndDate)) {
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `DeliveryRule ${i + 1} and Rule ${j + 1}: Overlapping dates are not allowed.`);
+                }
+            }
+        }
+    }
+}
+
+
+
+
 async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { hierarchyType, action, tenantId, boundaries, resources } = CampaignDetails;
@@ -564,13 +600,12 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     }
     if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
-
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
-
         await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
+        await validateDeliveryRules(request);
     }
     if (actionInUrl == "update") {
         await validateById(request);
@@ -583,6 +618,18 @@ async function validateSearchProjectCampaignRequest(request: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
     }
     validateBodyViaSchema(searchCampaignDetailsSchema, CampaignDetails);
+    let count = 0;
+    let validFields = ["ids", "startDate", "endDate", "projectType", "campaignName", "status", "createdBy", "campaignNumber"];
+    for (const key in CampaignDetails) {
+        if (key !== 'tenantId') {
+            if (validFields.includes(key)) {
+                count++;
+            }
+        }
+    }
+    if (count === 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "At least one more field other than tenantID is required");
+    }
 }
 
 async function validateSearchRequest(request: any) {

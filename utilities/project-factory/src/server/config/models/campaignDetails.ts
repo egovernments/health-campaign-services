@@ -107,8 +107,9 @@ export const campaignDetailsSchema = {
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "maxLength": 128,
-                            "minLength": 1
+                            "maxLength": 100,
+                            "minLength": 1,
+                            "pattern": "^[a-zA-Z0-9]+$"
                         }
                     },
                     "conditions": {
