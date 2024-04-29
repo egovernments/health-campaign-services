@@ -123,8 +123,9 @@ const httpRequest = async (
       (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message))
     logger.error(":: ERROR STACK :: " + error?.stack || error);
     // Throw error response via request if error response contains errors
-    if (errorResponse?.data?.Errors) {
-      throwErrorViaRequest(JSON.stringify(errorResponse?.data?.Errors));
+    if (errorResponse?.data?.Errors?.[0]) {
+      errorResponse.data.Errors[0].status = errorResponse?.data?.Errors?.[0]?.status || errorResponse?.status
+      throwErrorViaRequest(errorResponse?.data?.Errors?.[0]);
     }
     else {
       // Throw error message via request

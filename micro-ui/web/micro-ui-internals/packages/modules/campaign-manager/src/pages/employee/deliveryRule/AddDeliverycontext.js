@@ -45,7 +45,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
 
   useEffect(() => {
     setAddedOption(delivery?.attributes?.map((i) => i?.attribute?.code)?.filter((i) => i));
-  }, [delivery]);
+  }, [delivery, deliveryRules]);
 
   const selectValue = (e) => {
     let val = e.target.value;
@@ -152,12 +152,12 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
         </CardLabel>
         <Dropdown
           className="form-field"
-          selected={attribute?.attribute}
+          selected={attributeConfig?.find((item) => item?.code === attribute?.attribute?.code)}
           disable={false}
           isMandatory={true}
-          option={addedOption ? attributeConfig.filter((item) => !addedOption.includes(item.code)) : attributeConfig}
+          option={addedOption ? attributeConfig?.filter((item) => !addedOption.includes(item.code)) : attributeConfig}
           select={(value) => selectAttribute(value)}
-          optionKey="code"
+          optionKey="i18nKey"
           t={t}
         />
       </LabelFieldPair>
@@ -636,9 +636,9 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           actionSaveOnSubmit={confirmResources}
           headerBarMain={t(`CAMPAIGN_PRODUCTS_MODAL_HEADER_TEXT`)}
           headerBarEnd={
-            // <div className="icon-bg-secondary" onClick={() => setShowModal(false)}>
+            <div onClick={() => setShowModal(false)}>
               <CloseSvg />
-            // </div>
+            </div>
           }
           children={
             <AddProducts
