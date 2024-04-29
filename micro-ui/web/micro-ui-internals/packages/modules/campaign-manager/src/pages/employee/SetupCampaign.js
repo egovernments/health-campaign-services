@@ -29,15 +29,17 @@ function loopAndReturn(dataa) {
       newArray[existingIndex] = {
         attribute: existingItem.attribute,
         operator: { code: "IN_BETWEEN" },
-        toValue: Math.min(existingItem.value, item.value),
-        fromValue: Math.max(existingItem.value, item.value),
+        toValue: existingItem.value && item.value ? Math.min(existingItem.value, item.value) : null,
+        fromValue: existingItem.value && item.value ? Math.max(existingItem.value, item.value) : null,
       };
     } else if (item?.operator?.code === "EQUAL_TO") {
       newArray.push({
         ...item,
-        value: {
-          code: item?.value,
-        },
+        value: item?.value
+          ? {
+              code: item?.value,
+            }
+          : null,
       });
     } else {
       // If no existing item with the same attribute is found, push the current item
@@ -406,19 +408,24 @@ const SetupCampaign = () => {
               restructuredRule.conditions.push({
                 attribute: attribute.attribute.code,
                 operator: "LESS_THAN",
-                value: Number(attribute.fromValue),
+                value: attribute.fromValue ? Number(attribute.fromValue) : null,
               });
               attribute;
               restructuredRule.conditions.push({
                 attribute: attribute.attribute.code,
                 operator: "GREATER_THAN",
-                value: Number(attribute.toValue),
+                value: attribute.toValue ? Number(attribute.toValue) : null,
               });
             } else {
               restructuredRule.conditions.push({
                 attribute: attribute.attribute ? attribute.attribute.code : null,
                 operator: attribute.operator ? attribute.operator.code : null,
-                value: attribute?.attribute?.code === "Gender" ? attribute?.value : Number(attribute?.value),
+                value:
+                  attribute?.attribute?.code === "Gender" && attribute?.value?.length > 0
+                    ? attribute?.value
+                    : attribute?.value
+                    ? Number(attribute?.value)
+                    : null,
               });
             }
           });
@@ -460,23 +467,6 @@ const SetupCampaign = () => {
   }, [shouldUpdate]);
 
   useEffect(async () => {
-    // if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
-    //   const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
-    // }
-    // if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA) {
-    //   const FacilityTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType, "facility");
-    //   setDataParams({
-    //     ...dataParams,
-    //     ValidateFacilityId: FacilityTemp?.ResourceDetails?.id,
-    //   });
-    // }
-    // if (totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA) {
-    //   const UserTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA, hierarchyType, "user");
-    //   setDataParams({
-    //     ...dataParams,
-    //     ValidateUserId: UserTemp?.ResourceDetails?.id,
-    //   });
-    // }
     if (shouldUpdate === true) {
       if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
         return;
@@ -699,6 +689,8 @@ const SetupCampaign = () => {
             if (
               attribute?.operator &&
               attribute?.operator?.code === "IN_BETWEEN" &&
+              attribute?.fromValue &&
+              attribute?.toValue &&
               attribute?.fromValue !== "" &&
               attribute?.toValue !== "" &&
               Number(attribute?.toValue) >= Number(attribute?.fromValue)
@@ -807,7 +799,7 @@ const SetupCampaign = () => {
         ["HCM_CAMPAIGN_CYCLE_CONFIGURE"]: {},
         ["HCM_CAMPAIGN_DELIVERY_DATA"]: {},
       }));
-    //to set the data in the local storage
+      //to set the data in the local storage
       setParams({
         ...params,
         [name]: { ...formData },
