@@ -254,11 +254,12 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
 
   const onFileDownload = (file) => {
-    // window.open(file?.url, "_blank", `name=${file?.fileName}`);
     if (file && file?.url) {
-      window.location.href = file?.url;
+        // Splitting filename before .xlsx or .xls
+        const fileNameWithoutExtension = file?.fileName.split(/\.(xlsx|xls)/)[0];
+        downloadExcel(new Blob([file], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileNameWithoutExtension);
     }
-  };
+};
 
   const Template = {
     url: "/project-factory/v1/data/_download",
@@ -298,36 +299,23 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           });
 
           if (fileData && fileData?.[0]?.url) {
-            window.location.href = fileData?.[0]?.url;
-
-            // const link = document.createElement("a");
-            // link.href = fileData?.[0]?.url;
-            // link.download = "download"; // Set custom file name here
-            // link.target = "_blank"; // Open in a new tab/window
-            // link.click();
-
-            // fetch(fileData?.[0]?.url)
-            // .then((response) => response.blob())
-            // .then((blob) => {
-            //   const url = window.URL.createObjectURL(new Blob([blob]));
-            //   const link = document.createElement("a");
-            //   link.href =  "https://unified-dev-bucket-s3.s3-ap-south-1.amazonaws.com/mz/pgr/April/26/1714119186437HfyAmLyvuX.xlsx?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCURO6LL2T7ZQYP7%2F20240426%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20240426T081306Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=44fafeddf259073a42d9e03ad21522afbae3d47edc663ad051c7d46209b548ab"
-            //   link.download = "downloaded-file";
-            //   document.body.appendChild(link);
-
-            //   link.click();
-
-            //   document.body.removeChild(link);
-            //   // window.URL.revokeObjectURL(url);
-            // })
-            // .catch((error) => {
-            //   console.error("Error fetching the file:", error);
-            // });
+            downloadExcel(new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),fileData?.[0]?.fileName );
           }
         },
       }
     );
   };
+
+  const downloadExcel = (blob, fileName) => {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName + ".xlsx";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 7000);
+  };
+
   return (
     <React.Fragment>
       <div className="campaign-bulk-upload">
