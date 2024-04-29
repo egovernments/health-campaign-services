@@ -4,6 +4,7 @@ export const searchCampaignDetailsSchema = {
     "properties": {
         "ids": {
             "type": "array",
+            "minItems": 1,
             "items": {
                 "type": "string"
             }
