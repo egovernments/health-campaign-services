@@ -1,7 +1,6 @@
 package org.egov.transformer.models.pgr;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.annotations.ApiModel;
 import lombok.*;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
@@ -12,7 +11,6 @@ import javax.validation.constraints.NotNull;
 /**
  * Request object to fetch the report data
  */
-@ApiModel(description = "Request object to fetch the report data")
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 
