@@ -281,7 +281,7 @@ const SetupCampaign = () => {
   useEffect(() => {
     if (Object.keys(params).length !== 0) return;
     if (!draftData) return;
-    const delivery = draftData?.campaignDetails?.deliveryRules;
+    const delivery = Array.isArray(draftData?.campaignDetails?.deliveryRules) ? draftData?.campaignDetails?.deliveryRules : [];
     const filteredProjectType = projectType?.["HCM-PROJECT-TYPES"]?.projectTypes?.filter((i) => i.code === draftData?.projectType);
     const restructureFormData = {
       HCM_CAMPAIGN_TYPE: { projectType: filteredProjectType?.[0] },
