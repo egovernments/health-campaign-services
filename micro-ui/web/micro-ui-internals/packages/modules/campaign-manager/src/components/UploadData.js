@@ -27,17 +27,51 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [showToast, setShowToast] = useState(null);
   const type = props?.props?.type;
   const [executionCount, setExecutionCount] = useState(0);
+
   useEffect(() => {
     if (type === "facilityWithBoundary") {
       onSelect("uploadFacility", uploadedFile);
-    }
-    else if (type === "boundary") {
+    } else if (type === "boundary") {
       onSelect("uploadBoundary", uploadedFile);
-    }
-    else{
+    } else {
       onSelect("uploadUser", uploadedFile);
     }
   }, [uploadedFile]);
+
+  // useEffect(() => {
+  //   if(type === "boundary"){
+  //     if (executionCount < 5) {
+  //       onSelect("uploadBoundary", uploadedFile);
+  //       setExecutionCount(prevCount => prevCount + 1);
+  //     }
+  //   }
+  //   else if(type === "facilityWithBoundary"){
+  //     if (executionCount < 5) {
+  //       onSelect("uploadFacility", uploadedFile);
+  //       setExecutionCount(prevCount => prevCount + 1);
+  //     }
+  //   }
+  //   else{
+  //     if (executionCount < 5) {
+  //       onSelect("uploadUser", uploadedFile);
+  //       setExecutionCount(prevCount => prevCount + 1);
+  //     }
+  //   }
+  // });
+
+  useEffect(() => {
+    if (executionCount < 5) {
+      let uploadType = "uploadUser";
+      if (type === "boundary") {
+        uploadType = "uploadBoundary";
+      } else if (type === "facilityWithBoundary") {
+        uploadType = "uploadFacility";
+      }
+      onSelect(uploadType, uploadedFile);
+      setExecutionCount(prevCount => prevCount + 1);
+    }
+  }, [type, executionCount, onSelect, uploadedFile]);
+  
 
   useEffect(() => {
     switch (type) {
@@ -51,7 +85,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser || []);
         break;
     }
-  }, [type]);
+  }, [type, props?.props?.sessionData]);
 
   useEffect(() => {
     if (errorsType[type]) {
@@ -294,7 +328,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       }
     );
   };
-
   return (
     <React.Fragment>
       <div className="campaign-bulk-upload">
@@ -310,9 +343,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           onButtonClick={downloadTemplate}
         />
       </div>
-      <div className="info-text">
-        {type === "boundary" ? t("HCM_BOUNDARY_MESSAGE") : type === "facilityWithBoundary" ? t("HCM_FACILITY_MESSAGE") : t("HCM_USER_MESSAGE")}
-      </div>
+      {uploadedFile.length === 0 && (
+        <div className="info-text">
+          {type === "boundary" ? t("HCM_BOUNDARY_MESSAGE") : type === "facilityWithBoundary" ? t("HCM_FACILITY_MESSAGE") : t("HCM_USER_MESSAGE")}
+        </div>
+      )}
       <BulkUpload onSubmit={onBulkUploadSubmit} fileData={uploadedFile} onFileDelete={onFileDelete} onFileDownload={onFileDownload} />
       {showInfoCard && (
         <InfoCard
@@ -323,16 +358,18 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           style={{ marginLeft: "0rem", maxWidth: "100%" }}
           label={t("HCM_ERROR")}
           additionalElements={[
-            Object.entries(errorsType).map(([type, errorMessage]) => (
-              <React.Fragment key={type}>
-                {errorMessage.split(",").map((error, index) => (
-                  <React.Fragment key={index}>
-                    {index > 0 && <br />}
-                    {error.trim()}
-                  </React.Fragment>
-                ))}
-              </React.Fragment>
-            )),
+            <React.Fragment key={type}>
+              {errorsType[type] && (
+                <React.Fragment>
+                  {errorsType[type].split(",").map((error, index) => (
+                    <React.Fragment key={index}>
+                      {index > 0 && <br />}
+                      {error.trim()}
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
+              )}
+            </React.Fragment>,
           ]}
         />
       )}
