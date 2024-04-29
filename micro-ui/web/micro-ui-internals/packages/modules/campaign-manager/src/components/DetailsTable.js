@@ -9,7 +9,8 @@ const DetailsTable = ({ className = "", columnsData, rowsData, summaryRows, card
   const columns = React.useMemo(() => columnsData, [t]);
 
   const data = React.useMemo(() => {
-    return rowsData;
+    const temp = rowsData.map((i) => ({ ...i, operator: t(i?.operator) }));
+    return temp;
   }, [rowsData]);
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({
