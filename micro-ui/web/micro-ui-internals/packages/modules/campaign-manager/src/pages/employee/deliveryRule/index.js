@@ -19,10 +19,10 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   const filteredDeliveryConfig = deliveryConfig.find((i) => i.projectType === selectedProjectType);
   useEffect(() => {
     setCycleData(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
-  }, [config]);
+  }, [config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure]);
 
   const generateTabsData = (tabs, subTabs) => {
-    if (saved && saved?.length == tabs) {
+    if (saved && saved?.length == tabs && saved?.[0]?.deliveries?.length === subTabs) {
       return [...saved];
     }
     return [...Array(tabs)].map((_, tabIndex) => ({
