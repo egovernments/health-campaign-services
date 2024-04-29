@@ -112,7 +112,15 @@ function CycleConfiguration({ onSelect, formData, control, ...props }) {
           ?.join("/")} - ${tempSession?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate?.split("-")?.reverse()?.join("/")})`}
       />
       <Card className="campaign-counter-container">
-        <CardText>{t(`CAMPAIGN_CYCLE_CONFIGURE_HEADING`)}</CardText>
+        <CardText>
+          {t(
+            `CAMPAIGN_CYCLE_CONFIGURE_HEADING_${
+              tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code
+                ? tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.code?.toUpperCase()
+                : tempSession?.HCM_CAMPAIGN_TYPE?.projectType?.toUpperCase()
+            }`
+          )}
+        </CardText>
         <LabelFieldPair>
           <CardLabel>
             {t(`CAMPAIGN_NO_OF_CYCLE`)}

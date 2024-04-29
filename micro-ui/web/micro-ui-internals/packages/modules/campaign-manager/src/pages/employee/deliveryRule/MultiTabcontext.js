@@ -143,7 +143,7 @@ const Tabs = ({ onTabChange }) => {
   );
 };
 
-const TabContent = ({ activeSubTab, subTabCount = 3, onSubTabChange }) => {
+const TabContent = ({ activeSubTab, subTabCount = 3, onSubTabChange, project }) => {
   const { campaignData, dispatchCampaignData } = useContext(CycleContext);
   const { t } = useTranslation();
 
@@ -152,7 +152,7 @@ const TabContent = ({ activeSubTab, subTabCount = 3, onSubTabChange }) => {
       <SubTabs campaignData={campaignData} subTabCount={subTabCount} activeSubTab={activeSubTab} onSubTabChange={onSubTabChange} />
       <div>
         <CardSubHeader className="tab-content-header">{t(`CAMPAIGN_TAB_TEXT`)}</CardSubHeader>
-        <CardText>{t(`CAMPAIGN_TAB_SUB_TEXT`)} </CardText>
+        <CardText>{t(`CAMPAIGN_TAB_SUB_TEXT_${project?.code ? project?.code?.toUpperCase() : project?.toUpperCase()}`)} </CardText>
       </div>
       {/* Add content specific to each tab as needed */}
     </Card>
@@ -225,7 +225,12 @@ const MultiTab = ({ tabCount = 3, subTabCount = 2 }) => {
         <div className="campaign-tabs-container">
           <Tabs tabCount={tabCount} activeTab={activeTab} onTabChange={handleTabChange} />
         </div>
-        <TabContent activeTab={activeTab} activeSubTab={activeSubTab} onSubTabChange={handleSubTabChange} />
+        <TabContent
+          activeTab={activeTab}
+          project={tempSession?.HCM_CAMPAIGN_TYPE?.projectType}
+          activeSubTab={activeSubTab}
+          onSubTabChange={handleSubTabChange}
+        />
         <AddDeliveryRuleWrapper />
       </div>
     </>

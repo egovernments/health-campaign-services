@@ -36,7 +36,7 @@
     grid-template-columns: 2fr 1fr;
     grid-gap: 2rem;
     .options-card {
-      max-height: 10rem;
+      max-height: 10rem !important;
     }
   }
   .popup-wrap {
@@ -260,7 +260,7 @@
     }
   }
   .options-card {
-    max-height: 10rem;
+    max-height: 10rem !important;
   }
 }
 .add-rule-btn {

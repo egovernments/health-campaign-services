@@ -51,26 +51,66 @@ const CampaignSummary = () => {
                 },
               ],
             },
-            {
-              sections: [
-                {
-                  type: "DATA",
-                  cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0 } },
-                  cardSecondaryAction: (
-                    <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
-                      <span>{t(`CAMPAIGN_EDIT`)}</span>
-                      <EditIcon />
-                    </div>
-                  ),
-                  values: [
+            data?.[0]?.campaignDetails?.resources?.find((i) => i?.type === "boundary")
+              ? {
+                  sections: [
                     {
-                      key: "CAMPAIGN_TYPE",
-                      value: data?.[0]?.hierarchyType || t("CAMPAIGN_SUMMARY_NA"),
+                      type: "COMPONENT",
+                      component: "CampaignDocumentsPreview",
+                      props: {
+                        documents: data?.[0]?.campaignDetails?.resources?.filter((i) => i.type === "boundary"),
+                      },
+                      cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0 } },
+                      cardSecondaryAction: (
+                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(7)}>
+                          <span>{t(`CAMPAIGN_EDIT`)}</span>
+                          <EditIcon />
+                        </div>
+                      ),
                     },
                   ],
-                },
-              ],
-            },
+                }
+              : {},
+            data?.[0]?.campaignDetails?.resources?.find((i) => i?.type === "facility")
+              ? {
+                  sections: [
+                    {
+                      type: "COMPONENT",
+                      component: "CampaignDocumentsPreview",
+                      props: {
+                        documents: data?.[0]?.campaignDetails?.resources?.filter((i) => i.type === "facility"),
+                      },
+                      cardHeader: { value: t("FACILITY_DETAILS"), inlineStyles: { marginTop: 0 } },
+                      cardSecondaryAction: (
+                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(8)}>
+                          <span>{t(`CAMPAIGN_EDIT`)}</span>
+                          <EditIcon />
+                        </div>
+                      ),
+                    },
+                  ],
+                }
+              : {},
+            data?.[0]?.campaignDetails?.resources?.find((i) => i?.type === "user")
+              ? {
+                  sections: [
+                    {
+                      type: "COMPONENT",
+                      component: "CampaignDocumentsPreview",
+                      props: {
+                        documents: data?.[0]?.campaignDetails?.resources?.filter((i) => i.type === "user"),
+                      },
+                      cardHeader: { value: t("USER_DETAILS"), inlineStyles: { marginTop: 0 } },
+                      cardSecondaryAction: (
+                        <div className="campaign-preview-edit-container" onClick={() => handleRedirect(9)}>
+                          <span>{t(`CAMPAIGN_EDIT`)}</span>
+                          <EditIcon />
+                        </div>
+                      ),
+                    },
+                  ],
+                }
+              : {},
             ...data?.[0]?.campaignDetails?.deliveryRules?.map((item, index) => {
               return {
                 sections: [
@@ -78,7 +118,7 @@ const CampaignSummary = () => {
                     type: "COMPONENT",
                     cardHeader: { value: t("DELIVERY_CYCLE_DETAILS"), inlineStyles: { marginTop: 0 } },
                     cardSecondaryAction: (
-                      <div className="campaign-preview-edit-container" onClick={() => handleRedirect(2)}>
+                      <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
                         <span>{t(`CAMPAIGN_EDIT`)}</span>
                         <EditIcon />
                       </div>
@@ -103,7 +143,7 @@ const CampaignSummary = () => {
   });
 
   const handleRedirect = (step) => {
-    history.push(`/${window?.contextPath}/employee/campaign/setup-campaign?step=${step}`);
+    history.push(`/${window?.contextPath}/employee/campaign/setup-campaign?key=${step}`);
   };
 
   if (isLoading) {

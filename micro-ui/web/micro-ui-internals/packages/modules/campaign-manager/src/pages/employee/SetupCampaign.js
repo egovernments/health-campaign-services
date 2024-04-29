@@ -148,19 +148,20 @@ function reverseDeliveryRemap(data) {
     delivery.deliveryRules.push({
       ruleKey: item.deliveryRuleNumber,
       delivery: {},
-      attributes: item.conditions.map((condition) => ({
-        value: condition?.value ? condition?.value : "",
-        operator: condition?.operator
-          ? {
-              code: condition.operator,
-            }
-          : null,
-        attribute: condition?.attribute
-          ? {
-              code: condition.attribute,
-            }
-          : null,
-      })),
+      attributes: loopAndReturn(item.conditions),
+      // .map((condition) => ({
+      // value: condition?.value ? condition?.value : "",
+      // operator: condition?.operator
+      // ? {
+      // code: condition.operator,
+      // }
+      // : null,
+      // attribute: condition?.attribute
+      // ? {
+      // code: condition.attribute,
+      // }
+      // : null,
+      // })),
       products: [...item.products],
     });
   });
@@ -309,6 +310,15 @@ const SetupCampaign = () => {
         },
         selectedData: draftData?.boundaries,
       },
+      HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA: {
+        uploadBoundary: draftData?.campaignDetails?.resources?.filter((i) => i?.type === "boundary"),
+      },
+      HCM_CAMPAIGN_UPLOAD_FACILITY_DATA: {
+        uploadFacility: draftData?.campaignDetails?.resources?.filter((i) => i?.type === "facility"),
+      },
+      HCM_CAMPAIGN_UPLOAD_USER_DATA: {
+        uploadUser: draftData?.campaignDetails?.resources?.filter((i) => i?.type === "user"),
+      },
     };
     setParams({ ...restructureFormData });
   }, [params, draftData]);
@@ -429,25 +439,44 @@ const SetupCampaign = () => {
     return restructuredData;
   }
 
-
   useEffect(async () => {
     if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
       const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
     }
     if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA) {
-      const FacilityTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType , "facility");
+      const FacilityTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType, "facility");
       setDataParams({
         ...dataParams,
-        ValidateFacilityId: FacilityTemp?.ResourceDetails?.id
+        ValidateFacilityId: FacilityTemp?.ResourceDetails?.id,
       });
     }
     if (totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA) {
-      const UserTemp =  await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA, hierarchyType , "user");
+      const UserTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA, hierarchyType, "user");
       setDataParams({
         ...dataParams,
-        ValidateUserId: UserTemp?.ResourceDetails?.id
+        ValidateUserId: UserTemp?.ResourceDetails?.id,
       });
     }
+  }, [shouldUpdate]);
+  
+  useEffect(async () => {
+    // if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
+    //   const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
+    // }
+    // if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA) {
+    //   const FacilityTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA, hierarchyType, "facility");
+    //   setDataParams({
+    //     ...dataParams,
+    //     ValidateFacilityId: FacilityTemp?.ResourceDetails?.id,
+    //   });
+    // }
+    // if (totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA) {
+    //   const UserTemp = await Digit.Hooks.campaign.useResourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA, hierarchyType, "user");
+    //   setDataParams({
+    //     ...dataParams,
+    //     ValidateUserId: UserTemp?.ResourceDetails?.id,
+    //   });
+    // }
     if (shouldUpdate === true) {
       if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
         return;
