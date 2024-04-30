@@ -27,17 +27,51 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [showToast, setShowToast] = useState(null);
   const type = props?.props?.type;
   const [executionCount, setExecutionCount] = useState(0);
+
   useEffect(() => {
     if (type === "facilityWithBoundary") {
       onSelect("uploadFacility", uploadedFile);
-    }
-    else if (type === "boundary") {
+    } else if (type === "boundary") {
       onSelect("uploadBoundary", uploadedFile);
-    }
-    else{
+    } else {
       onSelect("uploadUser", uploadedFile);
     }
   }, [uploadedFile]);
+
+  // useEffect(() => {
+  //   if(type === "boundary"){
+  //     if (executionCount < 5) {
+  //       onSelect("uploadBoundary", uploadedFile);
+  //       setExecutionCount(prevCount => prevCount + 1);
+  //     }
+  //   }
+  //   else if(type === "facilityWithBoundary"){
+  //     if (executionCount < 5) {
+  //       onSelect("uploadFacility", uploadedFile);
+  //       setExecutionCount(prevCount => prevCount + 1);
+  //     }
+  //   }
+  //   else{
+  //     if (executionCount < 5) {
+  //       onSelect("uploadUser", uploadedFile);
+  //       setExecutionCount(prevCount => prevCount + 1);
+  //     }
+  //   }
+  // });
+
+  useEffect(() => {
+    if (executionCount < 5) {
+      let uploadType = "uploadUser";
+      if (type === "boundary") {
+        uploadType = "uploadBoundary";
+      } else if (type === "facilityWithBoundary") {
+        uploadType = "uploadFacility";
+      }
+      onSelect(uploadType, uploadedFile);
+      setExecutionCount(prevCount => prevCount + 1);
+    }
+  }, [type, executionCount, onSelect, uploadedFile]);
+  
 
   useEffect(() => {
     switch (type) {
@@ -51,7 +85,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser || []);
         break;
     }
-  }, [type]);
+  }, [type, props?.props?.sessionData]);
 
   useEffect(() => {
     if (errorsType[type]) {
@@ -220,11 +254,12 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
 
   const onFileDownload = (file) => {
-    // window.open(file?.url, "_blank", `name=${file?.fileName}`);
     if (file && file?.url) {
-      window.location.href = file?.url;
+        // Splitting filename before .xlsx or .xls
+        const fileNameWithoutExtension = file?.fileName.split(/\.(xlsx|xls)/)[0];
+        downloadExcel(new Blob([file], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileNameWithoutExtension);
     }
-  };
+};
 
   const Template = {
     url: "/project-factory/v1/data/_download",
@@ -264,35 +299,21 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           });
 
           if (fileData && fileData?.[0]?.url) {
-            window.location.href = fileData?.[0]?.url;
-
-            // const link = document.createElement("a");
-            // link.href = fileData?.[0]?.url;
-            // link.download = "download"; // Set custom file name here
-            // link.target = "_blank"; // Open in a new tab/window
-            // link.click();
-
-            // fetch(fileData?.[0]?.url)
-            // .then((response) => response.blob())
-            // .then((blob) => {
-            //   const url = window.URL.createObjectURL(new Blob([blob]));
-            //   const link = document.createElement("a");
-            //   link.href =  "https://unified-dev-bucket-s3.s3-ap-south-1.amazonaws.com/mz/pgr/April/26/1714119186437HfyAmLyvuX.xlsx?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCURO6LL2T7ZQYP7%2F20240426%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20240426T081306Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=44fafeddf259073a42d9e03ad21522afbae3d47edc663ad051c7d46209b548ab"
-            //   link.download = "downloaded-file";
-            //   document.body.appendChild(link);
-
-            //   link.click();
-
-            //   document.body.removeChild(link);
-            //   // window.URL.revokeObjectURL(url);
-            // })
-            // .catch((error) => {
-            //   console.error("Error fetching the file:", error);
-            // });
+            downloadExcel(new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),fileData?.[0]?.fileName );
           }
         },
       }
     );
+  };
+
+  const downloadExcel = (blob, fileName) => {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName + ".xlsx";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 7000);
   };
 
   return (
@@ -310,9 +331,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           onButtonClick={downloadTemplate}
         />
       </div>
-      <div className="info-text">
-        {type === "boundary" ? t("HCM_BOUNDARY_MESSAGE") : type === "facilityWithBoundary" ? t("HCM_FACILITY_MESSAGE") : t("HCM_USER_MESSAGE")}
-      </div>
+      {uploadedFile.length === 0 && (
+        <div className="info-text">
+          {type === "boundary" ? t("HCM_BOUNDARY_MESSAGE") : type === "facilityWithBoundary" ? t("HCM_FACILITY_MESSAGE") : t("HCM_USER_MESSAGE")}
+        </div>
+      )}
       <BulkUpload onSubmit={onBulkUploadSubmit} fileData={uploadedFile} onFileDelete={onFileDelete} onFileDownload={onFileDownload} />
       {showInfoCard && (
         <InfoCard
@@ -323,16 +346,18 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           style={{ marginLeft: "0rem", maxWidth: "100%" }}
           label={t("HCM_ERROR")}
           additionalElements={[
-            Object.entries(errorsType).map(([type, errorMessage]) => (
-              <React.Fragment key={type}>
-                {errorMessage.split(",").map((error, index) => (
-                  <React.Fragment key={index}>
-                    {index > 0 && <br />}
-                    {error.trim()}
-                  </React.Fragment>
-                ))}
-              </React.Fragment>
-            )),
+            <React.Fragment key={type}>
+              {errorsType[type] && (
+                <React.Fragment>
+                  {errorsType[type].split(",").map((error, index) => (
+                    <React.Fragment key={index}>
+                      {index > 0 && <br />}
+                      {error.trim()}
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
+              )}
+            </React.Fragment>,
           ]}
         />
       )}

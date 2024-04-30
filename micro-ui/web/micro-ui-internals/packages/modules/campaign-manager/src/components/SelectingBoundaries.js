@@ -230,9 +230,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
             name: "infocard",
           }}
           variant="default"
-          style= {{marginLeft: "0rem", maxWidth: "100%"}}
+          style= {{margin: "0rem", maxWidth: "100%"}}
           additionalElements={[
-            <span>
+            <span style={{ color:"#505a5f"}}>
               {t("HCM_BOUNDARY_INFO ")}
               <a href={`mailto:${mailConfig.mailId}`} style={{ color:"black"}}>{t("L1team@email.com")}</a>
             </span>

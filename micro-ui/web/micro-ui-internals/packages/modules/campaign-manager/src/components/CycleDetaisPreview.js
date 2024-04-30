@@ -19,7 +19,7 @@ function mergeObjects(item) {
         mergedArr.push({
           fromValue,
           toValue,
-          value: `${fromValue} to ${toValue}`,
+          value: fromValue > 0 && toValue > 0 ? `${fromValue} to ${toValue}` : null,
           operator: "IN_BETWEEN",
           attribute: obj.attribute,
         });
@@ -46,7 +46,7 @@ const CycleDetaisPreview = ({ data, items, index }) => {
         text={item?.cycleNumber}
         className="border-none"
         rowContainerStyle={{ display: "flex", marginBottom: "1rem" }}
-        labelStyle={{ fontWeight: "700"}}
+        labelStyle={{ fontWeight: "700" }}
         textStyle={{ width: "60%" }}
       />
       <Row
