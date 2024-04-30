@@ -10,6 +10,8 @@ public interface Constants {
     String DOSE_NUMBER = "doseIndex";
     String DELIVERY_STRATEGY = "deliveryStrategy";
 
+    String NULL_STRING = "null";
+
     String QUANTITY_WASTED = "quantityWasted";
 
     Double RE_ADMINISTERED_DOSES = 2.0;

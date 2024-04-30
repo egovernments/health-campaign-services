@@ -221,15 +221,19 @@ public abstract class ProjectTaskTransformationService implements Transformation
             additionalFields.getFields().forEach(field -> {
                 String key = field.getKey();
                 String value = field.getValue();
-                if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key) && !NULL_STRING.equalsIgnoreCase(value)) {
                     try {
                         additionalDetails.put(key, Integer.valueOf(value));
                     } catch (NumberFormatException e) {
-                        log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
-                        additionalDetails.put(key, (JsonNode) null);
+                        try {
+                            additionalDetails.put(key, Double.valueOf(value));
+                        } catch (NumberFormatException ex) {
+                            log.info("Number Format exception, key: {} is not of type double and integer", key);
+                            additionalDetails.put(key, (JsonNode) null);
+                        }
                     }
                 } else {
-                    additionalDetails.put(key, field.getValue());
+                    additionalDetails.put(key, (JsonNode) null);
                 }
             });
         }
