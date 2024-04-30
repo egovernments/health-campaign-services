@@ -406,19 +406,19 @@ const SetupCampaign = () => {
           rule.attributes.forEach((attribute) => {
             if (attribute?.operator?.code === "IN_BETWEEN") {
               restructuredRule.conditions.push({
-                attribute: attribute.attribute.code,
+                attribute: attribute.attribute.code ? attribute.attribute.code : attribute.attribute ? attribute.attribute : null,
                 operator: "LESS_THAN",
                 value: attribute.fromValue ? Number(attribute.fromValue) : null,
               });
               attribute;
               restructuredRule.conditions.push({
-                attribute: attribute.attribute.code,
+                attribute: attribute.attribute.code ? attribute.attribute.code : attribute.attribute ? attribute.attribute : null,
                 operator: "GREATER_THAN",
                 value: attribute.toValue ? Number(attribute.toValue) : null,
               });
             } else {
               restructuredRule.conditions.push({
-                attribute: attribute.attribute ? attribute.attribute.code : null,
+                attribute: attribute.attribute.code ? attribute.attribute.code : attribute.attribute ? attribute.attribute : null,
                 operator: attribute.operator ? attribute.operator.code : null,
                 value:
                   attribute?.attribute?.code === "Gender" && attribute?.value?.length > 0
