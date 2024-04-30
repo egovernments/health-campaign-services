@@ -792,7 +792,7 @@ const SetupCampaign = () => {
 
     const name = filteredConfig?.[0]?.form?.[0]?.name;
 
-    if (name === "HCM_CAMPAIGN_TYPE") {
+    if (name === "HCM_CAMPAIGN_TYPE" && totalFormData?.["HCM_CAMPAIGN_TYPE"]?.projectType?.code !== formData?.projectType?.code) {
       setTotalFormData((prevData) => ({
         ...prevData,
         [name]: formData,
