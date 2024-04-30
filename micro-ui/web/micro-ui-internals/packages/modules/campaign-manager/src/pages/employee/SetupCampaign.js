@@ -278,6 +278,7 @@ const SetupCampaign = () => {
     setTotalFormData(params);
   }, [params]);
 
+  //DATA STRUCTURE
   useEffect(() => {
     if (Object.keys(params).length !== 0) return;
     if (!draftData) return;
@@ -406,19 +407,19 @@ const SetupCampaign = () => {
           rule.attributes.forEach((attribute) => {
             if (attribute?.operator?.code === "IN_BETWEEN") {
               restructuredRule.conditions.push({
-                attribute: attribute.attribute.code ? attribute.attribute.code : attribute.attribute ? attribute.attribute : null,
+                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
                 operator: "LESS_THAN",
                 value: attribute.fromValue ? Number(attribute.fromValue) : null,
               });
               attribute;
               restructuredRule.conditions.push({
-                attribute: attribute.attribute.code ? attribute.attribute.code : attribute.attribute ? attribute.attribute : null,
+                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
                 operator: "GREATER_THAN",
                 value: attribute.toValue ? Number(attribute.toValue) : null,
               });
             } else {
               restructuredRule.conditions.push({
-                attribute: attribute.attribute.code ? attribute.attribute.code : attribute.attribute ? attribute.attribute : null,
+                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
                 operator: attribute.operator ? attribute.operator.code : null,
                 value:
                   attribute?.attribute?.code === "Gender" && attribute?.value?.length > 0
@@ -466,6 +467,7 @@ const SetupCampaign = () => {
     }
   }, [shouldUpdate]);
 
+  //API CALL
   useEffect(async () => {
     if (shouldUpdate === true) {
       if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
@@ -473,6 +475,7 @@ const SetupCampaign = () => {
       } else if (filteredConfig?.[0]?.form?.[0]?.isLast) {
         const reqCreate = async () => {
           let payloadData = {};
+          payloadData.hierarchyType = "ADMIN";
           payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
             ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
             : null;
@@ -482,8 +485,12 @@ const SetupCampaign = () => {
           payloadData.tenantId = tenantId;
           payloadData.action = "create";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-          payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
-          payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
+            payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
+          }
+          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]) {
+            payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
@@ -531,17 +538,26 @@ const SetupCampaign = () => {
       } else if (!isDraftCreated && !id) {
         const reqCreate = async () => {
           let payloadData = {};
-          payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
-            : null;
-          payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
-            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
-            : null;
+          payloadData.hierarchyType = "ADMIN";
+          if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
+            payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+              : null;
+          }
+          if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate) {
+            payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+              : null;
+          }
           payloadData.tenantId = tenantId;
           payloadData.action = "draft";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-          payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
-          payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
+            payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
+          }
+          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]) {
+            payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
@@ -574,17 +590,26 @@ const SetupCampaign = () => {
       } else {
         const reqCreate = async () => {
           let payloadData = draftData;
-          payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
-            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
-            : null;
-          payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
-            ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
-            : null;
+          payloadData.hierarchyType = "ADMIN";
+          if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
+            payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
+              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
+              : null;
+          }
+          if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate) {
+            payloadData.endDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate
+              ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate)
+              : null;
+          }
           payloadData.tenantId = tenantId;
           payloadData.action = "draft";
           payloadData.campaignName = totalFormData?.HCM_CAMPAIGN_NAME?.campaignName;
-          payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
-          payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
+            payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
+          }
+          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]) {
+            payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
