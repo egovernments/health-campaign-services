@@ -340,6 +340,7 @@ function enrichRootProjectId(requestBody: any) {
     if (rootBoundary) {
         requestBody.CampaignDetails.projectId = requestBody?.boundaryProjectMapping?.[rootBoundary]?.projectId || null
     }
+    requestBody.CampaignDetails.projectId = requestBody.CampaignDetails.projectId || null
 }
 
 async function enrichAndPersistCampaignWithError(request: any, error: any) {
@@ -449,7 +450,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
         enrichRootProjectId(request.body);
     }
     else {
-        request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId
+        request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId || null
     }
     logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
