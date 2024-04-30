@@ -81,58 +81,8 @@ export const campaignDetailsDraftSchema = {
             "maxLength": 128,
             "minLength": 1
         },
-        "deliveryRules": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "startDate": {
-                        "type": "integer"
-                    },
-                    "endDate": {
-                        "type": "integer"
-                    },
-                    "cycleNumber": {
-                        "type": "integer"
-                    },
-                    "deliveryNumber": {
-                        "type": "integer"
-                    },
-                    "deliveryRuleNumber": {
-                        "type": "integer"
-                    },
-                    "products": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "maxLength": 100,
-                            "minLength": 1,
-                            "pattern": "^[a-zA-Z0-9]+$"
-                        }
-                    },
-                    "conditions": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "attribute": {
-                                    "type": "string",
-                                    "maxLength": 128,
-                                    "minLength": 1
-                                },
-                                "operator": {
-                                    "type": "string",
-                                    "maxLength": 128,
-                                    "minLength": 1
-                                },
-                                "value": {
-                                    "type": "integer"
-                                }
-                            },
-                        }
-                    }
-                },
-            }
+         "deliveryRules": {
+            "type": "array"
         },
         "additionalDetails": {
             "type": "object"
