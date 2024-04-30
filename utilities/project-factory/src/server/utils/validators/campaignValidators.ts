@@ -567,39 +567,6 @@ async function validateById(request: any) {
     }
 }
 
-async function validateDeliveryRules(request: any) {
-    const { deliveryRules } = request?.body?.CampaignDetails;
-    if (deliveryRules) {
-        for (let i = 0; i < deliveryRules.length; i++) {
-            const rule = deliveryRules[i];
-            // Convert timestamps to dates
-            var startDate = new Date(rule.startDate);
-            startDate.setHours(0, 0, 0, 0);
-            var endDate = new Date(rule.endDate);
-            endDate.setHours(0, 0, 0, 0);
-
-            // Validation 1: startDate should be less than endDate
-            if (startDate >= endDate) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `DeliveryRule ${i + 1}: Start date should be before end date.`);
-            }
-
-            // Validation 3: Check for overlapping dates
-            for (let j = i + 1; j < deliveryRules.length; j++) {
-                const otherRule = deliveryRules[j];
-                var otherStartDate = new Date(otherRule.startDate);
-                otherStartDate.setHours(0, 0, 0, 0);
-                var otherEndDate = new Date(otherRule.endDate);
-                endDate.setHours(0, 0, 0, 0);
-                if ((startDate >= otherStartDate && startDate <= otherEndDate) ||
-                    (endDate >= otherStartDate && endDate <= otherEndDate) ||
-                    (startDate <= otherStartDate && endDate >= otherEndDate)) {
-                    throwError("COMMON", 400, "VALIDATION_ERROR", `DeliveryRule ${i + 1} and Rule ${j + 1}: Overlapping dates are not allowed.`);
-                }
-            }
-        }
-    }
-}
-
 
 
 
@@ -623,7 +590,6 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         }
         await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
-        await validateDeliveryRules(request);
     }
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
@@ -749,7 +715,7 @@ async function validateDownloadRequest(request: any) {
     if (!type) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "type is required");
     }
-    if (!["facility", "user", "boundary", "facilityWithBoundary","userWithBoundary"].includes(String(type))) {
+    if (!["facility", "user", "boundary", "facilityWithBoundary", "userWithBoundary"].includes(String(type))) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary or userWithBoundary");
     }
     if (!hierarchyType) {
