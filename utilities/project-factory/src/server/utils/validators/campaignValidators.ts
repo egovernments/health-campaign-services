@@ -474,7 +474,7 @@ function validateProjectCampaignMissingFields(CampaignDetails: any) {
     const validate = ajv.compile(campaignDetailsSchema);
     const valid = validate(CampaignDetails);
     if (!valid) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", 'Invalid data: ' + ajv.errorsText(validate.errors));
+        throwError("COMMON", 400, "VALIDATION_ERROR", 'Invalid CampaignDetails data: ' + ajv.errorsText(validate.errors));
     }
     const { startDate, endDate } = CampaignDetails;
     if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
@@ -491,7 +491,7 @@ function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
     const validate = ajv.compile(campaignDetailsDraftSchema);
     const valid = validate(CampaignDetails);
     if (!valid) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", 'Invalid data: ' + ajv.errorsText(validate.errors));
+        throwError("COMMON", 400, "VALIDATION_ERROR", 'Invalid CampaignDetails data: ' + ajv.errorsText(validate.errors));
     }
     const { startDate, endDate } = CampaignDetails;
     if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
