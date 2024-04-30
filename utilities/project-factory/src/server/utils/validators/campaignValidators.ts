@@ -588,10 +588,12 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
+        await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
     }
     else {
+        await validateHierarchyType(request, hierarchyType, tenantId);
         validateDraftProjectCampaignMissingFields(CampaignDetails);
     }
     if (actionInUrl == "update") {
