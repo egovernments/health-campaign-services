@@ -291,8 +291,8 @@ async function validateGenerateRequest(request: express.Request) {
     else {
         request.query.forceUpdate = "false";
     }
-    if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary");
+    if (!["facility", "user", "boundary", "facilityWithBoundary","userWithBoundary"].includes(String(type))) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary or userWithBoundary");
     }
     await validateHierarchyType(request, hierarchyType, tenantId);
     if (type == 'boundary') {
