@@ -11,6 +11,7 @@ import { calculateKeyIndex, modifyTargetData, throwError } from "../genericUtils
 import { validateBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignDetails";
+import { campaignDetailsDraftSchema } from "../../config/models/campaignDetailsDraftSchema";
 
 
 
@@ -109,7 +110,6 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
             const boundaryData = data[key];
             const boundarySet = new Set(); // Create a Set to store unique boundaries for given sheet 
             boundaryData.forEach((element: any, index: number) => {
-                console.log(boundaryData, "dattttttttttttttttttttttttt")
                 const boundaries = element[boundaryColumn]; // Access "Boundary Code" property directly
                 if (!boundaries) {
                     errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"] + 1} for sheet ${key}`, sheetName: key })
@@ -486,7 +486,24 @@ function validateProjectCampaignMissingFields(CampaignDetails: any) {
     }
 }
 
-async function validateCampaignName(request: any) {
+function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
+    const ajv = new Ajv();
+    const validate = ajv.compile(campaignDetailsDraftSchema);
+    const valid = validate(CampaignDetails);
+    if (!valid) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", 'Invalid data: ' + ajv.errorsText(validate.errors));
+    }
+    const { startDate, endDate } = CampaignDetails;
+    if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
+    }
+    const today: any = Date.now();
+    if (startDate <= today) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
+    }
+}
+
+async function validateCampaignName(request: any, actionInUrl: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { campaignName, tenantId } = CampaignDetails;
     if (!campaignName) {
@@ -506,8 +523,11 @@ async function validateCampaignName(request: any) {
     logger.info("Url : " + config.host.projectFactoryBff + "project-factory/v1/project-type/search");
     const searchResponse: any = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
     if (Array.isArray(searchResponse?.CampaignDetails)) {
-        if (searchResponse?.data?.CampaignDetails?.length > 0) {
+        if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "create") {
             throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign name already exists");
+        }
+        else if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "update" && searchResponse?.CampaignDetails?.[0]?.id != CampaignDetails?.id) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign name already exists for another campaign");
         }
     }
     else {
@@ -534,8 +554,8 @@ async function validateById(request: any) {
         if (searchResponse?.data?.CampaignDetails?.length > 0) {
             logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.data?.CampaignDetails));
             request.body.ExistingCampaignDetails = searchResponse?.data?.CampaignDetails[0];
-            if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName) {
-                throwError("CAMPAIGN", 400, "CAMPAIGNNAME_MISMATCH", `CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`);
+            if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName && request.body.ExistingCampaignDetails?.status != "drafted") {
+                throwError("CAMPAIGN", 400, "CAMPAIGNNAME_MISMATCH", `CampaignName cannot be updated in drafted state. CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`);
             }
         }
         else {
@@ -595,9 +615,7 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     if (!(action == "create" || action == "draft")) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create or draft");
     }
-    if (actionInUrl == "create") {
-        await validateCampaignName(request);
-    }
+    await validateCampaignName(request, actionInUrl);
     if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -606,6 +624,9 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         await validateProjectCampaignBoundaries(boundaries, hierarchyType, tenantId, request);
         await validateProjectCampaignResources(resources, request);
         await validateDeliveryRules(request);
+    }
+    else {
+        validateDraftProjectCampaignMissingFields(CampaignDetails);
     }
     if (actionInUrl == "update") {
         await validateById(request);

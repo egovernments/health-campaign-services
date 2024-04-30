@@ -708,7 +708,6 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
                     hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
                     parent: modifiedChildParentMap.get(boundaryCode)
                 }
-                console.log("aaaaaaaaaaaaaaaaa")
                 flag = 0;
                 requestBody.BoundaryRelationship = boundary;
                 await new Promise(resolve => setTimeout(resolve, 2000));
