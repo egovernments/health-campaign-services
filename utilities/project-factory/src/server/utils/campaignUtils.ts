@@ -9,7 +9,7 @@ import { logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import pool from "../config/dbPoolConfig";
 import * as XLSX from 'xlsx';
-import { getBoundaryRelationshipData, modifyBoundaryData, throwError } from "./genericUtils";
+import { getBoundaryRelationshipData, modifyBoundaryData, modifyDataBasedOnDifferentTab, throwError } from "./genericUtils";
 
 // import * as xlsx from 'xlsx-populate';
 const _ = require('lodash');
@@ -982,13 +982,15 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
         const uniqueDistrictsForMainSheet: string[] = [];
         const workbook = XLSX.utils.book_new();
         const mainSheetData: any[] = [];
-        const headersForMainSheet = Object.keys(boundaryData[0]);
+        const headersForMainSheet = differentTabsBasedOnLevel ? Object.keys(boundaryData[0]).slice(0, Object.keys(boundaryData[0]).indexOf(differentTabsBasedOnLevel) + 1) : [];
+        headersForMainSheet.push('Boundary Code');
         mainSheetData.push([...headersForMainSheet]);
         const districtLevelRowBoundaryCodeMap = new Map();
 
         for (const data of boundaryData) {
-            const rowData = Object.values(data);
-            const districtIndex = data[differentTabsBasedOnLevel] !== '' ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
+            const modifiedData = modifyDataBasedOnDifferentTab(data, differentTabsBasedOnLevel);
+            const rowData = Object.values(modifiedData);
+            const districtIndex = modifiedData[differentTabsBasedOnLevel] !== '' ? rowData.indexOf(data[differentTabsBasedOnLevel]) : -1;
             if (districtIndex == -1) {
                 mainSheetData.push(rowData);
             }
@@ -1003,14 +1005,13 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
         }
         const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData);
         XLSX.utils.book_append_sheet(workbook, mainSheet, config.sheetName);
-
         for (const uniqueData of uniqueDistrictsForMainSheet) {
             const uniqueDataFromLevelForDifferentTabs = uniqueData.slice(uniqueData.lastIndexOf('_') + 1);
             const districtDataFiltered = boundaryData.filter(boundary => boundary[differentTabsBasedOnLevel] === uniqueDataFromLevelForDifferentTabs);
             const modifiedFilteredData = modifyFilteredData(districtDataFiltered, districtLevelRowBoundaryCodeMap.get(uniqueData));
             const districtIndex = Object.keys(modifiedFilteredData[0]).indexOf(differentTabsBasedOnLevel);
             const headers = Object.keys(modifiedFilteredData[0]).slice(districtIndex);
-            const modifiedHeaders = [...headers, "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"];
+            const modifiedHeaders = [...headers, "Target at the Selected Boundary level"];
             const newSheetData = [modifiedHeaders];
             for (const data of modifiedFilteredData) {
                 const rowData = Object.values(data).slice(districtIndex).map(value => value === null ? '' : String(value)); // Replace null with empty string

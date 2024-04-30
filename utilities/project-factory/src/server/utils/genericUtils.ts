@@ -850,6 +850,23 @@ function calculateKeyIndex(obj: any, hierachy: any[]) {
   return hierachy.indexOf(keyBeforeBoundaryCode);
 }
 
+function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLevel: any) {
+  const newData: any = {};
+  let boundaryCode: string | undefined;
+
+  for (const key in boundaryData) {
+    newData[key] = boundaryData[key];
+    if (key === differentTabsBasedOnLevel) {
+      break;
+    }
+  }
+  boundaryCode = boundaryData['Boundary Code'];
+  if (boundaryCode !== undefined) {
+    newData['Boundary Code'] = boundaryCode;
+  }
+  return newData;
+}
+
 
 
 export {
@@ -886,7 +903,8 @@ export {
   getBoundaryRelationshipData,
   getDataSheetReady,
   modifyTargetData,
-  calculateKeyIndex
+  calculateKeyIndex,
+  modifyDataBasedOnDifferentTab
 };
 
 
