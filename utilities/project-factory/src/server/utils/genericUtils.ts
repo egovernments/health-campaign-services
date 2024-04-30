@@ -468,7 +468,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
       produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
       request.body.generatedResource = finalResponse;
     }
-    else if (type == "facilityWithBoundary") {
+    else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       await processGenerateRequest(request);
       const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
@@ -600,6 +600,16 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
+async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any) {
+  const workbook = XLSX.utils.book_new();
+  // Add facility sheet to the workbook
+  XLSX.utils.book_append_sheet(workbook, userSheetData.ws, 'List of Users');
+  // Add boundary sheet to the workbook
+  XLSX.utils.book_append_sheet(workbook, boundarySheetData.ws, 'List of Campaign Boundaries');
+  const fileDetails = await createAndUploadFile(workbook, request)
+  request.body.fileDetails = fileDetails;
+}
+
 
 async function generateFacilityAndBoundarySheet(tenantId: string, request: any) {
   // Get facility and boundary data
@@ -610,10 +620,20 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any) 
   const boundarySheetData: any = await getBoundarySheetData(request);
   await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request);
 }
+async function generateUserAndBoundarySheet(request: any) {
+  const userData: any[] = [];
+  const headers = ["Name of the Person (Mandatory)", "Phone Number", "Role(Mandatory)", "Employment Type (Mandatory)", "Boundary Code"]
+  const userSheetData = await createExcelSheet(userData, headers, "List Of Users");
+  const boundarySheetData: any = await getBoundarySheetData(request);
+  await createUserAndBoundaryFile(userSheetData, boundarySheetData, request);
+}
 async function processGenerateRequest(request: any) {
   const { type, tenantId } = request.query
   if (type == "facilityWithBoundary") {
     await generateFacilityAndBoundarySheet(String(tenantId), request);
+  }
+  if (type == "userWithBoundary") {
+    await generateUserAndBoundarySheet(request);
   }
 }
 
@@ -783,9 +803,18 @@ async function getDataSheetReady(boundaryData: any, request: any) {
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
-  const headers = type != "facilityWithBoundary" ? [...reducedHierarchy, "Boundary Code",
-    "Target at the Selected Boundary level", "Start Date of Campaign (Optional Field)", "End Date of Campaign (Optional Field)"
-  ] : [...reducedHierarchy, "Boundary Code"];
+  const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
+    ? [
+      ...reducedHierarchy,
+      "Boundary Code",
+      "Target at the Selected Boundary level",
+      "Start Date of Campaign (Optional Field)",
+      "End Date of Campaign (Optional Field)"
+    ]
+    : [
+      ...reducedHierarchy,
+      "Boundary Code"
+    ];
   const data = boundaryList.map(boundary => {
     const boundaryParts = boundary.split(',');
     const boundaryCode = boundaryParts[boundaryParts.length - 1];
@@ -819,6 +848,23 @@ function calculateKeyIndex(obj: any, hierachy: any[]) {
   const boundaryCodeIndex = keys.indexOf('Boundary Code');
   const keyBeforeBoundaryCode = keys[boundaryCodeIndex - 1];
   return hierachy.indexOf(keyBeforeBoundaryCode);
+}
+
+function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLevel: any) {
+  const newData: any = {};
+  let boundaryCode: string | undefined;
+
+  for (const key in boundaryData) {
+    newData[key] = boundaryData[key];
+    if (key === differentTabsBasedOnLevel) {
+      break;
+    }
+  }
+  boundaryCode = boundaryData['Boundary Code'];
+  if (boundaryCode !== undefined) {
+    newData['Boundary Code'] = boundaryCode;
+  }
+  return newData;
 }
 
 
@@ -857,7 +903,8 @@ export {
   getBoundaryRelationshipData,
   getDataSheetReady,
   modifyTargetData,
-  calculateKeyIndex
+  calculateKeyIndex,
+  modifyDataBasedOnDifferentTab
 };
 
 

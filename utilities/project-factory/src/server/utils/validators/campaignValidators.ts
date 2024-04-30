@@ -749,8 +749,8 @@ async function validateDownloadRequest(request: any) {
     if (!type) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "type is required");
     }
-    if (!["facility", "user", "boundary", "facilityWithBoundary"].includes(String(type))) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary");
+    if (!["facility", "user", "boundary", "facilityWithBoundary","userWithBoundary"].includes(String(type))) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary or userWithBoundary");
     }
     if (!hierarchyType) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is required");
