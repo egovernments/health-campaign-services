@@ -30,13 +30,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
-      onSelect("uploadFacility", uploadedFile);
+      onSelect("uploadFacility", {uploadedFile,errorsType});
     } else if (type === "boundary") {
-      onSelect("uploadBoundary", uploadedFile);
+      onSelect("uploadBoundary", {uploadedFile,errorsType});
     } else {
-      onSelect("uploadUser", uploadedFile);
+      onSelect("uploadUser", {uploadedFile,errorsType});
     }
-  }, [uploadedFile]);
+  }, [uploadedFile , errorsType]);
 
   // useEffect(() => {
   //   if(type === "boundary"){
@@ -76,13 +76,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   useEffect(() => {
     switch (type) {
       case "boundary":
-        setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary || []);
+        setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile || []);
         break;
       case "facilityWithBoundary":
-        setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility || []);
+        setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile || []);
         break;
       default:
-        setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser || []);
+        setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile || []);
         break;
     }
   }, [type, props?.props?.sessionData]);

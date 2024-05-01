@@ -768,6 +768,33 @@ const SetupCampaign = () => {
         } else {
           return true;
         }
+        case "uploadBoundary":
+          if (formData?.uploadBoundary?.errorsType && formData?.uploadBoundary?.errorsType?.boundary && !(formData?.uploadBoundary?.uploadedFile.length === 0)) {
+            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
+            return false;
+          }
+          else {
+            return true;
+          }
+
+        case "uploadFacility":
+          if (formData?.uploadFacility?.errorsType && formData?.uploadFacility?.errorsType?.facilityWithBoundary && !(formData?.uploadFacility?.uploadedFile.length === 0)) {
+            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
+            return false;
+          }
+          else {
+            return true;
+          }
+          case "uploaduser":
+          if (formData?.uploadUser?.errorsType && formData?.uploadUser?.errorsType?.userWithBoundary && !(formData?.uploadUser?.uploadedFile.length === 0)) {
+            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
+            return false;
+          }
+          else {
+            return true;
+          }
+        
+
       case "cycleConfigure":
         const cycleNumber = formData?.cycleConfigure?.cycleConfgureDate?.cycle;
         const deliveryNumber = formData?.cycleConfigure?.cycleConfgureDate?.deliveries;
