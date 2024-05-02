@@ -24,22 +24,20 @@ public class HouseholdIndexV1 {
     private String userName;
     @JsonProperty("nameOfUser")
     private String nameOfUser;
+    @JsonProperty("role")
+    private String role;
     @JsonProperty("userAddress")
     private String userAddress;
     @JsonProperty("taskDates")
     private String taskDates;
     @JsonProperty("syncedDate")
     private String syncedDate;
-    @JsonProperty("role")
-    private String role;
+    @JsonProperty("syncedTimeStamp")
+    private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
     private ObjectNode boundaryHierarchy;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
-    @JsonProperty("syncedTimeStamp")
-    private String syncedTimeStamp;
-    @JsonProperty("syncedTime")
-    private Long syncedTime;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
 }

@@ -28,7 +28,7 @@ public interface Constants {
     String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
 
     String TRANSFORMER_LOCALIZATIONS = "transformerLocalizations";
-
+    String TRANSFORMER_ELASTIC_INDEX_LABELS = "transformerElasticIndexLabels";
     String PROJECT = "PROJECT";
     String WAREHOUSE = "WAREHOUSE";
     String FACILITY = "FACILITY";

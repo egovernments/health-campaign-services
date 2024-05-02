@@ -121,13 +121,12 @@ public class HouseholdService {
                 .role(userInfoMap.get(ROLE))
                 .nameOfUser(userInfoMap.get(NAME))
                 .userAddress(userInfoMap.get(CITY))
-                .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
-                .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
                 .boundaryHierarchy(boundaryHierarchy)
-                .additionalDetails(additionalDetails)
+                .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
+                .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(syncedTimeStamp)
-                .syncedTime(household.getAuditDetails().getLastModifiedTime())
+                .additionalDetails(additionalDetails)
                 .build();
     }
 }

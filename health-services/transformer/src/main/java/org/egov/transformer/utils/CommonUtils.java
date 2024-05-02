@@ -40,6 +40,8 @@ public class CommonUtils {
 
     private static Map<String, String> transformerLocalizations = new HashMap<>();
 
+    private static Map<String, String> transformerElasticIndexLabelsMap = new HashMap<>();
+
     private static Map<String, JSONArray> projectStaffRolesCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, MdmsService mdmsService) {
@@ -56,6 +58,25 @@ public class CommonUtils {
         }
         return fetchLocalizationsFromMdms(text, tenantId);
     }
+
+    public String getMDMSTransformerElasticIndexLabels (String label, String tenantId) {
+        if (transformerElasticIndexLabelsMap.containsKey(label)) {
+            log.info("Fetching indexLabel from transformerIndexLabel Cache: {}", label);
+            return transformerElasticIndexLabelsMap.get(label);
+        }
+        return fetchIndexLabelsFromMdms(label, tenantId);
+    }
+
+    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
+        Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(localityCode, tenantId);
+        Map<String, String> boundaryHierarchy = new HashMap<>();
+
+        boundaryLabelToNameMap.forEach((label, value) -> {
+            boundaryHierarchy.put(getMDMSTransformerElasticIndexLabels(localityCode, tenantId), value);
+        });
+        return boundaryHierarchy;
+    }
+
     public List<String> getProjectDatesList (Long startDateEpoch, Long endDateEpoch) {
         List<String> dates = new ArrayList<>();
         for (long timestamp = startDateEpoch; timestamp <= DAY_MILLIS + endDateEpoch; timestamp += DAY_MILLIS) {
@@ -179,6 +200,27 @@ public class CommonUtils {
         return boundaryHierarchy;
     }
 
+    private String fetchIndexLabelsFromMdms(String label, String tenantId) {
+        JSONArray transformerElasticIndexLabelsArray = new JSONArray();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, TRANSFORMER_ELASTIC_INDEX_LABELS, properties.getTransformerElasticIndexLabelsMdmsModule(), "");
+        try {
+            MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            transformerElasticIndexLabelsArray = mdmsResponse.getMdmsRes().get(properties.getTransformerElasticIndexLabelsMdmsModule())
+                    .get(TRANSFORMER_ELASTIC_INDEX_LABELS);
+            ObjectMapper objectMapper = new ObjectMapper();
+            transformerElasticIndexLabelsArray.forEach(item -> {
+                Map map = objectMapper.convertValue(item, new TypeReference<Map>() {
+                });
+                transformerElasticIndexLabelsMap.put((String) map.get(LABEL), (String) map.get(INDEX_LABEL));
+            });
+        } catch (Exception e) {
+            log.error("error while fetching ELASTIC_INDEX_LABELS from MDMS: {}", ExceptionUtils.getStackTrace(e));
+        }
+        return transformerElasticIndexLabelsMap.getOrDefault(label, label);
+    }
 
     private String fetchLocalizationsFromMdms(String text, String tenantId) {
         JSONArray transformerLocalizationsArray = new JSONArray();

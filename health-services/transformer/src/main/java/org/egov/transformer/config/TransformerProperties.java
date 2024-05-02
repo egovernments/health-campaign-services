@@ -128,6 +128,9 @@ public class TransformerProperties {
     @Value("${transformer.localizations.mdms.module}")
     private String transformerLocalizationsMdmsModule;
 
+    @Value("${transformer.elastic.index.labels.mdms.module}")
+    private String transformerElasticIndexLabelsMdmsModule;
+
     @Value("${project.staff.role.mdms.module}")
     private String projectStaffRolesMdmsModule;
 
