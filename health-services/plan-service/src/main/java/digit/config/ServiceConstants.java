@@ -92,6 +92,7 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
     public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
+    public static final String MDMS_MASTER_SCHEMS = "Schemas";
 
     public static final String MDSM_MASTER_TENANTS = "tenants";
     public static final String MDMS_TENANT_MODULE_NAME = "tenant";
@@ -107,5 +108,9 @@ public class ServiceConstants {
     public static final String FILTER_DATA = "$.*.data";
 
     public static final String LOCALITY_CODE = "Locality";
+
+    public static final String MDMS_SCHEMA_PROPERTIES = "Properties";
+
+    public static final String MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT = "isRuleConfigureInputs";
 
 }

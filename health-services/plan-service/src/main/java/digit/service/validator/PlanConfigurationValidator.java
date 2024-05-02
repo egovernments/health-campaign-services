@@ -11,10 +11,8 @@ import digit.web.models.PlanConfigurationRequest;
 import digit.web.models.PlanConfigurationSearchCriteria;
 import digit.web.models.PlanConfigurationSearchRequest;
 import digit.web.models.ResourceMapping;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -22,36 +20,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import static digit.config.ServiceConstants.ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_CODE;
-import static digit.config.ServiceConstants.ASSUMPTION_KEY_NOT_FOUND_IN_MDMS_MESSAGE;
-import static digit.config.ServiceConstants.ASSUMPTION_VALUE_NOT_FOUND_CODE;
-import static digit.config.ServiceConstants.ASSUMPTION_VALUE_NOT_FOUND_MESSAGE;
-import static digit.config.ServiceConstants.FILESTORE_ID_INVALID_CODE;
-import static digit.config.ServiceConstants.FILESTORE_ID_INVALID_MESSAGE;
-import static digit.config.ServiceConstants.INPUT_KEY_NOT_FOUND_CODE;
-import static digit.config.ServiceConstants.INPUT_KEY_NOT_FOUND_MESSAGE;
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_CODE;
-import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_MESSAGE;
-import static digit.config.ServiceConstants.JSONPATH_ERROR_CODE;
-import static digit.config.ServiceConstants.JSONPATH_ERROR_MESSAGE;
-import static digit.config.ServiceConstants.LOCALITY_CODE;
-import static digit.config.ServiceConstants.LOCALITY_NOT_PRESENT_IN_MAPPED_TO_CODE;
-import static digit.config.ServiceConstants.LOCALITY_NOT_PRESENT_IN_MAPPED_TO_MESSAGE;
-import static digit.config.ServiceConstants.MAPPED_TO_VALIDATION_ERROR_CODE;
-import static digit.config.ServiceConstants.MDMS_MASTER_ASSUMPTION;
-import static digit.config.ServiceConstants.MDMS_MASTER_RULE_CONFIGURE_INPUTS;
-import static digit.config.ServiceConstants.MDMS_MASTER_UPLOAD_CONFIGURATION;
-import static digit.config.ServiceConstants.MDMS_PLAN_MODULE_NAME;
-import static digit.config.ServiceConstants.REQUEST_UUID_EMPTY_CODE;
-import static digit.config.ServiceConstants.REQUEST_UUID_EMPTY_MESSAGE;
-import static digit.config.ServiceConstants.SEARCH_CRITERIA_EMPTY_CODE;
-import static digit.config.ServiceConstants.SEARCH_CRITERIA_EMPTY_MESSAGE;
-import static digit.config.ServiceConstants.TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE;
-import static digit.config.ServiceConstants.TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE;
-import static digit.config.ServiceConstants.TENANT_ID_EMPTY_CODE;
-import static digit.config.ServiceConstants.TENANT_ID_EMPTY_MESSAGE;
-import static digit.config.ServiceConstants.USER_UUID_MISMATCH_CODE;
-import static digit.config.ServiceConstants.USER_UUID_MISMATCH_MESSAGE;
+import static digit.config.ServiceConstants.*;
 
 @Component
 @Slf4j
@@ -82,7 +51,6 @@ public class PlanConfigurationValidator {
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateMappedToForLocality(planConfiguration);
-        validateTemplateIdentifierAgainstResourceMapping(planConfiguration);
     }
 
     /**
@@ -187,8 +155,7 @@ public class PlanConfigurationValidator {
      */
     public void validateOperationsInputAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_RULE_CONFIGURE_INPUTS + ".*.*";
-
+        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMS;
         List<Object> ruleInputsListFromMDMS = null;
         try {
             log.info(jsonPathForRuleInputs);
@@ -197,14 +164,37 @@ public class PlanConfigurationValidator {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-
+        List<String> allowedColumns = getRuleConfigInputsFromSchema(ruleInputsListFromMDMS);
+        planConfiguration.getOperations().stream()
+                .map(Operation::getOutput)
+                .forEach(allowedColumns::add);
         for (Operation operation : planConfiguration.getOperations()) {
-            if (!ruleInputsListFromMDMS.contains(operation.getInput())) {
+            if (!allowedColumns.contains(operation.getInput())) {
                 log.error("Input Value " + operation.getInput() + " is not present in MDMS Input List");
                 throw new CustomException(INPUT_KEY_NOT_FOUND_CODE, INPUT_KEY_NOT_FOUND_MESSAGE);
             }
         }
     }
+
+    // helper function
+    public static List<String> getRuleConfigInputsFromSchema(List<Object> schemas) {
+        if (schemas == null) {
+            return new ArrayList<>();
+        }
+        Set<String> finalData = new HashSet<>();
+        for (Object item : schemas) {
+            LinkedHashMap<String , LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>) ((LinkedHashMap) item).get(MDMS_SCHEMA_PROPERTIES);
+            for(Map.Entry<String, LinkedHashMap> column : columns.entrySet()){
+                LinkedHashMap<String, Boolean> data = column.getValue();
+                if(data.get(MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT)){
+                    finalData.add(column.getKey());
+                }
+            }
+        }
+        return new ArrayList<>(finalData);
+    }
+
+
 
     /**
      * Validates that the 'mappedTo' field in the list of ResourceMappings contains the value "Locality".
@@ -219,34 +209,7 @@ public class PlanConfigurationValidator {
         }
     }
 
-    /**
-     * Groups the resource mappings by template identifier and validates the 'mappedTo' field
-     * based on the 'templateIdentifier'.
-     *
-     * @param planConfiguration The plan configuration object to validate
-     */
-    public void validateTemplateIdentifierAgainstResourceMapping(PlanConfiguration planConfiguration) {
-        // Create a map of filestoreId to templateIdentifier
-        Map<String, String> filestoreIdToTemplateIdMap = planConfiguration.getFiles().stream()
-                .collect(Collectors.toMap(File::getFilestoreId, File::getTemplateIdentifier));
 
-        // Group the resourceMappings by templateIdentifier and validate mappedTo
-        Map<String, List<ResourceMapping>> groupedMappings = planConfiguration.getResourceMapping().stream()
-                .collect(Collectors.groupingBy(mapping -> filestoreIdToTemplateIdMap.get(mapping.getFilestoreId())));
-
-        // Validate the 'mappedTo' field based on the 'templateIdentifier'
-        groupedMappings.forEach((templateId, mappings) -> {
-            switch (templateId) {
-                case "Population":
-                    validateMappedTo(mappings, "population");
-                    break;
-                case "Facility":
-                    validateMappedTo(mappings, "facility");
-                    break;
-            }
-        });
-
-    }
 
     /**
      * Validates that all mappings in the list have the expected 'mappedTo' value.
@@ -308,7 +271,6 @@ public class PlanConfigurationValidator {
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateMappedToForLocality(planConfiguration);
-        validateTemplateIdentifierAgainstResourceMapping(planConfiguration);
 
     }
 
