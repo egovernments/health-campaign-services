@@ -72,7 +72,7 @@ public class CommonUtils {
         Map<String, String> boundaryHierarchy = new HashMap<>();
 
         boundaryLabelToNameMap.forEach((label, value) -> {
-            boundaryHierarchy.put(getMDMSTransformerElasticIndexLabels(localityCode, tenantId), value);
+            boundaryHierarchy.put(getMDMSTransformerElasticIndexLabels(label, tenantId), value);
         });
         return boundaryHierarchy;
     }

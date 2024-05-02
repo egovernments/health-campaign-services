@@ -95,7 +95,7 @@ public abstract class HouseholdMemberTransformationService implements Transforma
             }
 
             Map<String, String> userInfoMap = userService.
-                    getUserInfo(householdMember.getClientAuditDetails().getLastModifiedBy(), householdMember.getTenantId());
+                    getUserInfo(householdMember.getTenantId(), householdMember.getClientAuditDetails().getLastModifiedBy());
 
             return Collections.singletonList(HouseholdMemberIndexV1.builder()
                     .householdMember(householdMember)
