@@ -63,8 +63,8 @@ public class MetricDetail {
         }
 
         @JsonCreator
-        public static MetricDetail.MetricComparatorEnum fromValue(String text) {
-            for (MetricDetail.MetricComparatorEnum b : MetricDetail.MetricComparatorEnum.values()) {
+        public static MetricComparatorEnum fromValue(String text) {
+            for (MetricComparatorEnum b : MetricComparatorEnum.values()) {
                 if (String.valueOf(b.symbol).equals(text)) {
                     return b;
                 }
