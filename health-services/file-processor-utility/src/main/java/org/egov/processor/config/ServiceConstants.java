@@ -23,6 +23,10 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE = "Exception occurred while fetching plan configuration from plan service ";
 
+    public static final String MICROPLANNING_MODULE = "microplan";
+
+    public static final String FILES = "files";
+    public static final String FILESTORE_ID = "fileStoreId";
 
 
 }

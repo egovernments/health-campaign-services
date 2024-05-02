@@ -27,7 +27,7 @@ public class PlanConsumer {
         this.resourceEstimationService = resourceEstimationService;
     }
 
-    @KafkaListener(topics = "${plan.config.consumer.kafka.topics}")
+    @KafkaListener(topics = { "${plan.config.consumer.kafka.save.topic}", "${plan.config.consumer.kafka.update.topic}" })
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
