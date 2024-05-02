@@ -28,8 +28,9 @@ public class PlanConfigQueryBuilder {
             "\t   LEFT JOIN plan_configuration_operations pco ON pc.id = pco.plan_configuration_id\n" +
             "\t   LEFT JOIN plan_configuration_mapping pcm ON pc.id = pcm.plan_configuration_id";
 
-    private static final String PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY pc.last_modified_time DESC ";
+    private static final String PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY pc.last_modified_time DESC";
 
+    private static final String PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(DISTINCT pc.id) AS total_count FROM plan_configuration pc ";
     /**
      * Constructs a SQL query string for searching PlanConfiguration objects based on the provided search criteria.
      * Also adds an ORDER BY clause and handles pagination.
@@ -39,10 +40,16 @@ public class PlanConfigQueryBuilder {
      * @return A complete SQL query string for searching PlanConfiguration objects.
      */
     public String getPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
-        String query = buildPlanConfigSearchQuery(criteria, preparedStmtList);
+        String query = buildPlanConfigSearchQuery(criteria, preparedStmtList, Boolean.FALSE);
         query = QueryUtil.addOrderByClause(query, PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, criteria, preparedStmtList);
 
+        return query;
+    }
+
+    public String getPlanConfigCountQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
+        String query = buildPlanConfigSearchQuery(criteria, preparedStmtList, Boolean.TRUE);
+        query = getPaginatedQuery(query, criteria, preparedStmtList);
         return query;
     }
 
@@ -53,8 +60,8 @@ public class PlanConfigQueryBuilder {
      * @param preparedStmtList A list to store prepared statement parameters.
      * @return
      */
-    private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
-        StringBuilder builder = new StringBuilder(PLAN_CONFIG_BASE_SEARCH_QUERY);
+    private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount) {
+        StringBuilder builder = isCount ? new StringBuilder(PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER) : new StringBuilder(PLAN_CONFIG_BASE_SEARCH_QUERY);
 
         if (criteria.getTenantId() != null) {
             addClauseIfRequired(preparedStmtList, builder);

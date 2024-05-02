@@ -5,6 +5,7 @@ import digit.kafka.Producer;
 import digit.repository.impl.PlanConfigurationRepositoryImpl;
 import digit.service.enrichment.EnrichmentService;
 import digit.service.validator.PlanConfigurationValidator;
+import digit.util.ResponseInfoFactory;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
 
@@ -30,13 +31,16 @@ public class PlanConfigurationService {
 
     private PlanConfigurationRepositoryImpl repository;
 
+    private ResponseInfoFactory responseInfoFactory;
+
     public PlanConfigurationService(Producer producer, EnrichmentService enrichmentService, Configuration config
-            , PlanConfigurationValidator validator, PlanConfigurationRepositoryImpl repository) {
+            , PlanConfigurationValidator validator, PlanConfigurationRepositoryImpl repository, ResponseInfoFactory responseInfoFactory) {
         this.producer = producer;
         this.enrichmentService = enrichmentService;
         this.config = config;
         this.validator = validator;
         this.repository = repository;
+        this.responseInfoFactory = responseInfoFactory;
     }
 
     /**
@@ -56,9 +60,15 @@ public class PlanConfigurationService {
      * @param request The search request containing the criteria.
      * @return A list of plan configurations that match the search criteria.
      */
-    public List<PlanConfiguration> search(PlanConfigurationSearchRequest request) {
+    public PlanConfigurationResponse search(PlanConfigurationSearchRequest request) {
         validator.validateSearchRequest(request);
-        return repository.search(request.getPlanConfigurationSearchCriteria());
+        PlanConfigurationResponse response = PlanConfigurationResponse.builder().
+                responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+                .planConfiguration(repository.search(request.getPlanConfigurationSearchCriteria()))
+                .totalCount(repository.count(request.getPlanConfigurationSearchCriteria()))
+                .build();
+
+        return response;
     }
 
     /**

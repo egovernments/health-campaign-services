@@ -195,7 +195,7 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
 
         MetricDetail metricDetail = MetricDetail.builder()
                 .metricValue(rs.getBigDecimal("plan_target_metric_value"))
-                .metricComparator(rs.getString("plan_target_metric_comparator"))
+                .metricComparator(MetricDetail.MetricComparatorEnum.fromValue(rs.getString("plan_target_metric_comparator")))
                 .metricUnit(rs.getString("plan_target_metric_unit"))
                 .build();
 
