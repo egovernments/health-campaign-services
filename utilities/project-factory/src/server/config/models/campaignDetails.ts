@@ -4,8 +4,8 @@ export const campaignDetailsSchema = {
     "properties": {
         "hierarchyType": {
             "type": "string",
-            "maxLength": 128,
-            "minLength": 1
+            "maxLength": 128
+            // "minLength": 1
         },
         "tenantId": {
             "type": "string",
@@ -56,6 +56,7 @@ export const campaignDetailsSchema = {
         },
         "resources": {
             "type": "array",
+            "maxItems": 3,
             "items": {
                 "type": "object",
                 "properties": {
@@ -72,10 +73,11 @@ export const campaignDetailsSchema = {
                     "filename": {
                         "type": "string",
                         "maxLength": 128,
-                        "minLength": 1
+                        "minLength": 1,
+                        "pattern": "^.+\\.(xlsx|xls)$"
                     }
                 },
-                "required": ["filestoreId", "type"]
+                "required": ["filestoreId", "type", "filename"]
             }
         },
         "projectType": {
@@ -83,7 +85,7 @@ export const campaignDetailsSchema = {
             "maxLength": 128,
             "minLength": 1
         },
-         "deliveryRules": {
+        "deliveryRules": {
             "type": "array",
             "minItems": 1
         },

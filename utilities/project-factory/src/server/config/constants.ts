@@ -37,7 +37,7 @@ export const CONSTANTS: any = {
             BOUNDARY_SHEET_HEADER_ERROR: "Boundary Sheet Header Error",
             BOUNDARY_ENTITY_CREATE_ERROR: "Some error occured during boundary entity creation",
             BOUNDARY_RELATIONSHIP_CREATE_ERROR: "Some error occured during boundary relationship creation",
-            BOUNDARY_TARGET_ERROR : "Target either not present or invalid value"
+            BOUNDARY_TARGET_ERROR: "Target either not present or invalid value"
         },
         PROJECT: {
             PROJECT_CREATION_FAILED: "Error occured in project creation",

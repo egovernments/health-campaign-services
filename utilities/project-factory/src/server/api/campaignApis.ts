@@ -602,7 +602,7 @@ async function createProjectCampaignResourcData(request: any) {
         type: resource.type,
         fileStoreId: resource.filestoreId,
         tenantId: request?.body?.CampaignDetails?.tenantId,
-        action: "create",
+        action: "validate",
         hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
         additionalDetails: {}
       };
@@ -610,14 +610,12 @@ async function createProjectCampaignResourcData(request: any) {
         RequestInfo: request.body.RequestInfo,
         ResourceDetails: resourceDetails
       });
-      console.log(response?.data?.ResourceDetails, " rrrrrrrrrrrr222222222222222222222")
       if (response?.data?.ResourceDetails?.id) {
         resourceDetailsIds.push(response?.data?.ResourceDetails?.id)
       }
     }
   }
   request.body.CampaignDetails.campaignDetails = { ...request.body.CampaignDetails.campaignDetails, resourceDetailsIds: resourceDetailsIds }
-  console.log(request?.body?.CampaignDetails, " rrrrrrrrrrrr1111111111111111111111")
 }
 
 async function projectCreate(projectCreateBody: any, request: any) {
