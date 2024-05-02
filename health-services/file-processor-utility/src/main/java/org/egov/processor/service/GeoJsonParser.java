@@ -4,15 +4,11 @@ package org.egov.processor.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.File;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,14 +21,7 @@ import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
-import org.geotools.api.feature.simple.SimpleFeature;
-import org.geotools.api.feature.simple.SimpleFeatureType;
-import org.geotools.data.geojson.GeoJSONReader;
-import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureIterator;
-import org.geotools.feature.DefaultFeatureCollection;
-import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+
 import org.springframework.stereotype.Service;
 
 
@@ -70,11 +59,8 @@ public class GeoJsonParser implements FileParser {
 
         File outputFile = parsingUtil.writeToFile(jsonNode, objectMapper);
 
-        try {
-            return filestoreUtil.uploadFileToStore(objectMapper.writeValueAsString(jsonNode), outputFile, planConfig.getTenantId());
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        return filestoreUtil.uploadFile(outputFile, planConfig.getTenantId());
+
     }
 
     private void processFeatures(JsonNode jsonNode, List
@@ -96,7 +82,6 @@ public class GeoJsonParser implements FileParser {
                 resultMap.put(output, result);
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
-            System.out.println("json node ------------------->    " + feature.get("properties"));
         }
     }
 

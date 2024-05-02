@@ -6,7 +6,11 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.ServiceCallException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -60,4 +64,7 @@ public class ServiceRequestRepository {
         return response;
     }
 
+    public ResponseEntity<String> sendHttpRequest(String url, HttpEntity<MultiValueMap<String, Object>> requestEntity) {
+        return restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+    }
 }
