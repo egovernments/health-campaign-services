@@ -31,13 +31,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
-      onSelect("uploadFacility", {uploadedFile,errorsType});
+      onSelect("uploadFacility", { uploadedFile, errorsType });
     } else if (type === "boundary") {
-      onSelect("uploadBoundary", {uploadedFile,errorsType});
+      onSelect("uploadBoundary", { uploadedFile, errorsType });
     } else {
-      onSelect("uploadUser", {uploadedFile,errorsType});
+      onSelect("uploadUser", { uploadedFile, errorsType });
     }
-  }, [uploadedFile , errorsType]);
+  }, [uploadedFile, errorsType]);
 
   // useEffect(() => {
   //   if(type === "boundary"){
@@ -144,6 +144,40 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     }
   };
 
+  const validateTarget = (jsonData, headersToValidate) => {
+    const boundaryCodeIndex = headersToValidate.indexOf("Boundary Code");
+    const headersBeforeBoundaryCode = headersToValidate.slice(0, boundaryCodeIndex);
+
+    const filteredData = jsonData
+      .filter((e) => {
+        if (e[headersBeforeBoundaryCode[headersBeforeBoundaryCode.length - 1]]) {
+          return true;
+        }
+      })
+      .filter((e) => e["Target at the Selected Boundary level"]);
+
+    if (filteredData.length == 0) {
+      const errorMessage = t("HCM_MISSING_TARGET");
+      setErrorsType((prevErrors) => ({
+        ...prevErrors,
+        [type]: errorMessage,
+      }));
+      return false;
+    }
+
+    const targetValue = filteredData?.[0]["Target at the Selected Boundary level"];
+
+    if (targetValue <= 0 || targetValue >= 100000000) {
+      const errorMessage = t("HCM_TARGET_VALIDATION_ERROR");
+      setErrorsType((prevErrors) => ({
+        ...prevErrors,
+        [type]: errorMessage,
+      }));
+      return false;
+    }
+    return true;
+  };
+
   const validateExcel = (selectedFile) => {
     return new Promise((resolve, reject) => {
       // Check if a file is selected
@@ -163,18 +197,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           const headersToValidate = XLSX.utils.sheet_to_json(sheet, {
             header: 1,
           })[0];
-
-          const expectedHeaders = headerConfig[type];
-          for(const header of expectedHeaders){
-            if(!headersToValidate.includes(header)){
-              const errorMessage = t("HCM_MISSING_HEADERS");
-              setErrorsType((prevErrors) => ({
-                ...prevErrors,
-                [type]: errorMessage,
-              }));
-              return;
-            }
-          }
 
           const SheetNames = workbook.SheetNames[0];
           if (type === "boundary") {
@@ -206,6 +228,18 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             }
           }
 
+          const expectedHeaders = headerConfig[type];
+          for (const header of expectedHeaders) {
+            if (!headersToValidate.includes(header)) {
+              const errorMessage = t("HCM_MISSING_HEADERS");
+              setErrorsType((prevErrors) => ({
+                ...prevErrors,
+                [type]: errorMessage,
+              }));
+              return;
+            }
+          }
+
           const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { blankrows: true });
           var jsonData = sheetData.map((row, index) => {
             const rowData = {};
@@ -220,20 +254,26 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
           jsonData = jsonData.filter((element) => element !== undefined);
 
-          if(jsonData.length == 0){
-            const errorMessage = t("HCM_EMPTY_SHEET");
-              setErrorsType((prevErrors) => ({
-                ...prevErrors,
-                [type]: errorMessage,
-              }));
-              return;
+          if(type === "boundary"){
+            if(!validateTarget(jsonData,headersToValidate)){
+              return ;
+            }
           }
 
-            if (validateData(jsonData, SheetNames)) {
-              resolve(true);
-            } else {
-              setShowInfoCard(true);
-            }
+          if (jsonData.length == 0) {
+            const errorMessage = t("HCM_EMPTY_SHEET");
+            setErrorsType((prevErrors) => ({
+              ...prevErrors,
+              [type]: errorMessage,
+            }));
+            return;
+          }
+
+          if (validateData(jsonData, SheetNames)) {
+            resolve(true);
+          } else {
+            setShowInfoCard(true);
+          }
         } catch (error) {
           console.log("error", error);
           reject("HCM_FILE_UNAVAILABLE");
@@ -243,6 +283,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       reader.readAsArrayBuffer(selectedFile);
     });
   };
+
 
   const closeToast = () => {
     setShowToast(null);
@@ -287,7 +328,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       // const fileNameWithoutExtension = file?.fileName.split(/\.(xlsx|xls)/)[0];
       // downloadExcel(new Blob([file], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileNameWithoutExtension);
     }
-    
   };
 
   const Template = {
@@ -332,16 +372,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             window.location.href = fileData?.[0]?.url;
             // handleFileDownload(fileData?.[0]);
             // downloadExcel(new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),fileData?.[0]?.fileName );
-          }
-          else{
+          } else {
             setShowToast({ key: "error", label: t("HCM_PLEASE_WAIT") });
           }
-          // if (fileData && fileData?.[0]?.url) {
-          //   console.log("fileData", fileData);
-          //   const response = await fetch(fileData[0].url);
-          //   const blob = await response.blob();
-          //   downloadExcel(blob, fileData[0].fileName); // Pass the blob directly to downloadExcel
-          // }
         },
       }
     );

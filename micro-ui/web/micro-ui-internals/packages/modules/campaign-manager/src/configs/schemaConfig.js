@@ -14,7 +14,7 @@ export const schemaConfig = {
         maximum: 100000000,
       },
     },
-    required: ["Boundary Code", "Target at the Selected Boundary level"],
+    required: ["Boundary Code"],
   },
   facilityWithBoundary: {
     $schema: "http://json-schema.org/draft-07/schema#",
