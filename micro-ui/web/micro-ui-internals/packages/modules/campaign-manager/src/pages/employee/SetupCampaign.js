@@ -328,16 +328,17 @@ const SetupCampaign = () => {
 
   const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType);
   const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType, filteredBoundaryData);
-  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType); // to be integrated later
+  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("userWithBoundary", hierarchyType); // to be integrated later
 
   useEffect(() => {
     setDataParams({
       ...dataParams,
       facilityId: facilityId,
       boundaryId: boundaryId,
+      userId: userId,
       hierarchyType: hierarchyType,
     });
-  }, [facilityId, boundaryId]); // Only run if dataParams changes
+  }, [facilityId, boundaryId , userId]); // Only run if dataParams changes
 
   // Example usage:
   // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
