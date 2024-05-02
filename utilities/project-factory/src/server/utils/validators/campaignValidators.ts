@@ -12,6 +12,8 @@ import { validateBodyViaSchema, validateHierarchyType } from "./genericValidator
 import { searchCriteriaSchema } from "../../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignDetails";
 import { campaignDetailsDraftSchema } from "../../config/models/campaignDetailsDraftSchema";
+import { downloadRequestSchema } from "../../config/models/downloadRequestSchema";
+import { createRequestSchema } from "../../config/models/createRequestSchema"
 
 
 
@@ -300,44 +302,17 @@ function validateStorageCapacity(obj: any, index: any) {
     }
 }
 
-function validateAction(action: string) {
-    if (!(action == "create" || action == "validate")) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid action");
-    }
-}
-
-function validateResourceType(type: string) {
-    if (!createAndSearch[type]) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resource type");
-    }
-}
 
 async function validateCreateRequest(request: any) {
-    if (!request?.body?.ResourceDetails) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing");
-    } else {
-        if (!request?.body?.ResourceDetails?.fileStoreId) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "fileStoreId is missing");
-        }
-        if (!request?.body?.ResourceDetails?.type) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "type is missing");
-        }
-        if (!request?.body?.ResourceDetails?.tenantId) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is missing");
-        }
-        if (!request?.body?.ResourceDetails?.action) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "action is missing");
-        }
-        if (!request?.body?.ResourceDetails?.hierarchyType) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is missing");
-        }
+    if (!request?.body?.ResourceDetails || Object.keys(request.body.ResourceDetails).length === 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing or empty or null");
+    }
+    else {
+        validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
-
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
-        validateAction(request?.body?.ResourceDetails?.action);
-        validateResourceType(request?.body?.ResourceDetails?.type);
         const fileUrl = await validateFile(request);
         if (request.body.ResourceDetails.type == 'boundary') {
             await validateBoundarySheetData(request, fileUrl);
@@ -762,27 +737,16 @@ function validateBoundarySheetHeaders(headersOfBoundarySheet: any[], hierarchy: 
     const keysBeforeBoundaryCode = boundaryCodeIndex === -1 ? headersOfBoundarySheet : headersOfBoundarySheet.slice(0, boundaryCodeIndex);
     if (keysBeforeBoundaryCode.some((key: any, index: any) => (key === undefined || key === null) || key !== hierarchy[index]) || keysBeforeBoundaryCode.length !== hierarchy.length) {
         const errorMessage = `"Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy type: ${request?.body?.ResourceDetails?.hierarchyType}"`;
-        throwError("BOUNDARY", 500, "BOUNDARY_SHEET_HEADER_ERROR", errorMessage);
+        throwError("BOUNDARY", 400, "BOUNDARY_SHEET_HEADER_ERROR", errorMessage);
     }
 }
 
 
 async function validateDownloadRequest(request: any) {
-    const { tenantId, type, hierarchyType } = request.query;
-    if (!tenantId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
-    }
+    const { tenantId, hierarchyType } = request.query;
+    validateBodyViaSchema(downloadRequestSchema, request.query);
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
-    }
-    if (!type) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "type is required");
-    }
-    if (!["facility", "user", "boundary", "facilityWithBoundary", "userWithBoundary"].includes(String(type))) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary or userWithBoundary");
-    }
-    if (!hierarchyType) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is required");
     }
     await validateHierarchyType(request, hierarchyType, tenantId);
 }
