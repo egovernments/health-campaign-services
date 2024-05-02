@@ -4,8 +4,8 @@ export const campaignDetailsSchema = {
     "properties": {
         "hierarchyType": {
             "type": "string",
-            "maxLength": 128
-            // "minLength": 1
+            "maxLength": 128,
+            "minLength": 1
         },
         "tenantId": {
             "type": "string",
