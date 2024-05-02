@@ -151,19 +151,6 @@ function reverseDeliveryRemap(data) {
       ruleKey: item.deliveryRuleNumber,
       delivery: {},
       attributes: loopAndReturn(item.conditions),
-      // .map((condition) => ({
-      // value: condition?.value ? condition?.value : "",
-      // operator: condition?.operator
-      // ? {
-      // code: condition.operator,
-      // }
-      // : null,
-      // attribute: condition?.attribute
-      // ? {
-      // code: condition.attribute,
-      // }
-      // : null,
-      // })),
       products: [...item.products],
     });
   });
@@ -408,19 +395,31 @@ const SetupCampaign = () => {
           rule.attributes.forEach((attribute) => {
             if (attribute?.operator?.code === "IN_BETWEEN") {
               restructuredRule.conditions.push({
-                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
+                attribute: attribute?.attribute?.code
+                  ? attribute?.attribute?.code
+                  : typeof attribute?.attribute === "string"
+                  ? attribute?.attribute
+                  : null,
                 operator: "LESS_THAN",
                 value: attribute.fromValue ? Number(attribute.fromValue) : null,
               });
-              attribute;
+              
               restructuredRule.conditions.push({
-                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
+                attribute: attribute?.attribute?.code
+                  ? attribute?.attribute?.code
+                  : typeof attribute?.attribute === "string"
+                  ? attribute?.attribute
+                  : null,
                 operator: "GREATER_THAN",
                 value: attribute.toValue ? Number(attribute.toValue) : null,
               });
             } else {
               restructuredRule.conditions.push({
-                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
+                attribute: attribute?.attribute?.code
+                  ? attribute?.attribute?.code
+                  : typeof attribute?.attribute === "string"
+                  ? attribute?.attribute
+                  : null,
                 operator: attribute.operator ? attribute.operator.code : null,
                 value:
                   attribute?.attribute?.code === "Gender" && attribute?.value?.length > 0
@@ -471,7 +470,7 @@ const SetupCampaign = () => {
   //API CALL
   useEffect(async () => {
     if (shouldUpdate === true) {
-      if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
+      if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall && !id) {
         return;
       } else if (filteredConfig?.[0]?.form?.[0]?.isLast) {
         const reqCreate = async () => {
@@ -495,7 +494,7 @@ const SetupCampaign = () => {
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
-            key: currentKey,
+            key: currentKey + 1,
           };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -562,7 +561,7 @@ const SetupCampaign = () => {
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
-            key: currentKey,
+            key: currentKey + 1,
           };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -614,7 +613,7 @@ const SetupCampaign = () => {
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
-            key: currentKey,
+            key: currentKey + 1,
           };
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -871,7 +870,11 @@ const SetupCampaign = () => {
       });
     }
 
-    if (filteredConfig?.[0]?.form?.[0]?.isLast || !filteredConfig[0].form[0].body[0].skipAPICall) {
+    if (
+      filteredConfig?.[0]?.form?.[0]?.isLast ||
+      !filteredConfig[0].form[0].body[0].skipAPICall ||
+      (filteredConfig[0].form[0].body[0].skipAPICall && id)
+    ) {
       setShouldUpdate(true);
     }
 

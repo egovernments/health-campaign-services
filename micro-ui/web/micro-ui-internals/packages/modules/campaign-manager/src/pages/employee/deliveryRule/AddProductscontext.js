@@ -3,6 +3,7 @@ import React, { Fragment, useEffect, useState } from "react";
 import PlusMinusInput from "../../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
 import { TextInput, Toast } from "@egovernments/digit-ui-components";
+import { Link } from "react-router-dom";
 
 const DustbinIcon = () => (
   <svg width="12" height="16" viewBox="0 0 12 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -14,6 +15,8 @@ const DustbinIcon = () => (
 );
 function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
   const { t } = useTranslation();
+  const searchParams = new URLSearchParams(location.search);
+  const id = searchParams.get("id");
   const [products, setProducts] = useState([
     {
       key: 1,
@@ -232,6 +235,29 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
           onButtonClick={add}
         />
       )}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "center",
+          gap: "1rem",
+          marginTop: "1rem",
+        }}
+      >
+        <p>{t("CAMPAIGN_NEW_PRODUCT_TEXT")}</p>
+        <span className="link">
+          <Link
+            to={{
+              pathname: `/${window.contextPath}/employee/campaign/add-product`,
+              state: {
+                campaignId: id,
+              },
+            }}
+          >
+            {t("ES_CAMPAIGN_ADD_PRODUCT_LINK")}
+          </Link>
+        </span>
+      </div>
       {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
     </div>
   );

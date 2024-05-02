@@ -196,8 +196,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
   }
 }
-.view-composer-header-section{
+.view-composer-header-section {
   .employee-card-sub-header {
     margin-bottom: 1.5rem;
+  }
+}
+.add-new-product-container {
+  border: 1px solid #d6d5d4;
+  background-color: #fafafa;
+  width: 70%;
+  .heading-bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .label-field-pair {
+    gap: 10rem;
+    align-items: baseline;
+    .product-label-field {
+      width: 10rem;
+    }
   }
 }

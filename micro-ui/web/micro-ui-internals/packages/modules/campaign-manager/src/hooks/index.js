@@ -5,6 +5,8 @@ import { useProductList } from "./useProductList";
 import useUpdateCampaign from "./useUpdateCampaign";
 import { useGenerateIdCampaign } from "./useGenerateIdCampaign";
 import { useResourceData } from "./useResourceData";
+import useCreateProductVariant from "./useCreateProductVariant";
+import useCreateProduct from "./useCreateProduct";
 
 const UserService = {};
 
@@ -18,7 +20,9 @@ const campaign = {
   useSearchCampaign,
   useUpdateCampaign,
   useGenerateIdCampaign,
-  useResourceData
+  useResourceData,
+  useCreateProduct,
+  useCreateProductVariant,
 };
 
 const Hooks = {
