@@ -4,13 +4,14 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from '../Kafka/Listener'
 import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/campaignApis";
-import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData } from "../api/genericApis";
+import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
 import { Pool } from 'pg';
 import { logger } from "./logger";
 import dataManageController from "../controllers/dataManage/dataManage.controller";
 import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration } from "./campaignUtils";
+import localisationController from "../controllers/localisationController/localisation.controller";
 const NodeCache = require("node-cache");
 const _ = require('lodash');
 
@@ -573,8 +574,14 @@ function correctParentValues(campaignDetails: any) {
   return campaignDetails;
 }
 
-async function createFacilitySheet(allFacilities: any[]) {
-  const headers = ["Facility Code", "Facility Name", "Facility Type", "Facility Status", "Capacity", "Boundary Code"]
+async function createFacilitySheet(request: any, allFacilities: any[]) {
+  const tenantId = request?.query?.tenantId;
+  const mdmsResponse = await callMdmsData(request, config.moduleName, config.facilitySchemaMasterName, tenantId);
+  const schema = mdmsResponse.MdmsRes["HCM-ADMIN-CONSOLE"].facilitySchema[0].properties;
+  const keys = Object.keys(schema);
+  const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
+  const localizedHeaders = await getLocalizedHeaders(request, tenantId, headers);
+
   const facilities = allFacilities.map((facility: any) => {
     return [
       facility?.id,
@@ -586,8 +593,33 @@ async function createFacilitySheet(allFacilities: any[]) {
     ]
   })
   logger.info("facilities : " + JSON.stringify(facilities));
-  const facilitySheetData: any = await createExcelSheet(facilities, headers, "List of Available Facilities");
+  const facilitySheetData: any = await createExcelSheet(facilities, localizedHeaders, config.facilityTab);
   return facilitySheetData;
+}
+
+async function getLocalizedHeaders(request: any, tenantId: string, headers: any) {
+  const localisationcontroller = new localisationController();
+  const response = {};
+  const modifiedRequestForLocalization = modifyRequestForLocalisation(request, tenantId);
+  const localizationResponse = await localisationcontroller.getLocalizedMessages(modifiedRequestForLocalization, response);
+  const messages = headers.map((header: any) => {
+    const item = localizationResponse.messages.find((item: any) => item.code === header);
+    return item ? item.message : null;
+  });
+  return messages;
+}
+
+function modifyRequestForLocalisation(request: any, tenanId: string) {
+  const { RequestInfo } = request?.body;
+  const query = {
+    "tenantId": tenanId,
+    "locale": config.locale,
+    "module": config.localizationModule
+  };
+  const updatedRequest = { ...request };
+  updatedRequest.body = { RequestInfo };
+  updatedRequest.query = query;
+  return updatedRequest;
 }
 
 async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any) {
@@ -615,15 +647,19 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any) 
   // Get facility and boundary data
   const allFacilities = await getAllFacilities(tenantId, request.body);
   request.body.generatedResourceCount = allFacilities.length;
-  const facilitySheetData: any = await createFacilitySheet(allFacilities);
+  const facilitySheetData: any = await createFacilitySheet(request, allFacilities);
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   const boundarySheetData: any = await getBoundarySheetData(request);
   await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request);
 }
 async function generateUserAndBoundarySheet(request: any) {
   const userData: any[] = [];
-  const headers = ["Name of the Person (Mandatory)", "Phone Number", "Role(Mandatory)", "Employment Type (Mandatory)", "Boundary Code"]
-  const userSheetData = await createExcelSheet(userData, headers, "List Of Users");
+  const tenantId = request?.query?.tenantId;
+  const mdmsResponse = await callMdmsData(request, config.moduleName, config.userSchemaMasterName, tenantId)
+  const schema = mdmsResponse.MdmsRes["HCM-ADMIN-CONSOLE"].userSchema[0].properties;
+  const headers = Object.keys(schema);
+  const localizedHeaders = await getLocalizedHeaders(request, tenantId, headers);
+  const userSheetData = await createExcelSheet(userData, localizedHeaders, "List Of Users");
   const boundarySheetData: any = await getBoundarySheetData(request);
   await createUserAndBoundaryFile(userSheetData, boundarySheetData, request);
 }

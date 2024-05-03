@@ -167,7 +167,7 @@ const createAndSearch: any = {
                 "Name of the Person (Mandatory)",
                 "Phone Number",
                 "Role (Mandatory)",
-                "Employment Type (Mandatory)",
+                "Employment Type (Mandatory)"
             ],
             "unique": [
                 "Phone Number"

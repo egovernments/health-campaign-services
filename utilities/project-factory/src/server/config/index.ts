@@ -15,6 +15,15 @@ if (!HOST) {
 
 // Configuration object containing various environment variables
 const config = {
+  facilityTab : "HCM_ADMIN_LIST_OF_FACILITIES_TAB",
+  locale: "en_MZ",
+  localizationModule: "rainmaker-hcm-admin-schemas",
+  //module name 
+  moduleName: "HCM-ADMIN-CONSOLE",
+  // facility master
+  facilitySchemaMasterName: "facilitySchema",
+  // user master
+  userSchemaMasterName: "userSchema",
   // Default sheet name for boundary data
   sheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
   // Default criteria for generating different tabs
@@ -65,11 +74,13 @@ const config = {
     userHost: process.env.EGOV_USER_HOST || "https://unified-dev.digit.org/",
     productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-dev.digit.org/",
     hrmsHost: process.env.EGOV_HRMS_HOST || "https://unified-dev.digit.org/",
+    localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/"
   },
   // Paths for different services
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
     mdms_search: process.env.EGOV_MDMS_SEARCH_ENDPOINT || "egov-mdms-service/v2/_search",
+    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "egov-mdms-service/v1/_search",
     idGen: process.env.EGOV_IDGEN_PATH || "egov-idgen/id/_generate",
     mdmsSchema: process.env.EGOV_MDMS_SCHEMA_PATH || "egov-mdms-service/schema/v1/_search",
     boundaryRelationship: process.env.EGOV_BOUNDARY_RELATIONSHIP_SEARCHPATH || "boundary-service/boundary-relationships/_search",
@@ -87,7 +98,8 @@ const config = {
     boundaryEntity: process.env.EGOV_BOUNDARY_ENTITY_SEARCHPATH || "boundary-service/boundary/_search",
     facilityBulkCreate: process.env.EGOV_FACILITY_BULK_CREATE || "facility/v1/bulk/_create",
     hrmsEmployeeCreate: process.env.EGOV_HRMS_EMPLOYEE_CREATE_PATH || "health-hrms/employees/_create",
-    hrmsEmployeeSearch: process.env.EGOV_HRMS_EMPLOYEE_SEARCH_PATH || "health-hrms/employees/_search"
+    hrmsEmployeeSearch: process.env.EGOV_HRMS_EMPLOYEE_SEARCH_PATH || "health-hrms/employees/_search",
+    localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search"
   },
   // Values configuration
   values: {

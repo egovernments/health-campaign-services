@@ -13,7 +13,6 @@ import { processDataSearchRequest } from "../../utils/campaignUtils";
 
 
 
-
 // Define the MeasurementController class
 class dataManageController {
     // Define class properties
