@@ -4,6 +4,7 @@ import { FileUploader } from "react-drag-drop-files";
 import { useTranslation } from "react-i18next";
 import XLSX from "xlsx";
 import XlsPreview from "./XlsPreview";
+import { PRIMARY_COLOR } from "../utils";
 
 /**
  * The BulkUpload component in JavaScript allows users to upload, validate, preview, download, and
@@ -142,7 +143,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
           <Button
             label={t("WBH_DOWNLOAD")}
             variation="secondary"
-            icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill="#F47738" />}
+            icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
             type="button"
             className="workbench-download-template-btn"
             onButtonClick={(e) => handleFileDownload(e, file)}
@@ -150,7 +151,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
           <Button
             label={t("WBH_DELETE")}
             variation="secondary"
-            icon={<DeleteIconv2 styles={{ height: "1.25rem", width: "2.5rem" }} fill="#F47738" />}
+            icon={<DeleteIconv2 styles={{ height: "1.25rem", width: "2.5rem" }} fill={PRIMARY_COLOR} />}
             type="button"
             className="workbench-download-template-btn"
             onButtonClick={(e) => {

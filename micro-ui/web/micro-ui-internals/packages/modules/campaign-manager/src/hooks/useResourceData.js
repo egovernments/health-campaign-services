@@ -1,38 +1,45 @@
 export const useResourceData = async (data, hierarchyType, type) => {
-  let fileStoreId;
-  if (type === "facility") {
-    fileStoreId = data?.uploadFacility?.[0]?.id;
-  } else if (type === "user") {
-    fileStoreId = data?.uploadUser?.[0]?.id;
+  let Type;
+  if (type === "facilityWithBoundary") {
+    Type = "facility";
+  } else if (type === "userWithBoundary") {
+    Type = "user";
   } else {
-    fileStoreId = data?.uploadBoundary?.[0]?.id;
+    Type = "boundaryWithTarget";
   }
   const response = await Digit.CustomService.getResponse({
     url: "/project-factory/v1/data/_create",
     body: {
       ResourceDetails: {
-        type: type,
+        type: Type,
         hierarchyType: hierarchyType,
         tenantId: Digit.ULBService.getCurrentTenantId(),
-        fileStoreId: fileStoreId,
+        fileStoreId: data?.[0]?.id,
         action: "validate",
-        additionalDetails: {}
+        additionalDetails: {},
       },
     },
   });
+  let searchResponse;
+  let status = "validation-started";
 
-  // const responseSearch = await  Digit.CustomService.getResponse({
-  //   url: "/project-factory/v1/data/_search",
-  //   body: {
-  //     SearchCriteria: {
-  //       id: [response?.ResourceDetails?.id],
-  //       tenantId: "mz",
-  //       type: type,
-  //     },
-  //   },
-  // });
+  // Retry until a response is received
+  while (status !== "failed" && status !== "invalid" && status !== "completed") {
+    searchResponse = await Digit.CustomService.getResponse({
+      url: "/project-factory/v1/data/_search",
+      body: {
+        SearchCriteria: {
+          id: [response?.ResourceDetails?.id],
+          tenantId: "mz",
+          type: Type,
+        },
+      },
+    });
+    status = searchResponse?.ResourceDetails?.[0]?.status;
+    if (status !== "failed" && status !== "invalid" && status !== "completed") {
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+    }
+  }
 
-  // console.log("result", responseSearch);
-
-  return response;
+  return searchResponse?.ResourceDetails?.[0];
 };

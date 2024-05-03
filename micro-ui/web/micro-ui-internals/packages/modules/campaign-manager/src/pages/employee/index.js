@@ -55,6 +55,7 @@ const App = ({ path }) => {
   const MyCampaign = Digit?.ComponentRegistryService?.getComponent("MyCampaign");
   const CampaignSummary = Digit?.ComponentRegistryService?.getComponent("CampaignSummary");
   const Response = Digit?.ComponentRegistryService?.getComponent("Response");
+  const AddProduct = Digit?.ComponentRegistryService?.getComponent("AddProduct");
 
   useEffect(() => {
     if (window.location.pathname !== "/workbench-ui/employee/campaign/setup-campaign") {
@@ -75,7 +76,9 @@ const App = ({ path }) => {
   return (
     <React.Fragment>
       <div className="wbh-header-container">
-        <CampaignBreadCrumb location={location} defaultPath={path} />
+        {window?.location?.pathname === "/workbench-ui/employee/campaign/add-product" ? null : (
+          <CampaignBreadCrumb location={location} defaultPath={path} />
+        )}
         {/* <CampaignHeader /> */}
       </div>
       <Switch>
@@ -88,6 +91,7 @@ const App = ({ path }) => {
           <PrivateRoute path={`${path}/preview`} component={() => <CampaignSummary />} />
           <PrivateRoute path={`${path}/response`} component={() => <Response />} />
           <PrivateRoute path={`${path}/selecting-boundary`} component={() => <SelectingBoundaries />} />
+          <PrivateRoute path={`${path}/add-product`} component={() => <AddProduct />} />
         </AppContainer>
       </Switch>
     </React.Fragment>

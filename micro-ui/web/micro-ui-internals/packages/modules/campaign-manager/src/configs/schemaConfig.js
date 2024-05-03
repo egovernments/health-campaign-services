@@ -1,4 +1,21 @@
 export const schemaConfig = {
+  Boundary: {
+    $schema: "http://json-schema.org/draft-07/schema#",
+    title: "BoundaryTemplateSchema",
+    type: "object",
+    properties: {
+      "Boundary Code": {
+        type: "string",
+        minLength: 1,
+      },
+      "Target at the Selected Boundary level": {
+        type: "integer",
+        minimum: 1,
+        maximum: 100000000,
+      },
+    },
+    required: ["Boundary Code"],
+  },
   facilityWithBoundary: {
     $schema: "http://json-schema.org/draft-07/schema#",
     title: "FacilityTemplateSchema",

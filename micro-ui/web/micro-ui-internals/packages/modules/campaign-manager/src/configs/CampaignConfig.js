@@ -217,7 +217,7 @@ export const CampaignConfig = (totalFormData) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
-                type: "user"
+                type: "userWithBoundary"
               },
               populators: {
                 name: "uploadUser",
