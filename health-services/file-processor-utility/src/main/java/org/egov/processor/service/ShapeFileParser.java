@@ -1,22 +1,25 @@
 package org.egov.processor.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
-import org.geotools.api.feature.simple.SimpleFeature;
-import org.geotools.data.shapefile.ShapefileDataStore;
-import org.geotools.data.shapefile.ShapefileDataStoreFactory;
-import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.geojson.feature.FeatureJSON;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -27,72 +30,69 @@ public class ShapeFileParser implements FileParser {
 
     private FilestoreUtil filestoreUtil;
 
-    public ShapeFileParser(ParsingUtil parsingUtil) {
+    private CalculationUtil calculationUtil;
+
+    private ObjectMapper objectMapper;
+
+    public ShapeFileParser(ParsingUtil parsingUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil, ObjectMapper objectMapper) {
         this.parsingUtil = parsingUtil;
+        this.filestoreUtil = filestoreUtil;
+        this.calculationUtil = calculationUtil;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public Object parseFileData(PlanConfiguration planConfiguration, String fileStoreId, String attributeToFetch)
-    {
-        File file = parsingUtil.getFileFromByteArray(planConfiguration, fileStoreId);
+    public Object parseFileData(PlanConfiguration planConfig, String fileStoreId) {
+        File geojsonFile = convertShapefileToGeoJson(planConfig, fileStoreId);
+        String geoJSONString = parsingUtil.convertFileToJsonString(geojsonFile);
+        JsonNode jsonNode = parsingUtil.parseJson(geoJSONString, objectMapper);
 
-        // Check if the GeoJSON file exists
-        if (file == null || !file.exists()) log.info("FILE NOT FOUND - ");
-        else log.info("File exists at - " + file.getAbsolutePath());
+        Map<String, BigDecimal> resultMap = new HashMap<>();
+        Map<String, String> mappedValues = planConfig.getResourceMapping().stream().collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
+        Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
 
+        calculationUtil.calculateResources(jsonNode, planConfig.getOperations(), resultMap, mappedValues, assumptionValueMap);
+
+        File updatedGeojsonFile = parsingUtil.writeToFile(jsonNode, objectMapper);
+
+        return filestoreUtil.uploadFile(updatedGeojsonFile, planConfig.getTenantId());
+    }
+
+    public File convertShapefileToGeoJson(PlanConfiguration planConfig, String fileStoreId) {
+        File shapefile = null;
         try {
-            // Create a DataStore for the shapefile
-            ShapefileDataStoreFactory dataStoreFactory = new ShapefileDataStoreFactory();
-            Charset charset = StandardCharsets.UTF_8;
-
-            // Create a ShapefileDataStore and set the charset
-            ShapefileDataStore dataStore = (ShapefileDataStore) dataStoreFactory.createDataStore(file.toURI().toURL());
-            dataStore.setCharset(charset);
-
-            // Get the type name (assumed to be the first type name)
-            String typeName = dataStore.getTypeNames()[0];
-            SimpleFeatureCollection simpleFeatureCollection = dataStore.getFeatureSource(typeName).getFeatures();
-
-            // Check if the SimpleFeatureCollection is empty
-            if (simpleFeatureCollection.isEmpty()) {
-                log.info("No features found in the shapefile.");
-            } else {
-                log.info("Number of features: " + simpleFeatureCollection.size());
-
-
-                // Get the attribute names from the SimpleFeatureCollection
-                List<String> attributeNames = parsingUtil.getAttributeNames(simpleFeatureCollection);
-                // Get the resource mapping list from the plan configuration
-                List<ResourceMapping> resourceMappingList = planConfiguration.getResourceMapping();
-
-                // Validate the attribute mapping
-                boolean isValid = parsingUtil.validateAttributeMapping(attributeNames, resourceMappingList, fileStoreId);
-                if (isValid) {
-                    log.info("Attribute mapping is valid.");
-                } else {
-                    log.info("Attribute mapping is invalid.");
-                }
-
-                // Iterate over the features in the SimpleFeatureCollection
-                try (SimpleFeatureIterator features = simpleFeatureCollection.features()) {
-                    while (features.hasNext()) {
-                        SimpleFeature feature = features.next();
-                        parsingUtil.printFeatureAttributes(feature, attributeNames);
-                        // TODO:Process attribute values in accordance with resource mapping
-                    }
-                }
-            }
-
-        } catch (IOException e) {
-            // Throw a runtime exception if an IOException occurs
-            throw new CustomException("SHAPEFILE_PROCESSING_ERROR", "Exception while processing Shape File data");
+            shapefile = parsingUtil.extractShapeFilesFromZip(planConfig, fileStoreId, "shapefile");
+        } catch (IOException exception) {
+            log.error(exception.getMessage());
         }
-        return null;
+
+        File geojsonFile = new File("geojsonfile.geojson");
+
+        SimpleFeatureSource featureSource = null;
+        DataStore dataStore;
+        try {
+            dataStore = getDataStore(shapefile);
+            String typeName = dataStore.getTypeNames()[0];
+            featureSource = dataStore.getFeatureSource(typeName);
+
+            writeFeaturesToGeoJson(featureSource, geojsonFile);
+        } catch (IOException e) {
+            throw new CustomException(e.getMessage(),"");
+        }
+
+        return geojsonFile;
     }
 
-    @Override
-    public BigDecimal fetchPopulationData(PlanConfiguration planConfiguration, String fileStoreId) {
-        return null;
+    private DataStore getDataStore(File shapefile) throws IOException {
+        Map<String, Object> params = new HashMap<>();
+        params.put("url", shapefile.toURI().toURL());
+        return DataStoreFinder.getDataStore(params);
+    }
+
+    private void writeFeaturesToGeoJson(SimpleFeatureSource featureSource, File geojsonFile) throws IOException {
+        try (FileOutputStream geojsonStream = new FileOutputStream(geojsonFile)) {
+            new FeatureJSON().writeFeatureCollection(featureSource.getFeatures(), geojsonStream);
+        }
     }
 
 }

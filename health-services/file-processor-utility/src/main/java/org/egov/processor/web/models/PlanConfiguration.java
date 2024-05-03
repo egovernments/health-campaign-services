@@ -1,19 +1,19 @@
 package org.egov.processor.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.Data;
+import lombok.Builder;
 
 /**
  * PlanConfiguration
@@ -46,6 +46,10 @@ public class PlanConfiguration {
     @Pattern(regexp = "^(?!\\p{Punct}+$).*$", message = "Execution Plan Id must not contain only special characters")
     private String executionPlanId = null;
 
+    @JsonProperty("status")
+    @NotNull
+    private StatusEnum status = null;
+
     @JsonProperty("files")
     @NotNull
     @NotEmpty
@@ -72,5 +76,13 @@ public class PlanConfiguration {
 
     @JsonProperty("auditDetails")
     private @Valid AuditDetails auditDetails;
+
+    /**
+     * The status used in the Plan Configuration
+     */
+    public enum StatusEnum {
+        DRAFT ,
+        GENERATED
+    }
 
 }

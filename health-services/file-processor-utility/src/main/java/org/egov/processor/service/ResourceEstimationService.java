@@ -1,7 +1,9 @@
 package org.egov.processor.service;
 
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.processor.util.PlanConfigurationUtil;
@@ -34,31 +36,26 @@ public class ResourceEstimationService {
     }
 
     public void estimateResources(PlanConfigurationRequest planConfigurationRequest) {
-//        log.info("Plan Configuration ID - " + planRequest.getPlan().getPlanConfigurationId());
-//        PlanConfigurationSearchCriteria planConfigurationSearchCriteria = PlanConfigurationSearchCriteria.builder()
-//                .tenantId(planRequest.getPlan().getTenantId()).id(planRequest.getPlan().getPlanConfigurationId()).build();
-//        PlanConfigurationSearchRequest planConfigurationSearchRequest = PlanConfigurationSearchRequest.builder().planConfigurationSearchCriteria(planConfigurationSearchCriteria).requestInfo(new RequestInfo()).build();
-//        List<PlanConfiguration> planConfigurationls = planConfigurationUtil.search(planConfigurationSearchRequest);
-//
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
         // filter by templateIdentifier as pop
         File.InputFileTypeEnum fileType = planConfiguration.getFiles().get(0).getInputFileType();
-        FileParser parser;
-        if (File.InputFileTypeEnum.EXCEL.equals(fileType)) {
-            parser = excelParser;
-            log.info("excelParser");
-        } else if (File.InputFileTypeEnum.SHAPEFILE.equals(fileType)) {
-            parser = shapeFileParser;
-            log.info("shapeFileParser");
-        } else if (File.InputFileTypeEnum.GEOJSON.equals(fileType)) {
-            parser = geoJsonParser;
-            log.info("geoJsonParser");
 
-        } else {
-            throw new IllegalArgumentException("Unsupported file type: " + fileType);
-        }
+        Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
+        FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
+            throw new IllegalArgumentException("Unsupported file type: " + ft);
+        });
 
         parser.parseFileData(planConfiguration, planConfiguration.getFiles().get(0).getFilestoreId());
+    }
+
+    public Map<File.InputFileTypeEnum, FileParser> getInputFileTypeMap()
+    {
+        Map<File.InputFileTypeEnum, FileParser> parserMap = new HashMap<>();
+        parserMap.put(File.InputFileTypeEnum.EXCEL, excelParser);
+        parserMap.put(File.InputFileTypeEnum.SHAPEFILE, shapeFileParser);
+        parserMap.put(File.InputFileTypeEnum.GEOJSON, geoJsonParser);
+
+        return parserMap;
     }
 }
 

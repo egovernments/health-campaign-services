@@ -55,46 +55,12 @@ public class GeoJsonParser implements FileParser {
                 .collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
         Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
 
-        processFeatures(jsonNode, planConfig.getOperations(), resultMap, mappedValues, assumptionValueMap);
+        calculationUtil.calculateResources(jsonNode, planConfig.getOperations(), resultMap, mappedValues, assumptionValueMap);
 
         File outputFile = parsingUtil.writeToFile(jsonNode, objectMapper);
 
         return filestoreUtil.uploadFile(outputFile, planConfig.getTenantId());
 
-    }
-
-    private void processFeatures(JsonNode jsonNode, List
-            <Operation> operations, Map<String, BigDecimal> resultMap,
-                                 Map<String, String> mappedValues, Map<String, BigDecimal> assumptionValueMap) {
-
-        for (JsonNode feature : jsonNode.get("features")) {
-            for (Operation operation : operations) {
-                String input = operation.getInput();
-                String inputFromMapping = mappedValues.get(input);
-                BigDecimal inputValue = getInputValue(resultMap, feature, input, inputFromMapping);
-
-                Operation.OperatorEnum operator = operation.getOperator();
-                BigDecimal assumptionValue = assumptionValueMap.get(operation.getAssumptionValue());
-
-                BigDecimal result = calculationUtil.calculateResult(inputValue, operator, assumptionValue);
-
-                String output = operation.getOutput();
-                resultMap.put(output, result);
-                ((ObjectNode) feature.get("properties")).put(output, result);
-            }
-        }
-    }
-
-    private BigDecimal getInputValue(Map<String, BigDecimal> resultMap, JsonNode feature, String input, String inputFromMapping) {
-        if (resultMap.containsKey(input)) {
-            return resultMap.get(input);
-        } else {
-            if (feature.get("properties").get(inputFromMapping) != null) {
-                return new BigDecimal(String.valueOf(feature.get("properties").get(inputFromMapping)));
-            } else {
-                throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + input);
-            }
-        }
     }
 
 }
