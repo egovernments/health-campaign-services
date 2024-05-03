@@ -2,6 +2,8 @@ import { Consumer, KafkaClient, Message } from 'kafka-node';
 import config from '../config';
 import { logger } from '../utils/logger'; // Importing logger utility for logging
 import { producer } from './Producer'; // Importing producer from the Producer module
+import { processCampaignMapping } from '../utils/campaignMappingUtils';
+import { enrichAndPersistCampaignWithError } from '../utils/campaignUtils';
 
 
 
@@ -29,9 +31,14 @@ export function listener() {
         try {
             // Parse the message value as an array of objects
             const messageObject: any = JSON.parse(message.value?.toString() || '{}');
-            // await processCampaignMapping(messageObject);
-            console.log(messageObject, " mmmmmmmmmmmmmmmmmmmmmmmm")
-
+            try {
+                // await processCampaignMapping(messageObject);
+                console.log(messageObject, " mooooooooooooooooooooooooooo")
+                await processCampaignMapping(messageObject);
+            } catch (error: any) {
+                logger.error(error)
+                enrichAndPersistCampaignWithError(messageObject, error)
+            }
             logger.info(`Received message: ${JSON.stringify(messageObject)}`)
         } catch (error) {
             console.error(`Error processing message: ${error}`);
