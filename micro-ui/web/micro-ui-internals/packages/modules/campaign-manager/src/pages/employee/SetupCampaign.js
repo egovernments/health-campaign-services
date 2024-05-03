@@ -480,7 +480,7 @@ const SetupCampaign = () => {
       } else if (filteredConfig?.[0]?.form?.[0]?.isLast) {
         const reqCreate = async () => {
           let payloadData = {};
-          payloadData.hierarchyType = "ADMIN";
+          payloadData.hierarchyType = hierarchyType;
           payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
             ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
             : null;
@@ -552,7 +552,7 @@ const SetupCampaign = () => {
       } else if (!isDraftCreated && !id) {
         const reqCreate = async () => {
           let payloadData = {};
-          payloadData.hierarchyType = "ADMIN";
+          payloadData.hierarchyType = hierarchyType;
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
             payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
               ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
@@ -613,7 +613,7 @@ const SetupCampaign = () => {
       } else {
         const reqCreate = async () => {
           let payloadData = draftData;
-          payloadData.hierarchyType = "ADMIN";
+          payloadData.hierarchyType = hierarchyType;
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
             payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
               ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
@@ -804,11 +804,7 @@ const SetupCampaign = () => {
           return true;
         }
       case "uploadBoundary":
-        if (
-          formData?.uploadBoundary?.errorsType &&
-          formData?.uploadBoundary?.errorsType?.boundary &&
-          !(formData?.uploadBoundary?.uploadedFile.length === 0)
-        ) {
+        if (formData?.uploadBoundary?.isError) {
           setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
@@ -816,22 +812,14 @@ const SetupCampaign = () => {
         }
 
       case "uploadFacility":
-        if (
-          formData?.uploadFacility?.errorsType &&
-          formData?.uploadFacility?.errorsType?.facilityWithBoundary &&
-          !(formData?.uploadFacility?.uploadedFile.length === 0)
-        ) {
+        if (formData?.uploadFacility?.isError) {
           setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
           return true;
         }
-      case "uploaduser":
-        if (
-          formData?.uploadUser?.errorsType &&
-          formData?.uploadUser?.errorsType?.userWithBoundary &&
-          !(formData?.uploadUser?.uploadedFile.length === 0)
-        ) {
+      case "uploadUser":
+        if (formData?.uploadUser?.isError) {
           setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
