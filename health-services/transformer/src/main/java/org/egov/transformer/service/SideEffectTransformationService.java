@@ -114,7 +114,7 @@ public abstract class SideEffectTransformationService implements TransformationS
             }
 
             ObjectNode additionalDetails = objectMapper.createObjectNode();
-            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+            additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
             Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
 

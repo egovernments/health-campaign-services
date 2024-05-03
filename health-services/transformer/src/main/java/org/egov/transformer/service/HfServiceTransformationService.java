@@ -83,7 +83,7 @@ public class HfServiceTransformationService {
 
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         String checkListToFilter = transformerProperties.getHfReferralFeverCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();

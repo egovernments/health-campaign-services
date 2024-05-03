@@ -79,14 +79,9 @@ public abstract class ProjectTransformationService implements TransformationServ
 
         @Override
         public List<ProjectIndexV1> transform(Project project) {
+            Map<String, String> boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(project.getAddress().getBoundary(), project.getTenantId());
             String tenantId = project.getTenantId();
             String projectTypeId = project.getProjectTypeId();
-            JsonNode mdmsBoundaryData = projectService.fetchBoundaryData(tenantId, null, projectTypeId);
-            List<JsonNode> boundaryLevelVsLabel = StreamSupport
-                    .stream(mdmsBoundaryData.get(BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
-            Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), tenantId);
-            log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
             Set<String> fieldsToCheck = new HashSet<>(Arrays.asList(
                     BENEFICIARY_TYPE,
@@ -147,19 +142,8 @@ public abstract class ProjectTransformationService implements TransformationServ
                                 .lastModifiedTime(project.getAuditDetails().getLastModifiedTime())
                                 .lastModifiedBy(project.getAuditDetails().getLastModifiedBy())
                                 .additionalDetails(additionalDetails)
+                                .boundaryHierarchy(boundaryHierarchy)
                                 .build();
-                        if (projectIndexV1.getBoundaryHierarchy() == null) {
-                            ObjectNode boundaryHierarchy = objectMapper.createObjectNode();
-                            projectIndexV1.setBoundaryHierarchy(boundaryHierarchy);
-                        }
-                        boundaryLevelVsLabel.stream()
-                                .filter(node -> node.get(LEVEL).asInt() > 1)
-                                .forEach(node -> {
-                                    String label = node.get(INDEX_LABEL).asText();
-                                    String name = Optional.ofNullable(boundaryLabelToNameMap.get(node.get(LABEL).asText()))
-                                            .orElse(null);
-                                    projectIndexV1.getBoundaryHierarchy().put(label, name);
-                                });
                         return projectIndexV1;
                     }
             ).collect(Collectors.toList());

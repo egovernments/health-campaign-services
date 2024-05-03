@@ -10,8 +10,6 @@ import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.models.household.HouseholdSearchRequest;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
@@ -33,17 +31,15 @@ public class HouseholdService {
     private final ServiceRequestClient serviceRequestClient;
     private final Producer producer;
     private final UserService userService;
-    private final ProjectService projectService;
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
 
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.producer = producer;
         this.userService = userService;
-        this.projectService = projectService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
     }
@@ -90,30 +86,23 @@ public class HouseholdService {
     }
 
     public HouseholdIndexV1 transform(Household household) {
-        Map<String, String> boundaryLabelToNameMap = null;
-        String projectTypeId = null;
-        Integer cycleIndex = null;
-        String userId = household.getClientAuditDetails().getCreatedBy();
-        ProjectStaff projectStaff = projectService.searchProjectStaff(userId, household.getTenantId());
-        if (projectStaff != null) {
-            Project project = projectService.getProject(projectStaff.getProjectId(), household.getTenantId());
-            projectTypeId = project != null ? project.getProjectTypeId() : null;
-        }
-        if (household.getAddress().getLocality() != null && household.getAddress().getLocality().getCode() != null) {
-            boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(household.getAddress().getLocality().getCode(), household.getTenantId());
-        } else {
-            boundaryLabelToNameMap = null;
-        }
-        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(household.getTenantId(), projectTypeId, boundaryLabelToNameMap);
-        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
-        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getCreatedTime());
+        Map<String, String> boundaryHierarchy = null;
 
-        if (projectTypeId != null) {
-            cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), projectTypeId, household.getAuditDetails());
+        String localityCode = null;
+        if (household.getAddress() != null
+                && household.getAddress().getLocality() != null
+                && household.getAddress().getLocality().getCode() != null) {
+            localityCode = household.getAddress().getLocality().getCode();
         }
+        if (localityCode != null) {
+            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+        }
+
+        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
+        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getLastModifiedTime());
+
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+        additionalDetails.put(CYCLE_INDEX, (Integer) null);
 
         return HouseholdIndexV1.builder()
                 .household(household)

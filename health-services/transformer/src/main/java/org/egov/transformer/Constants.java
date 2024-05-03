@@ -1,13 +1,11 @@
 package org.egov.transformer;
 
-import org.apache.kafka.common.protocol.types.Field;
-
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
     String INDIVIDUAL = "INDIVIDUAL";
     String HOUSEHOLD = "HOUSEHOLD";
-    String CYCLE_NUMBER = "cycleIndex";
-    String DOSE_NUMBER = "doseIndex";
+    String CYCLE_INDEX = "cycleIndex";
+    String DOSE_INDEX = "doseIndex";
     String DELIVERY_STRATEGY = "deliveryStrategy";
 
     String NULL_STRING = "null";

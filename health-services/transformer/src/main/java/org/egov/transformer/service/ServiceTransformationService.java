@@ -81,7 +81,7 @@ public class ServiceTransformationService {
 
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         String checkListToFilter = transformerProperties.getCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();

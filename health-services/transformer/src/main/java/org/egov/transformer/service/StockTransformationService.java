@@ -1,6 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
@@ -119,7 +118,7 @@ public abstract class StockTransformationService implements TransformationServic
             Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
             Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
             ObjectNode additionalDetails = objectMapper.createObjectNode();
-            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+            additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
             StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                     .id(stock.getId())

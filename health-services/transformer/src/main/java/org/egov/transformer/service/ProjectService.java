@@ -320,8 +320,8 @@ public class ProjectService {
             });
 
             ObjectNode result = JsonNodeFactory.instance.objectNode();
-            result.set(DOSE_NUMBER, doseIndex);
-            result.set(CYCLE_NUMBER, cycleIndex);
+            result.set(DOSE_INDEX, doseIndex);
+            result.set(CYCLE_INDEX, cycleIndex);
             return result;
         } catch (Exception e) {
             log.info("Error while fetching cycle and dose indexes from MDMS: {}", ExceptionUtils.getStackTrace(e));

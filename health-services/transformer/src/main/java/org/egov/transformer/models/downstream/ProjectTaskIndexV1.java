@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -46,7 +47,7 @@ public class ProjectTaskIndexV1 {
     @JsonProperty("administrationStatus")
     private String administrationStatus;
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
     @JsonProperty("tenantId")
     private String tenantId;
     @JsonProperty("projectType")

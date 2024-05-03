@@ -76,6 +76,15 @@ public class CommonUtils {
         });
         return boundaryHierarchy;
     }
+    public Map<String, String> getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
+        Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, tenantId);
+        Map<String, String> boundaryHierarchy = new HashMap<>();
+
+        boundaryLabelToNameMap.forEach((label, value) -> {
+            boundaryHierarchy.put(getMDMSTransformerElasticIndexLabels(label, tenantId), value);
+        });
+        return boundaryHierarchy;
+    }
 
     public List<String> getProjectDatesList (Long startDateEpoch, Long endDateEpoch) {
         List<String> dates = new ArrayList<>();

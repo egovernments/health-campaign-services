@@ -78,9 +78,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
             String projectId = projectStaff.getProjectId();
             Project project = projectService.getProject(projectId, tenantId);
             String projectTypeId = project.getProjectTypeId();
-            Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMapByProjectId(projectStaff.getProjectId(), projectStaff.getTenantId());
-            log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+            Map<String, String> boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
             Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
             JsonNode additionalDetails = projectService.fetchAdditionalDetails(tenantId, null, projectTypeId);
             List<ProjectStaffIndexV1> projectStaffIndexV1List = new ArrayList<>();
@@ -89,6 +87,7 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .projectId(projectId)
                     .userId(projectStaff.getUserId())
                     .userName(userInfoMap.get(USERNAME))
+                    .nameOfUser(userInfoMap.get(NAME))
                     .role(userInfoMap.get(ROLE))
                     .userAddress(userInfoMap.get(CITY))
                     .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
@@ -97,10 +96,8 @@ public abstract class ProjectStaffTransformationService implements Transformatio
                     .lastModifiedBy(projectStaff.getAuditDetails().getLastModifiedBy())
                     .lastModifiedTime(projectStaff.getAuditDetails().getLastModifiedTime())
                     .additionalDetails(additionalDetails)
+                    .boundaryHierarchy(boundaryHierarchy)
                     .build();
-
-            ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
-            projectStaffIndexV1.setBoundaryHierarchy(boundaryHierarchy);
             projectStaffIndexV1List.add(projectStaffIndexV1);
             return projectStaffIndexV1List;
         }

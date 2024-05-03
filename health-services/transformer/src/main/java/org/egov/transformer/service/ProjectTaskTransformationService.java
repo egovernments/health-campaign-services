@@ -75,7 +75,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
         private final ObjectMapper objectMapper;
         private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(
-                DOSE_NUMBER, CYCLE_NUMBER, QUANTITY_WASTED
+                DOSE_INDEX, CYCLE_INDEX, QUANTITY_WASTED
         ));
 
         @Autowired
@@ -93,19 +93,16 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
         @Override
         public List<ProjectTaskIndexV1> transform(Task task) {
-            Map<String, String> boundaryLabelToNameMap = null;
+
+            Map<String, String> boundaryHierarchy = new HashMap<>();
             String tenantId = task.getTenantId();
             if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
-                boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), tenantId);
+                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(task.getAddress().getBoundary(), task.getTenantId());
             } else {
-                boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), tenantId);
+                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             }
             Project project = projectService.getProject(task.getProjectId(), tenantId);
             String projectTypeId = project.getProjectTypeId();
-            log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-            Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
 
             String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
 
@@ -121,18 +118,17 @@ public abstract class ProjectTaskTransformationService implements Transformation
 
             String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
 
-            ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
-
             Task constructedTask = constructTaskResourceIfNull(task);
 
             String projectType = project.getProjectType();
 
+            Map<String, String> finalBoundaryHierarchy = boundaryHierarchy;
             return constructedTask.getResources().stream().map(r ->
-                    transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType, projectTypeId, projectType)
+                    transformTaskToProjectTaskIndex(r, task, finalBoundaryHierarchy, tenantId, finalProjectBeneficiary, projectBeneficiaryType, projectTypeId, projectType)
             ).collect(Collectors.toList());
         }
 
-        private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, ObjectNode boundaryHierarchy, String tenantId,
+        private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, String tenantId,
                                                                    ProjectBeneficiary finalProjectBeneficiary, String projectBeneficiaryType, String projectTypeId, String projectType) {
             Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getAuditDetails().getCreatedBy());
             String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
@@ -244,9 +240,9 @@ public abstract class ProjectTaskTransformationService implements Transformation
         }
 
         private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
-            if (!additionalDetails.has(CYCLE_NUMBER)) {
+            if (!additionalDetails.has(CYCLE_INDEX)) {
                 Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
-                additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+                additionalDetails.put(CYCLE_INDEX, cycleIndex);
             }
         }
 

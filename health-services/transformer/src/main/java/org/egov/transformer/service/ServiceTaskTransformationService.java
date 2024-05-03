@@ -111,7 +111,7 @@ public abstract class ServiceTaskTransformationService implements Transformation
             Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
             Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
             ObjectNode additionalDetails = objectMapper.createObjectNode();;
-            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+            additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
             ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                     .id(service.getId())

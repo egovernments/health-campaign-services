@@ -31,7 +31,7 @@ public class StockReconciliationService {
     private final ObjectMapper objectMapper;
 
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(
-            RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND, CYCLE_NUMBER
+            RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND, CYCLE_INDEX
     ));
 
     public StockReconciliationService(ProjectService projectService, TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, StockTransformationService stockTransformationService) {
@@ -119,9 +119,9 @@ public class StockReconciliationService {
 
 
     private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
-        if (!additionalDetails.has(CYCLE_NUMBER)) {
+        if (!additionalDetails.has(CYCLE_INDEX)) {
             Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
-            additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+            additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }
 }

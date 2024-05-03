@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.egov.common.models.household.Household;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -35,7 +36,7 @@ public class HouseholdIndexV1 {
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
     @JsonProperty("geoPoint")
     private List<Double> geoPoint;
     @JsonProperty("additionalDetails")
