@@ -151,19 +151,6 @@ function reverseDeliveryRemap(data) {
       ruleKey: item.deliveryRuleNumber,
       delivery: {},
       attributes: loopAndReturn(item.conditions),
-      // .map((condition) => ({
-      // value: condition?.value ? condition?.value : "",
-      // operator: condition?.operator
-      // ? {
-      // code: condition.operator,
-      // }
-      // : null,
-      // attribute: condition?.attribute
-      // ? {
-      // code: condition.attribute,
-      // }
-      // : null,
-      // })),
       products: [...item.products],
     });
   });
@@ -328,16 +315,17 @@ const SetupCampaign = () => {
 
   const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType);
   const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType, filteredBoundaryData);
-  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType); // to be integrated later
+  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("userWithBoundary", hierarchyType); // to be integrated later
 
   useEffect(() => {
     setDataParams({
       ...dataParams,
       facilityId: facilityId,
       boundaryId: boundaryId,
+      userId: userId,
       hierarchyType: hierarchyType,
     });
-  }, [facilityId, boundaryId]); // Only run if dataParams changes
+  }, [facilityId, boundaryId, userId]); // Only run if dataParams changes
 
   // Example usage:
   // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
@@ -407,19 +395,31 @@ const SetupCampaign = () => {
           rule.attributes.forEach((attribute) => {
             if (attribute?.operator?.code === "IN_BETWEEN") {
               restructuredRule.conditions.push({
-                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
+                attribute: attribute?.attribute?.code
+                  ? attribute?.attribute?.code
+                  : typeof attribute?.attribute === "string"
+                  ? attribute?.attribute
+                  : null,
                 operator: "LESS_THAN",
                 value: attribute.fromValue ? Number(attribute.fromValue) : null,
               });
-              attribute;
+
               restructuredRule.conditions.push({
-                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
+                attribute: attribute?.attribute?.code
+                  ? attribute?.attribute?.code
+                  : typeof attribute?.attribute === "string"
+                  ? attribute?.attribute
+                  : null,
                 operator: "GREATER_THAN",
                 value: attribute.toValue ? Number(attribute.toValue) : null,
               });
             } else {
               restructuredRule.conditions.push({
-                attribute: attribute?.attribute?.code ? attribute?.attribute?.code : attribute?.attribute ? attribute?.attribute : null,
+                attribute: attribute?.attribute?.code
+                  ? attribute?.attribute?.code
+                  : typeof attribute?.attribute === "string"
+                  ? attribute?.attribute
+                  : null,
                 operator: attribute.operator ? attribute.operator.code : null,
                 value:
                   attribute?.attribute?.code === "Gender" && attribute?.value?.length > 0
@@ -447,6 +447,11 @@ const SetupCampaign = () => {
     return restructuredData;
   }
 
+  function resourceData(facilityData, boundaryData, userData) {
+    const resources = [facilityData, boundaryData, userData].filter((data) => data !== null && data !== undefined);
+    return resources;
+  }
+
   useEffect(async () => {
     if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
       const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
@@ -470,12 +475,12 @@ const SetupCampaign = () => {
   //API CALL
   useEffect(async () => {
     if (shouldUpdate === true) {
-      if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall) {
+      if (filteredConfig?.[0]?.form?.[0]?.body?.[0]?.skipAPICall && !id) {
         return;
       } else if (filteredConfig?.[0]?.form?.[0]?.isLast) {
         const reqCreate = async () => {
           let payloadData = {};
-          payloadData.hierarchyType = "ADMIN";
+          payloadData.hierarchyType = hierarchyType;
           payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
             ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
             : null;
@@ -488,8 +493,17 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]) {
-            payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          if (
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          ) {
+            const temp = resourceData(
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+            );
+            payloadData.resources = temp;
           }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
@@ -538,7 +552,7 @@ const SetupCampaign = () => {
       } else if (!isDraftCreated && !id) {
         const reqCreate = async () => {
           let payloadData = {};
-          payloadData.hierarchyType = "ADMIN";
+          payloadData.hierarchyType = hierarchyType;
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
             payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
               ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
@@ -555,8 +569,17 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]) {
-            payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          if (
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          ) {
+            const temp = resourceData(
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+            );
+            payloadData.resources = temp;
           }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
@@ -590,7 +613,7 @@ const SetupCampaign = () => {
       } else {
         const reqCreate = async () => {
           let payloadData = draftData;
-          payloadData.hierarchyType = "ADMIN";
+          payloadData.hierarchyType = hierarchyType;
           if (totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate) {
             payloadData.startDate = totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate
               ? Digit.Utils.date.convertDateToEpoch(totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate)
@@ -607,8 +630,17 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]) {
-            payloadData.resources = [totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.[0]];
+          if (
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          ) {
+            const temp = resourceData(
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+            );
+            payloadData.resources = temp;
           }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
@@ -619,7 +651,10 @@ const SetupCampaign = () => {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
             payloadData.deliveryRules = temp;
           }
-
+          if (!payloadData?.startDate && !payloadData?.endDate) {
+            delete payloadData?.startDate;
+            delete payloadData?.endDate;
+          }
           await updateCampaign(payloadData, {
             onError: (error, variables) => {
               console.log(error);
@@ -768,32 +803,28 @@ const SetupCampaign = () => {
         } else {
           return true;
         }
-        case "uploadBoundary":
-          if (formData?.uploadBoundary?.errorsType && formData?.uploadBoundary?.errorsType?.boundary && !(formData?.uploadBoundary?.uploadedFile.length === 0)) {
-            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
-            return false;
-          }
-          else {
-            return true;
-          }
+      case "uploadBoundary":
+        if (formData?.uploadBoundary?.isError) {
+          setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          return false;
+        } else {
+          return true;
+        }
 
-        case "uploadFacility":
-          if (formData?.uploadFacility?.errorsType && formData?.uploadFacility?.errorsType?.facilityWithBoundary && !(formData?.uploadFacility?.uploadedFile.length === 0)) {
-            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
-            return false;
-          }
-          else {
-            return true;
-          }
-          case "uploaduser":
-          if (formData?.uploadUser?.errorsType && formData?.uploadUser?.errorsType?.userWithBoundary && !(formData?.uploadUser?.uploadedFile.length === 0)) {
-            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
-            return false;
-          }
-          else {
-            return true;
-          }
-        
+      case "uploadFacility":
+        if (formData?.uploadFacility?.isError) {
+          setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          return false;
+        } else {
+          return true;
+        }
+      case "uploadUser":
+        if (formData?.uploadUser?.isError) {
+          setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          return false;
+        } else {
+          return true;
+        }
 
       case "cycleConfigure":
         const cycleNumber = formData?.cycleConfigure?.cycleConfgureDate?.cycle;
@@ -870,7 +901,11 @@ const SetupCampaign = () => {
       });
     }
 
-    if (filteredConfig?.[0]?.form?.[0]?.isLast || !filteredConfig[0].form[0].body[0].skipAPICall) {
+    if (
+      filteredConfig?.[0]?.form?.[0]?.isLast ||
+      !filteredConfig[0].form[0].body[0].skipAPICall ||
+      (filteredConfig[0].form[0].body[0].skipAPICall && id)
+    ) {
       setShouldUpdate(true);
     }
 

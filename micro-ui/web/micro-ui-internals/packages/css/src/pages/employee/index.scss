@@ -1,4 +1,5 @@
 @import "./campaignCycle.scss";
+@import "./coreOverride.scss";
 
 .campaign-cycle-container {
   .popup-header-fix {
@@ -69,6 +70,7 @@
   border-bottom: none;
 }
 .delivery-preview-card {
+  margin-bottom: 1.5rem !important;
   background-color: #fafafa;
   border: 1px solid #d6d5d4;
   width: 70%;
@@ -140,7 +142,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   display: flex;
   gap: 1rem;
   span {
-    color: #f47738;
+    color: theme(digitv2.lightTheme.primary);
   }
 }
 .campaign-attribute-table {
@@ -196,8 +198,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
   }
 }
-.view-composer-header-section{
+.view-composer-header-section {
   .employee-card-sub-header {
     margin-bottom: 1.5rem;
+  }
+}
+.add-new-product-container {
+  border: 1px solid #d6d5d4;
+  background-color: #fafafa;
+  width: 70%;
+  .heading-bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .label-field-pair {
+    gap: 10rem;
+    align-items: baseline;
+    .product-label-field {
+      width: 10rem;
+    }
   }
 }

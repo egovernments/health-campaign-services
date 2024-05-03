@@ -103,7 +103,7 @@ module.exports = {
     extend: {},
     digitv2: {
       lightTheme: {
-        primary: "#F47738",
+        primary: "#C84C0E",
         "text-color-primary": "#0B0C0C",
         "text-color-secondary": "#505A5F",
         "text-color-disabled": "#B1B4B6",

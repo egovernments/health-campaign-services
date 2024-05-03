@@ -23,7 +23,7 @@ const Response = () => {
   };
 
   return (
-    <Card style={{ padding: 0 }}>
+    <Card>
       <Banner
         successful={isResponseSuccess}
         message={t(state?.message)}
@@ -33,13 +33,13 @@ const Response = () => {
       <Card style={{ border: "none", boxShadow: "none", padding: "0", paddingBottom: "1rem" }}>
         <div style={{ display: "flex", marginBottom: "0.75rem" }}> {t(state?.text, { TEST_ID: testId })} </div>
         {isMobile ? (
-          <Link to={`/${window.contextPath}/employee/tqm/summary?id=${testId}`}>
-            <SubmitBar label={t("ES_TQM_SEE_SUMMARY_TITLE")} />
+          <Link to={state?.actionLink ? state?.actionLink : `/${window.contextPath}/employee/`}>
+            <SubmitBar label={state?.actionLabel ? t(state?.actionLabel) : t("ES_CAMPAIGN_RESPONSE_ACTION")} />
           </Link>
         ) : (
           <ActionBar>
-            <Link to={`/${window.contextPath}/employee/tqm/summary?id=${testId}`}>
-              <SubmitBar label={t("ES_TQM_SEE_SUMMARY_TITLE")} />
+            <Link to={state?.actionLink ? state?.actionLink : `/${window.contextPath}/employee/`}>
+              <SubmitBar label={state?.actionLabel ? t(state?.actionLabel) : t("ES_CAMPAIGN_RESPONSE_ACTION")} />
             </Link>
           </ActionBar>
         )}

@@ -6,6 +6,7 @@ import config from "../../config/index";
 import { httpRequest } from "../request";
 import { getBoundaryRelationshipData, throwError } from "../genericUtils";
 import { validateFilters } from "./campaignValidators";
+import { generateRequestSchema } from "../../config/models/generateRequestSchema";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: Ajv.ErrorObject[] | null | undefined } {
@@ -271,28 +272,12 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
 // Function to validate the generation request
 async function validateGenerateRequest(request: express.Request) {
     const { tenantId, type, hierarchyType, forceUpdate } = request.query;
-    if (!tenantId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
-    }
+    validateBodyViaSchema(generateRequestSchema, request.query);
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
     }
-    if (!type) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "type is required");
-    }
-    if (!hierarchyType) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "hierarchyType is required");
-    }
-    if (forceUpdate) {
-        if (forceUpdate !== 'true' && forceUpdate !== 'false') {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "forceUpdate should be either 'true' or 'false'");
-        }
-    }
-    else {
+    if (!forceUpdate) {
         request.query.forceUpdate = "false";
-    }
-    if (!["facility", "user", "boundary", "facilityWithBoundary","userWithBoundary"].includes(String(type))) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Type should be facility, user, boundary, or facilityWithBoundary or userWithBoundary");
     }
     await validateHierarchyType(request, hierarchyType, tenantId);
     if (type == 'boundary') {

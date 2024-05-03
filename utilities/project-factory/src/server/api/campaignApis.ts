@@ -199,6 +199,7 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
     for (const searchedElement of newSearchedData) {
       let match = true;
       for (const key in createdElement) {
+        console.log(key, createdElement[key], searchedElement[key], " ssssssssssssssssssssssssssssssssss");
         if (createdElement.hasOwnProperty(key) && !searchedElement.hasOwnProperty(key) && key != '!row#number!') {
           match = false;
           break;
@@ -232,6 +233,11 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
   })
   var errors: any[] = []
   if (request?.body?.ResourceDetails?.type != "user") {
+    if (request?.body?.ResourceDetails?.type == "facility") {
+      newCreatedData?.forEach((element: any) => {
+        delete element.address
+      })
+    }
     updateErrors(newCreatedData, newSearchedData, errors, createAndSearchConfig);
   }
   else {
@@ -402,7 +408,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
 async function processValidate(request: any) {
   const type: string = request.body.ResourceDetails.type;
   const createAndSearchConfig = createAndSearch[type]
-  const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
+  const dataFromSheet = await getDataFromSheet(request?.body, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
   if (type == 'boundaryWithTarget') {
     validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation);
   }
@@ -499,6 +505,10 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
       if (type == "facility") {
+        for (const facility of newRequestBody.Facilities) {
+          facility.address = {}
+        }
+        console.log(newRequestBody, " nnrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
         var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
       }
       else if (type == "user") {
@@ -583,7 +593,7 @@ async function processCreate(request: any) {
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
-    const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
+    const dataFromSheet = await getDataFromSheet(request?.body, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
     await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
     processAfterValidation(dataFromSheet, createAndSearchConfig, request)
   }
@@ -602,7 +612,7 @@ async function createProjectCampaignResourcData(request: any) {
         type: resource.type,
         fileStoreId: resource.filestoreId,
         tenantId: request?.body?.CampaignDetails?.tenantId,
-        action: "validate",
+        action: "create",
         hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
         additionalDetails: {}
       };

@@ -37,7 +37,7 @@ const throwErrorViaRequest = (message: any = "Internal Server Error") => {
   if (message?.message || message?.code) {
     let error: any = new Error(message?.message || message?.code);
     error = Object.assign(error, { status: message?.status || 500 });
-    logger.error("Error : " + error);
+    logger.error("Error : " + error + " " + (message?.description || ""));
     throw error;
   }
   else {
@@ -768,8 +768,8 @@ function modifyBoundaryData(boundaryData: unknown[]) {
   return [withBoundaryCode, withoutBoundaryCode];
 }
 
-async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any) {
-  const type = request?.body?.ResourceDetails?.type;
+async function getDataFromSheet(requestBody: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any) {
+  const type = requestBody?.ResourceDetails?.type;
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
   if (!fileResponse?.fileStoreIds?.[0]?.url) {
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
@@ -777,7 +777,7 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   if (type == 'boundaryWithTarget') {
     return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true);
   }
-  return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName, true, createAndSearchConfig)
+  return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName || optionalSheetName, true, createAndSearchConfig)
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {

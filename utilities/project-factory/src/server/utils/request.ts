@@ -115,7 +115,9 @@ const httpRequest = async (
       ":: CODE :: " +
       errorResponse?.status +
       ":: ERROR :: " +
-      errorResponse?.data?.Errors?.[0]?.code || error
+      errorResponse?.data?.Errors?.[0]?.code || error +
+      ":: DESCRIPTION :: " +
+      errorResponse?.data?.Errors?.[0]?.description
     );
     logger.error("error occured while making request to " +
       getServiceName(_url) +

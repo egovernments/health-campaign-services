@@ -79,6 +79,7 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
     const columns = findColumns(desiredSheet);
     const statusColumn = columns.statusColumn;
     const errorDetailsColumn = columns.errorDetailsColumn;
+    var additionalDetailsErrors: any[] = []
 
     const errorData = request.body.sheetErrorDetails;
     if (errorData) {
@@ -93,9 +94,12 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
             const errorDetailsCell = errorDetailsColumn + (rowIndex + 1);
             desiredSheet[statusCell] = { v: error.status, t: 's', r: '<t xml:space="preserve">#status#</t>', h: error.status, w: error.status };
             desiredSheet[errorDetailsCell] = { v: error.errorDetails, t: 's', r: '<t xml:space="preserve">#errorDetails#</t>', h: error.errorDetails, w: error.errorDetails };
-
+            if (!(error?.status == "CREATED" || error?.status == "VALID")) {
+                additionalDetailsErrors.push(error)
+            }
         });
     }
+    request.body.additionalDetailsErrors = additionalDetailsErrors
     desiredSheet['!ref'] = desiredSheet['!ref'].replace(/:[A-Z]+/, ':' + errorDetailsColumn);
     workbook.Sheets[sheetName] = desiredSheet;
 }
@@ -107,6 +111,8 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
     const errorDetailsColumn = columns.errorDetailsColumn;
 
     const errorData = request.body.sheetErrorDetails.filter((error: any) => error.sheetName === sheetName);
+    var additionalDetailsErrors: any[] = []
+
     if (errorData) {
         errorData.forEach((error: any) => {
             const rowIndex = error.rowNumber;
@@ -119,9 +125,12 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
             const errorDetailsCell = errorDetailsColumn + (rowIndex + 1);
             desiredSheet[statusCell] = { v: error.status, t: 's', r: '<t xml:space="preserve">#status#</t>', h: error.status, w: error.status };
             desiredSheet[errorDetailsCell] = { v: error.errorDetails, t: 's', r: '<t xml:space="preserve">#errorDetails#</t>', h: error.errorDetails, w: error.errorDetails };
-
+            if (!(error?.status == "CREATED" || error?.status == "VALID")) {
+                additionalDetailsErrors.push(error)
+            }
         });
     }
+    request.body.additionalDetailsErrors = additionalDetailsErrors
     desiredSheet['!ref'] = desiredSheet['!ref'].replace(/:[A-Z]+/, ':' + errorDetailsColumn);
     workbook.Sheets[sheetName] = desiredSheet;
 }
@@ -309,7 +318,7 @@ async function generateProcessedFileAndPersist(request: any) {
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
             lastModifiedTime: Date.now()
         },
-        additionalDetails: request?.body?.ResourceDetails?.additionalDetails || {}
+        additionalDetails: { ...request?.body?.ResourceDetails?.additionalDetails, sheetErrors: request?.body?.additionalDetailsErrors } || {}
     };
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     logger.info("ResourceDetails to persist : " + JSON.stringify(request?.body?.ResourceDetails));
@@ -343,37 +352,37 @@ function enrichRootProjectId(requestBody: any) {
     requestBody.CampaignDetails.projectId = requestBody.CampaignDetails.projectId || null
 }
 
-async function enrichAndPersistCampaignWithError(request: any, error: any) {
-    const action = request?.body?.CampaignDetails?.action;
-    request.body.CampaignDetails.campaignNumber = request?.body?.CampaignDetails?.campaignNumber || null
-    request.body.CampaignDetails.campaignDetails = request.body.CampaignDetails.campaignDetails || { deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
-    request.body.CampaignDetails.status = "failed";
-    request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries) || null
-    request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
-    request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType || null;
-    request.body.CampaignDetails.additionalDetails = request?.body?.CampaignDetails?.additionalDetails || {};
-    request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || null
-    request.body.CampaignDetails.endDate = request?.body?.CampaignDetails?.endDate || null
-    request.body.CampaignDetails.auditDetails = {
-        createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
+async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
+    const action = requestBody?.CampaignDetails?.action;
+    requestBody.CampaignDetails.campaignNumber = requestBody?.CampaignDetails?.campaignNumber || null
+    requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails?.campaignDetails || { deliveryRules: requestBody?.CampaignDetails?.deliveryRules, resources: requestBody?.CampaignDetails?.resources || [] };
+    requestBody.CampaignDetails.status = "failed";
+    requestBody.CampaignDetails.boundaryCode = getRootBoundaryCode(requestBody?.CampaignDetails?.boundaries) || null
+    requestBody.CampaignDetails.projectType = requestBody?.CampaignDetails?.projectType || null;
+    requestBody.CampaignDetails.hierarchyType = requestBody?.CampaignDetails?.hierarchyType || null;
+    requestBody.CampaignDetails.additionalDetails = requestBody?.CampaignDetails?.additionalDetails || {};
+    requestBody.CampaignDetails.startDate = requestBody?.CampaignDetails?.startDate || null
+    requestBody.CampaignDetails.endDate = requestBody?.CampaignDetails?.endDate || null
+    requestBody.CampaignDetails.auditDetails = {
+        createdBy: requestBody?.RequestInfo?.userInfo?.uuid,
         createdTime: Date.now(),
-        lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+        lastModifiedBy: requestBody?.RequestInfo?.userInfo?.uuid,
         lastModifiedTime: Date.now(),
     }
-    if (action == "create" && !request?.body?.CampaignDetails?.projectId) {
-        enrichRootProjectId(request.body);
+    if (action == "create" && !requestBody?.CampaignDetails?.projectId) {
+        enrichRootProjectId(requestBody);
     }
     else {
-        request.body.CampaignDetails.projectId = null
+        requestBody.CampaignDetails.projectId = null
     }
-    request.body.CampaignDetails.additionalDetails = {
-        ...request?.body?.CampaignDetails?.additionalDetails,
+    requestBody.CampaignDetails.additionalDetails = {
+        ...requestBody?.CampaignDetails?.additionalDetails,
         error: String(error?.message || error)
     }
-    logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
+    logger.info("Persisting CampaignDetails : " + JSON.stringify(requestBody?.CampaignDetails));
     const topic = config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
-    produceModifiedMessages(request?.body, topic);
-    delete request.body.CampaignDetails.campaignDetails
+    produceModifiedMessages(requestBody, topic);
+    delete requestBody.CampaignDetails.campaignDetails
 }
 
 async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boolean = false) {
@@ -475,6 +484,7 @@ async function persistForCampaignProjectMapping(request: any) {
         requestBody.Campaign.deliveryRules = request?.body?.CampaignDetails?.deliveryRules
         requestBody.Campaign.rootProjectId = request?.body?.CampaignDetails?.projectId
         requestBody.Campaign.resourceDetailsIds = request?.body?.CampaignDetails?.campaignDetails?.resourceDetailsIds
+        requestBody.CampaignDetails = request?.body?.CampaignDetails
         logger.info("Persisting CampaignProjectMapping : " + JSON.stringify(requestBody));
         produceModifiedMessages(requestBody, config.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
     }
@@ -488,7 +498,9 @@ async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl:
     else if (actionInUrl == "update") {
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
     }
-    await persistForCampaignProjectMapping(request);
+    if (request?.body?.CampaignDetails?.action == "create") {
+        await persistForCampaignProjectMapping(request);
+    }
 }
 
 
@@ -919,6 +931,8 @@ async function updateProjectDates(request: any) {
     }
 }
 
+// TODO : PROJECT TYPE AND TARGET ENRICHMENT
+
 async function createProject(request: any, actionUrl: any) {
     const { tenantId, boundaries, projectType, projectId, startDate, endDate } = request?.body?.CampaignDetails;
     if (boundaries && projectType && !projectId) {
@@ -967,7 +981,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
         }
     } catch (error: any) {
         logger.error(error)
-        enrichAndPersistCampaignWithError(request, error)
+        enrichAndPersistCampaignWithError(request?.body, error)
     }
 }
 
@@ -1230,5 +1244,6 @@ export {
     autoGenerateBoundaryCodes,
     convertSheetToDifferentTabs,
     getBoundaryDataAfterGeneration,
-    boundaryBulkUpload
+    boundaryBulkUpload,
+    enrichAndPersistCampaignWithError
 }
