@@ -325,7 +325,7 @@ const SetupCampaign = () => {
       userId: userId,
       hierarchyType: hierarchyType,
     });
-  }, [facilityId, boundaryId , userId]); // Only run if dataParams changes
+  }, [facilityId, boundaryId, userId]); // Only run if dataParams changes
 
   // Example usage:
   // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
@@ -403,7 +403,7 @@ const SetupCampaign = () => {
                 operator: "LESS_THAN",
                 value: attribute.fromValue ? Number(attribute.fromValue) : null,
               });
-              
+
               restructuredRule.conditions.push({
                 attribute: attribute?.attribute?.code
                   ? attribute?.attribute?.code
@@ -447,8 +447,8 @@ const SetupCampaign = () => {
     return restructuredData;
   }
 
-  function resourceData(facilityData , boundaryData , userData){
-    const resources = [facilityData, boundaryData, userData].filter(data => data !== null && data !== undefined);
+  function resourceData(facilityData, boundaryData, userData) {
+    const resources = [facilityData, boundaryData, userData].filter((data) => data !== null && data !== undefined);
     return resources;
   }
 
@@ -493,9 +493,17 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] || totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] || totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0] ) {
-            const temp = resourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0], totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] , totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]);
-          payloadData.resources = temp;
+          if (
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          ) {
+            const temp = resourceData(
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+            );
+            payloadData.resources = temp;
           }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
@@ -561,9 +569,17 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] || totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] || totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0] ) {
-            const temp = resourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0], totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] , totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]);
-          payloadData.resources = temp;
+          if (
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          ) {
+            const temp = resourceData(
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+            );
+            payloadData.resources = temp;
           }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
@@ -614,9 +630,17 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-          if (totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] || totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] || totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0] ) {
-            const temp = resourceData(totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0], totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] , totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]);
-          payloadData.resources = temp;
+          if (
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0] ||
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          ) {
+            const temp = resourceData(
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+            );
+            payloadData.resources = temp;
           }
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
@@ -627,7 +651,10 @@ const SetupCampaign = () => {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
             payloadData.deliveryRules = temp;
           }
-
+          if (!payloadData?.startDate && !payloadData?.endDate) {
+            delete payloadData?.startDate;
+            delete payloadData?.endDate;
+          }
           await updateCampaign(payloadData, {
             onError: (error, variables) => {
               console.log(error);
@@ -776,32 +803,40 @@ const SetupCampaign = () => {
         } else {
           return true;
         }
-        case "uploadBoundary":
-          if (formData?.uploadBoundary?.errorsType && formData?.uploadBoundary?.errorsType?.boundary && !(formData?.uploadBoundary?.uploadedFile.length === 0)) {
-            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
-            return false;
-          }
-          else {
-            return true;
-          }
+      case "uploadBoundary":
+        if (
+          formData?.uploadBoundary?.errorsType &&
+          formData?.uploadBoundary?.errorsType?.boundary &&
+          !(formData?.uploadBoundary?.uploadedFile.length === 0)
+        ) {
+          setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          return false;
+        } else {
+          return true;
+        }
 
-        case "uploadFacility":
-          if (formData?.uploadFacility?.errorsType && formData?.uploadFacility?.errorsType?.facilityWithBoundary && !(formData?.uploadFacility?.uploadedFile.length === 0)) {
-            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
-            return false;
-          }
-          else {
-            return true;
-          }
-          case "uploaduser":
-          if (formData?.uploadUser?.errorsType && formData?.uploadUser?.errorsType?.userWithBoundary && !(formData?.uploadUser?.uploadedFile.length === 0)) {
-            setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}`});
-            return false;
-          }
-          else {
-            return true;
-          }
-        
+      case "uploadFacility":
+        if (
+          formData?.uploadFacility?.errorsType &&
+          formData?.uploadFacility?.errorsType?.facilityWithBoundary &&
+          !(formData?.uploadFacility?.uploadedFile.length === 0)
+        ) {
+          setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          return false;
+        } else {
+          return true;
+        }
+      case "uploaduser":
+        if (
+          formData?.uploadUser?.errorsType &&
+          formData?.uploadUser?.errorsType?.userWithBoundary &&
+          !(formData?.uploadUser?.uploadedFile.length === 0)
+        ) {
+          setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
+          return false;
+        } else {
+          return true;
+        }
 
       case "cycleConfigure":
         const cycleNumber = formData?.cycleConfigure?.cycleConfgureDate?.cycle;

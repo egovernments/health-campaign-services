@@ -25,6 +25,16 @@ function AddProduct() {
     });
     return isValid;
   };
+  const closeToast = () => {
+    setShowToast(null);
+  };
+
+  useEffect(() => {
+    if (showToast) {
+      setTimeout(closeToast, 5000);
+    }
+  }, [showToast]);
+
   const onSubmit = async (formData) => {
     const isValid = checkValid(formData);
     if (!isValid) {
