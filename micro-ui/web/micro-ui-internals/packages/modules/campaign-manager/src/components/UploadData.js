@@ -348,7 +348,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         setIsError(true);
 
         try {
-          const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type);
+          const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId);
           if (temp?.status === "completed") {
             if (Object.keys(temp?.additionalDetails).length === 0) {
               setShowToast({ key: "warning", label: t("HCM_VALIDATION_COMPLETED") });
@@ -397,8 +397,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               setUploadedFile(fileData);
             }
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
     };
 

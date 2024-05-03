@@ -244,7 +244,7 @@ const SetupCampaign = () => {
     },
   });
 
-  const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS("mz", "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
+  const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
 
   useEffect(() => {
     if (isPreview === "true") {

@@ -88,13 +88,14 @@ function AddProduct() {
   };
 
   const onSecondayActionClick = () => {
-    return;
+    history.push(`/${window.contextPath}/employee/campaign/setup-campaign${state?.urlParams}`);
   };
+
   return (
     <div>
       <FormComposerV2
         showMultipleCardsWithoutNavs={true}
-        label="ES_CAMPAIGN_ADD_PRODUCT_BUTTON"
+        label={t("ES_CAMPAIGN_ADD_PRODUCT_BUTTON")}
         config={addProductConfig?.map((config) => {
           return {
             ...config,
