@@ -116,7 +116,7 @@ module.exports = {
         "primary-bg": "#FEEFE7",
       },
       alert: {
-        error: "#D4351C",
+        error: "#b91900", 
         "error-bg": "#EFC7C1",
         success: "#00703C",
         "success-bg": "#BAD6C9",
