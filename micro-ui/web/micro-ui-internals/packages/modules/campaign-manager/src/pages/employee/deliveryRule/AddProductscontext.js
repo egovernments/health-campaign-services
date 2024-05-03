@@ -1,9 +1,10 @@
 import { AddIcon, Button, CardText, Dropdown, Label, LabelFieldPair } from "@egovernments/digit-ui-react-components";
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useContext, useEffect, useState } from "react";
 import PlusMinusInput from "../../../components/PlusMinusInput";
 import { useTranslation } from "react-i18next";
 import { TextInput, Toast } from "@egovernments/digit-ui-components";
 import { Link } from "react-router-dom";
+import { CycleContext } from ".";
 
 const DustbinIcon = () => (
   <svg width="12" height="16" viewBox="0 0 12 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -15,6 +16,17 @@ const DustbinIcon = () => (
 );
 function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
   const { t } = useTranslation();
+  const oldSessionData = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
+  const { campaignData, dispatchCampaignData } = useContext(CycleContext);
+  const updateSession = () => {
+    const newData = {
+      ...oldSessionData,
+      HCM_CAMPAIGN_DELIVERY_DATA: {
+        deliveryRule: campaignData,
+      },
+    };
+    window.Digit.SessionStorage.set("HCM_CAMPAIGN_MANAGER_FORM_DATA", newData);
+  };
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
   const [products, setProducts] = useState([
@@ -245,12 +257,13 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
         }}
       >
         <p>{t("CAMPAIGN_NEW_PRODUCT_TEXT")}</p>
-        <span className="link">
+        <span className="link" onClick={updateSession}>
           <Link
             to={{
               pathname: `/${window.contextPath}/employee/campaign/add-product`,
               state: {
                 campaignId: id,
+                urlParams: window?.location?.search,
               },
             }}
           >

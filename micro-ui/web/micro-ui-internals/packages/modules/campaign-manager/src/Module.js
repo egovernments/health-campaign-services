@@ -52,8 +52,6 @@ const CampaignModule = ({ stateCode, userType, tenants }) => {
 
 const componentsToRegister = {
   CampaignModule: CampaignModule,
-  // campaignModule: CampaignModule,
-  // campaignCard: CampaignCard,
   CampaignCard: CampaignCard,
   UploadData,
   DeliveryRule: DeliverySetup,
