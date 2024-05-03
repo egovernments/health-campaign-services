@@ -4,14 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,15 +26,11 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
-import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.springframework.stereotype.Component;
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
-import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 
-import java.io.*;
 @Slf4j
 @Component
 public class ParsingUtil {
@@ -47,9 +39,12 @@ public class ParsingUtil {
 
     private FilestoreUtil filestoreUtil;
 
-    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil) {
+    private CalculationUtil calculationUtil;
+
+    public ParsingUtil(PlanConfigurationUtil planConfigurationUtil, FilestoreUtil filestoreUtil, CalculationUtil calculationUtil) {
         this.planConfigurationUtil = planConfigurationUtil;
         this.filestoreUtil = filestoreUtil;
+        this.calculationUtil = calculationUtil;
     }
 
     public List<String> getAttributeNames(SimpleFeatureCollection simpleFeatureCollection) {
@@ -91,16 +86,6 @@ public class ParsingUtil {
         return true;
     }
 
-    public void printFeatureAttributes(SimpleFeature feature, List<String> attributeNames) {
-        for (String attributeName : attributeNames) {
-            if (attributeName.equals("geometry") || attributeName.equals("the_geom")) continue;
-            log.info( attributeName + " - " + feature.getAttribute(attributeName));
-        }
-        log.info("------------------------------------------");
-    }
-
-
-
     public Map<String, Integer> getAttributeNameIndexFromExcel(Sheet sheet) {
         Map<String, Integer> columnIndexMap = new HashMap<>();
         DataFormatter dataFormatter = new DataFormatter();
@@ -141,12 +126,6 @@ public class ParsingUtil {
         return null;
     }
 
-    public Map<String, String> createMappingMapForFilestoreId(List<ResourceMapping> resourceMappingList, String filestoreId) {
-        return resourceMappingList.stream()
-                .filter(mapping -> filestoreId.equals(mapping.getFilestoreId()))
-                .collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
-    }
-
     public File getFileFromByteArray(PlanConfiguration planConfig, String fileStoreId) {
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         return convertByteArrayToFile(byteArray, "geojson");
@@ -155,6 +134,17 @@ public class ParsingUtil {
     public String convertByteArrayToString(PlanConfiguration planConfig, String fileStoreId) {
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         return new String(byteArray, StandardCharsets.UTF_8);
+    }
+
+    public String convertFileToJsonString(File geojsonFile) {
+        String geoJSONString = null;
+        try {
+            geoJSONString = new String(Files.readAllBytes(geojsonFile.toPath()));
+        } catch (IOException e) {
+            throw new CustomException(e.getMessage(), "");
+        }
+
+        return geoJSONString;
     }
 
     public File writeToFile(JsonNode jsonNode, ObjectMapper objectMapper) {
@@ -180,33 +170,36 @@ public class ParsingUtil {
         }
     }
 
-    public File extractFileFromZip(PlanConfiguration planConfig, String fileStoreId, String fileName) throws IOException {
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
+    public File extractShapeFilesFromZip(PlanConfiguration planConfig, String fileStoreId, String fileName) throws IOException {
+        File shpFile = null;
+        byte[] zipFileBytes = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
 
-        try (ByteArrayInputStream byteInputStream = new ByteArrayInputStream(byteArray);
-             ZipArchiveInputStream zipInputStream = new ZipArchiveInputStream(byteInputStream)) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(zipFileBytes); ZipInputStream zis = new ZipInputStream(bais)) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.getName().endsWith(".dbf")) {
+                    String fileBaseName = entry.getName().substring(0, entry.getName().length() - 4); // Remove the .shp extension
 
-            ZipArchiveEntry entry;
-            while ((entry = zipInputStream.getNextZipEntry()) != null) {
-                if (!entry.isDirectory() && entry.getName().toLowerCase().endsWith(".shp")) {
-                    // Create a temporary file
-                    File tempFile = File.createTempFile(fileName, ".shp");
-                    tempFile.deleteOnExit();
-
-                    // Write the entry contents to the temporary file
-                    try (OutputStream outputStream = new FileOutputStream(tempFile)) {
-                        byte[] buffer = new byte[1024];
-                        int bytesRead;
-                        while ((bytesRead = zipInputStream.read(buffer)) != -1) {
-                            outputStream.write(buffer, 0, bytesRead);
-                        }
-                        return tempFile;
+                    File tempDir = new File(System.getProperty("java.io.tmpdir") + File.separator + fileBaseName);
+                    if (!tempDir.exists()) {
+                        tempDir.mkdirs();
                     }
+
+                    String shpFilePath = tempDir.getAbsolutePath() + File.separator + entry.getName();
+                    FileOutputStream fos = new FileOutputStream(shpFilePath);
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+                    while ((bytesRead = zis.read(buffer)) != -1) {
+                        fos.write(buffer, 0, bytesRead);
+                    }
+                    fos.close();
+
+                    shpFile = new File(shpFilePath);
+                    break; // Assuming there is only one .shp file in the zip
                 }
             }
         }
-
-        throw new FileNotFoundException("File " + fileName + " not found in the zip file.");
+        return shpFile;
     }
 
 }

@@ -5,15 +5,12 @@ import java.util.Collections;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.service.ResourceEstimationService;
-import org.egov.processor.web.models.Plan;
+import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.PlanConfigurationRequest;
-import org.egov.processor.web.models.PlanRequest;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
-
-import java.util.HashMap;
 
 @Component
 @Slf4j
@@ -31,7 +28,9 @@ public class PlanConsumer {
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanConfigurationRequest planConfigurationRequest = objectMapper.convertValue(consumerRecord, PlanConfigurationRequest.class);
-            resourceEstimationService.estimateResources(planConfigurationRequest);
+            if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(PlanConfiguration.StatusEnum.GENERATED)) {
+                resourceEstimationService.estimateResources(planConfigurationRequest);
+            }
         } catch (Exception exception) {
             log.error("Error in Plan consumer", exception);
         }
