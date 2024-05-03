@@ -1,5 +1,11 @@
 package org.egov.household.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
@@ -12,6 +18,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.repository.HouseholdRepository;
+import org.egov.household.validators.household.HBoundaryValidator;
 import org.egov.household.validators.household.HIsDeletedValidator;
 import org.egov.household.validators.household.HNonExsistentEntityValidator;
 import org.egov.household.validators.household.HNullIdValidator;
@@ -22,13 +29,6 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -55,6 +55,9 @@ public class HouseholdService {
     private final List<Validator<HouseholdBulkRequest, Household>> validators;
 
     private final HouseholdEnrichmentService enrichmentService;
+
+    private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
+            validator.getClass().equals(HBoundaryValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HNullIdValidator.class)
@@ -91,8 +94,11 @@ public class HouseholdService {
 
     public List<Household> create(HouseholdBulkRequest request, boolean isBulk) {
         log.info("received request to create households");
-        Map<Household, ErrorDetails> errorDetailsMap = new HashMap<>();
-        List<Household> validEntities = request.getHouseholds();
+        Tuple<List<Household>, Map<Household, ErrorDetails>> tuple = validate(validators,
+                isApplicableForCreate, request, isBulk);
+        Map<Household, ErrorDetails> errorDetailsMap = tuple.getY();
+        List<Household> validEntities = tuple.getX();
+
         try {
             if (!validEntities.isEmpty()) {
                 enrichmentService.create(validEntities, request);
