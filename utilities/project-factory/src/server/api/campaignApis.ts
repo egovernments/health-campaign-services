@@ -509,7 +509,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
       logger.info("Activity : " + JSON.stringify(activity));
       activities.push(activity);
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 10000));
     }
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
   }
