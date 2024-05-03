@@ -97,7 +97,7 @@ public abstract class ProjectTaskTransformationService implements Transformation
             Map<String, String> boundaryHierarchy = new HashMap<>();
             String tenantId = task.getTenantId();
             if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
-                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(task.getAddress().getBoundary(), task.getTenantId());
+                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(task.getAddress().getLocality().getCode(), task.getTenantId());
             } else {
                 boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             }
