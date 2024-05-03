@@ -1,0 +1,78 @@
+/* language selection issue*/
+.customBtn-selected {
+    background-color: theme(digitv2.lightTheme.primary);
+}
+
+/* login  screen  issue*/
+
+.primary-label-btn {
+    color: theme(digitv2.lightTheme.primary);
+}
+
+/* landing  screen  issue*/
+
+.employeeCard {
+    .complaint-links-container .header .logo {
+        background-color: theme(digitv2.lightTheme.primary);
+
+    }
+
+    .complaint-links-container .body .link {
+        color: theme(digitv2.lightTheme.primary);
+
+    }
+}
+
+.employee .topbar .right .user-img-txt {
+    background-color: theme(digitv2.lightTheme.primary);
+}
+/* button component   issue*/
+
+.action-bar-wrap {
+    .submit-bar {
+        background-color: theme(digitv2.lightTheme.primary);
+    }
+
+}
+
+.jk-digit-secondary-btn {
+    color: theme(digitv2.lightTheme.primary);
+    border-color: theme(digitv2.lightTheme.primary);
+
+    svg {
+        fill: theme(digitv2.lightTheme.primary);
+
+        path {
+            fill: theme(digitv2.lightTheme.primary);
+
+        }
+    }
+}
+.error-boundary .error-container button{
+    background-color: theme(digitv2.lightTheme.primary);
+}
+
+/* inbox  screen  issue*/
+
+.inbox-search-wrapper{
+    .search-tabs-container .search-tab-head-selected{
+        color: theme(digitv2.lightTheme.primary);
+        border-color: theme(digitv2.lightTheme.primary);
+
+    }
+    .submit-bar {
+        background-color: theme(digitv2.lightTheme.primary);
+
+    }
+    .search-component-table .link{
+        color: theme(digitv2.lightTheme.primary);
+
+    }
+    .link-label{
+        color: theme(digitv2.lightTheme.primary) !important;
+    }
+}
+.drag-drop-container .drag-drop-text .browse-text{
+    color: theme(digitv2.lightTheme.primary);
+
+}

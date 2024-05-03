@@ -8,6 +8,7 @@ import XLSX from "xlsx";
 import { InfoCard, Toast } from "@egovernments/digit-ui-components";
 import { schemaConfig } from "../configs/schemaConfig";
 import { headerConfig } from "../configs/headerConfig";
+import { PRIMARY_COLOR } from "../utils";
 
 /**
  * The `UploadData` function in JavaScript handles the uploading, validation, and management of files
@@ -422,7 +423,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         <Button
           label={t("WBH_DOWNLOAD_TEMPLATE")}
           variation="secondary"
-          icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill="#F47738" />}
+          icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
           type="button"
           className="campaign-download-template-btn"
           onButtonClick={downloadTemplate}

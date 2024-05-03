@@ -19,12 +19,13 @@ import RemoveableTagNew from "../../../components/RemovableTagNew";
 import AddProducts from "./AddProductscontext";
 import { CycleContext } from ".";
 import { TextInput } from "@egovernments/digit-ui-components";
+import { PRIMARY_COLOR } from "../../../utils";
 
 const DustbinIcon = () => (
   <svg width="12" height="16" viewBox="0 0 12 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M0.999837 13.8333C0.999837 14.75 1.74984 15.5 2.6665 15.5L9.33317 15.5C10.2498 15.5 10.9998 14.75 10.9998 13.8333L10.9998 3.83333L0.999837 3.83333L0.999837 13.8333ZM11.8332 1.33333L8.9165 1.33333L8.08317 0.5L3.9165 0.5L3.08317 1.33333L0.166504 1.33333L0.166504 3L11.8332 3V1.33333Z"
-      fill="#F47738"
+      fill={PRIMARY_COLOR}
     />
   </svg>
 );
@@ -246,7 +247,7 @@ const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeli
             fontWeight: "600",
             marginLeft: "1rem",
             fontSize: "1rem",
-            color: "#f47738",
+            color: PRIMARY_COLOR,
             display: "flex",
             gap: "0.5rem",
             alignItems: "center",
@@ -522,7 +523,7 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
           variation="secondary"
           label={t(`CAMPAIGN_ADD_MORE_ATTRIBUTE_TEXT`)}
           className="add-attribute"
-          icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill="#f47738" width="20" height="20" />}
+          icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill={PRIMARY_COLOR} width="20" height="20" />}
           onButtonClick={addMoreAttribute}
         />
       )}
@@ -585,7 +586,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           {deliveryRules.length !== 1 && (
             <div
               onClick={() => onDelete()}
-              style={{ fontWeight: "600", fontSize: "1rem", color: "#f47738", display: "flex", gap: "0.5rem", alignItems: "center" }}
+              style={{ fontWeight: "600", fontSize: "1rem", color:PRIMARY_COLOR, display: "flex", gap: "0.5rem", alignItems: "center" }}
             >
               <DustbinIcon /> {t(`CAMPAIGN_DELETE_CONDITION_LABEL`)}
             </div>
@@ -716,7 +717,7 @@ const AddDeliveryRuleWrapper = ({}) => {
           variation="secondary"
           label={t(`CAMPAIGN_ADD_MORE_DELIVERY_BUTTON`)}
           className={"add-rule-btn"}
-          icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill="#f47738" />}
+          icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill={PRIMARY_COLOR} />}
           onButtonClick={addMoreDelivery}
         />
       )}

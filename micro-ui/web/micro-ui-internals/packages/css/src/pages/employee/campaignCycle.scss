@@ -26,7 +26,7 @@
     cursor: pointer;
     font-weight: 600;
     font-size: 1rem;
-    color: #f47738;
+    color: theme(digitv2.lightTheme.primary);
     display: flex;
     gap: 0.5rem;
     align-items: center;
@@ -65,7 +65,7 @@
 }
 .campaign-breadcrumb {
   margin-bottom: 1.5rem;
-  color: #f47738 !important;
+  color: theme(digitv2.lightTheme.primary) !important;
 }
 .sc-jlZhew.dVtbRz {
   overflow: hidden;
@@ -113,12 +113,12 @@
 
     .browse-text {
       text-decoration: none;
-      color: #f47738;
+      color: theme(digitv2.lightTheme.primary);
       transition: color 0.3s;
     }
 
     .browse-text:hover {
-      color: #f47738;
+      color: theme(digitv2.lightTheme.primary);
       text-decoration: underline;
       cursor: pointer;
     }
@@ -132,7 +132,7 @@
   }
   .browse-text {
     text-decoration: underline;
-    color: #f47738;
+    color: theme(digitv2.lightTheme.primary);
     transition: color 0.3s;
   }
 }
@@ -182,9 +182,9 @@
     background-color: #ffffff;
     outline: none;
     font-weight: bold;
-    color: #f47738;
-    border: 1px solid #f47738;
-    border-bottom: 4px solid #f47738;
+    color: theme(digitv2.lightTheme.primary);
+    border: 1px solid theme(digitv2.lightTheme.primary);
+    border-bottom: 4px solid theme(digitv2.lightTheme.primary);
     box-sizing: border-box;
     font-size: 1.5rem;
   }
@@ -195,14 +195,14 @@
 .campaign-sub-tab-head {
   outline: none;
   background-color: #ffffff;
-  color: #f47738;
-  border: 1px solid #f47738;
+  color: theme(digitv2.lightTheme.primary);
+  border: 1px solid theme(digitv2.lightTheme.primary);
   height: 2rem;
   width: 9.188rem;
   font-size: 1rem;
   font-weight: 400;
   &.active {
-    background-color: #f47738;
+    background-color: theme(digitv2.lightTheme.primary);
     color: #ffffff;
     font-weight: bold;
     outline: none;

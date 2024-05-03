@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
 import { DustbinIcon } from "./icons/DustbinIcon";
 import { productType } from "../configs/productType";
+import { PRIMARY_COLOR } from "../utils";
 
 const AddProductField = ({ onSelect }) => {
   const { t } = useTranslation();
@@ -65,7 +66,7 @@ const AddProductField = ({ onSelect }) => {
                     fontWeight: "600",
                     marginLeft: "1rem",
                     fontSize: "1rem",
-                    color: "#f47738",
+                    color: PRIMARY_COLOR,
                     display: "flex",
                     gap: "0.5rem",
                     alignItems: "center",
@@ -124,7 +125,7 @@ const AddProductField = ({ onSelect }) => {
         variation="secondary"
         label={t(`CAMPAIGN_ADD_MORE_PRODUCT_BUTTON`)}
         // className={"add-rule-btn"}
-        icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill="#f47738" />}
+        icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill={PRIMARY_COLOR} />}
         onButtonClick={addMoreField}
       />
     </React.Fragment>
