@@ -15,17 +15,19 @@ import { mailConfig } from "../configs/mailConfig";
 function SelectingBoundaries({ onSelect, formData, ...props }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
-  const [hierarchy, setHierarchy] = useState({});
-  const [showcomponent, setShowComponent] = useState(false);
+  const [hierarchy, setHierarchy] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || {});
+  const [showcomponent, setShowComponent] = useState(
+    props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || false
+  );
   const [boundaryType, setBoundaryType] = useState(null);
-  const [boundaryData, setBoundaryData] = useState({});
+  const [boundaryData, setBoundaryData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData || {});
   const [parentArray, setParentArray] = useState(null);
   const [boundaryTypeDataresult, setBoundaryTypeDataresult] = useState(null);
-  const [selectedData,setSelectedData] = useState([]);
-  const [parentBoundaryType , setParentBoundaryType] = useState(null);
+  const [selectedData, setSelectedData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData || []);
+  const [parentBoundaryType, setParentBoundaryType] = useState(null);
   useEffect(() => {
-    onSelect("boundaryType", {boundaryData:boundaryData , selectedData:selectedData});
-  }, [boundaryData , selectedData]);
+    onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData, hierarchy: hierarchy });
+  }, [boundaryData, selectedData, hierarchy]);
   const reqCriteriaBoundaryHierarchySearch = {
     url: "/boundary-service/boundary-hierarchy-definition/_search",
     params: {},
@@ -52,7 +54,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     // Set the boundary type with null parentBoundaryType
     if (boundaryWithTypeNullParent) {
       setBoundaryType(boundaryWithTypeNullParent.boundaryType);
-      setParentBoundaryType(boundaryWithTypeNullParent.boundaryType)
+      setParentBoundaryType(boundaryWithTypeNullParent.boundaryType);
     }
   };
 
@@ -70,7 +72,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         body: {},
       });
       const boundaryTypeData = await reqCriteriaBoundaryTypeSearch;
-      setBoundaryTypeDataresult([boundaryTypeData]);
+      setBoundaryTypeDataresult([{ parentCode: null, boundaryTypeData: boundaryTypeData }]);
     } else {
       for (const parentCode of parentArray) {
         const reqCriteriaBoundaryTypeSearch = Digit.CustomService.getResponse({
@@ -84,7 +86,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
           body: {},
         });
         const boundaryTypeData = await reqCriteriaBoundaryTypeSearch;
-        newData.push(boundaryTypeData);
+        newData.push({ parentCode, boundaryTypeData });
       }
       setBoundaryTypeDataresult(newData);
     }
@@ -95,7 +97,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   }, [boundaryType, parentArray, hierarchy]);
 
   useEffect(() => {
-    if (boundaryTypeDataresult && boundaryTypeDataresult[0]?.TenantBoundary) {
+    if (boundaryTypeDataresult) {
       if (boundaryType !== undefined) {
         const updatedBoundaryData = {
           ...boundaryData,
@@ -105,12 +107,12 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       } else {
         const updatedBoundaryData = {
           ...boundaryData,
-          [boundaryTypeDataresult?.[0]?.TenantBoundary?.[0]?.boundary?.[0]?.boundaryType]: boundaryTypeDataresult,
+          [boundaryTypeDataresult?.[0]?.boundaryTypeData?.TenantBoundary?.[0]?.boundary?.[0]?.boundaryType]: boundaryTypeDataresult,
         };
         setBoundaryData(updatedBoundaryData);
       }
     }
-  }, [boundaryTypeDataresult , hierarchy]);
+  }, [boundaryTypeDataresult, hierarchy]);
 
   const handleBoundaryChange = (data, boundary) => {
     let res = [];
@@ -123,7 +125,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       code: item.code,
       type: item.boundaryType,
       isRoot: item.boundaryType === parentBoundaryType,
-      includeAllChildren: true
+      includeAllChildren: true,
     }));
 
     res.forEach((boundary) => {
@@ -142,20 +144,19 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
           }
           return acc;
         }, []);
-      
+
         parentIndexes.forEach((parentIndex) => {
           selectedData[parentIndex].includeAllChildren = false;
         });
       }
-      
     });
-  
+
     const newBoundaryType = transformedRes?.[0]?.type;
     const existingBoundaryType = selectedData.length > 0 ? selectedData?.[0]?.type : null;
-  
+
     if (existingBoundaryType === newBoundaryType) {
       // Update only the data for the specific boundaryType
-      const updatedSelectedData = selectedData?.map(item => {
+      const updatedSelectedData = selectedData?.map((item) => {
         if (item.type === newBoundaryType) {
           return transformedRes;
         } else {
@@ -165,10 +166,16 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       setSelectedData(updatedSelectedData);
     } else {
       // Update only the data for the new boundaryType
-      setSelectedData([...selectedData.filter(item => item.type !== newBoundaryType), ...transformedRes]);
+      const mergedData = [...selectedData.filter((item) => item.type !== newBoundaryType), ...transformedRes];
+
+      // Filter out items with undefined type
+      const filteredData = mergedData.filter((item, index, self) => item.type !== undefined && index === self.findIndex((t) => t.code === item.code));
+
+      setSelectedData(filteredData);
     }
-    // setSelectedData(res);
-    const parentBoundaryEntry = hierarchy ? hierarchy?.boundaryHierarchy.find((e) => e.parentBoundaryType === res?.[0]?.boundaryType) : null;
+    const parentBoundaryEntry = hierarchy ? hierarchy?.boundaryHierarchy.find((e) => e.parentBoundaryType === res?.[0]?.boundaryType || e.parentBoundaryType === res?.[0]?.type) : null;
+
+
     setBoundaryType(parentBoundaryEntry?.boundaryType);
     const codes = res.map((item) => item.code);
     if (JSON.stringify(codes) !== JSON.stringify(parentArray)) {
@@ -185,15 +192,18 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
             {`${t("HCM_HIERARCHY_TYPE")}`}
             <span className="mandatory-span">*</span>
           </CardLabel>
-          <div className="digit-field">          <Dropdown
-            t={t}
-            option={hierarchyTypeDataresult?.BoundaryHierarchy}
-            optionKey={"hierarchyType"}
-            selected={hierarchy}
-            select={(value) => {
-              handleChange(value);
-            }}
-          /></div>
+          <div className="digit-field">
+            {" "}
+            <Dropdown
+              t={t}
+              option={hierarchyTypeDataresult?.BoundaryHierarchy}
+              optionKey={"hierarchyType"}
+              selected={hierarchy}
+              select={(value) => {
+                handleChange(value);
+              }}
+            />
+          </div>
         </LabelFieldPair>
       </Card>
       {showcomponent && (
@@ -201,26 +211,57 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
           <div className="selecting-boundary-div">
             <Header>{t(`CAMPAIGN_SELECT_BOUNDARY`)}</Header>
             <CardText>{t(`CAMPAIGN_SELECT_BOUNDARIES_DESCRIPTION`)}</CardText>
-            {hierarchy?.boundaryHierarchy.map((boundary, index) => (
-              <LabelFieldPair key={index}>
-                <CardLabel>
-                  {boundary.boundaryType}
-                  <span className="mandatory-span">*</span>
-                </CardLabel>
-                <div className="digit-field">
-                <MultiSelectDropdown
-                  t={t}
-                  // option={boundaryTypeDataresult?.TenantBoundary?.[0]?.boundary}
-                  options={boundaryData[boundary.boundaryType]?.map((item) => item?.TenantBoundary?.[0]?.boundary).flat() || []}
-                  optionsKey={"code"}
-                  // selected={boundaryData}
-                  onSelect={(value) => {
-                    handleBoundaryChange(value, boundary);
-                  }}
-                />
-                </div>
-              </LabelFieldPair>
-            ))}
+            {hierarchy?.boundaryHierarchy.map((boundary, index) =>
+              boundary.parentBoundaryType == null ? (
+                <LabelFieldPair key={index}>
+                  <CardLabel>
+                    {t(boundary.boundaryType)}
+                    <span className="mandatory-span">*</span>
+                  </CardLabel>
+                  <div className="digit-field">
+                    <MultiSelectDropdown
+                      t={t}
+                      options={boundaryData[boundary.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary).flat() || []}
+                      optionsKey={"code"}
+                      selected={selectedData.filter((item) => item.type === boundary.boundaryType)}
+                      onSelect={(value) => {
+                        handleBoundaryChange(value, boundary);
+                      }}
+                    />
+                  </div>
+                </LabelFieldPair>
+              ) : (
+                <LabelFieldPair key={index}>
+                  <CardLabel>
+                    {t(boundary.boundaryType)}
+                    <span className="mandatory-span">*</span>
+                  </CardLabel>
+                  <div className="digit-field">
+                    <MultiSelectDropdown
+                      t={t}
+                      options={
+                        boundaryData[boundary.boundaryType]?.map((item) => ({
+                          code: item.parentCode,
+                          options:
+                            item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary.map((child) => ({
+                              code: child.code,
+                              boundaryType: child.boundaryType,
+                            })) || [],
+                        })) || []
+                      }
+                      optionsKey={"code"}
+                      onSelect={(value) => {
+                        handleBoundaryChange(value, boundary);
+                      }}
+                      selected={selectedData.filter((item) => item.type === boundary.boundaryType)}
+                      addCategorySelectAllCheck={true}
+                      addSelectAllCheck={true}
+                      variant="nestedmultiselect"
+                    />
+                  </div>
+                </LabelFieldPair>
+              )
+            )}
           </div>
         </Card>
       )}
@@ -230,12 +271,14 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
             name: "infocard",
           }}
           variant="default"
-          style= {{margin: "0rem", maxWidth: "100%"}}
+          style={{ margin: "0rem", maxWidth: "100%" }}
           additionalElements={[
-            <span style={{ color:"#505a5f"}}>
+            <span style={{color: "#505A5F"}}>
               {t("HCM_BOUNDARY_INFO ")}
-              <a href={`mailto:${mailConfig.mailId}`} style={{ color:"black"}}>{t("L1team@email.com")}</a>
-            </span>
+              <a href={`mailto:${mailConfig.mailId}`} style={{ color: "black" }}>
+                {t("L1team@email.com")}
+              </a>
+            </span>,
           ]}
           label={"Info"}
         />

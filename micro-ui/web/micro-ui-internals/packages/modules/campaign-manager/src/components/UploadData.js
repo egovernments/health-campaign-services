@@ -33,7 +33,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const { isLoading, data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
     { name: "facilitySchema" },
     { name: "userSchema" },
-    { name: "boundarySchema" },
+    { name: "Boundary" },
   ]);
   const [sheetHeaders, setSheetHeaders] = useState({});
   const [translatedSchema, setTranslatedSchema] = useState({});
@@ -68,7 +68,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   useEffect(async () => {
     if (Schemas?.["HCM-ADMIN-CONSOLE"]) {
       const newFacilitySchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.facilitySchema?.[0]);
-      const newBoundarySchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.boundarySchema?.[0]);
+      const newBoundarySchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.Boundary?.[0]);
       const newUserSchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.userSchema?.[0]);
       const headers = {
         boundary: Object?.keys(newBoundarySchema?.properties),
