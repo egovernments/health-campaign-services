@@ -465,7 +465,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             // handleFileDownload(fileData?.[0]);
             // downloadExcel(new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),fileData?.[0]?.fileName );
           } else {
-            setShowToast({ key: "error", label: t("HCM_PLEASE_WAIT") });
+            setShowToast({ key: "warning", label: t("HCM_PLEASE_WAIT") });
           }
         },
       }
@@ -550,7 +550,14 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           ]}
         />
       )}
-      {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
+      {showToast && (
+        <Toast
+          error={showToast.key === "error" ? true : false}
+          // warning={showToast.key === "warning" ? true : false}
+          label={t(showToast.label)}
+          onClose={closeToast}
+        />
+      )}
     </React.Fragment>
   );
 };

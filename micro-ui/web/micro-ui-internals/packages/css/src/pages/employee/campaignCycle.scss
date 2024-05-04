@@ -59,6 +59,8 @@
         padding: 0.6rem 2.5rem;
         height: unset;
         margin: 1.5rem;
+        background-color: theme(digitv2.lightTheme.primary) ;
+
       }
     }
   }
@@ -302,4 +304,10 @@
   flex-direction: row !important;
 }
 .add-resource-modal {
+}
+.add-resource-wrapper{
+  .link{
+    color: theme(digitv2.lightTheme.primary);
+
+  }
 }

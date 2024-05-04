@@ -205,7 +205,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
   }, [products, stref]);
 
   return (
-    <div>
+    <div className="add-resource-wrapper">
       {products.map((i, c) => (
         <div className="add-resource-container">
           <div className="header-container">
