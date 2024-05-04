@@ -474,6 +474,7 @@ const SetupCampaign = () => {
     }
   }, [shouldUpdate]);
 
+
   //API CALL
   useEffect(async () => {
     if (shouldUpdate === true) {
@@ -805,6 +806,14 @@ const SetupCampaign = () => {
         } else {
           return true;
         }
+        case "boundaryType":
+        if (!formData?.boundaryType?.selectedData || (formData?.boundaryType?.selectedData && formData.boundaryType.selectedData.length === 0)) {
+          setShowToast({ key: "error", label: `${t("HCM_SELECT_BOUNDARY")}` });
+          return false;
+        } else {
+          return true;
+        }
+        
       case "uploadBoundary":
         if (formData?.uploadBoundary?.isError) {
           setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
