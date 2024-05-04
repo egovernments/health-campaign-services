@@ -23,7 +23,7 @@ public class StockReconciliationConsumer {
 
     private final StockReconciliationTransformationService stockReconciliationTransformationService;
 
-    public StockReconciliationConsumer(@Qualifier ObjectMapper objectMapper, StockReconciliationTransformationService stockReconciliationTransformationService) {
+    public StockReconciliationConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, StockReconciliationTransformationService stockReconciliationTransformationService) {
         this.objectMapper = objectMapper;
         this.stockReconciliationTransformationService = stockReconciliationTransformationService;
     }

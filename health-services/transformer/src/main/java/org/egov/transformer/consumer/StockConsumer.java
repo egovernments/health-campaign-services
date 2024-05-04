@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.transformationservice.StockTransformationService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -22,7 +23,7 @@ public class StockConsumer {
 
     private final StockTransformationService stockTransformationService;
 
-    public StockConsumer(ObjectMapper objectMapper, StockTransformationService stockTransformationService) {
+    public StockConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, StockTransformationService stockTransformationService) {
         this.objectMapper = objectMapper;
         this.stockTransformationService = stockTransformationService;
     }

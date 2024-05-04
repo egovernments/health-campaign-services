@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.transformer.transformationservice.HouseholdMemberTransformationService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -21,7 +22,7 @@ public class HouseholdMemberConsumer {
     private final ObjectMapper objectMapper;
     private final HouseholdMemberTransformationService householdMemberTransformationService;
 
-    public HouseholdMemberConsumer(ObjectMapper objectMapper, HouseholdMemberTransformationService householdMemberTransformationService) {
+    public HouseholdMemberConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, HouseholdMemberTransformationService householdMemberTransformationService) {
         this.objectMapper = objectMapper;
         this.householdMemberTransformationService = householdMemberTransformationService;
     }
