@@ -396,10 +396,12 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
                 if (boundary.isRoot) {
                     rootBoundaryCount++;
                 }
-                await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
             }
             if (rootBoundaryCount !== 1) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Exactly one boundary should have isRoot=true");
+            }
+            for (const boundary of boundaries) {
+                await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
             }
         }
         else {
