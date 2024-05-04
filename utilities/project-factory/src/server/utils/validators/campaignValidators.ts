@@ -396,10 +396,12 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
                 if (boundary.isRoot) {
                     rootBoundaryCount++;
                 }
-                await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
             }
             if (rootBoundaryCount !== 1) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Exactly one boundary should have isRoot=true");
+            }
+            for (const boundary of boundaries) {
+                await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
             }
         }
         else {
@@ -629,8 +631,9 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         await validateProjectCampaignResources(resources, request);
     }
     else {
-        await validateHierarchyType(request, hierarchyType, tenantId);
         validateDraftProjectCampaignMissingFields(CampaignDetails);
+        await validateHierarchyType(request, hierarchyType, tenantId);
+        await validateProjectType(request, projectType, tenantId);
     }
     if (actionInUrl == "update") {
         await validateById(request);

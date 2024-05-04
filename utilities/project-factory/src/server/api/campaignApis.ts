@@ -7,7 +7,6 @@ import { getDataFromSheet, matchData, generateActivityMessage, throwError } from
 import { fetchBoundariesInChunks, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
 import { getCampaignNumber, getWorkbook } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
-import axios from "axios";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
 import { produceModifiedMessages } from "../Kafka/Listener";
@@ -199,7 +198,6 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
     for (const searchedElement of newSearchedData) {
       let match = true;
       for (const key in createdElement) {
-        console.log(key, createdElement[key], searchedElement[key], " ssssssssssssssssssssssssssssssssss");
         if (createdElement.hasOwnProperty(key) && !searchedElement.hasOwnProperty(key) && key != '!row#number!') {
           match = false;
           break;
@@ -398,7 +396,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
-    processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
     await generateProcessedFileAndPersist(request);
   } catch (error) {
     await handleResouceDetailsError(request, error);
@@ -508,7 +506,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         for (const facility of newRequestBody.Facilities) {
           facility.address = {}
         }
-        console.log(newRequestBody, " nnrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
+        logger.info("Facility create data : " + JSON.stringify(newRequestBody));
         var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
       }
       else if (type == "user") {
@@ -616,12 +614,13 @@ async function createProjectCampaignResourcData(request: any) {
         hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
         additionalDetails: {}
       };
-      const response = await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+      logger.info("resourceDetails " + JSON.stringify(resourceDetails))
+      const response = await httpRequest(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
         RequestInfo: request.body.RequestInfo,
         ResourceDetails: resourceDetails
       });
-      if (response?.data?.ResourceDetails?.id) {
-        resourceDetailsIds.push(response?.data?.ResourceDetails?.id)
+      if (response?.ResourceDetails?.id) {
+        resourceDetailsIds.push(response?.ResourceDetails?.id)
       }
     }
   }

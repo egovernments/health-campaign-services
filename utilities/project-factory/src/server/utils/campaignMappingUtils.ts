@@ -3,6 +3,31 @@ import config from "../config";
 import { getDataFromSheet, throwError } from "./genericUtils";
 import { logger } from "./logger";
 import { httpRequest } from "./request";
+import { produceModifiedMessages } from "../Kafka/Listener";
+
+
+async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
+    for (const project of projects) {
+        if (project?.address?.boundary) {
+            boundaryWithProject[project?.address?.boundary] = project?.id
+        }
+        if (project?.descendants && Array.isArray(project?.descendants) && project?.descendants?.length > 0) {
+            await createBoundaryWithProjectMapping(project?.descendants, boundaryWithProject)
+        }
+    }
+}
+
+function getPvarIds(messageObject: any) {
+    const deliveryRules = messageObject?.CampaignDetails?.campaignDetails?.deliveryRules
+    var pvarIds = []
+    for (const deliveryRule of deliveryRules) {
+        const products = deliveryRule?.products
+        for (const product of products) {
+            pvarIds.push(product?.value)
+        }
+    }
+    return pvarIds;
+}
 
 
 async function fetchAndMap(resources: any[], messageObject: any) {
@@ -10,19 +35,99 @@ async function fetchAndMap(resources: any[], messageObject: any) {
         "user": createAndSearch?.user?.parseArrayConfig?.sheetName,
         "facility": createAndSearch?.facility?.parseArrayConfig?.sheetName,
     }
+
+    // Object to store boundary codes
+    const boundaryCodes: any = {};
+
     for (const resource of resources) {
         const processedFilestoreId = resource?.processedFilestoreId;
-        console.log(resource, " rrrrrrrrrrrrrrrrrr")
-        console.log(processedFilestoreId, " ppppppppppppppppppppp")
         if (processedFilestoreId) {
             const dataFromSheet: any = await getDataFromSheet(messageObject, processedFilestoreId, messageObject?.Campaign?.tenantId, undefined, sheetName[resource?.type]);
-            console.log(dataFromSheet, " dddddddddddddddddddddddddddddddddddd")
             for (const data of dataFromSheet) {
                 const uniqueCodeColumn = createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName
                 const code = data[uniqueCodeColumn];
-                console.log(code, resource?.type, data[createAndSearch?.[resource?.type]?.boundaryValidation?.column], " crrrrrrrrrrrrrrrrrrrrrrrrrr")
+
+                // Extract boundary codes
+                const boundaryCode = data[createAndSearch?.[resource?.type]?.boundaryValidation?.column];
+                if (boundaryCode) {
+                    // Split boundary codes if they have comma separated values
+                    const boundaryCodesArray = boundaryCode.split(',');
+                    boundaryCodesArray.forEach((bc: string) => {
+                        // Trim any leading or trailing spaces
+                        const trimmedBC = bc.trim();
+                        if (!boundaryCodes[resource?.type]) {
+                            boundaryCodes[resource?.type] = {};
+                        }
+                        if (!boundaryCodes[resource?.type][trimmedBC]) {
+                            boundaryCodes[resource?.type][trimmedBC] = [];
+                        }
+                        boundaryCodes[resource?.type][trimmedBC].push(code);
+                    });
+                }
             }
         }
+    }
+
+    const projectSearchBody = {
+        RequestInfo: messageObject?.RequestInfo,
+        Projects: [{
+            id: messageObject?.Campaign?.rootProjectId,
+            tenantId: messageObject?.Campaign?.tenantId
+        }],
+        apiOperation: "SEARCH"
+    }
+    const params = {
+        tenantId: messageObject?.Campaign?.tenantId,
+        offset: 0,
+        limit: 100,
+        includeDescendants: true
+    }
+    logger.info("projectSearchBody : " + JSON.stringify(projectSearchBody));
+    logger.info("params : " + JSON.stringify(params));
+    logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
+    const response = await httpRequest(config.host.projectHost + "health-project/v1/_search", projectSearchBody, params);
+    var boundaryWithProject: any = {};
+    await createBoundaryWithProjectMapping(response?.Project, boundaryWithProject);
+    console.log(boundaryCodes, boundaryWithProject, " bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+    const Campaign: any = {
+        tenantId: messageObject?.Campaign?.tenantId,
+        CampaignDetails: []
+    }
+    for (const key of Object.keys(boundaryWithProject)) {
+        if (boundaryWithProject[key]) {
+            const resources: any[] = [];
+            const pvarIds = getPvarIds(messageObject);
+            if (pvarIds) {
+                resources.push({
+                    type: "resource",
+                    resourceIds: pvarIds
+                })
+            }
+            for (const type of Object.keys(boundaryCodes)) {
+                if (boundaryCodes[type][key]) {
+                    resources.push({
+                        type: type == "user" ? "staff" : type,
+                        resourceIds: [...boundaryCodes[type][key]]
+                    })
+                }
+            }
+            Campaign.CampaignDetails.push({
+                projectId: boundaryWithProject[key],
+                resources: resources
+            })
+        }
+    }
+    const projectMappingBody = {
+        RequestInfo: messageObject?.RequestInfo,
+        Campaign: Campaign
+    }
+    logger.info("projectMappingBody : " + JSON.stringify(projectMappingBody));
+    const projectMappingResponse = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/createCampaign", projectMappingBody);
+    logger.info("Project Mapping Response : " + JSON.stringify(projectMappingResponse));
+    if (projectMappingResponse?.Campaign) {
+        logger.info("Campaign Mapping done")
+        messageObject.CampaignDetails.status = "In Progress"
+        produceModifiedMessages(messageObject, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
     }
 }
 
@@ -34,7 +139,6 @@ async function searchResourceDetailsById(resourceDetailId: string, messageObject
             tenantId: messageObject?.Campaign?.tenantId
         }
     }
-    console.log(resourceDetailId, " rrrrrrrrrrrrrrrriiiiiiiiiiiiiiiiiiiiiiiiiii")
     logger.info("searchBody : " + JSON.stringify(searchBody));
     const response = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/data/_search", searchBody);
     return response?.ResourceDetails?.[0];
@@ -45,10 +149,10 @@ async function processCampaignMapping(messageObject: any) {
     var completedResources: any = []
     var resources = [];
     for (const resourceDetailId of resourceDetailsIds) {
-        var retry = 5;
+        var retry = 30;
         while (retry--) {
             const response = await searchResourceDetailsById(resourceDetailId, messageObject);
-            console.log(response, " rressssssssssssspppppppppppppppppppppppppp");
+            logger.info(`response for resourceDetailId ${resourceDetailId} : ` + JSON.stringify(response));
             if (response?.status == "invalid") {
                 throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is invalid");
                 break;
