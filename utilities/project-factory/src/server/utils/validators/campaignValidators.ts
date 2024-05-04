@@ -630,6 +630,7 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     }
     else {
         await validateHierarchyType(request, hierarchyType, tenantId);
+        await validateProjectType(request, projectType, tenantId);
         validateDraftProjectCampaignMissingFields(CampaignDetails);
     }
     if (actionInUrl == "update") {
