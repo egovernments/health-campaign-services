@@ -47,16 +47,14 @@ public class ProjectIndexV1 {
     private List<String> taskDates;
     @JsonProperty("projectType")
     private String projectType;
+    @JsonProperty("projectTypeId")
+    private String projectTypeId;
     @JsonProperty("subProjectType")
     private String subProjectType;
     @JsonProperty("createdBy")
     private String createdBy = null;
-    @JsonProperty("lastModifiedBy")
-    private String lastModifiedBy = null;
     @JsonProperty("createdTime")
     private Long createdTime = null;
-    @JsonProperty("lastModifiedTime")
-    private Long lastModifiedTime = null;
     @JsonProperty("additionalDetails")
     private JsonNode additionalDetails;
 }

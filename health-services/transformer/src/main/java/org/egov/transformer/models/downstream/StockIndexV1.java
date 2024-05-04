@@ -11,7 +11,7 @@ import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.stock.TransactionReason;
 import org.egov.common.models.stock.TransactionType;
 
-import javax.validation.Valid;
+import java.util.Map;
 
 
 @Data
@@ -51,11 +51,11 @@ public class StockIndexV1 {
     @JsonProperty("reason")
     private TransactionReason reason;
 
-    @JsonProperty("eventTimeStamp")
-    private Long eventTimeStamp;
-
     @JsonProperty("userName")
     private String userName;
+
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
 
     @JsonProperty("role")
     private String role;
@@ -67,7 +67,7 @@ public class StockIndexV1 {
     private Long dateOfEntry;
 
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
 
     @JsonProperty("latitude")
     private Double latitude;

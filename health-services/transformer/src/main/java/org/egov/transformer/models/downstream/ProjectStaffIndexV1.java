@@ -38,15 +38,17 @@ public class ProjectStaffIndexV1 {
     private String tenantId;
     @JsonProperty("projectType")
     private String projectType;
+    @JsonProperty("projectTypeId")
+    private String projectTypeId;
     @JsonProperty("createdBy")
     private String createdBy;
-    @JsonProperty("lastModifiedBy")
-    private String lastModifiedBy;
     @JsonProperty("createdTime")
     private Long createdTime;
-    @JsonProperty("lastModifiedTime")
-    private Long lastModifiedTime;
     @JsonProperty("additionalDetails")
     private JsonNode additionalDetails;
+    @JsonProperty("isDeleted")
+    private Boolean isDeleted;
+    @JsonProperty("localityCode")
+    private String localityCode;
 
 }

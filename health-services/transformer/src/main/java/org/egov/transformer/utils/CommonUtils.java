@@ -68,6 +68,9 @@ public class CommonUtils {
     }
 
     public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
+        if (localityCode == null) {
+            return null;
+        }
         Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(localityCode, tenantId);
         Map<String, String> boundaryHierarchy = new HashMap<>();
 

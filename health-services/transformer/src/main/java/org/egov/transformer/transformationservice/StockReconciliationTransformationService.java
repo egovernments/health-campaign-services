@@ -1,4 +1,4 @@
-package org.egov.transformer.service;
+package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,8 +12,12 @@ import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.StockReconciliationIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.FacilityService;
+import org.egov.transformer.service.ProjectService;
+import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,7 +25,7 @@ import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Component
-public class StockReconciliationService {
+public class StockReconciliationTransformationService {
 
     private final ProjectService projectService;
     private final TransformerProperties transformerProperties;
@@ -29,32 +33,38 @@ public class StockReconciliationService {
     private final FacilityService facilityService;
     private final CommonUtils commonUtils;
     private final ObjectMapper objectMapper;
+    private final UserService userService;
 
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(
             RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND, CYCLE_INDEX
     ));
 
-    public StockReconciliationService(ProjectService projectService, TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, StockTransformationService stockTransformationService) {
+    public StockReconciliationTransformationService(ProjectService projectService, TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService) {
         this.projectService = projectService;
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.facilityService = facilityService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
+        this.userService = userService;
     }
 
-    public void transform(List<StockReconciliation> payloadList) {
+    public void transform(List<StockReconciliation> stockReconciliationList) {
+        log.info("transforming for STOCK RECONCILIATION id's {}", stockReconciliationList.stream()
+                .map(StockReconciliation::getId).collect(Collectors.toList()));
         String topic = transformerProperties.getTransformerProducerStockReconciliationRegisterIndexV1Topic();
-        List<StockReconciliationIndexV1> transformedPayloadList = payloadList.stream()
+        List<StockReconciliationIndexV1> stockReconciliationIndexV1List = stockReconciliationList.stream()
                 .map(this::transform)
                 .collect(Collectors.toList());
-        log.info("transformation successful");
-        producer.push(topic,
-                transformedPayloadList);
+        log.info("transformation success for STOCK RECONCILIATION id's {}", stockReconciliationIndexV1List.stream()
+                .map(StockReconciliationIndexV1::getStockReconciliation)
+                .map(StockReconciliation::getId)
+                .collect(Collectors.toList()));
+        producer.push(topic, stockReconciliationIndexV1List);
     }
 
-    public StockReconciliationIndexV1 transform(StockReconciliation stockReconciliation){
-        Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+    public StockReconciliationIndexV1 transform(StockReconciliation stockReconciliation) {
+        Map<String, String> boundaryHierarchy = new HashMap<>();
         String tenantId = stockReconciliation.getTenantId();
         String projectId = stockReconciliation.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
@@ -63,17 +73,16 @@ public class StockReconciliationService {
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
 
+        Map<String, String> userInfoMap = userService.getUserInfo(stockReconciliation.getClientAuditDetails().getLastModifiedBy(), tenantId);
+
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                 && facility.getAddress().getLocality().getCode() != null) {
-            boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(facility.getAddress().getLocality().getCode(), stockReconciliation.getTenantId());
+            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
         } else {
             if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
-                boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMapByProjectId(stockReconciliation.getReferenceId(), stockReconciliation.getTenantId());
+                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
             }
         }
-        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (stockReconciliation.getAdditionalFields() != null) {
@@ -84,6 +93,10 @@ public class StockReconciliationService {
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
                 .stockReconciliation(stockReconciliation)
                 .facilityName(facility != null ? facility.getName() : stockReconciliation.getFacilityId())
+                .userName(userInfoMap.get(USERNAME))
+                .nameOfUser(userInfoMap.get(NAME))
+                .role(userInfoMap.get(ROLE))
+                .userAddress(userInfoMap.get(CITY))
                 .facilityTarget(facilityTarget)
                 .facilityLevel(facilityLevel)
                 .syncedTimeStamp(syncedTimeStamp)
@@ -103,15 +116,13 @@ public class StockReconciliationService {
             String value = field.getValue();
             if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
                 try {
-                    Double doubleValue = Double.valueOf(value);
-                    Integer intValue = doubleValue.intValue();
-                    additionalDetails.put(key, intValue);
+                    double doubleValue = Double.parseDouble(value);
+                    additionalDetails.put(key, doubleValue);
                 } catch (NumberFormatException e) {
                     log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
                     additionalDetails.put(key, (JsonNode) null);
                 }
-            }
-            else {
+            } else {
                 additionalDetails.put(key, field.getValue());
             }
         });

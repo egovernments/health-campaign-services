@@ -4,11 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
-import org.egov.transformer.enums.Operation;
-import org.egov.transformer.handler.TransformationHandler;
-import org.egov.transformer.service.ProjectService;
+import org.egov.transformer.transformationservice.ProjectTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -19,22 +16,17 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class ProjectConsumer {
-
-    private final TransformationHandler<Project> transformationHandler;
-
     private final ObjectMapper objectMapper;
 
-    private final ProjectService projectService;
+    private final ProjectTransformationService projectTransformationService;
 
     @Autowired
-    public ProjectConsumer(TransformationHandler<Project> transformationHandler,
-                           @Qualifier("objectMapper") ObjectMapper objectMapper, ProjectService projectService) {
-        this.transformationHandler = transformationHandler;
+    public ProjectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ProjectTransformationService projectTransformationService) {
         this.objectMapper = objectMapper;
-        this.projectService = projectService;
+        this.projectTransformationService = projectTransformationService;
     }
 
-    @KafkaListener(topics = { "${transformer.consumer.create.project.topic}",
+    @KafkaListener(topics = {"${transformer.consumer.create.project.topic}",
             "${transformer.consumer.update.project.topic}"})
     public void consumeProjects(ConsumerRecord<String, Object> payload,
                                 @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
@@ -42,9 +34,9 @@ public class ProjectConsumer {
             ProjectRequest request = objectMapper
                     .readValue((String) payload.value(),
                             ProjectRequest.class);
-            transformationHandler.handle(request.getProjects(), Operation.PROJECT);
+            projectTransformationService.transform(request.getProjects());
         } catch (Exception exception) {
-            log.error("error in project consumer {}", ExceptionUtils.getStackTrace(exception));
+            log.error("TRANSFORMER error in project consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

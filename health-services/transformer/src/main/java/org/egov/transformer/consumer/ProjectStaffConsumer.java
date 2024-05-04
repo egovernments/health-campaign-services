@@ -5,8 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.project.ProjectStaff;
-import org.egov.transformer.enums.Operation;
-import org.egov.transformer.handler.TransformationHandler;
+import org.egov.transformer.transformationservice.ProjectStaffTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -21,28 +20,27 @@ import java.util.List;
 @Slf4j
 public class ProjectStaffConsumer {
 
-    private final TransformationHandler<ProjectStaff> transformationHandler;
 
     private final ObjectMapper objectMapper;
+    private final ProjectStaffTransformationService projectStaffTransformationService;
 
     @Autowired
-    public ProjectStaffConsumer(TransformationHandler<ProjectStaff> transformationHandler,
-                                @Qualifier("objectMapper") ObjectMapper objectMapper) {
-        this.transformationHandler = transformationHandler;
+    public ProjectStaffConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ProjectStaffTransformationService projectStaffTransformationService) {
         this.objectMapper = objectMapper;
+        this.projectStaffTransformationService = projectStaffTransformationService;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.bulk.create.project.staff.topic}",
-                    "${transformer.consumer.bulk.update.project.staff.topic}"})
+            "${transformer.consumer.bulk.update.project.staff.topic}"})
     public void consumeStaff(ConsumerRecord<String, Object> payload,
-                           @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+                             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             List<ProjectStaff> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             ProjectStaff[].class));
-            transformationHandler.handle(payloadList, Operation.PROJECT_STAFF);
+            projectStaffTransformationService.transform(payloadList);
         } catch (Exception exception) {
-            log.error("error in project staff bulk consumer {}", ExceptionUtils.getStackTrace(exception));
+            log.error("TRANSFORMER error in projectStaff consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

@@ -5,14 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.referralmanagement.sideeffect.*;
-import org.egov.transformer.enums.Operation;
-import org.egov.transformer.handler.TransformationHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+import org.egov.transformer.transformationservice.SideEffectTransformationService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -21,15 +20,16 @@ import java.util.List;
 @Slf4j
 public class SideEffectConsumer {
 
-    private final TransformationHandler<SideEffect> transformationHandler;
 
     private final ObjectMapper objectMapper;
 
+    private final SideEffectTransformationService sideEffectTransformationService;
+
     @Autowired
-    public SideEffectConsumer(TransformationHandler<SideEffect> transformationHandler,
-                              @Qualifier("objectMapper") ObjectMapper objectMapper) {
-        this.transformationHandler = transformationHandler;
+    public SideEffectConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, SideEffectTransformationService sideEffectTransformationService) {
+
         this.objectMapper = objectMapper;
+        this.sideEffectTransformationService = sideEffectTransformationService;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.side.effect.topic}",
@@ -37,14 +37,12 @@ public class SideEffectConsumer {
     public void consumeSideEffect(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            log.info("payload {}",payload);
             List<SideEffect> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             SideEffect[].class));
-            log.info("payloadList {}",payloadList);
-            transformationHandler.handle(payloadList, Operation.SIDE_EFFECT);
+            sideEffectTransformationService.transform(payloadList);
         } catch (Exception exception) {
-            log.error("error in side effect consumer {}", ExceptionUtils.getStackTrace(exception));
+            log.error("TRANSFORMER error in side effect consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

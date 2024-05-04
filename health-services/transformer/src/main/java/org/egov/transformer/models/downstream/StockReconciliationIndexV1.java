@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.*;
 import org.egov.common.models.stock.StockReconciliation;
 
+import java.util.Map;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -19,7 +21,7 @@ public class StockReconciliationIndexV1 {
     private StockReconciliation stockReconciliation;
 
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
 
     @JsonProperty("facilityName")
     private String facilityName;
@@ -47,6 +49,18 @@ public class StockReconciliationIndexV1 {
 
     @JsonProperty("syncedDate")
     private String syncedDate;
+
+    @JsonProperty("userName")
+    private String userName;
+
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
+
+    @JsonProperty("role")
+    private String role;
+
+    @JsonProperty("userAddress")
+    private String userAddress;
 
 
 }

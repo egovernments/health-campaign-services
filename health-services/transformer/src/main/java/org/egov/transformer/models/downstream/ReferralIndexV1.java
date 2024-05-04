@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import org.egov.common.models.referralmanagement.Referral;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -25,6 +26,8 @@ public class ReferralIndexV1 {
     private Long dateOfBirth;
     @JsonProperty("userName")
     private String userName;
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
     @JsonProperty("role")
     private String role;
     @JsonProperty("userAddress")
@@ -32,7 +35,7 @@ public class ReferralIndexV1 {
     @JsonProperty("age")
     private Integer age;
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
     @JsonProperty("facilityName")
     private String facilityName;
     @JsonProperty("individualId")
