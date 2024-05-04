@@ -19,6 +19,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
   const { t } = useTranslation();
   const oldSessionData = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA");
   const { campaignData, dispatchCampaignData } = useContext(CycleContext);
+  const tenantId = Digit.ULBService.getStateId();
   const updateSession = () => {
     const newData = {
       ...oldSessionData,
@@ -37,7 +38,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
       value: null,
     },
   ]);
-  const data = Digit.Hooks.campaign.useProductList();
+  const data = Digit.Hooks.campaign.useProductList(tenantId);
 
   const filteredData = data?.filter((item) => !selectedDelivery?.products?.some((entry) => entry?.value === item?.id));
   const temp = filteredData?.filter((item) => !products?.some((entry) => entry?.value?.id === item?.id));

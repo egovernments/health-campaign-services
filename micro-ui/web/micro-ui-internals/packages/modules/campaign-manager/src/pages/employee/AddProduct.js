@@ -37,6 +37,35 @@ function AddProduct() {
 
   const onSubmit = async (formData) => {
     const isValid = checkValid(formData);
+    const invalidName = formData?.addProduct
+      ?.map((i) => {
+        if (i?.name?.length > 2 && i?.name?.length < 101) {
+          return true;
+        } else {
+          return false;
+        }
+      })
+      ?.includes(false);
+    
+      const invalidVariant = formData?.addProduct
+      ?.map((i) => {
+        if (i?.variant?.length > 2 && i?.variant?.length < 101) {
+          return true;
+        } else {
+          return false;
+        }
+      })
+      ?.includes(false);
+    
+      if (invalidName) {
+      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_NAME_ERROR", isError: true });
+      return;
+    }
+    
+    if (invalidVariant) {
+      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_VARIANT_ERROR", isError: true });
+      return;
+    }
     if (!isValid) {
       setShowToast({ key: "error", label: "CAMPAIGN_ADD_PRODUCT_MANDATORY_ERROR", isError: true });
       return;
@@ -88,13 +117,14 @@ function AddProduct() {
   };
 
   const onSecondayActionClick = () => {
-    return;
+    history.push(`/${window.contextPath}/employee/campaign/setup-campaign${state?.urlParams}`);
   };
+
   return (
     <div>
       <FormComposerV2
         showMultipleCardsWithoutNavs={true}
-        label="ES_CAMPAIGN_ADD_PRODUCT_BUTTON"
+        label={t("ES_CAMPAIGN_ADD_PRODUCT_BUTTON")}
         config={addProductConfig?.map((config) => {
           return {
             ...config,
@@ -111,7 +141,7 @@ function AddProduct() {
         onSecondayActionClick={onSecondayActionClick}
       />
 
-      {showToast && <Toast error={showToast?.isError} label={showToast?.label} isDleteBtn={"true"} onClose={() => setShowToast(false)} />}
+      {showToast && <Toast error={showToast?.isError} label={t(showToast?.label)} isDleteBtn={"true"} onClose={() => setShowToast(false)} />}
     </div>
   );
 }

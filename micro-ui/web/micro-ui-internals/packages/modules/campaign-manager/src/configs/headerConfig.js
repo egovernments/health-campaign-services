@@ -1,21 +1,21 @@
 export const headerConfig = {
     boundary: [
-      "Boundary Code" , "Target at the Selected Boundary level"
+      "HCM_ADMIN_CONSOLE_BOUNDARY_CODE" , "HCM_ADMIN_CONSOLE_TARGET_AT_THE_SELECTED_BOUNDARY_LEVEL"
     ],
     facilityWithBoundary: [
-        "Facility Code",
-        "Facility Name",
-        "Facility Type",
-        "Facility Status",
-        "Capacity",
-        "Boundary Code"
+        "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+        "HCM_ADMIN_CONSOLE_FACILITY_NAME",
+        "HCM_ADMIN_CONSOLE_FACILITY_TYPE",
+        "HCM_ADMIN_CONSOLE_FACILITY_STATUS",
+        "HCM_ADMIN_CONSOLE_FACILITY_CAPACITY",
+        "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
     ],
     User: [
-        "Name of the Person (Mandatory)",
-        "Phone Number",
-        "Role(Mandatory)",
-        "Employment Type (Mandatory)",
-        "Boundary Code"
+        "HCM_ADMIN_CONSOLE_USER_NAME",
+        "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER",
+        "HCM_ADMIN_CONSOLE_USER_ROLE",
+        "HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE",
+        "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"
     ]
   };
   

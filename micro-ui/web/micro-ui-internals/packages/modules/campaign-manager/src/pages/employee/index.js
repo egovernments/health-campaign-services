@@ -76,7 +76,8 @@ const App = ({ path }) => {
   return (
     <React.Fragment>
       <div className="wbh-header-container">
-        {window?.location?.pathname === "/workbench-ui/employee/campaign/add-product" ? null : (
+        {window?.location?.pathname === "/workbench-ui/employee/campaign/add-product" ||
+        window?.location?.pathname === "/workbench-ui/employee/campaign/response" ? null : (
           <CampaignBreadCrumb location={location} defaultPath={path} />
         )}
         {/* <CampaignHeader /> */}
