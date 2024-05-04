@@ -13,8 +13,8 @@ import {
 import { SVG } from "@egovernments/digit-ui-react-components";
 import React, { Fragment, useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { attributeConfig } from "../../../configs/attributeConfig";
-import { operatorConfig } from "../../../configs/operatorConfig";
+// import { attributeConfig } from "../../../configs/attributeConfig";
+// import { operatorConfig } from "../../../configs/operatorConfig";
 import RemoveableTagNew from "../../../components/RemovableTagNew";
 import AddProducts from "./AddProductscontext";
 import { CycleContext } from ".";
@@ -37,7 +37,18 @@ const makeSequential = (jsonArray, keyName) => {
   }));
 };
 
-const AddAttributeField = ({ deliveryRuleIndex, delivery, deliveryRules, setDeliveryRules, attribute, setAttributes, index, onDelete }) => {
+const AddAttributeField = ({
+  deliveryRuleIndex,
+  delivery,
+  deliveryRules,
+  setDeliveryRules,
+  attribute,
+  setAttributes,
+  index,
+  onDelete,
+  attributeConfig,
+  operatorConfig,
+}) => {
   const [val, setVal] = useState("");
   const [showAttribute, setShowAttribute] = useState(null);
   const [showOperator, setShowOperator] = useState(null);
@@ -272,6 +283,7 @@ const AddCustomAttributeField = ({
   setAttributes,
   index,
   onDelete,
+  operatorConfig,
 }) => {
   const [val, setVal] = useState("");
   const [showAttribute, setShowAttribute] = useState(null);
@@ -449,7 +461,27 @@ const AddCustomAttributeField = ({
 const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDeliveryRules, index, key }) => {
   const { campaignData, dispatchCampaignData, filteredDeliveryConfig } = useContext(CycleContext);
   const { t } = useTranslation();
-
+  const tenantId = Digit.ULBService.getCurrentTenantId();
+  const { isLoading: attributeConfigLoading, data: attributeConfig } = Digit.Hooks.useCustomMDMS(
+    tenantId,
+    "HCM-ADMIN-CONSOLE",
+    [{ name: "attributeConfig" }],
+    {
+      select: (data) => {
+        return data?.["HCM-ADMIN-CONSOLE"]?.attributeConfig;
+      },
+    }
+  );
+  const { isLoading: operatorConfigLoading, data: operatorConfig } = Digit.Hooks.useCustomMDMS(
+    tenantId,
+    "HCM-ADMIN-CONSOLE",
+    [{ name: "operatorConfig" }],
+    {
+      select: (data) => {
+        return data?.["HCM-ADMIN-CONSOLE"]?.operatorConfig;
+      },
+    }
+  );
   const [attributes, setAttributes] = useState([{ key: 1, deliveryRuleIndex, attribute: "", operator: "", value: "" }]);
   const reviseIndexKeys = () => {
     setAttributes((prev) => prev.map((unit, index) => ({ ...unit, key: index + 1 })));
@@ -503,6 +535,7 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
               key={index}
               index={index}
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
+              operatorConfig={operatorConfig}
             />
           ))
         : delivery.attributes.map((item, index) => (
@@ -516,9 +549,11 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
               key={index}
               index={index}
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
+              attributeConfig={attributeConfig}
+              operatorConfig={operatorConfig}
             />
           ))}
-      {!filteredDeliveryConfig?.attrAddDisable && delivery.attributes.length !== attributeConfig.length && (
+      {!filteredDeliveryConfig?.attrAddDisable && delivery.attributes.length !== attributeConfig?.length && (
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_ADD_MORE_ATTRIBUTE_TEXT`)}
@@ -586,7 +621,7 @@ const AddDeliveryRule = ({ targetedData, deliveryRules, setDeliveryRules, index,
           {deliveryRules.length !== 1 && (
             <div
               onClick={() => onDelete()}
-              style={{ fontWeight: "600", fontSize: "1rem", color:PRIMARY_COLOR, display: "flex", gap: "0.5rem", alignItems: "center" }}
+              style={{ fontWeight: "600", fontSize: "1rem", color: PRIMARY_COLOR, display: "flex", gap: "0.5rem", alignItems: "center" }}
             >
               <DustbinIcon /> {t(`CAMPAIGN_DELETE_CONDITION_LABEL`)}
             </div>

@@ -1,3 +1,4 @@
+//migrated to mdms
 export const productType = [
   {
     key: 1,

@@ -1,8 +1,9 @@
-import { Loader, FormComposerV2, Header, Toast } from "@egovernments/digit-ui-react-components";
+import { Loader, FormComposerV2, Header } from "@egovernments/digit-ui-react-components";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useLocation } from "react-router-dom";
 import { addProductConfig } from "../../configs/addProductConfig";
+import { Toast } from "@egovernments/digit-ui-components";
 
 function AddProduct() {
   const { t } = useTranslation();
