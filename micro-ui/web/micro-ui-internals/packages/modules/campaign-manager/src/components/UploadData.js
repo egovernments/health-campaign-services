@@ -29,7 +29,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [showToast, setShowToast] = useState(null);
   const type = props?.props?.type;
   const [executionCount, setExecutionCount] = useState(0);
-  const [isError, setIsError] = useState(true);
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
@@ -328,6 +328,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   const onFileDelete = (file, index) => {
     setUploadedFile((prev) => prev.filter((i) => i.id !== file.id));
+    setIsError(false);
   };
 
   const onFileDownload = (file) => {
@@ -342,13 +343,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   useEffect(() => {
     const fetchData = async () => {
       if (!errorsType[type] && uploadedFile.length > 0) {
-        // Set loading state to true
-        // setLoading(true);
         setShowToast({ key: "warning", label: t("HCM_VALIDATION_IN_PROGRESS") });
         setIsError(true);
 
         try {
-          const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type);
+          const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId);
           if (temp?.status === "completed") {
             if (Object.keys(temp?.additionalDetails).length === 0) {
               setShowToast({ key: "warning", label: t("HCM_VALIDATION_COMPLETED") });
@@ -356,16 +355,16 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 setIsError(false);
               }
             } else {
-              setShowToast({ key: "warning", label: t("HCM_VALIDATION_FAILED") });
-              const processedFileStore = temp?.processedFileStore;
+              const processedFileStore = temp?.processedFilestoreId;
               if (!processedFileStore) {
-                setShowToast({ key: "error", label: t("HCM_CHECK_FILE_AGAIN") });
+                setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED") });
                 return;
               } else {
+                setShowToast({ key: "error", label: t("HCM_CHECK_FILE_AGAIN") });
                 const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([processedFileStore], tenantId);
                 const fileData = fileUrl.map((i) => {
                   const urlParts = i?.url?.split("/");
-                  const fileName = file?.[0]?.name;
+                  const fileName = uploadedFile?.[0]?.fileName;
                   const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
                   return {
                     ...i,
@@ -373,16 +372,18 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                     type: fileType,
                   };
                 });
+                onFileDelete(uploadedFile);
                 setUploadedFile(fileData);
               }
             }
           } else {
             setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED") });
-            const processedFileStore = temp?.processedFileStore;
+            const processedFileStore = temp?.processedFilestoreId;
             if (!processedFileStore) {
-              setShowToast({ key: "error", label: t("HCM_CHECK_FILE_AGAIN") });
+              setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED") });
               return;
             } else {
+              setShowToast({ key: "error", label: t("HCM_CHECK_FILE_AGAIN") });
               const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([processedFileStore], tenantId);
               const fileData = fileUrl.map((i) => {
                 const urlParts = i?.url?.split("/");
@@ -394,16 +395,16 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                   type: fileType,
                 };
               });
+              onFileDelete(uploadedFile);
               setUploadedFile(fileData);
             }
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
     };
 
     fetchData();
-  }, [errorsType, uploadedFile]);
+  }, [errorsType]);
 
   const Template = {
     url: "/project-factory/v1/data/_download",

@@ -629,8 +629,9 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
         await validateProjectCampaignResources(resources, request);
     }
     else {
-        await validateHierarchyType(request, hierarchyType, tenantId);
         validateDraftProjectCampaignMissingFields(CampaignDetails);
+        await validateHierarchyType(request, hierarchyType, tenantId);
+        await validateProjectType(request, projectType, tenantId);
     }
     if (actionInUrl == "update") {
         await validateById(request);

@@ -1,4 +1,4 @@
-export const useResourceData = async (data, hierarchyType, type) => {
+export const useResourceData = async (data, hierarchyType, type, tenantId) => {
   let Type;
   if (type === "facilityWithBoundary") {
     Type = "facility";
@@ -30,7 +30,7 @@ export const useResourceData = async (data, hierarchyType, type) => {
       body: {
         SearchCriteria: {
           id: [response?.ResourceDetails?.id],
-          tenantId: "mz",
+          tenantId: tenantId,
           type: Type,
         },
       },

@@ -398,7 +398,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     const typeData = convertToTypeData(dataFromSheet, createAndSearchConfig, request.body)
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
-    processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
+    await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
     await generateProcessedFileAndPersist(request);
   } catch (error) {
     await handleResouceDetailsError(request, error);
