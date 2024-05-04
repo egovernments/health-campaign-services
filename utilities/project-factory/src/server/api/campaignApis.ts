@@ -3,9 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, matchData, generateActivityMessage, throwError } from "../utils/genericUtils";
+import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema } from "../utils/genericUtils";
 import { fetchBoundariesInChunks, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
-import { getCampaignNumber, getWorkbook } from "./genericApis";
+import { callMdmsData, getCampaignNumber, getWorkbook } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
 import axios from "axios";
 const _ = require('lodash');
@@ -407,13 +407,25 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
 
 async function processValidate(request: any) {
   const type: string = request.body.ResourceDetails.type;
+  const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet = await getDataFromSheet(request?.body, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig)
   if (type == 'boundaryWithTarget') {
     validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation);
   }
   else {
-    await validateSheetData(dataFromSheet, request, createAndSearchConfig?.sheetSchema, createAndSearchConfig?.boundaryValidation)
+    const schemaMasterName: string = type === 'facility' ? config.facilitySchemaMasterName : type === 'user' ? config.userSchemaMasterName : "";
+    const mdmsResponse = await callMdmsData(request, config.moduleName, schemaMasterName, tenantId);
+    let schema: any;
+    if (type === 'facility') {
+      schema = mdmsResponse.MdmsRes[config.moduleName].facilitySchema[0];
+    } if (type === 'user') {
+      schema = mdmsResponse.MdmsRes[config.moduleName].userSchema[0];
+    }
+    const translatedSchema = await translateSchema(request,schema,tenantId);
+    console.log(translatedSchema,"ssssssssssssssssssssssssssssss")
+    console.log(dataFromSheet,"sheeeeeeeeeeeeeeeee")
+    await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation)
     processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig)
   }
 }

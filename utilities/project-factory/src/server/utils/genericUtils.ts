@@ -903,6 +903,33 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
   return newData;
 }
 
+async function translateSchema(request: any, schema: any, tenantId: string) {
+  const localisationcontroller = new localisationController();
+  const response = {};
+  const modifiedRequestForLocalization = modifyRequestForLocalisation(request, tenantId);
+  const localizationResponse = await localisationcontroller.getLocalizedMessages(modifiedRequestForLocalization, response);
+  console.log(localizationResponse,"loccccccccccccccccccc")
+  const localizationMap: { [key: string]: string } = {};
+  localizationResponse.messages.forEach((message: any) => {
+    localizationMap[message.code] = message.message;
+  });
+  const translatedSchema = {
+    ...schema,
+    properties: Object.entries(schema?.properties).reduce((acc, [key, value]) => {
+      const localizedMessage = localizationMap[key] as string | undefined;
+      if (localizedMessage) {
+        acc[localizedMessage] = value;
+      }
+      return acc;
+    }, {} as { [key: string]: any }), // Initialize with the correct type
+    required: schema?.required.map((key: string) => localizationMap[key] || key),
+    unique: schema?.unique?.map((key: string) => localizationMap[key] || key)
+  };
+
+
+  return translatedSchema;
+}
+
 
 
 export {
@@ -940,7 +967,9 @@ export {
   getDataSheetReady,
   modifyTargetData,
   calculateKeyIndex,
-  modifyDataBasedOnDifferentTab
+  modifyDataBasedOnDifferentTab,
+  modifyRequestForLocalisation,
+  translateSchema
 };
 
 
