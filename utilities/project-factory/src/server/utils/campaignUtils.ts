@@ -355,7 +355,7 @@ function enrichRootProjectId(requestBody: any) {
 async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     const action = requestBody?.CampaignDetails?.action;
     requestBody.CampaignDetails.campaignNumber = requestBody?.CampaignDetails?.campaignNumber || null
-    requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails?.campaignDetails || { deliveryRules: requestBody?.CampaignDetails?.deliveryRules, resources: requestBody?.CampaignDetails?.resources || [] };
+    requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails?.campaignDetails || { deliveryRules: requestBody?.CampaignDetails?.deliveryRules, resources: requestBody?.CampaignDetails?.resources || [], boundaries: requestBody?.CampaignDetails?.boundaries || [] };
     requestBody.CampaignDetails.status = "failed";
     requestBody.CampaignDetails.boundaryCode = getRootBoundaryCode(requestBody?.CampaignDetails?.boundaries) || null
     requestBody.CampaignDetails.projectType = requestBody?.CampaignDetails?.projectType || null;
@@ -390,7 +390,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     if (firstPersist) {
         request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
     }
-    request.body.CampaignDetails.campaignDetails = { ...request?.body?.CampaignDetails?.campaignDetails, deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [] };
+    request.body.CampaignDetails.campaignDetails = { ...request?.body?.CampaignDetails?.campaignDetails, deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
@@ -430,6 +430,12 @@ function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: a
     }
     if (request?.body?.CampaignDetails?.resourceDetailsIds) {
         updatedInnerCampaignDetails.resourceDetailsIds = request?.body?.CampaignDetails?.resourceDetailsIds
+    }
+    if (request?.body?.CampaignDetails?.boundaries) {
+        updatedInnerCampaignDetails.boundaries = request?.body?.CampaignDetails?.boundaries
+    }
+    else {
+        updatedInnerCampaignDetails.boundaries = existingInnerCampaignDetails.boundaries || []
     }
 }
 
@@ -1001,7 +1007,6 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
         headersForMainSheet.push('Boundary Code');
         mainSheetData.push([...headersForMainSheet]);
         const districtLevelRowBoundaryCodeMap = new Map();
-
         for (const data of boundaryData) {
             const modifiedData = modifyDataBasedOnDifferentTab(data, differentTabsBasedOnLevel);
             const rowData = Object.values(modifiedData);
@@ -1028,6 +1033,7 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
             const headers = Object.keys(modifiedFilteredData[0]).slice(districtIndex);
             const modifiedHeaders = [...headers, "Target at the Selected Boundary level"];
             const newSheetData = [modifiedHeaders];
+
             for (const data of modifiedFilteredData) {
                 const rowData = Object.values(data).slice(districtIndex).map(value => value === null ? '' : String(value)); // Replace null with empty string
                 newSheetData.push(rowData);
@@ -1035,6 +1041,7 @@ async function appendSheetsToWorkbook(boundaryData: any[], differentTabsBasedOnL
             const ws = XLSX.utils.aoa_to_sheet(newSheetData);
             XLSX.utils.book_append_sheet(workbook, ws, districtLevelRowBoundaryCodeMap.get(uniqueData));
         }
+
         return workbook;
     } catch (error) {
         throw Error("An error occurred while creating tabs based on district:");
