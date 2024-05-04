@@ -88,7 +88,8 @@ async function fetchAndMap(resources: any[], messageObject: any) {
     const response = await httpRequest(config.host.projectHost + "health-project/v1/_search", projectSearchBody, params);
     var boundaryWithProject: any = {};
     await createBoundaryWithProjectMapping(response?.Project, boundaryWithProject);
-    console.log(boundaryCodes, boundaryWithProject, " bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+    logger.info("boundaryWithProject mapping : " + JSON.stringify(boundaryWithProject));
+    logger.info("boundaryCodes mapping : " + JSON.stringify(boundaryCodes));
     const Campaign: any = {
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
