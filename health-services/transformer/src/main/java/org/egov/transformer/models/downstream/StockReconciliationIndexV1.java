@@ -23,6 +23,9 @@ public class StockReconciliationIndexV1 {
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
 
+    @JsonProperty("localityCode")
+    private String localityCode;
+
     @JsonProperty("facilityName")
     private String facilityName;
 
