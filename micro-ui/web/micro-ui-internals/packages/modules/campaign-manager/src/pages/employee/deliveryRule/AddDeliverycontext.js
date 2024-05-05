@@ -48,6 +48,7 @@ const AddAttributeField = ({
   onDelete,
   attributeConfig,
   operatorConfig,
+  genderConfig,
 }) => {
   const [val, setVal] = useState("");
   const [showAttribute, setShowAttribute] = useState(null);
@@ -230,16 +231,7 @@ const AddAttributeField = ({
                 selected={attribute?.value?.code ? attribute?.value : { code: attribute?.value }}
                 disable={false}
                 isMandatory={true}
-                option={[
-                  {
-                    key: 1,
-                    code: "Male",
-                  },
-                  {
-                    key: 2,
-                    code: "Female",
-                  },
-                ]}
+                option={genderConfig}
                 select={(value) => selectGender(value)}
                 optionKey="code"
                 t={t}
@@ -284,6 +276,7 @@ const AddCustomAttributeField = ({
   index,
   onDelete,
   operatorConfig,
+  genderConfig,
 }) => {
   const [val, setVal] = useState("");
   const [showAttribute, setShowAttribute] = useState(null);
@@ -434,16 +427,7 @@ const AddCustomAttributeField = ({
                 selected={{ code: attribute?.value }}
                 disable={false}
                 isMandatory={true}
-                option={[
-                  {
-                    key: 1,
-                    code: "Male",
-                  },
-                  {
-                    key: 2,
-                    code: "Female",
-                  },
-                ]}
+                option={genderConfig}
                 select={(value) => selectGender(value)}
                 optionKey="code"
                 t={t}
@@ -482,6 +466,11 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
       },
     }
   );
+  const { isLoading: genderConfigLoading, data: genderConfig } = Digit.Hooks.useCustomMDMS(tenantId, "common-masters", [{ name: "GenderType" }], {
+    select: (data) => {
+      return data?.["common-masters"]?.GenderType;
+    },
+  });
   const [attributes, setAttributes] = useState([{ key: 1, deliveryRuleIndex, attribute: "", operator: "", value: "" }]);
   const reviseIndexKeys = () => {
     setAttributes((prev) => prev.map((unit, index) => ({ ...unit, key: index + 1 })));
@@ -536,6 +525,7 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
               index={index}
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
               operatorConfig={operatorConfig}
+              genderConfig={genderConfig}
             />
           ))
         : delivery.attributes.map((item, index) => (
@@ -551,6 +541,7 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
               onDelete={() => deleteAttribute(item, deliveryRuleIndex)}
               attributeConfig={attributeConfig}
               operatorConfig={operatorConfig}
+              genderConfig={genderConfig}
             />
           ))}
       {!filteredDeliveryConfig?.attrAddDisable && delivery.attributes.length !== attributeConfig?.length && (
