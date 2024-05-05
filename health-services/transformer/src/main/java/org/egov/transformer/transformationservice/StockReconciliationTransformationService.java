@@ -11,6 +11,7 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.StockReconciliationIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.FacilityService;
+import org.egov.transformer.service.ProductService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -31,18 +32,20 @@ public class StockReconciliationTransformationService {
     private final CommonUtils commonUtils;
     private final ObjectMapper objectMapper;
     private final UserService userService;
+    private final ProductService productService;
 
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(
             RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND
     ));
 
-    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService) {
+    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.facilityService = facilityService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
         this.userService = userService;
+        this.productService = productService;
     }
 
     public void transform(List<StockReconciliation> stockReconciliationList) {
@@ -67,23 +70,23 @@ public class StockReconciliationTransformationService {
         Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
         String localityCode = null;
 
-        Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
-
-        if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
-                && facility.getAddress().getLocality().getCode() != null) {
+        if (facility != null && facility.getAddress() != null &&
+                facility.getAddress().getLocality() != null &&
+                facility.getAddress().getLocality().getCode() != null) {
             localityCode = facility.getAddress().getLocality().getCode();
             boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
-        } else {
-            if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
-                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
-            }
+        } else if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
+            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
         }
-        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (stockReconciliation.getAdditionalFields() != null && stockReconciliation.getAdditionalFields().getFields() != null
                 && !CollectionUtils.isEmpty(stockReconciliation.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
         }
+
+        Map<String, String> userInfoMap = userService.getUserInfo(tenantId, stockReconciliation.getClientAuditDetails().getLastModifiedBy());
+        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
+        String productName = String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(stockReconciliation.getProductVariantId()), tenantId));
 
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
                 .stockReconciliation(stockReconciliation)
@@ -97,6 +100,7 @@ public class StockReconciliationTransformationService {
                 .syncedTimeStamp(syncedTimeStamp)
                 .syncedTime(stockReconciliation.getAuditDetails().getLastModifiedTime())
                 .boundaryHierarchy(boundaryHierarchy)
+                .productName(productName)
                 .localityCode(localityCode)
                 .additionalDetails(additionalDetails)
                 .taskDates(commonUtils.getDateFromEpoch(stockReconciliation.getClientAuditDetails().getLastModifiedTime()))

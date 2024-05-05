@@ -1,6 +1,10 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.AdditionalFields;
+import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.transformer.config.TransformerProperties;
@@ -29,14 +33,16 @@ public class HouseholdMemberTransformationService {
     private final IndividualService individualService;
     private final UserService userService;
     private final HouseholdService householdService;
+    private final ObjectMapper objectMapper;
 
-    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService) {
+    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
         this.individualService = individualService;
         this.userService = userService;
         this.householdService = householdService;
+        this.objectMapper = objectMapper;
     }
 
     public void transform(List<HouseholdMember> householdMemberList) {
@@ -55,6 +61,7 @@ public class HouseholdMemberTransformationService {
 
     private HouseholdMemberIndexV1 transform(HouseholdMember householdMember) {
         Map<String, String> boundaryHierarchy = null;
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
         Map<String, Object> individualDetails = individualService.findIndividualByClientReferenceId(individualClientReferenceId, householdMember.getTenantId());
@@ -67,6 +74,18 @@ public class HouseholdMemberTransformationService {
             localityCode = households.get(0).getAddress().getLocality().getCode();
             boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
             geoPoint = commonUtils.getGeoPoint(households.get(0).getAddress());
+
+            AdditionalFields additionalFields = households.get(0).getAdditionalFields();
+            if (additionalFields != null && additionalFields.getFields() != null
+                    && !CollectionUtils.isEmpty(additionalFields.getFields())) {
+                additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
+            }
+        }
+
+        if (householdMember.getAdditionalFields() != null && householdMember.getAdditionalFields().getFields() != null
+                && !CollectionUtils.isEmpty(householdMember.getAdditionalFields().getFields())) {
+            List<Field> fields = householdMember.getAdditionalFields().getFields();
+            addToAdditionalDetails(fields, additionalDetails);
         }
 
         Map<String, String> userInfoMap = userService.
@@ -87,8 +106,22 @@ public class HouseholdMemberTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(householdMember.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
+                .additionalDetails(additionalDetails)
                 .build();
         return householdMemberIndexV1;
+    }
+
+    private ObjectNode additionalFieldsToDetails(List<Field> fields) {
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        fields.forEach(
+                f -> additionalDetails.put(f.getKey(), f.getValue())
+        );
+        return additionalDetails;
+    }
+    private void addToAdditionalDetails(List<Field> fields, ObjectNode additionalDetails) {
+        fields.forEach(
+                f -> additionalDetails.put(f.getKey(), f.getValue())
+        );
     }
 }
 

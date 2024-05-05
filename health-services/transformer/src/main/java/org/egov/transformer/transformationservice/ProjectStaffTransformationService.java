@@ -48,11 +48,22 @@ public class ProjectStaffTransformationService {
                 .collect(Collectors.toList()));
         producer.push(topic, projectStaffIndexV1List);
     }
+
     private ProjectStaffIndexV1 transform(ProjectStaff projectStaff) {
         String tenantId = projectStaff.getTenantId();
         String projectId = projectStaff.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
+        String localityCode;
+        if (project.getAddress() != null) {
+            localityCode = project.getAddress().getBoundary() != null ?
+                    project.getAddress().getBoundary() :
+                    project.getAddress().getLocality() != null ?
+                            project.getAddress().getLocality().getCode() :
+                            null;
+        } else {
+            localityCode = null;
+        }
         Map<String, String> boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
         JsonNode additionalDetails = projectService.fetchAdditionalDetails(tenantId, null, projectTypeId);
@@ -71,13 +82,9 @@ public class ProjectStaffTransformationService {
                 .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                 .additionalDetails(additionalDetails)
                 .boundaryHierarchy(boundaryHierarchy)
-                .localityCode(project.getAddress().getLocality().getCode())
+                .localityCode(localityCode)
                 .isDeleted(projectStaff.getIsDeleted())
                 .build();
         return projectStaffIndexV1;
-    }
-
-
-    public static class HouseholdTransformationService {
     }
 }

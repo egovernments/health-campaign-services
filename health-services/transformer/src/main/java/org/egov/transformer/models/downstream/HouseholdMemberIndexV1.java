@@ -2,6 +2,7 @@ package org.egov.transformer.models.downstream;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -45,4 +46,6 @@ public class HouseholdMemberIndexV1  {
     private List<Double> geoPoint;
     @JsonProperty("localityCode")
     private String localityCode;
+    @JsonProperty("additionalDetails")
+    private ObjectNode additionalDetails;
 }

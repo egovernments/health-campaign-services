@@ -35,8 +35,8 @@ public class StockReconciliationIndexV1 {
     @JsonProperty("facilityLevel")
     private String facilityLevel;
 
-    @JsonProperty("productVariant")
-    private String productVariant;
+    @JsonProperty("productName")
+    private String productName;
 
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;

@@ -68,10 +68,8 @@ public class StockTransformationService {
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                 && facility.getAddress().getLocality().getCode() != null) {
             boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
-        } else {
-            if (stock.getReferenceIdType().equals(PROJECT)) {
-                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
-            }
+        } else if (stock.getReferenceIdType().equals(PROJECT)) {
+            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
         }
 
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
@@ -90,9 +88,8 @@ public class StockTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-
-
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
                 .clientReferenceId(stock.getClientReferenceId())
