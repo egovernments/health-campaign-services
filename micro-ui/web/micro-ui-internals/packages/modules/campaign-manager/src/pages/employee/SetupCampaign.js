@@ -226,6 +226,7 @@ const SetupCampaign = () => {
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
   const hierarchyType = "ADMIN";
+  const hierarchyType2 = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy?.hierarchyType
   const [currentKey, setCurrentKey] = useState(() => {
     const keyParam = searchParams.get("key");
     return keyParam ? parseInt(keyParam) : 1;
@@ -316,7 +317,7 @@ const SetupCampaign = () => {
   }, [params, draftData]);
 
   const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType);
-  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType, filteredBoundaryData);
+  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType2, filteredBoundaryData);
   const userId = Digit.Hooks.campaign.useGenerateIdCampaign("userWithBoundary", hierarchyType); // to be integrated later
 
   useEffect(() => {
@@ -327,7 +328,7 @@ const SetupCampaign = () => {
       userId: userId,
       hierarchyType: hierarchyType,
     });
-  }, [facilityId, boundaryId, userId]); // Only run if dataParams changes
+  }, [facilityId, boundaryId, userId ]); // Only run if dataParams changes
 
   // Example usage:
   // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
@@ -807,11 +808,11 @@ const SetupCampaign = () => {
           return true;
         }
         case "boundaryType":
-        if (!formData?.boundaryType?.selectedData || (formData?.boundaryType?.selectedData && formData.boundaryType.selectedData.length === 0)) {
+        if (formData?.boundaryType?.selectedData && formData.boundaryType.selectedData.length !== 0) {
+          return true;
+        } else {
           setShowToast({ key: "error", label: `${t("HCM_SELECT_BOUNDARY")}` });
           return false;
-        } else {
-          return true;
         }
         
       case "uploadBoundary":
