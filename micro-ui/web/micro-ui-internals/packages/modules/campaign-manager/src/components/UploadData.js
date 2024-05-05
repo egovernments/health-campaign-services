@@ -361,14 +361,14 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   useEffect(() => {
     const fetchData = async () => {
       if (!errorsType[type] && uploadedFile.length > 0) {
-        setShowToast({ key: "warning", label: t("HCM_VALIDATION_IN_PROGRESS") });
+        setShowToast({ key: "info", label: t("HCM_VALIDATION_IN_PROGRESS") });
         setIsError(true);
 
         try {
           const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId);
           if (temp?.status === "completed") {
             if (Object.keys(temp?.additionalDetails).length === 0) {
-              setShowToast({ key: "warning", label: t("HCM_VALIDATION_COMPLETED") });
+              setShowToast({ key: "info", label: t("HCM_VALIDATION_COMPLETED") });
               if (!errorsType[type]) {
                 setIsError(false);
               }
@@ -553,7 +553,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       {showToast && (
         <Toast
           error={showToast.key === "error" ? true : false}
-          // warning={showToast.key === "warning" ? true : false}
+          warning={showToast.key === "warning" ? true : false}
+          info={showToast.key === "info" ? true : false}
           label={t(showToast.label)}
           onClose={closeToast}
         />
