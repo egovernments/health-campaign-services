@@ -79,7 +79,7 @@
   transition: bottom 0.5s ease;
   grid-gap: 0.5rem;
   &.error {
-    background-color: theme(digitv2.alert.error);
+    background-color: theme(digitv2.alert.error)!important;
   }
 
   &.warning {
