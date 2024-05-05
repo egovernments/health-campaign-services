@@ -1,7 +1,7 @@
 import React, { useEffect, useState, Fragment } from "react";
 import { CardText, LabelFieldPair, Card, Header, CardLabel } from "@egovernments/digit-ui-react-components";
 import { useTranslation } from "react-i18next";
-import { Dropdown, InfoCard, MultiSelectDropdown } from "@egovernments/digit-ui-components";
+import { Dropdown, InfoCard, MultiSelectDropdown , Toast } from "@egovernments/digit-ui-components";
 import { mailConfig } from "../configs/mailConfig";
 /**
  * The function `SelectingBoundaries` in JavaScript handles the selection of boundaries based on
@@ -25,10 +25,12 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [boundaryTypeDataresult, setBoundaryTypeDataresult] = useState(null);
   const [selectedData, setSelectedData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData || []);
   const [parentBoundaryType, setParentBoundaryType] = useState(null);
+  const [showToast, setShowToast] = useState(null);
   const [dataParams, setDataParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
   useEffect(() => {
     onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData, hierarchy: hierarchy });
   }, [boundaryData, selectedData, hierarchy]);
+
   const reqCriteriaBoundaryHierarchySearch = {
     url: "/boundary-service/boundary-hierarchy-definition/_search",
     params: {},
@@ -41,6 +43,11 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       enabled: true,
     },
   };
+
+  const closeToast = () => {
+    setShowToast(null);
+  };
+
   const { data: hierarchyTypeDataresult } = Digit.Hooks.useCustomAPIHook(reqCriteriaBoundaryHierarchySearch);
   const handleChange = (data) => {
     setHierarchy(data);
@@ -61,6 +68,10 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
 
   const newData = [];
   const fetchBoundaryTypeData = async () => {
+    if (boundaryType === undefined) {
+      // Do nothing if boundaryType is undefined
+      return;
+    }
     if (parentArray === null) {
       const reqCriteriaBoundaryTypeSearch = Digit.CustomService.getResponse({
         url: "/boundary-service/boundary-relationships/_search",
@@ -72,8 +83,10 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
         },
         body: {},
       });
+      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_LOADING_BOUNDARY") });
       const boundaryTypeData = await reqCriteriaBoundaryTypeSearch;
       setBoundaryTypeDataresult([{ parentCode: null, boundaryTypeData: boundaryTypeData }]);
+      closeToast();
     } else {
       for (const parentCode of parentArray) {
         const reqCriteriaBoundaryTypeSearch = Digit.CustomService.getResponse({
@@ -86,10 +99,13 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
           },
           body: {},
         });
+        setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_LOADING_BOUNDARY") });
         const boundaryTypeData = await reqCriteriaBoundaryTypeSearch;
         newData.push({ parentCode, boundaryTypeData });
+        
       }
       setBoundaryTypeDataresult(newData);
+      closeToast();
     }
   };
 
@@ -289,6 +305,15 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
             </span>,
           ]}
           label={"Info"}
+        />
+      )}
+      {showToast && (
+        <Toast
+          error={showToast.key === "error" ? true : false}
+          warning={showToast.key === "warning" ? true : false}
+          info={showToast.key === "info" ? true : false}
+          label={t(showToast.label)}
+          onClose={closeToast}
         />
       )}
     </>
