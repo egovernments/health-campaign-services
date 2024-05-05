@@ -72,16 +72,15 @@ public class ReferralTransformationService {
     public ReferralIndexV1 transform(Referral referral) {
         String tenantId = referral.getTenantId();
         List<ProjectBeneficiary> projectBeneficiaryList = projectService.searchBeneficiary(referral.getProjectBeneficiaryClientReferenceId(), tenantId);
-        ProjectBeneficiary projectBeneficiary = !CollectionUtils.isEmpty(projectBeneficiaryList) ? projectBeneficiaryList.get(0) : null;
         Map<String, Object> individualDetails = new HashMap<>();
         Map<String, String> boundaryHierarchy = new HashMap<>();
-        Project project;
 
         String projectTypeId = null;
-        if (projectBeneficiary != null) {
+        if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
+            ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             String projectId = projectBeneficiary.getProjectId();
-            project = projectService.getProject(projectId, tenantId);
+            Project project = projectService.getProject(projectId, tenantId);
             projectTypeId = project.getProjectTypeId();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);

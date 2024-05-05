@@ -3,9 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.facility.AdditionalFields;
 import org.egov.common.models.facility.Facility;
-import org.egov.common.models.facility.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
@@ -83,8 +81,8 @@ public class StockTransformationService {
         String facilityType = WAREHOUSE;
         String transactingFacilityType = WAREHOUSE;
 
-        facilityType = facility != null ? getType(facilityType, facility) : facilityType;
-        transactingFacilityType = transactingFacility != null ? getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
+        facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
+        transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
 
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getLastModifiedTime());
         List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
@@ -92,6 +90,8 @@ public class StockTransformationService {
         Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
+
+
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
@@ -131,17 +131,5 @@ public class StockTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         return stockIndexV1;
-    }
-
-    private String getType(String transactingFacilityType, Facility transactingFacility) {
-        AdditionalFields transactingFacilityAdditionalFields = transactingFacility.getAdditionalFields();
-        if (transactingFacilityAdditionalFields != null) {
-            List<Field> fields = transactingFacilityAdditionalFields.getFields();
-            Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
-            if (field.isPresent() && field.get().getValue() != null) {
-                transactingFacilityType = field.get().getValue();
-            }
-        }
-        return transactingFacilityType;
     }
 }

@@ -6,6 +6,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.household.Household;
 import org.egov.transformer.service.HouseholdService;
+import org.egov.transformer.transformationservice.HouseholdTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,13 +21,12 @@ import java.util.List;
 @Slf4j
 public class HouseholdConsumer {
     private final ObjectMapper objectMapper;
-
-    private final HouseholdService householdService;
+    private final HouseholdTransformationService householdTransformationService;
 
     @Autowired
-    public HouseholdConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, HouseholdService householdService) {
+    public HouseholdConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, HouseholdTransformationService householdTransformationService) {
         this.objectMapper = objectMapper;
-        this.householdService = householdService;
+        this.householdTransformationService = householdTransformationService;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.household.topic}",
@@ -37,7 +37,7 @@ public class HouseholdConsumer {
             List<Household> households = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Household[].class));
-            householdService.transform(households);
+            householdTransformationService.transform(households);
         } catch (Exception exception) {
             log.error("error in household consumer {}", ExceptionUtils.getStackTrace(exception));
         }

@@ -1,7 +1,5 @@
 package org.egov.transformer.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
@@ -12,36 +10,20 @@ import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.models.household.HouseholdSearchRequest;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
-import org.egov.transformer.models.downstream.HouseholdIndexV1;
-import org.egov.transformer.producer.Producer;
-import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import static org.egov.transformer.Constants.*;
 
 @Component
 @Slf4j
 public class HouseholdService {
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
-    private final Producer producer;
-    private final UserService userService;
-    private final CommonUtils commonUtils;
 
-    private final ObjectMapper objectMapper;
-
-    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, Producer producer, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public HouseholdService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
-        this.producer = producer;
-        this.userService = userService;
-        this.commonUtils = commonUtils;
-        this.objectMapper = objectMapper;
     }
 
     public List<Household> searchHousehold(String clientRefId, String tenantId) {
@@ -70,52 +52,5 @@ public class HouseholdService {
             return Collections.emptyList();
         }
         return response.getHouseholds();
-    }
-
-    public void transform(List<Household> payloadList) {
-        String topic = transformerProperties.getTransformerProducerBulkHouseholdIndexV1Topic();
-        log.info("transforming for ids {}", payloadList.stream()
-                .map(Household::getId).collect(Collectors.toList()));
-        List<HouseholdIndexV1> transformedPayloadList = payloadList.stream()
-                .map(this::transform)
-                .collect(Collectors.toList());
-        if (!transformedPayloadList.isEmpty()) {
-            producer.push(topic, transformedPayloadList);
-            log.info("transformation successful");
-        }
-    }
-
-    public HouseholdIndexV1 transform(Household household) {
-        Map<String, String> boundaryHierarchy = null;
-
-        String localityCode = null;
-        if (household.getAddress() != null
-                && household.getAddress().getLocality() != null
-                && household.getAddress().getLocality().getCode() != null) {
-            localityCode = household.getAddress().getLocality().getCode();
-        }
-        if (localityCode != null) {
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
-        }
-
-        Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());
-        String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(household.getAuditDetails().getLastModifiedTime());
-
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_INDEX, (Integer) null);
-
-        return HouseholdIndexV1.builder()
-                .household(household)
-                .userName(userInfoMap.get(USERNAME))
-                .role(userInfoMap.get(ROLE))
-                .nameOfUser(userInfoMap.get(NAME))
-                .userAddress(userInfoMap.get(CITY))
-                .geoPoint(commonUtils.getGeoPoint(household.getAddress()))
-                .boundaryHierarchy(boundaryHierarchy)
-                .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
-                .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
-                .syncedTimeStamp(syncedTimeStamp)
-                .additionalDetails(additionalDetails)
-                .build();
     }
 }

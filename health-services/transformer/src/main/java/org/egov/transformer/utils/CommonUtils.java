@@ -12,6 +12,7 @@ import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
+import org.egov.common.models.project.Field;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.service.MdmsService;
@@ -51,7 +52,7 @@ public class CommonUtils {
         this.mdmsService = mdmsService;
     }
 
-    public  String getMDMSTransformerLocalizations (String text, String tenantId) {
+    public String getMDMSTransformerLocalizations(String text, String tenantId) {
         if (transformerLocalizations.containsKey(text)) {
             log.info("Fetching localization from transformerLocalization: {}", text);
             return transformerLocalizations.get(text);
@@ -59,9 +60,8 @@ public class CommonUtils {
         return fetchLocalizationsFromMdms(text, tenantId);
     }
 
-    public String getMDMSTransformerElasticIndexLabels (String label, String tenantId) {
+    public String getMDMSTransformerElasticIndexLabels(String label, String tenantId) {
         if (transformerElasticIndexLabelsMap.containsKey(label)) {
-            log.info("Fetching indexLabel from transformerIndexLabel Cache: {}", label);
             return transformerElasticIndexLabelsMap.get(label);
         }
         return fetchIndexLabelsFromMdms(label, tenantId);
@@ -79,6 +79,7 @@ public class CommonUtils {
         });
         return boundaryHierarchy;
     }
+
     public Map<String, String> getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
         Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, tenantId);
         Map<String, String> boundaryHierarchy = new HashMap<>();
@@ -89,7 +90,7 @@ public class CommonUtils {
         return boundaryHierarchy;
     }
 
-    public List<String> getProjectDatesList (Long startDateEpoch, Long endDateEpoch) {
+    public List<String> getProjectDatesList(Long startDateEpoch, Long endDateEpoch) {
         List<String> dates = new ArrayList<>();
         for (long timestamp = startDateEpoch; timestamp <= DAY_MILLIS + endDateEpoch; timestamp += DAY_MILLIS) {
             dates.add(getDateFromEpoch(timestamp));
@@ -256,6 +257,7 @@ public class CommonUtils {
         }
         return transformerLocalizations.getOrDefault(text, text);
     }
+
     private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
                                            String moduleName, String filter) {
         MasterDetail masterDetail = new MasterDetail();
@@ -291,8 +293,7 @@ public class CommonUtils {
             if (projectStaffRolesCache.containsKey(cacheKey)) {
                 projectStaffRoles = projectStaffRolesCache.get(cacheKey);
                 log.info("Fetching projectStaffRoles from cache for tenantId: {}", tenantId);
-            }
-            else {
+            } else {
                 MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
                 projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
                 projectStaffRolesCache.put(cacheKey, projectStaffRoles);
@@ -350,4 +351,23 @@ public class CommonUtils {
         return false;
     }
 
+
+
+//    public ObjectNode additionalFieldsToDetails(List<Object> fields) {
+//        ObjectNode additionalDetails = objectMapper.createObjectNode();
+//
+//        try {
+//            for (Object field : fields) {
+//                Method getKey = field.getClass().getMethod("getKey");
+//                Method getValue = field.getClass().getMethod("getValue");
+//                String key = (String) getKey.invoke(field);
+//                String value = (String) getValue.invoke(field);
+//                additionalDetails.put(key, value);
+//            }
+//        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+//            log.info("Error in additionalDetails fetch from additionalFields : " + ExceptionUtils.getStackTrace(e));
+//            return null;
+//        }
+//        return additionalDetails;
+//    }
 }

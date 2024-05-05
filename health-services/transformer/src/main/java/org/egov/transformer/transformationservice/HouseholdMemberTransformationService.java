@@ -65,10 +65,8 @@ public class HouseholdMemberTransformationService {
                 && households.get(0).getAddress().getLocality() != null
                 && households.get(0).getAddress().getLocality().getCode() != null) {
             localityCode = households.get(0).getAddress().getLocality().getCode();
-            geoPoint = commonUtils.getGeoPoint(households.get(0).getAddress());
-        }
-        if (localityCode != null) {
             boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
+            geoPoint = commonUtils.getGeoPoint(households.get(0).getAddress());
         }
 
         Map<String, String> userInfoMap = userService.
@@ -78,8 +76,8 @@ public class HouseholdMemberTransformationService {
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)
                 .userName(userInfoMap.get(USERNAME))
-                .role(userInfoMap.get(ROLE))
                 .nameOfUser(userInfoMap.get(NAME))
+                .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)

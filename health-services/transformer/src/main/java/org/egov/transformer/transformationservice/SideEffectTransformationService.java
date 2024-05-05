@@ -3,9 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectBeneficiary;
-import org.egov.common.models.project.Task;
+import org.egov.common.models.project.*;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.SideEffectsIndexV1;
@@ -15,9 +13,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -33,6 +29,7 @@ public class SideEffectTransformationService {
     private final ObjectMapper objectMapper;
     private final SideEffectService sideEffectService;
     private final IndividualService individualService;
+    private static final List<String> TASK_ADDITIONAL_FIELDS_TO_PICK = new ArrayList<>(Arrays.asList(CYCLE_INDEX));
 
     public SideEffectTransformationService(TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, SideEffectService sideEffectService, IndividualService individualService) {
 
@@ -61,47 +58,46 @@ public class SideEffectTransformationService {
     }
 
     private SideEffectsIndexV1 transform(SideEffect sideEffect) {
+
+        AdditionalFields additionalFields = sideEffect.getAdditionalFields();
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        if (additionalFields != null && additionalFields.getFields() != null
+                && !CollectionUtils.isEmpty(additionalFields.getFields())) {
+            additionalDetails = additionalFieldsToDetails(additionalFields.getFields());
+        }
         String tenantId = sideEffect.getTenantId();
-        Task task = null;
-        Integer cycleIndex = null;
         String localityCode = null;
-        ProjectBeneficiary projectBeneficiary = null;
         Map<String, Object> individualDetails = new HashMap<>();
         Map<String, String> boundaryHierarchy = new HashMap<>();
         List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
+
         if (!CollectionUtils.isEmpty(taskList)) {
-            task = taskList.get(0);
-            localityCode = task.getAddress().getLocality().getCode();
-        }
-        if (task != null) {
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            Task task = taskList.get(0);
+            localityCode = (task.getAddress() != null &&
+                    task.getAddress().getLocality() != null &&
+                    task.getAddress().getLocality().getCode() != null) ?
+                    task.getAddress().getLocality().getCode() :
+                    null;
+            boundaryHierarchy = localityCode != null ? commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
+                    commonUtils.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
 
             if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
-                projectBeneficiary = projectBeneficiaries.get(0);
+                ProjectBeneficiary projectBeneficiary = projectBeneficiaries.get(0);
+                individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             }
+            addSpecificAdditionalFields(task, additionalDetails);
         }
-        if (projectBeneficiary != null) {
-            individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
-            if (projectBeneficiary.getProjectId() != null) {
-                Project project = projectService.getProject(projectBeneficiary.getProjectId(), tenantId);
-//                TODO change logic of fetching cycleIndex and additionalDetails, cycle Index can be fetching from task additional fields
-                cycleIndex = commonUtils.fetchCycleIndex(tenantId, project.getProjectTypeId(), sideEffect.getAuditDetails());
-            }
-        }
-
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
 
         SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                 .sideEffect(sideEffect)
-                .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
-                .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .boundaryHierarchy(boundaryHierarchy)
                 .localityCode(localityCode)
+                .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
+                .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                 .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
                 .symptoms(String.join(COMMA, sideEffect.getSymptoms()))
@@ -114,6 +110,22 @@ public class SideEffectTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         return sideEffectsIndexV1;
+    }
+
+    private void addSpecificAdditionalFields(Task task, ObjectNode additionalDetails) {
+        if (task.getAdditionalFields() != null && task.getAdditionalFields().getFields() != null &&
+                !CollectionUtils.isEmpty(task.getAdditionalFields().getFields())) {
+            task.getAdditionalFields().getFields().stream()
+                    .filter(f -> TASK_ADDITIONAL_FIELDS_TO_PICK.contains(f.getKey()))
+                    .forEach(f -> additionalDetails.put(f.getKey(), f.getValue()));
+        }
+    }
+    private ObjectNode additionalFieldsToDetails(List<Field> fields) {
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        fields.forEach(
+                f -> additionalDetails.put(f.getKey(), f.getValue())
+        );
+        return additionalDetails;
     }
 
 }

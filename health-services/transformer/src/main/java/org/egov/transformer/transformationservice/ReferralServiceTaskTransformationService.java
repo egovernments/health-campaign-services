@@ -1,4 +1,4 @@
-package org.egov.transformer.service;
+package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -6,11 +6,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
-import org.egov.transformer.models.downstream.ServiceIndexV2;
+import org.egov.transformer.models.downstream.ReferralServiceTaskIndexV1;
 import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.ProjectService;
+import org.egov.transformer.service.ServiceDefinitionService;
+import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +23,7 @@ import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Component
-public class ServiceTransformationService {
+public class ReferralServiceTaskTransformationService {
     private final ServiceDefinitionService serviceDefinitionService;
     private final TransformerProperties transformerProperties;
     private final Producer producer;
@@ -30,7 +33,7 @@ public class ServiceTransformationService {
     private final ObjectMapper objectMapper;
 
 
-    public ServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public ReferralServiceTaskTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
 
         this.serviceDefinitionService = serviceDefinitionService;
         this.transformerProperties = transformerProperties;
@@ -42,29 +45,25 @@ public class ServiceTransformationService {
     }
 
     public void transform(List<Service> serviceList) {
-        List<ServiceIndexV2> serviceIndexV2List = new ArrayList<>();
+        List<ReferralServiceTaskIndexV1> referralServiceTaskIndexV1List = new ArrayList<>();
         String topic = transformerProperties.getTransformerProducerServiceIndexV2Topic();
         serviceList.forEach(service -> {
-            transform(service, serviceIndexV2List);
+            transform(service, referralServiceTaskIndexV1List);
         });
-        if (!serviceIndexV2List.isEmpty()) {
-            producer.push(topic, serviceIndexV2List);
+        if (!referralServiceTaskIndexV1List.isEmpty()) {
+            producer.push(topic, referralServiceTaskIndexV1List);
         }
     }
 
-    private void transform(Service service, List<ServiceIndexV2> serviceIndexV2List) {
+    private void transform(Service service, List<ReferralServiceTaskIndexV1> referralServiceTaskIndexV1List) {
         ServiceDefinition serviceDefinition = serviceDefinitionService.getServiceDefinition(service.getServiceDefId(), service.getTenantId());
         String checkListName = serviceDefinition.getCode();
         String tenantId = service.getTenantId();
         String[] parts = serviceDefinition.getCode().split("\\.");
         String projectName = parts[0];
         String supervisorLevel = parts[2];
-        String projectId = null;
-        if (service.getAccountId() != null) {
-            projectId = service.getAccountId();
-        } else {
-            projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
-        }
+        String projectId = service.getAccountId() != null ? service.getAccountId() :
+                projectService.getProjectByName(projectName, service.getTenantId()).getId();
         Map<String, String> boundaryLabelToNameMap = new HashMap<>();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
@@ -92,7 +91,7 @@ public class ServiceTransformationService {
             String finalProjectId = projectId;
             String checklistName = serviceDefinition.getCode().split("\\.")[1];
             attributeCodeToQuestionAgeGroup.forEach((key, value) -> {
-                ServiceIndexV2 serviceIndexV2 = ServiceIndexV2.builder()
+                ReferralServiceTaskIndexV1 referralServiceTaskIndexV1 = ReferralServiceTaskIndexV1.builder()
                         .id(service.getId())
                         .supervisorLevel(supervisorLevel)
                         .checklistName(checklistName)
@@ -111,46 +110,46 @@ public class ServiceTransformationService {
                         .additionalDetails(additionalDetails)
                         .build();
 
-                searchAndSetAttribute(attributeValueList, value, serviceIndexV2);
-                serviceIndexV2List.add(serviceIndexV2);
+                searchAndSetAttribute(attributeValueList, value, referralServiceTaskIndexV1);
+                referralServiceTaskIndexV1List.add(referralServiceTaskIndexV1);
             });
         }
     }
 
-    private void searchAndSetAttribute(List<AttributeValue> attributeValueList, Map<String, String> codeToQuestionMapping, ServiceIndexV2 serviceIndexV2) {
+    private void searchAndSetAttribute(List<AttributeValue> attributeValueList, Map<String, String> codeToQuestionMapping, ReferralServiceTaskIndexV1 referralServiceTaskIndexV1) {
         attributeValueList.forEach(attributeValue -> {
             String attributeCode = attributeValue.getAttributeCode();
             if (codeToQuestionMapping.containsKey(attributeCode)) {
                 String question = codeToQuestionMapping.get(attributeCode);
-                setAttributeValue(serviceIndexV2, attributeValue.getValue(), question);
+                setAttributeValue(referralServiceTaskIndexV1, attributeValue.getValue(), question);
             }
         });
     }
 
-    private static void setAttributeValue(ServiceIndexV2 serviceIndexV2, Object value, String question) {
+    private static void setAttributeValue(ReferralServiceTaskIndexV1 referralServiceTaskIndexV1, Object value, String question) {
         switch (question) {
             case Constants.CHILDREN_PRESENTED_US: {
-                serviceIndexV2.setChildrenPresentedUS(value);
+                referralServiceTaskIndexV1.setChildrenPresentedUS(value);
                 break;
             }
             case Constants.MALARIA_POSITIVE_US: {
-                serviceIndexV2.setMalariaPositiveUS(value);
+                referralServiceTaskIndexV1.setMalariaPositiveUS(value);
                 break;
             }
             case Constants.MALARIA_NEGATIVE_US: {
-                serviceIndexV2.setMalariaNegativeUS(value);
+                referralServiceTaskIndexV1.setMalariaNegativeUS(value);
                 break;
             }
             case Constants.CHILDREN_PRESENTED_APE: {
-                serviceIndexV2.setChildrenPresentedAPE(value);
+                referralServiceTaskIndexV1.setChildrenPresentedAPE(value);
                 break;
             }
             case Constants.MALARIA_POSITIVE_APE: {
-                serviceIndexV2.setMalariaPositiveAPE(value);
+                referralServiceTaskIndexV1.setMalariaPositiveAPE(value);
                 break;
             }
             case Constants.MALARIA_NEGATIVE_APE: {
-                serviceIndexV2.setMalariaNegativeAPE(value);
+                referralServiceTaskIndexV1.setMalariaNegativeAPE(value);
                 break;
             }
         }

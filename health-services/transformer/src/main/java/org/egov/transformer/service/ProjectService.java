@@ -184,9 +184,8 @@ public class ProjectService {
                     request,
                     BeneficiaryBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching beneficiary {}", ExceptionUtils.getStackTrace(e));
-            throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
-                    "error while fetching beneficiary details for id: " + projectBeneficiaryClientRefId);
+            log.error("error while fetching beneficiary for id: {}, Exception: {}", projectBeneficiaryClientRefId, ExceptionUtils.getStackTrace(e));
+            return Collections.emptyList();
         }
         return response.getProjectBeneficiaries();
     }

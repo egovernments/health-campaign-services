@@ -78,4 +78,6 @@ public class ProjectStaffTransformationService {
     }
 
 
+    public static class HouseholdTransformationService {
+    }
 }

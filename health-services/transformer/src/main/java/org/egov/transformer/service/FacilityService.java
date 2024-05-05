@@ -15,7 +15,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.egov.transformer.Constants.*;
-import static org.egov.transformer.Constants.SATELLITE_WAREHOUSE;
 
 @Service
 @Slf4j
@@ -40,6 +39,12 @@ public class FacilityService {
     }
 
     public Facility findFacilityById(String facilityId, String tenantId) {
+
+        return facilityMap.containsKey(facilityId) ?
+                facilityMap.get(facilityId) : searchFacility(facilityId, tenantId);
+    }
+
+    private Facility searchFacility(String facilityId, String tenantId) {
 
         FacilitySearchRequest facilitySearchRequest = FacilitySearchRequest.builder()
                 .facility(FacilitySearch.builder().id(Collections.singletonList(facilityId)).build())
@@ -86,5 +91,16 @@ public class FacilityService {
                     (facility.getIsPermanent() ? DISTRICT_WAREHOUSE : SATELLITE_WAREHOUSE) : null;
         }
         return null;
+    }
+    public String getType(String transactingFacilityType, Facility transactingFacility) {
+        AdditionalFields transactingFacilityAdditionalFields = transactingFacility.getAdditionalFields();
+        if (transactingFacilityAdditionalFields != null) {
+            List<Field> fields = transactingFacilityAdditionalFields.getFields();
+            Optional<Field> field = fields.stream().filter(field1 -> TYPE_KEY.equalsIgnoreCase(field1.getKey())).findFirst();
+            if (field.isPresent() && field.get().getValue() != null) {
+                transactingFacilityType = field.get().getValue();
+            }
+        }
+        return transactingFacilityType;
     }
 }

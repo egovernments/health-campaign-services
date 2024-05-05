@@ -69,12 +69,6 @@ public class StockIndexV1 {
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
 
-    @JsonProperty("latitude")
-    private Double latitude;
-
-    @JsonProperty("longitude")
-    private Double longitude;
-
     @JsonProperty("createdBy")
     private String createdBy;
 

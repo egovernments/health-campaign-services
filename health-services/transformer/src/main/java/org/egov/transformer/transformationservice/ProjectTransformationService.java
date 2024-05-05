@@ -56,7 +56,18 @@ public class ProjectTransformationService {
     }
 
     private List<ProjectIndexV1> transform(Project project) {
-        Map<String, String> boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(project.getAddress().getBoundary(), project.getTenantId());
+        String localityCode;
+        if (project.getAddress() != null) {
+            localityCode = project.getAddress().getBoundary() != null ?
+                    project.getAddress().getBoundary() :
+                    project.getAddress().getLocality() != null ?
+                            project.getAddress().getLocality().getCode() :
+                            null;
+        } else {
+            localityCode = null;
+        }
+        Map<String, String> boundaryHierarchy = localityCode != null ?
+                commonUtils.getBoundaryHierarchyWithLocalityCode(project.getAddress().getBoundary(), project.getTenantId()) : null;
         String tenantId = project.getTenantId();
         String projectTypeId = project.getProjectTypeId();
         List<Target> targets = project.getTargets();
@@ -115,6 +126,7 @@ public class ProjectTransformationService {
                             .projectType(project.getProjectType())
                             .subProjectType(project.getProjectSubType())
                             .projectTypeId(projectTypeId)
+                            .localityCode(localityCode)
                             .createdTime(project.getAuditDetails().getCreatedTime())
                             .createdBy(project.getAuditDetails().getCreatedBy())
                             .additionalDetails(additionalDetails)

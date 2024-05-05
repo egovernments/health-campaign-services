@@ -6,8 +6,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceRequest;
-import org.egov.transformer.service.HfServiceTransformationService;
-import org.egov.transformer.service.ServiceTransformationService;
+import org.egov.transformer.transformationservice.HfServiceTransformationService;
+import org.egov.transformer.transformationservice.ReferralServiceTaskTransformationService;
 import org.egov.transformer.transformationservice.ServiceTaskTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -25,14 +25,14 @@ import java.util.stream.Collectors;
 public class ServiceTaskConsumer {
     private final ObjectMapper objectMapper;
     private final ServiceTaskTransformationService serviceTaskTransformationService;
-    private final ServiceTransformationService serviceTransformationService;
+    private final ReferralServiceTaskTransformationService referralServiceTaskTransformationService;
     private final HfServiceTransformationService hfServiceTransformationService;
 
     @Autowired
-    public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTaskTransformationService serviceTaskTransformationService, ServiceTransformationService serviceTransformationService, HfServiceTransformationService hfServiceTransformationService) {
+    public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTaskTransformationService serviceTaskTransformationService, ReferralServiceTaskTransformationService referralServiceTaskTransformationService, HfServiceTransformationService hfServiceTransformationService) {
         this.objectMapper = objectMapper;
         this.serviceTaskTransformationService = serviceTaskTransformationService;
-        this.serviceTransformationService = serviceTransformationService;
+        this.referralServiceTaskTransformationService = referralServiceTaskTransformationService;
         this.hfServiceTransformationService = hfServiceTransformationService;
     }
 
@@ -44,7 +44,7 @@ public class ServiceTaskConsumer {
                     .readValue((String) payload.value(), ServiceRequest.class));
             List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
             serviceTaskTransformationService.transform(collect);
-            serviceTransformationService.transform(collect);
+            referralServiceTaskTransformationService.transform(collect);
             hfServiceTransformationService.transform(collect);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
