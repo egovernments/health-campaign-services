@@ -813,11 +813,6 @@ function mapBoundariesParent(boundaryResponses: any, request: any, parent: any) 
             parent: parent || null,
             projectId: null
         }
-        if (boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.children && Array.isArray(boundaryResponse?.TenantBoundary?.[0]?.boundary?.[0]?.children)) {
-            for (const childBoundary of boundaryResponse.TenantBoundary[0]?.boundary?.[0].children) {
-                await processBoundary(childBoundary, boundaryCodes, boundaries, request, true, boundary?.code);
-            }
-        }
         if (boundaryResponse?.children && Array.isArray(boundaryResponse?.children) && boundaryResponse?.children?.length > 0) {
             mapBoundariesParent(boundaryResponse.children, request, boundaryResponse.code);
         }
