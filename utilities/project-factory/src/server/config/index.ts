@@ -1,24 +1,22 @@
 // config.js
-
 // Importing necessary module
 import { getErrorCodes } from "./constants";
-
 // Defining the HOST variable
 const HOST = process.env.EGOV_HOST ||
   "https://unified-dev.digit.org/";
-
 // Checking if HOST is set, if not, exiting the process
 if (!HOST) {
   console.log("You need to set the HOST variable");
   process.exit(1);
 }
-
 // Configuration object containing various environment variables
 const config = {
-  facilityTab : "HCM_ADMIN_LIST_OF_FACILITIES_TAB",
-  locale: "en_MZ",
+  facilityTab: "HCM_ADMIN_CONSOLE_AVAILABLE_FACILITIES",
+  boundaryTab: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+  userTab: "HCM_ADMIN_CONSOLE_USER_LIST",
+  locale: "hin_MZ",
   localizationModule: "rainmaker-hcm-admin-schemas",
-  //module name 
+  //module name
   moduleName: "HCM-ADMIN-CONSOLE",
   // facility master
   facilitySchemaMasterName: "facilitySchema",
@@ -27,7 +25,7 @@ const config = {
   // Default sheet name for boundary data
   sheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
   // Default criteria for generating different tabs
-  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "District",
+  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "Distrito",
   // default configurable number of data of boundary type on which generate different tabs
   numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
   // Authentication token
@@ -117,7 +115,13 @@ const config = {
   // Default search template
   SEARCH_TEMPLATE: "HCM.APIResourceTemplate3"
 };
-
 // Exporting getErrorCodes function and config object
 export { getErrorCodes };
 export default config;
+
+
+
+
+
+
+

@@ -1,8 +1,9 @@
-import { Loader, FormComposerV2, Header, Toast } from "@egovernments/digit-ui-react-components";
+import { Loader, FormComposerV2, Header } from "@egovernments/digit-ui-react-components";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory, useLocation } from "react-router-dom";
 import { addProductConfig } from "../../configs/addProductConfig";
+import { Toast } from "@egovernments/digit-ui-components";
 
 function AddProduct() {
   const { t } = useTranslation();
@@ -37,6 +38,35 @@ function AddProduct() {
 
   const onSubmit = async (formData) => {
     const isValid = checkValid(formData);
+    const invalidName = formData?.addProduct
+      ?.map((i) => {
+        if (i?.name?.length > 2 && i?.name?.length < 101) {
+          return true;
+        } else {
+          return false;
+        }
+      })
+      ?.includes(false);
+    
+      const invalidVariant = formData?.addProduct
+      ?.map((i) => {
+        if (i?.variant?.length > 2 && i?.variant?.length < 101) {
+          return true;
+        } else {
+          return false;
+        }
+      })
+      ?.includes(false);
+    
+      if (invalidName) {
+      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_NAME_ERROR", isError: true });
+      return;
+    }
+    
+    if (invalidVariant) {
+      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_VARIANT_ERROR", isError: true });
+      return;
+    }
     if (!isValid) {
       setShowToast({ key: "error", label: "CAMPAIGN_ADD_PRODUCT_MANDATORY_ERROR", isError: true });
       return;
@@ -112,7 +142,7 @@ function AddProduct() {
         onSecondayActionClick={onSecondayActionClick}
       />
 
-      {showToast && <Toast error={showToast?.isError} label={showToast?.label} isDleteBtn={"true"} onClose={() => setShowToast(false)} />}
+      {showToast && <Toast error={showToast?.isError} label={t(showToast?.label)} isDleteBtn={"true"} onClose={() => setShowToast(false)} />}
     </div>
   );
 }

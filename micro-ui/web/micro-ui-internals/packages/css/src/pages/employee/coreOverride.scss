@@ -70,9 +70,6 @@
 }
 /* toast new componnet css added */
 
-.toast-success {
-  background-color: theme(digitv2.alert.error) !important;
-}
 
 .toast-success {
   gap: 0.5rem;
@@ -82,7 +79,7 @@
   transition: bottom 0.5s ease;
   grid-gap: 0.5rem;
   &.error {
-    background-color: theme(digitv2.alert.error);
+    background-color: theme(digitv2.alert.error)!important;
   }
 
   &.warning {
@@ -120,4 +117,11 @@
 
 .toast-success.animate {
   animation: slideInFromBottom 0.5s ease forwards;
+}
+
+@media screen and (max-width: 768px) {
+  .topbar {
+      background: #0b4b66 !important;
+      color: #fff;
+  }
 }

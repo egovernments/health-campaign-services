@@ -22,6 +22,7 @@ import CampaignDocumentsPreview from "./components/CampaignDocumentsPreview";
 import AddProduct from "./pages/employee/AddProduct";
 import AddProductField from "./components/AddProductField";
 import CycleDataPreview from "./components/CycleDataPreview";
+import { ErrorBoundary } from "@egovernments/digit-ui-components";
 
 /**
  * The CampaignModule function fetches store data based on state code, module code, and language, and
@@ -44,9 +45,11 @@ const CampaignModule = ({ stateCode, userType, tenants }) => {
   }
 
   return (
-    <TourProvider>
-      <EmployeeApp path={path} stateCode={stateCode} url={url} userType={userType} />
-    </TourProvider>
+    <ErrorBoundary moduleName="CAMPAIGN">
+      <TourProvider>
+        <EmployeeApp path={path} stateCode={stateCode} url={url} userType={userType} />
+      </TourProvider>
+    </ErrorBoundary>
   );
 };
 

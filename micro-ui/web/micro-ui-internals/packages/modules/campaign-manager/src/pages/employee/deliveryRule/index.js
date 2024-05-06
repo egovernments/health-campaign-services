@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useState } from "react";
 import MultiTab from "./MultiTabcontext";
-import { deliveryConfig } from "../../../configs/deliveryConfig";
+import { Loader } from "@egovernments/digit-ui-react-components";
+// import { deliveryConfig } from "../../../configs/deliveryConfig";
 
 const CycleContext = createContext();
 
@@ -16,7 +17,27 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
   const [cycleData, setCycleData] = useState(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
   const saved = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule;
   const selectedProjectType = window.Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_FORM_DATA")?.HCM_CAMPAIGN_TYPE?.projectType?.code;
-  const filteredDeliveryConfig = deliveryConfig.find((i) => i.projectType === selectedProjectType);
+  const tenantId = Digit.ULBService.getCurrentTenantId();
+  const { isLoading: deliveryConfigLoading, data: filteredDeliveryConfig } = Digit.Hooks.useCustomMDMS(
+    tenantId,
+    "HCM-ADMIN-CONSOLE",
+    [{ name: "deliveryConfig" }],
+    {
+      select: (data) => {
+        // return data?.["HCM-ADMIN-CONSOLE"]?.deliveryConfig;
+        const temp = data?.["HCM-ADMIN-CONSOLE"]?.deliveryConfig;
+        return temp?.find((i) => i?.projectType === selectedProjectType);
+      },
+    }
+  );
+  // const [filteredDeliveryConfig, setFilteredDeliveryConfig] = useState(deliveryConfig?.find((i) => i?.projectType === selectedProjectType));
+  // useEffect(() => {
+  // if (!deliveryConfigLoading) {
+  // const temp = deliveryConfig?.find((i) => i?.projectType === selectedProjectType);
+  // setFilteredDeliveryConfig(temp);
+  // }
+  // }, [deliveryConfigLoading, filteredDeliveryConfig]);
+  // const filteredDeliveryConfig = deliveryConfig.find((i) => i.projectType === selectedProjectType);
   useEffect(() => {
     setCycleData(config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure);
   }, [config?.customProps?.sessionData?.["HCM_CAMPAIGN_CYCLE_CONFIGURE"]?.cycleConfigure]);
@@ -194,7 +215,7 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
       cycle: cycleData?.cycleConfgureDate?.cycle,
       deliveries: cycleData?.cycleConfgureDate?.deliveries,
     });
-  }, [cycleData]);
+  }, [cycleData, filteredDeliveryConfig, deliveryConfigLoading]);
 
   useEffect(() => {
     onSelect("deliveryRule", campaignData);
@@ -206,6 +227,9 @@ function DeliverySetup({ onSelect, config, formData, control, tabCount = 2, subT
     }
   });
 
+  if (deliveryConfigLoading) {
+    return <Loader />;
+  }
   return (
     <CycleContext.Provider
       value={{

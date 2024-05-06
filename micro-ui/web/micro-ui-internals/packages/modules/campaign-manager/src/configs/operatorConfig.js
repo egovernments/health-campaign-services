@@ -1,3 +1,4 @@
+//migrated to mdms
 export const operatorConfig = [
   {
     key: 1,

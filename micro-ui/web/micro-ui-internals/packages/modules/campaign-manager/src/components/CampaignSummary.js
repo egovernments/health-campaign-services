@@ -124,6 +124,7 @@ const CampaignSummary = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
+  const noAction = searchParams.get("action");
 
   const { isLoading, data, error } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
@@ -141,7 +142,7 @@ const CampaignSummary = () => {
                 {
                   type: "DATA",
                   cardHeader: { value: t("CAMPAIGN_DETAILS"), inlineStyles: { marginTop: 0 } },
-                  cardSecondaryAction: (
+                  cardSecondaryAction: noAction !== "false" && (
                     <div className="campaign-preview-edit-container" onClick={() => handleRedirect(1)}>
                       <span>{t(`CAMPAIGN_EDIT`)}</span>
                       <EditIcon />
@@ -178,7 +179,7 @@ const CampaignSummary = () => {
                         documents: data?.[0]?.campaignDetails?.resources?.filter((i) => i.type === "boundary"),
                       },
                       cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0 } },
-                      cardSecondaryAction: (
+                      cardSecondaryAction: noAction !== "false" && (
                         <div className="campaign-preview-edit-container" onClick={() => handleRedirect(7)}>
                           <span>{t(`CAMPAIGN_EDIT`)}</span>
                           <EditIcon />
@@ -198,7 +199,7 @@ const CampaignSummary = () => {
                         documents: data?.[0]?.campaignDetails?.resources?.filter((i) => i.type === "facility"),
                       },
                       cardHeader: { value: t("FACILITY_DETAILS"), inlineStyles: { marginTop: 0 } },
-                      cardSecondaryAction: (
+                      cardSecondaryAction: noAction !== "false" && (
                         <div className="campaign-preview-edit-container" onClick={() => handleRedirect(8)}>
                           <span>{t(`CAMPAIGN_EDIT`)}</span>
                           <EditIcon />
@@ -218,7 +219,7 @@ const CampaignSummary = () => {
                         documents: data?.[0]?.campaignDetails?.resources?.filter((i) => i.type === "user"),
                       },
                       cardHeader: { value: t("USER_DETAILS"), inlineStyles: { marginTop: 0 } },
-                      cardSecondaryAction: (
+                      cardSecondaryAction: noAction !== "false" && (
                         <div className="campaign-preview-edit-container" onClick={() => handleRedirect(9)}>
                           <span>{t(`CAMPAIGN_EDIT`)}</span>
                           <EditIcon />
@@ -233,7 +234,7 @@ const CampaignSummary = () => {
                 {
                   type: "DATA",
                   cardHeader: { value: t("CAMPAIGN_DELIVERY_DETAILS"), inlineStyles: { marginTop: 0 } },
-                  cardSecondaryAction: (
+                  cardSecondaryAction: noAction !== "false" && (
                     <div className="campaign-preview-edit-container" onClick={() => handleRedirect(4)}>
                       <span>{t(`CAMPAIGN_EDIT`)}</span>
                       <EditIcon />
@@ -262,7 +263,7 @@ const CampaignSummary = () => {
                   {
                     type: "COMPONENT",
                     cardHeader: { value: `${t("CYCLE")} ${item?.cycleIndex}`, inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
-                    cardSecondaryAction: (
+                    cardSecondaryAction: noAction !== "false" && (
                       <div className="campaign-preview-edit-container" onClick={() => handleRedirect(5)}>
                         <span>{t(`CAMPAIGN_EDIT`)}</span>
                         <EditIcon />

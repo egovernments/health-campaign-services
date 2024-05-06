@@ -3,11 +3,17 @@ import { AddIcon, Button, Card, CardText, Dropdown, Header, TextInput } from "@e
 import { useTranslation } from "react-i18next";
 import { LabelFieldPair } from "@egovernments/digit-ui-react-components";
 import { DustbinIcon } from "./icons/DustbinIcon";
-import { productType } from "../configs/productType";
+// import { productType } from "../configs/productType";
 import { PRIMARY_COLOR } from "../utils";
 
 const AddProductField = ({ onSelect }) => {
   const { t } = useTranslation();
+  const tenantId = Digit.ULBService.getCurrentTenantId();
+  const { isLoading: productTypeLoading, data: productType } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [{ name: "productType" }], {
+    select: (data) => {
+      return data?.["HCM-ADMIN-CONSOLE"]?.productType;
+    },
+  });
   const [productFieldData, setProductFieldData] = useState([{ key: 1, name: null, type: null, variant: null }]);
 
   useEffect(() => {

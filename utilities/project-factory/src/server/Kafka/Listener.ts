@@ -33,7 +33,7 @@ export function listener() {
             const messageObject: any = JSON.parse(message.value?.toString() || '{}');
             try {
                 // await processCampaignMapping(messageObject);
-                console.log(messageObject, " mooooooooooooooooooooooooooo")
+                logger.info("messageObject for campaign mapping : " + JSON.stringify(messageObject));
                 await processCampaignMapping(messageObject);
             } catch (error: any) {
                 logger.error(error)

@@ -1,7 +1,7 @@
 import * as express from "express";
 import { logger } from "../../utils/logger";
 import { validateGenerateRequest } from "../../utils/validators/genericValidator";
-import { enrichResourceDetails, errorResponder, processGenerate, sendResponse, getResponseFromDb, throwError } from "../../utils/genericUtils";
+import { enrichResourceDetails, errorResponder, processGenerate, sendResponse, getResponseFromDb, throwError, getLocalizedMessagesHandler } from "../../utils/genericUtils";
 import { processGenericRequest } from "../../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../../api/genericApis";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../../utils/validators/campaignValidators";
@@ -44,7 +44,9 @@ class dataManageController {
             await validateGenerateRequest(request);
             // Process the data generation
 
-            await processGenerate(request, response);
+            const localizationMap = await getLocalizedMessagesHandler(request,request?.query?.tenantId)
+
+            await processGenerate(request, response,localizationMap);
             // Send response with generated resource details
 
             return sendResponse(response, { GeneratedResource: request?.body?.generatedResource }, request);
@@ -117,13 +119,16 @@ class dataManageController {
             // Enrich resource details
             await enrichResourceDetails(request);
 
+            const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
+
             // Process the generic request
-            await processGenericRequest(request);
+            await processGenericRequest(request, localizationMap);
 
             // Send response with resource details
             return sendResponse(response, { ResourceDetails: request?.body?.ResourceDetails }, request);
         } catch (e: any) {
             logger.error(String(e))
+            logger.debug(e, "Error details")
             // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
