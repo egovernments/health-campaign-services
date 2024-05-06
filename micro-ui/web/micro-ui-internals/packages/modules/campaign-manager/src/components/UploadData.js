@@ -73,7 +73,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       const headers = {
         boundary: Object?.keys(newBoundarySchema?.properties),
         facilityWithBoundary: Object?.keys(newFacilitySchema?.properties),
-        User: Object?.keys(newUserSchema?.properties),
+        userWithBoundary: Object?.keys(newUserSchema?.properties),
       };
 
       const schema = {
