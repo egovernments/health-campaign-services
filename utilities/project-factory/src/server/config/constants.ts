@@ -74,7 +74,7 @@ export const userRoles: any = {
     "Distributor": "DISTRIBUTOR",
     "Supervisor": "SUPERVISOR",
     "Help Desk": "HELPDESK_USER",
-    "Monitor Local": "MONNITOR_LOCAL",
+    "Monitor Local": "MONITOR_LOCAL",
     "Logistical officer": "LOGISTICAL_OFFICER",
 }
 
