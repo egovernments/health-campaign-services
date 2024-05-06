@@ -155,6 +155,15 @@ public class PlanConfigurationValidator {
      */
     public void validateOperationsInputAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
+        List<File> files = planConfiguration.getFiles();
+        List<String> templateIds = files.stream()
+                .map(File::getTemplateIdentifier)
+                .collect(Collectors.toList());
+        List<String> inputFileTypes = files.stream()
+                .map(File::getInputFileType)
+                .map(File.InputFileTypeEnum::toString)
+                .collect(Collectors.toList());
+
         final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMS;
         List<Object> ruleInputsListFromMDMS = null;
         try {
@@ -164,7 +173,7 @@ public class PlanConfigurationValidator {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-        List<String> allowedColumns = getRuleConfigInputsFromSchema(ruleInputsListFromMDMS);
+        List<String> allowedColumns = getRuleConfigInputsFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
         planConfiguration.getOperations().stream()
                 .map(Operation::getOutput)
                 .forEach(allowedColumns::add);
@@ -177,13 +186,16 @@ public class PlanConfigurationValidator {
     }
 
     // helper function
-    public static List<String> getRuleConfigInputsFromSchema(List<Object> schemas) {
+    public static List<String> getRuleConfigInputsFromSchema(List<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
         if (schemas == null) {
             return new ArrayList<>();
         }
         Set<String> finalData = new HashSet<>();
         for (Object item : schemas) {
-            LinkedHashMap<String , LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>) ((LinkedHashMap) item).get(MDMS_SCHEMA_PROPERTIES);
+            LinkedHashMap schemaEntity = (LinkedHashMap) item;
+            if(!templateIds.contains(schemaEntity.get(MDMS_SCHEMA_SECTION)) || !inputFileTypes.contains(schemaEntity.get(MDMS_SCHEMA_TYPE))) continue;
+            LinkedHashMap<String , LinkedHashMap> columns = (LinkedHashMap<String, LinkedHashMap>)((LinkedHashMap<String, LinkedHashMap>) schemaEntity.get(MDMS_SCHEMA_SCHEMA)).get(MDMS_SCHEMA_PROPERTIES);
+            if(columns == null) return new ArrayList<>();
             for(Map.Entry<String, LinkedHashMap> column : columns.entrySet()){
                 LinkedHashMap<String, Boolean> data = column.getValue();
                 if(data.get(MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT)){

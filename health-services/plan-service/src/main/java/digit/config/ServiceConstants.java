@@ -109,6 +109,12 @@ public class ServiceConstants {
 
     public static final String LOCALITY_CODE = "Locality";
 
+    public static final String MDMS_SCHEMA_SECTION = "section";
+
+    public static final String MDMS_SCHEMA_TYPE = "type";
+
+    public static final String MDMS_SCHEMA_SCHEMA = "schema";
+
     public static final String MDMS_SCHEMA_PROPERTIES = "Properties";
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT = "isRuleConfigureInputs";
