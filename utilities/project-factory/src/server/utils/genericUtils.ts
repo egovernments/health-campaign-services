@@ -11,6 +11,7 @@ import { Pool } from 'pg';
 import { logger } from "./logger";
 import dataManageController from "../controllers/dataManage/dataManage.controller";
 import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getLocalizedName } from "./campaignUtils";
+import localisationController from "../controllers/localisationController/localisation.controller";
 const NodeCache = require("node-cache");
 const _ = require('lodash');
 
@@ -903,6 +904,18 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
   return newData;
 }
 
+async function getLocalizedMessagesHandler(request: any, tenantId: any) {
+  const localisationcontroller = new localisationController();
+  const response = {};
+  const modifiedRequestForLocalization = modifyRequestForLocalisation(request, tenantId);
+  const localizationResponse = await localisationcontroller.getLocalizedMessages(modifiedRequestForLocalization, response);
+  const localizationMap: { [key: string]: string } = {};
+  localizationResponse.messages.forEach((message: any) => {
+    localizationMap[message.code] = message.message;
+  });
+  return localizationMap;
+}
+
 
 
 async function translateSchema(schema: any, localizationMap?: { [key: string]: string }) {
@@ -960,7 +973,8 @@ export {
   calculateKeyIndex,
   modifyDataBasedOnDifferentTab,
   modifyRequestForLocalisation,
-  translateSchema
+  translateSchema,
+  getLocalizedMessagesHandler
 };
 
 
