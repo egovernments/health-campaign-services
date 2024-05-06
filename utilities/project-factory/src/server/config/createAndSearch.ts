@@ -50,7 +50,7 @@ const createAndSearch: any = {
         uniqueIdentifierColumnName: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
         matchEachKey: true,
         parseArrayConfig: {
-            sheetName: "HCM_ADMIN_CONSOLE_AVAILABLE_FACILITIES",
+            sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
             parseLogic: [
                 {
                     sheetColumn: "A",
