@@ -11,17 +11,17 @@ if (!HOST) {
 }
 // Configuration object containing various environment variables
 const config = {
-  facilityTab: "HCM_ADMIN_CONSOLE_AVAILABLE_FACILITIES",
-  boundaryTab: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-  userTab: "HCM_ADMIN_CONSOLE_USER_LIST",
-  locale: "hin_MZ",
-  localizationModule: "rainmaker-hcm-admin-schemas",
+  facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
+  boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+  userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
+  locale: process.env.LOCALE || "en_MZ",
+  localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
   //module name
-  moduleName: "HCM-ADMIN-CONSOLE",
+  moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
   // facility master
-  facilitySchemaMasterName: "facilitySchema",
+  facilitySchemaMasterName: process.env.FACILITY_SCHEMA_MASTER || "facilitySchema",
   // user master
-  userSchemaMasterName: "userSchema",
+  userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
   // Default sheet name for boundary data
   sheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
   // Default criteria for generating different tabs
@@ -118,8 +118,6 @@ const config = {
 // Exporting getErrorCodes function and config object
 export { getErrorCodes };
 export default config;
-
-
 
 
 
