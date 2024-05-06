@@ -22,6 +22,7 @@ import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.Target;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.util.BoundaryUtil;
+import org.egov.project.util.BoundaryV2Util;
 import org.egov.project.util.MDMSUtils;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +47,7 @@ public class ProjectValidator {
     MDMSUtils mdmsUtils;
 
     @Autowired
-    BoundaryUtil boundaryUtil;
+    BoundaryV2Util boundaryUtil;
 
     @Autowired
     ProjectConfiguration config;
