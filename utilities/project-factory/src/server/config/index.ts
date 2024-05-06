@@ -15,7 +15,7 @@ if (!HOST) {
 
 // Configuration object containing various environment variables
 const config = {
-  facilityTab : "HCM_ADMIN_LIST_OF_FACILITIES_TAB",
+  facilityTab: "HCM_ADMIN_LIST_OF_FACILITIES_TAB",
   locale: "en_MZ",
   localizationModule: "rainmaker-hcm-admin-schemas",
   //module name 

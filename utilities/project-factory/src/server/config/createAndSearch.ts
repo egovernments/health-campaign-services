@@ -205,10 +205,6 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "E",
-                    sheetColumnName: "User Uuids(Let It Empty)"
-                },
-                {
-                    sheetColumn: "F",
                     sheetColumnName: "Boundary Code",
                     resultantPath: "jurisdictions",
                     type: "string"
@@ -220,8 +216,8 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "uuid",
-        uniqueIdentifierColumn: "E",
-        uniqueIdentifierColumnName: "User Uuids(Let It Empty)",
+        uniqueIdentifierColumn: "F",
+        uniqueIdentifierColumnName: "User Uuids",
         createBulkDetails: {
             limit: 50,
             createPath: "Employees",

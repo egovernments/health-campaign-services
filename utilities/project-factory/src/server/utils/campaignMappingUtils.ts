@@ -29,16 +29,7 @@ function getPvarIds(messageObject: any) {
     return pvarIds;
 }
 
-
-async function fetchAndMap(resources: any[], messageObject: any) {
-    const sheetName: any = {
-        "user": createAndSearch?.user?.parseArrayConfig?.sheetName,
-        "facility": createAndSearch?.facility?.parseArrayConfig?.sheetName,
-    }
-
-    // Object to store boundary codes
-    const boundaryCodes: any = {};
-
+async function enrichBoundaryCodes(resources: any[], messageObject: any, boundaryCodes: any, sheetName: any) {
     for (const resource of resources) {
         const processedFilestoreId = resource?.processedFilestoreId;
         if (processedFilestoreId) {
@@ -67,7 +58,10 @@ async function fetchAndMap(resources: any[], messageObject: any) {
             }
         }
     }
+}
 
+
+async function enrichBoundaryWithProject(messageObject: any, boundaryWithProject: any, boundaryCodes: any) {
     const projectSearchBody = {
         RequestInfo: messageObject?.RequestInfo,
         Projects: [{
@@ -86,10 +80,12 @@ async function fetchAndMap(resources: any[], messageObject: any) {
     logger.info("params : " + JSON.stringify(params));
     logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
     const response = await httpRequest(config.host.projectHost + "health-project/v1/_search", projectSearchBody, params);
-    var boundaryWithProject: any = {};
     await createBoundaryWithProjectMapping(response?.Project, boundaryWithProject);
     logger.info("boundaryWithProject mapping : " + JSON.stringify(boundaryWithProject));
     logger.info("boundaryCodes mapping : " + JSON.stringify(boundaryCodes));
+}
+
+async function getProjectMappingBody(messageObject: any, boundaryWithProject: any, boundaryCodes: any) {
     const Campaign: any = {
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
@@ -118,10 +114,24 @@ async function fetchAndMap(resources: any[], messageObject: any) {
             })
         }
     }
-    const projectMappingBody = {
+    return {
         RequestInfo: messageObject?.RequestInfo,
         Campaign: Campaign
     }
+}
+
+async function fetchAndMap(resources: any[], messageObject: any) {
+    const sheetName: any = {
+        "user": createAndSearch?.user?.parseArrayConfig?.sheetName,
+        "facility": createAndSearch?.facility?.parseArrayConfig?.sheetName,
+    }
+    // Object to store boundary codes
+    const boundaryCodes: any = {};
+
+    await enrichBoundaryCodes(resources, messageObject, boundaryCodes, sheetName);
+    var boundaryWithProject: any = {};
+    await enrichBoundaryWithProject(messageObject, boundaryWithProject, boundaryCodes);
+    const projectMappingBody = await getProjectMappingBody(messageObject, boundaryWithProject, boundaryCodes);
     logger.info("projectMappingBody : " + JSON.stringify(projectMappingBody));
     const projectMappingResponse = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/createCampaign", projectMappingBody);
     logger.info("Project Mapping Response : " + JSON.stringify(projectMappingResponse));

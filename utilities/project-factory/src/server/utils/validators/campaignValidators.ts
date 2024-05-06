@@ -433,10 +433,11 @@ async function validateResources(resources: any, request: any) {
 }
 
 async function validateProjectCampaignResources(resources: any, request: any) {
-    const requiredTypes = ["user", "facility"];
+    const requiredTypes = ["user", "facility", "boundaryWithTarget"];
     const typeCounts: any = {
         "user": 0,
-        "facility": 0
+        "facility": 0,
+        "boundaryWithTarget": 0
     };
 
     if (resources) {

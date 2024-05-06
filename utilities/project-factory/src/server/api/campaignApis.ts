@@ -606,21 +606,23 @@ async function createProjectCampaignResourcData(request: any) {
   var resourceDetailsIds: any[] = []
   if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
     for (const resource of request?.body?.CampaignDetails?.resources) {
-      const resourceDetails = {
-        type: resource.type,
-        fileStoreId: resource.filestoreId,
-        tenantId: request?.body?.CampaignDetails?.tenantId,
-        action: "create",
-        hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-        additionalDetails: {}
-      };
-      logger.info("resourceDetails " + JSON.stringify(resourceDetails))
-      const response = await httpRequest(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
-        RequestInfo: request.body.RequestInfo,
-        ResourceDetails: resourceDetails
-      });
-      if (response?.ResourceDetails?.id) {
-        resourceDetailsIds.push(response?.ResourceDetails?.id)
+      if (resource.type != "boundaryWithTarget") {
+        const resourceDetails = {
+          type: resource.type,
+          fileStoreId: resource.filestoreId,
+          tenantId: request?.body?.CampaignDetails?.tenantId,
+          action: "create",
+          hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+          additionalDetails: {}
+        };
+        logger.info("resourceDetails " + JSON.stringify(resourceDetails))
+        const response = await httpRequest(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+          RequestInfo: request.body.RequestInfo,
+          ResourceDetails: resourceDetails
+        });
+        if (response?.ResourceDetails?.id) {
+          resourceDetailsIds.push(response?.ResourceDetails?.id)
+        }
       }
     }
   }

@@ -635,7 +635,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any) {
   const workbook = XLSX.utils.book_new();
   // Add facility sheet to the workbook
-  XLSX.utils.book_append_sheet(workbook, userSheetData.ws, 'List of Users');
+  XLSX.utils.book_append_sheet(workbook, userSheetData.ws, 'Create List of Users');
   // Add boundary sheet to the workbook
   XLSX.utils.book_append_sheet(workbook, boundarySheetData.ws, 'List of Campaign Boundaries');
   const fileDetails = await createAndUploadFile(workbook, request)
