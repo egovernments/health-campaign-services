@@ -1032,7 +1032,7 @@ const SetupCampaign = () => {
         onSecondayActionClick={onSecondayActionClick}
         label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
-      {showToast && <Toast error={showToast.key === "error" ? true : false} label={t(showToast.label)} onClose={closeToast} />}
+      {showToast && <Toast error={showToast?.key === "error" ? true : false} label={t(showToast?.label)} onClose={closeToast} />}
     </React.Fragment>
   );
 };
