@@ -1,5 +1,6 @@
 @import "./campaignCycle.scss";
 @import "./coreOverride.scss";
+@import "../../typography.scss";
 
 .campaign-cycle-container {
   .popup-header-fix {
@@ -69,6 +70,7 @@
 }
 .search-tabs-container {
   border-bottom: none;
+  margin-bottom: 0;
 }
 .delivery-preview-card {
   margin-bottom: 1.5rem !important;
@@ -131,7 +133,7 @@
   margin-bottom: 1.5rem;
 }
 .employee-app-wrapper {
-  margin: 0rem 2rem;
+  margin: 0rem 1rem;
 }
 input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;
@@ -208,16 +210,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border: 1px solid #d6d5d4;
   background-color: #fafafa;
   width: 70%;
+  padding-top: 0;
   .heading-bar {
+    font-weight: 700;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
+    .card-text {
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+    }
   }
   .label-field-pair {
     gap: 10rem;
     align-items: baseline;
     .product-label-field {
-      width: 10rem;
+      width: 12rem;
+      text-wrap: nowrap;
     }
   }
+}
+.page-padding-fix {
+  margin-top: 1.5rem;
 }
