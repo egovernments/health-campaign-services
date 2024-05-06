@@ -31,7 +31,7 @@ import { ErrorBoundary } from "@egovernments/digit-ui-components";
  * a TourProvider component wrapping an EmployeeApp component with specific props passed to it.
  */
 const CampaignModule = ({ stateCode, userType, tenants }) => {
-  const moduleCode = ["campaignmanager", "workbench", "mdms", "schema"];
+  const moduleCode = ["campaignmanager", "workbench", "mdms", "schema","hcm-admin-schemas"];
   const { path, url } = useRouteMatch();
   const language = Digit.StoreData.getCurrentLanguage();
   const { isLoading, data: store } = Digit.Services.useStore({
