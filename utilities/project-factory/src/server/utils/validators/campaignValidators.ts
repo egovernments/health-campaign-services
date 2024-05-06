@@ -6,8 +6,8 @@ import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } fr
 import { campaignDetailsSchema } from "../../config/models/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
-import { createBoundaryMap, generateProcessedFileAndPersist } from "../campaignUtils";
-import { calculateKeyIndex, modifyTargetData, throwError } from "../genericUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName } from "../campaignUtils";
+import { calculateKeyIndex, getLocalizedMessagesHandler, modifyTargetData, throwError } from "../genericUtils";
 import { validateBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignDetails";
@@ -171,6 +171,7 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[]) 
 }
 
 async function validateUnique(schema: any, data: any[], request: any) {
+    const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
     if (schema?.unique) {
         const uniqueElements = schema.unique;
         const errors = [];
@@ -181,9 +182,10 @@ async function validateUnique(schema: any, data: any[], request: any) {
             // Iterate over each data object and check uniqueness
             for (const item of data) {
                 const uniqueIdentifierColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName;
+                const localizedUniqueIdentifierColumnName = await getLocalizedName(uniqueIdentifierColumnName, localizationMap);
                 const value = item[element];
                 const rowNum = item['!row#number!'] + 1;
-                if (!uniqueIdentifierColumnName || !item[uniqueIdentifierColumnName]) {
+                if (!localizedUniqueIdentifierColumnName || !item[localizedUniqueIdentifierColumnName]) {
                     // Check if the value is already in the map
                     if (uniqueMap.has(value)) {
                         errors.push(`Duplicate value '${value}' found for '${element}' at row number ${rowNum}.`);
@@ -246,10 +248,11 @@ async function validateViaSchema(data: any, schema: any, request: any) {
 
 
 
-async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any) {
+async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any,localizationMap?:{ [key: string]: string }) {
     await validateViaSchema(data, schema, request);
     if (boundaryValidation) {
-        await validateBoundaryData(data, request, boundaryValidation?.column);
+        const localisedBoundaryCode =  getLocalizedName(boundaryValidation?.column,localizationMap)
+        await validateBoundaryData(data, request, localisedBoundaryCode);
     }
 }
 

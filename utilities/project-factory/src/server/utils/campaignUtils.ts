@@ -74,7 +74,7 @@ function findColumns(desiredSheet: any): { statusColumn: string, errorDetailsCol
     return { statusColumn, errorDetailsColumn };
 }
 
-function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any) {
+function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any,localizationMap?:{ [key: string]: string }) {
     const desiredSheet: any = workbook.Sheets[sheetName];
     const errorData = request.body.sheetErrorDetails;
     if (errorData) {
@@ -83,7 +83,8 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
         errorData.forEach((error: any) => {
             const rowIndex = error.rowNumber;
             if (error.isUniqueIdentifier) {
-                const uniqueIdentifierCell = createAndSearchConfig.uniqueIdentifierColumn + (rowIndex + 1);
+                const localizedUniqueIdentifierColumnName = getLocalizedName(createAndSearchConfig.uniqueIdentifierColumn,localizationMap)
+                const uniqueIdentifierCell = localizedUniqueIdentifierColumnName + (rowIndex + 1);
                 desiredSheet[uniqueIdentifierCell] = { v: error.uniqueIdentifier, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: error.uniqueIdentifier, w: error.uniqueIdentifier };
             }
         });
@@ -140,7 +141,7 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
     workbook.Sheets[sheetName] = desiredSheet;
 }
 
-async function updateStatusFile(request: any) {
+async function updateStatusFile(request: any,localizationMap?:{ [key: string]: string }) {
     const fileStoreId = request?.body?.ResourceDetails?.fileStoreId;
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
@@ -157,13 +158,14 @@ async function updateStatusFile(request: any) {
 
     const fileUrl = fileResponse?.fileStoreIds?.[0]?.url;
     const sheetName = createAndSearchConfig?.parseArrayConfig?.sheetName;
+    const localizedSheetName = getLocalizedName(sheetName,localizationMap)
     const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
     // Check if the specified sheet exists in the workbook
-    if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+    if (!workbook.Sheets.hasOwnProperty(localizedSheetName)) {
+        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedSheetName}" is not present in the file.`);
     }
-    processErrorData(request, createAndSearchConfig, workbook, sheetName);
+    processErrorData(request, createAndSearchConfig, workbook, localizedSheetName,localizationMap);
     const responseData = await createAndUploadFile(workbook, request);
     logger.info('File updated successfully:' + JSON.stringify(responseData));
     if (responseData?.[0]?.fileStoreId) {
@@ -244,7 +246,7 @@ function setTenantId(
 }
 
 
-function processData(dataFromSheet: any[], createAndSearchConfig: any) {
+async function processData(request: any, dataFromSheet: any[], createAndSearchConfig: any,localizationMap?:{ [key: string]: string }) {
     const parseLogic = createAndSearchConfig?.parseArrayConfig?.parseLogic;
     const requiresToSearchFromSheet = createAndSearchConfig?.requiresToSearchFromSheet;
     var createData = [], searchData = [];
@@ -252,7 +254,8 @@ function processData(dataFromSheet: any[], createAndSearchConfig: any) {
         const resultantElement: any = {};
         for (const element of parseLogic) {
             if (element?.resultantPath) {
-                let dataToSet = _.get(data, element.sheetColumnName);
+                const localizedSheetColumnName = getLocalizedName(element.sheetColumnName,localizationMap);
+                let dataToSet = _.get(data, localizedSheetColumnName);
                 if (element.conversionCondition) {
                     dataToSet = element.conversionCondition[dataToSet];
                 }
@@ -266,7 +269,8 @@ function processData(dataFromSheet: any[], createAndSearchConfig: any) {
         var addToCreate = true;
         if (requiresToSearchFromSheet) {
             for (const key of requiresToSearchFromSheet) {
-                if (data[key.sheetColumnName]) {
+                const localizedSheetColumnName = getLocalizedName(key.sheetColumnName,localizationMap);
+                if (data[localizedSheetColumnName]) {
                     searchData.push(resultantElement)
                     addToCreate = false;
                     break;
@@ -291,8 +295,8 @@ function setTenantIdAndSegregate(processedData: any, createAndSearchConfig: any,
 }
 
 // Original function divided into two parts
-function convertToTypeData(dataFromSheet: any[], createAndSearchConfig: any, requestBody: any) {
-    const processedData = processData(dataFromSheet, createAndSearchConfig);
+async function convertToTypeData(request: any, dataFromSheet: any[], createAndSearchConfig: any, requestBody: any,localizationMap?:{ [key: string]: string }) {
+    const processedData = await  processData(request,dataFromSheet, createAndSearchConfig,localizationMap);
     return setTenantIdAndSegregate(processedData, createAndSearchConfig, requestBody);
 }
 
@@ -304,12 +308,12 @@ function updateActivityResourceId(request: any) {
     }
 }
 
-async function generateProcessedFileAndPersist(request: any) {
+async function generateProcessedFileAndPersist(request: any,localizationMap?:{ [key: string]: string }) {
     if (request.body.ResourceDetails.type == 'boundaryWithTarget') {
         await updateStatusFileForTargets(request);
     } else {
         if (request.body.ResourceDetails.type !== "boundary") {
-            await updateStatusFile(request);
+            await updateStatusFile(request,localizationMap);
         }
     }
 
@@ -1273,7 +1277,7 @@ async function boundaryBulkUpload(request: any) {
 
 const autoGenerateBoundaryCodes = async (request: any) => {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
-    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
+    const boundaryData = await getSheetData( fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
     const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
     const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
     const childParentMap = getChildParentMap(withoutBoundaryCode);
@@ -1318,9 +1322,18 @@ async function getBoundaryDataAfterGeneration(result: any, request: any) {
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 400, "INVALID_FILE");
     }
-    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName);
+    const boundaryData = await getSheetData( fileResponse?.fileStoreIds?.[0]?.url, config.sheetName);
     return boundaryData;
 }
+
+ function getLocalizedName(expectedName: string, localizationMap?: { [key: string]: string } ) {
+    if (!localizationMap || !(expectedName in localizationMap)) {
+        return expectedName;
+    }
+    const localizedName = localizationMap[expectedName];
+    return localizedName;
+}
+
 
 export {
     generateProcessedFileAndPersist,
@@ -1342,5 +1355,6 @@ export {
     convertSheetToDifferentTabs,
     getBoundaryDataAfterGeneration,
     boundaryBulkUpload,
-    enrichAndPersistCampaignWithError
+    enrichAndPersistCampaignWithError,
+    getLocalizedName
 }

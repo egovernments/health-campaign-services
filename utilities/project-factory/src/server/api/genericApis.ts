@@ -6,7 +6,7 @@ import { httpRequest } from "../utils/request"; // Import httpRequest function f
 import { logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { validateProjectFacilityResponse, validateProjectResourceResponse } from "../utils/validators/genericValidator"; // Import validation functions
-import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData } from '../utils/campaignUtils'; // Import utility functions
+import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 
@@ -53,33 +53,34 @@ const getTargetWorkbook = async (fileUrl: string) => {
 
 
 // Function to retrieve data from a specific sheet in an Excel file
-const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any) => {
+const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any, localizationMap?: { [key: string]: string }) => {
     // Retrieve workbook using the getWorkbook function
-    const workbook: any = await getWorkbook(fileUrl, sheetName)
+    const localizedSheetName = getLocalizedName(sheetName,localizationMap);
+    const workbook: any = await getWorkbook(fileUrl, localizedSheetName)
 
     // If parsing array configuration is provided, validate first row of each column
     if (createAndSearchConfig && createAndSearchConfig.parseArrayConfig && createAndSearchConfig.parseArrayConfig.parseLogic) {
         const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
-
         // Iterate over each column configuration
         for (const columnConfig of parseLogic) {
             const { sheetColumn } = columnConfig;
             const expectedColumnName = columnConfig.sheetColumnName;
-
+            var localizedColumnName;
+            localizedColumnName = getLocalizedName(expectedColumnName, localizationMap);
             // Get the value of the first row in the current column
-            if (sheetColumn && expectedColumnName) {
-                const firstRowValue = workbook.Sheets[sheetName][`${sheetColumn}1`]?.v;
+            if (sheetColumn && localizedColumnName) {
+                const firstRowValue = workbook.Sheets[localizedSheetName][`${sheetColumn}1`]?.v;
 
                 // Validate the first row of the current column
-                if (firstRowValue !== expectedColumnName) {
-                    throwError("FILE", 400, "INVALID_COLUMNS", `Invalid format: Expected '${expectedColumnName}' in the first row of column ${sheetColumn}.`);
+                if (firstRowValue !== localizedColumnName) {
+                    throwError("FILE", 400, "INVALID_COLUMNS", `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`);
                 }
             }
         }
     }
 
     // Convert sheet data to JSON format
-    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { blankrows: true });
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[localizedSheetName], { blankrows: true });
     var jsonData = sheetData.map((row: any, index: number) => {
         const rowData: any = {};
         if (Object.keys(row).length > 0) {
@@ -739,7 +740,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
     }
 }
 
-async function callMdmsData(request: any, moduleName: string, masterName: string,tenantId:string) {
+async function callMdmsData(request: any, moduleName: string, masterName: string, tenantId: string) {
     const { RequestInfo } = request?.body;
     const requestBody = {
         RequestInfo, MdmsCriteria: {
@@ -757,7 +758,7 @@ async function callMdmsData(request: any, moduleName: string, masterName: string
         }
     }
     const url = config.host.mdms + config.paths.mdms_v1_search;
-    const response = await httpRequest(url, requestBody, {tenantId:tenantId});
+    const response = await httpRequest(url, requestBody, { tenantId: tenantId });
     return response;
 }
 

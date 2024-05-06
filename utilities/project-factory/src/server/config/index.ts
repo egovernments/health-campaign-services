@@ -1,24 +1,22 @@
 // config.js
-
 // Importing necessary module
 import { getErrorCodes } from "./constants";
-
 // Defining the HOST variable
 const HOST = process.env.EGOV_HOST ||
   "https://unified-dev.digit.org/";
-
 // Checking if HOST is set, if not, exiting the process
 if (!HOST) {
   console.log("You need to set the HOST variable");
   process.exit(1);
 }
-
 // Configuration object containing various environment variables
 const config = {
-  facilityTab: "HCM_ADMIN_LIST_OF_FACILITIES_TAB",
-  locale: "en_MZ",
+  facilityTab: "HCM_ADMIN_CONSOLE_AVAILABLE_FACILITIES",
+  boundaryTab: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+  userTab: "HCM_ADMIN_CONSOLE_USER_LIST",
+  locale: "hin_MZ",
   localizationModule: "rainmaker-hcm-admin-schemas",
-  //module name 
+  //module name
   moduleName: "HCM-ADMIN-CONSOLE",
   // facility master
   facilitySchemaMasterName: "facilitySchema",
@@ -117,7 +115,13 @@ const config = {
   // Default search template
   SEARCH_TEMPLATE: "HCM.APIResourceTemplate3"
 };
-
 // Exporting getErrorCodes function and config object
 export { getErrorCodes };
 export default config;
+
+
+
+
+
+
+
