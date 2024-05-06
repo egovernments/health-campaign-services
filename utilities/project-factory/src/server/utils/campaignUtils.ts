@@ -358,6 +358,7 @@ function enrichRootProjectId(requestBody: any) {
 }
 
 async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
+    requestBody.CampaignDetails = requestBody?.CampaignDetails || {}
     const action = requestBody?.CampaignDetails?.action;
     requestBody.CampaignDetails.campaignNumber = requestBody?.CampaignDetails?.campaignNumber || null
     requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails?.campaignDetails || { deliveryRules: requestBody?.CampaignDetails?.deliveryRules, resources: requestBody?.CampaignDetails?.resources || [], boundaries: requestBody?.CampaignDetails?.boundaries || [] };
