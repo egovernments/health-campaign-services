@@ -80,4 +80,10 @@ public class IndividualProperties {
 
     @Value("${egov.localization.statelevel}")
     private Boolean isLocalizationStateLevel;
+
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
 }

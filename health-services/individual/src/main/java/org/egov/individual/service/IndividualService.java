@@ -20,6 +20,7 @@ import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
+import org.egov.individual.validators.IBoundaryValidator;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
 import org.egov.individual.validators.IsDeletedValidator;
 import org.egov.individual.validators.MobileNumberValidator;
@@ -72,6 +73,7 @@ public class IndividualService {
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
+                    || validator.getClass().equals(IBoundaryValidator.class)
                     || validator.getClass().equals(IsDeletedValidator.class)
                     || validator.getClass().equals(IsDeletedSubEntityValidator.class)
                     || validator.getClass().equals(NonExistentEntityValidator.class)
@@ -84,6 +86,7 @@ public class IndividualService {
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
             validator.getClass().equals(AddressTypeValidator.class)
+                    || validator.getClass().equals(IBoundaryValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
                     || validator.getClass().equals(AadharNumberValidatorForCreate.class);
