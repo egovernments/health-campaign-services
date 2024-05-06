@@ -447,6 +447,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       },
       {
         onSuccess: async (result) => {
+          if(result.GeneratedResource.length == 0){
+            setShowToast({ key: "info", label: t("HCM_TRY_AGAIN") });
+            return ;
+          }
           const filesArray = [result?.GeneratedResource?.[0]?.fileStoreid];
           const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch(filesArray, tenantId);
           const fileData = fileUrl?.map((i) => {
