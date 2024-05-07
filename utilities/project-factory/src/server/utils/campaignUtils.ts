@@ -683,6 +683,16 @@ async function searchProjectCampaignResourcData(request: any) {
         data.boundaries = data?.campaignDetails?.boundaries
         data.deliveryRules = data?.campaignDetails?.deliveryRules;
         delete data.campaignDetails;
+        data.auditDetails = {
+            createdBy: data?.createdBy,
+            lastModifiedBy: data?.lastModifiedBy,
+            createdTime: data?.createdTime,
+            lastModifiedTime: data?.lastModifiedTime
+        }
+        delete data.createdBy;
+        delete data.lastModifiedBy;
+        delete data.createdTime;
+        delete data.lastModifiedTime;
     }
     request.body.CampaignDetails = responseData;
 }
@@ -788,10 +798,12 @@ async function processDataSearchRequest(request: any) {
         fileStoreId: row.filestoreid,
         processedFilestoreId: row.processedfilestoreid,
         type: row.type,
-        createdBy: row.createdby,
-        lastModifiedBy: row.lastmodifiedby,
-        createdTime: Number(row?.createdtime),
-        lastModifiedTime: row.lastmodifiedtime ? Number(row.lastmodifiedtime) : null,
+        auditDetails: {
+            createdBy: row.createdby,
+            lastModifiedBy: row.lastmodifiedby,
+            createdTime: Number(row?.createdtime),
+            lastModifiedTime: row.lastmodifiedtime ? Number(row.lastmodifiedtime) : null,
+        },
         additionalDetails: row.additionaldetails
     }));
     request.body.ResourceDetails = results;
