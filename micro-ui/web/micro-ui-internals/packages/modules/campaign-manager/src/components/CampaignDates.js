@@ -56,14 +56,14 @@ const CampaignDates = ({ onSelect, formData, ...props }) => {
           <TextInput
             type="date"
             value={startDate}
-            placeholder={t("START_DATE")}
+            placeholder={t("HCM_START_DATE")}
             min={Digit.Utils.date.getDate(Date.now() + ONE_DAY_IN_MS)}
             onChange={(d) => setStart(d)}
           />
           <TextInput
             type="date"
             value={endDate}
-            placeholder={t("END_DATE")}
+            placeholder={t("HCM_END_DATE")}
             min={Digit.Utils.date.getDate(Date.now() + 2 * ONE_DAY_IN_MS)}
             onChange={(d) => setEnd(d)}
           />
