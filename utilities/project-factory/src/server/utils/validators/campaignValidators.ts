@@ -427,12 +427,12 @@ async function validateResources(resources: any, request: any) {
             if (response?.ResourceDetails?.[0]) {
                 if (!(response?.ResourceDetails?.[0]?.status == "completed")) {
                     logger.error(`Error during validation of resource with Id ${resource?.resourceId} :`);
-                    throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of resource with Id ${resource?.resourceId}.  If resourceId data is invalid, don't send in resources`);
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of resource with Id ${resource?.resourceId}.  If resourceId data is invalid, don't send resourceId in resources`);
                 }
             }
             else {
                 logger.error(`No resource data found for resource with Id ${resource?.resourceId} :`);
-                throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for resource with Id ${resource?.resourceId} . If resourceId is invalid, don't send in resources`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for resource with Id ${resource?.resourceId} . If resourceId is invalid, don't send resourceId in resources`);
             }
         }
         else {
