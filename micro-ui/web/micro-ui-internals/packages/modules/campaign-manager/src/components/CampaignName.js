@@ -19,7 +19,7 @@ const CampaignName = ({ onSelect, formData, control, ...props }) => {
   useEffect(() => {
     if (executionCount < 5) {
       onSelect("campaignName", name);
-      setExecutionCount(prevCount => prevCount + 1);
+      setExecutionCount((prevCount) => prevCount + 1);
     }
   });
 
@@ -27,12 +27,12 @@ const CampaignName = ({ onSelect, formData, control, ...props }) => {
     <React.Fragment>
       <Header>{t(`HCM_CAMPAIGN_NAME_HEADER`)}</Header>
       <p className="name-description">{t(`HCM_CAMPAIGN_NAME_DESCRIPTION`)}</p>
-      <LabelFieldPair>
+      <LabelFieldPair style={{ alignItems: "baseline" }}>
         <div className="name-container">
           <span>{`${t("HCM_CAMPAIGN_NAME")}`}</span>
           <span className="mandatory-span">*</span>
         </div>
-        <TextInput style={{ width: "40rem" }} name="campaignName" value={name} onChange={(event) => setName(event.target.value)} />
+        <TextInput style={{ width: "40rem", marginBottom: "0" }} name="campaignName" value={name} onChange={(event) => setName(event.target.value)} />
       </LabelFieldPair>
     </React.Fragment>
   );

@@ -6,6 +6,9 @@
   .sub-tab-container {
     margin-top: 5px;
     padding: 1.5rem;
+    .card-text{
+      margin-bottom: 0;
+    }
   }
   .add-resource-container {
     background-color: #fafafa;
@@ -83,7 +86,6 @@
   justify-content: space-between;
   margin-bottom: 1.5rem;
   .campaign-download-template-btn {
-    margin-right: 1rem;
     font-weight: 700;
   }
 }
@@ -143,6 +145,7 @@
 
 .campaign-counter-container {
   padding: 1.5rem;
+  padding-bottom: 0.5rem;
   .card-text {
     margin-top: 0;
   }
@@ -268,6 +271,9 @@
   }
   .options-card {
     max-height: 10rem !important;
+  }
+  .card-label{
+    margin-bottom: 0.5rem;
   }
 }
 .add-rule-btn {

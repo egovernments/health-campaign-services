@@ -136,7 +136,9 @@ const Tabs = ({ onTabChange }) => {
           className={`campaign-tab-head ${_.active === true ? "active" : ""}`}
           onClick={() => onTabChange(_.cycleIndex, index)}
         >
-          {t(`CAMPAIGN_CYCLE`)} {index + 1}
+          <p style={{ margin: 0, position: "relative", top: "-0.1rem" }}>
+            {t(`CAMPAIGN_CYCLE`)} {index + 1}
+          </p>
         </button>
       ))}
     </div>

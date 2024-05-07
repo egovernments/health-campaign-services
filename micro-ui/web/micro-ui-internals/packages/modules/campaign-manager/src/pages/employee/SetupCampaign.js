@@ -1065,6 +1065,7 @@ const SetupCampaign = () => {
         secondaryLabel={noAction === "false" ? null : t("HCM_BACK")}
         actionClassName={"actionBarClass"}
         className="setup-campaign"
+        cardClassName="setup-campaign-card"
         noCardStyle={currentStep === 1 || currentStep === 6 || currentStep === 2 ? true : false}
         onSecondayActionClick={onSecondayActionClick}
         label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}

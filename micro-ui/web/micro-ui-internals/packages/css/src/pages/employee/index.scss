@@ -42,7 +42,7 @@
   min-width: 12.5rem;
 }
 .info-text {
-  padding-bottom: 2rem;
+  padding-bottom: 1.5rem;
 }
 
 .view-composer-header-section {
@@ -185,6 +185,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 .setup-campaign {
+  .setup-campaign-card {
+    padding-bottom: 1.5rem;
+  }
   .digit-dropdown-options-card {
     max-height: 10rem !important;
   }

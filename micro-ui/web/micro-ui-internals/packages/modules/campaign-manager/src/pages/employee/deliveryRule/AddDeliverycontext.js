@@ -468,7 +468,7 @@ const AddAttributeWrapper = ({ deliveryRuleIndex, delivery, deliveryRules, setDe
   );
   const { isLoading: genderConfigLoading, data: genderConfig } = Digit.Hooks.useCustomMDMS(tenantId, "common-masters", [{ name: "GenderType" }], {
     select: (data) => {
-      return data?.["common-masters"]?.GenderType;
+      return data?.["common-masters"]?.GenderType?.filter((i) => i.active !== false);
     },
   });
   const [attributes, setAttributes] = useState([{ key: 1, deliveryRuleIndex, attribute: "", operator: "", value: "" }]);
@@ -738,7 +738,7 @@ const AddDeliveryRuleWrapper = ({}) => {
           onDelete={() => deleteDeliveryRule(item)}
         />
       ))}
-      {!filteredDeliveryConfig?.deliveryAddDisable && (
+      {!filteredDeliveryConfig?.deliveryAddDisable && deliveryRules?.length < 5 && (
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_ADD_MORE_DELIVERY_BUTTON`)}

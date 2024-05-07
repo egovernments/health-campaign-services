@@ -167,7 +167,7 @@ export const CampaignConfig = (totalFormData) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
-                type: "boundary"
+                type: "boundary",
               },
               populators: {
                 name: "uploadBoundary",
@@ -193,7 +193,7 @@ export const CampaignConfig = (totalFormData) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
-                type: "facilityWithBoundary"
+                type: "facilityWithBoundary",
               },
               populators: {
                 name: "uploadFacility",
@@ -217,7 +217,7 @@ export const CampaignConfig = (totalFormData) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
-                type: "userWithBoundary"
+                type: "userWithBoundary",
               },
               populators: {
                 name: "uploadUser",

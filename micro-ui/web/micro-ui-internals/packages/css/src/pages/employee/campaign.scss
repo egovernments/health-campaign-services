@@ -2,58 +2,66 @@
 @import "../../typography.scss";
 
 .date-field-container {
-    display: grid;
-    grid-template-columns: 20rem 20rem;
-    grid-gap: 2rem;
-    width: 70%;
-    padding-top: 0.3rem;
-    margin-top: 0rem;
+  display: grid;
+  grid-template-columns: 20rem 20rem;
+  grid-gap: 2rem;
+  width: 70%;
+  padding-top: 0.3rem;
+  margin-top: 0rem;
 }
-.date-field{
+.date-field {
   display: grid;
   grid-template-columns: 1fr 2fr;
   align-items: start;
 }
-.campaign-type{
+.campaign-type {
   margin-right: 5rem;
   padding-bottom: 1.2rem;
   font-weight: bold;
 }
-.name-container{
+.name-container {
   margin-right: 4rem;
-  padding-bottom: 1.2rem;
   font-weight: bold;
   text-wrap: nowrap;
 }
-.beneficiary-type{
+.beneficiary-type {
   margin-right: 5.4rem;
   font-weight: bold;
 }
-.campaign-dates{
+.campaign-dates {
   display: flex;
   font-weight: bold;
-  margin-bottom: 1rem;
 }
-.mandatory-date{
+.mandatory-date {
   margin-top: 0.8rem;
   margin-left: 0.5rem;
   color: red !important;
   font-size: 1rem;
   font-weight: 700;
 }
-.description-type{
+.description-type {
   margin-top: 2rem;
   margin-bottom: 2rem;
 }
-.name-description{
+.name-description {
   margin-top: 2rem;
   margin-bottom: 2rem;
 }
-.dates-description{
+.dates-description {
   margin-top: 1rem;
   margin-bottom: 1rem;
-  padding-bottom: 1.2rem
+  padding-bottom: 1.2rem;
 }
-.selecting-boundary-div{
+.selecting-boundary-div {
   padding-top: 0.5rem;
+}
+.campaign-table {
+  border-collapse: collapse;
+  border-color: transparent;
+  border-width: 0rem 1.5rem;
+  tbody {
+    tr:hover {
+      background: rgba(#f47738, 0.12);
+    }
+  }
 }
