@@ -52,12 +52,16 @@ public class ProjectTaskIndexV1 {
     private String tenantId;
     @JsonProperty("projectType")
     private String projectType;
+    @JsonProperty("projectTypeId")
+    private String projectTypeId;
     @JsonProperty("latitude")
     private Double latitude;
     @JsonProperty("longitude")
     private Double longitude;
     @JsonProperty("locationAccuracy")
     private Double locationAccuracy;
+    @JsonProperty("localityCode")
+    private String localityCode;
     @JsonProperty("createdBy")
     private String createdBy;
     @JsonProperty("lastModifiedBy")
@@ -74,6 +78,8 @@ public class ProjectTaskIndexV1 {
     private Integer memberCount;
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
+    @JsonProperty("taskClientReferenceId")
+    private String taskClientReferenceId;
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
     @JsonProperty("syncedDate")

@@ -81,7 +81,7 @@ public class ProjectTransformationService {
         }
         isValidTargetsAdditionalDetails(project, targets, FIELD_TARGET, fieldsToCheck, BENEFICIARY_TYPE);
 
-        JsonNode additionalDetails = projectService.fetchAdditionalDetails(tenantId, null, projectTypeId);
+        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
 
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(tenantId, projectTypeId);
 

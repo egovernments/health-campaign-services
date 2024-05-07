@@ -9,6 +9,7 @@ public interface Constants {
     String DELIVERY_STRATEGY = "deliveryStrategy";
 
     String NULL_STRING = "null";
+    String PREFIX_ZERO = "0";
 
     String QUANTITY_WASTED = "quantityWasted";
 
@@ -17,6 +18,8 @@ public interface Constants {
     String BENEFICIARY_REFERRED = "BENEFICIARY_REFERRED";
     String TASK_STATUS = "taskStatus";
     String PRODUCT_VARIANT_ID = "productVariantId";
+    String MEMBER_COUNT = "memberCount";
+    String HOUSEHOLD_ID = "householdId";
     String ADMINISTRATION_NOT_SUCCESSFUL = "ADMINISTRATION_NOT_SUCCESSFUL";
 
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
