@@ -492,7 +492,6 @@ function getCreateResourceIds(resources: any[]) {
         .filter((resource: any) => typeof resource.createResourceId === 'string' && resource.createResourceId.trim() !== '')
         .map((resource: any) => {
             const resourceId = resource.createResourceId;
-            delete resource.createResourceId;
             return resourceId;
         });
 }
