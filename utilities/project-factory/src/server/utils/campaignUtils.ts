@@ -522,7 +522,10 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
 
 
 async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl: any, firstPersist: boolean = false, localizationMap?: any) {
-    const createResourceDetailsIds = getCreateResourceIds(request?.body?.CampaignDetails?.resources);
+    var createResourceDetailsIds: any[] = []
+    if (request?.body?.CampaignDetails?.resources && Array.isArray(request?.body?.CampaignDetails?.resources) && request?.body?.CampaignDetails?.resources?.length > 0 && request?.body?.CampaignDetails?.action == "create") {
+        createResourceDetailsIds = getCreateResourceIds(request?.body?.CampaignDetails?.resources);
+    }
     if (actionInUrl == "create") {
         await enrichAndPersistCampaignForCreate(request, firstPersist)
     }
