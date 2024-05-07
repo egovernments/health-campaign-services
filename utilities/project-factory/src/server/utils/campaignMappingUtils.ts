@@ -167,10 +167,12 @@ async function processCampaignMapping(messageObject: any) {
             const response = await searchResourceDetailsById(resourceDetailId, messageObject);
             logger.info(`response for resourceDetailId ${resourceDetailId} : ` + JSON.stringify(response));
             if (response?.status == "invalid") {
+                logger.error(`resource with id ${resourceDetailId} is invalid`);
                 throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is invalid");
                 break;
             }
             else if (response?.status == "failed") {
+                logger.error(`resource with id ${resourceDetailId} is failed`);
                 throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is failed");
                 break;
             }

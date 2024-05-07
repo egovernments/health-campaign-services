@@ -648,7 +648,7 @@ async function createProjectCampaignResourcData(request: any) {
           ResourceDetails: resourceDetails
         });
         if (response?.ResourceDetails?.id) {
-          resource.resourceId = response?.ResourceDetails?.id
+          resource.createResourceId = response?.ResourceDetails?.id
         }
       }
     }

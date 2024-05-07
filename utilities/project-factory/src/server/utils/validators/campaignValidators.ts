@@ -414,22 +414,45 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
 
 async function validateResources(resources: any, request: any) {
     for (const resource of resources) {
-        const resourceDetails = {
-            type: resource.type,
-            fileStoreId: resource.filestoreId,
-            tenantId: request?.body?.CampaignDetails?.tenantId,
-            action: "validate",
-            hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-            additionalDetails: {}
-        };
-        try {
-            await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
-                RequestInfo: request.body.RequestInfo,
-                ResourceDetails: resourceDetails
-            });
-        } catch (error: any) {
-            logger.error(`Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
-            throwError("COMMON", error?.response?.status, error?.response?.data?.Errors?.[0]?.code, `Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
+        if (resource?.resourceId) {
+            var searchBody = {
+                RequestInfo: request?.body?.RequestInfo,
+                SearchCriteria: {
+                    id: [resource?.resourceId],
+                    tenantId: request?.body?.CampaignDetails?.tenantId
+                }
+            }
+            logger.info("searchBody : " + JSON.stringify(searchBody));
+            const response = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/data/_search", searchBody);
+            if (response?.ResourceDetails?.[0]) {
+                if (!(response?.ResourceDetails?.[0]?.status == "completed")) {
+                    logger.error(`Error during validation of resource with Id ${resource?.resourceId} :`);
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of resource with Id ${resource?.resourceId}.  If resourceId data is invalid, don't send in resources`);
+                }
+            }
+            else {
+                logger.error(`No resource data found for resource with Id ${resource?.resourceId} :`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for resource with Id ${resource?.resourceId} . If resourceId is invalid, don't send in resources`);
+            }
+        }
+        else {
+            const resourceDetails = {
+                type: resource.type,
+                fileStoreId: resource.filestoreId,
+                tenantId: request?.body?.CampaignDetails?.tenantId,
+                action: "validate",
+                hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+                additionalDetails: {}
+            };
+            try {
+                await axios.post(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+                    RequestInfo: request.body.RequestInfo,
+                    ResourceDetails: resourceDetails
+                });
+            } catch (error: any) {
+                logger.error(`Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
+                throwError("COMMON", error?.response?.status, error?.response?.data?.Errors?.[0]?.code, `Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
+            }
         }
     }
 }
@@ -460,7 +483,6 @@ async function validateProjectCampaignResources(resources: any, request: any) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `Missing resource of type ${type}`);
             }
         }
-
         if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
             await validateResources(request.body.CampaignDetails.resources, request);
         }
