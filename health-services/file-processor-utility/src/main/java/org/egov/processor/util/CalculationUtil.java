@@ -58,6 +58,7 @@ public class CalculationUtil {
                 resultMap.put(output, result);
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
+            //TODO: create corresponding microplan
             System.out.println("Feature ---- > " + feature.toPrettyString());
         }
     }
