@@ -92,8 +92,22 @@ public class FilestoreUtil {
     }
 
     private MultipartFile createMultipartFile(File file, byte[] fileContent) {
-        return new MockMultipartFile(file.getName(), file.getName(), "application/geo+json", fileContent);
+        List<String> excelExtensions = Arrays.asList("xls", "xlsx");
+        String fileExtension = getFileExtension(file);
+        MultipartFile multipartFile = null;
+        if (excelExtensions.contains(fileExtension)) {
+            multipartFile = new MockMultipartFile(file.getName(), file.getName(), "application/xls", fileContent);
+        }
+        else
+            multipartFile = new MockMultipartFile(file.getName(), file.getName(), "application/geo+json", fileContent);
+
+        return multipartFile;
     }
+
+    private MultipartFile createMultipartFileForExcel(File file, byte[] fileContent) {
+        return new MockMultipartFile(file.getName(), file.getName(), "application/xls", fileContent);
+    }
+
 
     private HttpHeaders createHttpHeaders(String filename) {
         HttpHeaders headers = new HttpHeaders();
@@ -131,4 +145,17 @@ public class FilestoreUtil {
         System.out.println("FileStoreId: " + fileStoreId);
         return fileStoreId;
     }
+
+    public String getFileExtension(File file) {
+        String fileName = file.getName();
+        String extension = "";
+
+        int lastIndexOfDot = fileName.lastIndexOf('.');
+        if (lastIndexOfDot >= 0) {
+            extension = fileName.substring(lastIndexOfDot + 1);
+        }
+
+        return extension;
+    }
+
 }
