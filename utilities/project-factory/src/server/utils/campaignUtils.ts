@@ -411,7 +411,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     }
     requestBody.CampaignDetails.additionalDetails = {
         ...requestBody?.CampaignDetails?.additionalDetails,
-        error: String((error?.message + error?.description) || error)
+        error: String((error?.message + " : " + error?.description) || error)
     }
     logger.info("Persisting CampaignDetails : " + JSON.stringify(requestBody?.CampaignDetails));
     const topic = config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
