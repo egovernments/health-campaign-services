@@ -309,7 +309,21 @@ const CampaignSummary = () => {
   });
 
   const handleRedirect = (step) => {
-    history.push(`/${window?.contextPath}/employee/campaign/setup-campaign?key=${step}`);
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Get the values of other parameters
+    const id = urlParams.get("id");
+    // If there are more parameters, you can get them similarly
+
+    // Modify the 'key' parameter
+    urlParams.set("key", step);
+
+    // Reconstruct the URL with the modified parameters
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+
+    // Push the new URL to history
+    history.push(newUrl);
+    // history.push(`/${window?.contextPath}/employee/campaign/setup-campaign?key=${step}`);
   };
 
   if (isLoading) {
