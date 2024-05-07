@@ -48,7 +48,7 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
-    private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache;
+    private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
