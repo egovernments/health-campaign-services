@@ -9,7 +9,7 @@ class localisationController {
     public router = express.Router();
     public dayInMilliSecond = 86400000;
     public cachedResponse: any; // Property to store the cached response
-    
+
     constructor() {
         this.intializeRoutes();
     }
@@ -20,8 +20,8 @@ class localisationController {
 
     getLocalizedMessages = async (request: any, response: any) => {
         try {
-              // If the response is already cached, return it directly
-              if (this.cachedResponse) {
+            // If the response is already cached, return it directly
+            if (this.cachedResponse) {
                 return this.cachedResponse;
             }
             const { tenantId, locale, module } = request?.query; // Extract tenantId, locale, and module from request body
@@ -37,11 +37,12 @@ class localisationController {
             this.cachedResponse = localisationResponse;
             return localisationResponse;
         } catch (e: any) {
+            console.log(e)
             logger.error(String(e));
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
-    
+
 }
 
 export default localisationController;

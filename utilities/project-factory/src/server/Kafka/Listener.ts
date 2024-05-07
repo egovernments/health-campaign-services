@@ -36,6 +36,7 @@ export function listener() {
                 logger.info("messageObject for campaign mapping : " + JSON.stringify(messageObject));
                 await processCampaignMapping(messageObject);
             } catch (error: any) {
+                console.log(error)
                 logger.error(error)
                 enrichAndPersistCampaignWithError(messageObject, error)
             }

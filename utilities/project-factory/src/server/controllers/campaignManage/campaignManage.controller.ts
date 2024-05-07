@@ -53,6 +53,7 @@ class campaignManageController {
             // Send response with campaign details
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
+            console.log(e)
             logger.error(String(e))
             // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
@@ -78,6 +79,7 @@ class campaignManageController {
             // Send response with campaign details
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
         } catch (e: any) {
+            console.log(e)
             logger.error(String(e))
             // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
@@ -103,6 +105,7 @@ class campaignManageController {
             // Send response with campaign details and total count
             return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails, totalCount: request?.body?.totalCount }, request);
         } catch (e: any) {
+            console.log(e)
             logger.error(String(e))
             // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
@@ -132,6 +135,7 @@ class campaignManageController {
             return sendResponse(response, { Campaign: request?.body?.Campaign }, request);
         }
         catch (e: any) {
+            console.log(e)
             logger.error(String(e))
             // Handle errors and send error response
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
