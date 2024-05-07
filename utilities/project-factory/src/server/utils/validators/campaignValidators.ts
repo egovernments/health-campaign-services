@@ -465,29 +465,38 @@ async function validateProjectCampaignResources(resources: any, request: any) {
         "boundaryWithTarget": 0
     };
 
-    if (resources) {
-        if (!Array.isArray(resources) || resources.length === 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be a non-empty array");
-        }
+    const missingTypes: string[] = [];
 
-        for (const resource of resources) {
-            const { type } = resource;
-            if (!type || !requiredTypes.includes(type)) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid resource type");
-            }
-            typeCounts[type]++;
-        }
+    if (!resources || !Array.isArray(resources) || resources.length === 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be a non-empty array");
+    }
 
-        for (const type of requiredTypes) {
-            if (typeCounts[type] === 0) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `Missing resource of type ${type}`);
-            }
+    for (const resource of resources) {
+        const { type } = resource;
+        if (!type || !requiredTypes.includes(type)) {
+            throwError(
+                "COMMON",
+                400,
+                "VALIDATION_ERROR",
+                `Invalid resource type. Allowed types are: ${requiredTypes.join(', ')}`
+            );
         }
-        if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
-            await validateResources(request.body.CampaignDetails.resources, request);
+        typeCounts[type]++;
+    }
+
+    for (const type of requiredTypes) {
+        if (typeCounts[type] === 0) {
+            missingTypes.push(type);
         }
-    } else {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Missing resources array");
+    }
+
+    if (missingTypes.length > 0) {
+        const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
+        throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
+    }
+
+    if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
+        await validateResources(request.body.CampaignDetails.resources, request);
     }
 }
 
