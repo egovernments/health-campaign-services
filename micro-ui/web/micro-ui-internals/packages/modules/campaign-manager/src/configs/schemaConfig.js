@@ -69,13 +69,12 @@ export const schemaConfig = {
         type: "string",
         enum: ["Temporary", "Permanent"],
       },
-      Capacity: {
-        type: "integer",
-        minimum: 0,
-        maximum: 9223372036854775807,
-        multipleOf: 1,
-      },
+      "Capacity": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 100000000
+      }
     },
-    required: ["Name of the Person (Mandatory)", "Phone Number", "Role (Mandatory)", "Employment Type (Mandatory)"],
+    required: ["Name of the Person (Mandatory)", "Phone Number (Mandatory)", "Role (Mandatory)", "Employment Type (Mandatory)"],
   },
 };

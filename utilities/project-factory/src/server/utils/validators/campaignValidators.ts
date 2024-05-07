@@ -206,21 +206,20 @@ async function validateUnique(schema: any, data: any[], request: any) {
 
 
 
-async function validateViaSchema(data: any, schema: any, request: any) {
+async function validateViaSchema(data: any, schema: any, request: any, localizationMap?: any) {
     if (schema) {
         const ajv = new Ajv();
         const validate = ajv.compile(schema);
         const validationErrors: any[] = [];
+        const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap)
         if (data?.length > 0) {
             data.forEach((item: any) => {
-                if (!item?.[createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName])
+                if (!item?.[uniqueIdentifierColumnName])
                     if (!validate(item)) {
                         validationErrors.push({ index: item?.["!row#number!"] + 1, errors: validate.errors });
                     }
             });
             await validateUnique(schema, data, request)
-
-            // Throw errors if any
             if (validationErrors.length > 0) {
                 const errorMessage = validationErrors.map(({ index, errors }) => {
                     const formattedErrors = errors.map((error: any) => {
@@ -248,10 +247,10 @@ async function validateViaSchema(data: any, schema: any, request: any) {
 
 
 
-async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any,localizationMap?:{ [key: string]: string }) {
-    await validateViaSchema(data, schema, request);
+async function validateSheetData(data: any, request: any, schema: any, boundaryValidation: any, localizationMap?: { [key: string]: string }) {
+    await validateViaSchema(data, schema, request, localizationMap);
     if (boundaryValidation) {
-        const localisedBoundaryCode =  getLocalizedName(boundaryValidation?.column,localizationMap)
+        const localisedBoundaryCode = getLocalizedName(boundaryValidation?.column, localizationMap)
         await validateBoundaryData(data, request, localisedBoundaryCode);
     }
 }

@@ -4,6 +4,7 @@ import { getDataFromSheet, throwError } from "./genericUtils";
 import { logger } from "./logger";
 import { httpRequest } from "./request";
 import { produceModifiedMessages } from "../Kafka/Listener";
+import { getLocalizedName } from "./campaignUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -30,14 +31,14 @@ function getPvarIds(messageObject: any) {
 }
 
 async function enrichBoundaryCodes(resources: any[], messageObject: any, boundaryCodes: any, sheetName: any) {
+    const localizationMap: any = messageObject?.localizationMap
     for (const resource of resources) {
         const processedFilestoreId = resource?.processedFilestoreId;
         if (processedFilestoreId) {
             const dataFromSheet: any = await getDataFromSheet(messageObject, processedFilestoreId, messageObject?.Campaign?.tenantId, undefined, sheetName[resource?.type]);
             for (const data of dataFromSheet) {
-                const uniqueCodeColumn = createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName
+                const uniqueCodeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName, localizationMap)
                 const code = data[uniqueCodeColumn];
-
                 // Extract boundary codes
                 const boundaryCode = data[createAndSearch?.[resource?.type]?.boundaryValidation?.column];
                 if (boundaryCode) {
@@ -121,9 +122,10 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
 }
 
 async function fetchAndMap(resources: any[], messageObject: any) {
+    const localizationMap = messageObject?.localizationMap;
     const sheetName: any = {
-        "user": createAndSearch?.user?.parseArrayConfig?.sheetName,
-        "facility": createAndSearch?.facility?.parseArrayConfig?.sheetName,
+        "user": getLocalizedName(createAndSearch?.user?.parseArrayConfig?.sheetName, localizationMap),
+        "facility": getLocalizedName(createAndSearch?.facility?.parseArrayConfig?.sheetName, localizationMap)
     }
     // Object to store boundary codes
     const boundaryCodes: any = {};

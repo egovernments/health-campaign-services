@@ -630,13 +630,13 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any,localizationMap?:{ [key: string]: string }) {
+async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
   const workbook = XLSX.utils.book_new();
   const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
   // Add facility sheet to the workbook
-  XLSX.utils.book_append_sheet(workbook, userSheetData.ws,localizedUserTab);
+  XLSX.utils.book_append_sheet(workbook, userSheetData.ws, localizedUserTab);
   // Add boundary sheet to the workbook
-  const localizedBoundaryTab = getLocalizedName(config.boundaryTab,localizationMap)
+  const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap)
   XLSX.utils.book_append_sheet(workbook, boundarySheetData.ws, localizedBoundaryTab);
   const fileDetails = await createAndUploadFile(workbook, request)
   request.body.fileDetails = fileDetails;
@@ -652,17 +652,17 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const boundarySheetData: any = await getBoundarySheetData(request);
   await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap);
 }
-async function generateUserAndBoundarySheet(request: any,localizationMap?:{ [key: string]: string }) {
+async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }) {
   const userData: any[] = [];
   const tenantId = request?.query?.tenantId;
   const mdmsResponse = await callMdmsData(request, config.moduleName, config.userSchemaMasterName, tenantId)
   const schema = mdmsResponse.MdmsRes[config.moduleName].userSchema[0].properties;
   const headers = Object.keys(schema);
-  const localizedHeaders = await getLocalizedHeaders(headers,localizationMap);
-  const localizedUserTab = getLocalizedName(config.userTab,localizationMap);
+  const localizedHeaders = await getLocalizedHeaders(headers, localizationMap);
+  const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
   const userSheetData = await createExcelSheet(userData, localizedHeaders, localizedUserTab);
   const boundarySheetData: any = await getBoundarySheetData(request);
-  await createUserAndBoundaryFile(userSheetData, boundarySheetData, request,localizationMap);
+  await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, localizationMap);
 }
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }) {
   const { type, tenantId } = request.query
@@ -922,12 +922,12 @@ async function translateSchema(schema: any, localizationMap?: { [key: string]: s
   const translatedSchema = {
     ...schema,
     properties: Object.entries(schema?.properties || {}).reduce((acc, [key, value]) => {
-      const localizedMessage = getLocalizedName(key,localizationMap);
+      const localizedMessage = getLocalizedName(key, localizationMap);
       acc[localizedMessage] = value;
       return acc;
     }, {} as { [key: string]: any }), // Initialize with the correct type
-    required: (schema?.required || []).map((key: string) => getLocalizedName(key,localizationMap)),
-    unique: (schema?.unique || []).map((key: string) => getLocalizedName(key,localizationMap))
+    required: (schema?.required || []).map((key: string) => getLocalizedName(key, localizationMap)),
+    unique: (schema?.unique || []).map((key: string) => getLocalizedName(key, localizationMap))
   };
 
   return translatedSchema;

@@ -44,9 +44,9 @@ class dataManageController {
             await validateGenerateRequest(request);
             // Process the data generation
 
-            const localizationMap = await getLocalizedMessagesHandler(request,request?.query?.tenantId)
+            const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId)
 
-            await processGenerate(request, response,localizationMap);
+            await processGenerate(request, response, localizationMap);
             // Send response with generated resource details
 
             return sendResponse(response, { GeneratedResource: request?.body?.generatedResource }, request);

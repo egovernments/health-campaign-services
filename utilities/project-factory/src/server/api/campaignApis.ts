@@ -174,14 +174,19 @@ function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet
   }
 }
 
-function updateErrorsForUser(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any) {
+function updateErrorsForUser(newCreatedData: any[], newSearchedData: any[], errors: any[], createAndSearchConfig: any, userNameAndPassword: any[]) {
   newCreatedData.forEach((createdElement: any) => {
     let foundMatch = false;
     for (const searchedElement of newSearchedData) {
       if (searchedElement?.code === createdElement?.code) {
         foundMatch = true;
         newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
-        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: searchedElement[createAndSearchConfig.uniqueIdentifier], errorDetails: "" })
+        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: _.get(searchedElement, createAndSearchConfig.uniqueIdentifier, ""), errorDetails: "" })
+        userNameAndPassword.push({
+          userName: searchedElement?.user?.userName,
+          password: "eGov@123",
+          rowNumber: createdElement["!row#number!"]
+        })
         break;
       }
     }
@@ -211,7 +216,7 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
       if (match) {
         foundMatch = true;
         newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
-        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: searchedElement[createAndSearchConfig.uniqueIdentifier], errorDetails: "" })
+        errors.push({ status: "CREATED", rowNumber: createdElement["!row#number!"], isUniqueIdentifier: true, uniqueIdentifier: _.get(searchedElement, createAndSearchConfig.uniqueIdentifier, ""), errorDetails: "" })
         break;
       }
     }
@@ -226,9 +231,7 @@ function updateErrors(newCreatedData: any[], newSearchedData: any[], errors: any
 function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], request: any, createAndSearchConfig: any, activities: any) {
   const newCreatedData = JSON.parse(JSON.stringify(createdData));
   const newSearchedData = JSON.parse(JSON.stringify(searchedData));
-  console.log(newSearchedData, "seaaaaaaaarch neeeeeeww")
   const uid = createAndSearchConfig.uniqueIdentifier;
-  console.log(newCreatedData, "newwwwwwwwwwwwww")
   newCreatedData.forEach((element: any) => {
     delete element[uid];
   })
@@ -242,7 +245,9 @@ function matchCreatedAndSearchedData(createdData: any[], searchedData: any[], re
     updateErrors(newCreatedData, newSearchedData, errors, createAndSearchConfig);
   }
   else {
-    updateErrorsForUser(newCreatedData, newSearchedData, errors, createAndSearchConfig);
+    var userNameAndPassword: any = []
+    updateErrorsForUser(newCreatedData, newSearchedData, errors, createAndSearchConfig, userNameAndPassword);
+    request.body.userNameAndPassword = userNameAndPassword
   }
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
   request.body.Activities = activities
@@ -400,7 +405,7 @@ async function processValidateAfterSchema(dataFromSheet: any, request: any, crea
     request.body.dataToSearch = typeData.searchData;
     request.body.dataToCreate = typeData.createData;
     await processSearchAndValidation(request, createAndSearchConfig, dataFromSheet)
-    await generateProcessedFileAndPersist(request,localizationMap);
+    await generateProcessedFileAndPersist(request, localizationMap);
   } catch (error) {
     await handleResouceDetailsError(request, error);
   }
@@ -410,7 +415,7 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type]
-  const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, localizationMap)
+  const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
     validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation);
   }
@@ -425,7 +430,7 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
     }
     const translatedSchema = await translateSchema(schema, localizationMap);
     await validateSheetData(dataFromSheet, request, translatedSchema, createAndSearchConfig?.boundaryValidation, localizationMap)
-    processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig,localizationMap)
+    processValidateAfterSchema(dataFromSheet, request, createAndSearchConfig, localizationMap)
   }
 }
 
@@ -498,8 +503,7 @@ async function enrichEmployees(employees: any[], request: any) {
   }
 }
 
-async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any,localizationMap?:{ [key: string]: string }) {
-  console.log(params, "parammmmmmmmmmmmmmmmmmmmmmmmmmm")
+async function performAndSaveResourceActivity(request: any, createAndSearchConfig: any, params: any, type: any, localizationMap?: { [key: string]: string }) {
   logger.info(type + " create data : " + JSON.stringify(request?.body?.dataToCreate));
   logger.info(type + " bulk create url : " + createAndSearchConfig?.createBulkDetails?.url, params);
   if (createAndSearchConfig?.createBulkDetails?.limit) {
@@ -535,7 +539,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
     }
     await confirmCreation(createAndSearchConfig, request, dataToCreate, creationTime, activities);
   }
-  await generateProcessedFileAndPersist(request,localizationMap);
+  await generateProcessedFileAndPersist(request, localizationMap);
 }
 
 /**
@@ -583,10 +587,10 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
       _.set(request.body, createAndSearchConfig?.createBulkDetails?.createPath, request?.body?.dataToCreate);
       const params: any = getParamsViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request);
       changeBodyViaElements(createAndSearchConfig?.createBulkDetails?.createElements, request)
-      await performAndSaveResourceActivity(request, createAndSearchConfig, params, request.body.ResourceDetails.type,localizationMap);
+      await performAndSaveResourceActivity(request, createAndSearchConfig, params, request.body.ResourceDetails.type, localizationMap);
     }
     else if (request.body.ResourceDetails.status == "invalid") {
-      await generateProcessedFileAndPersist(request,localizationMap);
+      await generateProcessedFileAndPersist(request, localizationMap);
     }
   } catch (error: any) {
     await handleResouceDetailsError(request, error)
@@ -597,7 +601,7 @@ async function processAfterValidation(dataFromSheet: any, createAndSearchConfig:
  * Processes the creation of resources.
  * @param request The HTTP request object.
  */
-async function processCreate(request: any, localizationMap?: { [key: string]: string }) {
+async function processCreate(request: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request?.body?.ResourceDetails?.tenantId;
@@ -627,7 +631,6 @@ async function processCreate(request: any, localizationMap?: { [key: string]: st
  */
 async function createProjectCampaignResourcData(request: any) {
   // Create resources for a project campaign
-  var resourceDetailsIds: any[] = []
   if (request?.body?.CampaignDetails?.action == "create" && request?.body?.CampaignDetails?.resources) {
     for (const resource of request?.body?.CampaignDetails?.resources) {
       if (resource.type != "boundaryWithTarget") {
@@ -645,12 +648,11 @@ async function createProjectCampaignResourcData(request: any) {
           ResourceDetails: resourceDetails
         });
         if (response?.ResourceDetails?.id) {
-          resourceDetailsIds.push(response?.ResourceDetails?.id)
+          resource.resourceId = response?.ResourceDetails?.id
         }
       }
     }
   }
-  request.body.CampaignDetails.campaignDetails = { ...request.body.CampaignDetails.campaignDetails, resourceDetailsIds: resourceDetailsIds }
 }
 
 async function projectCreate(projectCreateBody: any, request: any) {

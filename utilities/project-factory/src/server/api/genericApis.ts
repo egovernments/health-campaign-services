@@ -5,7 +5,7 @@ import FormData from 'form-data'; // Import FormData for handling multipart/form
 import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
-import { validateProjectFacilityResponse, validateProjectResourceResponse } from "../utils/validators/genericValidator"; // Import validation functions
+import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse } from "../utils/validators/genericValidator"; // Import validation functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
@@ -55,7 +55,7 @@ const getTargetWorkbook = async (fileUrl: string) => {
 // Function to retrieve data from a specific sheet in an Excel file
 const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any, localizationMap?: { [key: string]: string }) => {
     // Retrieve workbook using the getWorkbook function
-    const localizedSheetName = getLocalizedName(sheetName,localizationMap);
+    const localizedSheetName = getLocalizedName(sheetName, localizationMap);
     const workbook: any = await getWorkbook(fileUrl, localizedSheetName)
 
     // If parsing array configuration is provided, validate first row of each column
@@ -518,15 +518,15 @@ async function getBoundarySheetData(request: any) {
         }
     }
 }
-// async function createStaff(resouceBody: any) {
-//     // Create staff
-//     const staffCreateUrl = `${config.host.projectHost}` + `${config.paths.staffCreate}`
-//     logger.info("Staff Creation url " + staffCreateUrl)
-//     logger.info("Staff Creation body " + JSON.stringify(resouceBody))
-//     const staffResponse = await httpRequest(staffCreateUrl, resouceBody, undefined, "post", undefined, undefined);
-//     logger.info("Staff Creation response" + JSON.stringify(staffResponse))
-//     validateStaffResponse(staffResponse);
-// }
+async function createStaff(resouceBody: any) {
+    // Create staff
+    const staffCreateUrl = `${config.host.projectHost}` + `${config.paths.staffCreate}`
+    logger.info("Staff Creation url " + staffCreateUrl)
+    logger.info("Staff Creation body " + JSON.stringify(resouceBody))
+    const staffResponse = await httpRequest(staffCreateUrl, resouceBody, undefined, "post", undefined, undefined);
+    logger.info("Staff Creation response" + JSON.stringify(staffResponse))
+    validateStaffResponse(staffResponse);
+}
 
 /**
  * Asynchronously creates project resources based on the provided resource body.
@@ -579,8 +579,7 @@ async function createRelatedEntity(resources: any, tenantId: any, projectId: any
                     endDate
                 }
                 resouceBody.ProjectStaff = ProjectStaff
-                // TODO : create staff when health hrms is fixed
-                // await createStaff(resouceBody)
+                await createStaff(resouceBody)
             }
             else if (type == "resource") {
                 const ProjectResource = {

@@ -9,7 +9,7 @@ import { logger } from "./logger";
 import createAndSearch from "../config/createAndSearch";
 import pool from "../config/dbPoolConfig";
 import * as XLSX from 'xlsx';
-import { getBoundaryRelationshipData, modifyBoundaryData, modifyDataBasedOnDifferentTab, throwError } from "./genericUtils";
+import { getBoundaryRelationshipData, getLocalizedMessagesHandler, modifyBoundaryData, modifyDataBasedOnDifferentTab, throwError } from "./genericUtils";
 
 // import * as xlsx from 'xlsx-populate';
 const _ = require('lodash');
@@ -74,21 +74,10 @@ function findColumns(desiredSheet: any): { statusColumn: string, errorDetailsCol
     return { statusColumn, errorDetailsColumn };
 }
 
-function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any,localizationMap?:{ [key: string]: string }) {
+function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any, localizationMap?: { [key: string]: string }) {
     const desiredSheet: any = workbook.Sheets[sheetName];
     const errorData = request.body.sheetErrorDetails;
-    if (errorData) {
-        const uniqueIdentifierFirstRowCell = createAndSearchConfig?.uniqueIdentifierColumn + 1
-        desiredSheet[uniqueIdentifierFirstRowCell] = { v: createAndSearchConfig.uniqueIdentifierColumnName, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: createAndSearchConfig.uniqueIdentifierColumnName, w: createAndSearchConfig.uniqueIdentifierColumnName };
-        errorData.forEach((error: any) => {
-            const rowIndex = error.rowNumber;
-            if (error.isUniqueIdentifier) {
-                const localizedUniqueIdentifierColumnName = getLocalizedName(createAndSearchConfig.uniqueIdentifierColumn,localizationMap)
-                const uniqueIdentifierCell = localizedUniqueIdentifierColumnName + (rowIndex + 1);
-                desiredSheet[uniqueIdentifierCell] = { v: error.uniqueIdentifier, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: error.uniqueIdentifier, w: error.uniqueIdentifier };
-            }
-        });
-    }
+    const userNameAndPassword = request.body.userNameAndPassword;
     const columns = findColumns(desiredSheet);
     const statusColumn = columns.statusColumn;
     const errorDetailsColumn = columns.errorDetailsColumn;
@@ -100,13 +89,48 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
             const errorDetailsCell = errorDetailsColumn + (rowIndex + 1);
             desiredSheet[statusCell] = { v: error.status, t: 's', r: '<t xml:space="preserve">#status#</t>', h: error.status, w: error.status };
             desiredSheet[errorDetailsCell] = { v: error.errorDetails, t: 's', r: '<t xml:space="preserve">#errorDetails#</t>', h: error.errorDetails, w: error.errorDetails };
-            if (!(error?.status == "CREATED" || error?.status == "VALID")) {
+            if ((error?.status) && !(error?.status == "CREATED" || error?.status == "VALID")) {
                 additionalDetailsErrors.push(error)
             }
         });
     }
+    if (errorData) {
+        const uniqueIdentifierFirstRowCell = createAndSearchConfig?.uniqueIdentifierColumn + 1
+        desiredSheet[uniqueIdentifierFirstRowCell] = { v: createAndSearchConfig.uniqueIdentifierColumnName, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: createAndSearchConfig.uniqueIdentifierColumnName, w: createAndSearchConfig.uniqueIdentifierColumnName };
+        errorData.forEach((error: any) => {
+            const rowIndex = error.rowNumber;
+            if (error.isUniqueIdentifier) {
+                const uniqueIdentifierCell = createAndSearchConfig.uniqueIdentifierColumn + (rowIndex + 1);
+                desiredSheet[uniqueIdentifierCell] = { v: error.uniqueIdentifier, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: error.uniqueIdentifier, w: error.uniqueIdentifier };
+            }
+        });
+    }
     request.body.additionalDetailsErrors = additionalDetailsErrors
-    desiredSheet['!ref'] = desiredSheet['!ref'].replace(/:[A-Z]+/, ':' + errorDetailsColumn);
+    // lastcolumn = max of createAndSearchConfig?.uniqueIdentifierColumn and errorDetailsColumn
+    let lastColumn: string = errorDetailsColumn;
+
+    if (createAndSearchConfig?.uniqueIdentifierColumn !== undefined) {
+        // Compare strings lexicographically
+        lastColumn = createAndSearchConfig?.uniqueIdentifierColumn > errorDetailsColumn ?
+            createAndSearchConfig?.uniqueIdentifierColumn :
+            errorDetailsColumn;
+    }
+    if (userNameAndPassword) {
+        const userNameFirstCell = "I" + 1;
+        const passwordFirstCell = "J" + 1;
+        desiredSheet[userNameFirstCell] = { v: "UserName", t: 's', r: '<t xml:space="preserve">UserName</t>', h: "UserName", w: "UserName" };
+        desiredSheet[passwordFirstCell] = { v: "Password", t: 's', r: '<t xml:space="preserve">Password</t>', h: "Password", w: "Password" };
+        userNameAndPassword.forEach((data: any) => {
+            const rowIndex = data.rowNumber;
+            const userNameCell = "I" + (rowIndex + 1);
+            const passWordCell = "J" + (rowIndex + 1);
+            desiredSheet[userNameCell] = { v: data?.userName, t: 's', r: '<t xml:space="preserve">UserName</t>', h: data?.userName, w: data?.userName };
+            desiredSheet[passWordCell] = { v: data?.password, t: 's', r: '<t xml:space="preserve">Password</t>', h: data?.password, w: data?.password };
+        });
+        lastColumn = "J";
+        delete request.body.userNameAndPassword;
+    }
+    desiredSheet['!ref'] = desiredSheet['!ref'].replace(/:[A-Z]+/, ':' + lastColumn);
     workbook.Sheets[sheetName] = desiredSheet;
 }
 
@@ -141,7 +165,7 @@ function processErrorDataForTargets(request: any, createAndSearchConfig: any, wo
     workbook.Sheets[sheetName] = desiredSheet;
 }
 
-async function updateStatusFile(request: any,localizationMap?:{ [key: string]: string }) {
+async function updateStatusFile(request: any, localizationMap?: { [key: string]: string }) {
     const fileStoreId = request?.body?.ResourceDetails?.fileStoreId;
     const tenantId = request?.body?.ResourceDetails?.tenantId;
     const createAndSearchConfig = createAndSearch[request?.body?.ResourceDetails?.type];
@@ -158,14 +182,14 @@ async function updateStatusFile(request: any,localizationMap?:{ [key: string]: s
 
     const fileUrl = fileResponse?.fileStoreIds?.[0]?.url;
     const sheetName = createAndSearchConfig?.parseArrayConfig?.sheetName;
-    const localizedSheetName = getLocalizedName(sheetName,localizationMap)
+    const localizedSheetName = getLocalizedName(sheetName, localizationMap)
     const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(localizedSheetName)) {
         throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedSheetName}" is not present in the file.`);
     }
-    processErrorData(request, createAndSearchConfig, workbook, localizedSheetName,localizationMap);
+    processErrorData(request, createAndSearchConfig, workbook, localizedSheetName, localizationMap);
     const responseData = await createAndUploadFile(workbook, request);
     logger.info('File updated successfully:' + JSON.stringify(responseData));
     if (responseData?.[0]?.fileStoreId) {
@@ -197,7 +221,7 @@ async function updateStatusFileForTargets(request: any) {
     const sheetNames = workbook.SheetNames;
     // Check if the specified sheet exists in the workbook
     if (!workbook.Sheets.hasOwnProperty(sheetName)) {
-        throwError("FILE", 500, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
+        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${sheetName}" is not present in the file.`);
     }
     sheetNames.forEach(sheetName => {
         processErrorDataForTargets(request, createAndSearchConfig, workbook, sheetName);
@@ -246,7 +270,7 @@ function setTenantId(
 }
 
 
-async function processData(request: any, dataFromSheet: any[], createAndSearchConfig: any,localizationMap?:{ [key: string]: string }) {
+async function processData(request: any, dataFromSheet: any[], createAndSearchConfig: any, localizationMap?: { [key: string]: string }) {
     const parseLogic = createAndSearchConfig?.parseArrayConfig?.parseLogic;
     const requiresToSearchFromSheet = createAndSearchConfig?.requiresToSearchFromSheet;
     var createData = [], searchData = [];
@@ -254,7 +278,7 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
         const resultantElement: any = {};
         for (const element of parseLogic) {
             if (element?.resultantPath) {
-                const localizedSheetColumnName = getLocalizedName(element.sheetColumnName,localizationMap);
+                const localizedSheetColumnName = getLocalizedName(element.sheetColumnName, localizationMap);
                 let dataToSet = _.get(data, localizedSheetColumnName);
                 if (element.conversionCondition) {
                     dataToSet = element.conversionCondition[dataToSet];
@@ -269,7 +293,7 @@ async function processData(request: any, dataFromSheet: any[], createAndSearchCo
         var addToCreate = true;
         if (requiresToSearchFromSheet) {
             for (const key of requiresToSearchFromSheet) {
-                const localizedSheetColumnName = getLocalizedName(key.sheetColumnName,localizationMap);
+                const localizedSheetColumnName = getLocalizedName(key.sheetColumnName, localizationMap);
                 if (data[localizedSheetColumnName]) {
                     searchData.push(resultantElement)
                     addToCreate = false;
@@ -295,8 +319,8 @@ function setTenantIdAndSegregate(processedData: any, createAndSearchConfig: any,
 }
 
 // Original function divided into two parts
-async function convertToTypeData(request: any, dataFromSheet: any[], createAndSearchConfig: any, requestBody: any,localizationMap?:{ [key: string]: string }) {
-    const processedData = await  processData(request,dataFromSheet, createAndSearchConfig,localizationMap);
+async function convertToTypeData(request: any, dataFromSheet: any[], createAndSearchConfig: any, requestBody: any, localizationMap?: { [key: string]: string }) {
+    const processedData = await processData(request, dataFromSheet, createAndSearchConfig, localizationMap);
     return setTenantIdAndSegregate(processedData, createAndSearchConfig, requestBody);
 }
 
@@ -308,12 +332,12 @@ function updateActivityResourceId(request: any) {
     }
 }
 
-async function generateProcessedFileAndPersist(request: any,localizationMap?:{ [key: string]: string }) {
+async function generateProcessedFileAndPersist(request: any, localizationMap?: { [key: string]: string }) {
     if (request.body.ResourceDetails.type == 'boundaryWithTarget') {
         await updateStatusFileForTargets(request);
     } else {
         if (request.body.ResourceDetails.type !== "boundary") {
-            await updateStatusFile(request,localizationMap);
+            await updateStatusFile(request, localizationMap);
         }
     }
 
@@ -400,7 +424,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     if (firstPersist) {
         request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
     }
-    request.body.CampaignDetails.campaignDetails = { ...request?.body?.CampaignDetails?.campaignDetails, deliveryRules: request?.body?.CampaignDetails?.deliveryRules, resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
+    request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [], resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
@@ -425,36 +449,17 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     produceModifiedMessages(request?.body, topic);
 }
 
-function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: any, existingInnerCampaignDetails: any) {
-    if (request?.body?.CampaignDetails?.resources) {
-        updatedInnerCampaignDetails.resources = request?.body?.CampaignDetails?.resources
-    }
-    else {
-        updatedInnerCampaignDetails.resources = existingInnerCampaignDetails.resources || []
-    }
-    if (request?.body?.CampaignDetails?.deliveryRules) {
-        updatedInnerCampaignDetails.deliveryRules = request?.body?.CampaignDetails?.deliveryRules
-    }
-    else {
-        updatedInnerCampaignDetails.deliveryRules = existingInnerCampaignDetails.deliveryRules || {}
-    }
-    if (request?.body?.CampaignDetails?.resourceDetailsIds) {
-        updatedInnerCampaignDetails.resourceDetailsIds = request?.body?.CampaignDetails?.resourceDetailsIds
-    }
-    if (request?.body?.CampaignDetails?.boundaries) {
-        updatedInnerCampaignDetails.boundaries = request?.body?.CampaignDetails?.boundaries
-    }
-    else {
-        updatedInnerCampaignDetails.boundaries = existingInnerCampaignDetails.boundaries || []
-    }
+function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: any) {
+    updatedInnerCampaignDetails.resources = request?.body?.CampaignDetails?.resources || []
+    updatedInnerCampaignDetails.deliveryRules = request?.body?.CampaignDetails?.deliveryRules || []
+    updatedInnerCampaignDetails.boundaries = request?.body?.CampaignDetails?.boundaries || []
 }
 
 async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boolean = false) {
     const action = request?.body?.CampaignDetails?.action;
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
-    var existingInnerCampaignDetails = ExistingCampaignDetails?.campaignDetails || {}
-    var updatedInnerCampaignDetails = request?.body?.CampaignDetails?.campaignDetails || {}
-    enrichInnerCampaignDetails(request, updatedInnerCampaignDetails, existingInnerCampaignDetails)
+    var updatedInnerCampaignDetails = {}
+    enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
     request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
     request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
@@ -482,7 +487,11 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     delete request.body.ExistingCampaignDetails
 }
 
-async function persistForCampaignProjectMapping(request: any) {
+function getResourceIds(resources: any[]) {
+    return resources.map((resource: any) => resource.resourceId)
+}
+
+async function persistForCampaignProjectMapping(request: any, localizationMap?: any) {
     console.log((request?.body?.CampaignDetails?.campaignDetails?.resourceDetailsIds && request?.body?.CampaignDetails?.projectId))
     if (request?.body?.CampaignDetails?.campaignDetails?.resourceDetailsIds && request?.body?.CampaignDetails?.projectId) {
         var requestBody: any = {
@@ -499,15 +508,16 @@ async function persistForCampaignProjectMapping(request: any) {
         requestBody.Campaign.additionalDetails = request?.body?.CampaignDetails?.additionalDetails
         requestBody.Campaign.deliveryRules = request?.body?.CampaignDetails?.deliveryRules
         requestBody.Campaign.rootProjectId = request?.body?.CampaignDetails?.projectId
-        requestBody.Campaign.resourceDetailsIds = request?.body?.CampaignDetails?.campaignDetails?.resourceDetailsIds
+        requestBody.Campaign.resourceDetailsIds = getResourceIds(request?.body?.CampaignDetails?.resources)
         requestBody.CampaignDetails = request?.body?.CampaignDetails
+        requestBody.localizationMap = localizationMap
         logger.info("Persisting CampaignProjectMapping : " + JSON.stringify(requestBody));
         produceModifiedMessages(requestBody, config.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
     }
 }
 
 
-async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl: any, firstPersist: boolean = false) {
+async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl: any, firstPersist: boolean = false, localizationMap?: any) {
     if (actionInUrl == "create") {
         await enrichAndPersistCampaignForCreate(request, firstPersist)
     }
@@ -515,7 +525,7 @@ async function enrichAndPersistProjectCampaignRequest(request: any, actionInUrl:
         await enrichAndPersistCampaignForUpdate(request, firstPersist)
     }
     if (request?.body?.CampaignDetails?.action == "create") {
-        await persistForCampaignProjectMapping(request);
+        await persistForCampaignProjectMapping(request, localizationMap);
     }
 }
 
@@ -661,7 +671,13 @@ async function searchProjectCampaignResourcData(request: any) {
     const queryData = buildSearchQuery(tenantId, pagination, ids, searchFields);
     logger.info("queryData : " + JSON.stringify(queryData));
     await getTotalCount(request)
-    const responseData = await executeSearchQuery(queryData.query, queryData.values);
+    const responseData: any[] = await executeSearchQuery(queryData.query, queryData.values);
+    for (const data of responseData) {
+        data.resources = data?.campaignDetails?.resources
+        data.boundaries = data?.campaignDetails?.boundaries
+        data.deliveryRules = data?.campaignDetails?.deliveryRules;
+        delete data.campaignDetails;
+    }
     request.body.CampaignDetails = responseData;
 }
 
@@ -1069,13 +1085,14 @@ async function createProject(request: any, actionUrl: any) {
 
 async function processAfterPersist(request: any, actionInUrl: any) {
     try {
+        const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.CampaignDetails?.tenantId);
         if (request?.body?.CampaignDetails?.action == "create") {
             await createProjectCampaignResourcData(request);
             await createProject(request, actionInUrl)
-            await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
+            await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
         else {
-            await enrichAndPersistProjectCampaignRequest(request, actionInUrl)
+            await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
     } catch (error: any) {
         logger.error(error)
@@ -1277,7 +1294,7 @@ async function boundaryBulkUpload(request: any) {
 
 const autoGenerateBoundaryCodes = async (request: any) => {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
-    const boundaryData = await getSheetData( fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
+    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName, false);
     const [withBoundaryCode, withoutBoundaryCode] = modifyBoundaryData(boundaryData);
     const { mappingMap, countMap } = getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode);
     const childParentMap = getChildParentMap(withoutBoundaryCode);
@@ -1322,11 +1339,11 @@ async function getBoundaryDataAfterGeneration(result: any, request: any) {
     if (!fileResponse?.fileStoreIds?.[0]?.url) {
         throwError("FILE", 400, "INVALID_FILE");
     }
-    const boundaryData = await getSheetData( fileResponse?.fileStoreIds?.[0]?.url, config.sheetName);
+    const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, config.sheetName);
     return boundaryData;
 }
 
- function getLocalizedName(expectedName: string, localizationMap?: { [key: string]: string } ) {
+function getLocalizedName(expectedName: string, localizationMap?: { [key: string]: string }) {
     if (!localizationMap || !(expectedName in localizationMap)) {
         return expectedName;
     }

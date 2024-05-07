@@ -29,10 +29,9 @@ const createAndSearch: any = {
                     "enum": ["Temporary", "Permanent"]
                 },
                 "Capacity": {
-                    "type": "integer",
+                    "type": "number",
                     "minimum": 1,
-                    "maximum": 100000000,
-                    "multipleOf": 1
+                    "maximum": 100000000
                 }
             },
             "required": [
@@ -150,13 +149,14 @@ const createAndSearch: any = {
                     "maxLength": 128,
                     "minLength": 1
                 },
-                "Phone Number": {
+                "Phone Number (Mandatory)": {
                     "type": "integer",
                     "minimum": 100000000,
                     "maximum": 9999999999
                 },
                 "Role (Mandatory)": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": ["Registrar", "Distributor", "Supervisor", "Help Desk", "Monitor Local", "Logistical officer"]
                 },
                 "Employment Type (Mandatory)": {
                     "enum": ["Temporary", "Permanent"]
@@ -164,12 +164,12 @@ const createAndSearch: any = {
             },
             "required": [
                 "Name of the Person (Mandatory)",
-                "Phone Number",
+                "Phone Number (Mandatory)",
                 "Role (Mandatory)",
                 "Employment Type (Mandatory)"
             ],
             "unique": [
-                "Phone Number"
+                "Phone Number (Mandatory)"
             ]
         },
         parseArrayConfig: {
@@ -215,7 +215,7 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "user.userServiceUuid",
-        uniqueIdentifierColumn: "F",
+        uniqueIdentifierColumn: "H",
         uniqueIdentifierColumnName: "UserService Uuids",
         createBulkDetails: {
             limit: 50,
