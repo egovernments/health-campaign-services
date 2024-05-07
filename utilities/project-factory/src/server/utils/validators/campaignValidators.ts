@@ -49,7 +49,7 @@ async function fetchBoundariesInChunks(request: any) {
 // Compares unique boundaries with response boundaries and throws error for missing codes.
 function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
     // Extracts boundary codes from response boundaries
-    const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code);
+    const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code.trim());
 
     // Finds missing codes from unique boundaries
     const missingCodes = uniqueBoundaries.filter(code => !responseBoundaryCodes.includes(code));
