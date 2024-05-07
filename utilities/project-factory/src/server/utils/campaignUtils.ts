@@ -447,6 +447,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     const topic = firstPersist ? config.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     produceModifiedMessages(request?.body, topic);
+    delete request.body.CampaignDetails.campaignDetails
 }
 
 function enrichInnerCampaignDetails(request: any, updatedInnerCampaignDetails: any) {
@@ -485,6 +486,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
     delete request.body.ExistingCampaignDetails
+    delete request.body.CampaignDetails.campaignDetails
 }
 
 function getCreateResourceIds(resources: any[]) {

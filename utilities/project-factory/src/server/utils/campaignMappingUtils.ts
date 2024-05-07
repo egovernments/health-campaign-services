@@ -19,7 +19,7 @@ async function createBoundaryWithProjectMapping(projects: any, boundaryWithProje
 }
 
 function getPvarIds(messageObject: any) {
-    const deliveryRules = messageObject?.CampaignDetails?.campaignDetails?.deliveryRules
+    const deliveryRules = messageObject?.CampaignDetails?.deliveryRules
     var pvarIds = []
     for (const deliveryRule of deliveryRules) {
         const products = deliveryRule?.products
