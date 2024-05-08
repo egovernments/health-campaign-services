@@ -11,6 +11,7 @@ if (!HOST) {
 }
 // Configuration object containing various environment variables
 const config = {
+  boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
   facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
   boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
   userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
@@ -23,7 +24,7 @@ const config = {
   // user master
   userSchemaMasterName: process.env.USER_SCHEMA_MASTER || "userSchema",
   // Default sheet name for boundary data
-  sheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
+  // boundarySheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
   // Default criteria for generating different tabs
   generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "Distrito",
   // default configurable number of data of boundary type on which generate different tabs
@@ -118,8 +119,4 @@ const config = {
 // Exporting getErrorCodes function and config object
 export { getErrorCodes };
 export default config;
-
-
-
-
 
