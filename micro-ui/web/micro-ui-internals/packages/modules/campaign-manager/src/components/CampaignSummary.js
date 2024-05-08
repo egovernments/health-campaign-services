@@ -133,6 +133,12 @@ const CampaignSummary = () => {
     },
     config: {
       select: (data) => {
+        const resourceIdArr = [];
+        data?.[0]?.resources?.map((i) => {
+          if (i?.createResourceId && i?.type === "user") {
+            resourceIdArr.push(i?.createResourceId);
+          }
+        });
         const target = data?.[0]?.deliveryRules;
         const cycleData = reverseDeliveryRemap(target);
         return {
@@ -225,6 +231,21 @@ const CampaignSummary = () => {
                           <EditIcon />
                         </div>
                       ),
+                    },
+                  ],
+                }
+              : {},
+            resourceIdArr?.length > 0
+              ? {
+                  sections: [
+                    {
+                      type: "COMPONENT",
+                      component: "CampaignResourceDocuments",
+                      props: {
+                        isUserGenerate: true,
+                        resources: resourceIdArr,
+                      },
+                      cardHeader: { value: t("USER_GENERATE_DETAILS"), inlineStyles: { marginTop: 0 } },
                     },
                   ],
                 }

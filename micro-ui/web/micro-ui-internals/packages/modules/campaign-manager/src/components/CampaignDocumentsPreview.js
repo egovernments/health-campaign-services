@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { DocumentIcon } from "./DocumentIcon";
 import XlsPreview from "./XlsPreview";
 
-function CampaignDocumentsPreview({ documents = [], svgStyles = {} }) {
+function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenerate = false }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const [filesArray, setFilesArray] = useState(null);
@@ -31,13 +31,13 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {} }) {
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-start" }}>
         {documents?.length > 0 ? (
           documents?.map((document, index) => (
-            <React.Fragment key={index}>
+            <div key={index} style={{ marginRight: "1rem" }}>
               <div onClick={() => setShowPreview(true)}>
                 <div style={{ display: "flex", justifyContent: "center" }}>
                   <DocumentIcon />
                 </div>
                 <p className="campaign-document-title">
-                  {document?.fileName ? t(document?.fileName) : t("CAMPAIGN_DOCUMENT_TITLE", { INDEX: index + 1 })}
+                  {isUserGenerate ? document?.type : document?.filename ? t(document?.filename) : t("CAMPAIGN_DOCUMENT_TITLE", { INDEX: index + 1 })}
                 </p>
               </div>
               {showPreview && (
@@ -47,7 +47,7 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {} }) {
                   onBack={() => setShowPreview(false)}
                 />
               )}
-            </React.Fragment>
+            </div>
           ))
         ) : (
           <div>
