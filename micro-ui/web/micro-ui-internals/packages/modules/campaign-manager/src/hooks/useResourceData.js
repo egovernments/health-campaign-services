@@ -63,7 +63,7 @@ export const useResourceData = async (data, hierarchyType, type, tenantId) => {
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
   }
-  if (Error) {
+  if (Error.isError) {
     return Error;
   }
   return searchResponse?.ResourceDetails?.[0];
