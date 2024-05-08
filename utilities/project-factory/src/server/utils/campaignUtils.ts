@@ -407,7 +407,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     if (action == "create" && !requestBody?.CampaignDetails?.projectId) {
         enrichRootProjectId(requestBody);
     }
-    else {
+    else if (!requestBody?.CampaignDetails?.projectId) {
         requestBody.CampaignDetails.projectId = null
     }
     requestBody.CampaignDetails.additionalDetails = {
