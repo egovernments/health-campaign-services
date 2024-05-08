@@ -345,7 +345,7 @@ const SetupCampaign = () => {
       hierarchyType: hierarchyType,
       hierarchy: hierarchyDefinition?.BoundaryHierarchy?.[0],
     });
-  }, [facilityId, boundaryId, userId]); // Only run if dataParams changes
+  }, [facilityId, boundaryId, userId ,hierarchyDefinition?.BoundaryHierarchy?.[0] ]); // Only run if dataParams changes
 
   // Example usage:
   // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
@@ -939,11 +939,12 @@ const SetupCampaign = () => {
       setCurrentKey(4);
       setCurrentStep(2);
     } else if (!totalFormData["HCM_CAMPAIGN_NAME"] || !totalFormData["HCM_CAMPAIGN_DATE"]) {
+        // Do not set stepper and key
+    } else if(Object.keys(totalFormData).includes(name)){
+        setCurrentKey(key);
+        setCurrentStep(step);
       // Do not set stepper and key
-    } else {
-      setCurrentKey(key);
-      setCurrentStep(step);
-    }
+    } 
   };
 
   const onSecondayActionClick = () => {

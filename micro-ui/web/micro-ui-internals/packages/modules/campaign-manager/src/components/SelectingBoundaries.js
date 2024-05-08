@@ -42,11 +42,10 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
   }, [boundaryData, selectedData ]);
 
-
   // useEffect(() => {
   //   setBoundaryData(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData );
   //   setSelectedData(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData );
-  // }, [props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA ]);
+  // }, [props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryData ]);
 
   const closeToast = () => {
     setShowToast(null);
@@ -81,17 +80,15 @@ useEffect(() => {
       hierarchyTypeDataresult?.boundaryHierarchy.forEach((boundary) => {
           boundaryDataObj[boundary.boundaryType] = [];
       });
-      if( !props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData){
+      if (!props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData || Object.keys(boundaryData).length === 0) {
         setBoundaryData(boundaryDataObj);
-      }
-      // setBoundaryData(boundaryDataObj);
+    }    
       const boundaryWithTypeNullParent = hierarchyTypeDataresult?.boundaryHierarchy.find((boundary) => boundary.parentBoundaryType === null);
       // Set the boundary type with null parentBoundaryType
       if (boundaryWithTypeNullParent) {
-        if( !props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData){
+        if (!props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData || Object.keys(boundaryData).length === 0) {
           setBoundaryType(boundaryWithTypeNullParent.boundaryType);
-        }
-        // setBoundaryType(boundaryWithTypeNullParent.boundaryType);
+      } 
           setParentBoundaryTypeRoot(boundaryWithTypeNullParent.boundaryType);
       }
       createHierarchyStructure(hierarchyTypeDataresult);
@@ -309,12 +306,12 @@ useEffect(() => {
                     <MultiSelectDropdown
                       t={t}
                       options={
-                        boundaryData[boundary.boundaryType]?.map((item) => ({
+                        boundaryData[boundary?.boundaryType]?.map((item) => ({
                           code: item.parentCode,
                           options:
                             item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary.map((child) => ({
-                              code: child.code,
-                              boundaryType: child.boundaryType,
+                              code: child?.code,
+                              boundaryType: child?.boundaryType,
                             })) || [],
                         })) || []
                       }
