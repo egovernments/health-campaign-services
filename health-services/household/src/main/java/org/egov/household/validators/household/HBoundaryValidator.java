@@ -19,6 +19,7 @@ import org.egov.household.web.models.boundary.BoundaryResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
@@ -73,49 +74,51 @@ public class HBoundaryValidator implements Validator<HouseholdBulkRequest, House
                     ));
 
             List<String> boundaries = new ArrayList<>(boundaryCodeHouseholdsMap.keySet());
-            try {
-                // Fetch boundary details from the service
-                log.debug("Fetching boundary details for tenantId: {}, boundaries: {}", tenantId, boundaries);
-                BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
-                        new StringBuilder(householdConfiguration.getBoundaryServiceHost()
-                                + householdConfiguration.getBoundarySearchUrl()
-                                +"?limit=" + boundaries.size()
-                                + "&offset=0&tenantId=" + tenantId
-                                + "&codes=" + String.join(",", boundaries)),
-                        request.getRequestInfo(),
-                        BoundaryResponse.class
-                );
-                log.debug("Boundary details fetched successfully for tenantId: {}", tenantId);
+            if(!CollectionUtils.isEmpty(boundaries)) {
+                try {
+                    // Fetch boundary details from the service
+                    log.debug("Fetching boundary details for tenantId: {}, boundaries: {}", tenantId, boundaries);
+                    BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+                            new StringBuilder(householdConfiguration.getBoundaryServiceHost()
+                                    + householdConfiguration.getBoundarySearchUrl()
+                                    +"?limit=" + boundaries.size()
+                                    + "&offset=0&tenantId=" + tenantId
+                                    + "&codes=" + String.join(",", boundaries)),
+                            request.getRequestInfo(),
+                            BoundaryResponse.class
+                    );
+                    log.debug("Boundary details fetched successfully for tenantId: {}", tenantId);
 
-                List<String> invalidBoundaryCodes = new ArrayList<>(boundaries);
-                invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
-                        .map(Boundary::getCode)
-                        .collect(Collectors.toList())
-                );
+                    List<String> invalidBoundaryCodes = new ArrayList<>(boundaries);
+                    invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
+                            .map(Boundary::getCode)
+                            .collect(Collectors.toList())
+                    );
 
-                // Filter out households with invalid boundary codes
-                List<Household> householdsWithInvalidBoundaries = boundaryCodeHouseholdsMap.entrySet().stream()
-                        .filter(entry -> invalidBoundaryCodes.contains(entry.getKey())) // filter invalid boundary codes
-                        .flatMap(entry -> entry.getValue().stream()) // Flatten the list of households
-                        .collect(Collectors.toList());
+                    // Filter out households with invalid boundary codes
+                    List<Household> householdsWithInvalidBoundaries = boundaryCodeHouseholdsMap.entrySet().stream()
+                            .filter(entry -> invalidBoundaryCodes.contains(entry.getKey())) // filter invalid boundary codes
+                            .flatMap(entry -> entry.getValue().stream()) // Flatten the list of households
+                            .collect(Collectors.toList());
 
 
-                householdsWithInvalidBoundaries.forEach(household -> {
-                    // Create an error object for households with invalid boundaries
-                    Error error = Error.builder()
-                            .errorMessage("Boundary code does not exist in db")
-                            .errorCode("NON_EXISTENT_ENTITY")
-                            .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
-                            .build();
-                    // Populate error details for the household
-                    populateErrorDetails(household, error, errorDetailsMap);
-                });
+                    householdsWithInvalidBoundaries.forEach(household -> {
+                        // Create an error object for households with invalid boundaries
+                        Error error = Error.builder()
+                                .errorMessage("Boundary code does not exist in db")
+                                .errorCode("NON_EXISTENT_ENTITY")
+                                .type(Error.ErrorType.NON_RECOVERABLE)
+                                .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
+                                .build();
+                        // Populate error details for the household
+                        populateErrorDetails(household, error, errorDetailsMap);
+                    });
 
-            } catch (Exception e) {
-                log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
-                // Throw a custom exception if an error occurs during boundary search
-                throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
+                } catch (Exception e) {
+                    log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
+                    // Throw a custom exception if an error occurs during boundary search
+                    throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
+                }
             }
         });
 

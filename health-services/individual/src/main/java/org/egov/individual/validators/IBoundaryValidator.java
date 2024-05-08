@@ -76,49 +76,51 @@ public class IBoundaryValidator implements Validator<IndividualBulkRequest, Indi
                             Collectors.mapping(Map.Entry::getValue, Collectors.toList()))); // Collect individuals into a list for each locality code
 
             List<String> boundaries = new ArrayList<>(boundaryCodeIndividualsMap.keySet());
-            try {
-                // Fetch boundary details from the service
-                log.debug("Fetching boundary details for tenantId: {}, boundaries: {}", tenantId, boundaries);
-                BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
-                        new StringBuilder(individualProperties.getBoundaryServiceHost()
-                                + individualProperties.getBoundarySearchUrl()
-                                +"?limit=" + boundaries.size()
-                                + "&offset=0&tenantId=" + tenantId
-                                + "&codes=" + String.join(",", boundaries)),
-                        request.getRequestInfo(),
-                        BoundaryResponse.class
-                );
-                log.debug("Boundary details fetched successfully for tenantId: {}", tenantId);
+            if(!CollectionUtils.isEmpty(boundaries)) {
+                try {
+                    // Fetch boundary details from the service
+                    log.debug("Fetching boundary details for tenantId: {}, boundaries: {}", tenantId, boundaries);
+                    BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+                            new StringBuilder(individualProperties.getBoundaryServiceHost()
+                                    + individualProperties.getBoundarySearchUrl()
+                                    +"?limit=" + boundaries.size()
+                                    + "&offset=0&tenantId=" + tenantId
+                                    + "&codes=" + String.join(",", boundaries)),
+                            request.getRequestInfo(),
+                            BoundaryResponse.class
+                    );
+                    log.debug("Boundary details fetched successfully for tenantId: {}", tenantId);
 
-                List<String> invalidBoundaryCodes = new ArrayList<>(boundaries);
-                invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
-                        .map(Boundary::getCode)
-                        .collect(Collectors.toList())
-                );
+                    List<String> invalidBoundaryCodes = new ArrayList<>(boundaries);
+                    invalidBoundaryCodes.removeAll(boundarySearchResponse.getBoundary().stream()
+                            .map(Boundary::getCode)
+                            .collect(Collectors.toList())
+                    );
 
-                // Filter out individuals with invalid boundary codes
-                List<Individual> individualsWithInvalidBoundaries = boundaryCodeIndividualsMap.entrySet().stream()
-                        .filter(entry -> invalidBoundaryCodes.contains(entry.getKey())) // filter invalid boundary codes
-                        .flatMap(entry -> entry.getValue().stream()) // Flatten the list of individuals
-                        .collect(Collectors.toList());
+                    // Filter out individuals with invalid boundary codes
+                    List<Individual> individualsWithInvalidBoundaries = boundaryCodeIndividualsMap.entrySet().stream()
+                            .filter(entry -> invalidBoundaryCodes.contains(entry.getKey())) // filter invalid boundary codes
+                            .flatMap(entry -> entry.getValue().stream()) // Flatten the list of individuals
+                            .collect(Collectors.toList());
 
 
-                individualsWithInvalidBoundaries.forEach(individual -> {
-                    // Create an error object for individuals with invalid boundaries
-                    Error error = Error.builder()
-                            .errorMessage("Boundary code does not exist in db")
-                            .errorCode("NON_EXISTENT_ENTITY")
-                            .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
-                            .build();
-                    // Populate error details for the individual
-                    populateErrorDetails(individual, error, errorDetailsMap);
-                });
+                    individualsWithInvalidBoundaries.forEach(individual -> {
+                        // Create an error object for individuals with invalid boundaries
+                        Error error = Error.builder()
+                                .errorMessage("Boundary code does not exist in db")
+                                .errorCode("NON_EXISTENT_ENTITY")
+                                .type(Error.ErrorType.NON_RECOVERABLE)
+                                .exception(new CustomException("NON_EXISTENT_ENTITY", "Boundary code does not exist in db"))
+                                .build();
+                        // Populate error details for the individual
+                        populateErrorDetails(individual, error, errorDetailsMap);
+                    });
 
-            } catch (Exception e) {
-                log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
-                // Throw a custom exception if an error occurs during boundary search
-                throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
+                } catch (Exception e) {
+                    log.error("Exception while searching boundaries for tenantId: {}", tenantId, e);
+                    // Throw a custom exception if an error occurs during boundary search
+                    throw new CustomException("BOUNDARY_SEARCH_ERROR", e.getMessage());
+                }
             }
         });
 

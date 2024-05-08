@@ -47,7 +47,7 @@ public class ProjectValidator {
     MDMSUtils mdmsUtils;
 
     @Autowired
-    BoundaryV2Util boundaryUtil;
+    BoundaryV2Util boundaryV2Util;
 
     @Autowired
     ProjectConfiguration config;
@@ -402,7 +402,7 @@ public class ProjectValidator {
     /* Validates Boundary data with location service */
     private void validateBoundary(Map<String, List<String>> boundaries, String tenantId, RequestInfo requestInfo, Map<String, String> errorMap) {
         if (boundaries.size() > 0) {
-            boundaryUtil.validateBoundaryDetails(boundaries, tenantId, requestInfo, config.getLocationHierarchyType());
+            boundaryV2Util.validateBoundaryDetails(boundaries, tenantId, requestInfo, config.getLocationHierarchyType());
         }
     }
 

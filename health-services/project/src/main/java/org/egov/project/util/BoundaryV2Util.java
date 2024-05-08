@@ -14,6 +14,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Utility class to validate boundary details.
@@ -46,7 +47,7 @@ public class BoundaryV2Util {
         // Flatten the lists of boundary codes from the map values
         List<String> boundaries = boundaryTypeBoundariesMap.values().stream().flatMap(List::stream)
                 .collect(Collectors.toList());
-
+        if(CollectionUtils.isEmpty(boundaries)) return;
         try {
             // Fetch boundary details from the service
             log.debug("Fetching boundary details for tenantId: {}, boundaries: {}", tenantId, boundaries);
