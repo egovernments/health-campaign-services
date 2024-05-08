@@ -756,6 +756,7 @@ const SetupCampaign = () => {
 
   // validating the screen data on clicking next button
   const handleValidate = (formData) => {
+    console.log("formData" , formData);
     const key = Object.keys(formData)?.[0];
     switch (key) {
       case "campaignName":

@@ -16,7 +16,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const params = Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_UPLOAD_ID");
-  const [hierarchy, setHierarchy] = useState(params?.hierarchyType);
+  const [hierarchy, setHierarchy] = useState(params?.hierarchy);
   // const [hierarchy, setHierarchy] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || {});
   // const [showcomponent, setShowComponent] = useState(
   //   props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || false
@@ -33,7 +33,6 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       ?.boundaryType || null
   );
   const [showToast, setShowToast] = useState(null);
-  // const [dataParams, setDataParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
   const [updatedHierarchy, setUpdatedHierarchy] = useState({});
   const [hierarchyTypeDataresult, setHierarchyTypeDataresult] = useState(params?.hierarchy);
 
@@ -42,37 +41,15 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
   }, [boundaryData, selectedData ]);
 
-  // useEffect(() => {
-  //   setBoundaryData(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData );
-  //   setSelectedData(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData );
-  // }, [props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryData ]);
+  useEffect(() => {
+    setHierarchy(params?.hierarchyType);
+  }, [params?.hierarchyType ]);
+
 
   const closeToast = () => {
     setShowToast(null);
   };
 
-  
-//   const reqCriteriaBoundaryHierarchySearch = {
-//     url: "/boundary-service/boundary-hierarchy-definition/_search",
-//     params: {},
-//     body: {
-//       BoundaryTypeHierarchySearchCriteria: {
-//         tenantId: tenantId,
-//         hierarchyType: hierarchy,
-//       },
-//     },
-//     config: {
-//       enabled: true,
-//     },
-//   };
-
-//   const { data: hierarchyTypeDataResponse} = Digit.Hooks.useCustomAPIHook(reqCriteriaBoundaryHierarchySearch);
-
-//   useEffect(() => {
-//     if (hierarchyTypeDataResponse) {
-//         setHierarchyTypeDataresult(hierarchyTypeDataResponse?.BoundaryHierarchy?.[0]);
-//     }
-// }, [hierarchyTypeDataResponse]);
 
 useEffect(() => {
   if (hierarchyTypeDataresult) {
@@ -198,7 +175,15 @@ useEffect(() => {
       if (check) {
         const typesToRemove = [boundary.boundaryType, ...check];
         const updatedSelectedData = selectedData?.filter((item) => !typesToRemove?.includes(item?.type));
+        const updatedBoundaryData = { ...boundaryData };
+
+        typesToRemove.forEach(type => {
+          if (type !== boundary.boundaryType && updatedBoundaryData.hasOwnProperty(type)) {
+              updatedBoundaryData[type] = [];
+          }
+      });
         setSelectedData(updatedSelectedData);
+        setBoundaryData(updatedBoundaryData)
       }
       return;
     }

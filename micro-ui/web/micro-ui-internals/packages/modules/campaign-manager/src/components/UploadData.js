@@ -31,6 +31,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [executionCount, setExecutionCount] = useState(0);
   const [isError, setIsError] = useState(false);
   const [isValidation, setIsValidation] = useState(false);
+  const [fileName , setFileName] = useState (null);
   const { isLoading, data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
     { name: "facilitySchema" },
     { name: "userSchema" },
@@ -403,6 +404,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setShowToast({ key: "error", label: t("HCM_ERROR_MORE_THAN_ONE_FILE") });
       return;
     }
+    setFileName(file?.[0]?.name);
     const module = "HCM-ADMIN-CONSOLE-CLIENT";
     const { data: { files: fileStoreIds } = {} } = await Digit.UploadServices.MultipleFilesStorage(module, file, tenantId);
     const filesArray = [fileStoreIds?.[0]?.fileStoreId];
@@ -449,6 +451,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           if (temp?.isError) {
             const errorMessage = temp?.error.replaceAll(":", "-");
             setShowToast({ key: "error", label: errorMessage });
+            setIsError(true);
             return;
           }
           if (temp?.status === "completed") {
@@ -473,7 +476,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 const fileData = fileUrl.map((i) => {
                   const urlParts = i?.url?.split("/");
                   const id = fileUrl?.[0]?.id;
-                  const fileName = uploadedFile?.[0]?.fileName;
+                  // const fileName = fileName;
                   const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
                   return {
                     ...i,
@@ -496,11 +499,12 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               return;
             } else {
               setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN") });
+              setIsError(true);
               const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([processedFileStore], tenantId);
               const fileData = fileUrl.map((i) => {
                 const urlParts = i?.url?.split("/");
                 const id = fileUrl?.[0]?.id;
-                const fileName = file?.[0]?.name;
+                // const fileName = file?.[0]?.name;
                 const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
                 return {
                   ...i,
@@ -519,6 +523,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
     fetchData();
   }, [errorsType]);
+
 
   const Template = {
     url: "/project-factory/v1/data/_download",
