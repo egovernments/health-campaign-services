@@ -96,10 +96,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       } else if (type === "facilityWithBoundary") {
         uploadType = "uploadFacility";
       }
-      onSelect(uploadType, uploadedFile);
+      onSelect(uploadType, { uploadedFile });
       setExecutionCount((prevCount) => prevCount + 1);
     }
-  }, [type, executionCount, onSelect, uploadedFile]);
+  });
 
   useEffect(() => {
     switch (type) {
