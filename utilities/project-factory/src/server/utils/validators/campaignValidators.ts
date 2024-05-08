@@ -7,7 +7,7 @@ import { campaignDetailsSchema } from "../../config/models/campaignDetails";
 import Ajv from "ajv";
 import axios from "axios";
 import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName } from "../campaignUtils";
-import { calculateKeyIndex, getLocalizedMessagesHandler, modifyTargetData, throwError } from "../genericUtils";
+import { calculateKeyIndex, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, throwError } from "../genericUtils";
 import { validateBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignDetails";
@@ -105,33 +105,33 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
 async function validateTargetBoundaryData(data: any[], request: any, boundaryColumn: any, errors: any[]) {
     const responseBoundaries = await fetchBoundariesInChunks(request);
     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code);
-
     // Iterate through each array of objects
     for (const key in data) {
         if (Array.isArray(data[key])) {
             const boundaryData = data[key];
             const boundarySet = new Set(); // Create a Set to store unique boundaries for given sheet 
             boundaryData.forEach((element: any, index: number) => {
-                const boundaries = element[boundaryColumn]; // Access "Boundary Code" property directly
+                const boundaries = element?.[boundaryColumn]; // Access "Boundary Code" property directly
                 if (!boundaries) {
                     errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"] + 1} for sheet ${key}`, sheetName: key })
-                }
-                const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
-                if (boundaryList.length === 0) {
-                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
-                }
-                if (boundaryList.length > 1) {
-                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
-                }
-                if (boundaryList.length === 1) {
-                    const boundaryCode = boundaryList[0];
-                    if (boundarySet.has(boundaryCode)) {
-                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                } else {
+                    const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
+                    if (boundaryList.length === 0) {
+                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
                     }
-                    if (!responseBoundaryCodes.includes(boundaryCode)) {
-                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key}not found in the system`, sheetName: key })
+                    if (boundaryList.length > 1) {
+                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
                     }
-                    boundarySet.add(boundaryCode);
+                    if (boundaryList.length === 1) {
+                        const boundaryCode = boundaryList[0];
+                        if (boundarySet.has(boundaryCode)) {
+                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                        }
+                        if (!responseBoundaryCodes.includes(boundaryCode)) {
+                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key}not found in the system`, sheetName: key })
+                        }
+                        boundarySet.add(boundaryCode);
+                    }
                 }
             });
         }
@@ -140,27 +140,29 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
 
 
 
-async function validateTargetsAtLowestLevelPresentOrNot(data: any[], request: any, errors: any[]) {
+async function validateTargetsAtLowestLevelPresentOrNot(data: any[], request: any, errors: any[], localizationMap?: any) {
     const hierachy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    const localizedHierarchy = getLocalizedHeaders(hierachy, localizationMap);
     const dataToBeValidated = modifyTargetData(data);
     let maxKeyIndex = -1;
     dataToBeValidated.forEach(obj => {
-        const keyIndex = calculateKeyIndex(obj, hierachy);
+        const keyIndex = calculateKeyIndex(obj, localizedHierarchy, localizationMap);
         if (keyIndex > maxKeyIndex) {
             maxKeyIndex = keyIndex;
         }
     })
-    const lowestLevelHierarchy = hierachy[maxKeyIndex];
-    validateTargets(data, lowestLevelHierarchy, errors);
+    const lowestLevelHierarchy = localizedHierarchy[maxKeyIndex];
+    validateTargets(data, lowestLevelHierarchy, errors, localizationMap);
 }
 //
-function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[]) {
+function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], localizationMap?: any) {
     for (const key in data) {
         if (Array.isArray(data[key])) {
             const boundaryData = data[key];
             boundaryData.forEach((obj: any, index: number) => {
                 if (obj.hasOwnProperty(lowestLevelHierarchy)) {
-                    const target = obj['Target at the Selected Boundary level'];
+                    const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
+                    const target = obj[localizedTargetColumnName];
                     if (target === undefined || typeof target !== 'number' || target < 0 || !Number.isInteger(target)) {
                         errors.push({ status: "INVALID", rowNumber: obj["!row#number!"], errorDetails: `Invalid target value at row ${obj['!row#number!'] + 1}. of sheet ${key}`, sheetName: key })
                     }
@@ -288,15 +290,16 @@ async function validateSheetData(data: any, request: any, schema: any, boundaryV
     }
 }
 
-async function validateTargetSheetData(data: any, request: any, boundaryValidation: any) {
+async function validateTargetSheetData(data: any, request: any, boundaryValidation: any, localizationMap?: any) {
     try {
         const errors: any[] = [];
         if (boundaryValidation) {
-            await validateTargetBoundaryData(data, request, boundaryValidation?.column, errors);
-            await validateTargetsAtLowestLevelPresentOrNot(data, request, errors);
+            const localizedBoundaryValidationColumn = getLocalizedName(boundaryValidation?.column, localizationMap)
+            await validateTargetBoundaryData(data, request, localizedBoundaryValidationColumn, errors);
+            await validateTargetsAtLowestLevelPresentOrNot(data, request, errors, localizationMap);
         }
         request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
-        await generateProcessedFileAndPersist(request);
+        await generateProcessedFileAndPersist(request, localizationMap);
     }
     catch (error) {
         await handleResouceDetailsError(request, error);
@@ -350,14 +353,16 @@ async function validateCreateRequest(request: any) {
         }
         const fileUrl = await validateFile(request);
         if (request.body.ResourceDetails.type == 'boundary') {
-            await validateBoundarySheetData(request, fileUrl);
+            const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
+            await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
     }
 }
 
-async function validateBoundarySheetData(request: any, fileUrl: any) {
-    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, config.sheetName, false);
-    await validateHeaders(headersOfBoundarySheet, request)
+async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
+    const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap);
+    const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap);
+    await validateHeaders(headersOfBoundarySheet, request, localizationMap)
 }
 
 async function validateFile(request: any) {
@@ -798,12 +803,15 @@ function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string,
 
 
 
-async function validateHeaders(headersOfBoundarySheet: any, request: any) {
+async function validateHeaders(headersOfBoundarySheet: any, request: any, localizationMap?: any) {
     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-    validateBoundarySheetHeaders(headersOfBoundarySheet, hierarchy, request);
+    const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails.hierarchyType}_${ele}`.toUpperCase())
+    const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
+    validateBoundarySheetHeaders(headersOfBoundarySheet, localizedHierarchy, request, localizationMap);
 }
-function validateBoundarySheetHeaders(headersOfBoundarySheet: any[], hierarchy: any[], request: any) {
-    const boundaryCodeIndex = headersOfBoundarySheet.indexOf('Boundary Code');
+function validateBoundarySheetHeaders(headersOfBoundarySheet: any[], hierarchy: any[], request: any, localizationMap?: any) {
+    const localizedBoundaryCode = getLocalizedName(config.boundaryCode, localizationMap)
+    const boundaryCodeIndex = headersOfBoundarySheet.indexOf(localizedBoundaryCode);
     const keysBeforeBoundaryCode = boundaryCodeIndex === -1 ? headersOfBoundarySheet : headersOfBoundarySheet.slice(0, boundaryCodeIndex);
     if (keysBeforeBoundaryCode.some((key: any, index: any) => (key === undefined || key === null) || key !== hierarchy[index]) || keysBeforeBoundaryCode.length !== hierarchy.length) {
         const errorMessage = `"Boundary Sheet Headers are not the same as the hierarchy present for the given tenant and hierarchy type: ${request?.body?.ResourceDetails?.hierarchyType}"`;

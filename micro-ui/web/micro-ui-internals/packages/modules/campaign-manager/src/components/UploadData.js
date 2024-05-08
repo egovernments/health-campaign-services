@@ -333,13 +333,15 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     const fileData = fileUrl.map((i) => {
       const urlParts = i?.url?.split("/");
       const fileName = file?.[0]?.name;
+      const id = fileUrl?.[0]?.id;
       const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
       return {
         ...i,
-        fileName: fileName,
+        filestoreId: id,
+        filename: fileName,
         type: fileType,
       };
-    });
+    }).map(({ id, ...rest }) => rest);
     setUploadedFile(fileData);
     const validate = await validateExcel(file[0]);
   };
@@ -374,12 +376,14 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           }
           if (temp?.status === "completed") {
             setIsValidation(false);
-            if (Object.keys(temp?.additionalDetails).length === 0) {
+            if (temp?.additionalDetails?.sheetErrors.length === 0) {
               setShowToast({ key: "success", label: t("HCM_VALIDATION_COMPLETED") });
               if (!errorsType[type]) {
                 setIsError(false);
+                return ;
                 // setIsValidation(false);
               }
+              return ;
             } else {
               const processedFileStore = temp?.processedFilestoreId;
               if (!processedFileStore) {
@@ -391,15 +395,17 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([processedFileStore], tenantId);
                 const fileData = fileUrl.map((i) => {
                   const urlParts = i?.url?.split("/");
+                  const id = fileUrl?.[0]?.id;
                   const fileName = uploadedFile?.[0]?.fileName;
                   const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
                   return {
                     ...i,
-                    fileName: fileName,
+                    filestoreId: id,
+                    filename: fileName,
                     type: fileType,
                     resourceId: temp?.id,
                   };
-                });
+                }).map(({ id, ...rest }) => rest);
                 onFileDelete(uploadedFile);
                 setUploadedFile(fileData);
               }
@@ -416,14 +422,16 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([processedFileStore], tenantId);
               const fileData = fileUrl.map((i) => {
                 const urlParts = i?.url?.split("/");
+                const id = fileUrl?.[0]?.id;
                 const fileName = file?.[0]?.name;
                 const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
                 return {
                   ...i,
-                  fileName: fileName,
+                  filestoreId: id,
+                  filename: fileName,
                   type: fileType,
                 };
-              });
+              }).map(({ id, ...rest }) => rest);
               onFileDelete(uploadedFile);
               setUploadedFile(fileData);
             }
@@ -474,7 +482,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             const fileName = type === "boundary" ? "Boundary Template" : type === "facilityWithBoundary" ? "Facility Template" : "User Template";
             return {
               ...i,
-              fileName: fileName,
+              filename: fileName,
             };
           });
 

@@ -746,7 +746,7 @@ const SetupCampaign = () => {
     const boundaryTypes = new Set(hierarchyDefinition?.BoundaryHierarchy?.[0]?.boundaryHierarchy.map((item) => item?.boundaryType));
 
     // Extracting unique boundary types from data
-    const uniqueDataBoundaryTypes = new Set(data?.map((item) => item.boundaryType));
+    const uniqueDataBoundaryTypes = new Set(data?.map((item) => item.type));
 
     // Checking if all unique boundary types from hierarchy response are present in data
     const allBoundaryTypesPresent = [...boundaryTypes].every((type) => uniqueDataBoundaryTypes.has(type));

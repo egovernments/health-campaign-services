@@ -20,7 +20,7 @@ export const useResourceData = async (data, hierarchyType, type, tenantId) => {
           type: Type,
           hierarchyType: hierarchyType,
           tenantId: Digit.ULBService.getCurrentTenantId(),
-          fileStoreId: data?.[0]?.id,
+          fileStoreId: data?.[0]?.filestoreId,
           action: "validate",
           additionalDetails: {},
         },
@@ -63,7 +63,7 @@ export const useResourceData = async (data, hierarchyType, type, tenantId) => {
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
   }
-  if (Error) {
+  if (Error.isError) {
     return Error;
   }
   return searchResponse?.ResourceDetails?.[0];

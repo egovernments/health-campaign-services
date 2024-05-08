@@ -197,7 +197,7 @@ useEffect(() => {
       const check = updatedHierarchy[boundary.boundaryType];
       if (check) {
         const typesToRemove = [boundary.boundaryType, ...check];
-        const updatedSelectedData = selectedData?.filter((item) => !typesToRemove?.includes(item?.boundaryType));
+        const updatedSelectedData = selectedData?.filter((item) => !typesToRemove?.includes(item?.type));
         setSelectedData(updatedSelectedData);
       }
       return;
@@ -211,7 +211,7 @@ useEffect(() => {
 
     const transformedRes = res?.map((item) => ({
       code: item.code,
-      boundaryType: item.boundaryType,
+      type: item.boundaryType,
       isRoot: item.boundaryType === parentBoundaryTypeRoot,
       includeAllChildren: true,
     }));
@@ -222,12 +222,12 @@ useEffect(() => {
         transformedRes[index].includeAllChildren = true; // Set includeAllChildren to true for the selected boundary
       }
       // Find the parent boundary type using the hierarchy data
-      const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)?.parentBoundaryType;
+      const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary.boundaryType)?.parentBoundaryType;
 
       // If the selected boundary has a parent, set includeAllChildren to false for the parent
       if (parentBoundaryType) {
         const parentIndexes = selectedData.reduce((acc, item, index) => {
-          if (item.boundaryType === parentBoundaryType) {
+          if (item.type === parentBoundaryType) {
             acc.push(index);
           }
           return acc;
@@ -239,13 +239,13 @@ useEffect(() => {
       }
     });
 
-    const newBoundaryType = transformedRes?.[0]?.boundaryType;
-    const existingBoundaryType = selectedData?.length > 0 ? selectedData?.[0]?.boundaryType : null;
+    const newBoundaryType = transformedRes?.[0]?.type;
+    const existingBoundaryType = selectedData?.length > 0 ? selectedData?.[0]?.type : null;
     if (existingBoundaryType === newBoundaryType) {
       // Update only the data for the specific boundaryType
       const flattenedRes = transformedRes.flat();
       const updatedSelectedData = selectedData?.map((item) => {
-        if (item.boundaryType === newBoundaryType) {
+        if (item.type === newBoundaryType) {
           return transformedRes.flat();
         } else {
           return item;
@@ -255,21 +255,22 @@ useEffect(() => {
       setSelectedData(updatedSelectedData);
     } else {
       // Update only the data for the new boundaryType
-      const mergedData = [...selectedData?.filter((item) => item?.boundaryType !== newBoundaryType), ...transformedRes];
+      const mergedData = [...selectedData?.filter((item) => item?.type !== newBoundaryType), ...transformedRes];
 
       // Filter out items with undefined type
       const filteredData = mergedData.filter(
-        (item, index, self) => item?.boundaryType !== undefined && index === self?.findIndex((t) => t?.code === item?.code)
+        (item, index, self) => item?.type !== undefined && index === self?.findIndex((t) => t?.code === item?.code)
       );
       setSelectedData(filteredData);
     }
-    const parentBoundaryEntry = hierarchyTypeDataresult ? hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.parentBoundaryType === res?.[0]?.boundaryType) : null;
+    const parentBoundaryEntry = hierarchyTypeDataresult ? hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.parentBoundaryType === res?.[0]?.boundaryType || e.parentBoundaryType === res?.[0]?.type) : null;
     setBoundaryType(parentBoundaryEntry?.boundaryType);
     const codes = res.map((item) => item.code);
     if (JSON.stringify(codes) !== JSON.stringify(parentArray)) {
       setParentArray(codes);
     }
   };
+
 
   return (
     <>
@@ -289,7 +290,7 @@ useEffect(() => {
                       t={t}
                       options={boundaryData[boundary?.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary)?.flat() || []}
                       optionsKey={"code"}
-                      selected={selectedData?.filter((item) => item?.boundaryType === boundary?.boundaryType)}
+                      selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType)}
                       onSelect={(value) => {
                         handleBoundaryChange(value, boundary);
                       }}
@@ -319,7 +320,7 @@ useEffect(() => {
                       onSelect={(value) => {
                         handleBoundaryChange(value, boundary);
                       }}
-                      selected={selectedData?.filter((item) => item.boundaryType === boundary.boundaryType)}
+                      selected={selectedData?.filter((item) => item.type === boundary.boundaryType)}
                       addCategorySelectAllCheck={true}
                       addSelectAllCheck={true}
                       variant="nestedmultiselect"

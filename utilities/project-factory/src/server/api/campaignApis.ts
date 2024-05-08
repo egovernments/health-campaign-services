@@ -6,7 +6,7 @@ import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema } from "../utils/genericUtils";
 import { fetchBoundariesInChunks, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
 import { callMdmsData, getCampaignNumber, getWorkbook } from "./genericApis";
-import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist } from "../utils/campaignUtils";
+import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
 const _ = require('lodash');
 import * as XLSX from 'xlsx';
 import { produceModifiedMessages } from "../Kafka/Listener";
@@ -417,7 +417,7 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
-    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation);
+    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation,localizationMap);
   }
   else {
     const schemaMasterName: string = type === 'facility' ? config.facilitySchemaMasterName : type === 'user' ? config.userSchemaMasterName : "";
@@ -606,7 +606,7 @@ async function processCreate(request: any, localizationMap?: any) {
   const type: string = request.body.ResourceDetails.type;
   const tenantId = request?.body?.ResourceDetails?.tenantId;
   if (type == "boundary") {
-    boundaryBulkUpload(request);
+    boundaryBulkUpload(request, localizationMap);
   }
   else {
     const createAndSearchConfig = createAndSearch[type]
@@ -708,8 +708,9 @@ const getHierarchy = async (request: any, tenantId: string, hierarchyType: strin
   return generateHierarchy(boundaryList);
 };
 
-const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false) => {
-  const workbook: any = await getWorkbook(fileUrl, sheetName);
+const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, getRow = false, localizationMap?: any) => {
+  const localizedBoundarySheetName = getLocalizedName(sheetName, localizationMap)
+  const workbook: any = await getWorkbook(fileUrl, localizedBoundarySheetName);
   const columnsToValidate = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
     header: 1,
   })[0] as (any)[];
