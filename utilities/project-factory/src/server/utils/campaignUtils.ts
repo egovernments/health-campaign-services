@@ -97,7 +97,8 @@ function processErrorData(request: any, createAndSearchConfig: any, workbook: an
     }
     if (errorData) {
         const uniqueIdentifierFirstRowCell = createAndSearchConfig?.uniqueIdentifierColumn + 1
-        desiredSheet[uniqueIdentifierFirstRowCell] = { v: createAndSearchConfig.uniqueIdentifierColumnName, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: createAndSearchConfig.uniqueIdentifierColumnName, w: createAndSearchConfig.uniqueIdentifierColumnName };
+        const columnName = getLocalizedName(createAndSearchConfig?.uniqueIdentifierColumnName, localizationMap);
+        desiredSheet[uniqueIdentifierFirstRowCell] = { v: columnName, t: 's', r: '<t xml:space="preserve">#uniqueIdentifier#</t>', h: columnName, w: columnName };
         errorData.forEach((error: any) => {
             const rowIndex = error.rowNumber;
             if (error.isUniqueIdentifier) {

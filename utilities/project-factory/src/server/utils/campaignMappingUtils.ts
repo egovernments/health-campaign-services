@@ -35,12 +35,12 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
     for (const resource of resources) {
         const processedFilestoreId = resource?.processedFilestoreId;
         if (processedFilestoreId) {
-            const dataFromSheet: any = await getDataFromSheet(messageObject, processedFilestoreId, messageObject?.Campaign?.tenantId, undefined, sheetName[resource?.type]);
+            const dataFromSheet: any = await getDataFromSheet(messageObject, processedFilestoreId, messageObject?.Campaign?.tenantId, undefined, sheetName[resource?.type], localizationMap);
             for (const data of dataFromSheet) {
                 const uniqueCodeColumn = getLocalizedName(createAndSearch?.[resource?.type]?.uniqueIdentifierColumnName, localizationMap)
                 const code = data[uniqueCodeColumn];
                 // Extract boundary codes
-                const boundaryCode = data[createAndSearch?.[resource?.type]?.boundaryValidation?.column];
+                const boundaryCode = data[getLocalizedName(createAndSearch?.[resource?.type]?.boundaryValidation?.column, localizationMap)];
                 if (boundaryCode) {
                     // Split boundary codes if they have comma separated values
                     const boundaryCodesArray = boundaryCode.split(',');
