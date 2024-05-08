@@ -202,6 +202,78 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     return true;
   };
 
+  // Function to compare arrays for equality
+  const arraysEqual = (arr1, arr2) => {
+    if (arr1.length !== arr2.length) return false;
+    for (let i = 0; i < arr1.length; i++) {
+      if (arr1[i] !== arr2[i]) return false;
+    }
+    return true;
+  };
+
+  const validateMultipleTargets = (workbook) => {
+    let isValid = true;
+    const sheet = workbook.Sheets[workbook.SheetNames[1]];
+    const expectedHeaders = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+    })[0];
+
+    // Iterate over each sheet in the workbook, starting from the second sheet
+    for (let i = 1; i < workbook.SheetNames.length; i++) {
+      const sheetName = workbook?.SheetNames[i];
+      const sheet = workbook?.Sheets[sheetName];
+      // Convert the sheet to JSON to extract headers
+      const headersToValidate = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+      })[0];
+
+      // Check if headers match the expected headers
+      if (!arraysEqual(headersToValidate, expectedHeaders)) {
+        isValid = false;
+        break;
+      }
+
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { blankrows: true });
+
+      const boundaryCodeIndex = headersToValidate.indexOf(t("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+      const headersBeforeBoundaryCode = headersToValidate.slice(0, boundaryCodeIndex);
+
+      const columnBeforeBoundaryCode = jsonData.map((row) => row[headersBeforeBoundaryCode[headersBeforeBoundaryCode.length - 1]]);
+
+      // Getting the length of data in the column before the boundary code
+      const lengthOfColumnBeforeBoundaryCode = columnBeforeBoundaryCode.filter((value) => value !== undefined && value !== "").length;
+
+      const filteredData = jsonData
+        .filter((e) => e[headersBeforeBoundaryCode[headersBeforeBoundaryCode?.length - 1]])
+        .filter((e) => e[t("HCM_ADMIN_CONSOLE_TARGET_AT_THE_SELECTED_BOUNDARY_LEVEL")]);
+      if (filteredData?.length == 0 || filteredData?.length != lengthOfColumnBeforeBoundaryCode) {
+        const errorMessage = t("HCM_MISSING_TARGET");
+        setErrorsType((prevErrors) => ({
+          ...prevErrors,
+          [type]: errorMessage,
+        }));
+        setIsError(true);
+        isValid = false;
+        break;
+      }
+
+      const targetValue = filteredData?.[0][t("HCM_ADMIN_CONSOLE_TARGET_AT_THE_SELECTED_BOUNDARY_LEVEL")];
+
+      if (targetValue <= 0 || targetValue >= 100000000) {
+        const errorMessage = t("HCM_TARGET_VALIDATION_ERROR");
+        setErrorsType((prevErrors) => ({
+          ...prevErrors,
+          [type]: errorMessage,
+        }));
+        setIsError(true);
+        isValid = false;
+        break;
+      }
+    }
+
+    return isValid;
+  };
+
   const validateExcel = (selectedFile) => {
     return new Promise((resolve, reject) => {
       // Check if a file is selected
@@ -216,13 +288,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: "array" });
-
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const headersToValidate = XLSX.utils.sheet_to_json(sheet, {
             header: 1,
           })[0];
 
           const SheetNames = workbook.SheetNames[0];
+          const expectedHeaders = sheetHeaders[type];
           if (type === "boundary") {
             if (SheetNames !== t("HCM_ADMIN_CONSOLE_BOUNDARY_DATA")) {
               const errorMessage = t("HCM_INVALID_BOUNDARY_SHEET");
@@ -254,16 +326,21 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               return;
             }
           }
-          const expectedHeaders = sheetHeaders[type];
-          for (const header of expectedHeaders) {
-            if (!headersToValidate.includes(header)) {
-              const errorMessage = t("HCM_MISSING_HEADERS");
-              setErrorsType((prevErrors) => ({
-                ...prevErrors,
-                [type]: errorMessage,
-              }));
-              setIsError(true);
+          if (type === "boundary" && workbook?.SheetNames?.length > 1) {
+            if (!validateMultipleTargets(workbook)) {
               return;
+            }
+          } else {
+            for (const header of expectedHeaders) {
+              if (!headersToValidate.includes(header)) {
+                const errorMessage = t("HCM_MISSING_HEADERS");
+                setErrorsType((prevErrors) => ({
+                  ...prevErrors,
+                  [type]: errorMessage,
+                }));
+                setIsError(true);
+                return;
+              }
             }
           }
 
@@ -281,7 +358,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
           jsonData = jsonData.filter((element) => element !== undefined);
 
-          if (type === "boundary") {
+          if (type === "boundary" && workbook?.SheetNames.length == 1) {
             if (!validateTarget(jsonData, headersToValidate)) {
               return;
             }
@@ -369,10 +446,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
         try {
           const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId);
-          if(temp?.isError){
+          if (temp?.isError) {
             const errorMessage = temp?.error.replaceAll(":", "-");
             setShowToast({ key: "error", label: errorMessage });
-                return;
+            return;
           }
           if (temp?.status === "completed") {
             setIsValidation(false);
@@ -380,10 +457,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               setShowToast({ key: "success", label: t("HCM_VALIDATION_COMPLETED") });
               if (!errorsType[type]) {
                 setIsError(false);
-                return ;
+                return;
                 // setIsValidation(false);
               }
-              return ;
+              return;
             } else {
               const processedFileStore = temp?.processedFilestoreId;
               if (!processedFileStore) {
