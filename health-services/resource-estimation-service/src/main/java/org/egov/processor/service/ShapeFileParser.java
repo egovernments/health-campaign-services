@@ -3,9 +3,11 @@ package org.egov.processor.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,6 +43,15 @@ public class ShapeFileParser implements FileParser {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Parses the file data based on the provided plan configuration and file store ID.
+     * Converts a Shapefile to GeoJSON format, calculates resources based on the operations
+     * defined in the plan configuration, and uploads the updated GeoJSON file to the file store.
+     *
+     * @param planConfig  The plan configuration containing mapping and operation details.
+     * @param fileStoreId The file store ID of the Shapefile to be converted and parsed.
+     * @return The file store ID of the uploaded updated file, or null if an error occurred.
+     */
     @Override
     public Object parseFileData(PlanConfiguration planConfig, String fileStoreId) {
         File geojsonFile = convertShapefileToGeoJson(planConfig, fileStoreId);
@@ -58,6 +69,13 @@ public class ShapeFileParser implements FileParser {
         return filestoreUtil.uploadFile(updatedGeojsonFile, planConfig.getTenantId());
     }
 
+    /**
+     * Converts a Shapefile to GeoJSON format and writes it to a GeoJSON file.
+     *
+     * @param planConfig  The plan configuration containing mapping details.
+     * @param fileStoreId The file store ID of the Shapefile to be converted.
+     * @return The GeoJSON file containing the converted data.
+     */
     public File convertShapefileToGeoJson(PlanConfiguration planConfig, String fileStoreId) {
         File shapefile = null;
         try {
@@ -77,21 +95,42 @@ public class ShapeFileParser implements FileParser {
 
             writeFeaturesToGeoJson(featureSource, geojsonFile);
         } catch (IOException e) {
-            throw new CustomException(e.getMessage(),"");
+            throw new CustomException(e.getMessage(), "");
         }
 
         return geojsonFile;
     }
 
-    private DataStore getDataStore(File shapefile) throws IOException {
+    /**
+     * Retrieves a DataStore object for a given Shapefile.
+     *
+     * @param shapefile The Shapefile to retrieve the DataStore for.
+     * @return The DataStore object for the Shapefile.
+     * @throws IOException If an I/O error occurs.
+     */
+    private DataStore getDataStore(File shapefile) {
         Map<String, Object> params = new HashMap<>();
-        params.put("url", shapefile.toURI().toURL());
-        return DataStoreFinder.getDataStore(params);
+        try {
+            params.put("url", shapefile.toURI().toURL());
+            return DataStoreFinder.getDataStore(params);
+        } catch (IOException e) {
+            throw new CustomException("","");
+        }
+
     }
 
-    private void writeFeaturesToGeoJson(SimpleFeatureSource featureSource, File geojsonFile) throws IOException {
+    /**
+     * Writes features from a SimpleFeatureSource to a GeoJSON file.
+     *
+     * @param featureSource The SimpleFeatureSource containing the features to write.
+     * @param geojsonFile   The GeoJSON file to write the features to.
+     * @throws IOException If an I/O error occurs.
+     */
+    private void writeFeaturesToGeoJson(SimpleFeatureSource featureSource, File geojsonFile)  {
         try (FileOutputStream geojsonStream = new FileOutputStream(geojsonFile)) {
             new FeatureJSON().writeFeatureCollection(featureSource.getFeatures(), geojsonStream);
+        } catch (IOException e) {
+            throw new CustomException("","");
         }
     }
 

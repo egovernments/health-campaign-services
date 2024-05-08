@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class PlanConsumer {
+
     private ObjectMapper objectMapper;
 
     private ResourceEstimationService resourceEstimationService;

@@ -86,6 +86,12 @@ public class ParsingUtil {
         return true;
     }
 
+    /**
+     * Retrieves the column names and their corresponding indexes from the header row of an Excel sheet.
+     *
+     * @param sheet The Excel sheet from which to extract column names.
+     * @return A map containing column names as keys and their indexes as values.
+     */
     public Map<String, Integer> getAttributeNameIndexFromExcel(Sheet sheet) {
         Map<String, Integer> columnIndexMap = new HashMap<>();
         DataFormatter dataFormatter = new DataFormatter();
@@ -126,16 +132,36 @@ public class ParsingUtil {
         return null;
     }
 
+    /**
+     * Retrieves a file from a byte array.
+     *
+     * @param planConfig  The plan configuration containing tenant and file information.
+     * @param fileStoreId The ID of the file store.
+     * @return The File object representing the byte array.
+     */
     public File getFileFromByteArray(PlanConfiguration planConfig, String fileStoreId) {
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         return convertByteArrayToFile(byteArray, "geojson");
     }
 
+    /**
+     * Converts a byte array to a String.
+     *
+     * @param planConfig  The plan configuration containing tenant and file information.
+     * @param fileStoreId The ID of the file store.
+     * @return The String representation of the byte array.
+     */
     public String convertByteArrayToString(PlanConfiguration planConfig, String fileStoreId) {
         byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
         return new String(byteArray, StandardCharsets.UTF_8);
     }
 
+    /**
+     * Converts a File object containing JSON data to a String.
+     *
+     * @param geojsonFile The File object containing JSON data.
+     * @return The String representation of the JSON data.
+     */
     public String convertFileToJsonString(File geojsonFile) {
         String geoJSONString = null;
         try {
@@ -147,6 +173,13 @@ public class ParsingUtil {
         return geoJSONString;
     }
 
+    /**
+     * Writes a JsonNode to a file.
+     *
+     * @param jsonNode     The JsonNode to write.
+     * @param objectMapper The ObjectMapper used for writing the JsonNode.
+     * @return The File object representing the written JSON data.
+     */
     public File writeToFile(JsonNode jsonNode, ObjectMapper objectMapper) {
         String outputFileName = "processed.geojson";
         File outputFile;
@@ -161,6 +194,13 @@ public class ParsingUtil {
         }
     }
 
+    /**
+     * Parses a JSON string into a JsonNode.
+     *
+     * @param geoJSON      The JSON string to parse.
+     * @param objectMapper The ObjectMapper used for parsing the JSON string.
+     * @return The parsed JsonNode.
+     */
     public JsonNode parseJson(String geoJSON, ObjectMapper objectMapper) {
         try {
             return objectMapper.readTree(geoJSON);
@@ -170,6 +210,15 @@ public class ParsingUtil {
         }
     }
 
+    /**
+     * Extracts shapefiles from a zip file and returns the .shp file.
+     *
+     * @param planConfig  The plan configuration containing tenant and file information.
+     * @param fileStoreId The ID of the file store.
+     * @param fileName    The name of the file to extract.
+     * @return The extracted .shp File object.
+     * @throws IOException If an I/O error occurs while extracting the shapefiles.
+     */
     public File extractShapeFilesFromZip(PlanConfiguration planConfig, String fileStoreId, String fileName) throws IOException {
         File shpFile = null;
         byte[] zipFileBytes = filestoreUtil.getFile(planConfig.getTenantId(), planConfig.getFiles().get(0).getFilestoreId());
