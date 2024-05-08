@@ -831,12 +831,26 @@ async function getDataSheetReady(boundaryData: any, request: any) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
   const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
-  const string = boundaryCodes.join(', ');
-  const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.query?.tenantId, codes: string });
+
+  // Chunk the boundary codes into groups of 20
+  const chunkSize = 20;
+  const boundaryCodeChunks = [];
+  for (let i = 0; i < boundaryCodes.length; i += chunkSize) {
+    boundaryCodeChunks.push(boundaryCodes.slice(i, i + chunkSize));
+  }
+
   const boundaryCodeNameMapping: { [key: string]: string } = {};
-  boundaryEntityResponse?.Boundary?.forEach((data: any) => {
-    boundaryCodeNameMapping[data?.code] = data?.additionalDetails?.name;
-  });
+
+  // Fetch data for each chunk of boundary codes
+  for (const chunk of boundaryCodeChunks) {
+    const string = chunk.join(', ');
+    const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.query?.tenantId, codes: string });
+
+    // Populate boundaryCodeNameMapping with the retrieved data
+    boundaryEntityResponse?.Boundary?.forEach((data: any) => {
+      boundaryCodeNameMapping[data?.code] = data?.additionalDetails?.name;
+    });
+  }
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
