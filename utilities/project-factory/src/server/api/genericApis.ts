@@ -513,7 +513,7 @@ async function getBoundarySheetData(request: any, localizationMap?: { [key: stri
         logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
         if (request?.body?.Filters != null) {
             const filteredBoundaryData = await generateFilteredBoundaryData(request);
-            return await getDataSheetReady(filteredBoundaryData, request);
+            return await getDataSheetReady(filteredBoundaryData, request,localizationMap);
         }
         else {
             return await getDataSheetReady(boundaryData, request, localizationMap);
