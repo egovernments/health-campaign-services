@@ -516,6 +516,10 @@ async function persistForCampaignProjectMapping(request: any, createResourceDeta
         requestBody.Campaign.rootProjectId = request?.body?.CampaignDetails?.projectId
         requestBody.Campaign.resourceDetailsIds = createResourceDetailsIds
         requestBody.CampaignDetails = request?.body?.CampaignDetails
+        var updatedInnerCampaignDetails = {}
+        enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
+        requestBody.CampaignDetails = request?.body?.CampaignDetails
+        requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
         requestBody.localizationMap = localizationMap
         logger.info("Persisting CampaignProjectMapping : " + JSON.stringify(requestBody));
         produceModifiedMessages(requestBody, config.KAFKA_START_CAMPAIGN_MAPPING_TOPIC);
