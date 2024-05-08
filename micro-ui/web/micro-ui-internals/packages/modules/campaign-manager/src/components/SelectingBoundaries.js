@@ -290,9 +290,9 @@ useEffect(() => {
                   <div className="digit-field">
                     <MultiSelectDropdown
                       t={t}
-                      options={boundaryData[boundary.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary).flat() || []}
+                      options={boundaryData[boundary?.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary)?.flat() || []}
                       optionsKey={"code"}
-                      selected={selectedData?.filter((item) => item.boundaryType === boundary.boundaryType)}
+                      selected={selectedData?.filter((item) => item?.boundaryType === boundary?.boundaryType)}
                       onSelect={(value) => {
                         handleBoundaryChange(value, boundary);
                       }}
