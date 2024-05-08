@@ -33,7 +33,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
     ? [
         {
           fileType: "xlsx",
-          fileName: "fileData?.fileName",
+          filename: "fileData?.fileName",
           uri: fileUrl?.url,
         },
       ]
@@ -137,7 +137,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
           // }}
         >
           <FileIcon className="icon" />
-          <div style={{ marginLeft: "0.5rem", color: "#505A5F", fontWeight: "700" }}>{file.fileName}</div>
+          <div style={{ marginLeft: "0.5rem", color: "#505A5F", fontWeight: "700" }}>{file.filename}</div>
         </div>
         <div className="delete-and-download-button">
           <Button
