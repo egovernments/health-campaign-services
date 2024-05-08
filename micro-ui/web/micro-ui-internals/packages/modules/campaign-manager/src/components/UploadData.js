@@ -30,6 +30,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const type = props?.props?.type;
   const [executionCount, setExecutionCount] = useState(0);
   const [isError, setIsError] = useState(false);
+  const [isValidation, setIsValidation] = useState(false);
   const { isLoading, data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
     { name: "facilitySchema" },
     { name: "userSchema" },
@@ -40,13 +41,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
-      onSelect("uploadFacility", { uploadedFile, isError });
+      onSelect("uploadFacility", { uploadedFile, isError, isValidation });
     } else if (type === "boundary") {
-      onSelect("uploadBoundary", { uploadedFile, isError });
+      onSelect("uploadBoundary", { uploadedFile, isError, isValidation });
     } else {
-      onSelect("uploadUser", { uploadedFile, isError });
+      onSelect("uploadUser", { uploadedFile, isError, isValidation });
     }
-  }, [uploadedFile, isError]);
+  }, [uploadedFile, isError, isValidation]);
 
   var translateSchema = (schema) => {
     var newSchema = { ...schema };
@@ -362,20 +363,24 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     const fetchData = async () => {
       if (!errorsType[type] && uploadedFile.length > 0) {
         setShowToast({ key: "info", label: t("HCM_VALIDATION_IN_PROGRESS") });
+        setIsValidation(true);
         setIsError(true);
 
         try {
           const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId);
           if (temp?.status === "completed") {
+            setIsValidation(false);
             if (Object.keys(temp?.additionalDetails).length === 0) {
               setShowToast({ key: "success", label: t("HCM_VALIDATION_COMPLETED") });
               if (!errorsType[type]) {
                 setIsError(false);
+                // setIsValidation(false);
               }
             } else {
               const processedFileStore = temp?.processedFilestoreId;
               if (!processedFileStore) {
                 setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED") });
+                // setIsValidation(true);
                 return;
               } else {
                 setShowToast({ key: "warning", label: t("HCM_CHECK_FILE_AGAIN") });
@@ -396,6 +401,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               }
             }
           } else {
+            setIsValidation(false);
             setShowToast({ key: "error", label: t("HCM_VALIDATION_FAILED") });
             const processedFileStore = temp?.processedFilestoreId;
             if (!processedFileStore) {
@@ -448,13 +454,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       },
       {
         onSuccess: async (result) => {
-          if(result?.GeneratedResource?.[0]?.status === "failed"){
-            setShowToast({key: "error", label: t("ERROR_WHILE_DOWNLOADING") });
-            return ;
+          if (result?.GeneratedResource?.[0]?.status === "failed") {
+            setShowToast({ key: "error", label: t("ERROR_WHILE_DOWNLOADING") });
+            return;
           }
-          if(!result?.GeneratedResource?.[0]?.fileStoreid || result?.GeneratedResource?.length == 0){
-            setShowToast({key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
-            return ;
+          if (!result?.GeneratedResource?.[0]?.fileStoreid || result?.GeneratedResource?.length == 0) {
+            setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+            return;
           }
           const filesArray = [result?.GeneratedResource?.[0]?.fileStoreid];
           const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch(filesArray, tenantId);

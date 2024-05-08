@@ -29,8 +29,8 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [boundaryTypeDataresult, setBoundaryTypeDataresult] = useState(null);
   const [selectedData, setSelectedData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData || []);
   const [parentBoundaryTypeRoot, setParentBoundaryTypeRoot] = useState(
-    (props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData.find((item) => item.isRoot === true) || {})
-      .boundaryType || null
+    (props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData?.find((item) => item?.isRoot === true) || {})
+      ?.boundaryType || null
   );
   const [showToast, setShowToast] = useState(null);
   // const [dataParams, setDataParams] = Digit.Hooks.useSessionStorage("HCM_CAMPAIGN_MANAGER_UPLOAD_ID", {});
@@ -200,7 +200,7 @@ useEffect(() => {
       const check = updatedHierarchy[boundary.boundaryType];
       if (check) {
         const typesToRemove = [boundary.boundaryType, ...check];
-        const updatedSelectedData = selectedData?.filter((item) => !typesToRemove.includes(item.boundaryType));
+        const updatedSelectedData = selectedData?.filter((item) => !typesToRemove?.includes(item?.boundaryType));
         setSelectedData(updatedSelectedData);
       }
       return;
@@ -220,12 +220,12 @@ useEffect(() => {
     }));
 
     res.forEach((boundary) => {
-      const index = transformedRes.findIndex((item) => item.code === boundary?.code);
+      const index = transformedRes?.findIndex((item) => item?.code === boundary?.code);
       if (index !== -1) {
         transformedRes[index].includeAllChildren = true; // Set includeAllChildren to true for the selected boundary
       }
       // Find the parent boundary type using the hierarchy data
-      const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy.find((e) => e.boundaryType === boundary.boundaryType)?.parentBoundaryType;
+      const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)?.parentBoundaryType;
 
       // If the selected boundary has a parent, set includeAllChildren to false for the parent
       if (parentBoundaryType) {
@@ -262,11 +262,11 @@ useEffect(() => {
 
       // Filter out items with undefined type
       const filteredData = mergedData.filter(
-        (item, index, self) => item?.boundaryType !== undefined && index === self.findIndex((t) => t.code === item.code)
+        (item, index, self) => item?.boundaryType !== undefined && index === self?.findIndex((t) => t?.code === item?.code)
       );
       setSelectedData(filteredData);
     }
-    const parentBoundaryEntry = hierarchyTypeDataresult ? hierarchyTypeDataresult?.boundaryHierarchy.find((e) => e.parentBoundaryType === res?.[0]?.boundaryType) : null;
+    const parentBoundaryEntry = hierarchyTypeDataresult ? hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.parentBoundaryType === res?.[0]?.boundaryType) : null;
     setBoundaryType(parentBoundaryEntry?.boundaryType);
     const codes = res.map((item) => item.code);
     if (JSON.stringify(codes) !== JSON.stringify(parentArray)) {
@@ -343,7 +343,7 @@ useEffect(() => {
             <span style={{ color: "#505A5F" }}>
               {t("HCM_BOUNDARY_INFO ")}
               <a href={`mailto:${mailConfig.mailId}`} style={{ color: "black" }}>
-              {mailConfig.mailId}
+                {mailConfig?.mailId}
               </a>
             </span>,
           ]}

@@ -185,7 +185,7 @@ function groupByTypeRemap(data) {
   const result = {};
 
   data.forEach((item) => {
-    const type = item.boundaryType;
+    const type = item?.boundaryType;
     const obj = {
       TenantBoundary: [
         {
@@ -304,8 +304,8 @@ const SetupCampaign = () => {
       HCM_CAMPAIGN_CYCLE_CONFIGURE: {
         cycleConfigure: {
           cycleConfgureDate: {
-            cycle: delivery?.map((obj) => obj?.cycleNumber) ? Math.max(...delivery?.map((obj) => obj?.cycleNumber)) : 1,
-            deliveries: delivery?.map((obj) => obj?.deliveryNumber) ? Math.max(...delivery?.map((obj) => obj?.deliveryNumber)) : 1,
+            cycle: delivery?.map((obj) => obj?.cycleNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.cycleNumber)) : 1,
+            deliveries: delivery?.map((obj) => obj?.deliveryNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.deliveryNumber)) : 1,
           },
           cycleData: cycleDataRemap(delivery),
         },
@@ -360,36 +360,6 @@ const SetupCampaign = () => {
   useEffect(() => {
     setCampaignConfig(CampaignConfig(totalFormData));
   }, [totalFormData]);
-
-  useEffect(() => {
-    const convertFormData = (totalFormData) => {
-      const modifiedData = [
-        {
-          startDate: totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.startDate,
-          endDate: totalFormData?.HCM_CAMPAIGN_DATE?.campaignDates?.endDate,
-          projectType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType.code,
-          campaignName: totalFormData?.HCM_CAMPAIGN_NAME?.campaignName,
-        },
-      ];
-    };
-    convertFormData(totalFormData);
-  }, [totalFormData]);
-
-  // function to convert payload to formData
-  const convertPayload = (dummyData) => {
-    return {
-      1: {},
-      2: {
-        projectType: dummyData?.projectType,
-      },
-      3: {
-        campaignName: dummyData?.campaignName,
-      },
-      4: {
-        boundaries: dummyData?.boundaries,
-      },
-    };
-  };
 
   useEffect(() => {
     updateUrlParams({ key: currentKey });
@@ -853,7 +823,10 @@ const SetupCampaign = () => {
       }
 
       case "uploadBoundary":
-        if (formData?.uploadBoundary?.isError) {
+        if (formData?.uploadBoundary?.isValidation) {
+          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}` });
+          return false;
+        } else if (formData?.uploadBoundary?.isError) {
           setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
@@ -861,14 +834,20 @@ const SetupCampaign = () => {
         }
 
       case "uploadFacility":
-        if (formData?.uploadFacility?.isError) {
+        if (formData?.uploadFacility?.isValidation) {
+          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}` });
+          return false;
+        } else if (formData?.uploadFacility?.isError) {
           setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
           return true;
         }
       case "uploadUser":
-        if (formData?.uploadUser?.isError) {
+        if (formData?.uploadUser?.isValidation) {
+          setShowToast({ key: "info", label: `${t("HCM_FILE_VALIDATION_PROGRESS")}` });
+          return false;
+        } else if (formData?.uploadUser?.isError) {
           setShowToast({ key: "error", label: `${t("HCM_FILE_VALIDATION")}` });
           return false;
         } else {
@@ -973,20 +952,18 @@ const SetupCampaign = () => {
     const name = filteredSteps[0].name;
 
     if (step === 6 && Object.keys(totalFormData).includes("HCM_CAMPAIGN_UPLOAD_USER_DATA")) {
-        setCurrentKey(10);
-        setCurrentStep(7);
-    } else if (step === 1 && (totalFormData["HCM_CAMPAIGN_NAME"] && totalFormData["HCM_CAMPAIGN_DATE"])) {
-        setCurrentKey(4);
-        setCurrentStep(2);
+      setCurrentKey(10);
+      setCurrentStep(7);
+    } else if (step === 1 && totalFormData["HCM_CAMPAIGN_NAME"] && totalFormData["HCM_CAMPAIGN_DATE"]) {
+      setCurrentKey(4);
+      setCurrentStep(2);
     } else if (!totalFormData["HCM_CAMPAIGN_NAME"] || !totalFormData["HCM_CAMPAIGN_DATE"]) {
-        // Do not set stepper and key
+      // Do not set stepper and key
     } else {
-        setCurrentKey(key);
-        setCurrentStep(step);
+      setCurrentKey(key);
+      setCurrentStep(step);
     }
-};
-
-
+  };
 
   const onSecondayActionClick = () => {
     if (currentKey > 1) {
@@ -1075,7 +1052,14 @@ const SetupCampaign = () => {
         onSecondayActionClick={onSecondayActionClick}
         label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
-      {showToast && <Toast error={showToast?.key === "error" ? true : false} label={t(showToast?.label)} onClose={closeToast} />}
+      {showToast && (
+        <Toast
+          info={showToast?.key === "info" ? true : false}
+          error={showToast?.key === "error" ? true : false}
+          label={t(showToast?.label)}
+          onClose={closeToast}
+        />
+      )}
     </React.Fragment>
   );
 };
