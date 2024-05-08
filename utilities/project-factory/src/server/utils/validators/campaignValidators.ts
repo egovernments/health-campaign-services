@@ -210,7 +210,7 @@ function validatePhoneNumber(datas: any[]) {
         if (data["Phone Number (Mandatory)"]) {
             var phoneNumber = data["Phone Number (Mandatory)"];
             phoneNumber = phoneNumber.toString().replace(/^0+/, '');
-            if (phoneNumber.length > 10 || phoneNumber.length < 9) {
+            if (phoneNumber.length != 10) {
                 digitErrorRows.push(data["!row#number!"] + 1);
             }
         }
@@ -222,7 +222,7 @@ function validatePhoneNumber(datas: any[]) {
     var errorMessage = "";
     if (digitErrorRows.length > 0) {
         isError = true;
-        errorMessage = "PhoneNumber should be 9 or 10 digit on rows " + digitErrorRows.join(" , ");
+        errorMessage = "PhoneNumber should be of 10 digit on rows " + digitErrorRows.join(" , ");
     }
     if (missingNumberRows.length > 0) {
         isError = true;
@@ -458,7 +458,7 @@ async function validateResources(resources: any, request: any) {
             logger.info("searchBody : " + JSON.stringify(searchBody));
             const response = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/data/_search", searchBody);
             if (response?.ResourceDetails?.[0]) {
-                if (!(response?.ResourceDetails?.[0]?.status == "completed")) {
+                if (!(response?.ResourceDetails?.[0]?.status == "completed" && response?.ResourceDetails?.[0]?.action == "validate")) {
                     logger.error(`Error during validation of resource with Id ${resource?.resourceId} :`);
                     throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of resource with Id ${resource?.resourceId}.  If resourceId data is invalid, don't send resourceId in resources`);
                 }
