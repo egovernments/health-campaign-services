@@ -203,8 +203,38 @@ async function validateUnique(schema: any, data: any[], request: any) {
     }
 }
 
-
-
+function validatePhoneNumber(datas: any[]) {
+    var digitErrorRows = [];
+    var missingNumberRows = [];
+    for (const data of datas) {
+        if (data["Phone Number (Mandatory)"]) {
+            var phoneNumber = data["Phone Number (Mandatory)"];
+            phoneNumber = phoneNumber.toString().replace(/^0+/, '');
+            if (phoneNumber.length > 10 || phoneNumber.length < 9) {
+                digitErrorRows.push(data["!row#number!"] + 1);
+            }
+        }
+        else {
+            missingNumberRows.push(data["!row#number!"] + 1);
+        }
+    }
+    var isError = false;
+    var errorMessage = "";
+    if (digitErrorRows.length > 0) {
+        isError = true;
+        errorMessage = "PhoneNumber should be 9 or 10 digit on rows " + digitErrorRows.join(" , ");
+    }
+    if (missingNumberRows.length > 0) {
+        isError = true;
+        if (errorMessage.length > 0) {
+            errorMessage += " :: ";
+        }
+        errorMessage += "PhoneNumber is missing on rows " + missingNumberRows.join(" , ");
+    }
+    if (isError) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", errorMessage);
+    }
+}
 
 async function validateViaSchema(data: any, schema: any, request: any, localizationMap?: any) {
     if (schema) {
@@ -212,6 +242,9 @@ async function validateViaSchema(data: any, schema: any, request: any, localizat
         const validate = ajv.compile(schema);
         const validationErrors: any[] = [];
         const uniqueIdentifierColumnName = getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.uniqueIdentifierColumnName, localizationMap)
+        if (request?.body?.ResourceDetails?.type == "user") {
+            validatePhoneNumber(data)
+        }
         if (data?.length > 0) {
             data.forEach((item: any) => {
                 if (!item?.[uniqueIdentifierColumnName])
