@@ -205,7 +205,7 @@ async function generateXlsxFromJson(request: any, response: any, simplifiedData:
   const formData = new FormData();
   formData.append('file', buffer, 'filename.xlsx');
   formData.append('tenantId', request?.body?.RequestInfo?.userInfo?.tenantId);
-  formData.append('module', 'pgr');
+  formData.append('module', 'HCM-ADMIN-CONSOLE-PROCESS');
 
   logger.info("File uploading url : " + config.host.filestore + config.paths.filestore);
   var fileCreationResult = await httpRequest(config.host.filestore + config.paths.filestore, formData, undefined, undefined, undefined,

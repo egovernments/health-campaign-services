@@ -290,7 +290,7 @@ async function createAndUploadFile(updatedWorkbook: XLSX.WorkBook, request: any,
     const formData = new FormData();
     formData.append('file', buffer, 'filename.xlsx');
     formData.append('tenantId', tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId);
-    formData.append('module', 'pgr');
+    formData.append('module', 'HCM-ADMIN-CONSOLE-SERVER');
 
     // Log file uploading URL
     logger.info("File uploading url : " + config.host.filestore + config.paths.filestore);

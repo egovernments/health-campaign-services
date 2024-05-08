@@ -326,7 +326,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setShowToast({ key: "error", label: t("HCM_ERROR_MORE_THAN_ONE_FILE") });
       return;
     }
-    const module = "HCM";
+    const module = "HCM-ADMIN-CONSOLE-CLIENT";
     const { data: { files: fileStoreIds } = {} } = await Digit.UploadServices.MultipleFilesStorage(module, file, tenantId);
     const filesArray = [fileStoreIds?.[0]?.fileStoreId];
     const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch(filesArray, tenantId);
