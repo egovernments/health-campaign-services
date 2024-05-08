@@ -1,6 +1,5 @@
 package org.egov.processor.repository;
 
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +17,6 @@ import java.util.Map;
 
 import static org.egov.processor.config.ServiceConstants.EXTERNAL_SERVICE_EXCEPTION;
 import static org.egov.processor.config.ServiceConstants.SEARCHER_SERVICE_EXCEPTION;
-
 
 @Repository
 @Slf4j

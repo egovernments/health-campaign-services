@@ -44,6 +44,17 @@ public class GeoJsonParser implements FileParser {
         this.calculationUtil = calculationUtil;
     }
 
+    /**
+     * Parses the file data based on the provided plan configuration and file store ID.
+     * Converts the byte array data to a GeoJSON string, then to a JSON node.
+     * Calculates resources based on the operations defined in the plan configuration.
+     * Writes the updated JSON node to a file and uploads it to the file store.
+     *
+     * @param planConfig  The plan configuration containing mapping and operation details.
+     * @param fileStoreId The file store ID of the GeoJSON file to be parsed.
+     * @return The file store ID of the uploaded updated file, or null if an error occurred.
+     */
+    @Override
     public Object parseFileData(PlanConfiguration planConfig, String fileStoreId) {
         String geoJSON = parsingUtil.convertByteArrayToString(planConfig, fileStoreId);
 

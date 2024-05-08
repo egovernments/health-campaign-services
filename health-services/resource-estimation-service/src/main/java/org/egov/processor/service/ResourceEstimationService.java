@@ -35,19 +35,32 @@ public class ResourceEstimationService {
         this.shapeFileParser = shapeFileParser;
     }
 
+    /**
+     * Estimates resources based on the provided plan configuration request.
+     * Parses the input file based on the file type specified in the plan configuration.
+     *
+     * @param planConfigurationRequest The plan configuration request containing the plan configuration.
+     */
     public void estimateResources(PlanConfigurationRequest planConfigurationRequest) {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
-        // filter by templateIdentifier as pop
-        File.InputFileTypeEnum fileType = planConfiguration.getFiles().get(0).getInputFileType();
 
         Map<File.InputFileTypeEnum, FileParser> parserMap = getInputFileTypeMap();
-        FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
-            throw new IllegalArgumentException("Unsupported file type: " + ft);
-        });
 
-        parser.parseFileData(planConfiguration, planConfiguration.getFiles().get(0).getFilestoreId());
+        for(File file:planConfiguration.getFiles())
+        {
+            File.InputFileTypeEnum fileType = file.getInputFileType();
+            FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
+                throw new IllegalArgumentException("Unsupported file type: " + ft);
+            });
+            parser.parseFileData(planConfiguration, planConfiguration.getFiles().get(0).getFilestoreId());
+        }
     }
 
+    /**
+     * Retrieves a map of input file types to their respective parsers.
+     *
+     * @return A map containing input file types as keys and their corresponding parsers as values.
+     */
     public Map<File.InputFileTypeEnum, FileParser> getInputFileTypeMap()
     {
         Map<File.InputFileTypeEnum, FileParser> parserMap = new HashMap<>();

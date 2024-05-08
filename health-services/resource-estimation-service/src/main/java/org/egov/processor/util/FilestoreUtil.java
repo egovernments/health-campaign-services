@@ -4,23 +4,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.repository.ServiceRequestRepository;
-import org.egov.processor.web.models.PlanConfigurationResponse;
 import org.egov.tracer.model.CustomException;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -30,11 +23,14 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.mock.web.MockMultipartFile;
 
-import static org.egov.processor.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_PLAN_SERVICE;
 import static org.egov.processor.config.ServiceConstants.FILES;
 import static org.egov.processor.config.ServiceConstants.FILESTORE_ID;
 import static org.egov.processor.config.ServiceConstants.FILESTORE_ID_REPLACER;
 import static org.egov.processor.config.ServiceConstants.MICROPLANNING_MODULE;
+import static org.egov.processor.config.ServiceConstants.MODULE;
+import static org.egov.processor.config.ServiceConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE;
+import static org.egov.processor.config.ServiceConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE;
+import static org.egov.processor.config.ServiceConstants.TENANTID;
 import static org.egov.processor.config.ServiceConstants.TENANTID_REPLACER;
 
 @Component
@@ -56,12 +52,17 @@ public class FilestoreUtil {
         this.restTemplate = restTemplate;
     }
 
+    /**
+     * Retrieves a file from the file store service based on the tenant ID and file store ID.
+     *
+     * @param tenantId   The ID of the tenant.
+     * @param fileStoreId The ID of the file in the file store.
+     * @return The file content as a byte array.
+     */
     public byte[] getFile(String tenantId, String fileStoreId) {
-        String fileStoreServiceLink = config.getFileStoreHost() + config.getFileStoreEndpoint();
-        fileStoreServiceLink = fileStoreServiceLink.replace(TENANTID_REPLACER, tenantId);
-        fileStoreServiceLink = fileStoreServiceLink.replace(FILESTORE_ID_REPLACER, fileStoreId);
-        byte[] responseInByteArray = null;
-        Object response = null;
+        String fileStoreServiceLink = getFileStoreServiceLink(tenantId, fileStoreId);
+        byte[] responseInByteArray;
+        Object response;
         try {
             response = serviceRequestRepository.fetchResultWithGET(new StringBuilder(fileStoreServiceLink));
             responseInByteArray = (byte[]) response;
@@ -72,6 +73,14 @@ public class FilestoreUtil {
         return responseInByteArray;
     }
 
+
+    /**
+     * Uploads a file to the file store service.
+     *
+     * @param file     The file to upload.
+     * @param tenantId The ID of the tenant.
+     * @return The file store ID of the uploaded file.
+     */
     public String uploadFile(File file, String tenantId) {
         byte[] fileContent = readFileContent(file);
         MultipartFile multipartFile = createMultipartFile(file, fileContent);
@@ -83,14 +92,43 @@ public class FilestoreUtil {
         return fetchFilestoreIdFromResponse(responseEntity);
     }
 
+    /**
+     * Generates the file store service link by combining the file store host and endpoint,
+     * and replacing placeholders for tenant ID and file store ID.
+     *
+     * @param tenantId    The ID of the tenant.
+     * @param fileStoreId The ID of the file store.
+     * @return The generated file store service link.
+     */
+    private String getFileStoreServiceLink(String tenantId, String fileStoreId) {
+        String fileStoreServiceLink = config.getFileStoreHost() + config.getFileStoreEndpoint();
+        fileStoreServiceLink = fileStoreServiceLink.replace(TENANTID_REPLACER, tenantId);
+        fileStoreServiceLink = fileStoreServiceLink.replace(FILESTORE_ID_REPLACER, fileStoreId);
+        return fileStoreServiceLink;
+    }
+
+
+    /**
+     * Reads the content of a file as a byte array.
+     *
+     * @param file The file to read.
+     * @return The file content as a byte array.
+     */
     private byte[] readFileContent(File file) {
         try {
             return Files.readAllBytes(file.toPath());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new CustomException("IOException",e.getMessage());
         }
     }
 
+    /**
+     * Creates a multipart file from a file and its content.
+     *
+     * @param file        The file to create a multipart file from.
+     * @param fileContent The content of the file as a byte array.
+     * @return The created multipart file.
+     */
     private MultipartFile createMultipartFile(File file, byte[] fileContent) {
         List<String> excelExtensions = Arrays.asList("xls", "xlsx");
         String fileExtension = getFileExtension(file);
@@ -104,11 +142,12 @@ public class FilestoreUtil {
         return multipartFile;
     }
 
-    private MultipartFile createMultipartFileForExcel(File file, byte[] fileContent) {
-        return new MockMultipartFile(file.getName(), file.getName(), "application/xls", fileContent);
-    }
-
-
+    /**
+     * Creates HTTP headers for the multipart file upload.
+     *
+     * @param filename The name of the file.
+     * @return The HTTP headers.
+     */
     private HttpHeaders createHttpHeaders(String filename) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
@@ -117,22 +156,34 @@ public class FilestoreUtil {
         return headers;
     }
 
+    /**
+     * Creates the HTTP body for the multipart file upload.
+     *
+     * @param multipartFile The multipart file to upload.
+     * @param tenantId      The ID of the tenant.
+     * @return The HTTP body.
+     */
     private MultiValueMap<String, Object> createHttpBody(MultipartFile multipartFile, String tenantId) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         try {
             body.add("file", new HttpEntity<>(multipartFile.getBytes(), createHttpHeaders(multipartFile.getName())));
         } catch (IOException e) {
-            throw new CustomException("NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM", "Not able to fetch byte stream from a multipart file");
+            throw new CustomException(NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE, NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE);
         }
-        body.add("tenantId", tenantId);
-        body.add("module", MICROPLANNING_MODULE);
+        body.add(TENANTID, tenantId);
+        body.add(MODULE, MICROPLANNING_MODULE);
         return body;
     }
 
-
+    /**
+     * Extracts the file store ID from the response entity of the file store service.
+     *
+     * @param responseEntity The response entity from the file store service.
+     * @return The file store ID of the uploaded file.
+     */
     public String fetchFilestoreIdFromResponse(ResponseEntity<String> responseEntity) {
         ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode rootNode = null;
+        JsonNode rootNode;
         try {
             rootNode = objectMapper.readTree(responseEntity.getBody());
         } catch (JsonProcessingException e) {
@@ -140,12 +191,17 @@ public class FilestoreUtil {
             throw new CustomException("FILESTORE_EXCEPTION", "File Store response can not parsed!!!");
         }
 
-        // Assuming FILES and FILESTORE_ID are constants representing the JSON keys
-        String fileStoreId = rootNode.get("files").get(0).get("fileStoreId").asText();
+        String fileStoreId = rootNode.get(FILES).get(0).get(FILESTORE_ID).asText();
         System.out.println("FileStoreId: " + fileStoreId);
         return fileStoreId;
     }
 
+    /**
+     * Retrieves the file extension from a file name.
+     *
+     * @param file The file to get the extension from.
+     * @return The file extension.
+     */
     public String getFileExtension(File file) {
         String fileName = file.getName();
         String extension = "";
