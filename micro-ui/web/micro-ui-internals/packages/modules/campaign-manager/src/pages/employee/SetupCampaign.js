@@ -5,6 +5,7 @@ import { useHistory, useParams } from "react-router-dom";
 import { CampaignConfig } from "../../configs/CampaignConfig";
 import { QueryClient, useQueryClient } from "react-query";
 import { Stepper, Toast } from "@egovernments/digit-ui-components";
+import { BOUNDARY_HIERARCHY_TYPE } from "../../Module";
 
 /**
  * The `SetupCampaign` function in JavaScript handles the setup and management of campaign details,
@@ -226,7 +227,7 @@ const SetupCampaign = () => {
   const [isDraftCreated, setIsDraftCreated] = useState(false);
   const filteredBoundaryData = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
   const client = useQueryClient();
-  const hierarchyType = "ADMIN";
+  const hierarchyType = BOUNDARY_HIERARCHY_TYPE;
   // const hierarchyType2 = params?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy?.hierarchyType
   const [currentKey, setCurrentKey] = useState(() => {
     const keyParam = searchParams.get("key");

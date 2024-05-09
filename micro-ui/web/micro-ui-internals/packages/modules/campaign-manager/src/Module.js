@@ -25,6 +25,7 @@ import CycleDataPreview from "./components/CycleDataPreview";
 import { ErrorBoundary } from "@egovernments/digit-ui-components";
 import CampaignResourceDocuments from "./components/CampaignResourceDocuments";
 
+export const BOUNDARY_HIERARCHY_TYPE="ADMIN";
 /**
  * The CampaignModule function fetches store data based on state code, module code, and language, and
  * renders the EmployeeApp component within a TourProvider component if the data is not loading.
@@ -32,7 +33,8 @@ import CampaignResourceDocuments from "./components/CampaignResourceDocuments";
  * a TourProvider component wrapping an EmployeeApp component with specific props passed to it.
  */
 const CampaignModule = ({ stateCode, userType, tenants }) => {
-  const moduleCode = ["campaignmanager", "workbench", "mdms", "schema","hcm-admin-schemas"];
+
+  const moduleCode = ["campaignmanager", "workbench", "mdms", "schema","hcm-admin-schemas",`boundary-${BOUNDARY_HIERARCHY_TYPE}`];
   const { path, url } = useRouteMatch();
   const language = Digit.StoreData.getCurrentLanguage();
   const { isLoading, data: store } = Digit.Services.useStore({
