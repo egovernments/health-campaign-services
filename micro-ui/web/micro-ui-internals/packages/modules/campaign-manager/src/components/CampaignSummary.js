@@ -2,6 +2,7 @@ import React, { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory } from "react-router-dom";
 import { EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
+import { Toast } from "@egovernments/digit-ui-components";
 
 function mergeObjects(item) {
   const arr = item;
@@ -125,6 +126,7 @@ const CampaignSummary = () => {
   const searchParams = new URLSearchParams(location.search);
   const id = searchParams.get("id");
   const noAction = searchParams.get("action");
+  const [showToast, setShowToast] = useState(null);
 
   const { isLoading, data, error } = Digit.Hooks.campaign.useSearchCampaign({
     tenantId: tenantId,
@@ -321,6 +323,7 @@ const CampaignSummary = () => {
             //   };
             // }),
           ],
+          error: data?.[0]?.additionalDetails?.error,
         };
       },
       enabled: id ? true : false,
@@ -350,12 +353,25 @@ const CampaignSummary = () => {
   if (isLoading) {
     return <Loader />;
   }
-
+  const closeToast = () => {
+    setShowToast(null);
+  };
+  useEffect(() => {
+    if (showToast) {
+      setTimeout(closeToast, 5000);
+    }
+  }, [showToast]);
+  useEffect(() => {
+    if (data?.error) {
+      setShowToast({ label: data?.error, key: "error" });
+    }
+  }, [data]);
   return (
     <>
       <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
       <div className="campaign-summary-container">
         <ViewComposer data={data} />
+        {showToast && <Toast error={showToast?.key === "error" ? true : false} label={showToast?.label} onClose={closeToast} />}
       </div>
     </>
   );

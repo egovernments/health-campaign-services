@@ -282,4 +282,93 @@ export const UICustomizations = {
       return "TQM_VIEW_TEST_DETAILS";
     },
   },
+  MyCampaignConfigFailed: {
+    preProcess: (data, additionalDetails) => {
+      const tenantId = Digit.ULBService.getCurrentTenantId();
+      data.body = { RequestInfo: data.body.RequestInfo };
+      const { limit, offset } = data?.state?.tableForm || {};
+      const { campaignName, campaignType } = data?.state?.searchForm || {};
+      data.body.CampaignDetails = {
+        tenantId: tenantId,
+        status: "failed",
+        pagination: {
+          sortBy: "campaignNumber",
+          sortOrder: "desc",
+          limit: limit,
+          offset: offset,
+        },
+      };
+      if (campaignName) {
+        data.body.CampaignDetails.campaignName = campaignName;
+      }
+      if (campaignType) {
+        data.body.CampaignDetails.projectType = campaignType?.[0]?.id;
+      }
+      delete data.body.custom;
+      delete data.body.inbox;
+      delete data.params;
+      return data;
+    },
+    populateCampaignTypeReqCriteria: () => {
+      const tenantId = Digit.ULBService.getCurrentTenantId();
+
+      return {
+        url: "/egov-mdms-service/v1/_search",
+        params: { tenantId },
+        body: {
+          MdmsCriteria: {
+            tenantId: tenantId,
+            moduleDetails: [
+              {
+                moduleName: "HCM-PROJECT-TYPES",
+                masterDetails: [
+                  {
+                    name: "projectTypes",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        changeQueryName: "setWorkflowStatus",
+        config: {
+          enabled: true,
+          select: (data) => {
+            return data?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes;
+          },
+        },
+      };
+    },
+    getCustomActionLabel: (obj, row) => {
+      return "";
+    },
+    additionalCustomizations: (row, key, column, value, t, searchResult) => {
+      switch (key) {
+        case "CAMPAIGN_NAME":
+          return (
+            <span className="link">
+              <Link to={`/${window.contextPath}/employee/campaign/setup-campaign?id=${row.id}&preview=${true}&action=${false}`}>
+                {String(value ? (column.translate ? t(column.prefix ? `${column.prefix}${value}` : value) : value) : t("ES_COMMON_NA"))}
+              </Link>
+            </span>
+          );
+
+        case "CAMPAIGN_START_DATE":
+          return Digit.DateUtils.ConvertEpochToDate(value);
+        case "CAMPAIGN_END_DATE":
+          return Digit.DateUtils.ConvertEpochToDate(value);
+        default:
+          return "case_not_found";
+      }
+    },
+    onCardClick: (obj) => {
+      // return `view-test-results?tenantId=${obj?.apiResponse?.businessObject?.tenantId}&id=${obj?.apiResponse?.businessObject?.testId}&from=TQM_BREAD_INBOX`;
+    },
+    onCardActionClick: (obj) => {
+      // return `view-test-results?tenantId=${obj?.apiResponse?.businessObject?.tenantId}&id=${obj?.apiResponse?.businessObject?.testId}&from=TQM_BREAD_INBOX`;
+    },
+    getCustomActionLabel: (obj, row) => {
+      return "TQM_VIEW_TEST_DETAILS";
+    },
+  },
 };
