@@ -491,7 +491,6 @@ async function validateResources(resources: any, request: any) {
                     tenantId: request?.body?.CampaignDetails?.tenantId
                 }
             }
-            logger.info("searchBody : " + JSON.stringify(searchBody));
             const response = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/data/_search", searchBody);
             if (response?.ResourceDetails?.[0]) {
                 if (!(response?.ResourceDetails?.[0]?.status == "completed" && response?.ResourceDetails?.[0]?.action == "validate")) {
@@ -626,8 +625,6 @@ async function validateCampaignName(request: any, actionInUrl: any) {
             campaignName: campaignName
         }
     }
-    logger.info("searchBody : " + JSON.stringify(searchBody));
-    logger.info("Url : " + config.host.projectFactoryBff + "project-factory/v1/project-type/search");
     const searchResponse: any = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
     if (Array.isArray(searchResponse?.CampaignDetails)) {
         if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "create") {
@@ -654,8 +651,6 @@ async function validateById(request: any) {
             ids: [id]
         }
     }
-    logger.info("searchBody : " + JSON.stringify(searchBody));
-    logger.info("Url : " + config.host.projectFactoryBff + "project-factory/v1/project-type/search");
     const searchResponse: any = await axios.post(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
     if (Array.isArray(searchResponse?.data?.CampaignDetails)) {
         if (searchResponse?.data?.CampaignDetails?.length > 0) {

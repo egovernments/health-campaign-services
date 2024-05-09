@@ -78,7 +78,7 @@ const httpRequest = async (
       " CRITERIA :: " +
       JSON.stringify(_params)
     );
-    logger.debug(JSON.stringify(_requestBody))
+    logger.debug("INTER-SERVICE :: REQUESTBODY :: " +JSON.stringify(_requestBody))
     // Make HTTP request using Axios
     const response = await Axios({
       method: _method,
@@ -96,6 +96,8 @@ const httpRequest = async (
       ":: CODE :: " +
       responseStatus
     );
+    logger.debug("INTER-SERVICE :: RESPONSEBODY :: " +JSON.stringify(response.data))
+
     // If response status is successful, cache the response data if caching is enabled
     if (responseStatus === 200 || responseStatus === 201 || responseStatus === 202) {
       if (headers && headers.cachekey) {

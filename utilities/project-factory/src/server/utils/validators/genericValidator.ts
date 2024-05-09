@@ -258,8 +258,6 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
             "hierarchyType": hierarchyType
         }
     }
-    logger.info("Hierarchy Search Url : " + config.host.boundaryHost + config.paths.boundaryHierarchy);
-    logger.info("SearchBody : " + JSON.stringify(searchBody))
     const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryHierarchy, searchBody);
     if (response?.BoundaryHierarchy && Array.isArray(response?.BoundaryHierarchy) && response?.BoundaryHierarchy?.length > 0) {
         logger.info("Hierarchy Search Response : " + JSON.stringify(response?.BoundaryHierarchy))

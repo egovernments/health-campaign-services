@@ -15,9 +15,10 @@ export const executeQuery = async (
   values: any
 ): Promise<any> => {
   try {
-    logger.info(`Query: ${query}`);
-    logger.info(`Query values: ${values}`);
+    logger.info(` DB QUERY : STATEMENT :: ${query}`);
+    logger.info(` DB QUERY : VALUES ::   ${values}`);
     const queryResponse = await pool.query(query, values);
+    logger.debug(JSON.stringify(queryResponse?.rows));
     logger.info(
       `Query successfully executed, returning ${queryResponse?.rowCount} rows.`
     );

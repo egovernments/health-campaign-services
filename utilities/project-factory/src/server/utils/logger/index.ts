@@ -1,4 +1,5 @@
 import { createLogger, format, transports } from "winston"; // Importing necessary modules from Winston library
+import config from "../../config";
 
 // Custom log format for Winston logger
 const myFormat = format.printf(({ level, message, label, timestamp }) => {
@@ -7,6 +8,7 @@ const myFormat = format.printf(({ level, message, label, timestamp }) => {
 
 // Creating a logger instance with specified format and transports
 const logger = createLogger({
+  level: config.app.logLevel, // Set the minimum level to log, in this case, DEBUG
   format: format.combine( // Combining different log formats
     format.label({ label: 'BFF' }), // Adding label to logs
     format.timestamp({ format: " YYYY-MM-DD HH:mm:ss.SSSZZ " }), // Adding timestamp to logs

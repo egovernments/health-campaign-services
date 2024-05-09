@@ -152,7 +152,6 @@ async function searchResourceDetailsById(resourceDetailId: string, messageObject
             tenantId: messageObject?.Campaign?.tenantId
         }
     }
-    logger.info("searchBody : " + JSON.stringify(searchBody));
     const response = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/data/_search", searchBody);
     return response?.ResourceDetails?.[0];
 }

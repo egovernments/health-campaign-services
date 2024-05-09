@@ -702,9 +702,9 @@ async function searchProjectCampaignResourcData(request: any) {
     const CampaignDetails = request.body.CampaignDetails;
     const { tenantId, pagination, ids, ...searchFields } = CampaignDetails;
     const queryData = buildSearchQuery(tenantId, pagination, ids, searchFields);
-    logger.info("queryData : " + JSON.stringify(queryData));
     await getTotalCount(request)
     const responseData: any[] = await executeSearchQuery(queryData.query, queryData.values);
+    // TODO @ashish check the below code looks like duplicate
     for (const data of responseData) {
         data.resources = data?.campaignDetails?.resources
         data.boundaries = data?.campaignDetails?.boundaries
