@@ -175,3 +175,10 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/plan-service/src/main/resources/db"
         image-name: "plan-service-db"
+  - name: "builds/health-campaign-services/health-services/resource-estimation-service"
+    build:
+      - work-dir: "health-services/resource-estimation-service"
+        image-name: "resource-estimation-service"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/resource-estimation-service/src/main/resources/db"
+        image-name: "resource-estimation-service-db"
