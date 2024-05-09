@@ -1,11 +1,9 @@
 package org.egov.processor.service;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.File;
 import java.math.BigDecimal;
 
@@ -17,10 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
-import org.egov.processor.web.models.Operation;
 import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
-import org.egov.tracer.model.CustomException;
 
 import org.springframework.stereotype.Service;
 
@@ -60,6 +56,9 @@ public class GeoJsonParser implements FileParser {
 
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode jsonNode = parsingUtil.parseJson(geoJSON, objectMapper);
+
+        List<String> columnNamesList = parsingUtil.fetchAttributeNamesFromJson(jsonNode);
+        parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
 
         Map<String, BigDecimal> resultMap = new HashMap<>();
         Map<String, String> mappedValues = planConfig.getResourceMapping().stream()

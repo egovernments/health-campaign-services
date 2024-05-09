@@ -90,7 +90,20 @@ public class CalculationUtil {
             return resultMap.get(input);
         } else {
             if (feature.get(PROPERTIES).get(columnName) != null) {
-                return new BigDecimal(String.valueOf(feature.get(PROPERTIES).get(columnName)));
+                try {
+                    String cellValue = String.valueOf(feature.get(PROPERTIES).get(columnName));
+                    BigDecimal value;
+                    // Handle scientific notation
+                    if (cellValue.contains("E")) {
+                        value = new BigDecimal(cellValue);
+                    } else {
+                        String cleanedValue = cellValue.replaceAll("[^\\d.\\-E]", "");
+                        value = new BigDecimal(cleanedValue);
+                    }
+                    return value;
+                } catch (NumberFormatException e) {
+                    return BigDecimal.ZERO;
+                }
             } else {
                 throw new CustomException("INPUT_VALUE_NOT_FOUND", "Input value not found: " + input);
             }

@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -64,7 +65,7 @@ public class ExcelParser implements FileParser {
             return null;
         }
 
-        return processExcelFile(planConfig, file);
+        return processExcelFile(planConfig, file, fileStoreId);
     }
 
     /**
@@ -74,10 +75,14 @@ public class ExcelParser implements FileParser {
      * @param file       The Excel file to be processed.
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
-    private String processExcelFile(PlanConfiguration planConfig, File file) {
+    private String processExcelFile(PlanConfiguration planConfig, File file, String fileStoreId) {
         try (Workbook workbook = new XSSFWorkbook(file)) {
             Sheet sheet = workbook.getSheetAt(0);
             DataFormatter dataFormatter = new DataFormatter();
+            Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+            List<String> columnNamesList = mapOfColumnNameAndIndex.keySet().stream().toList();
+
+            parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
 
             File tempFile = createTempFile("updatedExcel", ".xlsx");
             try (FileOutputStream fos = new FileOutputStream(tempFile)) {

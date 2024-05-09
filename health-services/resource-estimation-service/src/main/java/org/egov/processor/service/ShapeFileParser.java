@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,9 @@ public class ShapeFileParser implements FileParser {
         File geojsonFile = convertShapefileToGeoJson(planConfig, fileStoreId);
         String geoJSONString = parsingUtil.convertFileToJsonString(geojsonFile);
         JsonNode jsonNode = parsingUtil.parseJson(geoJSONString, objectMapper);
+
+        List<String> columnNamesList = parsingUtil.fetchAttributeNamesFromJson(jsonNode);
+        parsingUtil.validateColumnNames(columnNamesList, planConfig, fileStoreId);
 
         Map<String, BigDecimal> resultMap = new HashMap<>();
         Map<String, String> mappedValues = planConfig.getResourceMapping().stream().collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));

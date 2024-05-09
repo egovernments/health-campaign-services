@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -47,43 +48,38 @@ public class ParsingUtil {
         this.calculationUtil = calculationUtil;
     }
 
-    public List<String> getAttributeNames(SimpleFeatureCollection simpleFeatureCollection) {
-        List<String> attributeNames = new ArrayList<>();
-        SimpleFeatureType featureType = simpleFeatureCollection.getSchema();
-        List<AttributeDescriptor> descriptors = featureType.getAttributeDescriptors();
+    public List<String> fetchAttributeNamesFromJson(JsonNode jsonNode)
+    {
+        if(jsonNode.get("features") == null)
+            throw new CustomException("No Features found in geojson", " ");
 
-        for (AttributeDescriptor descriptor : descriptors) {
-            String attributeName = descriptor.getLocalName();
-            if (!attributeName.equals("geometry")) {
-                attributeNames.add(attributeName);
-            }
+        JsonNode propertiesNode = jsonNode.get("features").get(0).get("properties");
+        Iterator<String> fieldNames = propertiesNode.fieldNames();
+        List<String> columnNames = new ArrayList<>();
+        while (fieldNames.hasNext()) {
+            String columnName = fieldNames.next();
+            columnNames.add(columnName);
         }
-
-        return attributeNames;
+        System.out.println(columnNames);
+        return columnNames;
     }
-
-    public boolean validateAttributeMapping(List<String> attributeNamesFromFile, List<ResourceMapping> resourceMappingList, String fileStoreId) {
-        Set<String> mappedFromSet = resourceMappingList.stream()
+    public void validateColumnNames(List<String> columnNamesList, PlanConfiguration planConfig, String fileStoreId ) {
+        Set<String> mappedFromSet = planConfig.getResourceMapping().stream()
                 .filter(mapping -> Objects.equals(mapping.getFilestoreId(), fileStoreId))
                 .map(ResourceMapping::getMappedFrom)
                 .collect(Collectors.toSet());
 
-        //TODO: discuss with dev
-//        for (String attributeName : mappedFromSet) {
-//            if (!attributeNamesFromFile.contains(attributeName)) {
-//                return false;
-//            }
-//        }
-
-        for (String attributeName : attributeNamesFromFile) {
+        for (String attributeName : columnNamesList) {
             if (attributeName.equalsIgnoreCase("the_geom"))
                 continue;
             if (!mappedFromSet.contains(attributeName)) {
-                return false;
+                log.error("Attribute mapping is invalid.");
+                log.info("Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
+                throw new CustomException("Attribute mapping is invalid.", "Attribute mapping is invalid.");
             }
         }
 
-        return true;
+        log.info("Attribute mapping is valid.");
     }
 
     /**
