@@ -1,6 +1,7 @@
-package org.egov.project.web.models.boundary.boundary;
+package org.egov.transformer.models.boundary;
 
 import java.util.List;
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
@@ -9,29 +10,29 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.Boundary;
 import org.springframework.validation.annotation.Validated;
 
+/**
+ * BoundaryRequest
+ */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-10-16T17:02:11.361704+05:30[Asia/Kolkata]")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class BoundarySearchCriteria {
+public class BoundaryRequest {
 
+    @JsonProperty("RequestInfo")
+    @Valid
+    private RequestInfo requestInfo = null;
+
+    @Valid
     @NotNull
-    @Size(min = 1)
-    @JsonProperty("codes")
-    private List<String> codes;
-
-    @NotNull
-    @JsonProperty("tenantId")
-    private String tenantId;
-
-    @JsonProperty("offset")
-    private Integer offset;
-
-    @JsonProperty("limit")
-    private Integer limit;
+    @JsonProperty("Boundary")
+    @Size(min = 1, max = 300)
+    private List<Boundary> boundary = null;
 
 }

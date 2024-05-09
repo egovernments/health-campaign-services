@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
 import net.minidev.json.JSONObject;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.transformer.upstream.Boundary;
+import org.egov.common.models.core.Boundary;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.boundary.BoundaryTree;
 import org.egov.transformer.boundary.TreeGenerator;
@@ -28,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
+@Deprecated
+//FIXME to be removed
 public class BoundaryService {
 
     private final TransformerProperties transformerProperties;

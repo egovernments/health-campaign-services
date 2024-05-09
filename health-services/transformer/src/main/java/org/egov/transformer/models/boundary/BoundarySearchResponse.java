@@ -1,6 +1,5 @@
-package org.egov.project.web.models.boundary.boundary;
+package org.egov.transformer.models.boundary;
 
-import java.util.ArrayList;
 import java.util.List;
 import javax.validation.Valid;
 
@@ -10,11 +9,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.Boundary;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * BoundaryResponse
+ * BoundarySearchResponse
  */
 @Validated
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-10-16T17:02:11.361704+05:30[Asia/Kolkata]")
@@ -22,23 +20,14 @@ import org.springframework.validation.annotation.Validated;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class BoundaryResponse {
+public class BoundarySearchResponse {
 
     @JsonProperty("ResponseInfo")
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("Boundary")
+    @JsonProperty("TenantBoundary")
     @Valid
-    private List<Boundary> boundary = null;
-
-
-    public BoundaryResponse addBoundaryItem(Boundary boundaryItem) {
-        if (this.boundary == null) {
-            this.boundary = new ArrayList<>();
-        }
-        this.boundary.add(boundaryItem);
-        return this;
-    }
+    private List<HierarchyRelation> tenantBoundary = null;
 
 }
