@@ -14,6 +14,9 @@ import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignD
 import { campaignDetailsDraftSchema } from "../../config/models/campaignDetailsDraftSchema";
 import { downloadRequestSchema } from "../../config/models/downloadRequestSchema";
 import { createRequestSchema } from "../../config/models/createRequestSchema"
+import { getSheetData } from "../../api/genericApis";
+const _ = require('lodash');
+
 
 
 
@@ -346,6 +349,7 @@ async function validateCreateRequest(request: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing or empty or null");
     }
     else {
+        // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
         if (request?.body?.ResourceDetails?.tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -362,7 +366,34 @@ async function validateCreateRequest(request: any) {
 async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
     const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap);
     const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap);
-    await validateHeaders(headersOfBoundarySheet, request, localizationMap)
+    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    await validateHeaders(hierarchy, headersOfBoundarySheet, request, localizationMap)
+    const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap);
+    //validate for whether root boundary level column should not be empty
+    validateForRootElementExists(boundaryData, hierarchy);
+    // validate for duplicate rows(array of objects)
+    validateForDupicateRows(boundaryData);
+}
+
+function validateForRootElementExists(boundaryData: any[], hierachy: any[]) {
+    const root = hierachy[0];
+    if (!(boundaryData.filter(e => e[root]).length == boundaryData.length)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Boundary Sheet. Root level Boundary not present in every row")
+    }
+}
+function validateForDupicateRows(boundaryData: any[]) {
+    const uniqueRows = _.uniqWith(boundaryData, (obj1: any, obj2: any) => {
+        // Exclude '!row#number!' property when comparing objects
+        const filteredObj1 = _.omit(obj1, ['!row#number!']);
+        const filteredObj2 = _.omit(obj2, ['!row#number!']);
+        return _.isEqual(filteredObj1, filteredObj2);
+    });
+    const duplicateBoundaryRows = boundaryData.filter(e => !uniqueRows.includes(e));
+    const duplicateRowNumbers = duplicateBoundaryRows.map(obj => obj['!row#number!'] + 1);
+    const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
+    if (duplicateRowNumbers.length > 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersSeparatedWithCommas}`);
+    }
 }
 
 async function validateFile(request: any) {
@@ -812,8 +843,7 @@ function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string,
 
 
 
-async function validateHeaders(headersOfBoundarySheet: any, request: any, localizationMap?: any) {
-    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+async function validateHeaders(hierarchy: any[], headersOfBoundarySheet: any, request: any, localizationMap?: any) {
     const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails.hierarchyType}_${ele}`.toUpperCase())
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     validateBoundarySheetHeaders(headersOfBoundarySheet, localizedHierarchy, request, localizationMap);
