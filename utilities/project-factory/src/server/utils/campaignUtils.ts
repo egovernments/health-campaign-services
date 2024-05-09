@@ -949,7 +949,7 @@ function reorderBoundariesWithParentFirst(reorderedBoundaries: any[], boundaryPr
     }
 }
 
-async function reorderBoundaries(request: any) {
+async function reorderBoundaries(request: any, localizationMap?: any) {
     const rootBoundary = getRootBoundaryCode(request?.body?.CampaignDetails?.boundaries)
     request.body.boundaryProjectMapping = {}
     if (rootBoundary) {
@@ -963,7 +963,7 @@ async function reorderBoundaries(request: any) {
         logger.info("Boundary relationship search params : " + JSON.stringify(params));
         const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
         if (boundaryResponse?.TenantBoundary?.[0]?.boundary) {
-            const codesTargetMapping = await getCodesTarget(request)
+            const codesTargetMapping = await getCodesTarget(request, localizationMap)
             mapTargets(boundaryResponse?.TenantBoundary?.[0]?.boundary, codesTargetMapping)
             request.body.CampaignDetails.codesTargetMapping = codesTargetMapping
             logger.info("codesTargetMapping " + JSON.stringify(codesTargetMapping));
@@ -1040,7 +1040,7 @@ async function updateProjectDates(request: any) {
     }
 }
 
-async function getCodesTarget(request: any) {
+async function getCodesTarget(request: any, localizationMap?: any) {
     const { tenantId, resources } = request?.body?.CampaignDetails;
     const boundaryWithTargetResource = resources?.filter((resource: any) => resource?.type == "boundaryWithTarget");
     const fileId = boundaryWithTargetResource[0]?.filestoreId
@@ -1049,24 +1049,23 @@ async function getCodesTarget(request: any) {
         throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
     }
     const targetData = await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true);
-
     const boundaryTargetMapping: any = {};
-
+    const codeColumnName = getLocalizedName(createAndSearch?.boundaryWithTarget?.boundaryValidation?.column, localizationMap)
     // Iterate through each key in targetData
     for (const key in targetData) {
         // Iterate through each entry in the array under the current key
         targetData[key].forEach(entry => {
             // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
-            if (entry['Boundary Code'] !== undefined && entry['Target at the Selected Boundary level'] !== undefined) {
+            if (entry[codeColumnName] !== undefined && entry['Target at the Selected Boundary level'] !== undefined) {
                 // Add the mapping to the boundaryTargetMapping object
-                boundaryTargetMapping[entry['Boundary Code']] = entry['Target at the Selected Boundary level'];
+                boundaryTargetMapping[entry[codeColumnName]] = entry['Target at the Selected Boundary level'];
             }
         });
     }
     return boundaryTargetMapping;
 }
 
-async function createProject(request: any, actionUrl: any) {
+async function createProject(request: any, actionUrl: any, localizationMap?: any) {
     var { tenantId, boundaries, projectType, projectId, startDate, endDate } = request?.body?.CampaignDetails;
     if (boundaries && projectType && !projectId) {
         var Projects: any = enrichProjectDetailsFromCampaignDetails(request?.body?.CampaignDetails);
@@ -1074,7 +1073,7 @@ async function createProject(request: any, actionUrl: any) {
             RequestInfo: request?.body?.RequestInfo,
             Projects
         }
-        await reorderBoundaries(request)
+        await reorderBoundaries(request, localizationMap)
         boundaries = request?.body?.CampaignDetails?.boundaries;
         for (const boundary of boundaries) {
             Projects[0].address = { tenantId: tenantId, boundary: boundary?.code, boundaryType: boundary?.type }
@@ -1107,7 +1106,7 @@ async function processAfterPersist(request: any, actionInUrl: any) {
         const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.CampaignDetails?.tenantId);
         if (request?.body?.CampaignDetails?.action == "create") {
             await createProjectCampaignResourcData(request);
-            await createProject(request, actionInUrl)
+            await createProject(request, actionInUrl, localizationMap)
             await enrichAndPersistProjectCampaignRequest(request, actionInUrl, false, localizationMap)
         }
         else {
@@ -1343,11 +1342,11 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
 
 
 function modifyBoundaryDataHeaders(boundaryData: any[], hierarchy: any[]) {
-    const updatedData = boundaryData.map((obj:any) => {
+    const updatedData = boundaryData.map((obj: any) => {
         const updatedObj: { [key: string]: string | undefined } = {}; // Updated object with modified keys
-    
+
         let hierarchyIndex = 0; // Track the index of the hierarchy array
-    
+
         for (const key in obj) {
             if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 const hierarchyKey = hierarchy[hierarchyIndex]; // Get the key from the hierarchy array
@@ -1355,7 +1354,7 @@ function modifyBoundaryDataHeaders(boundaryData: any[], hierarchy: any[]) {
                 hierarchyIndex++; // Move to the next key in the hierarchy array
             }
         }
-    
+
         return updatedObj;
     });
     return updatedData;
