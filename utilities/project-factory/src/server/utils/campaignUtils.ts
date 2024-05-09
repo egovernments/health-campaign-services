@@ -646,15 +646,18 @@ async function getTotalCount(request: any) {
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
                 conditions.push(`startDate >= $${index}`);
+                index++;
             } else if (field === 'endDate') {
                 conditions.push(`endDate <= $${index}`);
+                index++;
             } else if (field === 'campaignName') {
                 conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
-            } else {
+                index++;
+            } else if (field != 'status') {
                 conditions.push(`${field} = $${index}`);
+                values.push(searchFields[field]);
+                index++;
             }
-            values.push(searchFields[field]);
-            index++;
         }
     }
 
@@ -665,9 +668,19 @@ async function getTotalCount(request: any) {
     `;
 
     if (ids && ids.length > 0) {
-        const idParams = ids.map((id: string, i: number) => `$${index + i}`);
+        const idParams = ids.map((id: any, i: any) => `$${index + i}`);
         query += ` AND id IN (${idParams.join(', ')})`;
         values.push(...ids);
+        index = index + ids.length;
+    }
+    var status = searchFields?.status;
+    if (status) {
+        if (typeof status === 'string') {
+            status = [status]; // Convert string to array
+        }
+        const statusParams = status.map((param: any, i: any) => `$${index + i}`); // Increment index for each parameter
+        query += ` AND status IN (${statusParams.join(', ')})`;
+        values.push(...status);
     }
 
     if (conditions.length > 0) {
@@ -716,15 +729,18 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
                 conditions.push(`startDate >= $${index}`);
+                index++;
             } else if (field === 'endDate') {
                 conditions.push(`endDate <= $${index}`);
+                index++;
             } else if (field === 'campaignName') {
                 conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
-            } else {
+                index++;
+            } else if (field != 'status') {
                 conditions.push(`${field} = $${index}`);
+                values.push(searchFields[field]);
+                index++;
             }
-            values.push(searchFields[field]);
-            index++;
         }
     }
 
@@ -735,9 +751,20 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
     `;
 
     if (ids && ids.length > 0) {
-        const idParams = ids.map((id, i) => `$${index + i}`);
+        const idParams = ids.map((id: any, i: any) => `$${index + i}`);
         query += ` AND id IN (${idParams.join(', ')})`;
         values.push(...ids);
+        index = index + ids.length;
+    }
+
+    var status = searchFields?.status;
+    if (status) {
+        if (typeof status === 'string') {
+            status = [status]; // Convert string to array
+        }
+        const statusParams = status.map((param: any, i: any) => `$${index + i}`); // Increment index for each parameter
+        query += ` AND status IN (${statusParams.join(', ')})`;
+        values.push(...status);
     }
 
     if (conditions.length > 0) {
