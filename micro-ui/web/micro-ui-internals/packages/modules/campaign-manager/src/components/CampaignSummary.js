@@ -177,14 +177,14 @@ const CampaignSummary = () => {
                 },
               ],
             },
-            data?.[0]?.resources?.find((i) => i?.type === "boundary")
+            data?.[0]?.resources?.find((i) => i?.type === "boundaryWithTarget")
               ? {
                   sections: [
                     {
                       type: "COMPONENT",
                       component: "CampaignDocumentsPreview",
                       props: {
-                        documents: data?.[0]?.resources?.filter((i) => i.type === "boundary"),
+                        documents: data?.[0]?.resources?.filter((i) => i.type === "boundaryWithTarget"),
                       },
                       cardHeader: { value: t("TARGET_DETAILS"), inlineStyles: { marginTop: 0 } },
                       cardSecondaryAction: noAction !== "false" && (

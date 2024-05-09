@@ -320,13 +320,13 @@ const SetupCampaign = () => {
         },
       },
       HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA: {
-        uploadBoundary: draftData?.resources?.filter((i) => i?.type === "boundary"),
+        uploadBoundary: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "boundaryWithTarget") },
       },
       HCM_CAMPAIGN_UPLOAD_FACILITY_DATA: {
-        uploadFacility: draftData?.resources?.filter((i) => i?.type === "facility"),
+        uploadFacility: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "facility") },
       },
       HCM_CAMPAIGN_UPLOAD_USER_DATA: {
-        uploadUser: draftData?.resources?.filter((i) => i?.type === "user"),
+        uploadUser: { uploadedFile: draftData?.resources?.filter((i) => i?.type === "user") },
       },
     };
     setParams({ ...restructureFormData });
@@ -345,7 +345,7 @@ const SetupCampaign = () => {
       hierarchyType: hierarchyType,
       hierarchy: hierarchyDefinition?.BoundaryHierarchy?.[0],
     });
-  }, [facilityId, boundaryId, userId ,hierarchyDefinition?.BoundaryHierarchy?.[0] ]); // Only run if dataParams changes
+  }, [facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
 
   // Example usage:
   // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
@@ -483,12 +483,12 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-            const temp = resourceData(
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
-            );
-            payloadData.resources = temp;
+          const temp = resourceData(
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          );
+          payloadData.resources = temp;
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
@@ -523,8 +523,9 @@ const SetupCampaign = () => {
               history.push(
                 `/${window.contextPath}/employee/campaign/response?campaignId=${data?.CampaignDetails?.campaignNumber}&isSuccess=${true}`,
                 {
-                  message: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE",
-                  text: "ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT",
+                  message: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE"),
+                  text: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT"),
+                  info: t("ES_CAMPAIGN_SUCCESS_INFO_TEXT")
                 }
               );
               Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
@@ -553,12 +554,12 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-            const temp = resourceData(
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
-            );
-            payloadData.resources = temp;
+          const temp = resourceData(
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          );
+          payloadData.resources = temp;
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
@@ -608,12 +609,12 @@ const SetupCampaign = () => {
           if (totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData) {
             payloadData.boundaries = totalFormData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData;
           }
-            const temp = resourceData(
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
-              totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
-            );
-            payloadData.resources = temp;
+          const temp = resourceData(
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0],
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0],
+            totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]
+          );
+          payloadData.resources = temp;
           payloadData.projectType = totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.code;
           payloadData.additionalDetails = {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
@@ -939,12 +940,12 @@ const SetupCampaign = () => {
       setCurrentKey(4);
       setCurrentStep(2);
     } else if (!totalFormData["HCM_CAMPAIGN_NAME"] || !totalFormData["HCM_CAMPAIGN_DATE"]) {
-        // Do not set stepper and key
-    } else if(Object.keys(totalFormData).includes(name)){
-        setCurrentKey(key);
-        setCurrentStep(step);
       // Do not set stepper and key
-    } 
+    } else if (Object.keys(totalFormData).includes(name)) {
+      setCurrentKey(key);
+      setCurrentStep(step);
+      // Do not set stepper and key
+    }
   };
 
   const onSecondayActionClick = () => {

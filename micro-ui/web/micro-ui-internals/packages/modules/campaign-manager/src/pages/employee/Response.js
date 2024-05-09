@@ -7,7 +7,7 @@ const Response = () => {
   const { t } = useTranslation();
   const history = useHistory();
   const queryStrings = Digit.Hooks.useQueryParams();
-  const [testId, setTestId] = useState(queryStrings?.testId);
+  const [campaignId, setCampaignId] = useState(queryStrings?.campaignId);
   const [isResponseSuccess, setIsResponseSuccess] = useState(
     queryStrings?.isSuccess === "true" ? true : queryStrings?.isSuccess === "false" ? false : true
   );
@@ -27,11 +27,12 @@ const Response = () => {
       <Banner
         successful={isResponseSuccess}
         message={t(state?.message)}
-        multipleResponseIDs={testId}
+        multipleResponseIDs={[campaignId]}
+        info={t(state?.info)}
         whichSvg={`${isResponseSuccess ? "tick" : null}`}
       />
       <Card style={{ border: "none", boxShadow: "none", padding: "0", paddingBottom: "1rem" }}>
-        <div style={{ display: "flex", marginBottom: "0.75rem" }}> {t(state?.text, { TEST_ID: testId })} </div>
+        <div style={{ display: "flex", marginBottom: "0.75rem" }}> {t(state?.text, { CAMPAIGN_ID: campaignId })} </div>
         {isMobile ? (
           <Link to={state?.actionLink ? state?.actionLink : `/${window.contextPath}/employee/`}>
             <SubmitBar label={state?.actionLabel ? t(state?.actionLabel) : t("ES_CAMPAIGN_RESPONSE_ACTION")} />
