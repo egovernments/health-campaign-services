@@ -439,7 +439,6 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       // downloadExcel(new Blob([file], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileNameWithoutExtension);
     }
   };
-
   useEffect(() => {
     const fetchData = async () => {
       if (!errorsType[type] && uploadedFile.length > 0) {
@@ -453,6 +452,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             const errorMessage = temp?.error.replaceAll(":", "-");
             setShowToast({ key: "error", label: errorMessage });
             setIsError(true);
+            setIsValidation(false);
             return;
           }
           if (temp?.status === "completed") {
@@ -489,6 +489,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 }).map(({ id, ...rest }) => rest);
                 onFileDelete(uploadedFile);
                 setUploadedFile(fileData);
+                setIsError(true);
               }
             }
           } else {
@@ -516,6 +517,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               }).map(({ id, ...rest }) => rest);
               onFileDelete(uploadedFile);
               setUploadedFile(fileData);
+              setIsError(true);
             }
           }
         } catch (error) {}
@@ -669,6 +671,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           warning={showToast.key === "warning" ? true : false}
           info={showToast.key === "info" ? true : false}
           label={t(showToast.label)}
+          transitionTime={6000000000}
           onClose={closeToast}
         />
       )}
