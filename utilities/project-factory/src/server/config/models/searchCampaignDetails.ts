@@ -29,7 +29,14 @@ export const searchCampaignDetailsSchema = {
             "minLength": 2
         },
         "status": {
-            "type": "string"
+            "oneOf": [
+                { "type": "string" },
+                {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1
+                }
+            ]
         },
         "createdBy": {
             "type": "string"
