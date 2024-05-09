@@ -43,7 +43,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
 
   useEffect(() => {
     setHierarchy(params?.hierarchyType);
-  }, [params?.hierarchyType ]);
+  }, [params?.hierarchy ]);
 
 
   const closeToast = () => {

@@ -413,7 +413,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       const urlParts = i?.url?.split("/");
       const fileName = file?.[0]?.name;
       const id = fileUrl?.[0]?.id;
-      const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
+      // const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
+      const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type === "boundary" ? "boundaryWithTarget" : type;
       return {
         ...i,
         filestoreId: id,
@@ -477,7 +478,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                   const urlParts = i?.url?.split("/");
                   const id = fileUrl?.[0]?.id;
                   // const fileName = fileName;
-                  const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
+                  const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type === "boundary" ? "boundaryWithTarget" : type;
                   return {
                     ...i,
                     filestoreId: id,
@@ -505,7 +506,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
                 const urlParts = i?.url?.split("/");
                 const id = fileUrl?.[0]?.id;
                 // const fileName = file?.[0]?.name;
-                const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
+                const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type === "boundary" ? "boundaryWithTarget" : type;
                 return {
                   ...i,
                   filestoreId: id,
