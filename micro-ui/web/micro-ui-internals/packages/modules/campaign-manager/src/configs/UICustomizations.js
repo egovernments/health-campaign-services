@@ -20,10 +20,11 @@ export const UICustomizations = {
       const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: "started",
+        status: ["started"],
+        createdBy: Digit.UserService.getUser().info.uuid,
         // startDate: Date.now(),
         pagination: {
-          sortBy: "campaignNumber",
+          sortBy: "createdTime",
           sortOrder: "desc",
           limit: limit,
           offset: offset,
@@ -110,10 +111,11 @@ export const UICustomizations = {
       const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: "started",
+        status: ["started"],
         endDate: Date.now() - 24 * 60 * 60 * 1000,
+        createdBy: Digit.UserService.getUser().info.uuid,
         pagination: {
-          sortBy: "campaignNumber",
+          sortBy: "createdTime",
           sortOrder: "desc",
           limit: limit,
           offset: offset,
@@ -200,9 +202,10 @@ export const UICustomizations = {
       const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: "drafted",
+        status: ["drafted"],
+        createdBy: Digit.UserService.getUser().info.uuid,
         pagination: {
-          sortBy: "campaignNumber",
+          sortBy: "createdTime",
           sortOrder: "desc",
           limit: limit,
           offset: offset,
@@ -290,9 +293,10 @@ export const UICustomizations = {
       const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: "failed",
+        status: ["failed"],
+        createdBy: Digit.UserService.getUser().info.uuid,
         pagination: {
-          sortBy: "campaignNumber",
+          sortBy: "createdTime",
           sortOrder: "desc",
           limit: limit,
           offset: offset,

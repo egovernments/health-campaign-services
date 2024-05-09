@@ -18,8 +18,13 @@
     background-color: theme(digitv2.lightTheme.primary);
   }
 
-  .complaint-links-container .body .link {
-    color: theme(digitv2.lightTheme.primary);
+  .complaint-links-container .body {
+    &.link {
+      color: theme(digitv2.lightTheme.primary);
+    }
+    .inbox-total {
+      background-color: theme(digitv2.lightTheme.primary);
+    }
   }
 }
 
