@@ -10,6 +10,7 @@ import { enrichAndPersistCampaignWithError } from '../utils/campaignUtils';
 // Replace with the correct Kafka broker(s) and topic name
 const kafkaConfig = {
     kafkaHost: config.KAFKA_BROKER_HOST, // Use the correct broker address and port
+    groupId: 'project-factory',
     autoCommit: true,
     autoCommitIntervalMs: 5000,
     fromOffset: 'earliest', // Start reading from the beginning of the topic
