@@ -646,12 +646,15 @@ async function getTotalCount(request: any) {
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
                 conditions.push(`startDate >= $${index}`);
+                values.push(searchFields[field]);
                 index++;
             } else if (field === 'endDate') {
                 conditions.push(`endDate <= $${index}`);
+                values.push(searchFields[field]);
                 index++;
             } else if (field === 'campaignName') {
                 conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
+                values.push(searchFields[field]);
                 index++;
             } else if (field != 'status') {
                 conditions.push(`${field} = $${index}`);
@@ -729,12 +732,15 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
                 conditions.push(`startDate >= $${index}`);
+                values.push(searchFields[field]);
                 index++;
             } else if (field === 'endDate') {
                 conditions.push(`endDate <= $${index}`);
+                values.push(searchFields[field]);
                 index++;
             } else if (field === 'campaignName') {
                 conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
+                values.push(searchFields[field]);
                 index++;
             } else if (field != 'status') {
                 conditions.push(`${field} = $${index}`);
