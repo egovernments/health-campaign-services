@@ -7,11 +7,12 @@ import { generateHierarchyList, getAllFacilities, getHierarchy } from "../api/ca
 import { searchMDMS, getCount, getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData } from "../api/genericApis";
 import * as XLSX from 'xlsx';
 import FormData from 'form-data';
-import { Pool } from 'pg';
 import { logger } from "./logger";
 import dataManageController from "../controllers/dataManage/dataManage.controller";
 import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getLocalizedName } from "./campaignUtils";
 import localisationController from "../controllers/localisationController/localisation.controller";
+import { executeQuery } from "./db";
+import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 const NodeCache = require("node-cache");
 const _ = require('lodash');
 
@@ -241,38 +242,11 @@ async function generateActivityMessage(tenantId: any, requestBody: any, requestP
   return activityMessage;
 }
 
-function modifyAuditdetailsAndCases(responseData: any) {
-  responseData.forEach((item: any) => {
-    item.auditDetails = {
-      lastModifiedTime: item.lastmodifiedtime,
-      createdTime: item.createdtime,
-      lastModifiedBy: item.lastmodifiedby,
-      createdBy: item.createdby
-    }
-    item.tenantId = item.tenantid;
-    item.additionalDetails = item.additionaldetails;
-    item.fileStoreid = item.filestoreid;
-    delete item.additionaldetails;
-    delete item.lastmodifiedtime;
-    delete item.createdtime;
-    delete item.lastmodifiedby;
-    delete item.createdby;
-    delete item.filestoreid;
-    delete item.tenantid;
-  })
-}
-/* to fetch db data */
+/* Fetches data from the database */
 async function getResponseFromDb(request: any, response: any) {
-  const pool = new Pool({
-    user: config.DB_USER,
-    host: config.DB_HOST,
-    database: config.DB_NAME,
-    password: config.DB_PASSWORD,
-    port: parseInt(config.DB_PORT)
-  });
   try {
     const { type } = request.query;
-    const { tenantId, hierarchyType } = request.query
+    const { tenantId, hierarchyType } = request.query;
     const status = 'Completed';
     let queryResult: any;
     let queryString: string;
@@ -300,21 +274,14 @@ async function getResponseFromDb(request: any, response: any) {
         queryValues = [type, hierarchyType, tenantId, status];
       }
     }
-    queryResult = await pool.query(queryString, queryValues);
-    const responseData = queryResult.rows;
-    modifyAuditdetailsAndCases(responseData);
-    return responseData;
+    queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
   }
   catch (error: any) {
     logger.error(`Error fetching data from the database: ${error.message}`);
-    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message)
-  } finally {
-    try {
-      await pool.end();
-    } catch (error) {
-      logger.error('Error closing the database connection pool:', error);
-    }
-  }
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  } 
 }
 
 async function getModifiedResponse(responseData: any) {
