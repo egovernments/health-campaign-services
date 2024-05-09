@@ -681,7 +681,12 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
 
 async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     const CampaignDetails = request.body.CampaignDetails;
-    const { hierarchyType, action, tenantId, boundaries, resources, projectType } = CampaignDetails;
+    const { id, hierarchyType, action, tenantId, boundaries, resources, projectType } = CampaignDetails;
+    if (actionInUrl == "update") {
+        if (!id) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "id is required for update");
+        }
+    }
     if (!CampaignDetails) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails is required");
     }
