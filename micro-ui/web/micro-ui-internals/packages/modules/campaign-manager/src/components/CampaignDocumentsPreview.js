@@ -2,6 +2,7 @@ import React, { useState, useEffect, Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { DocumentIcon } from "./DocumentIcon";
 import XlsPreview from "./XlsPreview";
+import { XlsxFile } from "./icons/XlsxFile";
 
 function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenerate = false }) {
   const { t } = useTranslation();
@@ -34,7 +35,7 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
             <div key={index} style={{ marginRight: "1rem" }}>
               <div onClick={() => setShowPreview(true)}>
                 <div style={{ display: "flex", justifyContent: "center" }}>
-                  <DocumentIcon />
+                  <XlsxFile />
                 </div>
                 <p className="campaign-document-title">
                   {isUserGenerate ? document?.type : document?.filename ? t(document?.filename) : t("CAMPAIGN_DOCUMENT_TITLE", { INDEX: index + 1 })}
