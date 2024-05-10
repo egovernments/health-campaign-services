@@ -125,7 +125,7 @@ export const UICustomizations = {
         data.body.CampaignDetails.campaignName = campaignName;
       }
       if (campaignType) {
-        data.body.CampaignDetails.projectType = campaignType?.[0]?.id;
+        data.body.CampaignDetails.projectType = campaignType?.[0]?.code;
       }
       delete data.body.custom;
       delete data.body.inbox;
@@ -215,7 +215,7 @@ export const UICustomizations = {
         data.body.CampaignDetails.campaignName = campaignName;
       }
       if (campaignType) {
-        data.body.CampaignDetails.projectType = campaignType?.[0]?.id;
+        data.body.CampaignDetails.projectType = campaignType?.[0]?.code;
       }
       delete data.body.custom;
       delete data.body.custom;
@@ -306,7 +306,7 @@ export const UICustomizations = {
         data.body.CampaignDetails.campaignName = campaignName;
       }
       if (campaignType) {
-        data.body.CampaignDetails.projectType = campaignType?.[0]?.id;
+        data.body.CampaignDetails.projectType = campaignType?.[0]?.code;
       }
       delete data.body.custom;
       delete data.body.inbox;
