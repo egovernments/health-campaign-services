@@ -31,7 +31,6 @@ async function enrichCampaign(requestBody: any) {
 
 async function getAllFacilitiesInLoop(searchedFacilities: any[], facilitySearchParams: any, facilitySearchBody: any) {
   await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for 3 seconds
-  logger.info("facilitySearchParams : " + JSON.stringify(facilitySearchParams));
   const response = await httpRequest(config.host.facilityHost + config.paths.facilitySearch, facilitySearchBody, facilitySearchParams);
 
   if (Array.isArray(response?.Facilities)) {
@@ -62,8 +61,6 @@ async function getAllFacilities(tenantId: string, requestBody: any) {
     tenantId: tenantId?.split('.')?.[0]
   };
 
-  logger.info("Facility search url : " + config.host.facilityHost + config.paths.facilitySearch);
-  logger.info("facilitySearchBody : " + JSON.stringify(facilitySearchBody));
   const searchedFacilities: any[] = [];
   let searchAgain = true;
 
@@ -95,7 +92,6 @@ async function getFacilitiesViaIds(tenantId: string, ids: any[], requestBody: an
     tenantId: tenantId?.split('.')?.[0]
   };
 
-  logger.info("Facility search url : " + config.host.facilityHost + config.paths.facilitySearch);
   const searchedFacilities: any[] = [];
 
   // Split ids into chunks of 50
@@ -308,8 +304,6 @@ function matchViaUserIdAndCreationTime(createdData: any[], searchedData: any[], 
 
 async function processSearch(createAndSearchConfig: any, request: any, params: any) {
   setSearchLimits(createAndSearchConfig, request, params);
-  logger.info("Search url : " + createAndSearchConfig?.searchDetails?.url);
-
   const arraysToMatch = await performSearch(createAndSearchConfig, request, params);
 
   return arraysToMatch;
@@ -340,9 +334,6 @@ async function performSearch(createAndSearchConfig: any, request: any, params: a
       RequestInfo: request?.body?.RequestInfo
     }
     changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, searcRequestBody)
-    logger.info("Search url : " + createAndSearchConfig?.searchDetails?.url);
-    logger.info("Search params : " + JSON.stringify(params));
-    logger.info("Search body : " + JSON.stringify(searcRequestBody));
     const response = await httpRequest(createAndSearchConfig?.searchDetails?.url, searcRequestBody, params);
     const resultArray = _.get(response, createAndSearchConfig?.searchDetails?.searchPath);
     if (resultArray && Array.isArray(resultArray)) {
@@ -528,9 +519,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
       }
       else if (type == "user") {
-        logger.info("User create data : " + JSON.stringify(newRequestBody));
         var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
-        logger.info("User create response : " + JSON.stringify(responsePayload));
       }
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
       logger.info("Activity : " + JSON.stringify(activity));

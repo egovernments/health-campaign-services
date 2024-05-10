@@ -36,8 +36,6 @@ async function fetchBoundariesInChunks(request: any) {
         tenantId, hierarchyType, includeChildren: true
     };
     const responseBoundaries: any[] = [];
-    logger.info("Boundary search url : " + config.host.boundaryHost + config.paths.boundaryRelationship);
-    logger.info("Boundary search params : " + JSON.stringify(boundaryEntitySearchParams));
     var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEntitySearchParams);
     const TenantBoundary = response.TenantBoundary;
     TenantBoundary.forEach((tenantBoundary: any) => {
@@ -692,7 +690,6 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
             }
         }
         const params = { tenantId: tenantId }
-        logger.info("Url : " + config.host.mdms + "egov-mdms-service/v1/_search");
         const searchResponse: any = await httpRequest(config.host.mdms + "egov-mdms-service/v1/_search", searchBody, params);
         if (searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes && Array.isArray(searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes)) {
             const projectTypes = searchResponse?.MdmsRes?.["HCM-PROJECT-TYPES"]?.projectTypes;

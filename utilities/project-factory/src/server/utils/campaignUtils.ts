@@ -416,7 +416,6 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
         ...requestBody?.CampaignDetails?.additionalDetails,
         error: String((error?.message + " : " + error?.description) || error)
     }
-    logger.info("Persisting CampaignDetails : " + JSON.stringify(requestBody?.CampaignDetails));
     const topic = config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     produceModifiedMessages(requestBody, topic);
     delete requestBody.CampaignDetails.campaignDetails
@@ -447,7 +446,6 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
     else {
         request.body.CampaignDetails.projectId = null
     }
-    logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     const topic = firstPersist ? config.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC : config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     produceModifiedMessages(request?.body, topic);
     delete request.body.CampaignDetails.campaignDetails
@@ -486,7 +484,6 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     else {
         request.body.CampaignDetails.projectId = request?.body?.CampaignDetails?.projectId || ExistingCampaignDetails?.projectId || null
     }
-    logger.info("Persisting CampaignDetails : " + JSON.stringify(request?.body?.CampaignDetails));
     produceModifiedMessages(request?.body, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
     delete request.body.ExistingCampaignDetails
     delete request.body.CampaignDetails.campaignDetails
@@ -900,8 +897,6 @@ async function processBoundary(boundary: any, boundaryCodes: any, boundaries: an
             hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
             includeChildren: true
         }
-        logger.info("Boundary relationship search url : " + config.host.boundaryHost + config.paths.boundaryRelationship);
-        logger.info("Boundary relationship search params : " + JSON.stringify(params));
         const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
         if (boundaryResponse?.TenantBoundary?.[0]) {
             logger.info("Boundary found " + JSON.stringify(boundaryResponse?.TenantBoundary?.[0]?.boundary));
@@ -955,8 +950,6 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
             hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
             includeChildren: true
         }
-        logger.info("Boundary relationship search url : " + config.host.boundaryHost + config.paths.boundaryRelationship);
-        logger.info("Boundary relationship search params : " + JSON.stringify(params));
         const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params);
         if (boundaryResponse?.TenantBoundary?.[0]?.boundary) {
             const codesTargetMapping = await getCodesTarget(request, localizationMap)

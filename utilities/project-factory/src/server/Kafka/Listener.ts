@@ -41,9 +41,11 @@ export function listener() {
                 logger.error(error)
                 enrichAndPersistCampaignWithError(messageObject, error)
             }
-            logger.info(`Received message: ${JSON.stringify(messageObject)}`)
+            logger.info(`KAFKA :: LISTENER :: Received a message`);
+            logger.debug(`KAFKA :: LISTENER :: message ${JSON.stringify(messageObject)}`);
         } catch (error) {
-            console.error(`Error processing message: ${error}`);
+            logger.info('KAFKA :: PRODUCER :: Some Error Occurred '); // Log successful message production
+            logger.error(`KAFKA :: PRODUCER :: Error :  ${JSON.stringify(error)}`); // Log producer error
         }
     });
 
@@ -65,6 +67,8 @@ export function listener() {
  * @returns A promise that resolves when the messages are successfully produced.
  */
 async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
+    logger.info(`KAFKA :: PRODUCER :: a sent message to topic ${topic}`);
+    logger.debug(`KAFKA :: PRODUCER :: message ${JSON.stringify(modifiedMessages)}`);
     return new Promise<void>((resolve, reject) => {
         const payloads = [
             {
@@ -76,10 +80,11 @@ async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
         // Send payloads to the Kafka producer
         producer.send(payloads, (err) => {
             if (err) {
-                logger.info(`Producer Error: ${JSON.stringify(err)}`); // Log producer error
+                logger.info('KAFKA :: PRODUCER :: Some Error Occurred '); // Log successful message production
+                logger.error(`KAFKA :: PRODUCER :: Error :  ${JSON.stringify(err)}`); // Log producer error
                 reject(err); // Reject promise if there's an error
             } else {
-                logger.info('Produced modified messages successfully.'); // Log successful message production
+                logger.info('KAFKA :: PRODUCER :: message sent successfully '); // Log successful message production
                 resolve(); // Resolve promise if messages are successfully produced
             }
         });

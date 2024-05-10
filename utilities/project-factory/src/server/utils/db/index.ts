@@ -15,13 +15,13 @@ export const executeQuery = async (
   values: any
 ): Promise<any> => {
   try {
-    logger.info(` DB QUERY : STATEMENT :: ${query}`);
-    logger.info(` DB QUERY : VALUES ::   ${values}`);
+    logger.info(`DB QUERY : STATEMENT :: ${query}`);
+    logger.info(`DB QUERY : VALUES ::   ${values}`);
     const queryResponse = await pool.query(query, values);
-    logger.debug(JSON.stringify(queryResponse?.rows));
     logger.info(
-      `Query successfully executed, returning ${queryResponse?.rowCount} rows.`
+      `DB QUERY : RESPONSE ::  SUCCESS :: returns ${queryResponse?.rowCount} rows.`
     );
+    logger.debug( `DB QUERY : RESPONSE ::  SUCCESS :: Query Response ${JSON.stringify(queryResponse?.rows)}`);
     return queryResponse;
   } catch (error: any) {
     logger.error(`Error fetching data from the database: ${error?.message}`);

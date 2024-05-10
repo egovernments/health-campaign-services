@@ -208,7 +208,6 @@ async function generateXlsxFromJson(request: any, response: any, simplifiedData:
   formData.append('tenantId', request?.body?.RequestInfo?.userInfo?.tenantId);
   formData.append('module', 'HCM-ADMIN-CONSOLE-PROCESS');
 
-  logger.info("File uploading url : " + config.host.filestore + config.paths.filestore);
   var fileCreationResult = await httpRequest(config.host.filestore + config.paths.filestore, formData, undefined, undefined, undefined,
     {
       'Content-Type': 'multipart/form-data',

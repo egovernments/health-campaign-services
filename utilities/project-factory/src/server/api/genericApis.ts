@@ -173,9 +173,6 @@ const getCampaignNumber: any = async (requestBody: any, idFormat: String, idName
     // Construct URL for ID generation service
     const idGenUrl = config.host.idGenHost + config.paths.idGen;
 
-    // Log ID generation URL and request
-    logger.info("IdGen url : " + idGenUrl)
-    logger.info("Idgen Request : " + JSON.stringify(data))
 
     // Make HTTP request to ID generation service
     const result = await httpRequest(idGenUrl, data, undefined, undefined, undefined, undefined);
@@ -205,10 +202,6 @@ const getResouceNumber: any = async (RequestInfo: any, idFormat: String, idName:
 
     // Construct URL for ID generation service
     const idGenUrl = config.host.idGenHost + config.paths.idGen;
-
-    // Log ID generation URL and request
-    logger.info("IdGen url : " + idGenUrl)
-    logger.info("Idgen Request : " + JSON.stringify(data))
 
     try {
         // Make HTTP request to ID generation service
@@ -245,8 +238,7 @@ const getSchema: any = async (code: string, RequestInfo: any) => {
         }
     }
     const mdmsSearchUrl = config.host.mdms + config.paths.mdmsSchema;
-    logger.info("Schema search url : " + mdmsSearchUrl)
-    logger.info("Schema search Request : " + JSON.stringify(data))
+
     try {
         const result = await httpRequest(mdmsSearchUrl, data, undefined, undefined, undefined, undefined);
         return result?.SchemaDefinitions?.[0]?.definition;
@@ -291,9 +283,6 @@ async function createAndUploadFile(updatedWorkbook: XLSX.WorkBook, request: any,
     formData.append('file', buffer, 'filename.xlsx');
     formData.append('tenantId', tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId);
     formData.append('module', 'HCM-ADMIN-CONSOLE-SERVER');
-
-    // Log file uploading URL
-    logger.info("File uploading url : " + config.host.filestore + config.paths.filestore);
 
     // Make HTTP request to upload file
     var fileCreationResult = await httpRequest(config.host.filestore + config.paths.filestore, formData, undefined, undefined, undefined,
