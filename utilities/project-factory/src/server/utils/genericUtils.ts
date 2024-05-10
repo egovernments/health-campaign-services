@@ -93,6 +93,7 @@ const sendResponse = (
     logger.info("CACHED RESPONSE FOR :: " + req.headers.cachekey);
   }
   */
+  logger.info("Send back the response to the client");
   response.status(code).send({
     ...getResponseInfo(code),
     ...responseBody,

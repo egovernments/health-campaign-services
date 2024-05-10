@@ -40,8 +40,11 @@ class dataManageController {
 */
     generateData = async (request: express.Request, response: express.Response) => {
         try {
+            logger.info(`RECEIVED A DATA GENERATE REQUEST FOR TYPE :: ${request?.query?.type}`);
             // Validate the generate request
             await validateGenerateRequest(request);
+            logger.info("VALIDATED THE DATA GENERATE REQUEST");
+
             // Process the data generation
 
             const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId)
@@ -66,7 +69,10 @@ class dataManageController {
     downloadData = async (request: express.Request, response: express.Response) => {
         try {
             // validate downlaod request body
+            logger.info(`RECEIVED A DATA DOWNLOAD REQUEST FOR TYPE :: ${request?.query?.type}`);
             await validateDownloadRequest(request);
+            logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
+
             const type = request.query.type;
             // Get response data from the database
             const responseData = await getResponseFromDb(request, response);
@@ -94,12 +100,16 @@ class dataManageController {
         response: express.Response
     ) => {
         try {
+            logger.info("RECEIVED A REQUEST TO GENERATE THE BOUNDARY");
+
             const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId || 'mz');
             // Retrieve boundary sheet data
             const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
             // Create and upload file
             const BoundaryFileDetails: any = await createAndUploadFile(boundarySheetData?.wb, request);
             // Return boundary file details
+            logger.info("RETURNS THE BOUNDARY RESPONSE");
+
             return BoundaryFileDetails;
         }
         catch (e: any) {
@@ -117,8 +127,11 @@ class dataManageController {
    */
     createData = async (request: any, response: any) => {
         try {
+            logger.info(`RECEIVED A DATA CREATE REQUEST FOR TYPE :: ${request?.body?.ResourceDetails?.type}`);
             // Validate the create request
             await validateCreateRequest(request);
+            logger.info("VALIDATED THE DATA CREATE REQUEST");
+
 
             const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
 
@@ -146,8 +159,10 @@ class dataManageController {
          */
     searchData = async (request: any, response: any) => {
         try {
+            logger.info(`RECEIVED A DATA SEARCH REQUEST FOR TYPE :: ${request?.body?.SearchCriteria?.type}`);
             // Validate the search request
             await validateSearchRequest(request);
+            logger.info("VALIDATED THE DATA GENERATE REQUEST");
             // Process the data search request
             await processDataSearchRequest(request);
             // Send response with resource details

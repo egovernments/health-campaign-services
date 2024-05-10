@@ -44,8 +44,10 @@ class campaignManageController {
         response: express.Response
     ) => {
         try {
+            logger.info("RECEIVED A PROJECT TYPE CREATE REQUEST");
             // Validate the request for creating a project type campaign
             await validateProjectCampaignRequest(request, "create");
+            logger.info("VALIDATED THE PROJECT TYPE CREATE REQUEST");
 
             // Process the action based on the request type
             await processBasedOnAction(request, "create");
@@ -70,8 +72,10 @@ class campaignManageController {
         response: express.Response
     ) => {
         try {
+            logger.info("RECEIVED A PROJECT TYPE UPDATE REQUEST");
             // Validate the request for updating a project type campaign
             await validateProjectCampaignRequest(request, "update");
+            logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
 
             // Process the action based on the request type
             await processBasedOnAction(request, "update");
@@ -96,8 +100,10 @@ class campaignManageController {
         response: express.Response
     ) => {
         try {
+            logger.info("RECEIVED A PROJECT TYPE SEARCH REQUEST");
             // Validate the search request for project type campaigns
             await validateSearchProjectCampaignRequest(request);
+            logger.info("VALIDATED THE PROJECT TYPE SEARCH REQUEST");
 
             // Search for project campaign resource data
             await searchProjectCampaignResourcData(request);
@@ -123,14 +129,15 @@ class campaignManageController {
     ) => {
         try {
             // Validate the request for creating a campaign
+            logger.info("RECEIVED A CAMPAIGN CREATE REQUEST");
             await validateCampaignRequest(request.body)
+            logger.info("VALIDATED THE CAMPAIGN CREATE REQUEST");
 
             // Create related resource
             await createRelatedResouce(request.body)
 
             // Enrich the campaign
             await enrichCampaign(request.body)
-
             // Send response with campaign details
             return sendResponse(response, { Campaign: request?.body?.Campaign }, request);
         }
