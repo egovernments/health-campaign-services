@@ -93,7 +93,7 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
     });
 
     jsonData = jsonData.filter(element => element !== undefined);
-    logger.info("Sheet Data : " + JSON.stringify(jsonData))
+    // logger.info("Sheet Data : " + JSON.stringify(jsonData))
 
     // Return JSON data
     return jsonData;
@@ -118,7 +118,7 @@ const getTargetSheetData = async (fileUrl: string, getRow = false, getSheetName 
         });
         jsonData = jsonData.filter(element => element !== undefined);
         workbookData[sheetName] = jsonData; // Store sheet data in the object
-        logger.info(`Sheet Data (${sheetName}): ${JSON.stringify(jsonData)}`);
+        // logger.info(`Sheet Data (${sheetName}): ${JSON.stringify(jsonData)}`);
     }
 
     // Return data from all sheets
@@ -499,7 +499,7 @@ async function getBoundarySheetData(request: any, localizationMap?: { [key: stri
         return await createExcelSheet(boundaryData, localizedHeaders, localizedBoundaryTab);
     }
     else {
-        logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
+        // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
         if (request?.body?.Filters != null) {
             const filteredBoundaryData = await generateFilteredBoundaryData(request);
             return await getDataSheetReady(filteredBoundaryData, request,localizationMap);

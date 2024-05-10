@@ -1,7 +1,7 @@
 import express from 'express';
 import * as bodyParser from 'body-parser';
 import config from './config';
-import { requestMiddleware } from './utils/middlewares';
+import {  requestMiddleware } from './utils/middlewares';
 import { errorLogger, errorResponder, invalidPathHandler } from './utils/genericUtils';
 
 class App {

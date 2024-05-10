@@ -38,6 +38,8 @@ const getServiceName = (url = "") => url && url.slice && url.slice(url.lastIndex
 
 const cacheEnabled = true; // Variable to indicate whether caching is enabled or not
 
+const getFormattedString =(obj:any)=>JSON.stringify(obj)?.slice(0,100)+(JSON.stringify(obj)?.length>100?"\n ---more":"")
+
 /**
  * Used to Make API call through axios library
  * 
@@ -78,7 +80,7 @@ const httpRequest = async (
       " CRITERIA :: " +
       JSON.stringify(_params)
     );
-    logger.debug("INTER-SERVICE :: REQUESTBODY :: " +JSON.stringify(_requestBody))
+    logger.debug("INTER-SERVICE :: REQUESTBODY :: " + getFormattedString(_requestBody))
     // Make HTTP request using Axios
     const response = await Axios({
       method: _method,
@@ -96,7 +98,7 @@ const httpRequest = async (
       ":: CODE :: " +
       responseStatus
     );
-    logger.debug("INTER-SERVICE :: RESPONSEBODY :: " +JSON.stringify(response.data))
+    logger.debug("INTER-SERVICE :: RESPONSEBODY :: " +getFormattedString(response.data));
 
     // If response status is successful, cache the response data if caching is enabled
     if (responseStatus === 200 || responseStatus === 201 || responseStatus === 202) {
