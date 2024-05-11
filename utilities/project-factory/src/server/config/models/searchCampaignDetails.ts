@@ -21,6 +21,9 @@ export const searchCampaignDetailsSchema = {
             "type": "integer",
             "minimum": 0
         },
+        "campaignsIncludeDates": {
+            "type": "boolean"
+        },
         "projectType": {
             "type": "string"
         },

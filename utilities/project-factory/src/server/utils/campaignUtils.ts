@@ -639,15 +639,18 @@ async function getTotalCount(request: any) {
     let conditions = [];
     let values = [tenantId];
     let index = 2;
+    const campaignsIncludeDates = searchFields?.campaignsIncludeDates
 
     for (const field in searchFields) {
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
-                conditions.push(`startDate >= $${index}`);
+                const startDateSign = campaignsIncludeDates ? '<=' : '>=';
+                conditions.push(`startDate ${startDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
             } else if (field === 'endDate') {
-                conditions.push(`endDate <= $${index}`);
+                const endDateSign = campaignsIncludeDates ? '>=' : '<=';
+                conditions.push(`endDate ${endDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
             } else if (field === 'campaignName') {
@@ -725,15 +728,18 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
     let conditions = [];
     let values = [tenantId];
     let index = 2;
+    const campaignsIncludeDates = searchFields?.campaignsIncludeDates
 
     for (const field in searchFields) {
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
-                conditions.push(`startDate >= $${index}`);
+                const startDateSign = campaignsIncludeDates ? '<=' : '>=';
+                conditions.push(`startDate ${startDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
             } else if (field === 'endDate') {
-                conditions.push(`endDate <= $${index}`);
+                const endDateSign = campaignsIncludeDates ? '>=' : '<=';
+                conditions.push(`endDate ${endDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
             } else if (field === 'campaignName') {
