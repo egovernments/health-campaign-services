@@ -5,7 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.StockReconciliation;
-import org.egov.transformer.service.StockReconciliationService;
+import org.egov.transformer.transformationservice.StockReconciliationTransformationService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -20,14 +21,14 @@ public class StockReconciliationConsumer {
 
     private final ObjectMapper objectMapper;
 
-    private final StockReconciliationService stockReconciliationService;
+    private final StockReconciliationTransformationService stockReconciliationTransformationService;
 
-    public StockReconciliationConsumer(ObjectMapper objectMapper, StockReconciliationService stockReconciliationService) {
+    public StockReconciliationConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, StockReconciliationTransformationService stockReconciliationTransformationService) {
         this.objectMapper = objectMapper;
-        this.stockReconciliationService = stockReconciliationService;
+        this.stockReconciliationTransformationService = stockReconciliationTransformationService;
     }
 
-    @KafkaListener(topics = { "${transformer.consumer.stock.reconciliation.create.topic}",
+    @KafkaListener(topics = {"${transformer.consumer.stock.reconciliation.create.topic}",
             "${transformer.consumer.stock.reconciliation.update.topic}"})
     public void consumeStockReconciliation(ConsumerRecord<String, Object> payload,
                                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
@@ -35,9 +36,9 @@ public class StockReconciliationConsumer {
             List<StockReconciliation> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             StockReconciliation[].class));
-            stockReconciliationService.transform(payloadList);
+            stockReconciliationTransformationService.transform(payloadList);
         } catch (Exception exception) {
-            log.error("error in stock reconciliation consumer bulk create {}", ExceptionUtils.getStackTrace(exception));
+            log.error("TRANSFORMER error in stockReconciliationConsumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

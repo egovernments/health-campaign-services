@@ -9,6 +9,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 
+import java.util.Map;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -26,7 +28,10 @@ public class SideEffectsIndexV1 {
     private Integer age;
 
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
+
+    @JsonProperty("localityCode")
+    private String localityCode;
 
     @JsonProperty("individualId")
     private String individualId;
@@ -39,6 +44,9 @@ public class SideEffectsIndexV1 {
 
     @JsonProperty("userName")
     private String userName;
+
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
 
     @JsonProperty("role")
     private String role;

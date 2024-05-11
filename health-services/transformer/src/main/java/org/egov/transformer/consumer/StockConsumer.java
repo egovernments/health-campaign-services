@@ -5,8 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.egov.common.models.stock.Stock;
-import org.egov.transformer.enums.Operation;
-import org.egov.transformer.handler.TransformationHandler;
+import org.egov.transformer.transformationservice.StockTransformationService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -21,14 +21,14 @@ public class StockConsumer {
 
     private final ObjectMapper objectMapper;
 
-    private final TransformationHandler<Stock> transformationHandler;
+    private final StockTransformationService stockTransformationService;
 
-    public StockConsumer(ObjectMapper objectMapper, TransformationHandler<Stock> transformationHandler) {
+    public StockConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, StockTransformationService stockTransformationService) {
         this.objectMapper = objectMapper;
-        this.transformationHandler = transformationHandler;
+        this.stockTransformationService = stockTransformationService;
     }
 
-    @KafkaListener(topics = { "${transformer.consumer.bulk.create.stock.topic}",
+    @KafkaListener(topics = {"${transformer.consumer.bulk.create.stock.topic}",
             "${transformer.consumer.bulk.update.stock.topic}"})
     public void consumeStock(ConsumerRecord<String, Object> payload,
                              @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
@@ -36,9 +36,9 @@ public class StockConsumer {
             List<Stock> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(),
                             Stock[].class));
-            transformationHandler.handle(payloadList, Operation.STOCK);
+            stockTransformationService.transform(payloadList);
         } catch (Exception exception) {
-            log.error("error in stock consumer bulk create {}", ExceptionUtils.getStackTrace(exception));
+            log.error("TRANSFORMER error in stockConsumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 }

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ServiceIndexV2 {
+public class ReferralServiceTaskIndexV1 {
     @JsonProperty("id")
     private String id;
     @JsonProperty("supervisorLevel")

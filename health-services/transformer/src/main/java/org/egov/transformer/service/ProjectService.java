@@ -48,6 +48,8 @@ public class ProjectService {
 
     private final MdmsService mdmsService;
 
+    private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
+
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
@@ -184,9 +186,8 @@ public class ProjectService {
                     request,
                     BeneficiaryBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching beneficiary {}", ExceptionUtils.getStackTrace(e));
-            throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
-                    "error while fetching beneficiary details for id: " + projectBeneficiaryClientRefId);
+            log.error("error while fetching beneficiary for id: {}, Exception: {}", projectBeneficiaryClientRefId, ExceptionUtils.getStackTrace(e));
+            return Collections.emptyList();
         }
         return response.getProjectBeneficiaries();
     }
@@ -204,6 +205,9 @@ public class ProjectService {
     }
 
     public String getProjectBeneficiaryType(String tenantId, String projectTypeId) {
+        if (projectTypeIdVsProjectBeneficiaryCache.containsKey(projectTypeId)) {
+            return projectTypeIdVsProjectBeneficiaryCache.get(projectTypeId);
+        }
         String filter = "$[?(@.id == '" + projectTypeId + "')].beneficiaryType";
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
@@ -218,7 +222,9 @@ public class ProjectService {
                         .withArray(PROJECT_TYPES);
 
                 if (projectBeneficiaryTypeNode != null && projectBeneficiaryTypeNode.isArray() && projectBeneficiaryTypeNode.size() > 0) {
-                    return projectBeneficiaryTypeNode.get(0).asText();
+                    String projectBeneficiaryType = projectBeneficiaryTypeNode.get(0).asText();
+                    projectTypeIdVsProjectBeneficiaryCache.put(projectTypeId, projectBeneficiaryType);
+                    return projectBeneficiaryType;
                 }
             }
         } catch (Exception exception) {
@@ -292,36 +298,39 @@ public class ProjectService {
         }
     }
 
-    public JsonNode fetchAdditionalDetails(String tenantId, String filter, String projectTypeId) {
+    public JsonNode fetchProjectAdditionalDetails(String tenantId, String filter, String projectTypeId) {
 
         JsonNode additionalDetails = null;
         JsonNode requiredProjectType = fetchProjectTypes(tenantId, filter, projectTypeId);
         if (requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
-            additionalDetails = extractCycleAndDoseIndexes(requiredProjectType);
+            additionalDetails = extractProjectCycleAndDoseIndexes(requiredProjectType);
         }
         return additionalDetails;
     }
 
-    private JsonNode extractCycleAndDoseIndexes(JsonNode projectType) {
+    private JsonNode extractProjectCycleAndDoseIndexes(JsonNode projectType) {
         ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
         ArrayNode doseIndex = JsonNodeFactory.instance.arrayNode();
         ArrayNode cycleIndex = JsonNodeFactory.instance.arrayNode();
+        // Adding 0 as prefix here because we are sending cycle and dose as 01, 02 strings from app
+        // due to character length limit on additionalField values,
+        // for dashboard controls we are converting here so that filters get applied properly between multiple indexes
         try {
             cycles.forEach(cycle -> {
                 if (cycle.has(ID)) {
-                    cycleIndex.add(cycle.get(ID).asInt());
+                    cycleIndex.add(PREFIX_ZERO + cycle.get(ID).asText());
                 }
             });
             ArrayNode deliveries = (ArrayNode) cycles.get(0).get(DELIVERIES);
             deliveries.forEach(delivery -> {
                 if (delivery.has(ID)) {
-                    doseIndex.add(delivery.get(ID).asInt());
+                    doseIndex.add(PREFIX_ZERO + delivery.get(ID).asText());
                 }
             });
 
             ObjectNode result = JsonNodeFactory.instance.objectNode();
-            result.set(DOSE_NUMBER, doseIndex);
-            result.set(CYCLE_NUMBER, cycleIndex);
+            result.set(DOSE_INDEX, doseIndex);
+            result.set(CYCLE_INDEX, cycleIndex);
             return result;
         } catch (Exception e) {
             log.info("Error while fetching cycle and dose indexes from MDMS: {}", ExceptionUtils.getStackTrace(e));

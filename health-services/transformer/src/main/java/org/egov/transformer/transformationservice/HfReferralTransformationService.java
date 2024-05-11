@@ -1,4 +1,4 @@
-package org.egov.transformer.service;
+package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -8,6 +8,9 @@ import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.HfReferralIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.FacilityService;
+import org.egov.transformer.service.ProjectService;
+import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +23,7 @@ import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Component
-public class HfReferralService {
+public class HfReferralTransformationService {
 
     private final TransformerProperties transformerProperties;
     private final Producer producer;
@@ -32,8 +35,8 @@ public class HfReferralService {
 
     private final ObjectMapper objectMapper;
 
-    public HfReferralService(TransformerProperties transformerProperties,
-                             Producer producer, UserService userService, ProjectService projectService, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public HfReferralTransformationService(TransformerProperties transformerProperties,
+                                           Producer producer, UserService userService, ProjectService projectService, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
@@ -57,20 +60,18 @@ public class HfReferralService {
 
     public HfReferralIndexV1 transform(HFReferral hfReferral) {
         String tenantId = hfReferral.getTenantId();
-        Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+        Map<String, String> boundaryHierarchy = new HashMap<>();
         String projectId = hfReferral.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
 
-        boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, hfReferral.getTenantId());
-        Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
-        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
+        boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(projectId, tenantId);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, hfReferral.getClientAuditDetails().getCreatedBy());
 
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, hfReferral.getClientAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         HfReferralIndexV1 hfReferralIndexV1 = HfReferralIndexV1.builder()
                 .hfReferral(hfReferral)

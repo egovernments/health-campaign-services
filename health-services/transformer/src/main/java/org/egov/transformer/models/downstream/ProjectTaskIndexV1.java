@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
@@ -46,17 +47,21 @@ public class ProjectTaskIndexV1 {
     @JsonProperty("administrationStatus")
     private String administrationStatus;
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
     @JsonProperty("tenantId")
     private String tenantId;
     @JsonProperty("projectType")
     private String projectType;
+    @JsonProperty("projectTypeId")
+    private String projectTypeId;
     @JsonProperty("latitude")
     private Double latitude;
     @JsonProperty("longitude")
     private Double longitude;
     @JsonProperty("locationAccuracy")
     private Double locationAccuracy;
+    @JsonProperty("localityCode")
+    private String localityCode;
     @JsonProperty("createdBy")
     private String createdBy;
     @JsonProperty("lastModifiedBy")
@@ -73,6 +78,8 @@ public class ProjectTaskIndexV1 {
     private Integer memberCount;
     @JsonProperty("clientReferenceId")
     private String clientReferenceId;
+    @JsonProperty("taskClientReferenceId")
+    private String taskClientReferenceId;
     @JsonProperty("syncedTimeStamp")
     private String syncedTimeStamp;
     @JsonProperty("syncedDate")

@@ -1,16 +1,15 @@
 package org.egov.transformer;
 
-import org.apache.kafka.common.protocol.types.Field;
-
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
     String INDIVIDUAL = "INDIVIDUAL";
     String HOUSEHOLD = "HOUSEHOLD";
-    String CYCLE_NUMBER = "cycleIndex";
-    String DOSE_NUMBER = "doseIndex";
+    String CYCLE_INDEX = "cycleIndex";
+    String DOSE_INDEX = "doseIndex";
     String DELIVERY_STRATEGY = "deliveryStrategy";
 
     String NULL_STRING = "null";
+    String PREFIX_ZERO = "0";
 
     String QUANTITY_WASTED = "quantityWasted";
 
@@ -19,6 +18,8 @@ public interface Constants {
     String BENEFICIARY_REFERRED = "BENEFICIARY_REFERRED";
     String TASK_STATUS = "taskStatus";
     String PRODUCT_VARIANT_ID = "productVariantId";
+    String MEMBER_COUNT = "memberCount";
+    String HOUSEHOLD_ID = "householdId";
     String ADMINISTRATION_NOT_SUCCESSFUL = "ADMINISTRATION_NOT_SUCCESSFUL";
 
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
@@ -28,7 +29,7 @@ public interface Constants {
     String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
 
     String TRANSFORMER_LOCALIZATIONS = "transformerLocalizations";
-
+    String TRANSFORMER_ELASTIC_INDEX_LABELS = "transformerElasticIndexLabels";
     String PROJECT = "PROJECT";
     String WAREHOUSE = "WAREHOUSE";
     String FACILITY = "FACILITY";

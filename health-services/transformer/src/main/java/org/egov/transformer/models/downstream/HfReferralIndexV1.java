@@ -9,6 +9,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 
+import java.util.Map;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -24,7 +26,7 @@ public class HfReferralIndexV1 {
     @JsonProperty("userAddress")
     private String userAddress;
     @JsonProperty("boundaryHierarchy")
-    private ObjectNode boundaryHierarchy;
+    private Map<String, String> boundaryHierarchy;
     @JsonProperty("facilityName")
     private String facilityName;
     @JsonProperty("taskDates")

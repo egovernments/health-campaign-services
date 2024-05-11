@@ -1,4 +1,4 @@
-package org.egov.transformer.service;
+package org.egov.transformer.transformationservice;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.individual.Name;
@@ -9,6 +9,8 @@ import org.egov.transformer.models.attendance.IndividualEntry;
 import org.egov.transformer.models.downstream.AttendanceLogIndexV1;
 import org.egov.transformer.models.downstream.AttendanceRegisterIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.AttendanceRegisterService;
+import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
@@ -41,7 +43,7 @@ public class AttendanceTransformationService {
 
     public void transform(List<AttendanceLog> payloadList) {
         if (payloadList.isEmpty()) {
-            log.info("Payload list is empty in ATTENDANCE_TRANSFORMATION. No transformation required.");
+            log.info("Payload list is empty in ATTENDANCE_TRANSFORMATION");
             return;
         }
 

@@ -4,12 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.egov.transformer.enums.Operation;
-import org.egov.transformer.handler.TransformationHandler;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceRequest;
-import org.egov.transformer.service.HfServiceTransformationService;
-import org.egov.transformer.service.ServiceTransformationService;
+import org.egov.transformer.transformationservice.HfServiceTransformationService;
+import org.egov.transformer.transformationservice.ReferralServiceTaskTransformationService;
+import org.egov.transformer.transformationservice.ServiceTaskTransformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,34 +23,31 @@ import java.util.stream.Collectors;
 @Component
 @Slf4j
 public class ServiceTaskConsumer {
-    private final TransformationHandler<Service> transformationHandler;
-
     private final ObjectMapper objectMapper;
-
-    private final ServiceTransformationService serviceTransformationService;
+    private final ServiceTaskTransformationService serviceTaskTransformationService;
+    private final ReferralServiceTaskTransformationService referralServiceTaskTransformationService;
     private final HfServiceTransformationService hfServiceTransformationService;
 
     @Autowired
-    public ServiceTaskConsumer(TransformationHandler<Service> transformationHandler,
-                               @Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTransformationService serviceTransformationService, HfServiceTransformationService hfServiceTransformationService) {
-        this.transformationHandler = transformationHandler;
+    public ServiceTaskConsumer(@Qualifier("objectMapper") ObjectMapper objectMapper, ServiceTaskTransformationService serviceTaskTransformationService, ReferralServiceTaskTransformationService referralServiceTaskTransformationService, HfServiceTransformationService hfServiceTransformationService) {
         this.objectMapper = objectMapper;
-        this.serviceTransformationService = serviceTransformationService;
+        this.serviceTaskTransformationService = serviceTaskTransformationService;
+        this.referralServiceTaskTransformationService = referralServiceTaskTransformationService;
         this.hfServiceTransformationService = hfServiceTransformationService;
     }
 
     @KafkaListener(topics = {"${transformer.consumer.create.service.topic}"})
     public void consumeServiceTask(ConsumerRecord<String, Object> payload,
-                             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             List<ServiceRequest> payloadList = Arrays.asList(objectMapper
                     .readValue((String) payload.value(), ServiceRequest.class));
             List<Service> collect = payloadList.stream().map(p -> p.getService()).collect(Collectors.toList());
-            transformationHandler.handle(collect, Operation.SERVICE);
-            serviceTransformationService.transform(collect);
+            serviceTaskTransformationService.transform(collect);
+            referralServiceTaskTransformationService.transform(collect);
             hfServiceTransformationService.transform(collect);
         } catch (Exception exception) {
-            log.error("error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
+            log.error("TRANSFORMER error in service task consumer {}", ExceptionUtils.getStackTrace(exception));
         }
     }
 

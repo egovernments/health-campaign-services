@@ -1,4 +1,4 @@
-package org.egov.transformer.service;
+package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -11,6 +11,10 @@ import org.egov.transformer.config.TransformerProperties;
 
 import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.FacilityService;
+import org.egov.transformer.service.IndividualService;
+import org.egov.transformer.service.ProjectService;
+import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -23,11 +27,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
-import static org.egov.transformer.Constants.INDIVIDUAL_ID;
 
 @Slf4j
 @Component
-public class ReferralService {
+public class ReferralTransformationService {
 
     private final TransformerProperties transformerProperties;
     private final Producer producer;
@@ -40,8 +43,8 @@ public class ReferralService {
 
     private final ObjectMapper objectMapper;
 
-    public ReferralService(TransformerProperties transformerProperties,
-                           Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public ReferralTransformationService(TransformerProperties transformerProperties,
+                                         Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
@@ -52,33 +55,37 @@ public class ReferralService {
         this.objectMapper = objectMapper;
     }
 
-    public void transform(List<Referral> payloadList) {
+    public void transform(List<Referral> referralList) {
         String topic = transformerProperties.getTransformerProducerReferralIndexV1Topic();
-        log.info("transforming for ids {}", payloadList.stream()
+        log.info("transforming for REFERRAL ids {}", referralList.stream()
                 .map(Referral::getId).collect(Collectors.toList()));
-        List<ReferralIndexV1> transformedPayloadList = payloadList.stream()
+        List<ReferralIndexV1> referralIndexV1List = referralList.stream()
                 .map(this::transform)
                 .collect(Collectors.toList());
-        log.info("transformation successful");
-        producer.push(topic,
-                transformedPayloadList);
+        log.info("transformation success for REFERRAL id's {}", referralIndexV1List.stream()
+                .map(ReferralIndexV1::getReferral)
+                .map(Referral::getId)
+                .collect(Collectors.toList()));
+        producer.push(topic, referralIndexV1List);
     }
 
     public ReferralIndexV1 transform(Referral referral) {
         String tenantId = referral.getTenantId();
-        ProjectBeneficiary projectBeneficiary = getProjectBeneficiary(referral, tenantId);
+        List<ProjectBeneficiary> projectBeneficiaryList = projectService.searchBeneficiary(referral.getProjectBeneficiaryClientReferenceId(), tenantId);
         Map<String, Object> individualDetails = new HashMap<>();
-        Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+        Map<String, String> boundaryHierarchy = new HashMap<>();
+
         String projectTypeId = null;
-        if (projectBeneficiary != null) {
+        if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
+            ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             String projectId = projectBeneficiary.getProjectId();
             Project project = projectService.getProject(projectId, tenantId);
             projectTypeId = project.getProjectTypeId();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
-                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap((String) individualDetails.get(ADDRESS_CODE), tenantId);
+                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
             } else {
-                boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, referral.getTenantId());
+                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(projectId, tenantId);
             }
         }
         String facilityName = Optional.of(referral)
@@ -87,18 +94,17 @@ public class ReferralService {
                 .map(Facility::getName)
                 .orElse(DEFAULT_FACILITY_NAME);
 
-        Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;
-        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, finalBoundaryLabelToNameMap);
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
 
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalDetails.put(CYCLE_NUMBER, cycleIndex);
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
                 .userName(userInfoMap.get(USERNAME))
+                .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
                 .facilityName(facilityName)
@@ -113,18 +119,6 @@ public class ReferralService {
                 .build();
 
         return referralIndexV1;
-    }
-
-    private ProjectBeneficiary getProjectBeneficiary(Referral referral, String tenantId) {
-        String projectBeneficiaryClientReferenceId = referral.getProjectBeneficiaryClientReferenceId();
-        ProjectBeneficiary projectBeneficiary = null;
-        List<ProjectBeneficiary> projectBeneficiaries = projectService
-                .searchBeneficiary(projectBeneficiaryClientReferenceId, tenantId);
-
-        if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
-            projectBeneficiary = projectBeneficiaries.get(0);
-        }
-        return projectBeneficiary;
     }
 }
 
