@@ -9,8 +9,9 @@ const myFormat = format.printf(({ level, message, label, timestamp }) => {
 // Creating a logger instance with specified format and transports
 const logger = createLogger({
   level: config.app.logLevel, // Set the minimum level to log, in this case, DEBUG
-  format: format.combine( // Combining different log formats
-    format.label({ label: 'BFF' }), // Adding label to logs
+  format: format.combine(
+    // Combining different log formats
+    format.label({ label: "BFF" }), // Adding label to logs
     format.timestamp({ format: " YYYY-MM-DD HH:mm:ss.SSSZZ " }), // Adding timestamp to logs
     format.simple(), // Simplifying log format
     format.colorize(), // Adding color to logs for console output
@@ -21,3 +22,11 @@ const logger = createLogger({
 
 // Exporting the logger instance for external use
 export { logger };
+
+const DEFAULT_LOG_MESSAGE_COUNT = config.app.debugLogCharLimit;
+
+export const getFormattedStringForDebug = (obj: any) => {
+  const convertedMessage=JSON.stringify(obj);
+  return convertedMessage?.slice(0, DEFAULT_LOG_MESSAGE_COUNT) +
+  (convertedMessage?.length > DEFAULT_LOG_MESSAGE_COUNT ? "\n ---more" : "");
+}

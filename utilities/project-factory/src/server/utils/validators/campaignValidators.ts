@@ -15,6 +15,7 @@ import { campaignDetailsDraftSchema } from "../../config/models/campaignDetailsD
 import { downloadRequestSchema } from "../../config/models/downloadRequestSchema";
 import { createRequestSchema } from "../../config/models/createRequestSchema"
 import { getSheetData } from "../../api/genericApis";
+import { log } from "console";
 const _ = require('lodash');
 
 
@@ -375,6 +376,8 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
 
 function validateForRootElementExists(boundaryData: any[], hierachy: any[]) {
     const root = hierachy[0];
+    log(hierachy,"hierachy",boundaryData)
+
     if (!(boundaryData.filter(e => e[root]).length == boundaryData.length)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Boundary Sheet. Root level Boundary not present in every row")
     }
