@@ -19,15 +19,19 @@ async function createBoundaryWithProjectMapping(projects: any, boundaryWithProje
 }
 
 function getPvarIds(messageObject: any) {
-    const deliveryRules = messageObject?.CampaignDetails?.deliveryRules
-    var pvarIds = []
-    for (const deliveryRule of deliveryRules) {
-        const products = deliveryRule?.products
-        for (const product of products) {
-            pvarIds.push(product?.value)
+    const deliveryRules = messageObject?.CampaignDetails?.deliveryRules;
+    const uniquePvarIds = new Set(); // Create a Set to store unique pvar IDs
+    if (deliveryRules) {
+        for (const deliveryRule of deliveryRules) {
+            const products = deliveryRule?.products;
+            if (products) {
+                for (const product of products) {
+                    uniquePvarIds.add(product?.value); // Add pvar ID to the Set
+                }
+            }
         }
     }
-    return pvarIds;
+    return Array.from(uniquePvarIds); // Convert Set to array before returning
 }
 
 async function enrichBoundaryCodes(resources: any[], messageObject: any, boundaryCodes: any, sheetName: any) {
