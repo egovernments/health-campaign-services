@@ -639,17 +639,17 @@ async function getTotalCount(request: any) {
     let conditions = [];
     let values = [tenantId];
     let index = 2;
-    const campaignsIncludesDates = searchFields?.campaignsIncludesDates
+    const campaignsIncludeDates = searchFields?.campaignsIncludeDates
 
     for (const field in searchFields) {
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
-                const startDateSign = campaignsIncludesDates ? '<=' : '>=';
+                const startDateSign = campaignsIncludeDates ? '<=' : '>=';
                 conditions.push(`startDate ${startDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
             } else if (field === 'endDate') {
-                const endDateSign = campaignsIncludesDates ? '>=' : '<=';
+                const endDateSign = campaignsIncludeDates ? '>=' : '<=';
                 conditions.push(`endDate ${endDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
@@ -728,17 +728,17 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
     let conditions = [];
     let values = [tenantId];
     let index = 2;
-    const campaignsIncludesDates = searchFields?.campaignsIncludesDates
+    const campaignsIncludeDates = searchFields?.campaignsIncludeDates
 
     for (const field in searchFields) {
         if (searchFields[field] !== undefined) {
             if (field === 'startDate') {
-                const startDateSign = campaignsIncludesDates ? '<=' : '>=';
+                const startDateSign = campaignsIncludeDates ? '<=' : '>=';
                 conditions.push(`startDate ${startDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
             } else if (field === 'endDate') {
-                const endDateSign = campaignsIncludesDates ? '>=' : '<=';
+                const endDateSign = campaignsIncludeDates ? '>=' : '<=';
                 conditions.push(`endDate ${endDateSign} $${index}`);
                 values.push(searchFields[field]);
                 index++;
