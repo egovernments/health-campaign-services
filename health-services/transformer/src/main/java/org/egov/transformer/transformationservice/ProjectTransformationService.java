@@ -67,7 +67,7 @@ public class ProjectTransformationService {
             localityCode = null;
         }
         Map<String, String> boundaryHierarchy = localityCode != null ?
-                commonUtils.getBoundaryHierarchyWithLocalityCode(project.getAddress().getBoundary(), project.getTenantId()) : null;
+                projectService.getBoundaryHierarchyWithLocalityCode(project.getAddress().getBoundary(), project.getTenantId()) : null;
         String tenantId = project.getTenantId();
         String projectTypeId = project.getProjectTypeId();
         List<Target> targets = project.getTargets();

@@ -12,6 +12,7 @@ import org.egov.transformer.models.downstream.HouseholdMemberIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.HouseholdService;
 import org.egov.transformer.service.IndividualService;
+import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -34,8 +35,9 @@ public class HouseholdMemberTransformationService {
     private final UserService userService;
     private final HouseholdService householdService;
     private final ObjectMapper objectMapper;
+    private final ProjectService projectService;
 
-    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper) {
+    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
@@ -43,6 +45,7 @@ public class HouseholdMemberTransformationService {
         this.userService = userService;
         this.householdService = householdService;
         this.objectMapper = objectMapper;
+        this.projectService = projectService;
     }
 
     public void transform(List<HouseholdMember> householdMemberList) {
@@ -64,7 +67,7 @@ public class HouseholdMemberTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
-        Map<String, Object> individualDetails = individualService.findIndividualByClientReferenceId(individualClientReferenceId, householdMember.getTenantId());
+        Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
         String localityCode = null;
@@ -72,7 +75,7 @@ public class HouseholdMemberTransformationService {
                 && households.get(0).getAddress().getLocality() != null
                 && households.get(0).getAddress().getLocality().getCode() != null) {
             localityCode = households.get(0).getAddress().getLocality().getCode();
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, householdMember.getTenantId());
             geoPoint = commonUtils.getGeoPoint(households.get(0).getAddress());
 
             AdditionalFields additionalFields = households.get(0).getAdditionalFields();
@@ -90,7 +93,10 @@ public class HouseholdMemberTransformationService {
 
         Map<String, String> userInfoMap = userService.
                 getUserInfo(householdMember.getTenantId(), householdMember.getClientAuditDetails().getLastModifiedBy());
-
+        if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
+            additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
+            additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
+        }
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
                 .boundaryHierarchy(boundaryHierarchy)

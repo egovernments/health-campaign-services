@@ -85,5 +85,7 @@ public interface Constants {
     String GAINED = "gained";
     String DAMAGED = "damaged";
     String INHAND = "inHand";
+    String HEIGHT = "height";
+    String DISABILITY_TYPE = "disabilityType";
 
 }

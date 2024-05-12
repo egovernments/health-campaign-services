@@ -70,9 +70,9 @@ public class ServiceTaskTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         if (service.getAdditionalDetails() != null) {
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode((String) service.getAdditionalDetails(), tenantId);
         } else {
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         }
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());

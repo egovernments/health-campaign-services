@@ -49,9 +49,7 @@ public class HfServiceTransformationService {
     public void transform(List<Service> serviceList) {
         List<HfReferralServiceIndexV1> hfReferralServiceIndexV1List = new ArrayList<>();
         String topic = transformerProperties.getTransformerProducerHfReferralServiceIndexTopic();
-        serviceList.forEach(service -> {
-            transform(service, hfReferralServiceIndexV1List);
-        });
+        serviceList.forEach(service -> transform(service, hfReferralServiceIndexV1List));
         if (!hfReferralServiceIndexV1List.isEmpty()) {
             producer.push(topic, hfReferralServiceIndexV1List);
         }
@@ -64,13 +62,13 @@ public class HfServiceTransformationService {
         String[] parts = serviceDefinition.getCode().split("\\.");
         String projectName = parts[0];
         String supervisorLevel = parts[2];
-        String projectId = null;
+        String projectId;
         if (service.getAccountId() != null) {
             projectId = service.getAccountId();
         } else {
             projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
         }
-        Map<String, String> boundaryLabelToNameMap = new HashMap<>();
+        Map<String, String> boundaryLabelToNameMap;
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
 
@@ -90,7 +88,6 @@ public class HfServiceTransformationService {
 
         String checkListToFilter = transformerProperties.getHfReferralFeverCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
-        Map<String, Map<String, String>> attributeCodeToQuestionAgeGroup = new HashMap<>();
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         Map<String, String>  codeToQuestionMapping = new HashMap<>();
         getAttributeCodeMappings(codeToQuestionMapping);
@@ -116,7 +113,6 @@ public class HfServiceTransformationService {
 
             searchAndSetAttribute(attributeValueList, codeToQuestionMapping, hfReferralServiceIndexV1);
             hfReferralServiceIndexV1List.add(hfReferralServiceIndexV1);
-
         }
     }
 

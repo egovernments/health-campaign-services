@@ -25,19 +25,14 @@ public class ServiceDefinitionService {
 
     private final TransformerProperties transformerProperties;
     private final ServiceRequestClient serviceRequestClient;
-    private static final Map<String, ServiceDefinition> serviceMap = new ConcurrentHashMap<>();
-
+    private static Map<String, ServiceDefinition> serviceMap = new ConcurrentHashMap<>();
 
     public ServiceDefinitionService( TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient) {
-
-
         this.transformerProperties = transformerProperties;
-
         this.serviceRequestClient = serviceRequestClient;
     }
 
     public ServiceDefinition getServiceDefinition(String serviceDefId, String tenantId) {
-
         if (serviceMap.containsKey(serviceDefId)) {
             log.info("getting service definition {} from cache",serviceDefId);
             return serviceMap.get(serviceDefId);

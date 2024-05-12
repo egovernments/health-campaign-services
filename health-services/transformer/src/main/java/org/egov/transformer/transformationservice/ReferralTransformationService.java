@@ -78,14 +78,14 @@ public class ReferralTransformationService {
         String projectTypeId = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
-            individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
+            individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             String projectId = projectBeneficiary.getProjectId();
             Project project = projectService.getProject(projectId, tenantId);
             projectTypeId = project.getProjectTypeId();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
-                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
+                boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
             } else {
-                boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(projectId, tenantId);
+                boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(projectId, tenantId);
             }
         }
         String facilityName = Optional.of(referral)
@@ -99,7 +99,10 @@ public class ReferralTransformationService {
         Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
-
+        if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
+            additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
+            additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
+        }
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())

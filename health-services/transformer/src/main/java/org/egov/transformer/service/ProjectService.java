@@ -157,9 +157,8 @@ public class ProjectService {
                     request,
                     ProjectResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching project list {}", ExceptionUtils.getStackTrace(e));
-            throw new CustomException("PROJECT_FETCH_ERROR",
-                    "error while fetching project details for id: " + projectId);
+            log.error("error while fetching project list for ID {}, Exception: {}", projectId, ExceptionUtils.getStackTrace(e));
+            return null;
         }
         return response.getProject();
     }
@@ -201,7 +200,9 @@ public class ProjectService {
 
         JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES,
                 transformerProperties.getMdmsModule(), filter);
-        return convertToProjectTypeList(response);
+        JsonNode projectTypesNode = response.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
+        return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<String>>() {
+        });
     }
 
     public String getProjectBeneficiaryType(String tenantId, String projectTypeId) {
@@ -338,12 +339,6 @@ public class ProjectService {
         }
     }
 
-    private List<String> convertToProjectTypeList(JsonNode jsonNode) {
-        JsonNode projectTypesNode = jsonNode.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
-        return new ObjectMapper().convertValue(projectTypesNode, new TypeReference<List<String>>() {
-        });
-    }
-
     private List<JsonNode> convertToProjectTypeJsonNodeList(JsonNode jsonNode) throws IOException {
         JsonNode projectTypesNode = jsonNode.get(transformerProperties.getMdmsModule()).withArray(PROJECT_TYPES);
         return objectMapper.readValue(projectTypesNode.traverse(), new TypeReference<List<JsonNode>>() {
@@ -403,5 +398,26 @@ public class ProjectService {
         return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
     }
 
+    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
+        if (localityCode == null) {
+            return null;
+        }
+        Map<String, String> boundaryLabelToNameMap = getBoundaryLabelToNameMap(localityCode, tenantId);
+        Map<String, String> boundaryHierarchy = new HashMap<>();
+
+        boundaryLabelToNameMap.forEach((label, value) -> {
+            boundaryHierarchy.put(mdmsService.getMDMSTransformerElasticIndexLabels(label, tenantId), value);
+        });
+        return boundaryHierarchy;
+    }
+    public Map<String, String> getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
+        Map<String, String> boundaryLabelToNameMap = getBoundaryLabelToNameMapByProjectId(projectId, tenantId);
+        Map<String, String> boundaryHierarchy = new HashMap<>();
+
+        boundaryLabelToNameMap.forEach((label, value) -> {
+            boundaryHierarchy.put(mdmsService.getMDMSTransformerElasticIndexLabels(label, tenantId), value);
+        });
+        return boundaryHierarchy;
+    }
 
 }
