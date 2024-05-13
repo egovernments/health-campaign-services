@@ -644,7 +644,7 @@ async function getTotalCount(request: any) {
     const campaignsIncludeDates = searchFields?.campaignsIncludeDates
 
     for (const field in searchFields) {
-        if (searchFields[field] !== undefined) {
+        if (searchFields[field] !== undefined && field != 'campaignsIncludeDates') {
             if (field === 'startDate') {
                 const startDateSign = campaignsIncludeDates ? '<=' : '>=';
                 conditions.push(`startDate ${startDateSign} $${index}`);
@@ -733,7 +733,7 @@ function buildSearchQuery(tenantId: string, pagination: any, ids: string[], sear
     const campaignsIncludeDates = searchFields?.campaignsIncludeDates
 
     for (const field in searchFields) {
-        if (searchFields[field] !== undefined) {
+        if (searchFields[field] !== undefined && field != 'campaignsIncludeDates') {
             if (field === 'startDate') {
                 const startDateSign = campaignsIncludeDates ? '<=' : '>=';
                 conditions.push(`startDate ${startDateSign} $${index}`);
