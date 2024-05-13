@@ -9,7 +9,7 @@ import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
-import org.egov.individual.web.models.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
