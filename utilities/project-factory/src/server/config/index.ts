@@ -58,12 +58,12 @@ const config = {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
     host: HOST,
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
-    logLevel: "debug" ,// TODO add a env variable and set it default to info
-    debugLogCharLimit : 1000
+    logLevel: process.env.LOG_LEVEL || "info",
+    debugLogCharLimit: 1000
   },
-  localisation:{
-    defaultLocale:"en_MZ",
-    boundaryPrefix:"rainmaker-boundary"
+  localisation: {
+    defaultLocale: "en_MZ",
+    boundaryPrefix: "rainmaker-boundary"
   },
   // Host configuration
   host: {

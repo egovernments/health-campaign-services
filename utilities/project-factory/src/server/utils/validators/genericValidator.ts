@@ -7,6 +7,7 @@ import { httpRequest } from "../request";
 import { getBoundaryRelationshipData, throwError } from "../genericUtils";
 import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../../config/models/generateRequestSchema";
+import { validateMappingId } from "../campaignMappingUtils";
 
 // Function to validate data against a JSON schema
 function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: Ajv.ErrorObject[] | null | undefined } {
@@ -180,6 +181,11 @@ async function validateProjectResource(requestBody: any) {
 
 // Function to validate the campaign details including resource validation
 async function validateCampaign(requestBody: any) {
+    const id = requestBody?.Campaign?.id
+    if (!id) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "Enter id of campaign for mapping");
+    }
+    await validateMappingId(requestBody, id);
     for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
         var { startDate, endDate } = campaignDetails;
         startDate = parseInt(startDate);
