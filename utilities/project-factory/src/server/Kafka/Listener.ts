@@ -34,7 +34,8 @@ export function listener() {
             const messageObject: any = JSON.parse(message.value?.toString() || '{}');
             try {
                 // await processCampaignMapping(messageObject);
-                logger.info("messageObject for campaign mapping : " + JSON.stringify(messageObject));
+                logger.info("Received a messageObject for campaign mapping : ");
+                logger.debug("Message Object of campaign mapping ::  " + getFormattedStringForDebug(messageObject));
                 await processCampaignMapping(messageObject);
             } catch (error: any) {
                 console.log(error)
@@ -69,7 +70,7 @@ export function listener() {
  */
 async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
     logger.info(`KAFKA :: PRODUCER :: a message sent to topic ${topic}`);
-    logger.debug(`KAFKA :: PRODUCER :: message ${JSON.stringify(modifiedMessages)}`);
+    logger.debug(`KAFKA :: PRODUCER :: message ${getFormattedStringForDebug(modifiedMessages)}`);
     return new Promise<void>((resolve, reject) => {
         const payloads = [
             {

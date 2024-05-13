@@ -1,6 +1,6 @@
 import pool from "../../config/dbPoolConfig";
 import { throwError } from "../genericUtils";
-import { logger } from "../logger";
+import { getFormattedStringForDebug, logger } from "../logger";
 
 /**
  * Executes a database query asynchronously.
@@ -21,7 +21,7 @@ export const executeQuery = async (
     logger.info(
       `DB QUERY :: RESPONSE ::  SUCCESS :: returns ${queryResponse?.rowCount} rows.`
     );
-    logger.debug( `DB QUERY :: RESPONSE ::  SUCCESS :: Query Response ${JSON.stringify(queryResponse?.rows)}`);
+    logger.debug( `DB QUERY :: RESPONSE ::  SUCCESS :: Query Response ${getFormattedStringForDebug(queryResponse?.rows)}`);
     return queryResponse;
   } catch (error: any) {
     logger.error(`Error fetching data from the database: ${error?.message}`);
