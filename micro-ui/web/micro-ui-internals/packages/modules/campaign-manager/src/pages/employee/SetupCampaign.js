@@ -359,8 +359,8 @@ const SetupCampaign = () => {
   }
 
   useEffect(() => {
-    setCampaignConfig(CampaignConfig(totalFormData));
-  }, [totalFormData]);
+    setCampaignConfig(CampaignConfig(totalFormData, dataParams));
+  }, [totalFormData, dataParams]);
 
   useEffect(() => {
     updateUrlParams({ key: currentKey });
@@ -526,7 +526,7 @@ const SetupCampaign = () => {
                 {
                   message: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE"),
                   text: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT"),
-                  info: t("ES_CAMPAIGN_SUCCESS_INFO_TEXT")
+                  info: t("ES_CAMPAIGN_SUCCESS_INFO_TEXT"),
                 }
               );
               Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");

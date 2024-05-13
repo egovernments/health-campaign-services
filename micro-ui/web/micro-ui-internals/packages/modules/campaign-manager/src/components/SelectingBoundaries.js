@@ -15,7 +15,7 @@ import { mailConfig } from "../configs/mailConfig";
 function SelectingBoundaries({ onSelect, formData, ...props }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
-  const [params,setParams] = useState(Digit.SessionStorage.get("HCM_CAMPAIGN_MANAGER_UPLOAD_ID"));
+  const [params,setParams] = useState(props?.props?.dataParams);
   const [hierarchy, setHierarchy] = useState(params?.hierarchyType);
   // const [hierarchy, setHierarchy] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || {});
   // const [showcomponent, setShowComponent] = useState(
@@ -37,6 +37,9 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [hierarchyTypeDataresult, setHierarchyTypeDataresult] = useState(params?.hierarchy);
   const [executionCount, setExecutionCount] = useState(0);
 
+  useEffect(() => {
+    setParams(props?.props?.dataParams)
+  },[props?.props?.dataParams])
   useEffect(() => {
     onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
   }, [boundaryData, selectedData ]);
