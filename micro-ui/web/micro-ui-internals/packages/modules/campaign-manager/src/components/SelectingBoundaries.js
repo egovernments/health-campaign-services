@@ -38,8 +38,11 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [executionCount, setExecutionCount] = useState(0);
 
   useEffect(() => {
-    setParams(props?.props?.dataParams)
+    if(props?.props?.dataParams){
+      setParams(props?.props?.dataParams)
+    }
   },[props?.props?.dataParams])
+
   useEffect(() => {
     onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
   }, [boundaryData, selectedData ]);
@@ -89,7 +92,7 @@ useEffect(() => {
       }
       createHierarchyStructure(hierarchyTypeDataresult);
   }
-}, []);
+}, [hierarchyTypeDataresult]);
 
 
   function createHierarchyStructure(hierarchyTypeDataresult) {
@@ -191,6 +194,7 @@ useEffect(() => {
   const handleBoundaryChange = (data, boundary) => {
     if (!data || data.length === 0) {
       const check = updatedHierarchy[boundary?.boundaryType];
+
       if (check) {
         const typesToRemove = [boundary?.boundaryType, ...check];
         const updatedSelectedData = selectedData?.filter((item) => !typesToRemove?.includes(item?.type));
@@ -294,7 +298,7 @@ useEffect(() => {
                       t={t}
                       options={boundaryData[boundary?.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary)?.flat() || []}
                       optionsKey={"code"}
-                      selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType)}
+                      selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType) || []}
                       onSelect={(value) => {
                         handleBoundaryChange(value, boundary);
                       }}
@@ -324,7 +328,7 @@ useEffect(() => {
                       onSelect={(value) => {
                         handleBoundaryChange(value, boundary);
                       }}
-                      selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType)}
+                      selected={selectedData?.filter((item) => item?.type === boundary?.boundaryType) || []}
                       addCategorySelectAllCheck={true}
                       addSelectAllCheck={true}
                       variant="nestedmultiselect"
