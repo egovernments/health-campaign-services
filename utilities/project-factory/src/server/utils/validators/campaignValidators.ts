@@ -14,8 +14,10 @@ import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignD
 import { campaignDetailsDraftSchema } from "../../config/models/campaignDetailsDraftSchema";
 import { downloadRequestSchema } from "../../config/models/downloadRequestSchema";
 import { createRequestSchema } from "../../config/models/createRequestSchema"
-import { getSheetData } from "../../api/genericApis";
+import { getSheetData, getTargetWorkbook } from "../../api/genericApis";
+import { log } from "console";
 const _ = require('lodash');
+import * as XLSX from 'xlsx';
 
 
 
@@ -116,22 +118,26 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
                 if (!boundaries) {
                     errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"] + 1} for sheet ${key}`, sheetName: key })
                 } else {
-                    const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
-                    if (boundaryList.length === 0) {
-                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
-                    }
-                    if (boundaryList.length > 1) {
-                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
-                    }
-                    if (boundaryList.length === 1) {
-                        const boundaryCode = boundaryList[0];
-                        if (boundarySet.has(boundaryCode)) {
-                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                    if (!(typeof boundaries === 'string')) {
+                        errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is not of type string at row  ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
+                    } else {
+                        const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
+                        if (boundaryList.length === 0) {
+                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
                         }
-                        if (!responseBoundaryCodes.includes(boundaryCode)) {
-                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key}not found in the system`, sheetName: key })
+                        if (boundaryList.length > 1) {
+                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
                         }
-                        boundarySet.add(boundaryCode);
+                        if (boundaryList.length === 1) {
+                            const boundaryCode = boundaryList[0];
+                            if (boundarySet.has(boundaryCode)) {
+                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Duplicacy of boundary Code at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
+                            }
+                            if (!responseBoundaryCodes.includes(boundaryCode)) {
+                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code at row ${element["!row#number!"] + 1}  of sheet ${key}not found in the system`, sheetName: key })
+                            }
+                            boundarySet.add(boundaryCode);
+                        }
                     }
                 }
             });
@@ -164,7 +170,7 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], 
                 if (obj.hasOwnProperty(lowestLevelHierarchy)) {
                     const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
                     const target = obj[localizedTargetColumnName];
-                    if (target === undefined || typeof target !== 'number' || target < 0 || !Number.isInteger(target)) {
+                    if (target === undefined || typeof target !== 'number' || target < 0 ||  target > 100000 ||!Number.isInteger(target)) {
                         errors.push({ status: "INVALID", rowNumber: obj["!row#number!"], errorDetails: `Invalid target value at row ${obj['!row#number!'] + 1}. of sheet ${key}`, sheetName: key })
                     }
                 }
@@ -354,11 +360,38 @@ async function validateCreateRequest(request: any) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
         const fileUrl = await validateFile(request);
+        const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
         if (request.body.ResourceDetails.type == 'boundary') {
-            const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
             await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
+        if (request?.body?.ResourceDetails?.type == 'boundaryWithTarget') {
+            const targetWorkbook: any = await getTargetWorkbook(fileUrl);
+            const mainSheetName = targetWorkbook.SheetNames[0];
+            const sheetData = await getSheetData(fileUrl, mainSheetName, true, undefined, localizationMap);
+            const hierachy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+            validateForRootElementExists(sheetData, hierachy, mainSheetName);
+            validateTabsWithTargetInTargetSheet(request, targetWorkbook);
+        }
     }
+}
+
+function validateTabsWithTargetInTargetSheet(request: any, targetWorkbook: any) {
+    const sheet = targetWorkbook.Sheets[targetWorkbook.SheetNames[1]];
+    const expectedHeaders = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+    })[0];
+    for (let i = 1; i < targetWorkbook.SheetNames.length; i++) {
+        const sheetName = targetWorkbook?.SheetNames[i];
+        const sheet = targetWorkbook?.Sheets[sheetName];
+        // Convert the sheet to JSON to extract headers
+        const headersToValidate = XLSX.utils.sheet_to_json(sheet, {
+            header: 1,
+        })[0];
+        if (!_.isEqual(expectedHeaders, headersToValidate)) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `Headers not according to the template in target sheet ${sheetName}`)
+        }
+    }
+
 }
 
 async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
@@ -368,15 +401,17 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
     await validateHeaders(hierarchy, headersOfBoundarySheet, request, localizationMap)
     const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap);
     //validate for whether root boundary level column should not be empty
-    validateForRootElementExists(boundaryData, hierarchy);
+    validateForRootElementExists(boundaryData, hierarchy, localizedBoundaryTab);
     // validate for duplicate rows(array of objects)
     validateForDupicateRows(boundaryData);
 }
 
-function validateForRootElementExists(boundaryData: any[], hierachy: any[]) {
+function validateForRootElementExists(boundaryData: any[], hierachy: any[], sheetName: string) {
     const root = hierachy[0];
+    log(hierachy,"hierachy",boundaryData)
+
     if (!(boundaryData.filter(e => e[root]).length == boundaryData.length)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Boundary Sheet. Root level Boundary not present in every row")
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid Boundary Sheet. Root level Boundary not present in every row  of Sheet ${sheetName}`)
     }
 }
 function validateForDupicateRows(boundaryData: any[]) {
@@ -860,6 +895,38 @@ async function validateDownloadRequest(request: any) {
     await validateHierarchyType(request, hierarchyType, tenantId);
 }
 
+function immediateValidationForTargetSheet(dataFromSheet:any,localizationMap:any)
+{
+    const keys = Object.keys(dataFromSheet);
+    if (keys.length > 0) {
+      const boundaryTab = keys[0];
+      if (boundaryTab != getLocalizedName(config.boundaryTab, localizationMap)) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "INVALID SHEET NAME. SHEET NAME MUST BE BOUNDARY DATA FOR FIRST TAB")
+      }
+    }
+    for (const key in dataFromSheet) {
+      if (Object.prototype.hasOwnProperty.call(dataFromSheet, key)) {
+        const dataArray = (dataFromSheet as { [key: string]: any[] })[key];
+        if (dataArray.length === 0) {
+          throwError("COMMON", 400, "VALIDATION_ERROR", `The Target Sheet ${key} you have uploaded is empty`)
+        }
+        if (key != getLocalizedName(config.boundaryTab, localizationMap)) {
+          const root = config.generateDifferentTabsOnBasisOf;
+          for (const boundaryRow of dataArray) {
+            for (const columns in boundaryRow) {
+              if (columns.startsWith('__EMPTY')) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid column has some random data in Target Sheet ${key} at row number ${boundaryRow['!row#number!']+1}`);
+              }
+            }
+            if (!boundaryRow[root]) {
+              throwError("COMMON", 400, "VALIDATION_ERROR", ` "${config.generateDifferentTabsOnBasisOf}"  column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!']+1}`);
+            }
+          }
+        }
+      }
+    }
+}
+
 
 export {
     fetchBoundariesInChunks,
@@ -873,5 +940,6 @@ export {
     validateHierarchyType,
     validateBoundarySheetData,
     validateDownloadRequest,
-    validateTargetSheetData
+    validateTargetSheetData,
+    immediateValidationForTargetSheet
 }

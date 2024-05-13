@@ -58,7 +58,12 @@ const config = {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
     host: HOST,
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
-    logLevel: process.env.LOG_LEVEL || "info"
+    logLevel: process.env.LOG_LEVEL || "info",
+    debugLogCharLimit: 1000
+  },
+  localisation: {
+    defaultLocale: "en_MZ",
+    boundaryPrefix: "rainmaker-boundary"
   },
   // Host configuration
   host: {
@@ -99,7 +104,9 @@ const config = {
     facilityBulkCreate: process.env.EGOV_FACILITY_BULK_CREATE || "facility/v1/bulk/_create",
     hrmsEmployeeCreate: process.env.EGOV_HRMS_EMPLOYEE_CREATE_PATH || "health-hrms/employees/_create",
     hrmsEmployeeSearch: process.env.EGOV_HRMS_EMPLOYEE_SEARCH_PATH || "health-hrms/employees/_search",
-    localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search"
+    localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
+    localizationCreate: "localization/messages/v1/_upsert"
+
   },
   // Values configuration
   values: {

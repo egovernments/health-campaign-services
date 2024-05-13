@@ -779,7 +779,7 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
     throwError("FILE", 500, "DOWNLOAD_URL_NOT_FOUND");
   }
   if (type == 'boundaryWithTarget') {
-    return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true);
+    return await getTargetSheetData(fileResponse?.fileStoreIds?.[0]?.url, true, true,localizationMap);
   }
   return await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, createAndSearchConfig?.parseArrayConfig?.sheetName || optionalSheetName, true, createAndSearchConfig, localizationMap)
 }

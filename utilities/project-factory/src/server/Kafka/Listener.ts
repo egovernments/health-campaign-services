@@ -1,6 +1,6 @@
 import { Consumer, KafkaClient, Message } from 'kafka-node';
 import config from '../config';
-import { logger } from '../utils/logger'; // Importing logger utility for logging
+import { getFormattedStringForDebug, logger } from '../utils/logger'; // Importing logger utility for logging
 import { producer } from './Producer'; // Importing producer from the Producer module
 import { processCampaignMapping } from '../utils/campaignMappingUtils';
 import { enrichAndPersistCampaignWithError } from '../utils/campaignUtils';
@@ -42,7 +42,7 @@ export function listener() {
                 enrichAndPersistCampaignWithError(messageObject, error)
             }
             logger.info(`KAFKA :: LISTENER :: Received a message`);
-            logger.debug(`KAFKA :: LISTENER :: message ${JSON.stringify(messageObject)}`);
+            logger.debug(`KAFKA :: LISTENER :: message ${getFormattedStringForDebug(messageObject)}`);
         } catch (error) {
             logger.info('KAFKA :: LISTENER :: Some Error Occurred '); // Log successful message production
             logger.error(`KAFKA :: LISTENER :: Error :  ${JSON.stringify(error)}`); // Log producer error

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express"; // Importing necessary modules from Express
 const { object, string } = require("yup"); // Importing object and string from yup for schema validation
 import { errorResponder } from "../genericUtils"; // Importing errorResponder function from genericUtils
+import { logger } from "../logger";
 
 // Defining the request schema using yup
 const requestSchema = object({
@@ -14,6 +15,7 @@ const requestSchema = object({
 // Middleware function to validate request payload
 const requestMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
+    logger.info(`RECEIVED A HTTP REQUEST :: URI :: ${req.url}`);
     // Check if the content type is 'application/json'
     const contentType = req.headers['content-type'];
     if (!contentType || !contentType.split(';').map(part => part.trim()).includes('application/json')) {

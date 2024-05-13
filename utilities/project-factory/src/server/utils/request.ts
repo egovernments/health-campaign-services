@@ -1,5 +1,5 @@
 import { Response } from "express"; // Importing necessary module Response from Express
-import { logger } from "./logger"; // Importing logger from logger module
+import { getFormattedStringForDebug, logger } from "./logger"; // Importing logger from logger module
 import { cacheResponse, getCachedResponse, throwErrorViaRequest } from "./genericUtils"; // Importing necessary functions from genericUtils module
 
 var Axios = require("axios").default; // Importing axios library
@@ -78,7 +78,7 @@ const httpRequest = async (
       " CRITERIA :: " +
       JSON.stringify(_params)
     );
-    logger.debug("INTER-SERVICE :: REQUESTBODY :: " +JSON.stringify(_requestBody))
+    logger.debug("INTER-SERVICE :: REQUESTBODY :: " + getFormattedStringForDebug(_requestBody))
     // Make HTTP request using Axios
     const response = await Axios({
       method: _method,
@@ -96,7 +96,7 @@ const httpRequest = async (
       ":: CODE :: " +
       responseStatus
     );
-    logger.debug("INTER-SERVICE :: RESPONSEBODY :: " +JSON.stringify(response.data))
+    logger.debug("INTER-SERVICE :: RESPONSEBODY :: " +getFormattedStringForDebug(response.data));
 
     // If response status is successful, cache the response data if caching is enabled
     if (responseStatus === 200 || responseStatus === 201 || responseStatus === 202) {
