@@ -1,4 +1,4 @@
-package org.egov.household.validators.household;
+package org.egov.individual.validators;
 
 import java.util.HashMap;
 import java.util.List;
@@ -6,11 +6,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.egov.common.models.Error;
-import org.egov.common.models.household.Household;
-import org.egov.common.models.household.HouseholdBulkRequest;
-import org.egov.common.models.household.HouseholdSearch;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.validator.Validator;
-import org.egov.household.repository.HouseholdRepository;
+import org.egov.individual.repository.IndividualRepository;
 import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
@@ -20,49 +20,49 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
  * Validator class for checking the existence of entities with the given client reference IDs.
- * This validator checks if the provided household entities already exist in the database based on their client reference IDs.
+ * This validator checks if the provided individual entities already exist in the database based on their client reference IDs.
  * @author kanishq-egov
  */
-public class HExistentEntityValidator implements Validator<HouseholdBulkRequest, Household> {
+public class HExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
-    private final HouseholdRepository householdRepository;
+    private final IndividualRepository individualRepository;
 
     /**
-     * Constructor to initialize the HouseholdRepository dependency.
+     * Constructor to initialize the IndividualRepository dependency.
      *
-     * @param householdRepository The repository for household entities.
+     * @param individualRepository The repository for individual entities.
      */
-    public HExistentEntityValidator(HouseholdRepository householdRepository) {
-        this.householdRepository = householdRepository;
+    public HExistentEntityValidator(IndividualRepository individualRepository) {
+        this.individualRepository = individualRepository;
     }
 
     /**
      * Validates the existence of entities with the given client reference IDs.
      *
-     * @param request The bulk request containing household entities.
-     * @return A map containing household entities and their associated error details.
+     * @param request The bulk request containing individual entities.
+     * @return A map containing individual entities and their associated error details.
      */
     @Override
-    public Map<Household, List<Error>> validate(HouseholdBulkRequest request) {
-        // Map to hold household entities and their error details
-        Map<Household, List<Error>> errorDetailsMap = new HashMap<>();
-        // Get the list of household entities from the request
-        List<Household> entities = request.getHouseholds();
-        // Extract client reference IDs from household entities without errors
+    public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
+        // Map to hold individual entities and their error details
+        Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        // Get the list of individual entities from the request
+        List<Individual> entities = request.getIndividuals();
+        // Extract client reference IDs from individual entities without errors
         List<String> clientReferenceIdList = entities.stream()
                 .filter(notHavingErrors())
-                .map(Household::getClientReferenceId)
+                .map(Individual::getClientReferenceId)
                 .collect(Collectors.toList());
         // Create a search object for querying entities by client reference IDs
-        HouseholdSearch householdSearch = HouseholdSearch.builder()
+        IndividualSearch individualSearch = IndividualSearch.builder()
                 .clientReferenceId(clientReferenceIdList)
                 .build();
         // Check if the client reference ID list is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<Household> existentEntities = householdRepository.findById(
+            List<Individual> existentEntities = individualRepository.findById(
                     clientReferenceIdList,
-                    getIdFieldName(householdSearch),
+                    getIdFieldName(individualSearch),
                     Boolean.FALSE).getY();
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
@@ -74,3 +74,4 @@ public class HExistentEntityValidator implements Validator<HouseholdBulkRequest,
     }
 
 }
+
