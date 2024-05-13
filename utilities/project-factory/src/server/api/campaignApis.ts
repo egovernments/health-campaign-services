@@ -4,7 +4,7 @@ import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema } from "../utils/genericUtils";
-import { fetchBoundariesInChunks, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
+import { fetchBoundariesInChunks, immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../utils/validators/campaignValidators';
 import { callMdmsData, getCampaignNumber, getWorkbook } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
 const _ = require('lodash');
@@ -408,8 +408,10 @@ async function processValidate(request: any, localizationMap?: { [key: string]: 
   const createAndSearchConfig = createAndSearch[type]
   const dataFromSheet = await getDataFromSheet(request, request?.body?.ResourceDetails?.fileStoreId, request?.body?.ResourceDetails?.tenantId, createAndSearchConfig, null, localizationMap)
   if (type == 'boundaryWithTarget') {
-    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation,localizationMap);
+    immediateValidationForTargetSheet(dataFromSheet, localizationMap);
+    validateTargetSheetData(dataFromSheet, request, createAndSearchConfig?.boundaryValidation, localizationMap);
   }
+
   else {
     const schemaMasterName: string = type === 'facility' ? config.facilitySchemaMasterName : type === 'user' ? config.userSchemaMasterName : "";
     const mdmsResponse = await callMdmsData(request, config.moduleName, schemaMasterName, tenantId);

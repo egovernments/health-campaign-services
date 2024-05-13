@@ -34,7 +34,7 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
 }
 
 //Function to get Workbook with different tabs (for type target)
-const getTargetWorkbook = async (fileUrl: string) => {
+const getTargetWorkbook = async (fileUrl: string,localizationMap?:any) => {
     // Define headers for HTTP request
     const headers = {
         'Content-Type': 'application/json',
@@ -46,6 +46,11 @@ const getTargetWorkbook = async (fileUrl: string) => {
 
     // Read Excel file into workbook
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
+    const mainSheet = workbook.SheetNames[0];
+    const localizedMainSheet = getLocalizedName(mainSheet,localizationMap)
+    if (!workbook.Sheets.hasOwnProperty(mainSheet)) {
+        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedMainSheet}" is not present in the file.`);
+    }
 
     // Return the workbook
     return workbook;
@@ -99,28 +104,30 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
     return jsonData;
 };
 
-const getTargetSheetData = async (fileUrl: string, getRow = false, getSheetName = false) => {
-    const workbook: any = await getTargetWorkbook(fileUrl);
+const getTargetSheetData = async (fileUrl: string, getRow = false, getSheetName = false, localizationMap?: any) => {
+    const workbook: any = await getTargetWorkbook(fileUrl,localizationMap);
     const sheetNames = workbook.SheetNames;
+    const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
 
     const workbookData: { [key: string]: any[] } = {}; // Object to store data from each sheet
 
-    for (const sheetName of sheetNames) {
-        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    for (const sheetName of localizedSheetNames) {
+        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { blankrows: true });
         var jsonData = sheetData.map((row: any, index: number) => {
             const rowData: any = {};
-            Object.keys(row).forEach(key => {
-                rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
-            });
-            if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
-            if (getSheetName) rowData['!sheet#name!'] = sheetName;
-            return rowData;
+            if (Object.keys(row).length > 0) {
+                Object.keys(row).forEach(key => {
+                    rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
+                });
+                if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
+                if (getSheetName) rowData['!sheet#name!'] = sheetName;
+                return rowData;
+            }
         });
         jsonData = jsonData.filter(element => element !== undefined);
         workbookData[sheetName] = jsonData; // Store sheet data in the object
         // logger.info(`Sheet Data (${sheetName}): ${JSON.stringify(jsonData)}`);
     }
-
     // Return data from all sheets
     return workbookData;
 };
@@ -493,8 +500,8 @@ async function getBoundarySheetData(request: any, localizationMap?: { [key: stri
     const boundaryData = await getBoundaryRelationshipData(request, params);
     if (!boundaryData || boundaryData.length === 0) {
         const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
-        const modifiedHierarchy= hierarchy.map(ele=>`${request?.query?.hierarchyType}_${ele}`.toUpperCase())
-        const localizedHeaders =  getLocalizedHeaders(modifiedHierarchy, localizationMap);
+        const modifiedHierarchy = hierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase())
+        const localizedHeaders = getLocalizedHeaders(modifiedHierarchy, localizationMap);
         // create empty sheet if no boundary present in system
         const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap);
         return await createExcelSheet(boundaryData, localizedHeaders, localizedBoundaryTab);
@@ -503,7 +510,7 @@ async function getBoundarySheetData(request: any, localizationMap?: { [key: stri
         // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
         if (request?.body?.Filters != null) {
             const filteredBoundaryData = await generateFilteredBoundaryData(request);
-            return await getDataSheetReady(filteredBoundaryData, request,localizationMap);
+            return await getDataSheetReady(filteredBoundaryData, request, localizationMap);
         }
         else {
             return await getDataSheetReady(boundaryData, request, localizationMap);
@@ -674,7 +681,7 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
  * @param boundaryTypeMap Map of boundary codes to types.
  * @param modifiedChildParentMap Modified child-parent map.
  */
-async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key: string]: string } = {}, modifiedChildParentMap: any,localizationMap?:any) {
+async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key: string]: string } = {}, modifiedChildParentMap: any, localizationMap?: any) {
     try {
         // Create boundary relationships
         let activityMessage = [];
@@ -693,7 +700,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
         const allCodes = extractCodesFromBoundaryRelationshipResponse(boundaryData);
         let flag = 1;
         for (const [boundaryCode, boundaryType] of Object.entries(boundaryTypeMap)) {
-            const localizedBoundaryType = getLocalizedName(boundaryType,localizationMap);
+            const localizedBoundaryType = getLocalizedName(boundaryType, localizationMap);
             if (!allCodes.has(boundaryCode)) {
                 const boundary = {
                     tenantId: request?.body?.ResourceDetails?.tenantId,
