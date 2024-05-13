@@ -5,8 +5,8 @@ import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Name;
-import org.egov.individual.web.models.IndividualSearch;
-import org.egov.individual.web.models.IndividualSearchRequest;
+import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
