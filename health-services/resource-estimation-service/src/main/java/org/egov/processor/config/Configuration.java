@@ -36,7 +36,7 @@ public class Configuration {
 
     //Filestore
 
-    @Value("${egov.filestore.host}")
+    @Value("${egov.filestore.service.host}")
     private String fileStoreHost;
 
     @Value("${egov.filestore.endpoint}")
