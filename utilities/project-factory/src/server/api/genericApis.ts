@@ -8,6 +8,8 @@ import { correctParentValues, generateActivityMessage, getBoundaryRelationshipDa
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse } from "../utils/validators/genericValidator"; // Import validation functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
 import { getHierarchy } from './campaignApis';
+import { validateMappingId } from '../utils/campaignMappingUtils';
+import { campaignStatuses } from '../config/constants';
 const _ = require('lodash'); // Import lodash library
 
 // Function to retrieve workbook from Excel file URL and sheet name
@@ -34,7 +36,7 @@ const getWorkbook = async (fileUrl: string, sheetName: string) => {
 }
 
 //Function to get Workbook with different tabs (for type target)
-const getTargetWorkbook = async (fileUrl: string,localizationMap?:any) => {
+const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
     // Define headers for HTTP request
     const headers = {
         'Content-Type': 'application/json',
@@ -47,7 +49,7 @@ const getTargetWorkbook = async (fileUrl: string,localizationMap?:any) => {
     // Read Excel file into workbook
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
     const mainSheet = workbook.SheetNames[0];
-    const localizedMainSheet = getLocalizedName(mainSheet,localizationMap)
+    const localizedMainSheet = getLocalizedName(mainSheet, localizationMap)
     if (!workbook.Sheets.hasOwnProperty(mainSheet)) {
         throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedMainSheet}" is not present in the file.`);
     }
@@ -105,7 +107,7 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
 };
 
 const getTargetSheetData = async (fileUrl: string, getRow = false, getSheetName = false, localizationMap?: any) => {
-    const workbook: any = await getTargetWorkbook(fileUrl,localizationMap);
+    const workbook: any = await getTargetWorkbook(fileUrl, localizationMap);
     const sheetNames = workbook.SheetNames;
     const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap);
 
@@ -615,19 +617,26 @@ async function createRelatedEntity(resources: any, tenantId: any, projectId: any
  * @param requestBody The request body.
  */
 async function createRelatedResouce(requestBody: any) {
-    sortCampaignDetails(requestBody?.Campaign?.CampaignDetails)
-    correctParentValues(requestBody?.Campaign?.CampaignDetails)
-    // Create related resources
-    const { tenantId } = requestBody?.Campaign
+    const id = requestBody?.Campaign?.id
+    const campaignDetails = await validateMappingId(requestBody, id);
+    if (campaignDetails?.status == campaignStatuses.inprogress) {
+        logger.info("Campaign Already In Progress and Mapped");
+    }
+    else {
+        sortCampaignDetails(requestBody?.Campaign?.CampaignDetails)
+        correctParentValues(requestBody?.Campaign?.CampaignDetails)
+        // Create related resources
+        const { tenantId } = requestBody?.Campaign
 
-    for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
-        const resouceBody: any = {
-            RequestInfo: requestBody.RequestInfo,
+        for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
+            const resouceBody: any = {
+                RequestInfo: requestBody.RequestInfo,
+            }
+            var { projectId, startDate, endDate, resources } = campaignDetails;
+            startDate = parseInt(startDate);
+            endDate = parseInt(endDate);
+            await createRelatedEntity(resources, tenantId, projectId, startDate, endDate, resouceBody);
         }
-        var { projectId, startDate, endDate, resources } = campaignDetails;
-        startDate = parseInt(startDate);
-        endDate = parseInt(endDate);
-        await createRelatedEntity(resources, tenantId, projectId, startDate, endDate, resouceBody);
     }
 }
 

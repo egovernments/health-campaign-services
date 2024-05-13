@@ -13,7 +13,7 @@ const kafkaConfig = {
     groupId: 'project-factory',
     autoCommit: true,
     autoCommitIntervalMs: 5000,
-    fromOffset: 'earliest', // Start reading from the beginning of the topic
+    fromOffset: 'latest',
 };
 
 const topicName = config.KAFKA_START_CAMPAIGN_MAPPING_TOPIC;

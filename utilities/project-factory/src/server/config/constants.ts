@@ -78,6 +78,27 @@ export const userRoles: any = {
     "Logistical officer": "LOGISTICAL_OFFICER",
 }
 
+export const campaignStatuses: any = {
+    drafted: "drafted",
+    started: "started",
+    inprogress: "In Progress",
+    failed: "failed"
+}
+
+export const resourceDataStatuses: any = {
+    failed: "failed",
+    completed: "completed",
+    invalid: "invalid",
+    started: "validation-started",
+    accepted: "data-accepted"
+}
+
+export const generatedResourceStatuses: any = {
+    inprogress: "In Progress",
+    failed: "failed",
+    completed: "Completed"
+}
+
 
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {

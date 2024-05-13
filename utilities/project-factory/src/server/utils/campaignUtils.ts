@@ -13,6 +13,7 @@ import { enrichProjectDetailsFromCampaignDetails } from "./projectTypeUtils";
 import { executeQuery } from "./db";
 import { campaignDetailsTransformer, genericResourceTransformer } from "./transforms/searchResponseConstructor";
 import { transformAndCreateLocalisation } from "./transforms/localisationMessageConstructor";
+import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 
 // import * as xlsx from 'xlsx-populate';
 const _ = require('lodash');
@@ -349,7 +350,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
     updateActivityResourceId(request);
     request.body.ResourceDetails = {
         ...request?.body?.ResourceDetails,
-        status: request.body.ResourceDetails.status != "invalid" ? "completed" : "invalid",
+        status: request.body.ResourceDetails.status != resourceDataStatuses.invalid ? resourceDataStatuses.completed : resourceDataStatuses.invalid,
         auditDetails: {
             ...request?.body?.ResourceDetails?.auditDetails,
             lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
@@ -394,7 +395,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     const action = requestBody?.CampaignDetails?.action;
     requestBody.CampaignDetails.campaignNumber = requestBody?.CampaignDetails?.campaignNumber || null
     requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails?.campaignDetails || { deliveryRules: requestBody?.CampaignDetails?.deliveryRules, resources: requestBody?.CampaignDetails?.resources || [], boundaries: requestBody?.CampaignDetails?.boundaries || [] };
-    requestBody.CampaignDetails.status = "failed";
+    requestBody.CampaignDetails.status = campaignStatuses?.failed;
     requestBody.CampaignDetails.boundaryCode = getRootBoundaryCode(requestBody?.CampaignDetails?.boundaries) || null
     requestBody.CampaignDetails.projectType = requestBody?.CampaignDetails?.projectType || null;
     requestBody.CampaignDetails.hierarchyType = requestBody?.CampaignDetails?.hierarchyType || null;
@@ -428,7 +429,7 @@ async function enrichAndPersistCampaignForCreate(request: any, firstPersist: boo
         request.body.CampaignDetails.campaignNumber = await getCampaignNumber(request.body, "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]", "campaign.number", request?.body?.CampaignDetails?.tenantId);
     }
     request.body.CampaignDetails.campaignDetails = { deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [], resources: request?.body?.CampaignDetails?.resources || [], boundaries: request?.body?.CampaignDetails?.boundaries || [] };
-    request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
+    request.body.CampaignDetails.status = action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
     request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(request.body.CampaignDetails.boundaries)
     request.body.CampaignDetails.projectType = request?.body?.CampaignDetails?.projectType || null;
     request.body.CampaignDetails.hierarchyType = request?.body?.CampaignDetails?.hierarchyType || null;
@@ -465,7 +466,7 @@ async function enrichAndPersistCampaignForUpdate(request: any, firstPersist: boo
     enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
     request.body.CampaignDetails.campaignNumber = ExistingCampaignDetails?.campaignNumber
     request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails
-    request.body.CampaignDetails.status = action == "create" ? "started" : "drafted";
+    request.body.CampaignDetails.status = action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
     const boundaryCode = !(request?.body?.CampaignDetails?.projectId) ? getRootBoundaryCode(request.body.CampaignDetails.boundaries) : (request?.body?.CampaignDetails?.boundaryCode || ExistingCampaignDetails?.boundaryCode)
     request.body.CampaignDetails.boundaryCode = boundaryCode
     request.body.CampaignDetails.startDate = request?.body?.CampaignDetails?.startDate || ExistingCampaignDetails?.startDate || null
@@ -1315,7 +1316,7 @@ async function boundaryBulkUpload(request: any, localizationMap?: any) {
 }
 
 const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) => {
-    const {hierarchyType,tenantId}=request?.body?.ResourceDetails || {};
+    const { hierarchyType, tenantId } = request?.body?.ResourceDetails || {};
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
     const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap);
     const boundaryData = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedBoundaryTab, false, undefined, localizationMap);
@@ -1332,7 +1333,7 @@ const autoGenerateBoundaryCodes = async (request: any, localizationMap?: any) =>
     await createBoundaryRelationship(request, boundaryTypeMap, modifiedMap, localizationMap);
     const boundaryDataForSheet = addBoundaryCodeToData(withBoundaryCode, withoutBoundaryCode, boundaryMap);
     logger.info("Initiated the localisation message creation for the uploaded boundary");
-    transformAndCreateLocalisation(boundaryMap,request);
+    transformAndCreateLocalisation(boundaryMap, request);
     const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
     const headers = [...modifiedHierarchy, config.boundaryCode];
     const data = prepareDataForExcel(boundaryDataForSheet, hierarchy, boundaryMap);

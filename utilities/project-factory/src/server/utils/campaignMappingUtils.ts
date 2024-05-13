@@ -5,6 +5,7 @@ import { logger } from "./logger";
 import { httpRequest } from "./request";
 import { produceModifiedMessages } from "../Kafka/Listener";
 import { getLocalizedName } from "./campaignUtils";
+import { campaignStatuses, resourceDataStatuses } from "../config/constants";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -144,7 +145,7 @@ async function fetchAndMap(resources: any[], messageObject: any) {
     logger.info("Project Mapping Response : " + JSON.stringify(projectMappingResponse));
     if (projectMappingResponse?.Campaign) {
         logger.info("Campaign Mapping done")
-        messageObject.CampaignDetails.status = "In Progress"
+        messageObject.CampaignDetails.status = campaignStatuses.inprogress
         produceModifiedMessages(messageObject, config.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
     }
 }
@@ -176,9 +177,7 @@ async function validateMappingId(messageObject: any, id: string) {
     if (!response?.CampaignDetails?.[0]) {
         throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign with id " + id + " does not exist");
     }
-    else if (response?.CampaignDetails?.[0]?.status == "In Progress") {
-        throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign with id " + id + " is already mapped and in progress");
-    }
+    return response?.CampaignDetails?.[0];
 }
 
 async function processCampaignMapping(messageObject: any) {
@@ -187,41 +186,46 @@ async function processCampaignMapping(messageObject: any) {
     if (!id) {
         throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign id is missing");
     }
-    await validateMappingId(messageObject, id);
-    var completedResources: any = []
-    var resources = [];
-    for (const resourceDetailId of resourceDetailsIds) {
-        var retry = 30;
-        while (retry--) {
-            const response = await searchResourceDetailsById(resourceDetailId, messageObject);
-            logger.info(`response for resourceDetailId ${resourceDetailId} : ` + JSON.stringify(response));
-            if (response?.status == "invalid") {
-                logger.error(`resource with id ${resourceDetailId} is invalid`);
-                throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is invalid");
-                break;
-            }
-            else if (response?.status == "failed") {
-                logger.error(`resource with id ${resourceDetailId} is failed`);
-                throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is failed");
-                break;
-            }
-            else if (response?.status == "completed") {
-                completedResources.push(resourceDetailId);
-                resources.push(response);
-                break;
-            }
-            else {
-                await new Promise(resolve => setTimeout(resolve, 20000));
+    const campaignDetails = await validateMappingId(messageObject, id);
+    if (campaignDetails?.status == campaignStatuses.inprogress) {
+        logger.info("Campaign Already In Progress and Mapped");
+    }
+    else {
+        var completedResources: any = []
+        var resources = [];
+        for (const resourceDetailId of resourceDetailsIds) {
+            var retry = 30;
+            while (retry--) {
+                const response = await searchResourceDetailsById(resourceDetailId, messageObject);
+                logger.info(`response for resourceDetailId ${resourceDetailId} : ` + JSON.stringify(response));
+                if (response?.status == "invalid") {
+                    logger.error(`resource with id ${resourceDetailId} is invalid`);
+                    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + resourceDetailId + " is invalid");
+                    break;
+                }
+                else if (response?.status == resourceDataStatuses.failed) {
+                    logger.error(`resource with id ${resourceDetailId} is ${resourceDataStatuses.failed}`);
+                    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `resource with id ${resourceDetailId} is ${resourceDataStatuses.failed}`);
+                    break;
+                }
+                else if (response?.status == resourceDataStatuses.completed) {
+                    completedResources.push(resourceDetailId);
+                    resources.push(response);
+                    break;
+                }
+                else {
+                    await new Promise(resolve => setTimeout(resolve, 20000));
+                }
             }
         }
+        var uncompletedResourceIds = resourceDetailsIds?.filter((x: any) => !completedResources.includes(x));
+        logger.info("uncompletedResourceIds " + JSON.stringify(uncompletedResourceIds));
+        logger.info("completedResources " + JSON.stringify(completedResources));
+        if (uncompletedResourceIds?.length > 0) {
+            throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + JSON.stringify(uncompletedResourceIds) + " is not validated after long wait. Check file");
+        }
+        await fetchAndMap(resources, messageObject);
     }
-    var uncompletedResourceIds = resourceDetailsIds?.filter((x: any) => !completedResources.includes(x));
-    logger.info("uncompletedResourceIds " + JSON.stringify(uncompletedResourceIds));
-    logger.info("completedResources " + JSON.stringify(completedResources));
-    if (uncompletedResourceIds?.length > 0) {
-        throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "resource with id " + JSON.stringify(uncompletedResourceIds) + " is not validated after long wait. Check file");
-    }
-    await fetchAndMap(resources, messageObject);
 }
 
 
