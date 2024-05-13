@@ -4,7 +4,7 @@ package org.egov.project.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.CommonSearchCriteria;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiaryRequest;
@@ -53,9 +53,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
@@ -125,7 +122,7 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/beneficiary/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest,
-                                                                                  @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+                                                                                  ) throws Exception {
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(
                 beneficiarySearchRequest,
                 searchCriteria.getLimit(),
@@ -209,7 +206,7 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityV1SearchPost(@ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest,
-                                                                                   @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+                                                                                   ) throws Exception {
         List<ProjectFacility> projectFacilities = projectFacilityService.search(
                 projectFacilitySearchRequest,
                 searchCriteria.getLimit(),
@@ -296,7 +293,7 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectStaffBulkResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
-                                                                             @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+                                                                             ) throws Exception {
         List<ProjectStaff> projectStaffList = projectStaffService.search(
                 projectStaffSearchRequest,
                 searchCriteria.getLimit(),
@@ -387,7 +384,7 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<TaskBulkResponse> projectTaskV1SearchPost(@ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest request,
-                                                                    @ModelAttribute CommonSearchCriteria searchCriteria) {
+                                                                    ) {
 
         List<Task> households = projectTaskService.search(
                 request.getTask(),
@@ -459,7 +456,7 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProjectResponse> searchProject(@ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectRequest project,
-                                                         @ModelAttribute CommonSearchCriteria searchCriteria,
+                                                         ,
                                                          @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeAncestors", required = false, defaultValue = "false") Boolean includeAncestors,  @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") Boolean includeDescendants, @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date", defaultValue = "false") @Valid @RequestParam(value = "createdFrom", required = false) Long createdFrom, @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date", defaultValue = "false") @Valid @RequestParam(value = "createdTo", required = false) Long createdTo) {
         List<Project> projects = projectService.searchProject(project, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted(), includeAncestors, includeDescendants, createdFrom, createdTo);
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);

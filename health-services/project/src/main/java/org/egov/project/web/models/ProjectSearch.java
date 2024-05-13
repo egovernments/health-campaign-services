@@ -23,6 +23,7 @@ import javax.validation.constraints.Size;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Table(name="project")
+@Deprecated
 public class ProjectSearch {
 
     @JsonProperty("id")

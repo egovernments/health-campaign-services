@@ -3,7 +3,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
-import org.egov.common.models.core.CommonSearchCriteria;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
 import org.egov.common.models.product.ProductResponse;
@@ -26,14 +26,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
@@ -76,8 +71,7 @@ public class ProductApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProductResponse> productV1SearchPost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductSearchRequest productSearchRequest,
-                                                               @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+    public ResponseEntity<ProductResponse> productV1SearchPost(@ApiParam(value = "Capture details of Product.", required = true) @Valid @RequestBody ProductSearchRequest productSearchRequest) throws Exception {
 
         List<Product> products = productService.search(productSearchRequest, searchCriteria.getLimit(), searchCriteria.getOffset(),
                 searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
@@ -125,7 +119,7 @@ public class ProductApiController {
 
     @RequestMapping(value = "/variant/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ProductVariantResponse> productVariantV1SearchPost(@ApiParam(value = "Capture details of Product variant.", required = true) @Valid @RequestBody ProductVariantSearchRequest productVariantSearchRequest,
-                                                                             @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+                                                                             ) throws Exception {
         List<ProductVariant> productVariants = productVariantService.search(productVariantSearchRequest,
                 searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(),
                 searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());

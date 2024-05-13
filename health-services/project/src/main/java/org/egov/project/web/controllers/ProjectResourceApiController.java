@@ -3,7 +3,7 @@ package org.egov.project.web.controllers;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.data.query.exception.QueryBuilderException;
-import org.egov.common.models.core.CommonSearchCriteria;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.models.project.ProjectResourceBulkResponse;
@@ -23,13 +23,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
@@ -77,7 +73,7 @@ public class ProjectResourceApiController {
     public ResponseEntity<ProjectResourceBulkResponse> resourceV1SearchPost(@ApiParam(
             value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody
                                                                                 ProjectResourceSearchRequest request,
-            @ModelAttribute CommonSearchCriteria searchCriteria) throws QueryBuilderException {
+            ) throws QueryBuilderException {
 
         List<ProjectResource> projectResource = projectResourceService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
         ProjectResourceBulkResponse response = ProjectResourceBulkResponse.builder().responseInfo(ResponseInfoFactory

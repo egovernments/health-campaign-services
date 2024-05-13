@@ -24,6 +24,7 @@ import org.springframework.validation.annotation.Validated;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Table(name = "stock_reconciliation_log")
+@Deprecated
 public class StockReconciliationSearch {
     @JsonProperty("id")
     @Valid

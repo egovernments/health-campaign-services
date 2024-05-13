@@ -1,19 +1,19 @@
 package org.egov.stock.web.models;
 
+import java.util.List;
+import javax.validation.Valid;
+import javax.validation.constraints.Size;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import org.egov.common.data.query.annotations.Table;
 import org.egov.common.models.stock.TransactionReason;
 import org.egov.common.models.stock.TransactionType;
 import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.Size;
-import java.util.List;
 
 /**
  * StockSearch
@@ -24,9 +24,10 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Table(name="stock")
+@Deprecated
 public class StockSearch {
 
     @JsonProperty("id")

@@ -3,7 +3,7 @@ package org.egov.stock.web.controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.CommonSearchCriteria;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.common.models.stock.StockReconciliationBulkRequest;
 import org.egov.common.models.stock.StockReconciliationBulkResponse;
@@ -21,13 +21,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @Controller
@@ -76,8 +72,7 @@ public class StockReconciliationApiController {
     }
 
     @RequestMapping(value = "/reconciliation/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<StockReconciliationBulkResponse> stockReconciliationV1SearchPost(@ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest request,
-                                                                                           @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+    public ResponseEntity<StockReconciliationBulkResponse> stockReconciliationV1SearchPost(@ApiParam(value = "Capture details of Stock Reconciliation.", required = true) @Valid @RequestBody StockReconciliationSearchRequest request) throws Exception {
 
         List<StockReconciliation> stock = stockReconciliationService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
         StockReconciliationBulkResponse response = StockReconciliationBulkResponse.builder().responseInfo(ResponseInfoFactory

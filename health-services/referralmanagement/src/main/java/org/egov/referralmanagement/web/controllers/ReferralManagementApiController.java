@@ -1,7 +1,7 @@
 package org.egov.referralmanagement.web.controllers;
 
 import io.swagger.annotations.ApiParam;
-import org.egov.common.models.core.CommonSearchCriteria;
+import org.egov.common.models.core.URLParams;
 import org.egov.referralmanagement.service.ReferralManagementService;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.referralmanagement.Referral;
@@ -21,13 +21,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 import java.util.List;
 
 /**
@@ -100,7 +96,7 @@ public class ReferralManagementApiController {
      */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<ReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "Referral Search.", required = true) @Valid @RequestBody ReferralSearchRequest request,
-                                                                     @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+                                                                     ) throws Exception {
 
         List<Referral> referrals = referralManagementService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
         ReferralBulkResponse response = ReferralBulkResponse.builder().responseInfo(ResponseInfoFactory

@@ -3,13 +3,9 @@ package org.egov.referralmanagement.web.controllers;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.CommonSearchCriteria;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkResponse;
@@ -24,11 +20,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * Controller class for managing HF Referrals.
@@ -102,15 +96,13 @@ public class HFReferralApiController {
      * API endpoint to search for HFReferrals based on certain criteria.
      *
      * @param request         The HFReferralSearchRequest containing search criteria.
-     * @param searchCriteria Additional common search criteria.
      * @return ResponseEntity containing HFReferralBulkResponse.
      * @throws Exception
      */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HFReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "HFReferral Search.", required = true) @Valid @RequestBody HFReferralSearchRequest request,
-                                                                       @ModelAttribute CommonSearchCriteria searchCriteria) throws Exception {
+    public ResponseEntity<HFReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "HFReferral Search.", required = true) @Valid @RequestBody HFReferralSearchRequest request) throws Exception {
 
-        List<HFReferral> hfReferrals = hfReferralService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        List<HFReferral> hfReferrals = hfReferralService.search(request, request.getHfReferral().getLimit(), request.getHfReferral().getOffset(), request.getHfReferral().getTenantId(), request.getHfReferral().getLastChangedSince(), request.getHfReferral().getIncludeDeleted());
         HFReferralBulkResponse response = HFReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true)).hfReferrals(hfReferrals).build();
 

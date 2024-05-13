@@ -22,6 +22,7 @@ import javax.validation.constraints.NotNull;
 @AllArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
+@Deprecated
 public class StockSearchRequest   {
 
     @JsonProperty("RequestInfo")
