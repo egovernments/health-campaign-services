@@ -1,4 +1,4 @@
-export const CampaignConfig = (totalFormData) => {
+export const CampaignConfig = (totalFormData, dataParams) => {
   return [
     {
       form: [
@@ -142,6 +142,7 @@ export const CampaignConfig = (totalFormData) => {
               customProps: {
                 module: "HCM",
                 sessionData: totalFormData,
+                dataParams: dataParams,
               },
               populators: {
                 name: "boundaryType",
