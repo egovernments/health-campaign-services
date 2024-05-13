@@ -180,5 +180,3 @@ config:
       - work-dir: "health-services/resource-estimation-service"
         image-name: "resource-estimation-service"
         dockerfile: "build/17/maven/Dockerfile"
-      - work-dir: "health-services/resource-estimation-service/src/main/resources/db"
-        image-name: "resource-estimation-service-db"
