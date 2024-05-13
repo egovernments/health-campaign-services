@@ -92,6 +92,7 @@ async function enrichBoundaryWithProject(messageObject: any, boundaryWithProject
 
 async function getProjectMappingBody(messageObject: any, boundaryWithProject: any, boundaryCodes: any) {
     const Campaign: any = {
+        id: messageObject?.Campaign?.id,
         tenantId: messageObject?.Campaign?.tenantId,
         CampaignDetails: []
     }
@@ -160,8 +161,33 @@ async function searchResourceDetailsById(resourceDetailId: string, messageObject
     return response?.ResourceDetails?.[0];
 }
 
+async function validateMappingId(messageObject: any, id: string) {
+    const searchBody = {
+        RequestInfo: messageObject?.RequestInfo,
+        CampaignDetails: {
+            ids: [id],
+            tenantId: messageObject?.Campaign?.tenantId,
+        }
+    }
+    const url = config.host.projectFactoryBff + "project-factory/v1/project-type/search"
+    logger.info("Url for campaign search : " + url);
+    logger.info("searchBody for campaign search : " + JSON.stringify(searchBody));
+    const response = await httpRequest(url, searchBody);
+    if (!response?.CampaignDetails?.[0]) {
+        throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign with id " + id + " does not exist");
+    }
+    else if (response?.CampaignDetails?.[0]?.status == "In Progress") {
+        throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign with id " + id + " is already mapped and in progress");
+    }
+}
+
 async function processCampaignMapping(messageObject: any) {
     const resourceDetailsIds = messageObject?.Campaign?.resourceDetailsIds
+    const id = messageObject?.Campaign?.id
+    if (!id) {
+        throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign id is missing");
+    }
+    await validateMappingId(messageObject, id);
     var completedResources: any = []
     var resources = [];
     for (const resourceDetailId of resourceDetailsIds) {
@@ -200,5 +226,6 @@ async function processCampaignMapping(messageObject: any) {
 
 
 export {
-    processCampaignMapping
+    processCampaignMapping,
+    validateMappingId
 }

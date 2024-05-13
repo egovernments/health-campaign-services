@@ -44,8 +44,9 @@ export function listener() {
             logger.info(`KAFKA :: LISTENER :: Received a message`);
             logger.debug(`KAFKA :: LISTENER :: message ${JSON.stringify(messageObject)}`);
         } catch (error) {
-            logger.info('KAFKA :: PRODUCER :: Some Error Occurred '); // Log successful message production
-            logger.error(`KAFKA :: PRODUCER :: Error :  ${JSON.stringify(error)}`); // Log producer error
+            logger.info('KAFKA :: LISTENER :: Some Error Occurred '); // Log successful message production
+            logger.error(`KAFKA :: LISTENER :: Error :  ${JSON.stringify(error)}`); // Log producer error
+            console.log(error)
         }
     });
 
@@ -67,7 +68,7 @@ export function listener() {
  * @returns A promise that resolves when the messages are successfully produced.
  */
 async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
-    logger.info(`KAFKA :: PRODUCER :: a sent message to topic ${topic}`);
+    logger.info(`KAFKA :: PRODUCER :: a message sent to topic ${topic}`);
     logger.debug(`KAFKA :: PRODUCER :: message ${JSON.stringify(modifiedMessages)}`);
     return new Promise<void>((resolve, reject) => {
         const payloads = [
