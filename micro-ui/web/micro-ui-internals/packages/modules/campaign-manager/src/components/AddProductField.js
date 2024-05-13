@@ -97,7 +97,7 @@ const AddProductField = ({ onSelect }) => {
               />
             </LabelFieldPair>
             <LabelFieldPair>
-              <div className="product-label-field">
+              <div className="product-label-field" style={{ alignSelf: "flex-start", marginTop: "1rem" }}>
                 <span>{`${t("HCM_PRODUCT_TYPE")}`}</span>
                 <span className="mandatory-span">*</span>
               </div>

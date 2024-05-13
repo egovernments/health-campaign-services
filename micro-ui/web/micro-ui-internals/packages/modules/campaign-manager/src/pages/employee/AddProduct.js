@@ -47,8 +47,8 @@ function AddProduct() {
         }
       })
       ?.includes(false);
-    
-      const invalidVariant = formData?.addProduct
+
+    const invalidVariant = formData?.addProduct
       ?.map((i) => {
         if (i?.variant?.length > 2 && i?.variant?.length < 101) {
           return true;
@@ -57,20 +57,22 @@ function AddProduct() {
         }
       })
       ?.includes(false);
-    
-      if (invalidName) {
-      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_NAME_ERROR", isError: true });
-      return;
-    }
-    
-    if (invalidVariant) {
-      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_VARIANT_ERROR", isError: true });
-      return;
-    }
+
     if (!isValid) {
       setShowToast({ key: "error", label: "CAMPAIGN_ADD_PRODUCT_MANDATORY_ERROR", isError: true });
       return;
     }
+
+    if (invalidName) {
+      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_NAME_ERROR", isError: true });
+      return;
+    }
+
+    if (invalidVariant) {
+      setShowToast({ key: "error", label: "CAMPAIGN_PRODUCT_VARIANT_ERROR", isError: true });
+      return;
+    }
+
     const payloadData = formData?.["addProduct"]?.map((i) => ({
       tenantId: tenantId,
       type: i?.type?.code,
