@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.3 - 2024-05-10
+- Integrated Boundary v2 functionality
+
 ## 1.1.2 - 2024-02-26
 - Implemented validation for updating project start date and end date.
 - Added numberOfSessions field in additional details for attendance registry.

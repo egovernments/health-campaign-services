@@ -1,7 +1,9 @@
 package org.egov.transformer.service;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,19 +48,16 @@ public class ProjectService {
 
     private final ObjectMapper objectMapper;
 
-    private final BoundaryService boundaryService;
-
     private final MdmsService mdmsService;
 
     private static final Map<String, Project> projectMap = new ConcurrentHashMap<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
-                          ObjectMapper objectMapper, BoundaryService boundaryService, MdmsService mdmsService) {
+                          ObjectMapper objectMapper, MdmsService mdmsService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
-        this.boundaryService = boundaryService;
         this.mdmsService = mdmsService;
     }
 
@@ -102,7 +101,7 @@ public class ProjectService {
     }
 
     public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
-        List<String> boundaries = new ArrayList<>();
+        List<EnrichedBoundary> boundaries = new ArrayList<>();
         try {
             // Fetch boundary details from the service
             log.debug("Fetching boundary relation details for tenantId: {}, boundary: {}", tenantId, locationCode);
@@ -132,18 +131,36 @@ public class ProjectService {
 
         return boundaries.stream()
                 .collect(Collectors.toMap(
-                        boundary -> boundary,
-                        boundary -> boundary.substring(boundary.lastIndexOf('_') + 1)
+                        EnrichedBoundary::getBoundaryType,
+                        boundary -> boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1)
                 ));
     }
 
-    private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<String> boundaries) {
-        if(enrichedBoundaries == null) return;
-        enrichedBoundaries.forEach(enrichedBoundary -> {
-            if(Objects.nonNull(enrichedBoundary)) boundaries.add(enrichedBoundary.getCode());
-            getAllBoundaryCodes(enrichedBoundary.getChildren(), boundaries);
-        });
+    private void getAllBoundaryCodes(List<EnrichedBoundary> enrichedBoundaries, List<EnrichedBoundary> boundaries) {
+        if (enrichedBoundaries == null || enrichedBoundaries.isEmpty()) {
+            return;
+        }
+
+        for (EnrichedBoundary root : enrichedBoundaries) {
+            if (root != null) {
+                Deque<EnrichedBoundary> stack = new ArrayDeque<>();
+                stack.push(root);
+
+                while (!stack.isEmpty()) {
+                    EnrichedBoundary current = stack.pop();
+                    if (current != null) {
+                        boundaries.add(current);
+                        if (current.getChildren() != null) {
+                            stack.addAll(current.getChildren());
+                        }
+                    }
+                }
+            }
+        }
     }
+
+
+
     private List<Project> searchProjectByName(String projectName, String tenantId) {
 
         ProjectRequest request = ProjectRequest.builder()
