@@ -87,8 +87,8 @@ function reverseDeliveryRemap(data) {
       currentCycleIndex = item.cycleNumber;
       currentCycle = {
         cycleIndex: currentCycleIndex.toString(),
-        startDate: item?.startDate ? new Date(item?.startDate)?.toISOString()?.split("T")?.[0] : null,
-        endDate: item?.endDate ? new Date(item?.endDate)?.toISOString()?.split("T")?.[0] : null,
+        startDate: item?.startDate ? Digit.Utils.date.convertEpochToDate(item?.startDate) : null,
+        endDate: item?.endDate ? Digit.Utils.date.convertEpochToDate(item?.endDate) : null,
         active: index === 0, // Initialize active to false
         deliveries: [],
       };
