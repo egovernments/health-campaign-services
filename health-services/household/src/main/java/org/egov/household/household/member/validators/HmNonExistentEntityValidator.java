@@ -76,7 +76,7 @@ public class HmNonExistentEntityValidator implements Validator<HouseholdMemberBu
             List<String> householdMemberIds = new ArrayList<>(iMap.keySet());
             // Query the repository to find existing household members by IDs
             List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
-                    getIdFieldName(idMethod), false);
+                    getIdFieldName(idMethod), false).getResponse();
             // Check for non-existent household members
             List<HouseholdMember> nonExistentIndividuals = checkNonExistentEntities(iMap,
                     existingHouseholdMembers, idMethod);

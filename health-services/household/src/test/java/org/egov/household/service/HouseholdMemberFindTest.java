@@ -2,6 +2,8 @@ package org.egov.household.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.models.household.HouseholdMemberSearchRequest;
@@ -41,7 +43,7 @@ class HouseholdMemberFindTest {
                 .householdMemberSearch(HouseholdMemberSearch.builder()
                         .id(Collections.singletonList("some-id")).build()).build();
         when(householdMemberRepository.findById(anyList(), eq("id"), anyBoolean()))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(SearchResponse.<HouseholdMember>builder().build());
 
         householdMemberService.search(householdSearchRequest.getHouseholdMemberSearch(), 10, 0, "default",
                 null, false);
@@ -59,7 +61,7 @@ class HouseholdMemberFindTest {
                 .householdMemberSearch(HouseholdMemberSearch.builder()
                         .id(Collections.singletonList("some-id")).householdId(Collections.singletonList("household-id")).build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<HouseholdMember>builder().build());
 
         householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), 10, 0,
                 "", 0L, false);
@@ -77,7 +79,7 @@ class HouseholdMemberFindTest {
                 .householdMemberSearch(HouseholdMemberSearch.builder()
                         .id(Collections.singletonList("some-id")).householdId(Collections.singletonList("household-id")).build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<HouseholdMember>builder().build());
 
         householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), 10, 0,
                 "default", 0L, false);

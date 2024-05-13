@@ -30,6 +30,11 @@ public class HouseholdMemberBulkResponse {
     @Valid
     private org.egov.common.contract.response.ResponseInfo responseInfo = null;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
+
     @JsonProperty("HouseholdMembers")
     @Valid
     private List<HouseholdMember> householdMembers = null;

@@ -38,6 +38,7 @@ import org.egov.tracer.model.ErrorDetail;
 import org.egov.tracer.model.ErrorEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.ValidatorUtils.getErrorForNullId;
@@ -1136,6 +1137,23 @@ public class CommonUtils {
         Pattern pattern = Pattern.compile(regexPattern);
         Matcher matcher = pattern.matcher(value);
         return matcher.matches();
+    }
+
+    /**
+     * Construct a Common Table Expression that returns total count if there is any otherwise return 0L
+     * @param query
+     * @param paramsMap
+     * @param namedParameterJdbcTemplate
+     * @return
+     */
+    public static Long constructTotalCountCTEAndReturnResult(String query, Map<String, Object> paramsMap, final NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+        String cteQuery = "WITH result_cte AS ("+query+"), totalCount_cte AS (SELECT COUNT(*) AS totalRows FROM result_cte) select * from totalCount_cte";
+        return namedParameterJdbcTemplate.query(cteQuery, paramsMap, resultSet -> {
+            if(resultSet.next())
+                return resultSet.getLong("totalRows");
+            else
+                return 0L;
+        });
     }
 
 }

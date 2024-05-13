@@ -5,6 +5,7 @@ import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
@@ -26,13 +27,13 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 
 @Repository
@@ -51,7 +52,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
     }
 
-    public List<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
+    public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
         List<Individual> objFound;
         objFound = findInCache(ids).stream()
                 .filter(individual -> individual.getIsDeleted().equals(includeDeleted))
@@ -62,7 +63,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
             if (ids.isEmpty()) {
-                return objFound;
+                return SearchResponse.<Individual>builder().totalCount(Long.valueOf(objFound.size())).response(objFound).build();
             }
         }
 
@@ -70,29 +71,31 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 includeDeleted), idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        Long totalCount = constructTotalCountCTEAndReturnResult(individualQuery, paramMap, this.namedParameterJdbcTemplate);
         List<Individual> individuals = this.namedParameterJdbcTemplate
                 .query(individualQuery, paramMap, this.rowMapper);
         enrichIndividuals(individuals, includeDeleted);
         objFound.addAll(individuals);
         putInCache(objFound);
-        return objFound;
+        return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
     }
 
-    public List<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
-                                 String tenantId, Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
+                                           String tenantId, Long lastChangedSince, Boolean includeDeleted) {
         Map<String, Object> paramsMap = new HashMap<>();
         String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
                 includeDeleted, paramsMap);
         if (isProximityBasedSearch(searchObject)) {
-            List<Individual> individuals = findByRadius(query, searchObject, includeDeleted, paramsMap);
-            return individuals;
+            return findByRadius(query, searchObject, includeDeleted, paramsMap);
         }
         if (searchObject.getIdentifier() == null) {
+            String queryWithoutLimit = query.replace("ORDER BY id ASC LIMIT :limit OFFSET :offset", "");
+            Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
                 enrichIndividuals(individuals, includeDeleted);
             }
-            return individuals;
+            return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
         } else {
             Map<String, Object> identifierParamMap = new HashMap<>();
             String identifierQuery = getIdentifierQuery(searchObject.getIdentifier(), identifierParamMap);
@@ -115,9 +118,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
                         enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                     });
                 }
-                return individuals;
+                return SearchResponse.<Individual>builder().response(individuals).build();
             }
-            return Collections.emptyList();
+            return SearchResponse.<Individual>builder().build();
         }
     }
 
@@ -126,11 +129,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
      * @param searchObject
      * @param includeDeleted
      * @param paramsMap
-     * @return
-     *
-     * Fetch all the household which falls under the radius provided using longitude and latitude provided.
+     * @return Fetch all the household which falls under the radius provided using longitude and latitude provided.
      */
-    public List<Individual> findByRadius(String query, IndividualSearch searchObject, Boolean includeDeleted, Map<String, Object> paramsMap) {
+    public SearchResponse<Individual> findByRadius(String query, IndividualSearch searchObject, Boolean includeDeleted, Map<String, Object> paramsMap) {
         query = query.replace("LIMIT :limit OFFSET :offset", "");
         paramsMap.put("s_latitude", searchObject.getLatitude());
         paramsMap.put("s_longitude", searchObject.getLongitude());
@@ -150,8 +151,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     query = query + " WHERE rt.distance < :distance ";
                 }
                 query = query + " ORDER BY distance ASC ";
-                query = query + "LIMIT :limit OFFSET :offset";
                 paramsMap.put("distance", searchObject.getSearchRadius());
+                Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+                query = query + "LIMIT :limit OFFSET :offset";
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
                 if (!individuals.isEmpty()) {
@@ -165,7 +167,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                         enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                     });
                 }
-                return individuals;
+                return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
             }
         } else {
             query = cteQuery + ", cte_individual AS (" + query + ")";
@@ -175,16 +177,19 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 query = query + " WHERE rt.distance < :distance ";
             }
             query = query + " ORDER BY distance ASC ";
-            query = query + "LIMIT :limit OFFSET :offset";
             paramsMap.put("distance", searchObject.getSearchRadius());
+
+            Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+
+            query = query + "LIMIT :limit OFFSET :offset";
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                     paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
                 enrichIndividuals(individuals, includeDeleted);
             }
-            return individuals;
+            return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
         }
-        return Collections.emptyList();
+        return SearchResponse.<Individual>builder().build();
     }
 
 

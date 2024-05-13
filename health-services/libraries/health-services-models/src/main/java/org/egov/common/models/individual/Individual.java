@@ -115,7 +115,6 @@ public class Individual extends EgovOfflineModel {
     @JsonProperty("userDetails")
     private UserDetails userDetails;
 
-
     public Individual addAddressItem(Address addressItem) {
         if (this.address == null) {
             this.address = new ArrayList<>();

@@ -23,7 +23,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
  * This validator checks if the provided individual entities already exist in the database based on their client reference IDs.
  * @author kanishq-egov
  */
-public class HExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
+public class IExistentEntityValidator implements Validator<IndividualBulkRequest, Individual> {
 
     private final IndividualRepository individualRepository;
 
@@ -32,7 +32,7 @@ public class HExistentEntityValidator implements Validator<IndividualBulkRequest
      *
      * @param individualRepository The repository for individual entities.
      */
-    public HExistentEntityValidator(IndividualRepository individualRepository) {
+    public IExistentEntityValidator(IndividualRepository individualRepository) {
         this.individualRepository = individualRepository;
     }
 
@@ -63,7 +63,7 @@ public class HExistentEntityValidator implements Validator<IndividualBulkRequest
             List<Individual> existentEntities = individualRepository.findById(
                     clientReferenceIdList,
                     getIdFieldName(individualSearch),
-                    Boolean.FALSE).getY();
+                    Boolean.FALSE).getResponse();
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
                 Error error = getErrorForUniqueEntity();

@@ -32,6 +32,11 @@ public class TaskBulkResponse {
     @Valid
     private ResponseInfo responseInfo = null;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
+
     @JsonProperty("Tasks")
     @NotNull
     @Valid

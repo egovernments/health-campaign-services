@@ -32,6 +32,11 @@ public class IndividualBulkResponse {
     @Valid
     private ResponseInfo responseInfo = null;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
+    
     @JsonProperty("Individual")
     @Valid
     private List<Individual> individual = null;

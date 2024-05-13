@@ -2,6 +2,7 @@ package org.egov.referralmanagement.web.controllers;
 
 import io.swagger.annotations.ApiParam;
 import org.egov.common.models.core.URLParams;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.service.SideEffectService;
 import org.egov.common.contract.response.ResponseInfo;
@@ -81,8 +82,10 @@ public class SideEffectApiController {
                                                                          ) throws Exception {
 
         List<SideEffect> sideEffects = sideEffectService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        SearchResponse<SideEffect> sideEffectSearchResponse = sideEffectService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
         SideEffectBulkResponse response = SideEffectBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).sideEffects(sideEffects).build();
+                .createResponseInfo(request.getRequestInfo(), true)).sideEffects(sideEffectSearchResponse.getResponse())
+                .totalCount(sideEffectSearchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
