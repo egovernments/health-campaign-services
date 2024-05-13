@@ -74,5 +74,16 @@ public class TransformerProperties {
     @Value("${boundary.label.name.administrativeProvince}")
     private String administrativeProvince;
 
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
+
+    @Value("${egov.boundary.relationship.search.url}")
+    private String boundaryRelationshipSearchUrl;
+
+    @Value("${egov.boundary.hierarchy.name}")
+    private String boundaryHierarchyName;
 
 }

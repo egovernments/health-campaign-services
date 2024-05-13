@@ -71,6 +71,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
         image-name: "health-individual-db"
+  - name: "builds/health-campaign-services/health-services/health-attendance"
+    build:
+      - work-dir: "health-services/attendance"
+        image-name: "health-attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/attendance/src/main/resources/db"
+        image-name: "health-attendance-db"
   - name: "builds/health-campaign-services/core-services/error-handler"
     build:
       - work-dir: "core-services/error-handler"
@@ -168,3 +175,7 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/plan-service/src/main/resources/db"
         image-name: "plan-service-db"
+  - name: "builds/health-campaign-services/analytics/auth-proxy"
+    build:
+      - work-dir: "analytics/auth-proxy"
+        image-name: "auth-proxy"

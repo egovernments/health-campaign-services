@@ -5,7 +5,7 @@
     <artifactId>facility</artifactId>
     <packaging>jar</packaging>
     <name>facility</name>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <properties>
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
