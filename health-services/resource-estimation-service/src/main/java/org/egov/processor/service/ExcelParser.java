@@ -27,6 +27,7 @@ import org.egov.processor.web.models.PlanConfiguration;
 import org.egov.processor.web.models.ResourceMapping;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
+import org.apache.poi.ss.usermodel.DateUtil;
 
 
 @Slf4j
@@ -134,6 +135,8 @@ public class ExcelParser implements FileParser {
                     headerCell.setCellValue(output);
                 }
             }
+            //TODO: remove after testing
+            printRow(sheet, row);
         }
     }
 
@@ -213,8 +216,41 @@ public class ExcelParser implements FileParser {
             // Add the columnName and cellValue to the propertiesNode
             propertiesNode.put(columnName, cellValue);
         }
-        System.out.println("Feature Node ---- > " + featureNode);
+//        System.out.println("Feature Node ---- > " + featureNode);
         return featureNode;
     }
 
+    public void printRow(Sheet sheet, Row row) {
+        System.out.print("Row -> ");
+        for (Cell cell : row) {
+            int columnIndex = cell.getColumnIndex();
+            String columnName = sheet.getRow(0).getCell(columnIndex).getStringCellValue();
+            System.out.print("Column " + columnName + " - ");
+            switch (cell.getCellType()) {
+                case STRING:
+                    System.out.print(cell.getStringCellValue() + "\t");
+                    break;
+                case NUMERIC:
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        System.out.print(cell.getDateCellValue() + "\t");
+                    } else {
+                        System.out.print(cell.getNumericCellValue() + "\t");
+                    }
+                    break;
+                case BOOLEAN:
+                    System.out.print(cell.getBooleanCellValue() + "\t");
+                    break;
+                case FORMULA:
+                    System.out.print(cell.getCellFormula() + "\t");
+                    break;
+                case BLANK:
+                    System.out.print("<blank>\t");
+                    break;
+                default:
+                    System.out.print("<unknown>\t");
+                    break;
+            }
+        }
+        System.out.println(); // Move to the next line after printing the row
+    }
 }
