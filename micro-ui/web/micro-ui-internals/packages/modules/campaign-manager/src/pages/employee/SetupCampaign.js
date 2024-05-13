@@ -859,8 +859,23 @@ const SetupCampaign = () => {
         }
         const deliveryCycleData = totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA;
         const isDeliveryError = validateDeliveryRules(deliveryCycleData);
+        const isTargetError = totalFormData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile?.[0]?.filestoreId ? false : true;
+        const isFacilityError = totalFormData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile?.[0]?.filestoreId ? false : true;
+        const isUserError = totalFormData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile?.[0]?.filestoreId ? false : true;
         if (isDeliveryError === false) {
           setShowToast({ key: "error", label: "DELIVERY_RULES_ERROR" });
+          return false;
+        }
+        if (isTargetError) {
+          setShowToast({ key: "error", label: "TARGET_DETAILS_ERROR" });
+          return false;
+        }
+        if (isFacilityError) {
+          setShowToast({ key: "error", label: "FACILITY_DETAILS_ERROR" });
+          return false;
+        }
+        if (isUserError) {
+          setShowToast({ key: "error", label: "USER_DETAILS_ERROR" });
           return false;
         }
         return true;
