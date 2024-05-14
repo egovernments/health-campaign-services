@@ -48,15 +48,15 @@ public class Plan {
 
     @JsonProperty("activities")
     @Valid
-    private List<Activity> activities = null;
+    private List<Activity> activities;
 
     @JsonProperty("resources")
     @Valid
-    private List<Resource> resources = null;
+    private List<Resource> resources;
 
     @JsonProperty("targets")
     @Valid
-    private List<Target> targets = null;
+    private List<Target> targets;
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;

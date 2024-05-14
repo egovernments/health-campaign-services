@@ -80,6 +80,11 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
             addActivityConditions(rs, activityMap.get(activityId), conditionMap);
             return;
         }
+        else if (ObjectUtils.isEmpty(activityId)) {
+            // Set activities list to empty if no activity found
+            plan.setActivities(new ArrayList<>());
+            return;
+        }
 
         String dependencies = rs.getString("plan_activity_dependencies");
         AuditDetails auditDetails = AuditDetails.builder()
@@ -116,6 +121,8 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         String conditionId = rs.getString("plan_activity_condition_id");
 
         if(ObjectUtils.isEmpty(conditionId) || conditionMap.containsKey(conditionId)) {
+            List<Condition> conditionList = new ArrayList<>();
+            activity.setConditions(conditionList);
             return;
         }
 
@@ -150,6 +157,8 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         String resourceId = rs.getString("plan_resource_id");
 
         if(ObjectUtils.isEmpty(resourceId) || resourceMap.containsKey(resourceId)) {
+            List<Resource> resourceList = new ArrayList<>();
+            planEntry.setResources(resourceList);
             return;
         }
 
@@ -183,6 +192,8 @@ public class PlanRowMapper implements ResultSetExtractor<List<Plan>> {
         String targetId = rs.getString("plan_target_id");
 
         if(ObjectUtils.isEmpty(targetId) || targetMap.containsKey(targetId)) {
+            List<Target> targetList = new ArrayList<>();
+            planEntry.setTargets(targetList);
             return;
         }
 
