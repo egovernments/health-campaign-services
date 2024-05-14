@@ -1,4 +1,3 @@
-import { log } from "console";
 
 /* 
 TODO: Update configObject with appropriate values.
@@ -13,6 +12,10 @@ const configObject: any = {
         default: null,
         other: "30",
     },
+    mandatoryWaitSinceLastDeliveryInDays:{
+        default: null,
+        other: null,
+    }
 };
 
 /* TODO: Update the logic to fetch the projecttype master */
@@ -89,7 +92,7 @@ const deliveryRulesToCyles = (delivery = []) => {
 /* 
 Convert delivery rules to a format suitable for processing.
 */
-const deliveriesConv = (deliveryObj = {}) => {
+const deliveriesConv = (deliveryObj:any = {}) => {
     return Object.keys(deliveryObj).map((key, ind) => {
         return {
             id: key,
@@ -98,10 +101,9 @@ const deliveriesConv = (deliveryObj = {}) => {
 
             mandatoryWaitSinceLastDeliveryInDays:
                 configObject.mandatoryWaitSinceLastDeliveryInDays?.["default"],
-            doseCriteria: configObject?.[key]?.map((e: any) => {
-                log(e);
+            doseCriteria: deliveryObj?.[key]?.map((e: any) => {
                 return {
-                    ProductVariants: configObject?.[key].flatMap(
+                    ProductVariants: deliveryObj?.[key].flatMap(
                         (elem: { products: any }) =>
                             [...elem.products].map((ele, index) => ({
                                 isBaseUnitVariant: index == 0,
