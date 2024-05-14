@@ -399,10 +399,12 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
     const localizedBoundaryTab = getLocalizedName(config.boundaryTab, localizationMap);
     const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap);
     const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-    await validateHeaders(hierarchy, headersOfBoundarySheet, request, localizationMap)
+    const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase())
+    const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
+    await validateHeaders(localizedHierarchy, headersOfBoundarySheet, request, localizationMap)
     const boundaryData = await getSheetData(fileUrl, localizedBoundaryTab, true, undefined, localizationMap);
     //validate for whether root boundary level column should not be empty
-    validateForRootElementExists(boundaryData, hierarchy, localizedBoundaryTab);
+    validateForRootElementExists(boundaryData, localizedHierarchy, localizedBoundaryTab);
     // validate for duplicate rows(array of objects)
     validateForDupicateRows(boundaryData);
 }
@@ -830,7 +832,7 @@ async function validateFilters(request: any, boundaryData: any[]) {
     const rootBoundaries = boundaries.filter((boundary: any) => boundary.isRoot);
 
     if (rootBoundaries.length !== 1) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid Filter Criteria: Exactly one root boundary is required, but found "${rootBoundaries.length}`);
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid Filter Criteria: Exactly one root boundary can be there, but found "${rootBoundaries.length}`);
     }
 
     const boundaryTypeOfRoot = rootBoundaries[0]?.boundaryType;
@@ -872,9 +874,7 @@ function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string,
 
 
 async function validateHeaders(hierarchy: any[], headersOfBoundarySheet: any, request: any, localizationMap?: any) {
-    const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails.hierarchyType}_${ele}`.toUpperCase())
-    const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
-    validateBoundarySheetHeaders(headersOfBoundarySheet, localizedHierarchy, request, localizationMap);
+    validateBoundarySheetHeaders(headersOfBoundarySheet, hierarchy, request, localizationMap);
 }
 function validateBoundarySheetHeaders(headersOfBoundarySheet: any[], hierarchy: any[], request: any, localizationMap?: any) {
     const localizedBoundaryCode = getLocalizedName(config.boundaryCode, localizationMap)
