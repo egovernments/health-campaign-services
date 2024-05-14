@@ -395,7 +395,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
   useEffect(() => {
     if (showToast) {
-      setTimeout(closeToast, 5000);
+      setTimeout(closeToast, 5000000);
     }
   }, [showToast]);
 
@@ -450,7 +450,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           const temp = await Digit.Hooks.campaign.useResourceData(uploadedFile, params?.hierarchyType, type, tenantId);
           if (temp?.isError) {
             const errorMessage = temp?.error.replaceAll(":", "-");
-            setShowToast({ key: "error", label: errorMessage });
+            setShowToast({ key: "error", label: errorMessage , transitionTime: 5000000});
             setIsError(true);
             setIsValidation(false);
             return;
@@ -671,7 +671,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           warning={showToast.key === "warning" ? true : false}
           info={showToast.key === "info" ? true : false}
           label={t(showToast.label)}
-          transitionTime={6000000000}
+          transitionTime={showToast.transitionTime}
           onClose={closeToast}
         />
       )}
