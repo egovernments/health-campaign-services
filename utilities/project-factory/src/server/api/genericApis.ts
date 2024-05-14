@@ -725,7 +725,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
                 if (!response.TenantBoundary || !Array.isArray(response.TenantBoundary) || response.TenantBoundary.length === 0) {
                     throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR");
                 }
-                console.log('Boundary relationship created:', response);
+                logger.info('Boundary relationship created');
                 const newRequestBody = JSON.parse(JSON.stringify(request.body));
                 activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, url, response?.statusCode));
             }
