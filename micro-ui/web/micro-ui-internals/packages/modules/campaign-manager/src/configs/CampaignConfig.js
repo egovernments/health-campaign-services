@@ -31,7 +31,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
           name: "HCM_CAMPAIGN_NAME",
           body: [
             {
-              isMandatory: true,
+              isMandatory: false,
               key: "campaignName",
               type: "component",
               component: "CampaignName",
@@ -55,7 +55,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
           name: "HCM_CAMPAIGN_DATE",
           body: [
             {
-              isMandatory: true,
+              isMandatory: false,
               key: "campaignDates",
               type: "component",
               component: "CampaignDates",
