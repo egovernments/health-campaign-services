@@ -3,7 +3,6 @@ import { logger } from "../../utils/logger";
 import { httpRequest } from "../../utils/request";
 import config from "../../config/index";
 import { errorResponder } from "../../utils/genericUtils";
-import { log } from "console";
 
 class localisationController {
   public path = "/localization/messages/v1";
@@ -66,7 +65,6 @@ class localisationController {
       logger.info("Creating the localisation messages");
       // Send HTTP POST request to create localisation messages
 
-      log(requestBody)
       await httpRequest(url, requestBody);
       // Log the completion of the localisation messages creation process
       logger.info("Localisation messages created successfully");
