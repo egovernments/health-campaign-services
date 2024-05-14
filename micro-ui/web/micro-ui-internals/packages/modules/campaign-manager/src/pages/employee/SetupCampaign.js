@@ -190,13 +190,14 @@ function groupByTypeRemap(data) {
     const type = item?.type;
     const boundaryType = item?.type;
     const obj = {
-      boundaryTypeData:{
-      TenantBoundary: [
-        {
-          boundary: [{ ...item, boundaryType }],
-        },
-      ],
-    }};
+      boundaryTypeData: {
+        TenantBoundary: [
+          {
+            boundary: [{ ...item, boundaryType }],
+          },
+        ],
+      },
+    };
 
     if (result[type]) {
       result[type][0].boundaryTypeData.TenantBoundary[0].boundary.push(item);
@@ -293,7 +294,7 @@ const SetupCampaign = () => {
     if (Object.keys(params).length !== 0) return;
     if (!draftData) return;
     const delivery = Array.isArray(draftData?.deliveryRules) ? draftData?.deliveryRules : [];
-    const filteredProjectType = projectType?.["HCM-PROJECT-TYPES"]?.projectTypes?.filter((i) => i.code === draftData?.projectType);
+    const filteredProjectType = projectType?.["HCM-PROJECT-TYPES"]?.projectTypes?.filter((i) => i?.code === draftData?.projectType);
     const restructureFormData = {
       HCM_CAMPAIGN_TYPE: { projectType: filteredProjectType?.[0] },
       HCM_CAMPAIGN_NAME: {
@@ -307,11 +308,15 @@ const SetupCampaign = () => {
       },
       HCM_CAMPAIGN_CYCLE_CONFIGURE: {
         cycleConfigure: {
-          cycleConfgureDate: {
-            cycle: delivery?.map((obj) => obj?.cycleNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.cycleNumber)) : 1,
-            deliveries: delivery?.map((obj) => obj?.deliveryNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.deliveryNumber)) : 1,
-          },
-          cycleData: cycleDataRemap(delivery),
+          cycleConfgureDate: draftData?.additionalDetails?.cycleData?.cycleConfgureDate
+            ? draftData?.additionalDetails?.cycleData?.cycleConfgureDate
+            : {
+                cycle: delivery?.map((obj) => obj?.cycleNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.cycleNumber)) : 1,
+                deliveries: delivery?.map((obj) => obj?.deliveryNumber)?.length > 0 ? Math.max(...delivery?.map((obj) => obj?.deliveryNumber)) : 1,
+              },
+          cycleData: draftData?.additionalDetails?.cycleData?.cycleData
+            ? draftData?.additionalDetails?.cycleData?.cycleData
+            : cycleDataRemap(delivery),
         },
       },
       HCM_CAMPAIGN_DELIVERY_DATA: {
@@ -341,15 +346,16 @@ const SetupCampaign = () => {
   const userId = Digit.Hooks.campaign.useGenerateIdCampaign("userWithBoundary", hierarchyType); // to be integrated later
 
   useEffect(() => {
-    if(hierarchyDefinition?.BoundaryHierarchy?.[0]){
-    setDataParams({
-      ...dataParams,
-      facilityId: facilityId,
-      boundaryId: boundaryId,
-      userId: userId,
-      hierarchyType: hierarchyType,
-      hierarchy: hierarchyDefinition?.BoundaryHierarchy?.[0],
-    })}
+    if (hierarchyDefinition?.BoundaryHierarchy?.[0]) {
+      setDataParams({
+        ...dataParams,
+        facilityId: facilityId,
+        boundaryId: boundaryId,
+        userId: userId,
+        hierarchyType: hierarchyType,
+        hierarchy: hierarchyDefinition?.BoundaryHierarchy?.[0],
+      });
+    }
   }, [facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
 
   // Example usage:
@@ -616,6 +622,9 @@ const SetupCampaign = () => {
             beneficiaryType: totalFormData?.HCM_CAMPAIGN_TYPE?.projectType?.beneficiaryType,
             key: currentKey,
           };
+          if (totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure) {
+            payloadData.additionalDetails.cycleData = totalFormData?.HCM_CAMPAIGN_CYCLE_CONFIGURE?.cycleConfigure;
+          }
           if (totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule) {
             const temp = restructureData(totalFormData?.HCM_CAMPAIGN_DELIVERY_DATA?.deliveryRule);
             payloadData.deliveryRules = temp;
@@ -655,18 +664,18 @@ const SetupCampaign = () => {
 
     // Validate cycle and deliveries
     if (cycle <= 0 || deliveries <= 0) {
-      return { error: true, message: "Cycle and deliveries should be greater than 0" };
+      return { error: true, message: "DELIVERY_CYCLE_EMPTY_ERROR" };
     }
 
     // Validate cycleData length
     if (cycleData.length !== cycle) {
-      return { error: true, message: "Cycle data length should be equal to cycle" };
+      return { error: true, message: "DELIVERY_CYCLE_MISMATCH_LENGTH_ERROR" };
     }
 
     // Validate fromDate and startDate in cycleData
     for (const item of cycleData) {
       if (!item.fromDate || !item.toDate) {
-        return { error: true, message: "From date and start date should not be empty in cycle data" };
+        return { error: true, message: "DELIVERY_CYCLE_DATE_ERROR" };
       }
     }
 
