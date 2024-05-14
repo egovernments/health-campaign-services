@@ -81,10 +81,12 @@ public class ServiceConstants {
     public static final String INVALID_PLAN_CONFIG_ID_CODE = "INVALID_PLAN_CONFIG_ID";
     public static final String INVALID_PLAN_CONFIG_ID_MESSAGE = "Plan config id provided is invalid";
 
-    public static final String REQUEST_UUID_EMPTY_CODE = "REQUEST_UUID_EMPTY";
-    public static final String REQUEST_UUID_EMPTY_MESSAGE = "Request UUID is empty";
-    public static final String USER_UUID_MISMATCH_CODE = "USER_UUID_MISMATCH";
-    public static final String USER_UUID_MISMATCH_MESSAGE = "Not Authorized to search with provided useruuid";
+    public static final String METRIC_NOT_FOUND_IN_MDMS_CODE = "METRIC_NOT_FOUND_IN_MDMS";
+    public static final String METRIC_NOT_FOUND_IN_MDMS_MESSAGE = "Metric key not found in MDMS";
+
+    public static final String METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE = "METRIC_UNIT_NOT_FOUND_IN_MDMS";
+    public static final String METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE = "Metric Details' Unit not found in MDMS";
+
     public static final String JSONPATH_ERROR_CODE = "JSONPATH_ERROR";
     public static final String JSONPATH_ERROR_MESSAGE = "Failed to parse mdms response with given Jsonpath" ;
 
@@ -92,7 +94,9 @@ public class ServiceConstants {
     public static final String MDMS_MASTER_ASSUMPTION = "HypothesisAssumptions";
     public static final String MDMS_MASTER_UPLOAD_CONFIGURATION = "UploadConfiguration";
     public static final String MDMS_MASTER_RULE_CONFIGURE_INPUTS = "RuleConfigureInputs";
-    public static final String MDMS_MASTER_SCHEMS = "Schemas";
+    public static final String MDMS_MASTER_SCHEMAS = "Schemas";
+    public static final String MDMS_MASTER_METRIC = "Metric";
+    public static final String MDMS_MASTER_UOM = "Uom";
 
     public static final String MDSM_MASTER_TENANTS = "tenants";
     public static final String MDMS_TENANT_MODULE_NAME = "tenant";

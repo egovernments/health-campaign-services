@@ -164,7 +164,7 @@ public class PlanConfigurationValidator {
                 .map(File.InputFileTypeEnum::toString)
                 .collect(Collectors.toList());
 
-        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMS;
+        final String jsonPathForRuleInputs = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_SCHEMAS;
         List<Object> ruleInputsListFromMDMS = null;
         try {
             log.info(jsonPathForRuleInputs);

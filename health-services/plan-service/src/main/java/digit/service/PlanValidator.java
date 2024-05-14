@@ -1,7 +1,9 @@
 package digit.service;
 
+import com.jayway.jsonpath.JsonPath;
 import digit.repository.PlanConfigurationRepository;
 import digit.repository.PlanRepository;
+import digit.util.MdmsUtil;
 import digit.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,15 @@ import java.util.stream.Collectors;
 
 import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_CODE;
 import static digit.config.ServiceConstants.INVALID_PLAN_CONFIG_ID_MESSAGE;
+import static digit.config.ServiceConstants.JSONPATH_ERROR_CODE;
+import static digit.config.ServiceConstants.JSONPATH_ERROR_MESSAGE;
+import static digit.config.ServiceConstants.MDMS_MASTER_METRIC;
+import static digit.config.ServiceConstants.MDMS_MASTER_UOM;
+import static digit.config.ServiceConstants.MDMS_PLAN_MODULE_NAME;
+import static digit.config.ServiceConstants.METRIC_NOT_FOUND_IN_MDMS_CODE;
+import static digit.config.ServiceConstants.METRIC_NOT_FOUND_IN_MDMS_MESSAGE;
+import static digit.config.ServiceConstants.METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE;
+import static digit.config.ServiceConstants.METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE;
 
 @Component
 public class PlanValidator {
@@ -24,9 +35,12 @@ public class PlanValidator {
 
     private PlanConfigurationRepository planConfigurationRepository;
 
-    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository) {
+    private MdmsUtil mdmsUtil;
+
+    public PlanValidator(PlanRepository planRepository, PlanConfigurationRepository planConfigurationRepository, MdmsUtil mdmsUtil) {
         this.planRepository = planRepository;
         this.planConfigurationRepository = planConfigurationRepository;
+        this.mdmsUtil = mdmsUtil;
     }
 
     /**
@@ -34,6 +48,8 @@ public class PlanValidator {
      * @param request
      */
     public void validatePlanCreate(PlanRequest request) {
+        String rootTenantId = request.getPlan().getTenantId().split("\\.")[0];
+        Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
         // Validate execution plan existence
         validateExecutionPlanExistence(request);
@@ -56,6 +72,11 @@ public class PlanValidator {
         // Validate dependencies
         validateActivityDependencies(request);
 
+        // Validate Target's Metrics against MDMS
+        validateTargetMetrics(request, mdmsData);
+
+        // Validate Metric Detail's Unit against MDMS
+        validateMetricDetailUnit(request, mdmsData);
     }
 
     /**
@@ -313,4 +334,46 @@ public class PlanValidator {
             throw new CustomException("INVALID_PLAN_ID", "Plan id provided is invalid");
         }
     }
+
+    public void validateTargetMetrics(PlanRequest request, Object mdmsData) {
+        Plan plan = request.getPlan();
+        final String jsonPathForMetric = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_METRIC + ".*.code";
+
+        List<Object> metricListFromMDMS = null;
+        System.out.println("Jsonpath -> " + jsonPathForMetric);
+        try {
+            metricListFromMDMS = JsonPath.read(mdmsData, jsonPathForMetric);
+        } catch (Exception e) {
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        for (Target target : plan.getTargets()) {
+            if (!metricListFromMDMS.contains(target.getMetric())) {
+                throw new CustomException(METRIC_NOT_FOUND_IN_MDMS_CODE, METRIC_NOT_FOUND_IN_MDMS_MESSAGE);
+            }
+        }
+    }
+
+    public void validateMetricDetailUnit(PlanRequest request, Object mdmsData) {
+        Plan plan = request.getPlan();
+
+        List<MetricDetail> metricDetails = plan.getTargets().stream()
+                .map(Target::getMetricDetail)
+                .toList();
+
+        List<Object> metricUnitListFromMDMS = null;
+        final String jsonPathForMetricUnit = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UOM + ".*.code";
+        try {
+            metricUnitListFromMDMS = JsonPath.read(mdmsData, jsonPathForMetricUnit);
+        } catch (Exception e) {
+            throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
+        }
+
+        for (MetricDetail metricDetail : metricDetails) {
+            if (!metricUnitListFromMDMS.contains(metricDetail.getMetricUnit())) {
+                throw new CustomException(METRIC_UNIT_NOT_FOUND_IN_MDMS_CODE, METRIC_UNIT_NOT_FOUND_IN_MDMS_MESSAGE);
+            }
+        }
+    }
+
 }
