@@ -324,7 +324,7 @@ async function getNewEntryResponse(request: any) {
 async function getOldEntryResponse(modifiedResponse: any[], request: any) {
   return modifiedResponse.map((item: any) => {
     const newItem = { ...item };
-    newItem.status = "expired";
+    newItem.status = generatedResourceStatuses.expired;
     newItem.auditDetails.lastModifiedTime = Date.now();
     newItem.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
     return newItem;

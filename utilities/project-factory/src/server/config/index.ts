@@ -58,12 +58,12 @@ const config = {
     port: parseInt(process.env.APP_PORT || "8080") || 8080,
     host: HOST,
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
-    logLevel: process.env.APP_LOG_LEVEL || "debug" ,
-    debugLogCharLimit : process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000
+    logLevel: process.env.APP_LOG_LEVEL || "debug",
+    debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000
   },
-  localisation:{
-    defaultLocale:process.env.LOCALE||"en_MZ",
-    boundaryPrefix:"rainmaker-boundary"
+  localisation: {
+    defaultLocale: process.env.LOCALE || "en_MZ",
+    boundaryPrefix: "rainmaker-boundary"
   },
   // Host configuration
   host: {
@@ -110,6 +110,8 @@ const config = {
   },
   // Values configuration
   values: {
+    userMainBoundary: "mz",
+    userMainBoundaryType: "Country",
     parsingTemplate: "HCM.ParsingTemplate",
     transfromTemplate: "HCM.TransformTemplate",
     campaignType: "HCM.HCMTemplate",
