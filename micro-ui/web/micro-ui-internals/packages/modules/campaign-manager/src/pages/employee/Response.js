@@ -32,7 +32,17 @@ const Response = () => {
         whichSvg={`${isResponseSuccess ? "tick" : null}`}
       />
       <Card style={{ border: "none", boxShadow: "none", padding: "0", paddingBottom: "1rem" }}>
-        <div style={{ display: "flex", marginBottom: "0.75rem" }}> {t(state?.text, { CAMPAIGN_ID: campaignId })} </div>
+        <div style={{ display: "flex", marginBottom: "0.75rem" }}>
+          {state?.boldText ? (
+            <p>
+              {t(state?.preText)}
+              <b> {t(state?.boldText)} </b>
+              {t(state?.postText)}
+            </p>
+          ) : (
+            t(state?.text, { CAMPAIGN_ID: campaignId })
+          )}
+        </div>
         {isMobile ? (
           <Link to={state?.actionLink ? state?.actionLink : `/${window.contextPath}/employee/`}>
             <SubmitBar label={state?.actionLabel ? t(state?.actionLabel) : t("ES_CAMPAIGN_RESPONSE_ACTION")} />

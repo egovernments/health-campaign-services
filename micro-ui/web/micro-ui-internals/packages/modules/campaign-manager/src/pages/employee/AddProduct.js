@@ -17,14 +17,12 @@ function AddProduct() {
   const checkValid = (formData) => {
     const target = formData?.["addProduct"];
     let isValid = false;
-    target?.forEach((item) => {
-      if (item?.name && item?.name?.trim()?.length !== 0 && item?.type && item?.variant && item?.variant?.trim()?.length !== 0) {
-        isValid = true;
-      } else {
-        isValid = false;
-      }
-    });
-    return isValid;
+    if (target) {
+      isValid = target?.some((i) => !i.name || !i.type || !i.variant);
+      return !isValid;
+    } else {
+      return isValid;
+    }
   };
   const closeToast = () => {
     setShowToast(null);
@@ -105,7 +103,9 @@ function AddProduct() {
           onSuccess: async (data) => {
             history.push(`/${window.contextPath}/employee/campaign/response?isSuccess=${true}`, {
               message: "ES_PRODUCT_CREATE_SUCCESS_RESPONSE",
-              text: "ES_PRODUCT_CREATE_SUCCESS_RESPONSE_TEXT",
+              preText: "ES_PRODUCT_CREATE_SUCCESS_RESPONSE_PRE_TEXT",
+              boldText: "ES_PRODUCT_CREATE_SUCCESS_RESPONSE_BOLD_TEXT",
+              postText: "ES_PRODUCT_CREATE_SUCCESS_RESPONSE_POST_TEXT",
               actionLabel: "ES_PRODUCT_RESPONSE_ACTION",
               actionLink: `/${window.contextPath}/employee/campaign/setup-campaign${state?.urlParams}`,
             });

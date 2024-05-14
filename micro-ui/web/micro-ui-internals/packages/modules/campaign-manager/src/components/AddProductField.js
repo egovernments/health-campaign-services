@@ -58,7 +58,10 @@ const AddProductField = ({ onSelect }) => {
   return (
     <React.Fragment>
       <Header>{t(`HCM_CAMPAIGN_ADD_NEW_PRODUCT_HEADER`)}</Header>
-      <p className="name-description">{t(`HCM_CAMPAIGN_ADD_NEW_PRODUCT_DESCRIPTION`)}</p>
+      <p className="name-description">
+        {t(`HCM_CAMPAIGN_ADD_NEW_PRODUCT_DESCRIPTION_PRE_TEXT`)} <b> {t(`HCM_CAMPAIGN_ADD_NEW_PRODUCT_DESCRIPTION_BOLD_TEXT`)} </b>
+        {t(`HCM_CAMPAIGN_ADD_NEW_PRODUCT_DESCRIPTION_POST_TEXT`)}
+      </p>
       {productFieldData?.map((field, index) => {
         return (
           <Card className="add-new-product-container">
@@ -92,7 +95,7 @@ const AddProductField = ({ onSelect }) => {
               <TextInput
                 // style={{ maxWidth: "40rem" }}
                 name="name"
-                value={field?.name}
+                value={field?.name || ""}
                 onChange={(event) => handleUpdateField(event.target.value, "name", field.key)}
               />
             </LabelFieldPair>
@@ -120,7 +123,7 @@ const AddProductField = ({ onSelect }) => {
               <TextInput
                 // style={{ maxWidth: "40rem" }}
                 name="variant"
-                value={field?.variant}
+                value={field?.variant || ""}
                 onChange={(event) => handleUpdateField(event.target.value, "variant", field?.key)}
               />
             </LabelFieldPair>
