@@ -48,7 +48,7 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
 
     // Read Excel file into workbook
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
-    const mainSheet = workbook.SheetNames[0];
+    const mainSheet = workbook.SheetNames[1];
     const localizedMainSheet = getLocalizedName(mainSheet, localizationMap)
     if (!workbook.Sheets.hasOwnProperty(mainSheet)) {
         throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedMainSheet}" is not present in the file.`);

@@ -220,14 +220,10 @@ async function updateStatusFileForTargets(request: any, localizationMap?: { [key
     };
 
     const fileUrl = fileResponse?.fileStoreIds?.[0]?.url;
-    const localizedsheetName = getLocalizedName(createAndSearchConfig?.parseArrayConfig?.sheetName, localizationMap);
     const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
     const sheetNames = workbook.SheetNames;
-    // Check if the specified sheet exists in the workbook
-    if (!workbook.Sheets.hasOwnProperty(localizedsheetName)) {
-        throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedsheetName}" is not present in the file.`);
-    }
+  
     sheetNames.forEach(sheetName => {
         processErrorDataForTargets(request, createAndSearchConfig, workbook, sheetName);
     });

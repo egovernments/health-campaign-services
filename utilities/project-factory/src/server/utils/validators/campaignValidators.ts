@@ -367,21 +367,21 @@ async function validateCreateRequest(request: any) {
         }
         if (request?.body?.ResourceDetails?.type == 'boundaryWithTarget') {
             const targetWorkbook: any = await getTargetWorkbook(fileUrl);
-            const mainSheetName = targetWorkbook.SheetNames[0];
-            const sheetData = await getSheetData(fileUrl, mainSheetName, true, undefined, localizationMap);
-            const hierachy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
-            validateForRootElementExists(sheetData, hierachy, mainSheetName);
+            // const mainSheetName = targetWorkbook.SheetNames[1];
+            // const sheetData = await getSheetData(fileUrl, mainSheetName, true, undefined, localizationMap);
+            // const hierachy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+            // validateForRootElementExists(sheetData, hierachy, mainSheetName);
             validateTabsWithTargetInTargetSheet(request, targetWorkbook);
         }
     }
 }
 
 function validateTabsWithTargetInTargetSheet(request: any, targetWorkbook: any) {
-    const sheet = targetWorkbook.Sheets[targetWorkbook.SheetNames[1]];
+    const sheet = targetWorkbook.Sheets[targetWorkbook.SheetNames[2]];
     const expectedHeaders = XLSX.utils.sheet_to_json(sheet, {
         header: 1,
     })[0];
-    for (let i = 1; i < targetWorkbook.SheetNames.length; i++) {
+    for (let i = 2; i < targetWorkbook.SheetNames.length; i++) {
         const sheetName = targetWorkbook?.SheetNames[i];
         const sheet = targetWorkbook?.Sheets[sheetName];
         // Convert the sheet to JSON to extract headers
@@ -888,20 +888,13 @@ async function validateDownloadRequest(request: any) {
 }
 
 function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: any) {
-    const keys = Object.keys(dataFromSheet);
-    if (keys.length > 0) {
-        const boundaryTab = keys[0];
-        if (boundaryTab != getLocalizedName(getBoundaryTabName(), localizationMap)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "INVALID SHEET NAME. SHEET NAME MUST BE BOUNDARY DATA FOR FIRST TAB")
-        }
-    }
     for (const key in dataFromSheet) {
         if (Object.prototype.hasOwnProperty.call(dataFromSheet, key)) {
             const dataArray = (dataFromSheet as { [key: string]: any[] })[key];
             if (dataArray.length === 0) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `The Target Sheet ${key} you have uploaded is empty`)
             }
-            if (key != getLocalizedName(getBoundaryTabName(), localizationMap)) {
+            if (key != getLocalizedName(getBoundaryTabName(),localizationMap) && key!=getLocalizedName(config?.readMeTab,localizationMap)) {
                 const root = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
                 for (const boundaryRow of dataArray) {
                     for (const columns in boundaryRow) {
