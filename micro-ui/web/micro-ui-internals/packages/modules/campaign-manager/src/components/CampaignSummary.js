@@ -35,7 +35,7 @@ function mergeObjects(item) {
   return mergedArr;
 }
 
-function loopAndReturn(dataa) {
+function loopAndReturn(dataa, t) {
   let newArray = [];
   const data = dataa?.map((i) => ({ ...i, operator: i?.operator, attribute: i?.attribute }));
 
@@ -54,7 +54,7 @@ function loopAndReturn(dataa) {
     } else if (item?.operator === "EQUAL_TO") {
       newArray.push({
         ...item,
-        value: item?.value ? item?.value : null,
+        value: item?.value ? t(item?.value) : null,
       });
     } else {
       newArray.push(item);
@@ -76,7 +76,7 @@ function loopAndReturn(dataa) {
   return format;
 }
 
-function reverseDeliveryRemap(data) {
+function reverseDeliveryRemap(data, t) {
   if (!data) return null;
   const reversedData = [];
   let currentCycleIndex = null;
@@ -111,7 +111,7 @@ function reverseDeliveryRemap(data) {
     delivery.deliveryRules.push({
       ruleKey: item.deliveryRuleNumber,
       delivery: {},
-      attributes: loopAndReturn(item.conditions),
+      attributes: loopAndReturn(item.conditions, t),
       products: [...item.products],
     });
   });
@@ -142,7 +142,7 @@ const CampaignSummary = () => {
           }
         });
         const target = data?.[0]?.deliveryRules;
-        const cycleData = reverseDeliveryRemap(target);
+        const cycleData = reverseDeliveryRemap(target, t);
         return {
           cards: [
             {

@@ -558,7 +558,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     params: {
       tenantId: tenantId,
       type: type,
-      hierarchyType: params.hierarchyType,
+      hierarchyType: params?.hierarchyType,
       id: type === "boundary" ? params?.boundaryId : type === "facilityWithBoundary" ? params?.facilityId : params?.userId,
     },
   };
@@ -570,7 +570,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         params: {
           tenantId: tenantId,
           type: type,
-          hierarchyType: params.hierarchyType,
+          hierarchyType: params?.hierarchyType,
           id: type === "boundary" ? params?.boundaryId : type === "facilityWithBoundary" ? params?.facilityId : params?.userId,
         },
       },

@@ -15,17 +15,19 @@ import { mailConfig } from "../configs/mailConfig";
 function SelectingBoundaries({ onSelect, formData, ...props }) {
   const { t } = useTranslation();
   const tenantId = Digit.ULBService.getCurrentTenantId();
-  const [params,setParams] = useState(props?.props?.dataParams);
+  const [params, setParams] = useState(props?.props?.dataParams);
   const [hierarchy, setHierarchy] = useState(params?.hierarchyType);
   // const [hierarchy, setHierarchy] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || {});
   // const [showcomponent, setShowComponent] = useState(
   //   props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.hierarchy || false
   // );
   // const [boundaryType, setBoundaryType] = useState(null);
-  const [boundaryType, setBoundaryType] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData  ? undefined : null);  
+  const [boundaryType, setBoundaryType] = useState(
+    props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData ? undefined : null
+  );
   const [boundaryData, setBoundaryData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData || {});
   // const [parentArray, setParentArray] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData.filter(item => item.includeAllChildren).map(item => item.code) || null);
-  const [parentArray , setParentArray] = useState(null);
+  const [parentArray, setParentArray] = useState(null);
   const [boundaryTypeDataresult, setBoundaryTypeDataresult] = useState(null);
   const [selectedData, setSelectedData] = useState(props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.selectedData || []);
   const [parentBoundaryTypeRoot, setParentBoundaryTypeRoot] = useState(
@@ -37,31 +39,30 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [hierarchyTypeDataresult, setHierarchyTypeDataresult] = useState(params?.hierarchy);
   const [executionCount, setExecutionCount] = useState(0);
   // State variable to store the lowest hierarchy level
-  const [lowestHierarchy , setLowestHierarchy] = useState(null);
+  const [lowestHierarchy, setLowestHierarchy] = useState(null);
 
   useEffect(() => {
-    if(props?.props?.dataParams){
-      setParams(props?.props?.dataParams)
+    if (props?.props?.dataParams) {
+      setParams(props?.props?.dataParams);
     }
-  },[props?.props?.dataParams])
+  }, [props?.props?.dataParams]);
 
   useEffect(() => {
-    onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
-  }, [boundaryData, selectedData ]);
+    onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData });
+  }, [boundaryData, selectedData]);
 
   useEffect(() => {
     setHierarchy(params?.hierarchyType);
-  }, [params?.hierarchyType ]);
+  }, [params?.hierarchyType]);
 
-  
   useEffect(() => {
     setHierarchyTypeDataresult(params?.hierarchy);
-  }, [params?.hierarchy ]);
+  }, [params?.hierarchy]);
 
   useEffect(() => {
     if (executionCount < 5) {
-      onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData});
-      setExecutionCount(prevCount => prevCount + 1);
+      onSelect("boundaryType", { boundaryData: boundaryData, selectedData: selectedData });
+      setExecutionCount((prevCount) => prevCount + 1);
     }
   });
 
@@ -96,22 +97,26 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       if (boundaryWithTypeNullParent) {
         if (!props?.props?.sessionData?.HCM_CAMPAIGN_SELECTING_BOUNDARY_DATA?.boundaryType?.boundaryData || Object.keys(boundaryData).length === 0) {
           setBoundaryType(boundaryWithTypeNullParent?.boundaryType);
-      } 
-          setParentBoundaryTypeRoot(boundaryWithTypeNullParent?.boundaryType);
+        }
+        setParentBoundaryTypeRoot(boundaryWithTypeNullParent?.boundaryType);
       }
       createHierarchyStructure(hierarchyTypeDataresult);
 
-      setLowestHierarchy(hierarchyTypeDataresult?.boundaryHierarchy?.filter(e=>!hierarchyTypeDataresult?.boundaryHierarchy?.find(e1=>e1?.parentBoundaryType==e?.boundaryType)))
-  }
-}, [hierarchyTypeDataresult]);
-
+      setLowestHierarchy(
+        hierarchyTypeDataresult?.boundaryHierarchy?.filter(
+          (e) => !hierarchyTypeDataresult?.boundaryHierarchy?.find((e1) => e1?.parentBoundaryType == e?.boundaryType)
+        )
+      );
+    }
+  }, [hierarchyTypeDataresult]);
 
   function createHierarchyStructure(hierarchyTypeDataresult) {
     const hierarchyStructure = {};
 
     // Recursive function to gather all descendants for a given boundary type
     function gatherDescendants(boundaryType) {
-      const descendants = [];hierarchyTypeDataresult
+      const descendants = [];
+      hierarchyTypeDataresult;
 
       // Find all children for the current boundary type
       const children = hierarchyTypeDataresult?.boundaryHierarchy?.filter((item) => item?.parentBoundaryType === boundaryType);
@@ -135,7 +140,6 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     });
 
     setUpdatedHierarchy(hierarchyStructure);
-
   }
 
   const newData = [];
@@ -239,7 +243,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     // res.forEach((boundary) => {
     //   const index = transformedRes?.findIndex((item) => item?.code === boundary?.code);
     //   if (index !== -1) {
-    //     transformedRes[index].includeAllChildren = true; 
+    //     transformedRes[index].includeAllChildren = true;
     //   }
     //   // Find the parent boundary type using the hierarchy data
     //   const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)
@@ -259,7 +263,6 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
     //     });
     //   }
     // });
-
 
     const newBoundaryType = transformedRes?.[0]?.type;
     const existingBoundaryType = selectedData?.length > 0 ? selectedData?.[0]?.type : null;
