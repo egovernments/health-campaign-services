@@ -1,5 +1,8 @@
 package org.egov.common.models.core;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import lombok.AccessLevel;
@@ -10,12 +13,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @ApiModel(description = "Representation of SearchResponse.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-11-03T14:18:01.406+05:30")
 
 @Data
 @NoArgsConstructor
