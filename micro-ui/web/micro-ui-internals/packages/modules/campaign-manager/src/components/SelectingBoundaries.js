@@ -36,6 +36,8 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
   const [updatedHierarchy, setUpdatedHierarchy] = useState({});
   const [hierarchyTypeDataresult, setHierarchyTypeDataresult] = useState(params?.hierarchy);
   const [executionCount, setExecutionCount] = useState(0);
+  // State variable to store the lowest hierarchy level
+  const [lowestHierarchy , setLowestHierarchy] = useState(null);
 
   useEffect(() => {
     if(props?.props?.dataParams){
@@ -98,6 +100,8 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
           setParentBoundaryTypeRoot(boundaryWithTypeNullParent?.boundaryType);
       }
       createHierarchyStructure(hierarchyTypeDataresult);
+
+      setLowestHierarchy(hierarchyTypeDataresult?.boundaryHierarchy?.filter(e=>!hierarchyTypeDataresult?.boundaryHierarchy?.find(e1=>e1?.parentBoundaryType==e?.boundaryType)))
   }
 }, [hierarchyTypeDataresult]);
 
@@ -228,33 +232,34 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
       code: item.code,
       type: item.type || item.boundaryType,
       isRoot: item.boundaryType === parentBoundaryTypeRoot,
-      includeAllChildren: true,
+      includeAllChildren: item.type === lowestHierarchy?.[0]?.boundaryType,
       parent: item?.parent,
     }));
 
-    res.forEach((boundary) => {
-      const index = transformedRes?.findIndex((item) => item?.code === boundary?.code);
-      if (index !== -1) {
-        transformedRes[index].includeAllChildren = true; 
-      }
-      // Find the parent boundary type using the hierarchy data
-      const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)
-        ?.parentBoundaryType;
+    // res.forEach((boundary) => {
+    //   const index = transformedRes?.findIndex((item) => item?.code === boundary?.code);
+    //   if (index !== -1) {
+    //     transformedRes[index].includeAllChildren = true; 
+    //   }
+    //   // Find the parent boundary type using the hierarchy data
+    //   const parentBoundaryType = hierarchyTypeDataresult?.boundaryHierarchy?.find((e) => e?.boundaryType === boundary?.boundaryType)
+    //     ?.parentBoundaryType;
 
-      // If the selected boundary has a parent, set includeAllChildren to false for the parent
-      if (parentBoundaryType) {
-        const parentIndexes = selectedData?.reduce((acc, item, index) => {
-          if (item?.type === parentBoundaryType) {
-            acc.push(index);
-          }
-          return acc;
-        }, []);
+    //   // If the selected boundary has a parent, set includeAllChildren to false for the parent
+    //   if (parentBoundaryType) {
+    //     const parentIndexes = selectedData?.reduce((acc, item, index) => {
+    //       if (item?.type === parentBoundaryType) {
+    //         acc.push(index);
+    //       }
+    //       return acc;
+    //     }, []);
 
-        parentIndexes?.forEach((parentIndex) => {
-          selectedData[parentIndex].includeAllChildren = true;
-        });
-      }
-    });
+    //     parentIndexes?.forEach((parentIndex) => {
+    //       selectedData[parentIndex].includeAllChildren = true;
+    //     });
+    //   }
+    // });
+
 
     const newBoundaryType = transformedRes?.[0]?.type;
     const existingBoundaryType = selectedData?.length > 0 ? selectedData?.[0]?.type : null;
