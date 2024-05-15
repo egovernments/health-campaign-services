@@ -28,6 +28,7 @@ export const CONSTANTS: any = {
             CAMPAIGN_NOT_FOUND: "Campaign not found",
             GENERATION_REQUIRE: "First Generate then Download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
+            CAMPAIGN_NAME_ERROR: "Campaign name already exists"
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",

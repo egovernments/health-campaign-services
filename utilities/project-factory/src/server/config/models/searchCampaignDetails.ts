@@ -29,7 +29,7 @@ export const searchCampaignDetailsSchema = {
         },
         "campaignName": {
             "type": "string",
-            "minLength": 2
+            "minLength": 1
         },
         "status": {
             "oneOf": [

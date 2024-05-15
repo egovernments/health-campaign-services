@@ -15,7 +15,7 @@ export const campaignDetailsDraftSchema = {
         "campaignName": {
             "type": "string",
             "maxLength": 250,
-            "minLength": 1
+            "minLength": 2
         },
         "action": {
             "type": "string",
