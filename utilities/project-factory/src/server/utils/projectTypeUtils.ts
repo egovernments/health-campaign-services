@@ -111,7 +111,7 @@ const deliveriesConv = (deliveryObj:any = {}) => {
                             }))
                     ),
                     // cylce conditions hardcoded TODO update logic
-                    conditions: getRequiredCondition(e?.conditions),
+                    condition: getRequiredCondition(e?.conditions),
                 };
             }),
         };
