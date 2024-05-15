@@ -654,24 +654,26 @@ async function validateCampaignName(request: any, actionInUrl: any) {
     if (!tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
     }
-    const searchBody = {
-        RequestInfo: request.body.RequestInfo,
-        CampaignDetails: {
-            tenantId: tenantId,
-            campaignName: campaignName
+    if (campaignName.length >= 2) {
+        const searchBody = {
+            RequestInfo: request.body.RequestInfo,
+            CampaignDetails: {
+                tenantId: tenantId,
+                campaignName: campaignName
+            }
         }
-    }
-    const searchResponse: any = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
-    if (Array.isArray(searchResponse?.CampaignDetails)) {
-        if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "create") {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign name already exists");
+        const searchResponse: any = await httpRequest(config.host.projectFactoryBff + "project-factory/v1/project-type/search", searchBody);
+        if (Array.isArray(searchResponse?.CampaignDetails)) {
+            if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "create") {
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+            }
+            else if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "update" && searchResponse?.CampaignDetails?.[0]?.id != CampaignDetails?.id) {
+                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+            }
         }
-        else if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "update" && searchResponse?.CampaignDetails?.[0]?.id != CampaignDetails?.id) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Campaign name already exists for another campaign");
+        else {
+            throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
         }
-    }
-    else {
-        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
     }
 }
 
@@ -761,9 +763,9 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     if (!(action == "create" || action == "draft")) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "action can only be create or draft");
     }
-    await validateCampaignName(request, actionInUrl);
     if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
+        await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
@@ -774,6 +776,7 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     }
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
+        await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
     }
