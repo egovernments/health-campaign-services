@@ -4,8 +4,10 @@ import digit.config.Configuration;
 
 import digit.util.QueryUtil;
 import digit.web.models.PlanConfigurationSearchCriteria;
+import java.util.LinkedHashSet;
 import java.util.List;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 @Component
@@ -17,7 +19,9 @@ public class PlanConfigQueryBuilder {
         this.config = config;
     }
 
-    private static final String PLAN_CONFIG_BASE_SEARCH_QUERY = "SELECT pc.id as plan_configuration_id, pc.tenant_id as plan_configuration_tenant_id, pc.name as plan_configuration_name, pc.execution_plan_id as plan_configuration_execution_plan_id, pc.status as plan_configuration_status, pc.created_by as plan_configuration_created_by, pc.created_time as plan_configuration_created_time, pc.last_modified_by as plan_configuration_last_modified_by, pc.last_modified_time as plan_configuration_last_modified_time, \n" +
+    private static final String PLAN_CONFIG_SEARCH_BASE_QUERY = "SELECT id FROM plan_configuration pc ";
+
+    private static final String PLAN_CONFIG_QUERY = "SELECT pc.id as plan_configuration_id, pc.tenant_id as plan_configuration_tenant_id, pc.name as plan_configuration_name, pc.execution_plan_id as plan_configuration_execution_plan_id, pc.status as plan_configuration_status, pc.created_by as plan_configuration_created_by, pc.created_time as plan_configuration_created_time, pc.last_modified_by as plan_configuration_last_modified_by, pc.last_modified_time as plan_configuration_last_modified_time, \n" +
             "\t   pcf.id as plan_configuration_files_id, pcf.plan_configuration_id as plan_configuration_files_plan_configuration_id, pcf.filestore_id as plan_configuration_files_filestore_id, pcf.input_file_type as plan_configuration_files_input_file_type, pcf.template_identifier as plan_configuration_files_template_identifier, pcf.created_by as plan_configuration_files_created_by, pcf.created_time as plan_configuration_files_created_time, pcf.last_modified_by as plan_configuration_files_last_modified_by, pcf.last_modified_time as plan_configuration_files_last_modified_time,\n" +
             "\t   pca.id as plan_configuration_assumptions_id, pca.key as plan_configuration_assumptions_key, pca.value as plan_configuration_assumptions_value, pca.plan_configuration_id as plan_configuration_assumptions_plan_configuration_id, pca.created_by as plan_configuration_assumptions_created_by, pca.created_time as plan_configuration_assumptions_created_time, pca.last_modified_by as plan_configuration_assumptions_last_modified_by, pca.last_modified_time as plan_configuration_assumptions_last_modified_time,\n" +
             "\t   pco.id as plan_configuration_operations_id, pco.input as plan_configuration_operations_input, pco.operator as plan_configuration_operations_operator, pco.assumption_value as plan_configuration_operations_assumption_value, pco.output as plan_configuration_operations_output, pco.plan_configuration_id as plan_configuration_operations_plan_configuration_id, pco.created_by as plan_configuration_operations_created_by, pco.created_time as plan_configuration_operations_created_time, pco.last_modified_by as plan_configuration_operations_last_modified_by, pco.last_modified_time as plan_configuration_operations_last_modified_time,\n" +
@@ -30,7 +34,24 @@ public class PlanConfigQueryBuilder {
 
     private static final String PLAN_CONFIG_SEARCH_QUERY_ORDER_BY_CLAUSE = " ORDER BY pc.last_modified_time DESC";
 
-    private static final String PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(DISTINCT pc.id) AS total_count FROM plan_configuration pc ";
+    private static final String PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER = "SELECT COUNT(*) AS total_count FROM ( ";
+
+    public String getPlanConfigQuery(List<String> ids, List<Object> preparedStmtList) {
+        return buildPlanConfigQuery(ids, preparedStmtList);
+    }
+
+    private String buildPlanConfigQuery(List<String> ids, List<Object> preparedStmtList) {
+        StringBuilder builder = new StringBuilder(PLAN_CONFIG_QUERY);
+
+        if (!CollectionUtils.isEmpty(ids)) {
+            QueryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" pc.id IN ( ").append(QueryUtil.createQuery(ids.size())).append(" )");
+            QueryUtil.addToPreparedStatement(preparedStmtList, new LinkedHashSet<>(ids));
+        }
+
+        return builder.toString();
+    }
+
     /**
      * Constructs a SQL query string for searching PlanConfiguration objects based on the provided search criteria.
      * Also adds an ORDER BY clause and handles pagination.
@@ -49,7 +70,6 @@ public class PlanConfigQueryBuilder {
 
     public String getPlanConfigCountQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
         String query = buildPlanConfigSearchQuery(criteria, preparedStmtList, Boolean.TRUE);
-        query = getPaginatedQuery(query, criteria, preparedStmtList);
         return query;
     }
 
@@ -61,7 +81,7 @@ public class PlanConfigQueryBuilder {
      * @return
      */
     private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList, Boolean isCount) {
-        StringBuilder builder = isCount ? new StringBuilder(PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER) : new StringBuilder(PLAN_CONFIG_BASE_SEARCH_QUERY);
+        StringBuilder builder = new StringBuilder(PLAN_CONFIG_SEARCH_BASE_QUERY);
 
         if (criteria.getTenantId() != null) {
             addClauseIfRequired(preparedStmtList, builder);
@@ -97,6 +117,18 @@ public class PlanConfigQueryBuilder {
             addClauseIfRequired(preparedStmtList, builder);
             builder.append(" pc.created_by = ?");
             preparedStmtList.add(criteria.getUserUuid());
+        }
+
+        StringBuilder countQuery = new StringBuilder();
+        if (isCount) {
+            countQuery.append(PLAN_CONFIG_SEARCH_QUERY_COUNT_WRAPPER);
+
+            String baseQueryString = getPaginatedQuery(builder.toString(), criteria, preparedStmtList);
+            countQuery.append(baseQueryString);
+
+            countQuery.append(") AS subquery");
+
+            return countQuery.toString();
         }
 
         return builder.toString();

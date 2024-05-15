@@ -13,7 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SingleColumnRowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 
 @Repository
 @Slf4j
@@ -49,16 +51,22 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
 
     /**
      * Searches for plan configurations based on the provided search criteria.
-     * @param planConfigurationSearchRequest The criteria to use for searching plan configurations.
+     * @param planConfigurationSearchCriteria The criteria to use for searching plan configurations.
      * @return A list of plan configurations that match the search criteria.
      */
     @Override
     public List<PlanConfiguration> search(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
-        String query = planConfigQueryBuilder.getPlanConfigSearchQuery(planConfigurationSearchCriteria, preparedStmtList);
-        log.info("Plan Config query: " + query);
-        log.info("preparedStmtList: " + preparedStmtList);
-        return jdbcTemplate.query(query, preparedStmtList.toArray(), planConfigRowMapper);
+        // Fetch plan ids from database
+        List<String> planConfigIds = queryDatabaseForPlanConfigIds(planConfigurationSearchCriteria);
+
+        // Return empty list back as response if no plan ids are found
+        if(CollectionUtils.isEmpty(planConfigIds)) {
+            return new ArrayList<>();
+        }
+
+        List<PlanConfiguration> planConfigurations = searchPlanConfigsByIds(planConfigIds);
+        return planConfigurations;
     }
 
     /**
@@ -88,4 +96,29 @@ public class PlanConfigurationRepositoryImpl implements PlanConfigurationReposit
     public void update(PlanConfigurationRequest planConfigurationRequest) {
         producer.push(config.getPlanConfigUpdateTopic(), planConfigurationRequest);
     }
+
+    /**
+     * Helper method to query database for plan ids based on the provided search criteria.
+     * @param planConfigurationSearchCriteria
+     * @return
+     */
+    private List<String> queryDatabaseForPlanConfigIds(PlanConfigurationSearchCriteria planConfigurationSearchCriteria) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planConfigQueryBuilder.getPlanConfigSearchQuery(planConfigurationSearchCriteria, preparedStmtList);
+        log.info("Plan Config search query: " + query);
+        return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
+    }
+
+    /**
+     * Helper method to search for plan configs based on the provided plan config ids.
+     * @param planConfigIds
+     * @return
+     */
+    private List<PlanConfiguration> searchPlanConfigsByIds(List<String> planConfigIds) {
+        List<Object> preparedStmtList = new ArrayList<>();
+        String query = planConfigQueryBuilder.getPlanConfigQuery(planConfigIds, preparedStmtList);
+        log.info("Plan Config query: " + query);
+        return jdbcTemplate.query(query, planConfigRowMapper, preparedStmtList.toArray());
+    }
+
 }
