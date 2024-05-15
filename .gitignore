@@ -2,8 +2,7 @@
 accelerators/frontend/micro-ui-internals/node_modules/*
 .idea
 index.lock
-utilities/project-factory/node_modules/*
-utilities/egov-bff/node_modules/*
+health-services/project-factory/node_modules/*
 .idea
 index.lock
 /health-services/stock/stock.iml

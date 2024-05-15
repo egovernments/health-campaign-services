@@ -231,9 +231,9 @@ config:
         dockerfile: micro-ui/web/core/Dockerfile
         image-name: core-ui
 #Utilities
-  - name: "builds/Digit-Frontend/utilities/project-factory"
+  - name: "builds/health-campaign-services/health-services/project-factory"
     build:
-      - work-dir: "utilities/project-factory"
+      - work-dir: "health-services/project-factory"
         image-name: "project-factory"
-      - work-dir: "utilities/project-factory/migration"
+      - work-dir: "health-services/project-factory/migration"
         image-name: "project-factory-db"
