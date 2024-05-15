@@ -15,7 +15,7 @@ const config = {
   facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
   boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
   userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
-  locale: process.env.LOCALE || "en_MZ",
+  locale: process.env.LOCALE || "en_IN",
   localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
   //module name
   moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
@@ -26,7 +26,7 @@ const config = {
   // Default sheet name for boundary data
   // boundarySheetName: process.env.BOUNDARY_MAIN_SHEET_NAME || "Boundary Data",
   // Default criteria for generating different tabs
-  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "Distrito",
+  generateDifferentTabsOnBasisOf: process.env.SPLIT_BOUNDARIES_ON || "ADMIN_DISTRITO",
   // default configurable number of data of boundary type on which generate different tabs
   numberOfBoundaryDataOnWhichWeSplit: process.env.SPLIT_BOUNDARIES_ON_LENGTH || "2",
   // Authentication token
@@ -62,7 +62,7 @@ const config = {
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000
   },
   localisation: {
-    defaultLocale: process.env.LOCALE || "en_MZ",
+    defaultLocale: process.env.LOCALE || "en_IN",
     boundaryPrefix: "rainmaker-boundary"
   },
   // Host configuration
