@@ -703,6 +703,18 @@ const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, get
   }
   return columnsToValidate;
 }
+async function getFiltersFromCampaignSearchResponse(request: any) {
+  const url = config.host.projectFactoryBff + config.paths.projectTypeSearch;
+  const requestInfo = { "RequestInfo": request?.body?.RequestInfo };
+  const campaignDetails = { "CampaignDetails": { tenantId: request?.query?.tenantId, "ids": [request?.query?.campaignId] } }
+  const requestBody = { ...requestInfo, ...campaignDetails };
+  const projectTypeSearchResponse = await httpRequest(url, requestBody);
+  const boundaries = projectTypeSearchResponse?.CampaignDetails?.[0]?.boundaries?.map((ele:any)=>({...ele,boundaryType:ele?.type}));
+  if (!boundaries) {
+    return {Filters: null};
+  }
+  return { Filters: { boundaries: boundaries } };
+}
 
 export {
   enrichCampaign,
@@ -718,5 +730,6 @@ export {
   generateHierarchyList,
   getHierarchy,
   getHeadersOfBoundarySheet,
-  handleResouceDetailsError
+  handleResouceDetailsError,
+  getFiltersFromCampaignSearchResponse
 };

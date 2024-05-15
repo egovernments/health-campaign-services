@@ -27,8 +27,11 @@ export const generateRequestSchema = {
     "forceUpdate": {
       "type": "string",
       "enum": ["true", "false"]
+    },
+    "campaignId": {
+      "type": "string"
     }
   },
-  "required": ["tenantId", "type", "hierarchyType"],
+  "required": ["tenantId", "type", "hierarchyType", "campaignId"],
   "additionalProperties": false
 }

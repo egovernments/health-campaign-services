@@ -15,7 +15,6 @@ const config = {
   facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
   boundaryTab: process.env.BOUNDARY_TAB_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
   userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
-  locale: process.env.LOCALE || "en_IN",
   localizationModule: process.env.LOCALIZATION_MODULE || "rainmaker-hcm-admin-schemas",
   //module name
   moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
@@ -62,7 +61,7 @@ const config = {
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000
   },
   localisation: {
-    defaultLocale: process.env.LOCALE || "en_IN",
+    defaultLocale: process.env.LOCALE || "en_MZ",
     boundaryPrefix: "rainmaker-boundary"
   },
   // Host configuration
@@ -105,8 +104,8 @@ const config = {
     hrmsEmployeeCreate: process.env.EGOV_HRMS_EMPLOYEE_CREATE_PATH || "health-hrms/employees/_create",
     hrmsEmployeeSearch: process.env.EGOV_HRMS_EMPLOYEE_SEARCH_PATH || "health-hrms/employees/_search",
     localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
-    localizationCreate: "localization/messages/v1/_upsert"
-
+    localizationCreate: "localization/messages/v1/_upsert",
+    projectTypeSearch: "project-factory/v1/project-type/search"
   },
   // Values configuration
   values: {
