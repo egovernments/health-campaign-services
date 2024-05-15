@@ -1,18 +1,22 @@
-export const useGenerateIdCampaign = (type ,hierarchyType, filters) => {
+export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId, config = {} }) => {
   const updatedFilters = filters?.map(({ type, ...rest }) => ({
     ...rest,
-    boundaryType: type
-}));
+    boundaryType: type,
+  }));
   const reqCriteria = {
     url: `/project-factory/v1/data/_generate`,
-    changeQueryName :`${type}${hierarchyType}${filters}`,
+    changeQueryName: `${type}${hierarchyType}${filters}`,
     params: {
-      tenantId:  Digit.ULBService.getCurrentTenantId(),
+      tenantId: Digit.ULBService.getCurrentTenantId(),
       type: type,
       forceUpdate: true,
       hierarchyType: hierarchyType,
+      campaignId: campaignId,
     },
-    body: (type === 'boundary' ? (updatedFilters === undefined ? { "Filters": null } : { "Filters": { "boundaries": updatedFilters } }) : {}),
+    body: type === "boundary" ? (updatedFilters === undefined ? { Filters: null } : { Filters: { boundaries: updatedFilters } }) : {},
+    config: {
+      ...config,
+    },
   };
 
   const { data: Data } = Digit.Hooks.useCustomAPIHook(reqCriteria);

@@ -344,9 +344,33 @@ const SetupCampaign = () => {
     setParams({ ...restructureFormData });
   }, [params, draftData, isLoading, projectType]);
 
-  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign("facilityWithBoundary", hierarchyType);
-  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign("boundary", hierarchyType, filteredBoundaryData);
-  const userId = Digit.Hooks.campaign.useGenerateIdCampaign("userWithBoundary", hierarchyType); // to be integrated later
+  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign({
+    type: "facilityWithBoundary",
+    hierarchyType: hierarchyType,
+    campaignId: id,
+    config: {
+      enabled: currentKey === 7,
+    },
+  });
+
+  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign({
+    type: "boundary",
+    hierarchyType: hierarchyType,
+    filters: filteredBoundaryData,
+    campaignId: id,
+    config: {
+      enabled: currentKey === 7,
+    },
+  });
+
+  const userId = Digit.Hooks.campaign.useGenerateIdCampaign({
+    type: "userWithBoundary",
+    hierarchyType: hierarchyType,
+    campaignId: id,
+    config: {
+      enabled: currentKey === 7,
+    },
+  });
 
   useEffect(() => {
     if (hierarchyDefinition?.BoundaryHierarchy?.[0]) {
