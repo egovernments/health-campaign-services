@@ -10,6 +10,7 @@ import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiaryRequest;
 import org.egov.common.models.project.BeneficiaryResponse;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectFacility;
@@ -38,9 +39,6 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -122,20 +120,14 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest,
-                                                                                  ) throws Exception {
-        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(
-    public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest, @NotNull
-    @Min(0)
-    @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit, @NotNull
-                                                                              @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset, @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId, @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince, @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
+    public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest) throws Exception {
         SearchResponse<ProjectBeneficiary> searchResponse = projectBeneficiaryService.search(
                 beneficiarySearchRequest,
-                searchCriteria.getLimit(),
-                searchCriteria.getOffset(),
-                searchCriteria.getTenantId(),
-                searchCriteria.getLastChangedSince(),
-                searchCriteria.getIncludeDeleted()
+                beneficiarySearchRequest.getProjectBeneficiary().getLimit(),
+                beneficiarySearchRequest.getProjectBeneficiary().getOffset(),
+                beneficiarySearchRequest.getProjectBeneficiary().getTenantId(),
+                beneficiarySearchRequest.getProjectBeneficiary().getLastChangedSince(),
+                beneficiarySearchRequest.getProjectBeneficiary().getIncludeDeleted()
         );
         BeneficiaryBulkResponse beneficiaryResponse = BeneficiaryBulkResponse.builder()
                 .projectBeneficiaries(searchResponse.getResponse())

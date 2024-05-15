@@ -6,7 +6,7 @@ import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.project.helper.ProjectBeneficiaryTestBuilder;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.project.web.models.ProjectBeneficiarySearch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

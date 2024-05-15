@@ -23,7 +23,7 @@ import org.egov.project.validator.beneficiary.PbUniqueEntityValidator;
 import org.egov.project.validator.beneficiary.PbUniqueTagsValidator;
 import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForCreateValidator;
 import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForUpdateValidator;
-import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
