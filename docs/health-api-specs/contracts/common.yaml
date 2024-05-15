@@ -1,0 +1,317 @@
+swagger: "2.0"
+info:
+  title: Title
+  description: Title
+  version: 1.0.0
+host: www
+schemes:
+  - https
+paths:
+  /dummy:
+    post:
+      summary: >-
+        Dummy
+      description: >-
+        Dummy
+      parameters:
+        - name: Dummy
+          in: body
+          description: Dummy
+          required: true
+          schema:
+            type: string
+      tags:
+        - Dummy
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            type: string
+        '400':
+          description: Bad Request
+          schema:
+            type: string
+
+parameters:
+  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  echoResource:
+    name: echoResource
+    in: query
+    type: boolean
+    required: false
+    default: true
+    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
+
+  serverHandlesErrors:
+    name: serverHandlesErrors
+    in: query
+    type: boolean
+    required: false
+    default: false
+    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
+
+  limit:
+    name: limit
+    description: Pagination - limit records in response
+    in: query
+    type: integer
+    minimum: 0
+    maximum: 1000 #TODO review
+    required: true
+
+  offset:
+    name: offset
+    description: Pagination - offset from which records should be returned in response
+    in: query
+    type: integer
+    minimum: 0
+    required: true
+
+  includeDeleted:
+    name: includeDeleted
+    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+definitions:
+  id:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Unique system generated GUID
+    readOnly: True
+
+  idForSearch:
+    type: array
+    items:
+      type: string
+      minLength: 2
+      maxLength: 64
+      description: Unique system generated GUID
+
+  clientReferenceIdForSearch:
+    type: array
+    items:
+      type: string
+      minLength: 2
+      maxLength: 64
+      description: Unique client generated GUID
+
+  clientReferenceId:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Unique client generated GUID
+
+  gender:
+    type: string
+    example: 'MALE'
+    enum:
+      - MALE
+      - FEMALE
+      - OTHER
+
+  dateYYYYMMDD:
+    type: string
+    example: 'YYYYMMDD'
+    maxLength: 6
+
+  dateDDMMYYYY:
+    type: string
+    format: date
+    example: '14/10/2022'
+
+  boundaryCode:
+    description: Reference to boundary code.
+    type: string
+    format: varchar
+    minLength: 0
+    maxLength: 64
+
+  tenantId:
+    type: string
+    minLength: 2
+    maxLength: 1000
+    description: Unique tenant of the system
+    example: 'tenantA'
+
+  eventTimestamp:
+    type: integer
+    format: int64
+    example: 1663218161
+
+  isDeleted:
+    type: boolean
+    description: Flag to indicate if record is soft deleted
+    readOnly: true
+
+  rowVersion:
+    type: integer
+    format: int64
+    description: Field to indicate the version of the row that the client used as a base to perform an update operation. This is to validate and maintain the sequence of updates.
+
+  apiOperation:
+    type: string
+    description: Specify the type of operation being performed i.e. CREATE, UPDATE or DELETE
+    example: 'CREATE'
+    enum:
+      - CREATE
+      - UPDATE
+      - DELETE
+
+  AuditDetails:
+    type: object
+    properties:
+      createdBy:
+        type: string
+        description: Id of the user who created the record.
+      createdDate:
+        type: integer
+        format: int64
+        description: Epoch Date on which the user master data was added into the system.
+      lastModifiedBy:
+        type: string
+        description: Id of the user who last modified the record.
+      lastModifiedDate:
+        type: integer
+        format: int64
+        description: Epoch Date on which the user master data was last modified.
+
+  additionalFields:
+    type: object
+    properties:
+      schema:
+        type: string
+        example: 'HOUSEHOLD'
+        minLength: 2
+        maxLength: 64
+      version:
+        type: integer
+        example: 2
+        minimum: 1
+      fields:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/Field'
+
+  Field:
+    type: object
+    required:
+      - key
+      - value
+    properties:
+      key:
+        type: string
+        example: height
+        minLength: 2
+        maxLength: 64
+      value:
+        type: string
+        example: 180
+        minLength: 2
+        maxLength: 10000
+
+  Address:
+    type: object
+    description: |
+      Representation of a address. Individual APIs may choose to extend from this using allOf if more details needed to be added in their case.
+    properties:
+      id:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: Unique system generated GUID
+        readOnly: true
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      doorNo:
+        type: string
+        minLength: 2
+        maxLength: 64
+        description: House number or door number
+      latitude:
+        type: number
+        format: double
+        minimum: -90
+        maximum: 90
+        description: Latitude of the address
+      longitude:
+        type: number
+        format: double
+        minimum: -180
+        maximum: 180
+        description: Longitude of the address
+      locationAccuracy:
+        type: number
+        format: double
+        minimum: 0
+        maximum: 10000
+        description: Accuracy of the address latitude and longitude in meters
+      type:
+        type: string
+        description: Type of address.
+        items:
+          type: string
+          enum:
+            - PERMANENT
+            - CORRESPONDENCE
+            - OTHER
+      addressLine1:
+        description: Apartment, Block, Street of the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      addressLine2:
+        description: Locality, Area, Zone, Ward of the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      landmark:
+        description: Additional landmark to help locate the address
+        type: string
+        minLength: 2
+        maxLength: 256
+      city:
+        description: City of the address. Can be represented by the tenantid itself
+        type: string
+        minLength: 2
+        maxLength: 256
+      pincode:
+        type: string
+        description: PIN code of the address. Indian pincodes will usually be all numbers.
+        minLength: 2
+        maxLength: 64
+      buildingName:
+        type: string
+        description: Name of the building
+        minLength: 2
+        maxLength: 256
+      street:
+        type: string
+        description: Street Name
+        minLength: 2
+        maxLength: 256
+      locality:
+        $ref: 'https://raw.githubusercontent.com/egovernments/egov-services/master/docs/egov-location/contracts/v11-0-0.yml#/definitions/Boundary'
+      ward:
+        $ref: 'https://raw.githubusercontent.com/egovernments/egov-services/master/docs/egov-location/contracts/v11-0-0.yml#/definitions/Boundary'

@@ -1,0 +1,33 @@
+@startuml HouseHold Create
+
+actor Actor
+participant Application as client
+participant "HouseHold Page" as household
+participant Bloc
+participant Repository as repository
+participant Individual as individual_service
+participant Project as project_service
+participant Household as household_service
+
+Actor -> client: onInit
+group  Added New HouseHold
+    autoactivate on
+
+    client -> household: Client Pushes View HouseHold Page
+    hnote over Bloc :  Registration Bloc.
+    household -> Bloc: Oninit() trigger a function to fetch additional fields.
+    Bloc -> client :  get the stored schema data (Additional Fields) + Project details.
+    client --> household: Additional Fields + Project details.
+    household -> Bloc: Enter all the required field details and submit.
+    Bloc -> repository : passing the tenant id and fields
+    hnote over repository : Household Repository.
+    repository -> household_service : (/household/v1/_create) by passing all the field details.
+    household_service --> repository :  household details as response.
+    repository -> project_service: (/project/beneficiary/v1/_create) create a beneficiary by passing the household details.
+    project_service --> repository :  beneficiary details as response.
+    repository --> Bloc : (HH + Project Beneficiary) details.
+    Bloc --> household : Navigate user to individual page.
+
+    autoactivate off
+end
+@enduml

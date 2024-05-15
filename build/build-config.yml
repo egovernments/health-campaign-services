@@ -17,6 +17,182 @@
 # -
 # -
 config:
+  # libraries
+  - name: "builds/health-campaign-services/health-services/libraries/health-services-common"
+    build:
+      - work-dir: "health-services/libraries/health-services-common"
+        image-name: "health-services-common"
+  - name: "builds/health-campaign-services/health-services/product"
+    build:
+      - work-dir: "health-services/product"
+        image-name: "product"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/product/src/main/resources/db"
+        image-name: "product-db"
+  - name: "builds/health-campaign-services/health-services/project"
+    build:
+      - work-dir: "health-services/project"
+        image-name: "project"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/project/src/main/resources/db"
+        image-name: "project-db"
+  - name: "builds/health-campaign-services/health-services/health-project"
+    build:
+      - work-dir: "health-services/project"
+        image-name: "health-project"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/project/src/main/resources/db"
+        image-name: "health-project-db"
+  - name: "builds/health-campaign-services/health-services/referralmanagement"
+    build:
+      - work-dir: "health-services/referralmanagement"
+        image-name: "referralmanagement"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/referralmanagement/src/main/resources/db"
+        image-name: "referralmanagement-db"
+  - name: "builds/health-campaign-services/health-services/household"
+    build:
+      - work-dir: "health-services/household"
+        image-name: "household"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/household/src/main/resources/db"
+        image-name: "household-db"
+  - name: "builds/health-campaign-services/health-services/household-java-17"
+    build:
+      - work-dir: "health-services/household"
+        image-name: "household"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/household/src/main/resources/db"
+        image-name: "household-db"
+  - name: "builds/health-campaign-services/health-services/individual"
+    build:
+      - work-dir: "health-services/individual"
+        image-name: "individual"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/individual/src/main/resources/db"
+        image-name: "individual-db"
+  - name: "builds/health-campaign-services/health-services/health-individual"
+    build:
+      - work-dir: "health-services/individual"
+        image-name: "health-individual"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/individual/src/main/resources/db"
+        image-name: "health-individual-db"
+  - name: "builds/health-campaign-services/health-services/health-attendance"
+    build:
+      - work-dir: "health-services/attendance"
+        image-name: "health-attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/attendance/src/main/resources/db"
+        image-name: "health-attendance-db"
+  - name: "builds/health-campaign-services/core-services/error-handler"
+    build:
+      - work-dir: "core-services/error-handler"
+        image-name: "error-handler"
+        dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/core-services/dashboard-analytics"
+    build:
+      - work-dir: "core-services/dashboard-analytics"
+        image-name: "dashboard-analytics"
+        dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/health-services/stock"
+    build:
+      - work-dir: "health-services/stock"
+        image-name: "stock"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/stock/src/main/resources/db"
+        image-name: "stock-db"
+  - name: "builds/health-campaign-services/core-services/egov-survey-services"
+    build:
+      - work-dir: "core-services/egov-survey-services"
+        image-name: "egov-survey-services"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/egov-survey-services/src/main/resources/db"
+        image-name: "egov-survey-services-db"
+  - name: "builds/health-campaign-services/health-services/facility"
+    build:
+      - work-dir: "health-services/facility"
+        image-name: "facility"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "health-services/facility/src/main/resources/db"
+        image-name: "facility-db"
+  - name: "builds/health-campaign-services/health-services/transformer"
+    build:
+      - work-dir: "health-services/transformer"
+        image-name: "transformer"
+        dockerfile: "build/maven/Dockerfile"
+  - name: "builds/health-campaign-services/core-services/service-request"
+    build:
+      - work-dir: "core-services/service-request"
+        image-name: "service-request"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/service-request/src/main/resources/db"
+        image-name: "service-request-db"
+  - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
+    build:
+      - work-dir: "health-services/libraries/health-services-models"
+        image-name: "health-services-models"
+  - name: "builds/health-campaign-services/core-services/pgr-services"
+    build:
+      - work-dir: "core-services/pgr-services"
+        image-name: "pgr-services"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/pgr-services/src/main/resources/db"
+        image-name: "pgr-services-db"
+  - name: "builds/health-campaign-services/core-services/health-pgr-services"
+    build:
+      - work-dir: "core-services/pgr-services"
+        image-name: "health-pgr-services"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/pgr-services/src/main/resources/db"
+        image-name: "health-pgr-services-db"
+  - name: "builds/health-campaign-services/core-services/user-otp"
+    build:
+      - work-dir: "core-services/user-otp"
+        image-name: "user-otp"
+  - name: "builds/health-campaign-services/core-services/egov-notification-mail"
+    build:
+      - work-dir: "core-services/egov-notification-mail"
+        image-name: "egov-notification-mail"
+  - name: "builds/health-campaign-services/core-services/attendance"
+    build:
+      - work-dir: "core-services/attendance"
+        image-name: "attendance"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/attendance/src/main/resources/db"
+        image-name: "attendance-db"
+  - name: "builds/health-campaign-services/core-services/health-hrms"
+    build:
+      - work-dir: "core-services/egov-hrms"
+        image-name: "health-hrms"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/egov-hrms/src/main/resources/db"
+        image-name: "health-hrms-db"
+  - name: "builds/health-campaign-services/core-services/egov-hrms"
+    build:
+      - work-dir: "core-services/egov-hrms"
+        image-name: "egov-hrms"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/egov-hrms/src/main/resources/db"
+        image-name: "egov-hrms-db"
+  - name: "builds/health-campaign-services/health-services/plan-service"
+    build:
+      - work-dir: "health-services/plan-service"
+        image-name: "plan-service"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/plan-service/src/main/resources/db"
+        image-name: "plan-service-db"
+  - name: "builds/health-campaign-services/health-services/resource-estimation-service"
+    build:
+      - work-dir: "health-services/resource-estimation-service"
+        image-name: "resource-estimation-service"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/resource-estimation-service/src/main/resources/db"
+        image-name: "resource-estimation-service-db"
+  - name: "builds/health-campaign-services/analytics/auth-proxy"
+    build:
+      - work-dir: "analytics/auth-proxy"
+        image-name: "auth-proxy"
 
 # frontend
   - name: builds/Digit-Frontend/workbench-ui
@@ -54,8 +230,8 @@ config:
       - work-dir: micro-ui/
         dockerfile: micro-ui/web/core/Dockerfile
         image-name: core-ui
-
-  - name: "builds/Digit-Frontend/utilities/egov-bff"
+#Utilities
+  - name: "builds/Digit-Frontend/utilities/project-factory"
     build:
       - work-dir: "utilities/project-factory"
         image-name: "project-factory"

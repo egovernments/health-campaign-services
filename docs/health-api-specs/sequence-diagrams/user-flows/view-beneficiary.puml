@@ -1,0 +1,53 @@
+@startuml Beneficiary Search
+
+actor Actor
+participant Application as client
+participant "Beneficiary Page" as beneficiary
+participant Bloc
+participant Repository as repository
+participant Individual as individual_service
+participant Household as household_service
+
+Actor -> client: onInit
+group  View Beneficiary
+
+    autoactivate on
+
+
+    client -> beneficiary: Client Pushes View Beneficiary Page
+    hnote over Bloc : Beneficiary Bloc.
+    beneficiary -> Bloc : On entering the name and submit.
+    Bloc -> repository : passing the Boundary code and name
+    hnote over repository : Beneficiary Repository.
+
+alt project_type=household
+    repository -> individual_service : (/individual/v1/_search)  with Boundary code and name
+    return List of individuals.
+
+    repository -> household_service : (/household/v1/_search) pass the householdId and get all the household details.
+    return render household details to ui
+
+    repository -> household_service : (/household/member/v1/_search) pass the householdId and get all the household members.
+    return All household members
+
+    repository --> Bloc: Household members
+    Bloc --> beneficiary:  Render UI Members
+end
+
+alt project_type=individual 
+ repository -> individual_service : (/individual/v1/_search)  with Boundary code and name and filter if the beneficiary belows.
+    return List of individuals.
+        repository -> household_service: (/household/member/v1/_search) Pass each individual id and Boundary code to fetch household members and filter with beneficiary ids (Household Id).
+    return get household member as response and make next api call by passing householdId.
+      repository -> household_service : (/household/v1/_search) pass the householdId and get all the household details.
+    return render household details to ui
+
+    repository -> household_service : (/household/member/v1/_search) pass the householdId and get all the household members.
+    return All household members
+
+    repository --> Bloc: Household members
+    Bloc --> beneficiary:  Render UI Members
+
+    autoactivate off
+end
+@enduml

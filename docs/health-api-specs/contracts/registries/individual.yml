@@ -1,0 +1,591 @@
+swagger: '2.0'
+info:
+  version: 1.0.0
+  title: Individual Registry
+  description: >
+    This module facilitates maintenance of an Individual registry.
+  contact:
+    name: Digit
+    email: info@egovernments.org
+schemes:
+  - https
+x-common-path: >-
+  https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-0-0.yml
+paths:
+  /individual/v1/_create:
+    post:
+      summary: >-
+        Create/Add a new Individual
+      description: >-
+        Create a new Individual
+      parameters:
+        - name: Individual
+          in: body
+          description: Capture details of Individual.
+          required: true
+          schema:
+            $ref: '#/definitions/IndividualRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Individual
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/IndividualResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /individual/v1/bulk/_create:
+    post:
+      summary: >-
+        Create/Add Individuals
+      description: >-
+        Create a new Individuals
+      parameters:
+        - name: Individual
+          in: body
+          description: Capture details of Individual.
+          required: true
+          schema:
+            $ref: '#/definitions/IndividualBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Individual
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/IndividualBulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /individual/v1/_update:
+    post:
+      summary: >-
+        Update the details of a existing Individual
+      description: >-
+        Update the details of a existing Individual
+      parameters:
+        - name: Individual
+          in: body
+          description: Details for the Individual.
+          required: true
+          schema:
+            $ref: '#/definitions/IndividualRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Individual
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/IndividualResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /individual/v1/bulk/_update:
+    post:
+      summary: >-
+        Update the details of existing Individuals
+      description: >-
+        Update the details of existing Individuals
+      parameters:
+        - name: Individual
+          in: body
+          description: Details for the Individual.
+          required: true
+          schema:
+            $ref: '#/definitions/IndividualBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Individual
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/IndividualBulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /individual/v1/_delete:
+    post:
+      summary: >-
+        Soft delete the details of a existing Individual and nested entities
+      description: >-
+        Soft delete the details of a existing Individual and nested entities
+      parameters:
+        - name: Individual
+          in: body
+          description: Details for the Individual.
+          required: true
+          schema:
+            $ref: '#/definitions/IndividualRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Individual
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/IndividualResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /individual/v1/bulk/_delete:
+    post:
+      summary: >-
+        Soft delete the details of a existing Individual and nested entities in bulk
+      description: >-
+        Soft delete the details of a existing Individual and nested entities in bulk
+      parameters:
+        - name: Individual
+          in: body
+          description: Details for the Individual.
+          required: true
+          schema:
+            $ref: '#/definitions/IndividualBulkRequest'
+        - $ref: '#/parameters/echoResource'
+      tags:
+        - Individual
+      responses:
+        '202':
+          description: Accepted
+          schema:
+            $ref: '#/definitions/IndividualBulkResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+  /individual/v1/_search:
+    post:
+      summary: >-
+        Search existing Individual
+      description: >-
+        Search existing Individual
+      parameters:
+        - name: Individual
+          in: body
+          description: Individual details.
+          required: true
+          schema:
+            $ref: '#/definitions/IndividualSearchRequest'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - $ref: '#/parameters/tenantId'
+        - $ref: '#/parameters/lastChangedSince'
+        - $ref: '#/parameters/includeDeleted'
+      tags:
+        - Individual
+      responses:
+        '200':
+          description: Ok
+          schema:
+            $ref: '#/definitions/IndividualBulkSearchResponse'
+        '400':
+          description: Bad Request
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+        '500':
+          description: Internal Server Error
+          schema:
+            $ref: >-
+              https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ErrorRes
+
+parameters:
+  #TODO is tenantId required as a query param if it can be determine from requestInfo->userInfo
+  tenantId:
+    name: tenantId
+    in: query
+    description: Unique id for a tenant.
+    required: true
+    type: string
+    format: varchar
+
+  lastChangedSince:
+    name: lastChangedSince
+    description: |
+      epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform.
+    in: query
+    required: false
+    type: integer
+    format: int64
+
+  echoResource:
+    name: echoResource
+    in: query
+    type: boolean
+    required: false
+    default: true
+    description: Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.
+
+  serverHandlesErrors:
+    name: serverHandlesErrors
+    in: query
+    type: boolean
+    required: false
+    default: false
+    description: Client can specify that it is incapable of handling any errors with the requests and server should route these for manual intervention if required.
+
+  limit:
+    name: limit
+    description: Pagination - limit records in response
+    in: query
+    type: integer
+    minimum: 0
+    maximum: 1000
+    required: true
+
+  offset:
+    name: offset
+    description: Pagination - offset from which records should be returned in response
+    in: query
+    type: integer
+    minimum: 0
+    required: true
+
+  includeDeleted:
+    name: includeDeleted
+    description: Used in search APIs to specify if (soft) deleted records should be included in search results.
+    in: query
+    type: boolean
+    default: false
+    required: false
+
+definitions:
+  boundaryCode:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/boundaryCode'
+  id:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/id'
+  idForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/idForSearch'
+  clientReferenceIdForSearch:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceIdForSearch'
+  clientReferenceId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/clientReferenceId'
+  gender:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/gender'
+  dateOfBirth:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/dateDDMMYYYY'
+  tenantId:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/tenantId'
+  eventTimestamp:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/eventTimestamp'
+  isDeleted:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/isDeleted'
+  rowVersion:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/rowVersion'
+  apiOperation:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/apiOperation'
+  additionalFields:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/additionalFields'
+  Address:
+    $ref: 'https://raw.githubusercontent.com/digit-egov/health-api-specs/main/contracts/common.yaml#/definitions/Address'
+  name:
+    type: object
+    properties:
+      givenName:
+        type: string
+        minLength: 2
+        maxLength: 200
+        description: Given name of individual
+      familyName:
+        type: string
+        minLength: 2
+        maxLength: 200
+        description: Family name of individual
+      otherNames:
+        type: string
+        minLength: 0
+        maxLength: 200
+        description: Other names of individual
+  individualId:
+    type: string
+    minLength: 2
+    maxLength: 64
+    description: Formatted id
+  Individual:
+    description: A representation of an Individual.
+    type: object
+    required:
+      - name
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      individualId:
+        $ref: '#/definitions/individualId'
+      tenantId:
+        $ref: '#/definitions/tenantId'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceId'
+      userId: #reference to user service id for this individual
+        $ref: '#/definitions/id'
+      name:
+        $ref: '#/definitions/name'
+      dateOfBirth:
+        $ref: '#/definitions/dateOfBirth'
+      gender:
+        $ref: '#/definitions/gender'
+      bloodGroup:
+        type: string
+        description: Blood group of the user.
+        maxLength: 3
+        items:
+          type: string
+          enum:
+            - A+
+            - B+
+            - O+
+            - AB+
+            - A-
+            - B-
+            - AB-
+            - O-
+          example: AB+
+      mobileNumber:
+        type: string
+        description: Mobile number of the user
+        maxLength: 20
+      altContactNumber:
+        type: string
+        description: Alternate contact number of the user
+        maxLength: 16
+      email:
+        type: string
+        format: email
+        minLength: 5
+        maxLength: 200
+      address:
+        type: array
+        items:
+          $ref: '#/definitions/Address'
+      fatherName:
+        type: string
+        description: Individual's father's name - if available
+        maxLength: 100
+      husbandName:
+        type: string
+        description: Individual's husband's name - if applicable
+        maxLength: 100
+      relationship:
+        type: string
+        description: Relationship - if guardian
+        maxLength: 100
+      identifiers:
+        type: array
+        items:
+          $ref: '#/definitions/Identifier'
+      skills:
+        type: array
+        items:
+          $ref: '#/definitions/Skill'
+      photo:
+        type: string
+        description : Filestore service uuid holding individual's photograph
+      additionalFields:
+        $ref: '#/definitions/additionalFields'
+      isDeleted:
+        $ref: '#/definitions/isDeleted'
+      isSystemUser:
+        type: boolean
+        description: Flag to indicate if the individual should be registered with Egov-user service
+        readOnly: true
+      rowVersion:
+        $ref: '#/definitions/rowVersion'
+      auditDetails:
+        $ref: 'https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/AuditDetails'
+
+  IndividualSearch:
+    description: A representation of an Individual.
+    type: object
+    properties:
+      individualId:
+        $ref: '#/definitions/individualId'
+      id:
+        $ref: '#/definitions/idForSearch'
+      clientReferenceId:
+        $ref: '#/definitions/clientReferenceIdForSearch'
+      name:
+        $ref: '#/definitions/name'
+      dateOfBirth:
+        $ref: '#/definitions/dateOfBirth'
+      gender:
+        $ref: '#/definitions/gender'
+      mobileNumber:
+        type: string
+        description: Mobile number of the user
+        maxLength: 20
+      socialCategory:
+        type: string
+        description: Social category of the user
+      identifier:
+        $ref: '#/definitions/Identifier'
+      boundaryCode:
+        $ref: '#/definitions/boundaryCode'
+      wardCode:
+        $ref: '#/definitions/boundaryCode'
+      createdFrom:
+        type: number
+      createdTo:
+        type: number
+
+  Identifier:
+    type: object
+    required:
+      - type
+      - id
+    properties:
+      identifierType:
+        type: string
+        example: 'SYSTEM_GENERATED'
+        minLength: 2
+        maxLength: 64
+      identifierId:
+        type: string
+        example: 'ABCD-1212'
+        minLength: 2
+        maxLength: 64
+
+  IndividualRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Individual:
+        type: object
+        $ref: '#/definitions/Individual'
+    required:
+      - RequestInfo
+      - Individual
+
+  IndividualBulkRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Individuals:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/Individual'
+    required:
+      - RequestInfo
+      - Individual
+
+  IndividualSearchRequest:
+    type: object
+    properties:
+      RequestInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/RequestInfo
+      Individual:
+        $ref: '#/definitions/IndividualSearch'
+    required:
+      - RequestInfo
+      - Individual
+
+  IndividualResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Individual:
+        type: object
+        $ref: '#/definitions/Individual'
+    required:
+      - ResponseInfo
+
+  IndividualBulkResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+    required:
+      - ResponseInfo
+
+  IndividualBulkSearchResponse:
+    type: object
+    properties:
+      ResponseInfo:
+        $ref: >-
+          https://raw.githubusercontent.com/egovernments/egov-services/master/docs/common/contracts/v1-1-1.yml#/definitions/ResponseInfo
+      Individuals:
+        type: array
+        items:
+          $ref: '#/definitions/Individual'
+    required:
+      - ResponseInfo
+
+  Skill:
+    type: object
+    required: [type]
+    properties:
+      id:
+        $ref: '#/definitions/id'
+      type:
+        type: string
+        description: skill type of the individual
+        minLength: 2
+        maxLength: 64
+      level:
+        type: string
+        description: skill level of the individual
+        minLength: 2
+        maxLength: 64
+      experience:
+        type: string
+        description: experience of the individual
+        minLength: 2
+        maxLength: 64

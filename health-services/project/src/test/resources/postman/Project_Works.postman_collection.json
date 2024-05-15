@@ -1,0 +1,2641 @@
+{
+	"info": {
+		"_postman_id": "2eb63b9a-69ce-45dd-8f20-348d25e506de",
+		"name": "Project Management System - Health Postman Test Suite Copy",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create Project - Success - Single Project",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"RequestInfo is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"}",
+							");",
+							"",
+							"pm.test(\"Projects are required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects).to.not.be.undefined;",
+							"    pm.expect(req.Projects).to.not.be.null;",
+							"}",
+							");",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    pm.expect(project.tenantId).to.be.not.null;",
+							"    pm.expect(project.tenantId).to.be.not.undefined;",
+							"    pm.expect(project.tenantId).not.to.eql(\"\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Start date should be less than end date\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    if (Number.isFinite(project.endDate) && (project.endDate != undefined || project.endDate != null)) {",
+							"        pm.expect(project.endDate).to.be.not.below(project.startDate);",
+							"    }",
+							"}",
+							");",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"Project Number is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var projectNumber = res.Project[0].projectNumber;",
+							"    pm.expect(projectNumber.substring(0, 2)).to.eql(\"PJ\");",
+							"}",
+							");",
+							"",
+							"let responseData = pm.response.json();",
+							"pm.collectionVariables.set(\"tenantId\", responseData.Project[0].tenantId);",
+							"pm.collectionVariables.set(\"stateLevelTenant\", responseData.Project[0].tenantId.split('.', 1)[0]);",
+							"",
+							"pm.collectionVariables.set(\"projectId\", responseData.Project[0].id);",
+							"pm.collectionVariables.set(\"projectNumber\", responseData.Project[0].projectNumber);",
+							"",
+							"pm.collectionVariables.set(\"lastChangedSince\", (responseData.Project[0].auditDetails.createdTime));",
+							"pm.collectionVariables.set(\"lastChangedSinceIncreased\", (responseData.Project[0].auditDetails.createdTime + 10000000));",
+							"",
+							"pm.collectionVariables.set(\"addressId\", responseData.Project[0].address.id);",
+							"pm.collectionVariables.set(\"targetId\", responseData.Project[0].targets[0].id);",
+							"pm.collectionVariables.set(\"documentId\", responseData.Project[0].documents[0].id);",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"pm.collectionVariables.set(\"tenantId\", \"pg.citya\");",
+							"pm.collectionVariables.set(\"tenantId2\", \"pg.cityb\");",
+							"",
+							"pm.collectionVariables.set(\"natureOfWork\", \"Capital\");",
+							"pm.collectionVariables.set(\"department\", \"WRK\");",
+							"pm.collectionVariables.set(\"boundaryType\", \"Ward\");",
+							"pm.collectionVariables.set(\"boundary\", \"B1\");",
+							"pm.collectionVariables.set(\"projectType\", \"MP-CWS\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [\n    {\n      \"tenantId\": \"{{tenantId}}\",\n      \"name\": \"project1\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"tenantId\": \"{{tenantId}}\",\n            \"documentType\": \"Document1\",\n            \"fileStoreId\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    }\n  ],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Project - Success - Multiple Projects",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"RequestInfo is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"    }",
+							");",
+							"",
+							"pm.test(\"Projects are required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects).to.not.be.undefined;",
+							"    pm.expect(req.Projects).to.not.be.null;",
+							"    }",
+							");",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    req.Projects.forEach(project => {",
+							"         pm.expect(project.tenantId).to.be.not.null;",
+							"         pm.expect(project.tenantId).to.be.not.undefined;",
+							"         pm.expect(project.tenantId).not.to.eql(\"\");",
+							"    });",
+							"    }",
+							");",
+							"    ",
+							"pm.test(\"All Projects must have same tenantId\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var tenantId = req.Projects[0].tenantId;",
+							"    req.Projects.forEach(project => {",
+							"        pm.expect(project.tenantId).to.eql(tenantId);",
+							"    });",
+							"});",
+							"",
+							"pm.test(\"Start date should be less than end date\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    req.Projects.forEach(project => {",
+							"        if (Number.isFinite(project.endDate) && (project.endDate != undefined || project.endDate != null )) {",
+							"            pm.expect(project.endDate).to.be.not.below(project.startDate);",
+							"        }",
+							"    });",
+							"    }",
+							");",
+							"",
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Project Number is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    ",
+							"    res.Project.forEach(project => {",
+							"        pm.expect(project.projectNumber.substring(0,2)).to.eql(\"PJ\");",
+							"        });",
+							"    }",
+							");",
+							"",
+							"let responseData = pm.response.json();",
+							"pm.collectionVariables.set(\"projectId2\", responseData.Project[1].id);",
+							"pm.collectionVariables.set(\"projectNumber2\", responseData.Project[1].projectNumber);",
+							"",
+							"pm.collectionVariables.set(\"addressId2\", responseData.Project[1].address.id);",
+							"pm.collectionVariables.set(\"targetId2\", responseData.Project[1].targets[0].id);",
+							"pm.collectionVariables.set(\"documentId2\", responseData.Project[1].documents[0].id);",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [\n    {\n      \"tenantId\": \"{{tenantId}}\",\n      \"name\": \"project1\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    },\n    {\n      \"tenantId\": \"{{tenantId}}\",\n      \"name\": \"project2\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    }\n  ],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Project - Success - Add Sub Project",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"RequestInfo is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"}",
+							");",
+							"",
+							"pm.test(\"Projects are required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects).to.not.be.undefined;",
+							"    pm.expect(req.Projects).to.not.be.null;",
+							"}",
+							");",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    pm.expect(project.tenantId).to.be.not.null;",
+							"    pm.expect(project.tenantId).to.be.not.undefined;",
+							"    pm.expect(project.tenantId).not.to.eql(\"\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Start date should be less than end date\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    if (Number.isFinite(project.endDate) && (project.endDate != undefined || project.endDate != null)) {",
+							"        pm.expect(project.endDate).to.be.not.below(project.startDate);",
+							"    }",
+							"}",
+							");",
+							"",
+							"pm.test(\"Response is successful\", () =>",
+							"    pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"Project Number is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var projectNumber = res.Projects[0].projectNumber;",
+							"    pm.expect(projectNumber.substring(0, 2)).to.eql(\"PJ\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project Hierarchy is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var projectId = res.Projects[0].id;",
+							"    var parentProjectId = res.Projects[0].parent;",
+							"    var projectHierarchy = res.Projects[0].projectHierarchy;",
+							"    pm.expect(projectHierarchy).contains(parentProjectId);",
+							"    pm.expect(projectHierarchy).contains(projectId);",
+							"}",
+							");",
+							"",
+							"let responseData = pm.response.json();",
+							"pm.collectionVariables.set(\"subProjectId\", responseData.Projects[0].id);",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [\n    {\n      \"tenantId\": \"{{tenantId}}\",\n      \"name\": \"project1-subproject\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1-subProject\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"{{projectId}}\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 10,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    }\n  ],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Project - Validation Error - Projects not provided",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"PROJECT\");",
+							"    pm.expect(message).to.eql(\"Projects are mandatory\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Project - Validation Error - TenantId not provided",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => {",
+							"    pm.expect(pm.response.to.have.status(400));",
+							"});",
+							"   ",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"TENANT_ID\");",
+							"    pm.expect(message).to.eql(\"Tenant ID is mandatory\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [\n    {\n      \"name\": \"project1\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    }\n  ],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Project - Validation Error - Multiple tenant Id",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"MULTIPLE_TENANTS\");",
+							"    pm.expect(message).to.eql(\"All projects must have same tenant Id. Please create new request for different tentant id\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [\n    {\n      \"tenantId\": \"{{tenantId}}\",\n      \"name\": \"project1\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    },\n    {\n      \"tenantId\": \"state1\",\n      \"name\": \"project1\",\n      \"projectType\": \"MP-CWS\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"Slum\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    }\n  ],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Project - Validation Error - Start date greater than end date",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"INVALID_DATE\");",
+							"    pm.expect(message).to.eql(\"Start date should be less than end date\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [\n    {\n      \"tenantId\": \"{{tenantId}}\",\n      \"name\": \"project1\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundaryType\": \"{{boundaryType}}\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 10,\n      \"endDate\": 5, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    }\n  ],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Project - Validation Error - Boundary without Boundary type",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"BOUNDARY\");",
+							"    pm.expect(message).to.eql(\"Boundary Type is mandatory if boundary is present in Project request body\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n        \"apiId\": \"mukta-services\",\n        \"ver\": null,\n        \"ts\": null,\n        \"action\": null,\n        \"did\": null,\n        \"key\": null,\n        \"msgId\": \"Create Attendance Register\",\n        \"authToken\": \"{{token}}\"\n    },\n  \"Projects\": [\n    {\n      \"tenantId\": \"{{tenantId}}\",\n      \"name\": \"project1\",\n      \"projectType\": \"{{projectType}}\",\n      \"projectSubType\": \"\",\n      \"department\": \"{{department}}\",\n      \"description\": \"DEPT_11 description\",\n      \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n      \"documents\": [\n          {\n            \"id\": \"\",\n            \"documentType\": \"Document1\",\n            \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n            \"documentUid\": \"QWERTY123\"\n          }\n      ],\n      \"address\": {\n        \"tenantId\": \"{{tenantId}}\",\n        \"doorNo\": \"1\",\n        \"latitude\": 90,\n        \"longitude\": 180,\n        \"locationAccuracy\": 10000,\n        \"type\": \"Home\",\n        \"addressLine1\": \"Address Line 1\",\n        \"addressLine2\": \"Address Line 2\",\n        \"landmark\": \"Area1\",\n        \"city\": \"City1\",\n        \"pincode\": \"999999\",\n        \"buildingName\": \"Test_Building\",\n        \"street\": \"Test_Street\",\n        \"boundary\": \"{{boundary}}\"\n      },\n      \"startDate\": 0,\n      \"endDate\": 0, \n      \"natureOfWork\": \"{{natureOfWork}}\",\n      \"isTaskEnabled\": false,\n      \"parent\": \"\",\n      \"targets\": [\n        {\n          \"beneficiaryType\": \"\",\n          \"totalNo\": 0,\n          \"targetNo\": 0\n        }\n      ],\n      \"additionalDetails\": {},\n      \"rowVersion\": 0\n    }\n  ],\n  \"apiOperation\": \"CREATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - Project Id based",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var id = res.Project[0].id;",
+							"    pm.expect(id).to.eql(pm.collectionVariables.get(\"projectId\"));",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "1673494068231",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - Project Name LIKE",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"    pm.expect(res.Project.length).to.be.above(0);",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"proj\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "1673494068231",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - Project Name LIKE, no response",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"     pm.expect(res.Projects.length).to.equal(0);",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"prol\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "1673494068231",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - Project Id and Project number based",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var id = res.Projects[0].id;",
+							"    pm.expect(id).to.eql(pm.collectionVariables.get(\"projectId\"));",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"{{projectNumber}}\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "1673494068231",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - Total Project count in response",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search total project count is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var count = res.TotalCount;",
+							"    pm.expect(count).to.eql(1);",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"{{projectNumber}}\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "1673494068231",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - includeAncestors",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var id = res.Projects[0].id;",
+							"    pm.expect(id).to.eql(pm.collectionVariables.get(\"subProjectId\"));",
+							"    }",
+							");",
+							"",
+							"pm.test(\"Project ancestors is not null\", function () {",
+							"    var res = pm.response.json();",
+							"    var ancestors = res.Projects[0].ancestors;",
+							"    pm.expect(ancestors).to.not.be.undefined;",
+							"    pm.expect(ancestors).to.not.be.null;",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project ancestors is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var ancestorId = res.Projects[0].ancestors[0].id;",
+							"    var parentProjectId = res.Projects[0].parent;",
+							"    pm.expect(ancestorId).to.eql(parentProjectId);",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project ancestors documents is correctly enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var ancestorProjectDocuemntType = res.Projects[0].ancestors[0].documents[0].documentType;",
+							"    pm.expect(ancestorProjectDocuemntType).to.eql(\"Document1\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project ancestors targets is correctly enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var ancestorProjectTotalNo = res.Projects[0].ancestors[0].targets[0].totalNo;",
+							"    pm.expect(ancestorProjectTotalNo).to.eql(0);",
+							"}",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{subProjectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}&includeAncestors=true",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "1673494068231",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "true"
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - includeDescendants",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var id = res.Projects[0].id;",
+							"    pm.expect(id).to.eql(pm.collectionVariables.get(\"projectId\"));",
+							"    }",
+							");",
+							"",
+							"pm.test(\"Project descendants is not null\", function () {",
+							"    var res = pm.response.json();",
+							"    var descendants = res.Projects[0].descendants;",
+							"    pm.expect(descendants).to.not.be.undefined;",
+							"    pm.expect(descendants).to.not.be.null;",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project descendants is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var descendantId = res.Projects[0].descendants[0].parent;",
+							"    var parentProjectId = pm.collectionVariables.get(\"projectId\");",
+							"    pm.expect(descendantId).to.eql(parentProjectId);",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project descendants documents is correctly enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var subProjectDocumentType = res.Projects[0].descendants[0].documents[0].documentType;",
+							"    pm.expect(subProjectDocumentType).to.contains(\"Document1-subProject\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project descendants targets is correctly enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    var subProjectTargetNo = res.Projects[0].descendants[0].targets[0].totalNo;",
+							"    pm.expect(subProjectTargetNo).to.eql(10);",
+							"}",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}&includeDescendants=true",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "1673494068231",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "true"
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - lastChangedSince below project created time",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"    pm.expect(res.Projects.length).to.be.above(0);",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n     {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"MP-CWS\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}&lastChangedSince={{lastChangedSince}}&includeDeleted=true",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "{{lastChangedSince}}"
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true"
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - lastChangedSince greater than Project created time & includeDeleted",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received\", function () {",
+							"    var res = pm.response.json();",
+							"    pm.expect(res.Projects.length).to.eql(0);",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n     {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"MP-CWS\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}&lastChangedSince={{lastChangedSinceIncreased}}&includeDeleted=true",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "{{lastChangedSinceIncreased}}"
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true"
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": null,
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - Between createdFrom and createdTo",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received for parameters createdFrom and createdTo\", function () {",
+							"    var res = pm.response.json();",
+							"    pm.expect(res.Projects.length).to.be.above(0);",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n     {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"MP-CWS\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}&createdFrom={{lastChangedSince}}&createdTo={{lastChangedSinceIncreased}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": "{{lastChangedSince}}"
+						},
+						{
+							"key": "createdTo",
+							"value": "{{lastChangedSinceIncreased}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Success - Based on Ward",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));",
+							"",
+							"pm.test(\"Register Search response is received for ward\", function () {",
+							"    var res = pm.response.json();",
+							"    pm.expect(res.Projects.length).to.be.above(0);",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n     {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"{{boundary}}\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "lastChangedSince",
+							"value": "",
+							"disabled": true
+						},
+						{
+							"key": "includeDeleted",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "includeAncestors",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "includeDescendants",
+							"value": "false",
+							"disabled": true
+						},
+						{
+							"key": "createdFrom",
+							"value": "{{lastChangedSince}}",
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": "{{lastChangedSinceIncreased}}",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Validation Error - No Search Parameters",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"PROJECT_SEARCH_FIELDS\");",
+							"    pm.expect(message).to.eql(\"Any one project search field is required\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0,\n      \"address\": {\n          \"boundary\": \"\"\n      }\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Validation Error - createdFrom greater than createdTo",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"INVALID_DATE\");",
+							"    pm.expect(message).to.eql(\"Created From should be less than Created To\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}&createdFrom=5000&createdTo=2000",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "createdFrom",
+							"value": "5000"
+						},
+						{
+							"key": "createdTo",
+							"value": "2000"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Validation Error - Start date greater than end date",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"INVALID_DATE\");",
+							"    pm.expect(message).to.eql(\"Start date should be less than end date\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 100000,\n      \"endDate\": 5000\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Validation Error - End date without Start date",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"INVALID_DATE\");",
+							"    pm.expect(message).to.eql(\"Start date is required if end date is passed\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"endDate\": 10\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Validation Error - createdTo without createdFrom param",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"INVALID_DATE_PARAM\");",
+							"    pm.expect(message).to.eql(\"Created From date is required if Created To date is given\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"endDate\": 10\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}&createdTo=10000",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						},
+						{
+							"key": "createdFrom",
+							"value": null,
+							"disabled": true
+						},
+						{
+							"key": "createdTo",
+							"value": "10000"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Search Project - Validation Error - Tenant Id mismatch in URL param and request body",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => {",
+							"    if (pm.environment.get(\"base_url\").includes(\"localhost\")) { ",
+							"        pm.expect(pm.response.to.have.status(400));",
+							"    } else {",
+							"        pm.expect(pm.response.to.have.status(403));",
+							"    }",
+							"});",
+							"   ",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    if (pm.environment.get(\"base_url\").includes(\"localhost\")) { ",
+							"        pm.expect(code).to.eql(\"MULTIPLE_TENANTS\");",
+							"    pm.expect(message).to.eql(\"Tenant Id must be same in URL param and project request\");",
+							"    } else {",
+							"        pm.expect(code).to.eql(\"CustomException\");        ",
+							"    }",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n    {\n      \"id\": \"{{projectId}}\",\n      \"tenantId\": \"{{tenantId2}}\",\n      \"projectType\": \"\",\n      \"name\": \"\",\n      \"projectNumber\": \"\",\n      \"projectSubType\": \"\",\n      \"startDate\": 0,\n      \"endDate\": 0\n    }\n  ],\n  \"apiOperation\": \"SEARCH\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_search?limit=5&offset=0&tenantId={{tenantId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "tenantId",
+							"value": "{{tenantId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Project - Success - Single Project",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"RequestInfo is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"}",
+							");",
+							"",
+							"pm.test(\"Projects are required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects).to.not.be.undefined;",
+							"    pm.expect(req.Projects).to.not.be.null;",
+							"}",
+							");",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    pm.expect(project.tenantId).to.be.not.null;",
+							"    pm.expect(project.tenantId).to.be.not.undefined;",
+							"    pm.expect(project.tenantId).not.to.eql(\"\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Start date should be less than end date\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    if (Number.isFinite(project.endDate) && (project.endDate != undefined || project.endDate != null)) {",
+							"        pm.expect(project.endDate).to.be.not.below(project.startDate);",
+							"    }",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project Id is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects[0].id).to.not.be.undefined;",
+							"    pm.expect(req.Projects[0].id).to.not.be.null;",
+							"    pm.expect(req.Projects[0].id).not.to.eql(\"\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"Response have same project id as request\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var projectIdRequest = req.Projects[0].id;",
+							"    var res = pm.response.json();",
+							"    var projectIdResponse = res.Projects[0].id;",
+							"   ",
+							"    pm.expect(projectIdRequest).to.eql(projectIdResponse);",
+							"}",
+							");",
+							"",
+							"pm.test(\"Response have same project number as request\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var projectNumberRequest = req.Projects[0].id;",
+							"    var res = pm.response.json();",
+							"    var projectNumberResponse = res.Projects[0].id;",
+							"",
+							"    pm.expect(projectNumberRequest).to.eql(projectNumberResponse);",
+							"}",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n        {\n            \"id\": \"{{projectId}}\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"projectNumber\": \"{{projectNumber}}\",\n            \"name\": \"project10\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"{{department}}\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"Operation & Maintenance\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId}}\",\n                    \"beneficiaryType\": \"\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        }\n    ],\n  \"apiOperation\": \"UPDATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_update",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Project - Success - Multiple Projects",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"RequestInfo is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"    }",
+							");",
+							"",
+							"pm.test(\"Projects are required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects).to.not.be.undefined;",
+							"    pm.expect(req.Projects).to.not.be.null;",
+							"    }",
+							");",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    req.Projects.forEach(project => {",
+							"         pm.expect(project.tenantId).to.be.not.null;",
+							"         pm.expect(project.tenantId).to.be.not.undefined;",
+							"         pm.expect(project.tenantId).not.to.eql(\"\");",
+							"    });",
+							"    }",
+							");",
+							"    ",
+							"pm.test(\"All Projects must have same tenantId\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var tenantId = req.Projects[0].tenantId;",
+							"    req.Projects.forEach(project => {",
+							"        pm.expect(project.tenantId).to.eql(tenantId);",
+							"    });",
+							"});",
+							"",
+							"pm.test(\"Start date should be less than end date\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    req.Projects.forEach(project => {",
+							"        if (Number.isFinite(project.endDate) && (project.endDate != undefined || project.endDate != null )) {",
+							"            pm.expect(project.endDate).to.be.not.below(project.startDate);",
+							"        }",
+							"    });",
+							"    }",
+							");",
+							"",
+							"pm.test(\"Project Id is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    req.Projects.forEach(project => {",
+							"        pm.expect(project.id).to.not.be.undefined;",
+							"        pm.expect(project.id).to.not.be.null;",
+							"        pm.expect(project.id).not.to.eql(\"\");",
+							"    });",
+							"}",
+							");",
+							"",
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200)));"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n        {\n            \"id\": \"{{projectId}}\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"projectNumber\": \"{{projectNumber}}\",\n            \"name\": \"project10\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"{{department}}\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"{{natureOfWork}}\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"rte\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId}}\",\n                    \"beneficiaryType\": \"\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        },\n        {\n            \"id\": \"{{projectId2}}\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"projectNumber\": \"{{projectNumber2}}\",\n            \"name\": \"project20\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"{{department}}\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId2}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId2}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"{{natureOfWork}}\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId2}}\",\n                    \"beneficiaryType\": \"\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        }\n    ],\n  \"apiOperation\": \"UPDATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_update",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Project - Success - Add Target, Document",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"RequestInfo is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.RequestInfo).to.not.be.null;",
+							"    pm.expect(req.RequestInfo).to.not.be.undefined;",
+							"}",
+							");",
+							"",
+							"pm.test(\"Projects are required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects).to.not.be.undefined;",
+							"    pm.expect(req.Projects).to.not.be.null;",
+							"}",
+							");",
+							"",
+							"pm.test(\"TenantId is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    pm.expect(project.tenantId).to.be.not.null;",
+							"    pm.expect(project.tenantId).to.be.not.undefined;",
+							"    pm.expect(project.tenantId).not.to.eql(\"\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Start date should be less than end date\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    var project = req.Projects[0];",
+							"    if (Number.isFinite(project.endDate) && (project.endDate != undefined || project.endDate != null)) {",
+							"        pm.expect(project.endDate).to.be.not.below(project.startDate);",
+							"    }",
+							"}",
+							");",
+							"",
+							"pm.test(\"Project Id is required\", function () {",
+							"    var req = JSON.parse(pm.request.body.raw);",
+							"    pm.expect(req.Projects[0].id).to.not.be.undefined;",
+							"    pm.expect(req.Projects[0].id).to.not.be.null;",
+							"    pm.expect(req.Projects[0].id).not.to.eql(\"\");",
+							"}",
+							");",
+							"",
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(200))",
+							");",
+							"",
+							"pm.test(\"Document is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    ",
+							"    res.Projects.forEach(p => {",
+							"        p.documents.forEach(d => {",
+							"            var documentId = d.id;",
+							"            pm.expect(documentId.length).to.be.above(0);",
+							"            });             ",
+							"        });",
+							"    }",
+							");",
+							"",
+							"pm.test(\"Target is enriched\", function () {",
+							"    var res = pm.response.json();",
+							"    ",
+							"    res.Projects.forEach(p => {",
+							"        p.targets.forEach(t => {",
+							"            var targetId = t.id;",
+							"            pm.expect(targetId.length).to.be.above(0);",
+							"            });             ",
+							"        });",
+							"    }",
+							");",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n        {\n            \"id\": \"{{projectId}}\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"projectNumber\": \"{{projectNumber}}\",\n            \"name\": \"project10\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"{{department}}\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                },\n                {\n                    \"id\": \"\",\n                    \"documentType\": \"Document2\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY456\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"{{natureOfWork}}\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId}}\",\n                    \"beneficiaryType\": \"Slum\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                },\n                {\n                    \"id\": \"\",\n                    \"beneficiaryType\": \"Slum\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        }\n    ],\n  \"apiOperation\": \"UPDATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_update",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Project - Validation Error - ProjectId not provided",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"UPDATE_PROJECT\");",
+							"    pm.expect(message).to.eql(\"Project Id is mandatory\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n        {\n            \"id\": \"\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"projectNumber\": \"{{projectNumber}}\",\n            \"name\": \"project10\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"{{department}}\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"{{natureOfWork}}\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"rte\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId}}\",\n                    \"beneficiaryType\": \"Slum\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        }\n    ],\n  \"apiOperation\": \"UPDATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_update",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Project - Validation Error - TenantId not provided",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => {",
+							"    if (pm.environment.get(\"base_url\").includes(\"localhost\")) { ",
+							"        pm.expect(pm.response.to.have.status(400));",
+							"    } else {",
+							"        pm.expect(pm.response.to.have.status(403));",
+							"    }",
+							"});",
+							"   ",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    if (pm.environment.get(\"base_url\").includes(\"localhost\")) { ",
+							"        pm.expect(code).to.eql(\"TENANT_ID\");",
+							"        pm.expect(message).to.eql(\"Tenant ID is mandatory\");",
+							"    } else {",
+							"        pm.expect(code).to.eql(\"CustomException\");        ",
+							"    }",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n        {\n            \"id\": \"{{projectId}}\",\n            \"tenantId\": \"\",\n            \"projectNumber\": \"{{projectNumber}}\",\n            \"name\": \"project10\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"{{department}}\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"{{natureOfWork}}\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"rte\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId}}\",\n                    \"beneficiaryType\": \"Slum\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        }\n    ],\n  \"apiOperation\": \"UPDATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_update",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Project - Validation Error - Multiple TenantId provided",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is successful\", () => ",
+							"   pm.expect(pm.response.to.have.status(400)));",
+							"",
+							"pm.test(\"Correct Error with message and code is received\", function () {",
+							"    var res = pm.response.json();",
+							"    var code = res.Errors[0].code;",
+							"    var message = res.Errors[0].message;",
+							"    pm.expect(code).to.eql(\"MULTIPLE_TENANTS\");",
+							"    pm.expect(message).to.eql(\"All projects must have same tenant Id. Please create new request for different tentant id\");",
+							"    }",
+							");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"mukta-services\",\n    \"ver\": \"null\",\n    \"ts\": 0,\n    \"action\": \"null\",\n    \"did\": \"null\",\n    \"key\": \"null\",\n    \"msgId\": \"null\",\n    \"requesterId\": \"null\",\n    \"authToken\": \"{{token}}\"\n  },\n  \"Projects\": [\n        {\n            \"id\": \"{{projectId}}\",\n            \"tenantId\": \"{{tenantId}}\",\n            \"projectNumber\": \"{{projectNumber}}\",\n            \"name\": \"project10\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"DEPT_11\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId}}\",\n                \"tenantId\": \"{{tenantId}}\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"{{natureOfWork}}\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"rte\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId}}\",\n                    \"beneficiaryType\": \"Slum\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        },\n        {\n            \"id\": \"{{projectId2}}\",\n            \"tenantId\": \"state2\",\n            \"projectNumber\": \"{{projectNumber2}}\",\n            \"name\": \"project10\",\n            \"projectType\": \"{{projectType}}\",\n            \"projectSubType\": \"\",\n            \"department\": \"{{department}}\",\n            \"description\": \"DEPT_11 description\",\n            \"referenceID\": \"d9d8ffee-68a2-485d-bc50-14160477ea4c\",\n            \"documents\": [\n                {\n                    \"id\": \"{{documentId2}}\",\n                    \"documentType\": \"Document1\",\n                    \"fileStore\": \"99dcde84-aae2-4836-9ff9-f711fb82bb8b\",\n                    \"documentUid\": \"QWERTY123\",\n                    \"status\": null,\n                    \"additionalDetails\": null\n                }\n            ],\n            \"address\": {\n                \"id\": \"{{addressId2}}\",\n                \"tenantId\": \"state2\",\n                \"doorNo\": \"1\",\n                \"latitude\": 90.0,\n                \"longitude\": 180.0,\n                \"locationAccuracy\": 10000.0,\n                \"type\": \"Home\",\n                \"addressLine1\": \"Address Line 1\",\n                \"addressLine2\": \"Address Line 2\",\n                \"landmark\": \"Area1\",\n                \"city\": \"City1\",\n                \"pincode\": \"999999\",\n                \"buildingName\": \"Test_Building\",\n                \"street\": \"Test_Street\",\n                \"boundaryType\": \"{{boundaryType}}\",\n                \"boundary\": \"{{boundary}}\"\n            },\n            \"startDate\": 0,\n            \"endDate\": 0,\n            \"natureOfWork\": \"{{natureOfWork}}\",\n            \"isTaskEnabled\": false,\n            \"parent\": \"rte\",\n            \"targets\": [\n                {\n                    \"id\": \"{{targetId2}}\",\n                    \"beneficiaryType\": \"Slum\",\n                    \"totalNo\": 0,\n                    \"targetNo\": 0,\n                    \"isDeleted\": null\n                }\n            ],\n            \"additionalDetails\": {},\n            \"isDeleted\": false,\n            \"rowVersion\": 0\n        }\n    ],\n  \"apiOperation\": \"UPDATE\"\n}\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/pms/project/v1/_update",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"pms",
+						"project",
+						"v1",
+						"_update"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"if (pm.environment.get(\"base_url\").includes(\"localhost\")) {",
+					"",
+					"    var tenantId = \"pb.amritsar\";",
+					"    var id = 1;",
+					"    var uuid = \"11b0e02b-0145-4de2-bc42-c97b96264807\";",
+					"",
+					"    var roles = [{",
+					"                    \"code\": \"SUPERUSER\",",
+					"                    \"name\": \"SUPER USER\",",
+					"                    \"tenantId\": tenantId",
+					"                }];",
+					"",
+					"    var userInfo = {",
+					"        \"id\": id,",
+					"        \"uuid\": uuid,",
+					"        \"userName\": \"\",",
+					"        \"name\": \"\",",
+					"        \"mobileNumber\": \"\",",
+					"        \"emailId\": \"\",",
+					"        \"type\": \"\",",
+					"        \"roles\": roles,",
+					"        \"active\": true,",
+					"        \"tenantId\": \"pb.amritsar\"",
+					"    };",
+					"",
+					"    pm.request.body.raw = pm.request.body.raw.replace('\"{{token}}\"', '\"\", \\n \"userInfo\":  ' + JSON.stringify(userInfo));",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "tenantId",
+			"value": ""
+		},
+		{
+			"key": "stateLevelTenant",
+			"value": ""
+		},
+		{
+			"key": "projectId",
+			"value": ""
+		},
+		{
+			"key": "projectNumber",
+			"value": ""
+		},
+		{
+			"key": "lastChangedSince",
+			"value": ""
+		},
+		{
+			"key": "lastChangedSinceIncreased",
+			"value": ""
+		},
+		{
+			"key": "addressId",
+			"value": ""
+		},
+		{
+			"key": "targetId",
+			"value": ""
+		},
+		{
+			"key": "documentId",
+			"value": ""
+		},
+		{
+			"key": "projectId2",
+			"value": ""
+		},
+		{
+			"key": "projectNumber2",
+			"value": ""
+		},
+		{
+			"key": "addressId2",
+			"value": ""
+		},
+		{
+			"key": "documentId2",
+			"value": ""
+		},
+		{
+			"key": "targetId2",
+			"value": ""
+		},
+		{
+			"key": "tenantId2",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "subProjectId",
+			"value": ""
+		},
+		{
+			"key": "natureOfWork",
+			"value": ""
+		},
+		{
+			"key": "department",
+			"value": ""
+		},
+		{
+			"key": "boundary",
+			"value": ""
+		},
+		{
+			"key": "projectType",
+			"value": ""
+		},
+		{
+			"key": "boundaryType",
+			"value": ""
+		}
+	]
+}
