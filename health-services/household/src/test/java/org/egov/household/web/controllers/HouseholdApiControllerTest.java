@@ -9,6 +9,7 @@ import org.egov.common.producer.Producer;
 import org.egov.household.TestConfiguration;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.config.HouseholdMemberConfiguration;
+import org.egov.household.helper.HouseholdSearchTestBuilder;
 import org.egov.household.service.HouseholdMemberService;
 import org.egov.household.service.HouseholdService;
 import org.egov.common.models.household.HouseholdSearch;
@@ -62,12 +63,15 @@ class HouseholdApiControllerTest {
     @MockBean
     private HouseholdMemberConfiguration householdMemberConfiguration;
 
+    @Autowired
+    private HouseholdSearchTestBuilder householdSearchTestBuilder;
+
     @Test
     @DisplayName("should household search request pass if all the required query parameters are present")
     void shouldSearchRequestPassIfQueryParamsArePresent() throws Exception {
         HouseholdSearchRequest householdSearchRequest = HouseholdSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .household(HouseholdSearch.builder().build()).build();
+                .household(HouseholdSearchTestBuilder.builder().withHouseholdSearch().build()).build();
         when(householdService.search(any(HouseholdSearch.class), anyInt(),
                 anyInt(), anyString(), any(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
 

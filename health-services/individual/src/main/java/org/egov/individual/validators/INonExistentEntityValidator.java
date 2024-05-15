@@ -8,12 +8,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.models.Error;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.validator.Validator;
+import org.egov.individual.repository.IndividualRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +24,7 @@ import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
+import static org.egov.individual.Constants.GET_ID;
 
 /**
  * Validator for checking the non-existence of individual entities.
@@ -83,8 +84,8 @@ public class INonExistentEntityValidator implements Validator<IndividualBulkRequ
             try {
                 // Query the repository to find existing entities
                 existingEntities = individualRepository.find(individualSearch, entities.size(), 0,
-                        entities.get(0).getTenantId(), null, false).getY();
-            } catch (QueryBuilderException e) {
+                        entities.get(0).getTenantId(), null, false).getResponse();
+            } catch (Exception e) {
                 // Handle query builder exception
                 existingEntities = new ArrayList<>();
                 throw new RuntimeException(e);

@@ -63,7 +63,7 @@ public class HExistentEntityValidator implements Validator<HouseholdBulkRequest,
             List<Household> existentEntities = householdRepository.findById(
                     clientReferenceIdList,
                     getIdFieldName(householdSearch),
-                    Boolean.FALSE).getY();
+                    Boolean.FALSE).getResponse();
             // For each existing entity, populate error details for uniqueness
             existentEntities.forEach(entity -> {
                 Error error = getErrorForUniqueEntity();

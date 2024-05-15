@@ -85,8 +85,8 @@ public class HNonExistentEntityValidator implements Validator<HouseholdBulkReque
             try {
                 // Query the repository to find existing entities
                 existingEntities = householdRepository.find(householdSearch, entities.size(), 0,
-                        entities.get(0).getTenantId(), null, false).getY();
-            } catch (QueryBuilderException e) {
+                        entities.get(0).getTenantId(), null, false).getResponse();
+            } catch (Exception e) {
                 // Handle query builder exception
                 existingEntities = new ArrayList<>();
                 throw new RuntimeException(e);
