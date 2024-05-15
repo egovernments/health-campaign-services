@@ -1151,7 +1151,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
                 const districtLevelRow = rowData.slice(0, districtIndex + 1);
                 if (!uniqueDistrictsForMainSheet.includes(districtLevelRow.join('_'))) {
                     uniqueDistrictsForMainSheet.push(districtLevelRow.join('_'));
-                    districtLevelRowBoundaryCodeMap.set(districtLevelRow.join('_'), data[getLocalizedName(getBoundaryColumnName(),localizationMap)]);
+                    districtLevelRowBoundaryCodeMap.set(districtLevelRow.join('_'), data[getLocalizedName(getBoundaryColumnName(), localizationMap)]);
                     mainSheetData.push(rowData);
                 }
             }
@@ -1206,7 +1206,7 @@ function modifyFilteredData(districtDataFiltered: any, targetBoundaryCode: any, 
     return modifiedFilteredData;
 }
 
-async function generateFilteredBoundaryData(request: any,responseFromCampaignSearch:any) {
+async function generateFilteredBoundaryData(request: any, responseFromCampaignSearch: any) {
     const rootBoundary: any = (responseFromCampaignSearch?.Filters?.boundaries).filter((boundary: any) => boundary.isRoot);
     const params = {
         ...request?.query,

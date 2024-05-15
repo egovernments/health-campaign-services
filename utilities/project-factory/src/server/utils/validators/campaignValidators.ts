@@ -8,7 +8,7 @@ import Ajv from "ajv";
 import axios from "axios";
 import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName } from "../campaignUtils";
 import { calculateKeyIndex, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, throwError } from "../genericUtils";
-import { validateBodyViaSchema, validateHierarchyType } from "./genericValidator";
+import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../../config/models/searchCampaignDetails";
 import { campaignDetailsDraftSchema } from "../../config/models/campaignDetailsDraftSchema";
@@ -610,12 +610,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
 
 
 function validateProjectCampaignMissingFields(CampaignDetails: any) {
-    const ajv = new Ajv();
-    const validate = ajv.compile(campaignDetailsSchema);
-    const valid = validate(CampaignDetails);
-    if (!valid) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", 'Invalid CampaignDetails data: ' + ajv.errorsText(validate.errors));
-    }
+    validateCampaignBodyViaSchema(campaignDetailsSchema, CampaignDetails)
     const { startDate, endDate } = CampaignDetails;
     if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
@@ -627,12 +622,7 @@ function validateProjectCampaignMissingFields(CampaignDetails: any) {
 }
 
 function validateDraftProjectCampaignMissingFields(CampaignDetails: any) {
-    const ajv = new Ajv();
-    const validate = ajv.compile(campaignDetailsDraftSchema);
-    const valid = validate(CampaignDetails);
-    if (!valid) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", 'Invalid CampaignDetails data: ' + ajv.errorsText(validate.errors));
-    }
+    validateCampaignBodyViaSchema(campaignDetailsDraftSchema, CampaignDetails)
     const { startDate, endDate } = CampaignDetails;
     if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
