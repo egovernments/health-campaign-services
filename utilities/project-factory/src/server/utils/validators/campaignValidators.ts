@@ -914,7 +914,7 @@ function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: 
                 throwError("COMMON", 400, "VALIDATION_ERROR", `The Target Sheet ${key} you have uploaded is empty`)
             }
             if (key != getLocalizedName(config.boundaryTab, localizationMap)) {
-                const root = config.generateDifferentTabsOnBasisOf;
+                const root = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
                 for (const boundaryRow of dataArray) {
                     for (const columns in boundaryRow) {
                         if (columns.startsWith('__EMPTY')) {
@@ -922,7 +922,7 @@ function immediateValidationForTargetSheet(dataFromSheet: any, localizationMap: 
                         }
                     }
                     if (!boundaryRow[root]) {
-                        throwError("COMMON", 400, "VALIDATION_ERROR", ` "${config.generateDifferentTabsOnBasisOf}"  column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!'] + 1}`);
+                        throwError("COMMON", 400, "VALIDATION_ERROR", ` root column is empty in Target Sheet ${key} at row number ${boundaryRow['!row#number!'] + 1}`);
                     }
                 }
             }
