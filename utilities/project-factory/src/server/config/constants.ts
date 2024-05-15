@@ -45,8 +45,17 @@ export const CONSTANTS: any = {
             PROJECT_SEARCH_ERROR: "Error occured during project search , Check projectId",
             PROJECT_UPDATE_ERROR: "Error occured during project update , Check projectId",
             PROJECT_CREATION_ERROR: "Some error occured during project creation",
+        },
+        MDMS: {
+            INVALID_README_CONFIG: "Invalid readme config"
         }
     }
+}
+
+export const headingMapping: any = {
+    "userWithBoundary": "USERWITHBOUNDARY_README_MAINHEADER",
+    "facilityWithBoundary": "FACILITYWITHBOUNDARY_README_MAINHEADER",
+    "boundary": "BOUNDARY_README_MAINHEADER"
 }
 
 const unknownError = "Unknown Error. Check Logs";

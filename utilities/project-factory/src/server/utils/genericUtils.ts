@@ -13,7 +13,7 @@ import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getLocaliz
 import localisationController from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, resourceDataStatuses } from "../config/constants";
+import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 const NodeCache = require("node-cache");
@@ -425,7 +425,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
       let updatedResult = result;
       // get boundary sheet data after being generated
       const boundaryData = await getBoundaryDataAfterGeneration(result, request, localizationMap);
-      const differentTabsBasedOnLevel = getLocalizedName(config.generateDifferentTabsOnBasisOf,localizationMap);
+      const differentTabsBasedOnLevel = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
       const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
       const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
       if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config.numberOfBoundaryDataOnWhichWeSplit)) {
@@ -566,6 +566,52 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   return facilitySheetData;
 }
 
+async function createReadMeSheet(request: any, workbook: any, mainHeader: any, localizationMap?: any) {
+  const readMeConfig = await getReadMeConfig(request);
+  const maxCharsBeforeLineBreak = 100; // Set the maximum number of characters before line break
+  const datas = readMeConfig.texts.flatMap((text: any) => {
+    let stepText = ''; // Initialize step text for each text element
+    let stepCount = 1; // Initialize the step counter
+    const descriptions = text.descriptions.map((description: any) => {
+      let textWithLineBreaks = '';
+      let remainingText = getLocalizedName(description.text, localizationMap);
+      while (remainingText.length > maxCharsBeforeLineBreak) {
+        let breakIndex = remainingText.lastIndexOf(' ', maxCharsBeforeLineBreak);
+        if (breakIndex === -1) breakIndex = maxCharsBeforeLineBreak;
+        textWithLineBreaks += remainingText.substring(0, breakIndex) + '\n';
+        remainingText = remainingText.substring(breakIndex).trim();
+      }
+      textWithLineBreaks += remainingText;
+      // If step is required, add step text before description
+      if (description.isStepRequired) {
+        stepText = `Step ${stepCount}: `;
+        stepCount++;
+        return stepText + textWithLineBreaks;
+      }
+      else {
+        return textWithLineBreaks;
+      }
+    });
+    return [getLocalizedName(text.header, localizationMap), ...descriptions, "", "", "", ""];
+  });
+
+  // Ensure mainHeader is an array
+  if (!Array.isArray(mainHeader)) {
+    mainHeader = [mainHeader];
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet([mainHeader, "", "", ...datas.map((data: any) => [data])]);
+
+  // Set the width of column A to 130
+  const wscols = [{ wch: 130 }];
+  worksheet['!cols'] = wscols;
+  const readMeSheetName = getLocalizedName("HCM_README_SHEETNAME", localizationMap);
+  XLSX.utils.book_append_sheet(workbook, worksheet, readMeSheetName);
+}
+
+
+
+
 function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: string }) {
   const messages = headers.map((header: any) => (localizationMap ? localizationMap[header] || header : header));
   return messages;
@@ -586,10 +632,32 @@ function modifyRequestForLocalisation(request: any, tenanId: string) {
   return updatedRequest;
 }
 
+async function getReadMeConfig(request: any) {
+  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
+    const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
+    for (const readMeConfig of readMeConfigsArray) {
+      if (readMeConfig?.type == request?.query?.type) {
+        return readMeConfig
+      }
+    }
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    return {}
+  }
+  else {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", `Some error occured during readme config mdms search.`);
+    return {};
+  }
+}
+
 async function createFacilityAndBoundaryFile(facilitySheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
   const workbook = XLSX.utils.book_new();
   // Add facility sheet to the workbook
   const localizedFacilityTab = getLocalizedName(config?.facilityTab, localizationMap);
+  const type = request?.query?.type;
+  const headingInSheet = headingMapping?.[type]
+  const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
+  await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
   XLSX.utils.book_append_sheet(workbook, facilitySheetData.ws, localizedFacilityTab);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
@@ -601,6 +669,10 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: any, request: any, localizationMap?: { [key: string]: string }) {
   const workbook = XLSX.utils.book_new();
   const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
+  const type = request?.query?.type;
+  const headingInSheet = headingMapping?.[type]
+  const localisedHeading = getLocalizedName(headingInSheet, localizationMap)
+  await createReadMeSheet(request, workbook, localisedHeading, localizationMap);
   // Add facility sheet to the workbook
   XLSX.utils.book_append_sheet(workbook, userSheetData.ws, localizedUserTab);
   // Add boundary sheet to the workbook
@@ -956,7 +1028,8 @@ export {
   modifyRequestForLocalisation,
   translateSchema,
   getLocalizedMessagesHandler,
-  getLocalizedHeaders
+  getLocalizedHeaders,
+  createReadMeSheet
 };
 
 
