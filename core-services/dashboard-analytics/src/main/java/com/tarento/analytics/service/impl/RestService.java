@@ -134,7 +134,7 @@ public class RestService {
 
     private HttpHeaders getHttpHeaders() {
         HttpHeaders headers = new HttpHeaders();
-        headers.add(AUTHORIZATION, getBase64Value(userName, password));
+        headers.add(AUTHORIZATION, getESEncodedCredentials());
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -155,6 +155,13 @@ public class RestService {
         String authString = String.format("%s:%s", userName, password);
         byte[] encodedAuthString = Base64.encodeBase64(authString.getBytes(Charset.forName(US_ASCII)));
         return String.format(BASIC_AUTH, new String(encodedAuthString));
+    }
+
+    public String getESEncodedCredentials() {
+        String credentials = userName + ":" + password;
+        byte[] credentialsBytes = credentials.getBytes();
+        byte[] base64CredentialsBytes = java.util.Base64.getEncoder().encode(credentialsBytes);
+        return "Basic " + new String(base64CredentialsBytes);
     }
 
 }
