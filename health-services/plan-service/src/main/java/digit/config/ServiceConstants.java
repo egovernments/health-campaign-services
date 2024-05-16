@@ -122,5 +122,10 @@ public class ServiceConstants {
     public static final String MDMS_SCHEMA_PROPERTIES = "Properties";
 
     public static final String MDMS_SCHEMA_PROPERTIES_IS_RULE_CONFIGURE_INPUT = "isRuleConfigureInputs";
+    
+    public static final String REQUIRED_MAPPING_NOT_FOUND_CODE = "REQUIRED_MAPPING_NOT_FOUND";
+    public static final String REQUIRED_MAPPING_NOT_FOUND_MESSAGE = "Resource Mapping required coloumn is not found.";
+    public static final String MDMS_SCHEMA_PROPERTIES_IS_REQUIRED = "isRequired";
+    public static final String BOUNDARY_CODE = "boundaryCode";
 
 }
