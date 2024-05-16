@@ -239,6 +239,7 @@ const SetupCampaign = () => {
     const keyParam = searchParams.get("key");
     return keyParam ? parseInt(keyParam) : 1;
   });
+  const [fetchUpload, setFetchUpload] = useState(false);
 
   const reqCriteria = {
     url: `/boundary-service/boundary-hierarchy-definition/_search`,
@@ -270,6 +271,11 @@ const SetupCampaign = () => {
 
   const { isLoading, data: projectType } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-PROJECT-TYPES", [{ name: "projectTypes" }]);
 
+  useEffect(() => {
+    if (fetchUpload) {
+      setFetchUpload(false);
+    }
+  }, [fetchUpload]);
   useEffect(() => {
     if (isPreview === "true") {
       setIsDraftCreated(true);
@@ -349,7 +355,7 @@ const SetupCampaign = () => {
     hierarchyType: hierarchyType,
     campaignId: id,
     config: {
-      enabled: currentKey === 7,
+      enabled: fetchUpload,
     },
   });
 
@@ -359,7 +365,7 @@ const SetupCampaign = () => {
     filters: filteredBoundaryData,
     campaignId: id,
     config: {
-      enabled: currentKey === 7,
+      enabled: fetchUpload,
     },
   });
 
@@ -368,7 +374,7 @@ const SetupCampaign = () => {
     hierarchyType: hierarchyType,
     campaignId: id,
     config: {
-      enabled: currentKey === 7,
+      enabled: fetchUpload,
     },
   });
 
@@ -836,6 +842,7 @@ const SetupCampaign = () => {
             return false;
           }
           setShowToast(null);
+          setFetchUpload(true);
           return true;
         } else {
           setShowToast({ key: "error", label: `${t("HCM_SELECT_BOUNDARY")}` });
@@ -1100,7 +1107,7 @@ const SetupCampaign = () => {
         actionClassName={"actionBarClass"}
         className="setup-campaign"
         cardClassName="setup-campaign-card"
-        noCardStyle={currentStep === 7 || currentStep === 0? false : true}
+        noCardStyle={currentStep === 7 || currentStep === 0 ? false : true}
         onSecondayActionClick={onSecondayActionClick}
         label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
