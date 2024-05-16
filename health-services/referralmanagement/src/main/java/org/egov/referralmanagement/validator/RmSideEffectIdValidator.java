@@ -58,7 +58,7 @@ public class RmSideEffectIdValidator implements Validator<ReferralBulkRequest, R
                     validSideEffectIds = sideEffectService.search(
                             SideEffectSearchRequest.builder().sideEffect(SideEffectSearch.builder().id(sideEffectIds).build()).build(),
                             sideEffectIds.size(), 0, tenantId, null, false
-                    ).stream().map(SideEffect::getId).collect(Collectors.toList());
+                    ).getResponse().stream().map(SideEffect::getId).collect(Collectors.toList());
                 } catch (Exception e) {
                     throw new CustomException("Side Effect failed to fetch", "Exception : " + e.getMessage());
                 }

@@ -2,6 +2,7 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiaryRequest;
 import org.egov.common.models.project.BeneficiaryResponse;
@@ -16,7 +17,7 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.project.web.models.ProjectBeneficiarySearch;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorRes;
@@ -224,7 +225,7 @@ public class ProjectBeneficiaryApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProjectBeneficiaryTestBuilder.builder().withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(Arrays.asList(ProjectBeneficiaryTestBuilder.builder().withId().withAuditDetails().build())).build());
 
         final MvcResult result = mockMvc.perform(post(
                         "/beneficiary/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")

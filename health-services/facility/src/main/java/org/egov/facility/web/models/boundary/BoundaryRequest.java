@@ -1,37 +1,38 @@
-package org.egov.household.web.models;
+package org.egov.facility.web.models.boundary;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.Boundary;
 import org.springframework.validation.annotation.Validated;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-
 /**
-* HouseholdSearchRequest
-*/
+ * BoundaryRequest
+ */
 @Validated
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdSearchRequest   {
+public class BoundaryRequest {
 
     @JsonProperty("RequestInfo")
-    @NotNull
     @Valid
     private RequestInfo requestInfo = null;
 
-    @JsonProperty("Household")
-    @NotNull
     @Valid
-    private HouseholdSearch household = null;
-}
+    @NotNull
+    @JsonProperty("Boundary")
+    @Size(min = 1, max = 300)
+    private List<Boundary> boundary = null;
 
+}

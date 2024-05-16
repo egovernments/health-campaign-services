@@ -4,6 +4,9 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -14,13 +17,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.egov.common.data.query.annotations.Exclude;
 import org.egov.common.models.core.EgovOfflineSearchModel;
 import org.springframework.validation.annotation.Validated;
 
 /**
 * A representation of an Individual.
 */
-    @ApiModel(description = "A representation of an Individual.")
+@ApiModel(description = "A representation of an Individual.")
 @Validated
 
 
@@ -82,5 +86,26 @@ public class IndividualSearch extends EgovOfflineSearchModel {
     @JsonProperty("userUuid")
     @Size(min = 1)
     private List<String> userUuid;
+
+    @Exclude
+    @JsonProperty("latitude")
+    @DecimalMin("-90")
+    @DecimalMax("90")
+    private Double latitude;
+
+    @Exclude
+    @JsonProperty("longitude")
+    @DecimalMin("-180")
+    @DecimalMax("180")
+    private Double longitude;
+
+    /*
+     * @value unit of measurement in Kilometer
+     * */
+    @Exclude
+    @JsonProperty("searchRadius")
+    @DecimalMin("0")
+    private Double searchRadius;
+
 }
 

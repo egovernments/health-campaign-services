@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.URLParams;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
 import org.egov.common.models.project.BeneficiaryRequest;
 import org.egov.common.models.project.BeneficiaryResponse;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.ProjectFacility;
@@ -37,9 +39,6 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.BeneficiarySearchRequest;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -121,18 +120,18 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/beneficiary/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest,
-                                                                                  ) throws Exception {
-        List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(
+    public ResponseEntity<BeneficiaryBulkResponse> projectBeneficiaryV1SearchPost(@ApiParam(value = "Project Beneficiary Search.", required = true) @Valid @RequestBody BeneficiarySearchRequest beneficiarySearchRequest) throws Exception {
+        SearchResponse<ProjectBeneficiary> searchResponse = projectBeneficiaryService.search(
                 beneficiarySearchRequest,
-                searchCriteria.getLimit(),
-                searchCriteria.getOffset(),
-                searchCriteria.getTenantId(),
-                searchCriteria.getLastChangedSince(),
-                searchCriteria.getIncludeDeleted()
+                beneficiarySearchRequest.getProjectBeneficiary().getLimit(),
+                beneficiarySearchRequest.getProjectBeneficiary().getOffset(),
+                beneficiarySearchRequest.getProjectBeneficiary().getTenantId(),
+                beneficiarySearchRequest.getProjectBeneficiary().getLastChangedSince(),
+                beneficiarySearchRequest.getProjectBeneficiary().getIncludeDeleted()
         );
         BeneficiaryBulkResponse beneficiaryResponse = BeneficiaryBulkResponse.builder()
-                .projectBeneficiaries(projectBeneficiaries)
+                .projectBeneficiaries(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(beneficiarySearchRequest.getRequestInfo(), true))
                 .build();
@@ -394,8 +393,9 @@ public class ProjectApiController {
                 searchCriteria.getLastChangedSince(),
                 searchCriteria.getIncludeDeleted()
         );
+        SearchResponse<Task> taskSearchResponse = projectTaskService.search(request.getTask(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         TaskBulkResponse response = TaskBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).tasks(households).build();
+                .createResponseInfo(request.getRequestInfo(), true)).tasks(taskSearchResponse.getResponse()).totalCount(taskSearchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

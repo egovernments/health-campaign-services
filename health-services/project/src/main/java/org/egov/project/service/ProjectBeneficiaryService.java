@@ -3,6 +3,7 @@ package org.egov.project.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.BeneficiaryRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -22,7 +23,7 @@ import org.egov.project.validator.beneficiary.PbUniqueEntityValidator;
 import org.egov.project.validator.beneficiary.PbUniqueTagsValidator;
 import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForCreateValidator;
 import org.egov.project.validator.beneficiary.PbVoucherTagUniqueForUpdateValidator;
-import org.egov.project.web.models.BeneficiarySearchRequest;
+import org.egov.common.models.project.BeneficiarySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -166,12 +167,12 @@ public class ProjectBeneficiaryService {
         return validProjectBeneficiaries;
     }
 
-    public List<ProjectBeneficiary> search(BeneficiarySearchRequest beneficiarySearchRequest,
-                                           Integer limit,
-                                           Integer offset,
-                                           String tenantId,
-                                           Long lastChangedSince,
-                                           Boolean includeDeleted) throws Exception {
+    public SearchResponse<ProjectBeneficiary> search(BeneficiarySearchRequest beneficiarySearchRequest,
+                                                     Integer limit,
+                                                     Integer offset,
+                                                     String tenantId,
+                                                     Long lastChangedSince,
+                                                     Boolean includeDeleted) throws Exception {
         log.info("received request to search project beneficiaries");
         String idFieldName = getIdFieldName(beneficiarySearchRequest.getProjectBeneficiary());
         if (isSearchByIdOnly(beneficiarySearchRequest.getProjectBeneficiary(), idFieldName)) {
@@ -180,11 +181,17 @@ public class ProjectBeneficiaryService {
                             .singletonList(beneficiarySearchRequest.getProjectBeneficiary())),
                     beneficiarySearchRequest.getProjectBeneficiary());
             log.info("fetching project beneficiaries with ids: {}", ids);
-            return projectBeneficiaryRepository.findById(ids, includeDeleted, idFieldName).stream()
+
+            SearchResponse<ProjectBeneficiary> searchResponse = projectBeneficiaryRepository.findById(ids, idFieldName, includeDeleted);
+
+            List<ProjectBeneficiary> projectBeneficiaries = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            searchResponse.setResponse(projectBeneficiaries);
+
+            return searchResponse;
         }
         log.info("searching project beneficiaries using criteria");
         return projectBeneficiaryRepository.find(beneficiarySearchRequest.getProjectBeneficiary(),

@@ -2,6 +2,7 @@ package org.egov.referralmanagement.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectRequest;
@@ -161,7 +162,10 @@ public class SideEffectApiControllerTest {
                 ArgumentMatchers.any(Integer.class),
                 ArgumentMatchers.any(String.class),
                 ArgumentMatchers.any(Long.class),
-                ArgumentMatchers.any(Boolean.class))).thenReturn(Arrays.asList(SideEffectTestBuilder.builder().withId().withAuditDetails().build()));
+                ArgumentMatchers.any(Boolean.class))).thenReturn(
+                        SearchResponse.<SideEffect>builder()
+                                .response(Arrays.asList(SideEffectTestBuilder.builder().withId().withAuditDetails().build()))
+                                .build());
 
         final MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post(
                         "/side-effect/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")

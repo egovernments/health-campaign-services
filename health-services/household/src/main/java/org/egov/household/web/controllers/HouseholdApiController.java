@@ -8,7 +8,7 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.ds.Tuple;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.models.household.HouseholdBulkResponse;
@@ -97,10 +97,18 @@ public class HouseholdApiController {
 
     @RequestMapping(value = "/member/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<HouseholdMemberBulkResponse> householdMemberV1SearchPost(@ApiParam(value = "Details for existing household member.", required = true) @Valid @ModelAttribute HouseholdMemberSearchRequest householdMemberSearchRequest) {
-        List<HouseholdMember> households = householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), householdMemberSearchRequest.getHouseholdMemberSearch().getLimit(), householdMemberSearchRequest.getHouseholdMemberSearch().getOffset(), householdMemberSearchRequest.getHouseholdMemberSearch().getTenantId(), householdMemberSearchRequest.getHouseholdMemberSearch().getLastChangedSince(), householdMemberSearchRequest.getHouseholdMemberSearch().getIncludeDeleted());
+        SearchResponse<HouseholdMember> searchResponse = householdMemberService.search(
+                householdMemberSearchRequest.getHouseholdMemberSearch(),
+                householdMemberSearchRequest.getHouseholdMemberSearch().getLimit(),
+                householdMemberSearchRequest.getHouseholdMemberSearch().getOffset(),
+                householdMemberSearchRequest.getHouseholdMemberSearch().getTenantId(),
+                householdMemberSearchRequest.getHouseholdMemberSearch().getLastChangedSince(),
+                householdMemberSearchRequest.getHouseholdMemberSearch().getIncludeDeleted()
+        );
         HouseholdMemberBulkResponse response = HouseholdMemberBulkResponse.builder().responseInfo(ResponseInfoFactory
                                                 .createResponseInfo(householdMemberSearchRequest.getRequestInfo(), true))
-                                                .householdMembers(households)
+                                                .householdMembers(searchResponse.getResponse())
+                                                .totalCount(searchResponse.getTotalCount())
                                                 .build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -193,10 +201,21 @@ public class HouseholdApiController {
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
     public ResponseEntity<HouseholdBulkResponse> householdV1SearchPost(@ApiParam(value = "Details for existing household.", required = true) @Valid @RequestBody HouseholdSearchRequest request) {
-
-        Tuple<Long, List<Household>> householdsTuple = householdService.search(request.getHousehold(), request.getHousehold().getLimit(), request.getHousehold().getOffset(), request.getHousehold().getTenantId(), request.getHousehold().getLastChangedSince(), request.getHousehold().getIncludeDeleted());
-        HouseholdBulkResponse response = HouseholdBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).totalCount(householdsTuple.getX()).households(householdsTuple.getY()).build();
+        SearchResponse<Household> searchResponse = householdService.search(
+                request.getHousehold(),
+                request.getHousehold().getLimit(),
+                request.getHousehold().getOffset(),
+                request.getHousehold().getTenantId(),
+                request.getHousehold().getLastChangedSince(),
+                request.getHousehold().getIncludeDeleted()
+        );
+        HouseholdBulkResponse response = HouseholdBulkResponse.builder()
+                .responseInfo(
+                        ResponseInfoFactory.createResponseInfo(
+                                request.getRequestInfo(), true
+                        )
+                ).totalCount(searchResponse.getTotalCount())
+                .households(searchResponse.getResponse()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

@@ -2,6 +2,7 @@ package org.egov.referralmanagement.web.controllers;
 
 import io.swagger.annotations.ApiParam;
 import org.egov.common.models.core.URLParams;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.referralmanagement.service.ReferralManagementService;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.referralmanagement.Referral;
@@ -99,8 +100,12 @@ public class ReferralManagementApiController {
                                                                      ) throws Exception {
 
         List<Referral> referrals = referralManagementService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        SearchResponse<Referral> referralSearchResponse = referralManagementService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
         ReferralBulkResponse response = ReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).referrals(referrals).build();
+                .createResponseInfo(request.getRequestInfo(), true))
+                .referrals(referralSearchResponse.getResponse())
+                .totalCount(referralSearchResponse.getTotalCount())
+                .build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

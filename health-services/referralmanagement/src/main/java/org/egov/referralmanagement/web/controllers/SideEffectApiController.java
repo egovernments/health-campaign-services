@@ -1,10 +1,11 @@
 package org.egov.referralmanagement.web.controllers;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+
 import io.swagger.annotations.ApiParam;
-import org.egov.common.models.core.URLParams;
-import org.egov.referralmanagement.config.ReferralManagementConfiguration;
-import org.egov.referralmanagement.service.SideEffectService;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectBulkResponse;
@@ -13,18 +14,15 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectResponse;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.service.SideEffectService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import java.util.List;
 
 @Controller
 @RequestMapping("/side-effect")
@@ -77,12 +75,19 @@ public class SideEffectApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<SideEffectBulkResponse> sideEffectV1SearchPost(@ApiParam(value = "Side Effect Search.", required = true) @Valid @RequestBody SideEffectSearchRequest request,
-                                                                         ) throws Exception {
+    public ResponseEntity<SideEffectBulkResponse> sideEffectV1SearchPost(@ApiParam(value = "Side Effect Search.", required = true) @Valid @RequestBody SideEffectSearchRequest request) throws Exception {
 
-        List<SideEffect> sideEffects = sideEffectService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        SearchResponse<SideEffect> sideEffectSearchResponse = sideEffectService.search(
+                request,
+                request.getSideEffect().getLimit(),
+                request.getSideEffect().getOffset(),
+                request.getSideEffect().getTenantId(),
+                request.getSideEffect().getLastChangedSince(),
+                request.getSideEffect().getIncludeDeleted()
+        );
         SideEffectBulkResponse response = SideEffectBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).sideEffects(sideEffects).build();
+                .createResponseInfo(request.getRequestInfo(), true)).sideEffects(sideEffectSearchResponse.getResponse())
+                .totalCount(sideEffectSearchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

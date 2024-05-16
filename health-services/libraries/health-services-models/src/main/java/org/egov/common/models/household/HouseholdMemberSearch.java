@@ -26,6 +26,9 @@ import org.springframework.validation.annotation.Validated;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HouseholdMemberSearch  extends EgovOfflineSearchModel {
 
+    @JsonProperty("clientReferenceId")
+    private List<String> clientReferenceId = null;
+
     @JsonProperty("householdId")
     private List<String> householdId = null;
 

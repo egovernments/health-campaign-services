@@ -24,6 +24,11 @@ public class SideEffectBulkResponse {
     @Valid
     private ResponseInfo responseInfo;
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
+
     @JsonProperty("SideEffects")
     @NotNull
     @Valid
