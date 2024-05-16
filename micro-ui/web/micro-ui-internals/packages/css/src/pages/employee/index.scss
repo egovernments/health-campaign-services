@@ -237,9 +237,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .page-padding-fix {
   margin-top: 1.5rem;
 }
-.digit-header-content {
-  &:not(label) {
-    display: flex;
-    justify-content: center;
+.loginFormStyleEmployee {
+  .loginCardClassName {
+    .digit-header-content {
+      &:not(label) {
+        display: flex;
+        justify-content: center;
+      }
+    }
   }
 }

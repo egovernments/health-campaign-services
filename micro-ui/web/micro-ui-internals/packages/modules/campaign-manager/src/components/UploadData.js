@@ -443,7 +443,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       // const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type;
       const fileType = type === "facilityWithBoundary" ? "facility" : type === "userWithBoundary" ? "user" : type === "boundary" ? "boundaryWithTarget" : type;
       return {
-        ...i,
+        // ...i,
         filestoreId: id,
         filename: fileName,
         type: fileType,

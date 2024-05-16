@@ -16,6 +16,8 @@ export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId
     body: type === "boundary" ? (updatedFilters === undefined ? { Filters: null } : { Filters: { boundaries: updatedFilters } }) : {},
     config: {
       ...config,
+      cacheTime:0,
+      staleTime: 0,
     },
   };
 

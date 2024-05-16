@@ -26,7 +26,15 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    setFileUrl(fileData?.[0]);
+    const fetch = async () => {
+      const { data: { fileStoreIds: fileUrl } = {} } = await Digit.UploadServices.Filefetch([fileData?.[0]?.filestoreId], tenantId);
+      const temp = fileData?.map((i) => ({
+        ...i,
+        url: fileUrl?.[0]?.url,
+      }));
+      setFileUrl(temp?.[0]);
+    };
+    fetch();
   }, [fileData]);
 
   const documents = fileUrl

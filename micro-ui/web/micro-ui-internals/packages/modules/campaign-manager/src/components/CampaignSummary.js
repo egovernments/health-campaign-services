@@ -119,6 +119,19 @@ function reverseDeliveryRemap(data, t) {
   return reversedData;
 }
 
+const fetchResourceFile = async (tenantId, resourceIdArr) => {
+  const res = await Digit.CustomService.getResponse({
+    url: `/project-factory/v1/data/_search`,
+    body: {
+      SearchCriteria: {
+        tenantId: tenantId,
+        id: resourceIdArr,
+      },
+    },
+  });
+  return res?.ResourceDetails;
+};
+
 const CampaignSummary = () => {
   const { t } = useTranslation();
   const history = useHistory();
@@ -141,6 +154,7 @@ const CampaignSummary = () => {
             resourceIdArr.push(i?.createResourceId);
           }
         });
+        const processid = fetchResourceFile(tenantId, resourceIdArr);
         const target = data?.[0]?.deliveryRules;
         const cycleData = reverseDeliveryRemap(target, t);
         return {
@@ -237,7 +251,7 @@ const CampaignSummary = () => {
                   ],
                 }
               : {},
-            resourceIdArr?.length > 0
+            resourceIdArr?.length > 0 && processid?.[0]?.processedFilestoreId
               ? {
                   sections: [
                     {
@@ -245,7 +259,7 @@ const CampaignSummary = () => {
                       component: "CampaignResourceDocuments",
                       props: {
                         isUserGenerate: true,
-                        resources: resourceIdArr,
+                        resources: processid,
                       },
                       cardHeader: { value: t("USER_GENERATE_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                     },

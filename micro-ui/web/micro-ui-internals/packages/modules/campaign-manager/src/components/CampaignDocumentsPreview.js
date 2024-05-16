@@ -16,7 +16,7 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
   }, [documents]);
 
   useEffect(() => {
-    if (filesArray?.length) {
+    if (filesArray?.length > 0) {
       Digit.UploadServices.Filefetch(filesArray, Digit.ULBService.getCurrentTenantId()).then((res) => {
         setPdfFiles(res?.data);
       });
