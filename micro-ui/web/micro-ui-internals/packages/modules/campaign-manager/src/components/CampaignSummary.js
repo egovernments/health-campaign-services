@@ -154,7 +154,14 @@ const CampaignSummary = () => {
             resourceIdArr.push(i?.createResourceId);
           }
         });
-        const processid = fetchResourceFile(tenantId, resourceIdArr);
+        let processid;
+
+        const ss = async () => {
+          let temp = await fetchResourceFile(tenantId, resourceIdArr);
+          processid = temp;
+          return;
+        };
+        ss();
         const target = data?.[0]?.deliveryRules;
         const cycleData = reverseDeliveryRemap(target, t);
         return {
@@ -251,7 +258,7 @@ const CampaignSummary = () => {
                   ],
                 }
               : {},
-            resourceIdArr?.length > 0 && processid?.[0]?.processedFilestoreId
+            resourceIdArr?.length > 0 
               ? {
                   sections: [
                     {
@@ -259,7 +266,8 @@ const CampaignSummary = () => {
                       component: "CampaignResourceDocuments",
                       props: {
                         isUserGenerate: true,
-                        resources: processid,
+                        // resources: processid,
+                        resources: resourceIdArr,
                       },
                       cardHeader: { value: t("USER_GENERATE_DETAILS"), inlineStyles: { marginTop: 0, fontSize: "1.5rem" } },
                     },

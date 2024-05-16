@@ -211,6 +211,16 @@ function groupByTypeRemap(data) {
   return result;
 }
 
+// Example usage:
+// updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
+function updateUrlParams(params) {
+  const url = new URL(window.location.href);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  window.history.replaceState({}, "", url);
+}
+
 const SetupCampaign = () => {
   const tenantId = Digit.ULBService.getCurrentTenantId();
   const { t } = useTranslation();
@@ -239,6 +249,7 @@ const SetupCampaign = () => {
     const keyParam = searchParams.get("key");
     return keyParam ? parseInt(keyParam) : 1;
   });
+  const [fetchBoundary, setFetchBoundary] = useState(() => Boolean(searchParams.get("fetchBoundary")));
   const [fetchUpload, setFetchUpload] = useState(false);
 
   const reqCriteria = {
@@ -275,7 +286,11 @@ const SetupCampaign = () => {
     if (fetchUpload) {
       setFetchUpload(false);
     }
-  }, [fetchUpload]);
+    if (fetchBoundary && currentKey > 5) {
+      setFetchBoundary(false);
+    }
+  }, [fetchUpload, fetchBoundary]);
+
   useEffect(() => {
     if (isPreview === "true") {
       setIsDraftCreated(true);
@@ -355,7 +370,7 @@ const SetupCampaign = () => {
     hierarchyType: hierarchyType,
     campaignId: id,
     config: {
-      enabled: fetchUpload,
+      enabled: fetchUpload || (fetchBoundary && currentKey > 6),
     },
   });
 
@@ -365,7 +380,7 @@ const SetupCampaign = () => {
     filters: filteredBoundaryData,
     campaignId: id,
     config: {
-      enabled: fetchUpload,
+      enabled: fetchUpload || (fetchBoundary && currentKey > 6),
     },
   });
 
@@ -374,7 +389,7 @@ const SetupCampaign = () => {
     hierarchyType: hierarchyType,
     campaignId: id,
     config: {
-      enabled: fetchUpload,
+      enabled: fetchUpload || (fetchBoundary && currentKey > 6),
     },
   });
 
@@ -390,16 +405,6 @@ const SetupCampaign = () => {
       });
     }
   }, [facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
-
-  // Example usage:
-  // updateUrlParams({ id: 'sdjkhsdjkhdshfsdjkh', anotherParam: 'value' });
-  function updateUrlParams(params) {
-    const url = new URL(window.location.href);
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
-    window.history.replaceState({}, "", url);
-  }
 
   useEffect(() => {
     setCampaignConfig(CampaignConfig(totalFormData, dataParams));
@@ -1075,7 +1080,6 @@ const SetupCampaign = () => {
   if (isDraft === "true" && !draftData) {
     return <Loader />;
   }
-
 
   return (
     <React.Fragment>

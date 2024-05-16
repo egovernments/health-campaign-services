@@ -11,7 +11,7 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
   const [pdfFiles, setPdfFiles] = useState({});
   const [showPreview, setShowPreview] = useState(false);
   useEffect(() => {
-    let acc = documents?.map((i) => i.id);
+    let acc = documents?.map((i) => (i?.id ? i?.id : i?.filestoreId));
     setFilesArray(acc);
   }, [documents]);
 
@@ -26,30 +26,36 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
   const handleFileDownload = (a, b) => {
     window.open(b, "_blank");
   };
-
   return (
     <div>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-start" }}>
         {documents?.length > 0 ? (
-          documents?.map((document, index) => (
-            <div key={index} style={{ marginRight: "1rem" }}>
-              <div onClick={() => setShowPreview(true)}>
-                <div style={{ display: "flex" }}>
-                  <XlsxFile />
+          documents?.map(
+            (document, index) =>
+              (document?.id || document?.filestoreId) && (
+                <div key={index} style={{ marginRight: "1rem" }}>
+                  <div onClick={() => setShowPreview(true)}>
+                    <div style={{ display: "flex" }}>
+                      <XlsxFile />
+                    </div>
+                    <p className="campaign-document-title">
+                      {isUserGenerate
+                        ? document?.type
+                        : document?.filename
+                        ? t(document?.filename)
+                        : t("CAMPAIGN_DOCUMENT_TITLE", { INDEX: index + 1 })}
+                    </p>
+                  </div>
+                  {showPreview && (
+                    <XlsPreview
+                      file={{ url: pdfFiles[document?.id ? document?.id : document?.filestoreId] }}
+                      onDownload={() => handleFileDownload(null, pdfFiles[document?.id])}
+                      onBack={() => setShowPreview(false)}
+                    />
+                  )}
                 </div>
-                <p className="campaign-document-title">
-                  {isUserGenerate ? document?.type : document?.filename ? t(document?.filename) : t("CAMPAIGN_DOCUMENT_TITLE", { INDEX: index + 1 })}
-                </p>
-              </div>
-              {showPreview && (
-                <XlsPreview
-                  file={{ url: pdfFiles[document?.id] }}
-                  onDownload={() => handleFileDownload(null, pdfFiles[document?.id])}
-                  onBack={() => setShowPreview(false)}
-                />
-              )}
-            </div>
-          ))
+              )
+          )
         ) : (
           <div>
             <p>{t("ES_CAMPAIGN_NO_DOCUMENTS_AVAILABLE")}</p>
