@@ -59,6 +59,10 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
 }
 
 
+function isNumeric(value: any) {
+    return /^-?\d+(\.\d+)?$/.test(value);
+}
+
 // Function to retrieve data from a specific sheet in an Excel file
 const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, createAndSearchConfig?: any, localizationMap?: { [key: string]: string }) => {
     // Retrieve workbook using the getWorkbook function
@@ -77,7 +81,6 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
             // Get the value of the first row in the current column
             if (sheetColumn && localizedColumnName) {
                 const firstRowValue = workbook.Sheets[localizedSheetName][`${sheetColumn}1`]?.v;
-
                 // Validate the first row of the current column
                 if (firstRowValue !== localizedColumnName) {
                     throwError("FILE", 400, "INVALID_COLUMNS", `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`);
@@ -87,22 +90,20 @@ const getSheetData = async (fileUrl: string, sheetName: string, getRow = false, 
     }
 
     // Convert sheet data to JSON format
-    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[localizedSheetName], { blankrows: true });
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[localizedSheetName], { blankrows: true, raw: false });
     var jsonData = sheetData.map((row: any, index: number) => {
         const rowData: any = {};
         if (Object.keys(row).length > 0) {
             Object.keys(row).forEach(key => {
-                rowData[key] = row[key] === undefined || row[key] === '' ? '' : row[key];
+                // Check if the value is a numerical string
+                rowData[key] = isNumeric(row[key]) ? Number(row[key]) : (row[key] === undefined || row[key] === '' ? '' : row[key]);
             });
-            if (getRow) rowData['!row#number!'] = index + 1; // Adding row number
+            if (getRow) rowData['!row#number!'] = index + 1;
             return rowData;
         }
     });
 
     jsonData = jsonData.filter(element => element !== undefined);
-    // logger.info("Sheet Data : " + JSON.stringify(jsonData))
-
-    // Return JSON data
     return jsonData;
 };
 
