@@ -116,10 +116,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(async () =>{
     if(readMe?.["HCM-ADMIN-CONSOLE"]){
-      const newReadMeFacility = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.[0]?.texts)
-      const newReadMeUser = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.[1]?.texts)
-      const newReadMeboundary = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.[2]?.texts)
-    
+      const newReadMeFacility = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.filter(item => item.type === type)?.[0]?.texts);
+      const newReadMeUser = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.filter(item => item.type === type)?.[0]?.texts)
+      const newReadMeboundary = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.filter(item => item.type === type)?.[0]?.texts)
+
 
     const readMeText ={
       boundary: newReadMeboundary,
@@ -753,7 +753,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             <h2>{info?.header}</h2>
             <ul style={{ paddingLeft: 0 }}>
               {info?.descriptions.map((desc, i) => (
-                <li key={i}>{desc.text}</li>
+
+                <li key={i} className="info-points">
+                <p>{i + 1}. </p>
+                <p>{desc.text}</p>
+              </li>
               ))}
             </ul>
           </div>
