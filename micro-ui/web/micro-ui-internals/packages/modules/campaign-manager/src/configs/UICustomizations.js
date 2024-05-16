@@ -20,7 +20,7 @@ export const UICustomizations = {
       const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: ["started", "In Progress"],
+        status: ["creating", "created"],
         createdBy: Digit.UserService.getUser().info.uuid,
         campaignsIncludeDates: true,
         startDate: Date.now(),
@@ -113,7 +113,7 @@ export const UICustomizations = {
       const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: ["started", "In Progress"],
+        status: ["creating", "created"],
         endDate: Date.now() - 24 * 60 * 60 * 1000,
         createdBy: Digit.UserService.getUser().info.uuid,
         pagination: {
@@ -204,7 +204,7 @@ export const UICustomizations = {
       const { campaignName, campaignType } = data?.state?.searchForm || {};
       data.body.CampaignDetails = {
         tenantId: tenantId,
-        status: ["started", "In Progress"],
+        status: ["creating", "created"],
         createdBy: Digit.UserService.getUser().info.uuid,
         campaignsIncludeDates: false,
         startDate: Date.now() + 24 * 60 * 60 * 1000,

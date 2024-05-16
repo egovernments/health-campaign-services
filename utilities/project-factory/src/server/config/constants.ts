@@ -90,8 +90,8 @@ export const userRoles: any = {
 
 export const campaignStatuses: any = {
     drafted: "drafted",
-    started: "started",
-    inprogress: "In Progress",
+    started: "creating",
+    inprogress: "created",
     failed: "failed"
 }
 
