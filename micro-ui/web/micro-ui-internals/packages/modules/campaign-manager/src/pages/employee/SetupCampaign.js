@@ -576,6 +576,8 @@ const SetupCampaign = () => {
                     message: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE"),
                     text: t("ES_CAMPAIGN_CREATE_SUCCESS_RESPONSE_TEXT"),
                     info: t("ES_CAMPAIGN_SUCCESS_INFO_TEXT"),
+                    actionLabel: t("HCM_CAMPAIGN_SUCCESS_RESPONSE_ACTION"),
+                    actionLink: `/${window.contextPath}/employee/campaign/my-campaign`,
                   }
                 );
                 Digit.SessionStorage.del("HCM_CAMPAIGN_MANAGER_FORM_DATA");
