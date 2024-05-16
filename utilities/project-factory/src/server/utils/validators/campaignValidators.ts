@@ -111,8 +111,7 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code);
     // Iterate through each array of objects
     for (const key in data) {
-        const isNotBoundaryOrReadMeTab = key != getLocalizedName(getBoundaryTabName(), localizationMap) && key != getLocalizedName(config?.readMeTab, localizationMap);
-        if (isNotBoundaryOrReadMeTab) {
+        if (key != getLocalizedName(getBoundaryTabName(), localizationMap) && key != getLocalizedName(config?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 const boundarySet = new Set(); // Create a Set to store unique boundaries for given sheet 
@@ -121,14 +120,12 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
                     if (!boundaries) {
                         errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is required for element at row ${element["!row#number!"] + 1} for sheet ${key}`, sheetName: key })
                     } else {
-                        if (typeof boundaries !== 'string') {
-                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is not of type string at row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key });
+                        if (!(typeof boundaries === 'string')) {
+                            errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is not of type string at row  ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
                         } else {
                             const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
                             if (boundaryList.length === 0) {
-                                if (boundaryList.length === 0 || boundaryList.includes('')) {
-                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
-                                }
+                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
                             }
                             if (boundaryList.length > 1) {
                                 errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
