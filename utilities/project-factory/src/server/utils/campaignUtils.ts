@@ -79,6 +79,7 @@ function findColumns(desiredSheet: any): { statusColumn: string, errorDetailsCol
 }
 
 function processErrorData(request: any, createAndSearchConfig: any, workbook: any, sheetName: any, localizationMap?: { [key: string]: string }) {
+    console.log(sheetName, "errrror")
     const desiredSheet: any = workbook.Sheets[sheetName];
     const errorData = request.body.sheetErrorDetails;
     const userNameAndPassword = request.body.userNameAndPassword;
