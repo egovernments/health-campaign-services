@@ -207,7 +207,7 @@ const getConditionsKey = (condition: any, key: string) => {
   } else if (keys.includes("EQUAL_TO")) {
     return `${condition[key]}=`;
   } else {
-    return `${key.includes("LESS_THAN") ? "0<" : ">100"}`;
+    return `${key.includes("LESS_THAN") ?  ">100" : "0<" }`;
   }
 };
 
@@ -239,5 +239,6 @@ const getRequiredCondition = (conditions: any = []) => {
 
   // Sort keys of formattedCondition and get the first one
   const sortedKeys = Object.keys(formattedCondition).slice().sort();
+  // update the below logic to support multiple conditions currently hardcoded for age or 1 st condition
   return getCondition(formattedCondition[sortedKeys[0]], sortedKeys[0]);
 };
