@@ -1,21 +1,13 @@
 package org.egov.transformer.utils;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
-import digit.models.coremodels.mdms.*;
 import lombok.extern.slf4j.Slf4j;
-import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.contract.request.User;
-import org.egov.common.models.project.Field;
-import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
-import org.egov.transformer.service.MdmsService;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
 
@@ -36,58 +28,12 @@ public class CommonUtils {
     private final TransformerProperties properties;
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
-    private final MdmsService mdmsService;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
 
-    private static Map<String, String> transformerLocalizations = new HashMap<>();
-
-    private static Map<String, String> transformerElasticIndexLabelsMap = new HashMap<>();
-
-    private static Map<String, JSONArray> projectStaffRolesCache = new ConcurrentHashMap<>();
-
-    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, MdmsService mdmsService) {
+    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
         this.properties = properties;
         this.projectService = projectService;
         this.objectMapper = objectMapper;
-        this.mdmsService = mdmsService;
-    }
-
-    public String getMDMSTransformerLocalizations(String text, String tenantId) {
-        if (transformerLocalizations.containsKey(text)) {
-            log.info("Fetching localization from transformerLocalization: {}", text);
-            return transformerLocalizations.get(text);
-        }
-        return fetchLocalizationsFromMdms(text, tenantId);
-    }
-
-    public String getMDMSTransformerElasticIndexLabels(String label, String tenantId) {
-        if (transformerElasticIndexLabelsMap.containsKey(label)) {
-            return transformerElasticIndexLabelsMap.get(label);
-        }
-        return fetchIndexLabelsFromMdms(label, tenantId);
-    }
-
-    public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
-        if (localityCode == null) {
-            return null;
-        }
-        Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMap(localityCode, tenantId);
-        Map<String, String> boundaryHierarchy = new HashMap<>();
-
-        boundaryLabelToNameMap.forEach((label, value) -> {
-            boundaryHierarchy.put(getMDMSTransformerElasticIndexLabels(label, tenantId), value);
-        });
-        return boundaryHierarchy;
-    }
-
-    public Map<String, String> getBoundaryHierarchyWithProjectId(String projectId, String tenantId) {
-        Map<String, String> boundaryLabelToNameMap = projectService.getBoundaryLabelToNameMapByProjectId(projectId, tenantId);
-        Map<String, String> boundaryHierarchy = new HashMap<>();
-
-        boundaryLabelToNameMap.forEach((label, value) -> {
-            boundaryHierarchy.put(getMDMSTransformerElasticIndexLabels(label, tenantId), value);
-        });
-        return boundaryHierarchy;
     }
 
     public List<String> getProjectDatesList(Long startDateEpoch, Long endDateEpoch) {
@@ -154,7 +100,6 @@ public class CommonUtils {
         }
     }
 
-
     public Integer calculateAgeInMonthsFromDOB(Date birthDate) {
         Calendar currentDate = Calendar.getInstance();
 
@@ -190,16 +135,16 @@ public class CommonUtils {
                 JsonNode mdmsBoundaryData = (projectTypeId != null) ? projectService.fetchBoundaryData(tenantId, null, projectTypeId) :
                         projectService.fetchBoundaryDataByTenant(tenantId, null);
                 boundaryLevelVsLabel = StreamSupport
-                        .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+                        .stream(mdmsBoundaryData.get(BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
                 boundaryLevelVsLabelCache.put(cacheKey, boundaryLevelVsLabel);
             }
         } catch (Exception e) {
             log.error("Error while fetching boundaryHierarchy for projectTypeId: {}, Error: {}", projectTypeId, ExceptionUtils.getStackTrace(e));
-            log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap.toString());
+            log.info("RETURNING BOUNDARY_LABEL_TO_NAME_MAP as BOUNDARY_HIERARCHY: {}", boundaryLabelToNameMap);
             JsonNode mdmsBoundaryData = projectService.fetchBoundaryDataByTenant(tenantId, null);
-            if (mdmsBoundaryData != null && mdmsBoundaryData.has(Constants.BOUNDARY_HIERARCHY)) {
+            if (mdmsBoundaryData != null && mdmsBoundaryData.has(BOUNDARY_HIERARCHY)) {
                 boundaryLevelVsLabel = StreamSupport
-                        .stream(mdmsBoundaryData.get(Constants.BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
+                        .stream(mdmsBoundaryData.get(BOUNDARY_HIERARCHY).spliterator(), false).collect(Collectors.toList());
             }
         }
         if (boundaryLevelVsLabel == null) {
@@ -207,110 +152,13 @@ public class CommonUtils {
         }
         boundaryLevelVsLabel.forEach(node -> {
             if (node.get(LEVEL).asInt() > 1) {
-                boundaryHierarchy.put(node.get(Constants.INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(LABEL).asText()) == null ? null : boundaryLabelToNameMap.get(node.get(LABEL).asText()));
+                boundaryHierarchy.put(node.get(INDEX_LABEL).asText(), boundaryLabelToNameMap.get(node.get(LABEL).asText()) == null ? null : boundaryLabelToNameMap.get(node.get(LABEL).asText()));
             }
         });
         return boundaryHierarchy;
     }
 
-    private String fetchIndexLabelsFromMdms(String label, String tenantId) {
-        JSONArray transformerElasticIndexLabelsArray = new JSONArray();
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, TRANSFORMER_ELASTIC_INDEX_LABELS, properties.getTransformerElasticIndexLabelsMdmsModule(), "");
-        try {
-            MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
-            transformerElasticIndexLabelsArray = mdmsResponse.getMdmsRes().get(properties.getTransformerElasticIndexLabelsMdmsModule())
-                    .get(TRANSFORMER_ELASTIC_INDEX_LABELS);
-            ObjectMapper objectMapper = new ObjectMapper();
-            transformerElasticIndexLabelsArray.forEach(item -> {
-                Map map = objectMapper.convertValue(item, new TypeReference<Map>() {
-                });
-                transformerElasticIndexLabelsMap.put((String) map.get(LABEL), (String) map.get(INDEX_LABEL));
-            });
-        } catch (Exception e) {
-            log.error("error while fetching ELASTIC_INDEX_LABELS from MDMS: {}", ExceptionUtils.getStackTrace(e));
-        }
-        return transformerElasticIndexLabelsMap.getOrDefault(label, label);
-    }
-
-    private String fetchLocalizationsFromMdms(String text, String tenantId) {
-        JSONArray transformerLocalizationsArray = new JSONArray();
-
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, TRANSFORMER_LOCALIZATIONS, properties.getTransformerLocalizationsMdmsModule(), "");
-        try {
-            MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
-            transformerLocalizationsArray = mdmsResponse.getMdmsRes().get(properties.getTransformerLocalizationsMdmsModule())
-                    .get(TRANSFORMER_LOCALIZATIONS);
-            ObjectMapper objectMapper = new ObjectMapper();
-            transformerLocalizationsArray.forEach(item -> {
-                Map map = objectMapper.convertValue(item, new TypeReference<Map>() {
-                });
-                transformerLocalizations.put((String) map.get("text"), (String) map.get("translatedText"));
-            });
-        } catch (Exception e) {
-            log.error("error while fetching TRANFORMER_LOCALIZATIONS from MDMS: {}", ExceptionUtils.getStackTrace(e));
-        }
-        return transformerLocalizations.getOrDefault(text, text);
-    }
-
-    private MdmsCriteriaReq getMdmsRequest(RequestInfo requestInfo, String tenantId, String masterName,
-                                           String moduleName, String filter) {
-        MasterDetail masterDetail = new MasterDetail();
-        masterDetail.setName(masterName);
-        if (filter != null && !filter.isEmpty()) {
-            masterDetail.setFilter(filter);
-        }
-        List<MasterDetail> masterDetailList = new ArrayList<>();
-        masterDetailList.add(masterDetail);
-        ModuleDetail moduleDetail = new ModuleDetail();
-        moduleDetail.setMasterDetails(masterDetailList);
-        moduleDetail.setModuleName(moduleName);
-        List<ModuleDetail> moduleDetailList = new ArrayList<>();
-        moduleDetailList.add(moduleDetail);
-        MdmsCriteria mdmsCriteria = new MdmsCriteria();
-        mdmsCriteria.setTenantId(tenantId.split("\\.")[0]);
-        mdmsCriteria.setModuleDetails(moduleDetailList);
-        MdmsCriteriaReq mdmsCriteriaReq = new MdmsCriteriaReq();
-        mdmsCriteriaReq.setMdmsCriteria(mdmsCriteria);
-        mdmsCriteriaReq.setRequestInfo(requestInfo);
-        return mdmsCriteriaReq;
-    }
-
-    public HashMap<String, Integer> getProjectStaffRoles(String tenantId) {
-        String moduleName = properties.getProjectStaffRolesMdmsModule();
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, PROJECT_STAFF_ROLES, moduleName, null);
-        JSONArray projectStaffRoles = new JSONArray();
-        try {
-            String cacheKey = tenantId;
-            if (projectStaffRolesCache.containsKey(cacheKey)) {
-                projectStaffRoles = projectStaffRolesCache.get(cacheKey);
-                log.info("Fetching projectStaffRoles from cache for tenantId: {}", tenantId);
-            } else {
-                MdmsResponse mdmsResponse = mdmsService.fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
-                projectStaffRoles = mdmsResponse.getMdmsRes().get(moduleName).get(PROJECT_STAFF_ROLES);
-                projectStaffRolesCache.put(cacheKey, projectStaffRoles);
-            }
-        } catch (Exception e) {
-            log.error("Exception while fetching mdms roles: {}", ExceptionUtils.getStackTrace(e));
-        }
-        ObjectMapper objectMapper = new ObjectMapper();
-        HashMap<String, Integer> projectStaffRolesMap = new HashMap<>();
-        projectStaffRoles.forEach(role -> {
-            LinkedHashMap<String, Object> map = objectMapper.convertValue(role, new TypeReference<LinkedHashMap>() {
-            });
-            projectStaffRolesMap.put((String) map.get("code"), (Integer) map.get("rank"));
-        });
-        return projectStaffRolesMap;
-    }
-
+    //TODO move below cycle fetching logic to mdmsService
     public Integer fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
         Long createdTime = auditDetails.getCreatedTime();
         JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
@@ -350,8 +198,6 @@ public class CommonUtils {
         }
         return false;
     }
-
-
 
 //    public ObjectNode additionalFieldsToDetails(List<Object> fields) {
 //        ObjectNode additionalDetails = objectMapper.createObjectNode();

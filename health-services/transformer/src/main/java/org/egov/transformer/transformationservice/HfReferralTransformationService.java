@@ -8,13 +8,11 @@ import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.HfReferralIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.FacilityService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,19 +27,17 @@ public class HfReferralTransformationService {
     private final Producer producer;
     private final UserService userService;
     private final ProjectService projectService;
-    private final FacilityService facilityService;
 
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
 
     public HfReferralTransformationService(TransformerProperties transformerProperties,
-                                           Producer producer, UserService userService, ProjectService projectService, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+                                           Producer producer, UserService userService, ProjectService projectService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;
-        this.facilityService = facilityService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
     }
@@ -60,12 +56,12 @@ public class HfReferralTransformationService {
 
     public HfReferralIndexV1 transform(HFReferral hfReferral) {
         String tenantId = hfReferral.getTenantId();
-        Map<String, String> boundaryHierarchy = new HashMap<>();
+        Map<String, String> boundaryHierarchy;
         String projectId = hfReferral.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
 
-        boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+        boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, hfReferral.getClientAuditDetails().getCreatedBy());
 
@@ -78,7 +74,6 @@ public class HfReferralTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .role(userInfoMap.get(ROLE))
                 .userAddress(userInfoMap.get(CITY))
-//                .facilityName(facilityName)
                 .boundaryHierarchy(boundaryHierarchy)
                 .taskDates(commonUtils.getDateFromEpoch(hfReferral.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(hfReferral.getAuditDetails().getLastModifiedTime()))

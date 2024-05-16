@@ -27,8 +27,6 @@ public class HfReferralIndexV1 {
     private String userAddress;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
-    @JsonProperty("facilityName")
-    private String facilityName;
     @JsonProperty("taskDates")
     private String taskDates;
     @JsonProperty("syncedDate")

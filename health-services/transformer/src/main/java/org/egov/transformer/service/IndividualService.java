@@ -9,10 +9,9 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.egov.transformer.Constants.*;
 
@@ -21,11 +20,9 @@ import static org.egov.transformer.Constants.*;
 public class IndividualService {
 
     private final TransformerProperties properties;
-
     private final ServiceRequestClient serviceRequestClient;
-
-
     private final CommonUtils commonUtils;
+    private static final List<String> INDIVIDUAL_INTEGER_ADDITIONAL_FIELDS = new ArrayList<>(Arrays.asList(HEIGHT));
 
     public IndividualService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, CommonUtils commonUtils) {
         this.properties = stockConfiguration;
@@ -33,8 +30,7 @@ public class IndividualService {
         this.commonUtils = commonUtils;
     }
 
-
-    public Map<String, Object> findIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
+    private Individual getIndividualByClientReferenceId(String clientReferenceId, String tenantId) {
         IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
                 .individual(IndividualSearch.builder().clientReferenceId(Collections.singletonList(clientReferenceId)).build())
                 .requestInfo(RequestInfo.builder().
@@ -45,12 +41,6 @@ public class IndividualService {
                 .build();
         IndividualBulkResponse response;
 
-        Map<String, Object> individualDetails = new HashMap<>();
-        individualDetails.put(AGE, null);
-        individualDetails.put(GENDER, null);
-        individualDetails.put(DATE_OF_BIRTH, null);
-        individualDetails.put(INDIVIDUAL_ID, null);
-
         try {
             response = serviceRequestClient.fetchResult(
                     new StringBuilder(properties.getIndividualHost()
@@ -59,8 +49,18 @@ public class IndividualService {
                             + "&offset=0&tenantId=" + tenantId),
                     individualSearchRequest,
                     IndividualBulkResponse.class);
-            Individual individual = response.getIndividual().get(0);
+            return !CollectionUtils.isEmpty(response.getIndividual()) ? response.getIndividual().get(0) : null;
+        } catch (Exception e) {
+            log.error("error while fetching Individual Details for clRefId {}, Exception: {}", clientReferenceId, ExceptionUtils.getStackTrace(e));
+            return null;
+        }
+    }
 
+
+    public Map<String, Object> getIndividualInfo(String clientReferenceId, String tenantId) {
+        Individual individual = getIndividualByClientReferenceId(clientReferenceId, tenantId);
+        Map<String, Object> individualDetails = new HashMap<>();
+        if (individual != null) {
             individualDetails.put(AGE, individual.getDateOfBirth() != null ? commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()) : null);
             individualDetails.put(GENDER, individual.getGender().toString());
             individualDetails.put(INDIVIDUAL_ID, clientReferenceId);
@@ -70,11 +70,19 @@ public class IndividualService {
                     && individual.getAddress().get(0).getLocality().getCode() != null) {
                 individualDetails.put(ADDRESS_CODE, individual.getAddress().get(0).getLocality().getCode());
             }
+            //adding individualDetails if they are not null
+            if (individual.getAdditionalFields() != null) {
+                addIndividualAdditionalDetails(individual.getAdditionalFields(), individualDetails);
+            }
             return individualDetails;
-        } catch (Exception e) {
-            log.error("error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
-            return individualDetails;
+        } else {
+            individualDetails.put(AGE, null);
+            individualDetails.put(GENDER, null);
+            individualDetails.put(DATE_OF_BIRTH, null);
+            individualDetails.put(INDIVIDUAL_ID, null);
         }
+
+        return individualDetails;
 
     }
 
@@ -88,7 +96,6 @@ public class IndividualService {
                         .build())
                 .build();
         IndividualBulkResponse response;
-
 
         try {
             response = serviceRequestClient.fetchResult(
@@ -105,6 +112,26 @@ public class IndividualService {
             log.error("error while fetching Individual Details: {}", ExceptionUtils.getStackTrace(e));
             return null;
         }
+    }
 
+    private void addIndividualAdditionalDetails(AdditionalFields additionalFields, Map<String, Object> individualDetails) {
+        if (additionalFields != null && additionalFields.getFields() != null) {
+            additionalFields.getFields().forEach(field -> {
+                String key = field.getKey();
+                String value = field.getValue();
+                if (key != null && value != null) {
+                    if (INDIVIDUAL_INTEGER_ADDITIONAL_FIELDS.contains(key)) {
+                        try {
+                            individualDetails.put(key, Integer.valueOf(value));
+                        } catch (NumberFormatException e) {
+                            log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                            individualDetails.put(key, null);
+                        }
+                    } else {
+                        individualDetails.put(key, value);
+                    }
+                }
+            });
+        }
     }
 }

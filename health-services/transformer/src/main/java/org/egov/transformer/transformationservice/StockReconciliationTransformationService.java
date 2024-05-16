@@ -12,6 +12,7 @@ import org.egov.transformer.models.downstream.StockReconciliationIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.FacilityService;
 import org.egov.transformer.service.ProductService;
+import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -33,12 +34,13 @@ public class StockReconciliationTransformationService {
     private final ObjectMapper objectMapper;
     private final UserService userService;
     private final ProductService productService;
+    private final ProjectService projectService;
 
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(
             RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND
     ));
 
-    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService) {
+    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.facilityService = facilityService;
@@ -46,6 +48,7 @@ public class StockReconciliationTransformationService {
         this.objectMapper = objectMapper;
         this.userService = userService;
         this.productService = productService;
+        this.projectService = projectService;
     }
 
     public void transform(List<StockReconciliation> stockReconciliationList) {
@@ -74,9 +77,9 @@ public class StockReconciliationTransformationService {
                 facility.getAddress().getLocality() != null &&
                 facility.getAddress().getLocality().getCode() != null) {
             localityCode = facility.getAddress().getLocality().getCode();
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
         } else if (stockReconciliation.getReferenceIdType().equals(PROJECT)) {
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stockReconciliation.getReferenceId(), tenantId);
         }
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (stockReconciliation.getAdditionalFields() != null && stockReconciliation.getAdditionalFields().getFields() != null

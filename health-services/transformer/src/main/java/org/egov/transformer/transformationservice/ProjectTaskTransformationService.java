@@ -68,19 +68,18 @@ public class ProjectTaskTransformationService {
         String localityCode;
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             localityCode = task.getAddress().getLocality().getCode();
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
         } else {
             localityCode = null;
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
         }
         Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
         String projectType = project.getProjectType();
 
         String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
-        Map<String, Object> beneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectTypeId, tenantId);
-
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
+        Map<String, Object> beneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId);
 
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
@@ -149,6 +148,10 @@ public class ProjectTaskTransformationService {
         if (taskResource.getAdditionalFields() != null) {
             addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
             addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
+        }
+        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
+            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
+            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
         }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
@@ -220,7 +223,7 @@ public class ProjectTaskTransformationService {
         return field.map(Field::getValue).orElse(null);
     }
 
-    private Map<String, Object> getProjectBeneficiaryDetails(String projectBeneficiaryClRefId, String projectTypeId, String tenantId) {
+    private Map<String, Object> getProjectBeneficiaryDetails(String projectBeneficiaryClRefId, String projectBeneficiaryType, String tenantId) {
         Map<String, Object> projectBenfInfoMap = new HashMap<>();
 
         List<ProjectBeneficiary> projectBeneficiaries = projectService
@@ -231,7 +234,6 @@ public class ProjectTaskTransformationService {
         ProjectBeneficiary projectBeneficiary = projectBeneficiaries.get(0);
         String beneficiaryClientRefId = projectBeneficiary.getBeneficiaryClientReferenceId();
 
-        String projectBeneficiaryType = projectService.getProjectBeneficiaryType(tenantId, projectTypeId);
         if (HOUSEHOLD.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching household details for HOUSEHOLD projectBeneficiaryType");
             List<Household> households = householdService.searchHousehold(beneficiaryClientRefId, tenantId);
@@ -248,9 +250,8 @@ public class ProjectTaskTransformationService {
             }
         } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");
-            projectBenfInfoMap = individualService.findIndividualByClientReferenceId(beneficiaryClientRefId, tenantId);
+            projectBenfInfoMap = individualService.getIndividualInfo(beneficiaryClientRefId, tenantId);
         }
         return projectBenfInfoMap;
     }
-
 }

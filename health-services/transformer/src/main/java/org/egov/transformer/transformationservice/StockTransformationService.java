@@ -67,9 +67,9 @@ public class StockTransformationService {
         Facility transactingFacility = facilityService.findFacilityById(stock.getTransactingPartyId(), stock.getTenantId());
         if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
                 && facility.getAddress().getLocality().getCode() != null) {
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
         } else if (stock.getReferenceIdType().equals(PROJECT)) {
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
         }
 
         String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;

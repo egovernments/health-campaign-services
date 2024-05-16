@@ -64,7 +64,7 @@ public class ProjectStaffTransformationService {
         } else {
             localityCode = null;
         }
-        Map<String, String> boundaryHierarchy = commonUtils.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
+        Map<String, String> boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
         JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()

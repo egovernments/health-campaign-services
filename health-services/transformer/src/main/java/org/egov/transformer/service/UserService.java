@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.egov.transformer.models.user.UserSearchResponseContent;
-import org.egov.transformer.utils.CommonUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -21,12 +20,9 @@ import static org.egov.transformer.Constants.*;
 public class UserService {
 
     private final ServiceRequestClient restRepo;
-
     private final String host;
-
     private final String searchUrl;
-
-    private final CommonUtils commonUtils;
+    private final MdmsService mdmsService;
     private static Map<String, Map<String, String>> userIdVsUserInfoCache = new ConcurrentHashMap<>();
     private static final int MAX_RETRY_COUNT = 10;
     private static final int RETRY_DELAY_MS = 5000;
@@ -34,20 +30,20 @@ public class UserService {
     @Autowired
     public UserService(ServiceRequestClient restRepo,
                        @Value("${egov.user.host}") String host,
-                       @Value("${egov.search.user.url}") String searchUrl, CommonUtils commonUtils) {
+                       @Value("${egov.search.user.url}") String searchUrl, MdmsService mdmsService) {
 
         this.restRepo = restRepo;
         this.host = host;
         this.searchUrl = searchUrl;
-        this.commonUtils = commonUtils;
+        this.mdmsService = mdmsService;
     }
 
 
     public Map<String, String> getUserInfo(String tenantId, String userId) {
         List<UserSearchResponseContent> users;
         Map<String, String> userMap = new HashMap<>();
-        Map<String, String> userDetailsMap = new HashMap<>();
-        String userName = null;
+        Map<String, String> userDetailsMap;
+        String userName;
         String role;
 
         if (userIdVsUserInfoCache.containsKey(userId)) {
@@ -109,8 +105,12 @@ public class UserService {
         if (users != null && !users.isEmpty()) {
             users.get(0).getRoles().forEach(role -> userRoles.add(role.getCode()));
         }
+        // No need to fetch roles ranking for single role user
+        if (userRoles.size() == 1) {
+            return userRoles.get(0);
+        }
 
-        HashMap<String, Integer> projectStaffRolesMap = commonUtils.getProjectStaffRoles(tenantId);
+        HashMap<String, Integer> projectStaffRolesMap = mdmsService.getProjectStaffRoles(tenantId);
         String roleByRank = null;
         int minValue = Integer.MAX_VALUE;
 
@@ -142,8 +142,6 @@ public class UserService {
         return null;
     }
 
-
-
     private List<UserSearchResponseContent> retryGetUsers(String tenantId, String userId) {
         int retryCount = 0;
         List<UserSearchResponseContent> users = getUsers(tenantId, userId);
@@ -155,7 +153,6 @@ public class UserService {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-
             users = getUsers(tenantId, userId);
             retryCount++;
         }

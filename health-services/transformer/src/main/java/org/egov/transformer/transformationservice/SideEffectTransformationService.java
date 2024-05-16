@@ -78,20 +78,23 @@ public class SideEffectTransformationService {
                     task.getAddress().getLocality().getCode() != null) ?
                     task.getAddress().getLocality().getCode() :
                     null;
-            boundaryHierarchy = localityCode != null ? commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
-                    commonUtils.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            boundaryHierarchy = localityCode != null ? projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
+                    projectService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
 
             if (!CollectionUtils.isEmpty(projectBeneficiaries)) {
                 ProjectBeneficiary projectBeneficiary = projectBeneficiaries.get(0);
-                individualDetails = individualService.findIndividualByClientReferenceId(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
+                individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             }
             addSpecificAdditionalFields(task, additionalDetails);
         }
 
         Map<String, String> userInfoMap = userService.getUserInfo(sideEffect.getTenantId(), sideEffect.getClientAuditDetails().getCreatedBy());
-
+        if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
+            additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
+            additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
+        }
         SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                 .sideEffect(sideEffect)
                 .boundaryHierarchy(boundaryHierarchy)

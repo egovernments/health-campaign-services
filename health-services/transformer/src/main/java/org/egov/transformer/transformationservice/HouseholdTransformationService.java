@@ -9,6 +9,7 @@ import org.egov.common.models.household.Household;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -28,13 +29,15 @@ public class HouseholdTransformationService {
     private final ObjectMapper objectMapper;
     private final UserService userService;
     private final CommonUtils commonUtils;
+    private final ProjectService projectService;
 
-    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils) {
+    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
         this.userService = userService;
         this.commonUtils = commonUtils;
+        this.projectService = projectService;
     }
 
     public void transform(List<Household> householdList) {
@@ -59,7 +62,7 @@ public class HouseholdTransformationService {
                 && household.getAddress().getLocality() != null
                 && household.getAddress().getLocality().getCode() != null) {
             localityCode = household.getAddress().getLocality().getCode();
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, household.getTenantId());
         }
 
         Map<String, String> userInfoMap = userService.getUserInfo(household.getTenantId(), household.getAuditDetails().getCreatedBy());

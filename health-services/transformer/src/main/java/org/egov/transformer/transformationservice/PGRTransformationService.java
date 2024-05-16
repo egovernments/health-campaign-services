@@ -7,6 +7,8 @@ import org.egov.transformer.models.pgr.Service;
 import org.egov.transformer.models.pgr.Address;
 import org.egov.transformer.models.pgr.Boundary;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.MdmsService;
+import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -23,13 +25,17 @@ public class PGRTransformationService {
     private final TransformerProperties transformerProperties;
     private final Producer producer;
     private final CommonUtils commonUtils;
+    private final MdmsService mdmsService;
+    private final ProjectService projectService;
 
-    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils) {
+    public PGRTransformationService(UserService userService, TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, MdmsService mdmsService, ProjectService projectService) {
 
         this.userService = userService;
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
+        this.mdmsService = mdmsService;
+        this.projectService = projectService;
     }
 
     public void transform(List<Service> pgrList) {
@@ -56,13 +62,13 @@ public class PGRTransformationService {
                 .map(Boundary::getCode);
         if (localityCodeOptional.isPresent()) {
             localityCode = localityCodeOptional.get();
-            boundaryHierarchy = commonUtils.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
         }
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, service.getAuditDetails().getCreatedBy());
 
         service.setAddress(null); //explicitly setting it to null as it is not needed
-        service.setApplicationStatus(commonUtils.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
-        service.setServiceCode(commonUtils.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
+        service.setApplicationStatus(mdmsService.getMDMSTransformerLocalizations(service.getApplicationStatus(), tenantId));
+        service.setServiceCode(mdmsService.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
 
         PGRIndex pgrIndex = PGRIndex.builder()
                 .service(service)

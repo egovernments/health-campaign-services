@@ -11,6 +11,7 @@ import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.attendance.AttendanceRegisterRequest;
 import org.egov.transformer.models.attendance.AttendanceRegisterResponse;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,13 +46,20 @@ public class AttendanceRegisterService {
         Long userServiceId = userService.getUserServiceId(tenantId, createdUserUuid);
         RequestInfo requestInfo = RequestInfo.builder().userInfo(User.builder().uuid("transformer-uuid").id(userServiceId).build()).build();
 
-        AttendanceRegisterResponse response;
-        AttendanceRegisterRequest attendanceRegisterRequest = AttendanceRegisterRequest.builder().requestInfo(requestInfo).build();
-
         try {
             StringBuilder uri = new StringBuilder();
-            uri.append(properties.getAttendanceHost()).append(properties.getAttendanceRegisterSearchUrl()).append("?ids=").append(registerId).append("&tenantId=").append(tenantId);
-            response = serviceRequestClient.fetchResult(uri, attendanceRegisterRequest, AttendanceRegisterResponse.class);
+            uri.append(properties.getAttendanceHost())
+                    .append(properties.getAttendanceRegisterSearchUrl())
+                    .append("?ids=").append(registerId)
+                    .append("&tenantId=").append(tenantId);
+            AttendanceRegisterResponse response = serviceRequestClient.fetchResult(uri, AttendanceRegisterRequest.builder()
+                    .requestInfo(requestInfo)
+                    .build(), AttendanceRegisterResponse.class);
+            if (response.getAttendanceRegister() != null && !CollectionUtils.isEmpty(response.getAttendanceRegister())) {
+                AttendanceRegister attendanceRegister = response.getAttendanceRegister().get(0);
+                attendanceRegisterMapCache.put(registerId, attendanceRegister);
+                return attendanceRegister;
+            }
         } catch (Exception e) {
             log.info("Error while fetching attendance register with registerId: {}", registerId);
             log.error("ERROR: {}", ExceptionUtils.getStackTrace(e));
@@ -63,10 +71,9 @@ public class AttendanceRegisterService {
             } else {
                 log.warn("UNABLE_TO_FETCH_ATTENDANCE_REGISTER with registerId {} from both source and cache.", registerId);
             }
-
             return attendanceRegister;
         }
-        return response.getAttendanceRegister().get(0);
+        return null;
     }
 
     public Map<String, Name> fetchAttendeesInfo(List<String> individualIds, String tenantId) {
