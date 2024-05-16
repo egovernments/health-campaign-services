@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import org.egov.processor.web.models.Assumption;
 import org.egov.processor.web.models.Operation;
+import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +18,14 @@ import static org.egov.processor.config.ServiceConstants.PROPERTIES;
 
 @Component
 public class CalculationUtil {
+	
+	private PlanUtil planUtil;
+	
+	
+
+    public CalculationUtil(PlanUtil planUtil) {
+		this.planUtil = planUtil;
+	}
 
     /**
      * Calculates the output value based on the input value, operator, and assumption value.
@@ -60,19 +70,19 @@ public class CalculationUtil {
      * @param mappedValues       The mapped values for inputs.
      * @param assumptionValueMap The assumption values map.
      */
-    public void calculateResources(JsonNode jsonNode, List
-            <Operation> operations, Map<String, BigDecimal> resultMap,
+    public void calculateResources(JsonNode jsonNode, PlanConfigurationRequest planConfigurationRequest, Map<String, BigDecimal> resultMap,
                                 Map<String, String> mappedValues, Map<String, BigDecimal> assumptionValueMap) {
-
+    	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         for (JsonNode feature : jsonNode.get("features")) {
-            for (Operation operation : operations) {
+            for (Operation operation : planConfig.getOperations()) {
                 BigDecimal result = calculateResult(operation, feature, mappedValues, assumptionValueMap, resultMap);
                 String output = operation.getOutput();
                 resultMap.put(output, result);
                 ((ObjectNode) feature.get("properties")).put(output, result);
             }
             //TODO: create corresponding microplan
-            System.out.println("Feature ---- > " + feature.toPrettyString());
+            planUtil.create(planConfigurationRequest,feature,resultMap,mappedValues, assumptionValueMap);
+            
         }
     }
 

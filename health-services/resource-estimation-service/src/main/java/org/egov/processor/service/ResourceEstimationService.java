@@ -52,7 +52,7 @@ public class ResourceEstimationService {
             FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
                 throw new IllegalArgumentException("Unsupported file type: " + ft);
             });
-            parser.parseFileData(planConfiguration, planConfiguration.getFiles().get(0).getFilestoreId());
+            parser.parseFileData(planConfigurationRequest, planConfiguration.getFiles().get(0).getFilestoreId());
         }
     }
 

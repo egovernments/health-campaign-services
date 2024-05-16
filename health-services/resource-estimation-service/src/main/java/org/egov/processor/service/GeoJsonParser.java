@@ -16,6 +16,7 @@ import org.egov.processor.util.CalculationUtil;
 import org.egov.processor.util.FilestoreUtil;
 import org.egov.processor.util.ParsingUtil;
 import org.egov.processor.web.models.PlanConfiguration;
+import org.egov.processor.web.models.PlanConfigurationRequest;
 import org.egov.processor.web.models.ResourceMapping;
 
 import org.springframework.stereotype.Service;
@@ -51,7 +52,8 @@ public class GeoJsonParser implements FileParser {
      * @return The file store ID of the uploaded updated file, or null if an error occurred.
      */
     @Override
-    public Object parseFileData(PlanConfiguration planConfig, String fileStoreId) {
+    public Object parseFileData(PlanConfigurationRequest planConfigurationRequest, String fileStoreId) {
+    	PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
         String geoJSON = parsingUtil.convertByteArrayToString(planConfig, fileStoreId);
 
         ObjectMapper objectMapper = new ObjectMapper();
@@ -65,7 +67,7 @@ public class GeoJsonParser implements FileParser {
                 .collect(Collectors.toMap(ResourceMapping::getMappedTo, ResourceMapping::getMappedFrom));
         Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfig.getAssumptions());
 
-        calculationUtil.calculateResources(jsonNode, planConfig.getOperations(), resultMap, mappedValues, assumptionValueMap);
+        calculationUtil.calculateResources(jsonNode, planConfigurationRequest, resultMap, mappedValues, assumptionValueMap);
 
         File outputFile = parsingUtil.writeToFile(jsonNode, objectMapper);
 
