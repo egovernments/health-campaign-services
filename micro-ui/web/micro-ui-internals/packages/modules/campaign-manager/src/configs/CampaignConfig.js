@@ -164,6 +164,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
               type: "component",
               component: "UploadData",
               withoutLabel: true,
+              withoutLabelFieldPair: true,
               disable: false,
               customProps: {
                 module: "HCM",
@@ -190,6 +191,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
               type: "component",
               component: "UploadData",
               withoutLabel: true,
+              withoutLabelFieldPair: true,
               disable: false,
               customProps: {
                 module: "HCM",
@@ -214,6 +216,7 @@ export const CampaignConfig = (totalFormData, dataParams) => {
               type: "component",
               component: "UploadData",
               withoutLabel: true,
+              withoutLabelFieldPair: true,
               disable: false,
               customProps: {
                 module: "HCM",

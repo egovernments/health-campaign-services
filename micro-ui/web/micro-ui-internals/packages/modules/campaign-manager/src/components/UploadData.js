@@ -1,7 +1,7 @@
 import { Button, Header } from "@egovernments/digit-ui-react-components";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect , Fragment } from "react";
 import { useTranslation } from "react-i18next";
-import { DownloadIcon } from "@egovernments/digit-ui-react-components";
+import { DownloadIcon ,Card } from "@egovernments/digit-ui-react-components";
 import BulkUpload from "./BulkUpload";
 import Ajv from "ajv";
 import XLSX from "xlsx";
@@ -38,8 +38,13 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     { name: "userSchema" },
     { name: "Boundary" },
   ]);
+
+  const { data: readMe } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
+    { name: "ReadMeConfig" },
+  ]);
   const [sheetHeaders, setSheetHeaders] = useState({});
   const [translatedSchema, setTranslatedSchema] = useState({});
+  const [readMeInfo , setReadMeInfo] = useState({});
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
@@ -68,6 +73,24 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     return { ...newSchema };
   };
 
+  var translateReadMeInfo = (schema) => {
+    const translatedSchema = schema.map(item => {
+      return {
+          header: t(item.header),
+          isHeaderBold: item.isHeaderBold,
+          inSheet: item.inSheet,
+          inUiInfo: item.inUiInfo,
+          descriptions: item.descriptions.map(desc => {
+              return {
+                  text: t(desc.text),
+                  isStepRequired: desc.isStepRequired
+              };
+          })
+      };
+  });
+  return translatedSchema;
+  };
+
   useEffect(async () => {
     if (Schemas?.["HCM-ADMIN-CONSOLE"]) {
       const newFacilitySchema = await translateSchema(Schemas?.["HCM-ADMIN-CONSOLE"]?.facilitySchema?.[0]);
@@ -89,6 +112,25 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setTranslatedSchema(schema);
     }
   }, [Schemas?.["HCM-ADMIN-CONSOLE"]]);
+
+  useEffect(async () =>{
+    if(readMe?.["HCM-ADMIN-CONSOLE"]){
+      const newReadMeFacility = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.[0]?.texts)
+      const newReadMeUser = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.[1]?.texts)
+      const newReadMeboundary = await translateReadMeInfo(readMe?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig?.[2]?.texts)
+    
+
+    const readMeText ={
+      boundary: newReadMeboundary,
+      facilityWithBoundary: newReadMeFacility,
+      userWithBoundary: newReadMeUser
+    }
+
+    setReadMeInfo(readMeText);
+    
+  }
+
+  } , [readMe?.["HCM-ADMIN-CONSOLE"]])
 
   useEffect(() => {
     if (executionCount < 5) {
@@ -651,7 +693,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
 
   return (
-    <React.Fragment>
+    <>
+    <Card>
       <div className="campaign-bulk-upload">
         <Header className="digit-form-composer-sub-header">
           {type === "boundary" ? t("WBH_UPLOAD_TARGET") : type === "facilityWithBoundary" ? t("WBH_UPLOAD_FACILITY") : t("WBH_UPLOAD_USER")}
@@ -695,6 +738,25 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           ]}
         />
       )}
+      </Card>
+      <InfoCard
+        populators={{
+          name: "infocard",
+        }}
+        variant="default"
+        style={{ margin: "0rem", maxWidth: "100%" }}
+        additionalElements={readMeInfo[type]?.map((info, index) => (
+          <div key={index} style={{ display: 'flex', flexDirection: 'column' }}>
+            <h2>{info?.header}</h2>
+            <ul style={{ paddingLeft: 0 }}>
+              {info?.descriptions.map((desc, i) => (
+                <li key={i}>{desc.text}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        label={"Info"}
+      />
       {showToast && uploadedFile?.length > 0 && (
         <Toast
           error={showToast.key === "error" ? true : false}
@@ -705,7 +767,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           onClose={closeToast}
         />
       )}
-    </React.Fragment>
+    </>
   );
 };
 

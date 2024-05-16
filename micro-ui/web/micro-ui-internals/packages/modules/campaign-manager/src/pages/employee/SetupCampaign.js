@@ -1069,6 +1069,7 @@ const SetupCampaign = () => {
     return <Loader />;
   }
 
+
   return (
     <React.Fragment>
       {noAction !== "false" && (
@@ -1099,7 +1100,7 @@ const SetupCampaign = () => {
         actionClassName={"actionBarClass"}
         className="setup-campaign"
         cardClassName="setup-campaign-card"
-        noCardStyle={currentStep === 1 || currentStep === 6 || currentStep === 2 ? true : false}
+        noCardStyle={currentStep === 7? false : true}
         onSecondayActionClick={onSecondayActionClick}
         label={noAction === "false" ? null : filteredConfig?.[0]?.form?.[0]?.isLast === true ? t("HCM_SUBMIT") : t("HCM_NEXT")}
       />
