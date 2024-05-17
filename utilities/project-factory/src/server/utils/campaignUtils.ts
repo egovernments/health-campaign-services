@@ -223,9 +223,11 @@ async function updateStatusFileForTargets(request: any, localizationMap?: { [key
     const responseFile = await httpRequest(fileUrl, null, {}, 'get', 'arraybuffer', headers);
     const workbook = XLSX.read(responseFile, { type: 'buffer' });
     const sheetNames = workbook.SheetNames;
-  
-    sheetNames.forEach(sheetName => {
-        processErrorDataForTargets(request, createAndSearchConfig, workbook, sheetName);
+    const localizedSheetNames = getLocalizedHeaders(sheetNames, localizationMap)
+    localizedSheetNames.forEach((sheetName: any) => {
+        if (sheetName != getLocalizedName(config.boundaryTab, localizationMap) && sheetName != getLocalizedName(config.readMeTab, localizationMap)) {
+            processErrorDataForTargets(request, createAndSearchConfig, workbook, sheetName);
+        }
     });
 
 
