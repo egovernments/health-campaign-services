@@ -195,6 +195,9 @@ async function updateStatusFile(request: any, localizationMap?: { [key: string]:
         throwError("FILE", 400, "INVALID_SHEETNAME", `Sheet with name "${localizedSheetName}" is not present in the file.`);
     }
     processErrorData(request, createAndSearchConfig, workbook, localizedSheetName, localizationMap);
+    const sheet = workbook.Sheets[localizedSheetName];
+    const columnWidths = Array(12).fill({ width: 30 });
+    sheet['!cols'] = columnWidths;
     const responseData = await createAndUploadFile(workbook, request);
     logger.info('File updated successfully:' + JSON.stringify(responseData));
     if (responseData?.[0]?.fileStoreId) {
@@ -1156,7 +1159,7 @@ async function appendSheetsToWorkbook(request: any, boundaryData: any[], differe
         }
         const mainSheet = XLSX.utils.aoa_to_sheet(mainSheetData);
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
-        const columnWidths = Array(8).fill({ width: 30 });
+        const columnWidths = Array(12).fill({ width: 30 });
         mainSheet['!cols'] = columnWidths;
         XLSX.utils.book_append_sheet(workbook, mainSheet, localizedBoundaryTab);
         for (const uniqueData of uniqueDistrictsForMainSheet) {
