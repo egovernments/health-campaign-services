@@ -48,7 +48,31 @@ async function fetchBoundariesInChunks(request: any) {
     return responseBoundaries;
 }
 
+function processBoundaryfromCampaignDetails(responseBoundaries: any[], request: any, boundaryItems: any[], parentId?: string) {
+    const { tenantId, hierarchyType } = request.body.CampaignDetails.tenantId;
+    boundaryItems.forEach((boundaryItem: any) => {
+        const { id, code, boundaryType, children } = boundaryItem;
+        responseBoundaries.push({ tenantId, hierarchyType, parentId, id, code, boundaryType });
+        if (children.length > 0) {
+            processBoundaryfromCampaignDetails(responseBoundaries, request, children, id);
+        }
+    });
+}
 
+async function fetchBoundariesFromCampaignDetails(request: any) {
+    const { tenantId, hierarchyType } = request.body.CampaignDetails;
+    const boundaryEntitySearchParams: any = {
+        tenantId, hierarchyType, includeChildren: true
+    };
+    const responseBoundaries: any[] = [];
+    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, boundaryEntitySearchParams);
+    const TenantBoundary = response.TenantBoundary;
+    TenantBoundary.forEach((tenantBoundary: any) => {
+        const { boundary } = tenantBoundary;
+        processBoundaryfromCampaignDetails(responseBoundaries, request, boundary);
+    });
+    return responseBoundaries;
+}
 
 // Compares unique boundaries with response boundaries and throws error for missing codes.
 function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
@@ -468,27 +492,41 @@ function validateFacilityCreateData(data: any) {
 
 }
 
-async function validateCampaignBoundary(boundary: any, hierarchyType: any, tenantId: any, request: any): Promise<void> {
-    const params = {
-        tenantId: tenantId,
-        codes: boundary.code,
-        boundaryType: boundary.type,
-        hierarchyType: hierarchyType,
-        includeParents: true
-    };
-    const boundaryResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, { RequestInfo: request.body.RequestInfo }, params);
-    if (!boundaryResponse?.TenantBoundary || !Array.isArray(boundaryResponse.TenantBoundary) || boundaryResponse.TenantBoundary.length === 0) {
-        throwError("BOUNDARY", 400, "BOUNDARY_NOT_FOUND", `Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
+function throwMissingCodesError(missingCodes: any, hierarchyType: any) {
+    const missingCodesMessage = missingCodes.map((code: any) =>
+        `'${code.code}' for type '${code.type}'`
+    ).join(', ');
+    throwError(
+        "COMMON",
+        400,
+        "VALIDATION_ERROR",
+        `The following boundary codes (${missingCodesMessage}) do not exist for hierarchy type '${hierarchyType}'.`
+    );
+}
+
+async function validateCampaignBoundary(boundaries: any[], hierarchyType: any, tenantId: any, request: any): Promise<void> {
+    const boundaryCodesToMatch = Array.from(new Set(boundaries.map((boundary: any) => ({
+        code: boundary.code.trim(),
+        type: boundary.type.trim()
+    }))));
+    const responseBoundaries = await fetchBoundariesFromCampaignDetails(request);
+    const responseBoundaryCodes = responseBoundaries.map(boundary => ({
+        code: boundary.code.trim(),
+        type: boundary.boundaryType.trim()
+    }));
+    logger.info("responseBoundaryCodes " + JSON.stringify(responseBoundaryCodes))
+    logger.info("boundaryCodesToMatch " + JSON.stringify(boundaryCodesToMatch))
+    function isEqual(obj1: any, obj2: any) {
+        return obj1.code === obj2.code && obj1.type === obj2.type;
     }
 
-    const boundaryData = boundaryResponse.TenantBoundary[0]?.boundary;
+    // Find missing codes
+    const missingCodes = boundaryCodesToMatch.filter(codeToMatch =>
+        !responseBoundaryCodes.some(responseCode => isEqual(codeToMatch, responseCode))
+    );
 
-    if (!boundaryData || !Array.isArray(boundaryData) || boundaryData.length === 0) {
-        throwError("BOUNDARY", 400, "BOUNDARY_NOT_FOUND", `Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
-    }
-
-    if (boundary.isRoot && boundaryData[0]?.code !== boundary.code) {
-        throwError("BOUNDARY", 400, "BOUNDARY_NOT_FOUND", `Boundary with code ${boundary.code} not found for boundary type ${boundary.type} and hierarchy type ${hierarchyType}`);
+    if (missingCodes.length > 0) {
+        throwMissingCodesError(missingCodes, hierarchyType)
     }
 }
 
