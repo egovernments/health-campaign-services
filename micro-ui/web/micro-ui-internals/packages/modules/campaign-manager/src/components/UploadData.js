@@ -505,10 +505,10 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   const onFileDownload = (file) => {
     if (file && file?.url) {
-      // window.location.href = file?.url;
+      window.location.href = file?.url;
       // Splitting filename before .xlsx or .xls
-      const fileNameWithoutExtension = file?.filename.split(/\.(xlsx|xls)/)[0];
-      downloadExcel(new Blob([file], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileNameWithoutExtension);
+      // const fileNameWithoutExtension = file?.filename.split(/\.(xlsx|xls)/)[0];
+      // downloadExcel(new Blob([file], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileNameWithoutExtension);
     }
   };
   useEffect(() => {
@@ -666,12 +666,12 @@ const UploadData = ({ formData, onSelect, ...props }) => {
           if (fileData && fileData?.[0]?.url) {
             setDownloadError(false);
             // downloadExcel(fileData[0].blob, fileData[0].fileName);
-            // window.location.href = fileData?.[0]?.url;
+            window.location.href = fileData?.[0]?.url;
             // handleFileDownload(fileData?.[0]);
-            downloadExcel(
-              new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-              fileData?.[0]?.filename
-            );
+            // downloadExcel(
+            // new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+            // fileData?.[0]?.filename
+            // );
           } else {
             setDownloadError(true);
             setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT") });
