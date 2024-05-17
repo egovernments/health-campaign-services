@@ -1,8 +1,8 @@
 package org.egov.referralmanagement.web.controllers;
 
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;

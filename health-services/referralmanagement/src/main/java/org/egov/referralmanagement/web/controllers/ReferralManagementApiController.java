@@ -23,8 +23,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.util.List;
 
 /**
@@ -90,19 +90,18 @@ public class ReferralManagementApiController {
 
     /**
      *
-     * @param request
-     * @param searchCriteria Additional common search criteria.
+     * @param referralSearchRequest
      * @return
      * @throws Exception
      */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "Referral Search.", required = true) @Valid @RequestBody ReferralSearchRequest request,
-                                                                     ) throws Exception {
+    public ResponseEntity<ReferralBulkResponse> referralV1SearchPost(
+            @ApiParam(value = "Referral Search.", required = true) @Valid @RequestBody ReferralSearchRequest referralSearchRequest
+    ) throws Exception {
 
-        List<Referral> referrals = referralManagementService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
-        SearchResponse<Referral> referralSearchResponse = referralManagementService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        SearchResponse<Referral> referralSearchResponse = referralManagementService.search(referralSearchRequest, referralSearchRequest.getReferral().getLimit(), referralSearchRequest.getReferral().getOffset(), referralSearchRequest.getReferral().getTenantId(), referralSearchRequest.getReferral().getLastChangedSince(), referralSearchRequest.getReferral().getIncludeDeleted());
         ReferralBulkResponse response = ReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true))
+                .createResponseInfo(referralSearchRequest.getRequestInfo(), true))
                 .referrals(referralSearchResponse.getResponse())
                 .totalCount(referralSearchResponse.getTotalCount())
                 .build();

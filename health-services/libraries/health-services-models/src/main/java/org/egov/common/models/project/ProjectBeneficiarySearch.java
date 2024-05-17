@@ -1,13 +1,11 @@
 package org.egov.common.models.project;
 
 import java.util.List;
-import jakarta.validation.constraints.Size;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -17,10 +15,8 @@ import org.springframework.validation.annotation.Validated;
 /**
 * Search model for project beneficiary.
 */
-    @ApiModel(description = "Search model for project beneficiary.")
+@ApiModel(description = "Search model for project beneficiary.")
 @Validated
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -37,7 +37,7 @@ import org.egov.stock.validator.stock.SRowVersionValidator;
 import org.egov.stock.validator.stock.SSenderIdReceiverIdEqualsValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.egov.stock.validator.stock.StocktransferPartiesValidator;
-import org.egov.stock.web.models.StockSearchRequest;
+import org.egov.common.models.stock.StockSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 

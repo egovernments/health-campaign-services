@@ -1,5 +1,9 @@
 package org.egov.referralmanagement.repository.rowmapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.AuditDetails;
@@ -10,34 +14,43 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-
 @Component
 public class ReferralRowMapper implements RowMapper<Referral> {
 
     @Autowired
     ObjectMapper objectMapper;
 
+    /**
+     * Maps a row of the ResultSet to a Referral object.
+     *
+     * @param resultSet the ResultSet containing the data from the database
+     * @param i         the current row number
+     * @return a Referral object mapped from the ResultSet
+     * @throws SQLException if an SQL exception occurs
+     */
     @Override
     public Referral mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
+            // Initialize sideEffect to null
             SideEffect sideEffect = null;
+            // Check if side effect client reference ID is not null
             String sideEffectClientReferenceId = resultSet.getString("sideEffectClientReferenceId");
-            if(sideEffectClientReferenceId != null) {
+            if (sideEffectClientReferenceId != null) {
+                // Map side effect AuditDetails
                 AuditDetails sideEffectAuditDetails = AuditDetails.builder()
                         .createdBy(resultSet.getString("sCreatedBy"))
                         .createdTime(resultSet.getLong("sCreatedTime"))
                         .lastModifiedBy(resultSet.getString("sLastModifiedBy"))
                         .lastModifiedTime(resultSet.getLong("sLastModifiedTime"))
                         .build();
+                // Map side effect client AuditDetails
                 AuditDetails sideEffectClientAuditDetails = AuditDetails.builder()
                         .createdBy(resultSet.getString("sClientCreatedBy"))
                         .createdTime(resultSet.getLong("sClientCreatedTime"))
                         .lastModifiedBy(resultSet.getString("sClientLastModifiedBy"))
                         .lastModifiedTime(resultSet.getLong("sClientLastModifiedTime"))
                         .build();
+                // Build SideEffect object
                 sideEffect = SideEffect.builder()
                         .id(resultSet.getString("sId"))
                         .clientReferenceId(resultSet.getString("sClientReferenceId"))
@@ -56,18 +69,21 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                         .clientAuditDetails(sideEffectClientAuditDetails)
                         .build();
             }
+            // Map main Referral AuditDetails
             AuditDetails auditDetails = AuditDetails.builder()
                     .createdBy(resultSet.getString("createdBy"))
                     .createdTime(resultSet.getLong("createdTime"))
                     .lastModifiedBy(resultSet.getString("lastModifiedBy"))
                     .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
                     .build();
-            AuditDetails clientAuditDetails= AuditDetails.builder()
+            // Map main Referral client AuditDetails
+            AuditDetails clientAuditDetails = AuditDetails.builder()
                     .createdBy(resultSet.getString("clientCreatedBy"))
                     .createdTime(resultSet.getLong("clientCreatedTime"))
                     .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
                     .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
                     .build();
+            // Build Referral object
             return Referral.builder()
                     .id(resultSet.getString("id"))
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
@@ -87,6 +103,7 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                     .clientAuditDetails(clientAuditDetails)
                     .build();
         } catch (JsonProcessingException e) {
+            // Wrap JsonProcessingException into RuntimeException
             throw new RuntimeException(e);
         }
     }

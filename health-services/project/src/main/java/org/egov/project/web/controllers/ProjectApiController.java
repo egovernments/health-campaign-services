@@ -1,10 +1,13 @@
 package org.egov.project.web.controllers;
 
 
+import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.URLParams;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.BeneficiaryBulkResponse;
@@ -18,6 +21,7 @@ import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.models.project.ProjectFacilityBulkResponse;
 import org.egov.common.models.project.ProjectFacilityRequest;
 import org.egov.common.models.project.ProjectFacilityResponse;
+import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectResponse;
 import org.egov.common.models.project.ProjectStaff;
@@ -25,6 +29,7 @@ import org.egov.common.models.project.ProjectStaffBulkRequest;
 import org.egov.common.models.project.ProjectStaffBulkResponse;
 import org.egov.common.models.project.ProjectStaffRequest;
 import org.egov.common.models.project.ProjectStaffResponse;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.common.models.project.TaskBulkResponse;
@@ -44,17 +49,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import java.util.List;
 
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-14T20:57:07.075+05:30")
 @Controller
 @RequestMapping("")
 @Validated
@@ -204,15 +204,14 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/facility/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityV1SearchPost(@ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest,
-                                                                                   ) throws Exception {
+    public ResponseEntity<ProjectFacilityBulkResponse> projectFacilityV1SearchPost(@ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest) throws Exception {
         List<ProjectFacility> projectFacilities = projectFacilityService.search(
                 projectFacilitySearchRequest,
-                searchCriteria.getLimit(),
-                searchCriteria.getOffset(),
-                searchCriteria.getTenantId(),
-                searchCriteria.getLastChangedSince(),
-                searchCriteria.getIncludeDeleted()
+                projectFacilitySearchRequest.getProjectFacility().getLimit(),
+                projectFacilitySearchRequest.getProjectFacility().getOffset(),
+                projectFacilitySearchRequest.getProjectFacility().getTenantId(),
+                projectFacilitySearchRequest.getProjectFacility().getLastChangedSince(),
+                projectFacilitySearchRequest.getProjectFacility().getIncludeDeleted()
         );
         ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
                 .projectFacilities(projectFacilities)
@@ -291,15 +290,14 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/staff/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectStaffBulkResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest,
-                                                                             ) throws Exception {
+    public ResponseEntity<ProjectStaffBulkResponse> projectStaffV1SearchPost(@ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest) throws Exception {
         List<ProjectStaff> projectStaffList = projectStaffService.search(
                 projectStaffSearchRequest,
-                searchCriteria.getLimit(),
-                searchCriteria.getOffset(),
-                searchCriteria.getTenantId(),
-                searchCriteria.getLastChangedSince(),
-                searchCriteria.getIncludeDeleted()
+                projectStaffSearchRequest.getProjectStaff().getLimit(),
+                projectStaffSearchRequest.getProjectStaff().getOffset(),
+                projectStaffSearchRequest.getProjectStaff().getTenantId(),
+                projectStaffSearchRequest.getProjectStaff().getLastChangedSince(),
+                projectStaffSearchRequest.getProjectStaff().getIncludeDeleted()
         );
         ProjectStaffBulkResponse response = ProjectStaffBulkResponse.builder()
                 .projectStaff(projectStaffList)
@@ -382,20 +380,18 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/task/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<TaskBulkResponse> projectTaskV1SearchPost(@ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest request,
-                                                                    ) {
+    public ResponseEntity<TaskBulkResponse> projectTaskV1SearchPost(@ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest taskSearchRequest) {
 
-        List<Task> households = projectTaskService.search(
-                request.getTask(),
-                searchCriteria.getLimit(),
-                searchCriteria.getOffset(),
-                searchCriteria.getTenantId(),
-                searchCriteria.getLastChangedSince(),
-                searchCriteria.getIncludeDeleted()
+        SearchResponse<Task> taskSearchResponse = projectTaskService.search(
+                taskSearchRequest.getTask(),
+                taskSearchRequest.getTask().getLimit(),
+                taskSearchRequest.getTask().getOffset(),
+                taskSearchRequest.getTask().getTenantId(),
+                taskSearchRequest.getTask().getLastChangedSince(),
+                taskSearchRequest.getTask().getIncludeDeleted()
         );
-        SearchResponse<Task> taskSearchResponse = projectTaskService.search(request.getTask(), limit, offset, tenantId, lastChangedSince, includeDeleted);
         TaskBulkResponse response = TaskBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).tasks(taskSearchResponse.getResponse()).totalCount(taskSearchResponse.getTotalCount()).build();
+                .createResponseInfo(taskSearchRequest.getRequestInfo(), true)).tasks(taskSearchResponse.getResponse()).totalCount(taskSearchResponse.getTotalCount()).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
@@ -455,10 +451,12 @@ public class ProjectApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResponse> searchProject(@ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectRequest project,
-                                                         ,
-                                                         @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeAncestors", required = false, defaultValue = "false") Boolean includeAncestors,  @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") Boolean includeDescendants, @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date", defaultValue = "false") @Valid @RequestParam(value = "createdFrom", required = false) Long createdFrom, @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date", defaultValue = "false") @Valid @RequestParam(value = "createdTo", required = false) Long createdTo) {
-        List<Project> projects = projectService.searchProject(project, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted(), includeAncestors, includeDescendants, createdFrom, createdTo);
+    public ResponseEntity<ProjectResponse> searchProject(@ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectRequest projectRequest,
+                                                         @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeAncestors", required = false, defaultValue = "false") Boolean includeAncestors,
+                                                         @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") Boolean includeDescendants,
+                                                         @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date", defaultValue = "false") @Valid @RequestParam(value = "createdFrom", required = false) Long createdFrom,
+                                                         @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date", defaultValue = "false") @Valid @RequestParam(value = "createdTo", required = false) Long createdTo) {
+        List<Project> projects = projectService.searchProject(projectRequest, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted(), includeAncestors, includeDescendants, createdFrom, createdTo);
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
         Integer count = projectService.countAllProjects(project, searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted(), createdFrom, createdTo);
         ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(projects).totalCount(count).build();

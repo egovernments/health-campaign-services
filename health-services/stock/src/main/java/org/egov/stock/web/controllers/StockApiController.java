@@ -1,34 +1,32 @@
 package org.egov.stock.web.controllers;
 
 
+import java.util.List;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.URLParams;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
 import org.egov.common.models.stock.StockBulkResponse;
 import org.egov.common.models.stock.StockRequest;
 import org.egov.common.models.stock.StockResponse;
+import org.egov.common.models.stock.StockSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.service.StockService;
-import org.egov.stock.web.models.StockSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import java.util.List;
 
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-02-08T11:49:06.320+05:30")
 
 @Controller
 @RequestMapping("")
@@ -75,11 +73,18 @@ public class StockApiController {
     }
 
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<StockBulkResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest request) throws Exception {
+    public ResponseEntity<StockBulkResponse> stockV1SearchPost(@ApiParam(value = "Capture details of Stock Transfer.", required = true) @Valid @RequestBody StockSearchRequest stockSearchRequest) throws Exception {
 
-        List<Stock> stock = stockService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        List<Stock> stock = stockService.search(
+                stockSearchRequest,
+                stockSearchRequest.getStock().getLimit(),
+                stockSearchRequest.getStock().getOffset(),
+                stockSearchRequest.getStock().getTenantId(),
+                stockSearchRequest.getStock().getLastChangedSince(),
+                stockSearchRequest.getStock().getIncludeDeleted()
+        );
         StockBulkResponse response = StockBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).stock(stock).build();
+                .createResponseInfo(stockSearchRequest.getRequestInfo(), true)).stock(stock).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

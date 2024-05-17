@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.Boundary;
-import org.egov.project.web.models.boundary.BoundaryResponse;
+import org.egov.common.models.project.boundary.BoundaryResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

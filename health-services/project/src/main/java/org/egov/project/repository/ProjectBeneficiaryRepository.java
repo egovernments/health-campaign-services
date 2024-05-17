@@ -11,7 +11,7 @@ import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.producer.Producer;
 import org.egov.project.repository.rowmapper.ProjectBeneficiaryRowMapper;
-import org.egov.project.web.models.ProjectBeneficiarySearch;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;

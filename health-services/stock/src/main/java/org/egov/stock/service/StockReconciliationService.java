@@ -18,7 +18,7 @@ import org.egov.stock.validator.stockreconciliation.SrProductVariantIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrReferenceIdValidator;
 import org.egov.stock.validator.stockreconciliation.SrRowVersionValidator;
 import org.egov.stock.validator.stockreconciliation.SrUniqueEntityValidator;
-import org.egov.stock.web.models.StockReconciliationSearchRequest;
+import org.egov.common.models.stock.StockReconciliationSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
