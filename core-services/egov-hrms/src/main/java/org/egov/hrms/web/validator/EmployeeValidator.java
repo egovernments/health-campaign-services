@@ -10,6 +10,7 @@ import com.jayway.jsonpath.JsonPath;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.Role;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.model.*;
 import org.egov.hrms.service.EmployeeService;
@@ -22,6 +23,7 @@ import org.egov.hrms.web.contract.EmployeeRequest;
 import org.egov.hrms.web.contract.EmployeeResponse;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.egov.hrms.web.contract.UserResponse;
+import org.egov.hrms.web.models.boundary.BoundaryResponse;
 import org.egov.mdms.model.MdmsResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,9 @@ public class EmployeeValidator {
 
 	@Autowired
 	private HRMSUtils hrmsUtils;
+
+	@Autowired
+	ServiceRequestClient serviceRequestClient;
 
 	/**
 	 * Validates employee request for create. Validations include:
@@ -97,25 +102,37 @@ public class EmployeeValidator {
 		}
 
 		List<MdmsResponse> boundaryResponseList = new ArrayList<>();
-		for(String boundary: boundarytList){
-			MdmsResponse responseLoc = mdmsService.fetchMDMSDataLoc(requestInfo, boundary);
-			if(!CollectionUtils.isEmpty(responseLoc.getMdmsRes()))
-				boundaryResponseList.add(responseLoc);
+//		for(String boundary: boundarytList){
+//			MdmsResponse responseLoc = mdmsService.fetchMDMSDataLoc(requestInfo, boundary);
+//			BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+//					new StringBuilder(propertiesManager.getBoundaryServiceHost()
+//							+ propertiesManager.getBoundarySearchUrl()
+//							+"?limit=" + boundaries.size()
+//							+ "&offset=0&tenantId=" + tenantId
+//							+ "&codes=" + String.join(",", boundaries)),
+//					request.getRequestInfo(),
+//					BoundaryResponse.class
+//			);
+//			if(!CollectionUtils.isEmpty(responseLoc.getMdmsRes()))
+//				boundaryResponseList.add(responseLoc);
+//		}
+
+		if(!CollectionUtils.isEmpty(boundarytList)) {
+			BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+					new StringBuilder(propertiesManager.getBoundaryServiceHost()
+							+ propertiesManager.getBoundarySearchUrl()
+							+"?limit=" + boundarytList.size()
+							+ "&offset=0&tenantId=" + employee.getTenantId()
+							+ "&codes=" + String.join(",", boundarytList)),
+					requestInfo,
+					BoundaryResponse.class
+			);
+			masterData.put(HRMSConstants.HRMS_MDMS_TENANT_BOUNDARY_CODE, boundarySearchResponse.getBoundary().stream()
+					.map(boundary -> boundary.getCode())
+					.collect(Collectors.toList())
+			);
 		}
 
-		if(!CollectionUtils.isEmpty(boundaryResponseList)){
-			List<String> tenantBoundaryData = new ArrayList<>();
-			for(MdmsResponse responseLoc : boundaryResponseList){
-				if(!CollectionUtils.isEmpty(responseLoc.getMdmsRes().keySet())) {
-					if(null != responseLoc.getMdmsRes().get(HRMSConstants.HRMS_MDMS_EGOV_LOCATION_MASTERS_CODE)) {
-						eachMasterMap = (Map) responseLoc.getMdmsRes().get(HRMSConstants.HRMS_MDMS_EGOV_LOCATION_MASTERS_CODE);
-						tenantBoundaryData.addAll(eachMasterMap.get(HRMSConstants.HRMS_MDMS_TENANT_BOUNDARY_CODE));
-					}
-				}
-			}
-			if(!CollectionUtils.isEmpty(tenantBoundaryData))
-				masterData.put(HRMSConstants.HRMS_MDMS_TENANT_BOUNDARY_CODE,tenantBoundaryData);
-		}
 		return masterData;
 	}
 	
