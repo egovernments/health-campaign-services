@@ -37,16 +37,6 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
     fetch();
   }, [fileData]);
 
-  const documents = fileUrl
-    ? [
-        {
-          fileType: "xlsx",
-          filename: "fileData?.fileName",
-          uri: fileUrl?.url,
-        },
-      ]
-    : null;
-
   const closeToast = () => {
     setTimeout(() => {
       setShowToast(null);
@@ -154,7 +144,10 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
             icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
             type="button"
             className="workbench-download-template-btn"
-            onButtonClick={(e) => handleFileDownload(e, file)}
+            onButtonClick={(e) => {
+              e.stopPropagation();
+              handleFileDownload(e, fileUrl);
+            }}
           />
           <Button
             label={t("WBH_DELETE")}
@@ -171,7 +164,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
         </div>
       </div>
     ));
-  }, [fileData]);
+  }, [fileData, fileUrl]);
 
   return (
     <React.Fragment>
