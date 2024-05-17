@@ -53,20 +53,20 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                 // Build SideEffect object
                 sideEffect = SideEffect.builder()
                         .id(resultSet.getString("sId"))
-                        .clientReferenceId(resultSet.getString("sClientReferenceId"))
-                        .taskId(resultSet.getString("sTaskId"))
-                        .taskClientReferenceId(resultSet.getString("sTaskClientReferenceId"))
-                        .projectBeneficiaryId(resultSet.getString("sProjectBeneficiaryId"))
-                        .projectBeneficiaryClientReferenceId(resultSet.getString("sProjectBeneficiaryClientReferenceId"))
-                        .tenantId(resultSet.getString("sTenantId"))
-                        .symptoms(resultSet.getString("sSymptoms") == null ? null : objectMapper
-                                .readValue(resultSet.getString("sSymptoms"), ArrayList.class))
                         .additionalFields(resultSet.getString("sAdditionalDetails") == null ? null : objectMapper
                                 .readValue(resultSet.getString("sAdditionalDetails"), AdditionalFields.class))
                         .rowVersion(resultSet.getInt("sRowVersion"))
                         .isDeleted(resultSet.getBoolean("sIsDeleted"))
                         .auditDetails(sideEffectAuditDetails)
+                        .tenantId(resultSet.getString("sTenantId"))
                         .clientAuditDetails(sideEffectClientAuditDetails)
+                        .clientReferenceId(resultSet.getString("sClientReferenceId"))
+                        .taskId(resultSet.getString("sTaskId"))
+                        .taskClientReferenceId(resultSet.getString("sTaskClientReferenceId"))
+                        .projectBeneficiaryId(resultSet.getString("sProjectBeneficiaryId"))
+                        .projectBeneficiaryClientReferenceId(resultSet.getString("sProjectBeneficiaryClientReferenceId"))
+                        .symptoms(resultSet.getString("sSymptoms") == null ? null : objectMapper
+                                .readValue(resultSet.getString("sSymptoms"), ArrayList.class))
                         .build();
             }
             // Map main Referral AuditDetails
@@ -86,6 +86,12 @@ public class ReferralRowMapper implements RowMapper<Referral> {
             // Build Referral object
             return Referral.builder()
                     .id(resultSet.getString("id"))
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
+                            .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .rowVersion(resultSet.getInt("rowversion"))
+                    .isDeleted(resultSet.getBoolean("isdeleted"))
+                    .auditDetails(auditDetails)
+                    .clientAuditDetails(clientAuditDetails)
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .projectBeneficiaryId(resultSet.getString("projectBeneficiaryId"))
                     .projectBeneficiaryClientReferenceId(resultSet.getString("projectbeneficiaryclientreferenceid"))
@@ -95,12 +101,6 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                     .sideEffect(sideEffect)
                     .tenantId(resultSet.getString("tenantid"))
                     .reasons(resultSet.getString("reasons") == null ? null : objectMapper.readValue(resultSet.getString("reasons"), ArrayList.class))
-                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
-                            .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
-                    .rowVersion(resultSet.getInt("rowversion"))
-                    .isDeleted(resultSet.getBoolean("isdeleted"))
-                    .auditDetails(auditDetails)
-                    .clientAuditDetails(clientAuditDetails)
                     .build();
         } catch (JsonProcessingException e) {
             // Wrap JsonProcessingException into RuntimeException

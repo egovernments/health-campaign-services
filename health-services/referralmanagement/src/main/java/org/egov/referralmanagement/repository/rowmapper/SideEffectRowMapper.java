@@ -49,6 +49,12 @@ public class SideEffectRowMapper implements RowMapper<SideEffect> {
             // Building SideEffect object
             return SideEffect.builder()
                     .id(resultSet.getString("id"))
+                    .rowVersion(resultSet.getInt("rowversion"))
+                    .isDeleted(resultSet.getBoolean("isdeleted"))
+                    .auditDetails(auditDetails)
+                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
+                            .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
+                    .clientAuditDetails(clientAuditDetails)
                     .clientReferenceId(resultSet.getString("clientreferenceid"))
                     .taskId(resultSet.getString("taskId"))
                     .taskClientReferenceId(resultSet.getString("taskClientreferenceid"))
@@ -56,14 +62,8 @@ public class SideEffectRowMapper implements RowMapper<SideEffect> {
                     .projectBeneficiaryClientReferenceId(resultSet.getString("projectBeneficiaryClientReferenceId"))
                     .tenantId(resultSet.getString("tenantid"))
                     // Deserializing JSON array stored in the 'symptoms' column to ArrayList<String>
-                    .symptoms(resultSet.getString("symptoms") == null ? null : objectMapper.readValue(resultSet.getString("symptoms"), ArrayList.class))
-                    // Deserializing additional details JSON to AdditionalFields object
-                    .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
-                            .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
-                    .rowVersion(resultSet.getInt("rowversion"))
-                    .isDeleted(resultSet.getBoolean("isdeleted"))
-                    .auditDetails(auditDetails)
-                    .clientAuditDetails(clientAuditDetails)
+                    .symptoms(resultSet.getString("symptoms") == null ? null :
+                            objectMapper.readValue(resultSet.getString("symptoms"), ArrayList.class))
                     .build();
         } catch (JsonProcessingException e) {
             // Wrapping JsonProcessingException into SQLException
