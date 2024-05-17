@@ -48,13 +48,12 @@ async function fetchBoundariesInChunks(request: any) {
     return responseBoundaries;
 }
 
-function processBoundaryfromCampaignDetails(responseBoundaries: any[], request: any, boundaryItems: any[], parentId?: string) {
-    const { tenantId, hierarchyType } = request.body.CampaignDetails.tenantId;
+function processBoundaryfromCampaignDetails(responseBoundaries: any[], request: any, boundaryItems: any[]) {
     boundaryItems.forEach((boundaryItem: any) => {
-        const { id, code, boundaryType, children } = boundaryItem;
-        responseBoundaries.push({ tenantId, hierarchyType, parentId, id, code, boundaryType });
+        const { code, boundaryType, children } = boundaryItem;
+        responseBoundaries.push({ code, boundaryType });
         if (children.length > 0) {
-            processBoundaryfromCampaignDetails(responseBoundaries, request, children, id);
+            processBoundaryfromCampaignDetails(responseBoundaries, request, children);
         }
     });
 }
