@@ -217,7 +217,7 @@ const getCondition = (condition: any = {}, attribute: string) => {
   return `${getConditionsKey(
     condition,
     "GREATER_THAN"
-  )}${attribute}&&${attribute}${getConditionsKey(condition, "LESS_THAN")}`;
+  )}${attribute}and${attribute}${getConditionsKey(condition, "LESS_THAN")}`;
 };
 
 // Function to get the required condition
