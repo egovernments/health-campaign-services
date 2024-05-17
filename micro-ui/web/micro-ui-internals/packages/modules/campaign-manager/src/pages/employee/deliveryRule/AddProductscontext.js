@@ -222,7 +222,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
             <LabelFieldPair>
               <Label>{t(`CAMPAIGN_ADD_PRODUCTS_LABEL`)}</Label>
               <Dropdown
-                style={{ width: "100%", marginBottom: 0 }}
+                style={{ width: "100%", minWidth: "100%", marginBottom: 0 }}
                 className="form-field"
                 selected={i?.value}
                 disable={false}
