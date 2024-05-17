@@ -118,19 +118,23 @@ public class EmployeeValidator {
 //		}
 
 		if(!CollectionUtils.isEmpty(boundarytList)) {
-			BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
-					new StringBuilder(propertiesManager.getBoundaryServiceHost()
-							+ propertiesManager.getBoundarySearchUrl()
-							+"?limit=" + boundarytList.size()
-							+ "&offset=0&tenantId=" + employee.getTenantId()
-							+ "&codes=" + String.join(",", boundarytList)),
-					requestInfo,
-					BoundaryResponse.class
-			);
-			masterData.put(HRMSConstants.HRMS_MDMS_TENANT_BOUNDARY_CODE, boundarySearchResponse.getBoundary().stream()
-					.map(boundary -> boundary.getCode())
-					.collect(Collectors.toList())
-			);
+			try {
+				BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+						new StringBuilder(propertiesManager.getBoundaryServiceHost()
+								+ propertiesManager.getBoundarySearchUrl()
+								+"?limit=" + boundarytList.size()
+								+ "&offset=0&tenantId=" + employee.getTenantId()
+								+ "&codes=" + String.join(",", boundarytList)),
+						requestInfo,
+						BoundaryResponse.class
+				);
+				masterData.put(HRMSConstants.HRMS_MDMS_TENANT_BOUNDARY_CODE, boundarySearchResponse.getBoundary().stream()
+						.map(boundary -> boundary.getCode())
+						.collect(Collectors.toList())
+				);
+			} catch (Exception e) {
+				log.error("error while fetching boundary");
+			}
 		}
 
 		return masterData;
