@@ -50,7 +50,7 @@ app.use((req, res, next) => {
     logger.info("Received request");
 
     // Extract auth token from params
-    const authToken = req.query['x-auth-token'];
+    const authToken = req.headers['authorization'];
 
     logger.info("Received request path - " + req.url);
 
