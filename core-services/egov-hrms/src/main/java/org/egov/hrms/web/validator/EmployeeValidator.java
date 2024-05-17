@@ -64,10 +64,11 @@ public class EmployeeValidator {
 		validatePassword(request, errorMap);
 		if(!CollectionUtils.isEmpty(errorMap.keySet()))
 			throw new CustomException(errorMap);
-		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
+		//FIXME Boundary v2 Service needs to be integrated for location validation
+//		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
 		Map<String, List<String>> mdmsData = mdmsService.getMDMSData(request.getRequestInfo(), request.getEmployees().get(0).getTenantId());
 		if(!CollectionUtils.isEmpty(mdmsData.keySet())){
-			request.getEmployees().stream().forEach(employee -> validateMdmsData(employee, errorMap, mdmsData,boundaryMap));
+			request.getEmployees().stream().forEach(employee -> validateMdmsData(employee, errorMap, mdmsData, new HashMap<>()));
 		}
 		if(!CollectionUtils.isEmpty(errorMap.keySet()))
 			throw new CustomException(errorMap);
@@ -276,7 +277,8 @@ public class EmployeeValidator {
 		validateEmployee(employee, errorMap, mdmsData);
 		validateAssignments(employee, errorMap, mdmsData);
 		validateServiceHistory(employee, errorMap, mdmsData);
-		validateJurisdicton(employee, errorMap, mdmsData, boundaryMap);
+		//FIXME uncomment the following code
+//		validateJurisdicton(employee, errorMap, mdmsData, boundaryMap);
 		validateEducationalDetails(employee, errorMap, mdmsData);
 		validateDepartmentalTest(employee, errorMap, mdmsData);
 	}
@@ -596,9 +598,10 @@ public class EmployeeValidator {
 	 */
 	public void validateUpdateEmployee(EmployeeRequest request) {
 		Map<String, String> errorMap = new HashMap<>();
-		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
+		//FIXME Boundary v2 Service needs to be integrated for location validation
+//		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
 		Map<String, List<String>> mdmsData = mdmsService.getMDMSData(request.getRequestInfo(), request.getEmployees().get(0).getTenantId());
-		List <String> uuidList = request.getEmployees().stream().map(Employee :: getUuid).collect(Collectors.toList()); 
+		List <String> uuidList = request.getEmployees().stream().map(Employee :: getUuid).collect(Collectors.toList());
 		EmployeeResponse existingEmployeeResponse = employeeService.search(EmployeeSearchCriteria.builder().uuids(uuidList)
 				.tenantId(request.getEmployees().get(0).getTenantId())
 				.build(),request.getRequestInfo());
@@ -612,7 +615,7 @@ public class EmployeeValidator {
 				else
 					errorMap.put(ErrorConstants.HRMS_UPDATE_EMPLOYEE_NOT_EXIST_CODE, ErrorConstants.HRMS_UPDATE_EMPLOYEE_NOT_EXIST_MSG);
 			}
-			validateMdmsData(employee, errorMap, mdmsData,boundaryMap);
+			validateMdmsData(employee, errorMap, mdmsData, new HashMap<>());
 		}
 		if(!CollectionUtils.isEmpty(errorMap.keySet())) {	
 			throw new CustomException(errorMap);
