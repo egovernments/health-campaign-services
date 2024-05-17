@@ -125,10 +125,8 @@ async function validateTargetBoundaryData(data: any[], request: any, boundaryCol
                             errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `Boundary Code is not of type string at row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key });
                         } else {
                             const boundaryList = boundaries.split(",").map((boundary: any) => boundary.trim());
-                            if (boundaryList.length === 0) {
-                                if (boundaryList.length === 0 || boundaryList.includes('')) {
-                                    errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
-                                }
+                            if (boundaryList.length === 0 || boundaryList.includes('')) {
+                                errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `No boundary code found for row ${element["!row#number!"] + 1} in boundary sheet ${key}`, sheetName: key })
                             }
                             if (boundaryList.length > 1) {
                                 errors.push({ status: "INVALID", rowNumber: element["!row#number!"], errorDetails: `More than one Boundary Code found at row ${element["!row#number!"] + 1} of sheet ${key}`, sheetName: key })
@@ -315,7 +313,7 @@ async function validateTargetSheetData(data: any, request: any, boundaryValidati
             await validateTargetsAtLowestLevelPresentOrNot(data, request, errors, localizationMap);
         }
         request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
-        if (request.body.sheetErrorDetails) {
+        if (request.body.sheetErrorDetails.length != 0) {
             request.body.ResourceDetails.status = resourceDataStatuses.invalid;
         }
         await generateProcessedFileAndPersist(request, localizationMap);
