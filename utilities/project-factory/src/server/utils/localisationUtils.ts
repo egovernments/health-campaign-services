@@ -10,7 +10,7 @@ export const getLocaleFromRequest = (request: any) => {
 };
 
 // Function to generate localisation module name based on hierarchy type
-export const getLocalisationModuleName = (hierarchyType: string) => {
+export const getLocalisationModuleName = (hierarchyType: any) => {
   // Construct module name using boundary prefix from config and hierarchy type
   // Convert module name to lowercase
   return `${config.localisation.boundaryPrefix}-${getTransformedLocale(hierarchyType)}`?.toLowerCase();
@@ -27,3 +27,12 @@ export const getTransformedLocale = (label: string) => {
     // If label is not empty, convert to uppercase and replace special characters with underscores
     return label && label.toUpperCase().replace(/[.:-\s\/]/g, "_");
   };
+
+
+  export const convertLocalisationResponseToMap=(messages:any=[])=>{
+    const localizationMap: any = {};
+    messages.forEach((message: any) => {
+      localizationMap[message.code] = message.message;
+    });
+    return localizationMap;
+  }

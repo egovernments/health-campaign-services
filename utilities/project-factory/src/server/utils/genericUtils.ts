@@ -624,10 +624,10 @@ function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: st
 
 
 
-function modifyRequestForLocalisation(request: any, tenanId: string) {
+function modifyRequestForLocalisation(request: any, tenantId: string) {
   const { RequestInfo } = request?.body;
   const query = {
-    "tenantId": tenanId,
+    "tenantId": tenantId,
     "locale": getLocaleFromRequest(request),
     "module": config.localizationModule
   };
@@ -718,7 +718,7 @@ async function processGenerateRequest(request: any, localizationMap?: { [key: st
   }
 }
 
-async function processGenerateForNew(request: any, response: any, generatedResource: any, newEntryResponse: any, localizationMap?: { [key: string]: string }) {
+async function processGenerateForNew(request: any, response: any, generatedResource: any, newEntryResponse: any, localizationMap?:any) {
   request.body.generatedResource = newEntryResponse;
   try {
     await fullProcessFlowForNewEntry(newEntryResponse, request, response, localizationMap);
@@ -874,27 +874,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
-  const boundaryCodes = boundaryList.map(boundary => boundary.split(',').pop());
 
-  // Chunk the boundary codes into groups of 20
-  const chunkSize = 20;
-  const boundaryCodeChunks = [];
-  for (let i = 0; i < boundaryCodes.length; i += chunkSize) {
-    boundaryCodeChunks.push(boundaryCodes.slice(i, i + chunkSize));
-  }
-
-  const boundaryCodeNameMapping: { [key: string]: string } = {};
-
-  // Fetch data for each chunk of boundary codes
-  for (const chunk of boundaryCodeChunks) {
-    const string = chunk.join(', ');
-    const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.query?.tenantId, codes: string });
-
-    // Populate boundaryCodeNameMapping with the retrieved data
-    boundaryEntityResponse?.Boundary?.forEach((data: any) => {
-      boundaryCodeNameMapping[data?.code] = data?.additionalDetails?.name;
-    });
-  }
   const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
@@ -914,8 +894,9 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     const boundaryParts = boundary.split(',');
     const boundaryCode = boundaryParts[boundaryParts.length - 1];
     const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
+    // localize the boundary codes
     const mappedRowData = rowData.map((cell: any, index: number) =>
-      index === reducedHierarchy.length ? '' : cell !== '' ? boundaryCodeNameMapping[cell] || cell : ''
+      index === reducedHierarchy.length ? '' : cell !== '' ? getLocalizedName(cell, localizationMap) : ''
     );
     const boundaryCodeIndex = reducedHierarchy.length;
     mappedRowData[boundaryCodeIndex] = boundaryCode;
@@ -965,16 +946,12 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
   return newData;
 }
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config?.localizationModule) {
   const localisationcontroller = new localisationController();
-  const response = {};
-  const modifiedRequestForLocalization = modifyRequestForLocalisation(request, tenantId);
-  const localizationResponse = await localisationcontroller.getLocalizedMessages(modifiedRequestForLocalization, response);
-  const localizationMap: { [key: string]: string } = {};
-  localizationResponse.messages.forEach((message: any) => {
-    localizationMap[message.code] = message.message;
-  });
-  return localizationMap;
+  const locale = getLocaleFromRequest(request);
+
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  return localizationResponse;
 }
 
 
