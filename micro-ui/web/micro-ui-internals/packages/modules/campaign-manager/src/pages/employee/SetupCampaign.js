@@ -882,7 +882,7 @@ const SetupCampaign = () => {
           }
           else if(recursiveParentFind(formData?.boundaryType?.selectedData).length >0){
             setShowToast({ key: "error", 
-            label: `${t(`HCM_CAMPAIGN_FOR`)} ${t(missedType?.[0]?.type)} ${t(missedType?.[0]?.code)} ${t(`HCM_CAMPAIGN_CHILD_NOT_PRESENT`)}`
+            label: `${t(`HCM_CAMPAIGN_FOR`)} ${t(`${hierarchyType}_${missedType?.[0]?.type}`?.toUpperCase())} ${t(missedType?.[0]?.code)} ${t(`HCM_CAMPAIGN_CHILD_NOT_PRESENT`)}`
           })
             return false;
           }
