@@ -149,12 +149,24 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     switch (type) {
       case "boundary":
         setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.uploadedFile || []);
+        setApiError(null);
+        setIsValidation(false);
+        setDownloadError(false);
+        setIsError(false);
         break;
       case "facilityWithBoundary":
         setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile || []);
+        setApiError(null);
+        setIsValidation(false);
+        setDownloadError(false);
+        setIsError(false);
         break;
       default:
         setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile || []);
+        setApiError(null);
+        setIsValidation(false);
+        setDownloadError(false);
+        setIsError(false);
         break;
     }
   }, [type, props?.props?.sessionData]);
