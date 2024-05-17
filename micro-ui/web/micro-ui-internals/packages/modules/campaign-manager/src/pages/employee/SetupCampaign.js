@@ -376,7 +376,7 @@ const SetupCampaign = () => {
     setParams({ ...restructureFormData });
   }, [params, draftData, isLoading, projectType]);
 
-  const facilityId = Digit.Hooks.campaign.useGenerateIdCampaign({
+  const { data: facilityId, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "facilityWithBoundary",
     hierarchyType: hierarchyType,
     campaignId: id,
@@ -385,7 +385,13 @@ const SetupCampaign = () => {
     },
   });
 
-  const boundaryId = Digit.Hooks.campaign.useGenerateIdCampaign({
+  useEffect(() => {
+    if (filteredBoundaryData) {
+      refetchBoundary();
+    }
+  }, [filteredBoundaryData]);
+
+  const { data: boundaryId, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "boundary",
     hierarchyType: hierarchyType,
     filters: filteredBoundaryData,
@@ -395,7 +401,7 @@ const SetupCampaign = () => {
     },
   });
 
-  const userId = Digit.Hooks.campaign.useGenerateIdCampaign({
+  const { data: userId, refetch: refetchUser } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "userWithBoundary",
     hierarchyType: hierarchyType,
     campaignId: id,
@@ -829,7 +835,7 @@ const SetupCampaign = () => {
     // Check for missing children
     const missingParents = filteredData?.filter((item) => item?.parent && !parentChildrenMap[item.code]);
     const extraParent = missingParents?.filter((i) => i?.type !== lowest?.[0]?.boundaryType);
-    
+
     return extraParent;
   }
 
@@ -879,11 +885,13 @@ const SetupCampaign = () => {
           if (!validateBoundary) {
             setShowToast({ key: "error", label: t("HCM_CAMPAIGN_ALL_THE_LEVELS_ARE_MANDATORY") });
             return false;
-          }
-          else if(recursiveParentFind(formData?.boundaryType?.selectedData).length >0){
-            setShowToast({ key: "error", 
-            label: `${t(`HCM_CAMPAIGN_FOR`)} ${t(`${hierarchyType}_${missedType?.[0]?.type}`?.toUpperCase())} ${t(missedType?.[0]?.code)} ${t(`HCM_CAMPAIGN_CHILD_NOT_PRESENT`)}`
-          })
+          } else if (recursiveParentFind(formData?.boundaryType?.selectedData).length > 0) {
+            setShowToast({
+              key: "error",
+              label: `${t(`HCM_CAMPAIGN_FOR`)} ${t(`${hierarchyType}_${missedType?.[0]?.type}`?.toUpperCase())} ${t(missedType?.[0]?.code)} ${t(
+                `HCM_CAMPAIGN_CHILD_NOT_PRESENT`
+              )}`,
+            });
             return false;
           }
           setShowToast(null);
@@ -993,7 +1001,6 @@ const SetupCampaign = () => {
       setTimeout(closeToast, 10000);
     }
   }, [showToast]);
-
 
   const onSubmit = (formData, cc) => {
     const checkValid = handleValidate(formData);

@@ -16,12 +16,11 @@ export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId
     body: type === "boundary" ? (updatedFilters === undefined ? { Filters: null } : { Filters: { boundaries: updatedFilters } }) : {},
     config: {
       ...config,
-      cacheTime:0,
+      cacheTime: 0,
       staleTime: 0,
     },
   };
+  const { data: Data, refetch } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
-  const { data: Data } = Digit.Hooks.useCustomAPIHook(reqCriteria);
-
-  return Data?.GeneratedResource?.[0]?.id;
+  return { data: Data?.GeneratedResource?.[0]?.id, refetch };
 };
