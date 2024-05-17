@@ -551,9 +551,7 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
             if (rootBoundaryCount !== 1) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", "Exactly one boundary should have isRoot=true");
             }
-            for (const boundary of boundaries) {
-                await validateCampaignBoundary(boundary, hierarchyType, tenantId, request);
-            }
+            await validateCampaignBoundary(boundaries, hierarchyType, tenantId, request);
         }
         else {
             throwError("COMMON", 400, "VALIDATION_ERROR", "Missing boundaries array");
