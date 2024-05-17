@@ -6,6 +6,7 @@ import { processGenericRequest } from "../../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../../api/genericApis";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../../utils/validators/campaignValidators";
 import { processDataSearchRequest } from "../../utils/campaignUtils";
+import { getLocalisationModuleName } from "../../utils/localisationUtils";
 
 
 
@@ -44,11 +45,11 @@ class dataManageController {
             // Validate the generate request
             await validateGenerateRequest(request);
             logger.info("VALIDATED THE DATA GENERATE REQUEST");
-
+            const { hierarchyType } = request.query;
             // Process the data generation
-
-            const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId)
-
+            // localize the codes present in boundary modules
+            request?.query?.hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+            const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
             await processGenerate(request, response, localizationMap);
             // Send response with generated resource details
 
@@ -101,7 +102,7 @@ class dataManageController {
     ) => {
         try {
             logger.info("RECEIVED A REQUEST TO GENERATE THE BOUNDARY");
-
+           
             const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId || 'mz');
             // Retrieve boundary sheet data
             const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
