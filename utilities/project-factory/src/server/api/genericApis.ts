@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx'; // Import XLSX library for Excel file processing
 import config from "../config"; // Import configuration settings
 import FormData from 'form-data'; // Import FormData for handling multipart/form-data requests
 import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
-import { logger } from "../utils/logger"; // Import logger for logging
+import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
 import { correctParentValues, generateActivityMessage, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { validateProjectFacilityResponse, validateProjectResourceResponse, validateStaffResponse } from "../utils/validators/genericValidator"; // Import validation functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getLocalizedName } from '../utils/campaignUtils'; // Import utility functions
@@ -679,7 +679,8 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
         if (!(boundaries.length === 0)) {
             requestBody.Boundary = boundaries;
             const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary/_create`, requestBody, {}, 'POST',);
-            logger.info('Boundary entities created:', response);
+            logger.info('Boundary entities created');
+            logger.debug('Boundary entities response: '+getFormattedStringForDebug(response));
         }
         else {
             // throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
@@ -699,6 +700,7 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
 async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key: string]: string } = {}, modifiedChildParentMap: any, localizationMap?: any) {
     try {
         // Create boundary relationships
+        logger.info(`Boundary relationship creation begins`);
         let activityMessage = [];
         const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; BoundaryRelationship?: any };
         const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
@@ -731,7 +733,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
                 if (!response.TenantBoundary || !Array.isArray(response.TenantBoundary) || response.TenantBoundary.length === 0) {
                     throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR");
                 }
-                logger.info('Boundary relationship created');
+                logger.info(`Boundary relationship created for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} `);
                 const newRequestBody = JSON.parse(JSON.stringify(request.body));
                 activityMessage.push(await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, response, request?.body?.ResourceDetails?.type, url, response?.statusCode));
             }
