@@ -28,15 +28,17 @@ class localisationController {
   }
   // search localization 
   getLocalisedData: any = async (module: string, locale: string, tenantId: string) => {
+    logger.info(`Checks Localisation message is available in cache for module ${module}, locale ${locale}, tenantId ${tenantId}`);
     if (!this?.cachedResponse?.[`${module}-${locale}`]) {
+      logger.info(`Not found in cache`);
       await this.fetchLocalisationMessage(module, locale, tenantId);
     }
+    logger.info(`Found in cache`);
     return this.getLocalisationMap();
   }
   // fetch localization messages 
   fetchLocalisationMessage = async (module: string, locale: string, tenantId: string) => {
     logger.info(`Received Localisation fetch for module ${module}, locale ${locale}, tenantId ${tenantId}`);
-
     const params = {
       tenantId,
       locale,
@@ -47,6 +49,7 @@ class localisationController {
     const localisationResponse = await httpRequest(url, {}, params);
     logger.info(`Fetched Localisation Message for module ${module}, locale ${locale}, tenantId ${tenantId} with count ${localisationResponse?.messages?.length}`);
     this.cachedResponse = { ...cachedResponse, ...this.cachedResponse, [`${module}-${locale}`]: { ...convertLocalisationResponseToMap(localisationResponse?.messages) } };
+    logger.info(`Cached Localisation Message, now available modules in cache are :  ${JSON.stringify(Object.keys(this.cachedResponse))}`);
     cachedResponse = { ...this.cachedResponse };
   }
 

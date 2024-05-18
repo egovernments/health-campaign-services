@@ -704,6 +704,7 @@ const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, get
   return columnsToValidate;
 }
 async function getFiltersFromCampaignSearchResponse(request: any) {
+  logger.info(`searching for campaign details to get the filters for boundary generation`);
   const url = config.host.projectFactoryBff + config.paths.projectTypeSearch;
   const requestInfo = { "RequestInfo": request?.body?.RequestInfo };
   const campaignDetails = { "CampaignDetails": { tenantId: request?.query?.tenantId, "ids": [request?.query?.campaignId] } }
@@ -711,8 +712,10 @@ async function getFiltersFromCampaignSearchResponse(request: any) {
   const projectTypeSearchResponse = await httpRequest(url, requestBody);
   const boundaries = projectTypeSearchResponse?.CampaignDetails?.[0]?.boundaries?.map((ele:any)=>({...ele,boundaryType:ele?.type}));
   if (!boundaries) {
+    logger.info(`no boundaries found so considering the complete hierarchy`);
     return {Filters: null};
   }
+  logger.info(`boundaries found for filtering`);
   return { Filters: { boundaries: boundaries } };
 }
 

@@ -1215,7 +1215,9 @@ async function generateFilteredBoundaryData(request: any, responseFromCampaignSe
         codes: rootBoundary?.[0]?.code
     };
     const boundaryDataFromRootOnwards = await getBoundaryRelationshipData(request, params);
+    logger.info(`filtering the boundaries`);
     const filteredBoundaryList = filterBoundaries(boundaryDataFromRootOnwards, responseFromCampaignSearch?.Filters)
+    logger.info(`filtered the boundaries based on given criteria`)
     return filteredBoundaryList;
 }
 

@@ -422,6 +422,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
     const type = request?.query?.type;
     const generatedResource: any = { generatedResource: newEntryResponse }
     // send message to create toppic
+    logger.info(`processing the generate request for type ${type}`)
     produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
     if (type === 'boundary') {
       const dataManagerController = new dataManageController();
@@ -431,9 +432,11 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, r
       // get boundary sheet data after being generated
       const boundaryData = await getBoundaryDataAfterGeneration(result, request, localizationMap);
       const differentTabsBasedOnLevel = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
+      logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
       const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
       const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
       if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config.numberOfBoundaryDataOnWhichWeSplit)) {
+        logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
         updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
       }
       // final upodated response to be sent to update topic 
@@ -690,11 +693,13 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
 
 async function generateFacilityAndBoundarySheet(tenantId: string, request: any, localizationMap?: { [key: string]: string }) {
   // Get facility and boundary data
+  logger.info("Generating facilities started");
   const allFacilities = await getAllFacilities(tenantId, request.body);
-  request.body.generatedResourceCount = allFacilities.length;
+  request.body.generatedResourceCount = allFacilities?.length;
+  logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   const facilitySheetData: any = await createFacilitySheet(request, allFacilities, localizationMap);
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
-  const boundarySheetData: any = await getBoundarySheetData(request);
+  const boundarySheetData: any = await getBoundarySheetData(request,localizationMap);
   await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap);
 }
 async function generateUserAndBoundarySheet(request: any, localizationMap?: { [key: string]: string }) {
@@ -704,8 +709,9 @@ async function generateUserAndBoundarySheet(request: any, localizationMap?: { [k
   const headers = mdmsResponse.MdmsRes[config.moduleName].userSchema[0].required;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config.userTab, localizationMap);
+  logger.info("Generated an empty user template");
   const userSheetData = await createExcelSheet(userData, localizedHeaders, localizedUserTab);
-  const boundarySheetData: any = await getBoundarySheetData(request);
+  const boundarySheetData: any = await getBoundarySheetData(request,localizationMap);
   await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, localizationMap);
 }
 async function processGenerateRequest(request: any, localizationMap?: { [key: string]: string }) {
@@ -862,8 +868,10 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
 }
 
 async function getBoundaryRelationshipData(request: any, params: any) {
+  logger.info("Boundary relationship search initiated")
   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
   const boundaryRelationshipResponse = await httpRequest(url, request.body, params);
+  logger.info("Boundary relationship search response received")
   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
 }
 
@@ -949,7 +957,6 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config?.localizationModule) {
   const localisationcontroller = new localisationController();
   const locale = getLocaleFromRequest(request);
-
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
   return localizationResponse;
 }
