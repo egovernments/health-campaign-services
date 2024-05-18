@@ -110,7 +110,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setSheetHeaders(headers);
       setTranslatedSchema(schema);
     }
-  }, [Schemas?.["HCM-ADMIN-CONSOLE"]]);
+  }, [Schemas?.["HCM-ADMIN-CONSOLE"] , type]);
 
   useEffect(async () => {
     if (readMe?.["HCM-ADMIN-CONSOLE"]) {
@@ -130,7 +130,8 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
       setReadMeInfo(readMeText);
     }
-  }, [readMe?.["HCM-ADMIN-CONSOLE"]]);
+  }, [readMe?.["HCM-ADMIN-CONSOLE"] , type]);
+
 
   useEffect(() => {
     if (executionCount < 5) {
