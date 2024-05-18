@@ -49,7 +49,7 @@ function CampaignDocumentsPreview({ documents = [], svgStyles = {}, isUserGenera
                   {showPreview && (
                     <XlsPreview
                       file={{ url: pdfFiles[document?.id ? document?.id : document?.filestoreId] }}
-                      onDownload={() => handleFileDownload(null, pdfFiles[document?.id])}
+                      onDownload={() => handleFileDownload(null, pdfFiles[document?.id ? document?.id : document?.filestoreId])}
                       onBack={() => setShowPreview(false)}
                     />
                   )}
