@@ -511,12 +511,13 @@ public class EmployeeValidator {
 				List<String>  hierarchyTypes = JsonPath.read(boundaryMap,hierarchy_type_path);
 				List <String> boundaryTypes = JsonPath.read(boundaryMap,boundary_type_path);
 				List <String> boundaryValues = JsonPath.read(boundaryMap,boundary_value_path);
-				if(!hierarchyTypes.contains(jurisdiction.getHierarchy()))
-					errorMap.put(ErrorConstants.HRMS_INVALID_JURISDICTION_HEIRARCHY_CODE, ErrorConstants.HRMS_INVALID_JURISDICTION_HEIRARCHY_MSG);
-				if(!boundaryTypes.contains(jurisdiction.getBoundaryType()))
-					errorMap.put(ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_TYPE_CODE, ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_TYPE_MSG);
-				if(!boundaryValues.contains(jurisdiction.getBoundary()))
-					errorMap.put(ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_CODE, ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_MSG);
+				/*Removed temporary boundary v1 validations */
+				// if(!hierarchyTypes.contains(jurisdiction.getHierarchy()))
+				// 	errorMap.put(ErrorConstants.HRMS_INVALID_JURISDICTION_HEIRARCHY_CODE, ErrorConstants.HRMS_INVALID_JURISDICTION_HEIRARCHY_MSG);
+				// if(!boundaryTypes.contains(jurisdiction.getBoundaryType()))
+				// 	errorMap.put(ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_TYPE_CODE, ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_TYPE_MSG);
+				// if(!boundaryValues.contains(jurisdiction.getBoundary()))
+				// 	errorMap.put(ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_CODE, ErrorConstants.HRMS_INVALID_JURISDICTION_BOUNDARY_MSG);
 			}
 
 
