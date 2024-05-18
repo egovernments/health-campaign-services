@@ -428,7 +428,11 @@ const SetupCampaign = () => {
   }, [totalFormData, dataParams]);
 
   useEffect(() => {
-    updateUrlParams({ key: currentKey });
+    if (currentKey === 10 && !isPreview) {
+      updateUrlParams({ key: currentKey, preview: true });
+    } else {
+      updateUrlParams({ key: currentKey });
+    }
   }, [currentKey]);
 
   function restructureData(data) {
