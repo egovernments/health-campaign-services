@@ -500,13 +500,17 @@ async function getBoundarySheetData(request: any, localizationMap?: { [key: stri
         ...request?.query,
         includeChildren: true
     };
+    const hierarchyType=request?.query?.hierarchyType;
+    logger.info(`processing boundary data generation for hierarchyType : ${hierarchyType}`)
     const boundaryData = await getBoundaryRelationshipData(request, params);
     if (!boundaryData || boundaryData.length === 0) {
-        const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
-        const modifiedHierarchy = hierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase())
+        logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`)
+        const hierarchy = await getHierarchy(request, request?.query?.tenantId, hierarchyType);
+        const modifiedHierarchy = hierarchy.map(ele => `${hierarchyType}_${ele}`.toUpperCase())
         const localizedHeaders = getLocalizedHeaders(modifiedHierarchy, localizationMap);
         // create empty sheet if no boundary present in system
         const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
+        logger.info(`generated a empty template for boundary`)
         return await createExcelSheet(boundaryData, localizedHeaders, localizedBoundaryTab);
     }
     else {
