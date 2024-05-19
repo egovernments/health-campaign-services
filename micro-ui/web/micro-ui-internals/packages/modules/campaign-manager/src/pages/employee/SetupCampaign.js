@@ -376,7 +376,7 @@ const SetupCampaign = () => {
     setParams({ ...restructureFormData });
   }, [params, draftData, isLoading, projectType]);
 
-  const { data: facilityId, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
+  const { data: facilityId, isLoading: isFacilityLoading, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "facilityWithBoundary",
     hierarchyType: hierarchyType,
     campaignId: id,
@@ -391,7 +391,7 @@ const SetupCampaign = () => {
     }
   }, [filteredBoundaryData]);
 
-  const { data: boundaryId, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
+  const { data: boundaryId, isLoading: isBoundaryLoading, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "boundary",
     hierarchyType: hierarchyType,
     filters: filteredBoundaryData,
@@ -401,7 +401,7 @@ const SetupCampaign = () => {
     },
   });
 
-  const { data: userId, refetch: refetchUser } = Digit.Hooks.campaign.useGenerateIdCampaign({
+  const { data: userId, isLoading: isUserLoading, refetch: refetchUser } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "userWithBoundary",
     hierarchyType: hierarchyType,
     campaignId: id,
@@ -419,9 +419,12 @@ const SetupCampaign = () => {
         userId: userId,
         hierarchyType: hierarchyType,
         hierarchy: hierarchyDefinition?.BoundaryHierarchy?.[0],
+        isBoundaryLoading,
+        isFacilityLoading,
+        isUserLoading,
       });
     }
-  }, [facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
+  }, [isBoundaryLoading, isFacilityLoading, isUserLoading, facilityId, boundaryId, userId, hierarchyDefinition?.BoundaryHierarchy?.[0]]); // Only run if dataParams changes
 
   useEffect(() => {
     setCampaignConfig(CampaignConfig(totalFormData, dataParams));

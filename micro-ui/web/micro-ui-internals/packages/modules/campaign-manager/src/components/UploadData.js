@@ -110,7 +110,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setSheetHeaders(headers);
       setTranslatedSchema(schema);
     }
-  }, [Schemas?.["HCM-ADMIN-CONSOLE"] , type]);
+  }, [Schemas?.["HCM-ADMIN-CONSOLE"], type]);
 
   useEffect(async () => {
     if (readMe?.["HCM-ADMIN-CONSOLE"]) {
@@ -130,8 +130,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
       setReadMeInfo(readMeText);
     }
-  }, [readMe?.["HCM-ADMIN-CONSOLE"] , type]);
-
+  }, [readMe?.["HCM-ADMIN-CONSOLE"], type]);
 
   useEffect(() => {
     if (executionCount < 5) {
@@ -643,6 +642,21 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const mutation = Digit.Hooks.useCustomAPIMutationHook(Template);
 
   const downloadTemplate = async () => {
+    if (type === "boundary" && params?.isBoundaryLoading) {
+      setDownloadError(true);
+      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+      return;
+    }
+    if (type === "facilityWithBoundary" && params?.isFacilityLoading) {
+      setDownloadError(true);
+      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+      return;
+    }
+    if (type === "userWithBoundary" && params?.isUserLoading) {
+      setDownloadError(true);
+      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+      return;
+    }
     await mutation.mutate(
       {
         params: {

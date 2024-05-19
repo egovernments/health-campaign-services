@@ -20,7 +20,7 @@ export const useGenerateIdCampaign = ({ type, hierarchyType, filters, campaignId
       staleTime: 0,
     },
   };
-  const { data: Data, refetch } = Digit.Hooks.useCustomAPIHook(reqCriteria);
+  const { data: Data, refetch, isLoading } = Digit.Hooks.useCustomAPIHook(reqCriteria);
 
-  return { data: Data?.GeneratedResource?.[0]?.id, refetch };
+  return { isLoading: isLoading, data: Data?.GeneratedResource?.[0]?.id, refetch };
 };
