@@ -10,7 +10,7 @@ import FormData from 'form-data';
 import { logger } from "./logger";
 import dataManageController from "../controllers/dataManage/dataManage.controller";
 import { convertSheetToDifferentTabs, getBoundaryDataAfterGeneration, getLocalizedName } from "./campaignUtils";
-import localisationController from "../controllers/localisationController/localisation.controller";
+import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
@@ -955,7 +955,7 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 }
 
 async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config?.localizationModule) {
-  const localisationcontroller = new localisationController();
+  const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequest(request);
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
   return localizationResponse;

@@ -2,7 +2,7 @@ import {
   getLocaleFromRequest,
   getLocalisationModuleName,
 } from "../localisationUtils";
-import localisationController from "../../controllers/localisationController/localisation.controller";
+import Localisation from "../../controllers/localisationController/localisation.controller";
 import { logger } from "../logger";
 
 /**
@@ -43,7 +43,8 @@ export const transformAndCreateLocalisation = (
 
     logger.info("localisation message transformed successfully from the boundary map")
     // Instantiate localisation controller
-    const localisation = new localisationController();
+    const localisation = Localisation.getInstance();
+
     // Call method to create localisation entries
     localisation.createLocalisation(localisationMessages, tenantId,request);
   };
