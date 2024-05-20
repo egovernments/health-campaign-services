@@ -798,29 +798,33 @@ function matchData(request: any, datas: any, searchedDatas: any, createAndSearch
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
 }
 
-function modifyBoundaryData(boundaryData: unknown[]) {
-  let withBoundaryCode: string[][] = [];
-  let withoutBoundaryCode: string[][] = [];
+function modifyBoundaryData(boundaryData: unknown[], localizationMap?: any) {
+  // Initialize arrays to store data
+  const withBoundaryCode: { key: string, value: string }[][] = [];
+  const withoutBoundaryCode: { key: string, value: string }[][] = [];
+  // Process each object in boundaryData
+  boundaryData.forEach((obj: any) => {
+    // Convert object entries to an array of {key, value} objects
+    const row: any = Object.entries(obj)
+      .filter(([key, value]) => value !== null && value !== undefined)
+      .map(([key, value]) => ({ key, value }));
 
-  for (const obj of boundaryData) {
-    const row: string[] = [];
-    if (typeof obj === 'object' && obj !== null) {
-      for (const value of Object.values(obj)) {
-        if (value !== null && value !== undefined) {
-          row.push(value.toString()); // Convert value to string and push to row
-        }
-      }
+    // Determine whether the object has a boundary code property
+    const hasBoundaryCode = obj.hasOwnProperty(getLocalizedName(config.boundaryCode, localizationMap));
 
-      if (obj.hasOwnProperty('Boundary Code')) {
-        withBoundaryCode.push(row);
-      } else {
-        withoutBoundaryCode.push(row);
-      }
+    // Push the row to the appropriate array based on whether it has a boundary code property
+    if (hasBoundaryCode) {
+      withBoundaryCode.push(row);
+    } else {
+      withoutBoundaryCode.push(row);
     }
-  }
+  });
 
+  // Return the arrays
   return [withBoundaryCode, withoutBoundaryCode];
 }
+
+
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const type = request?.body?.ResourceDetails?.type;
@@ -945,6 +949,21 @@ async function translateSchema(schema: any, localizationMap?: { [key: string]: s
   return translatedSchema;
 }
 
+
+function findMapValue(map: Map<any, any>, key: any): any | null {
+  let foundValue = null;
+  map.forEach((value, mapKey) => {
+    if (mapKey.key === key.key && mapKey.value === key.value) {
+      foundValue = value;
+    }
+  });
+  return foundValue;
+}
+
+
+
+
+
 export {
   errorResponder,
   errorLogger,
@@ -985,6 +1004,7 @@ export {
   getLocalizedMessagesHandler,
   getLocalizedHeaders,
   createReadMeSheet,
+  findMapValue,
   replicateRequest
 };
 

@@ -106,7 +106,8 @@ const config = {
     hrmsEmployeeSearch: process.env.EGOV_HRMS_EMPLOYEE_SEARCH_PATH || "health-hrms/employees/_search",
     localizationSearch: process.env.EGOV_LOCALIZATION_SEARCH || "localization/messages/v1/_search",
     localizationCreate: "localization/messages/v1/_upsert",
-    projectTypeSearch: "project-factory/v1/project-type/search"
+    projectTypeSearch: "project-factory/v1/project-type/search",
+    boundaryRelationshipCreate:"boundary-service/boundary-relationships/_create"
   },
   // Values configuration
   values: {

@@ -12,34 +12,30 @@ import { logger } from "../logger";
  * @param request - Request object containing necessary information.
  */
 export const transformAndCreateLocalisation = (
-    boundaryMap: any,
-    request: any
-  ) => {
-    const {tenantId,hierarchyType}=request?.body?.ResourceDetails || {};
+  boundaryMap: any,
+  request: any
+) => {
+  const { tenantId, hierarchyType } = request?.body?.ResourceDetails || {};
 
-    // Get localisation module name based on hierarchy type
-    const module = getLocalisationModuleName(hierarchyType);
-    
-    // Get locale from request object
-    const locale = getLocaleFromRequest(request);
-    
-    // Array to store localisation messages
-    const localisationMessages: any = [];
-    
-    // Iterate over boundary map to transform into localisation messagess
-    Array.from(boundaryMap, ([message,code]) => {
-      // Add transformed message to localisation messages array
-      localisationMessages.push({
-        code,
-        message,
-        module,
-        locale,
-      });
+  // Get localisation module name based on hierarchy type
+  const module = getLocalisationModuleName(hierarchyType);
 
-    })
+  // Get locale from request object
+  const locale = getLocaleFromRequest(request);
 
+  // Array to store localisation messages
+  const localisationMessages: any = [];
 
+  // Iterate over boundary map to transform into localisation messagess
+  boundaryMap.forEach((code: string, boundary: any) => {    // Add transformed message to localisation messages array
+    localisationMessages.push({
+      code,
+      message: boundary.value,
+      module,
+      locale,
+    });
 
+  })
 
     logger.info("localisation message transformed successfully from the boundary map")
     // Instantiate localisation controller
