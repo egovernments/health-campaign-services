@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
-import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema } from "../utils/genericUtils";
+import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
 import { callMdmsData, getCampaignNumber, getWorkbook } from "./genericApis";
 import { boundaryBulkUpload, convertToTypeData, generateHierarchy, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
@@ -11,6 +11,8 @@ const _ = require('lodash');
 import * as XLSX from 'xlsx';
 import { produceModifiedMessages } from "../kafka/Listener";
 import { userRoles } from "../config/constants";
+import { createDataService } from "../service/dataManageService";
+import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 
 
 
@@ -623,12 +625,14 @@ async function createProjectCampaignResourcData(request: any) {
           additionalDetails: {}
         };
         logger.info("resourceDetails " + JSON.stringify(resourceDetails))
-        const response = await httpRequest(`${config.host.projectFactoryBff}project-factory/v1/data/_create`, {
+        const createRequestBody = {
           RequestInfo: request.body.RequestInfo,
           ResourceDetails: resourceDetails
-        });
-        if (response?.ResourceDetails?.id) {
-          resource.createResourceId = response?.ResourceDetails?.id
+        }
+        const req = replicateRequest(request, createRequestBody)
+        const res: any = await createDataService(req)
+        if (res?.id) {
+          resource.createResourceId = res?.id
         }
       }
     }
@@ -705,15 +709,15 @@ const getHeadersOfBoundarySheet = async (fileUrl: string, sheetName: string, get
 }
 async function getFiltersFromCampaignSearchResponse(request: any) {
   logger.info(`searching for campaign details to get the filters for boundary generation`);
-  const url = config.host.projectFactoryBff + config.paths.projectTypeSearch;
   const requestInfo = { "RequestInfo": request?.body?.RequestInfo };
   const campaignDetails = { "CampaignDetails": { tenantId: request?.query?.tenantId, "ids": [request?.query?.campaignId] } }
   const requestBody = { ...requestInfo, ...campaignDetails };
-  const projectTypeSearchResponse = await httpRequest(url, requestBody);
-  const boundaries = projectTypeSearchResponse?.CampaignDetails?.[0]?.boundaries?.map((ele:any)=>({...ele,boundaryType:ele?.type}));
+  const req: any = replicateRequest(request, requestBody)
+  const projectTypeSearchResponse: any = await searchProjectTypeCampaignService(req);
+  const boundaries = projectTypeSearchResponse?.CampaignDetails?.[0]?.boundaries?.map((ele: any) => ({ ...ele, boundaryType: ele?.type }));
   if (!boundaries) {
     logger.info(`no boundaries found so considering the complete hierarchy`);
-    return {Filters: null};
+    return { Filters: null };
   }
   logger.info(`boundaries found for filtering`);
   return { Filters: { boundaries: boundaries } };

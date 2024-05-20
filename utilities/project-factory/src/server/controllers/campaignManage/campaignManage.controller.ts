@@ -1,17 +1,7 @@
 import * as express from "express";
+import { createCampaignService, createProjectTypeCampaignService, searchProjectTypeCampaignService, updateProjectTypeCampaignService } from "../../service/campaignManageService";
 import { logger } from "../../utils/logger";
-import {
-    errorResponder,
-    sendResponse,
-} from "../../utils/genericUtils";
-import {
-    processBasedOnAction,
-    searchProjectCampaignResourcData
-} from "../../utils/campaignUtils"
-import { validateCampaignRequest } from "../../validators/genericValidator";
-import { enrichCampaign } from "../../api/campaignApis";
-import { validateProjectCampaignRequest, validateSearchProjectCampaignRequest } from "../../validators/campaignValidators";
-import { createRelatedResouce } from "../../api/genericApis";
+import { errorResponder, sendResponse } from "../../utils/genericUtils";
 
 
 
@@ -45,15 +35,8 @@ class campaignManageController {
     ) => {
         try {
             logger.info("RECEIVED A PROJECT TYPE CREATE REQUEST");
-            // Validate the request for creating a project type campaign
-            await validateProjectCampaignRequest(request, "create");
-            logger.info("VALIDATED THE PROJECT TYPE CREATE REQUEST");
-
-            // Process the action based on the request type
-            await processBasedOnAction(request, "create");
-
-            // Send response with campaign details
-            return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
+            const CampaignDetails = await createProjectTypeCampaignService(request);
+            return sendResponse(response, { CampaignDetails }, request);
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
@@ -73,15 +56,8 @@ class campaignManageController {
     ) => {
         try {
             logger.info("RECEIVED A PROJECT TYPE UPDATE REQUEST");
-            // Validate the request for updating a project type campaign
-            await validateProjectCampaignRequest(request, "update");
-            logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
-
-            // Process the action based on the request type
-            await processBasedOnAction(request, "update");
-
-            // Send response with campaign details
-            return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails }, request);
+            const CampaignDetails = await updateProjectTypeCampaignService(request);
+            return sendResponse(response, { CampaignDetails }, request);
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
@@ -101,15 +77,9 @@ class campaignManageController {
     ) => {
         try {
             logger.info("RECEIVED A PROJECT TYPE SEARCH REQUEST");
-            // Validate the search request for project type campaigns
-            await validateSearchProjectCampaignRequest(request);
-            logger.info("VALIDATED THE PROJECT TYPE SEARCH REQUEST");
-
-            // Search for project campaign resource data
-            await searchProjectCampaignResourcData(request);
-
+            const responseBody = await searchProjectTypeCampaignService(request);
             // Send response with campaign details and total count
-            return sendResponse(response, { CampaignDetails: request?.body?.CampaignDetails, totalCount: request?.body?.totalCount }, request);
+            return sendResponse(response, responseBody, request);
         } catch (e: any) {
             console.log(e)
             logger.error(String(e))
@@ -128,18 +98,10 @@ class campaignManageController {
         response: express.Response
     ) => {
         try {
-            // Validate the request for creating a campaign
             logger.info("RECEIVED A CAMPAIGN CREATE REQUEST");
-            await validateCampaignRequest(request.body)
-            logger.info("VALIDATED THE CAMPAIGN CREATE REQUEST");
-
-            // Create related resource
-            await createRelatedResouce(request.body)
-
-            // Enrich the campaign
-            await enrichCampaign(request.body)
+            const Campaign = await createCampaignService(request?.body);
             // Send response with campaign details
-            return sendResponse(response, { Campaign: request?.body?.Campaign }, request);
+            return sendResponse(response, { Campaign }, request);
         }
         catch (e: any) {
             console.log(e)

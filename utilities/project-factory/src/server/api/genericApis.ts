@@ -501,7 +501,7 @@ async function getBoundarySheetData(request: any, localizationMap?: { [key: stri
         ...request?.query,
         includeChildren: true
     };
-    const hierarchyType=request?.query?.hierarchyType;
+    const hierarchyType = request?.query?.hierarchyType;
     logger.info(`processing boundary data generation for hierarchyType : ${hierarchyType}`)
     const boundaryData = await getBoundaryRelationshipData(request, params);
     if (!boundaryData || boundaryData.length === 0) {
@@ -518,7 +518,7 @@ async function getBoundarySheetData(request: any, localizationMap?: { [key: stri
         // logger.info("boundaryData for sheet " + JSON.stringify(boundaryData))
         const responseFromCampaignSearch = await getFiltersFromCampaignSearchResponse(request);
         if (responseFromCampaignSearch?.Filters != null) {
-            const filteredBoundaryData = await generateFilteredBoundaryData(request,responseFromCampaignSearch);
+            const filteredBoundaryData = await generateFilteredBoundaryData(request, responseFromCampaignSearch);
             return await getDataSheetReady(filteredBoundaryData, request, localizationMap);
         }
         else {
@@ -681,7 +681,7 @@ async function createBoundaryEntities(request: any, boundaryMap: Map<string, str
             requestBody.Boundary = boundaries;
             const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary/_create`, requestBody, {}, 'POST',);
             logger.info('Boundary entities created');
-            logger.debug('Boundary entities response: '+getFormattedStringForDebug(response));
+            logger.debug('Boundary entities response: ' + getFormattedStringForDebug(response));
         }
         else {
             // throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
