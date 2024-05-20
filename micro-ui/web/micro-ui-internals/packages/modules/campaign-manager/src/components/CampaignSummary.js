@@ -363,6 +363,7 @@ const CampaignSummary = () => {
 
     // Modify the 'key' parameter
     urlParams.set("key", step);
+    urlParams.set("preview", false);
 
     // Reconstruct the URL with the modified parameters
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
