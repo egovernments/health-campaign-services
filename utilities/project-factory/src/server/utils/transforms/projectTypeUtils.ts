@@ -1,3 +1,5 @@
+import { logger } from "../logger";
+
 /* 
 TODO: Update configObject with appropriate values.
 This object contains configuration settings for delivery strategies and wait times.
@@ -106,7 +108,8 @@ const deliveriesConv = (deliveryObj: any = {}) => {
             (elem: { products: any }) =>
               [...elem.products].map((ele, index) => ({
                 isBaseUnitVariant: index == 0,
-                productVariantId: ele.value,
+                productVariantId: ele?.value,
+                quantity: ele?.count,
               }))
           ),
           // cylce conditions hardcoded TODO update logic
@@ -149,8 +152,11 @@ export const projectTypeConversion = (
       productVariantId: ele.value,
     }))
   );
+  const minAndMaxAge = getMinAndMaxAge();
   var newProjectType = {
     ...projectType,
+    validMinAge: minAndMaxAge?.min,
+    validMaxAge: minAndMaxAge?.max,
     name: campaignObject.campaignName,
     resources,
   };
@@ -160,16 +166,19 @@ export const projectTypeConversion = (
     const cycles = transformDeliveryConditions(cyclesObj);
     newProjectType["cycles"] = cycles;
   }
+  logger.debug("transformed projectType : " + JSON.stringify(newProjectType));
   return newProjectType;
 };
 /* 
 Enrich project details from campaign details.
 */
 export const enrichProjectDetailsFromCampaignDetails = (
-  CampaignDetails: any = {}
+  CampaignDetails: any = {},
+  projectTypeObject: any = {}
 ) => {
   var { tenantId, projectType, startDate, endDate, campaignName } =
     CampaignDetails;
+  logger.info("projectTypeResponse" + JSON.stringify(projectTypeObject));
   const defaultProject =
     defaultProjectType?.[projectType] || defaultProjectType?.["MR-DN"];
   return [
@@ -207,12 +216,15 @@ const getConditionsKey = (condition: any, key: string) => {
   } else if (keys.includes("EQUAL_TO")) {
     return `${condition[key]}=`;
   } else {
-    return `${key.includes("LESS_THAN") ?  ">100" : "0<" }`;
+    return `${key.includes("LESS_THAN") ? ">100" : "0<"}`;
   }
 };
 
 // Function to get the condition based on attribute
 const getCondition = (condition: any = {}, attribute: string) => {
+  if (attribute == "gender") {
+    return `${attribute}=${condition?.["EQUAL_TO"]}`;
+  }
   // Call getConditionsKey function to get the condition for LESS_THAN and GREATER_THAN
   return `${getConditionsKey(
     condition,
@@ -241,4 +253,36 @@ const getRequiredCondition = (conditions: any = []) => {
   const sortedKeys = Object.keys(formattedCondition).slice().sort();
   // update the below logic to support multiple conditions currently hardcoded for age or 1 st condition
   return getCondition(formattedCondition[sortedKeys[0]], sortedKeys[0]);
+};
+
+/* construct max and min age */
+const getMinAndMaxAge = (deliveries = []) => {
+  // Flatten the conditions arrays from all delivery objects and filter to keep only 'Age' attributes
+  const ageConditions = deliveries
+    .flatMap((e: any) => e?.conditions)
+    .filter((obj) => obj?.attribute == "Age");
+
+  // If no age conditions are found, return the default range
+  if (ageConditions.length === 0) {
+    return { min: 0, max: 100 };
+  }
+
+  // Initialize min and max values
+  let min = Infinity;
+  let max = -Infinity;
+
+  // Iterate through the ageConditions to find the actual min and max values
+  for (const condition of ageConditions) {
+    const value = condition?.value;
+    if (value !== undefined) {
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+  }
+
+  // Return the min and max values, with default fallbacks if no valid ages were found
+  return {
+    min: min !== Infinity ? min : 0,
+    max: max !== -Infinity ? max : 100,
+  };
 };

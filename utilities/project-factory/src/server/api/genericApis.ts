@@ -11,6 +11,7 @@ import { getFiltersFromCampaignSearchResponse, getHierarchy } from './campaignAp
 import { validateMappingId } from '../utils/campaignMappingUtils';
 import { campaignStatuses } from '../config/constants';
 import { getBoundaryTabName } from '../utils/boundaryUtils';
+import { log } from 'console';
 const _ = require('lodash'); // Import lodash library
 
 // Function to retrieve workbook from Excel file URL and sheet name
@@ -757,7 +758,7 @@ async function createBoundaryRelationship(request: any, boundaryTypeMap: { [key:
 }
 
 async function callMdmsData(request: any, moduleName: string, masterName: string, tenantId: string) {
-    const { RequestInfo } = request?.body;
+    const { RequestInfo={} } = request?.body||{};
     const requestBody = {
         RequestInfo, MdmsCriteria: {
             tenantId: tenantId,
@@ -776,6 +777,12 @@ async function callMdmsData(request: any, moduleName: string, masterName: string
     const url = config.host.mdms + config.paths.mdms_v1_search;
     const response = await httpRequest(url, requestBody, { tenantId: tenantId });
     return response;
+}
+
+async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
+    const resp=await callMdmsData(request, moduleName, masterName, tenantId);
+    log(resp);
+    return resp;
 }
 
 export {
@@ -798,5 +805,6 @@ export {
     generateHierarchyList,
     getTargetWorkbook,
     getTargetSheetData,
-    callMdmsData
+    callMdmsData,
+    getMDMSV1Data
 }
