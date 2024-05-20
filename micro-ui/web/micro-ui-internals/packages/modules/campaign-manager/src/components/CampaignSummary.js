@@ -1,8 +1,10 @@
 import React, { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistory } from "react-router-dom";
-import { EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
+import { Button, EditIcon, Header, Loader, ViewComposer } from "@egovernments/digit-ui-react-components";
 import { Toast } from "@egovernments/digit-ui-components";
+import { DownloadIcon } from "@egovernments/digit-ui-react-components";
+import { PRIMARY_COLOR } from "../utils";
 
 function mergeObjects(item) {
   const arr = item;
@@ -258,7 +260,7 @@ const CampaignSummary = () => {
                   ],
                 }
               : {},
-            resourceIdArr?.length > 0 
+            resourceIdArr?.length > 0
               ? {
                   sections: [
                     {
@@ -346,6 +348,9 @@ const CampaignSummary = () => {
             // }),
           ],
           error: data?.[0]?.additionalDetails?.error,
+          data: data?.[0],
+          status: data?.[0]?.status,
+          userGenerationSuccess: resourceIdArr,
         };
       },
       enabled: id ? true : false,
@@ -388,13 +393,58 @@ const CampaignSummary = () => {
     if (data?.error) {
       setShowToast({ label: data?.error, key: "error" });
     }
+    if (data?.status === "creating") {
+      setShowToast({ label: "CAMPAIGN_STATUS_CREATING_MESSAGE", key: "info" });
+    }
+    if (data?.userGenerationSuccess?.length > 0) {
+      setShowToast({ label: "CAMPAIGN_USER_GENERATION_SUCCESS", key: "success" });
+    }
   }, [data]);
+
+  const downloadUserCred = async () => {
+    const responseTemp = await Digit.CustomService.getResponse({
+      url: `/project-factory/v1/data/_search`,
+      body: {
+        SearchCriteria: {
+          tenantId: tenantId,
+          id: data?.userGenerationSuccess,
+        },
+      },
+    });
+
+    const response = responseTemp?.ResourceDetails?.map((i) => i?.processedFilestoreId);
+
+    const fileUrl = await Digit.UploadServices.Filefetch(response, Digit.ULBService.getCurrentTenantId()).then((res) => {
+      return res?.data?.[response];
+    });
+
+    window.location.href = fileUrl;
+  };
   return (
     <>
-      <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
+      <div style={{display: "flex", justifyContent: "space-between"}}>
+        <Header>{t("ES_TQM_SUMMARY_HEADING")}</Header>
+        {data?.userGenerationSuccess?.length > 0 && (
+          <Button
+            label={t("CAMPAIGN_DOWNLOAD_USER_CRED")}
+            variation="secondary"
+            icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
+            type="button"
+            className="campaign-download-template-btn"
+            onButtonClick={downloadUserCred}
+          />
+        )}
+      </div>
       <div className="campaign-summary-container">
         <ViewComposer data={data} />
-        {showToast && <Toast error={showToast?.key === "error" ? true : false} label={showToast?.label} onClose={closeToast} />}
+        {showToast && (
+          <Toast
+            error={showToast?.key === "error" ? true : false}
+            info={showToast?.key === "info" ? true : false}
+            label={t(showToast?.label)}
+            onClose={closeToast}
+          />
+        )}
       </div>
     </>
   );

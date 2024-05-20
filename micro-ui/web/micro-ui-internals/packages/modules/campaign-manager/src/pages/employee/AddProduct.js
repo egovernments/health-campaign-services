@@ -80,7 +80,7 @@ function AddProduct() {
     await createProduct(payloadData, {
       onError: (error, variables) => {
         console.log(error);
-        setShowToast({ key: "error", label: error });
+        setShowToast({ key: "error", label: error, isError: true });
       },
       onSuccess: async (data) => {
         const resData = data?.Product;
@@ -91,6 +91,7 @@ function AddProduct() {
               tenantId: tenantId,
               productId: i?.id,
               variation: target?.variant,
+              sku: target?.variant,
             };
           }
           return;
@@ -98,7 +99,7 @@ function AddProduct() {
         await createProductVariant(variantPayload, {
           onError: (error, variables) => {
             console.log(error);
-            setShowToast({ key: "error", label: error });
+            setShowToast({ key: "error", label: error, isError: true });
           },
           onSuccess: async (data) => {
             history.push(`/${window.contextPath}/employee/campaign/response?isSuccess=${true}`, {

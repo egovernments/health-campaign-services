@@ -34,6 +34,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const [isValidation, setIsValidation] = useState(false);
   const [fileName, setFileName] = useState(null);
   const [downloadError, setDownloadError] = useState(false);
+  const [resourceId, setResourceId] = useState(null);
   const { isLoading, data: Schemas } = Digit.Hooks.useCustomMDMS(tenantId, "HCM-ADMIN-CONSOLE", [
     { name: "facilitySchema" },
     { name: "userSchema" },
@@ -499,6 +500,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         return {
           // ...i,
           filestoreId: id,
+          resourceId: resourceId,
           filename: fileName,
           type: fileType,
         };
@@ -545,6 +547,9 @@ const UploadData = ({ formData, onSelect, ...props }) => {
             setIsValidation(false);
             if (temp?.additionalDetails?.sheetErrors.length === 0) {
               setShowToast({ key: "success", label: t("HCM_VALIDATION_COMPLETED") });
+              if (temp?.id) {
+                setResourceId(temp?.id);
+              }
               if (!errorsType[type]) {
                 setIsError(false);
                 return;
