@@ -3,7 +3,6 @@ import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { processDataSearchRequest } from "../utils/campaignUtils";
 import { enrichResourceDetails, getLocalizedMessagesHandler, getResponseFromDb, processGenerate, throwError } from "../utils/genericUtils";
-import { getLocalisationModuleName } from "../utils/localisationUtils";
 import { logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -12,12 +11,7 @@ const generateDataService = async (request: express.Request) => {
     // Validate the generate request
     await validateGenerateRequest(request);
     logger.info("VALIDATED THE DATA GENERATE REQUEST");
-    const { hierarchyType } = request.query;
-    // Process the data generation
-    // localize the codes present in boundary modules
-    request?.query?.hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
-    const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
-    await processGenerate(request, localizationMap);
+    await processGenerate(request);
     // Send response with generated resource details
     return request?.body?.generatedResource;
 };

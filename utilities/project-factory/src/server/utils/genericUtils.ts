@@ -13,7 +13,7 @@ import Localisation from "../controllers/localisationController/localisation.con
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
-import { getLocaleFromRequest } from "./localisationUtils";
+import { getLocaleFromRequest, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService } from "../service/dataManageService";
 const NodeCache = require("node-cache");
@@ -428,12 +428,14 @@ async function callSearchApi(request: any, response: any) {
   }
 }
 
-async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any, localizationMap?: { [key: string]: string }) {
-  const type = request?.query?.type;
+async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any) {
+  const {type,hierarchyType} = request?.query;
   const generatedResource: any = { generatedResource: newEntryResponse }
   // send message to create toppic
   logger.info(`processing the generate request for type ${type}`)
   produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
+  hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+  const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
   if (type === 'boundary') {
     // get boundary data from boundary relationship search api
     const result = await getBoundaryDataService(request);
@@ -687,10 +689,11 @@ async function processGenerateRequest(request: any, localizationMap?: { [key: st
   }
 }
 
-async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any, localizationMap?: any) {
+async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any) {
   request.body.generatedResource = newEntryResponse;
   try {
-    await fullProcessFlowForNewEntry(newEntryResponse, request, localizationMap);
+    fullProcessFlowForNewEntry(newEntryResponse, request);
+    return request.body.generatedResource;
   } catch (error: any) {
     console.log(error)
     handleGenerateError(newEntryResponse, generatedResource, error);
@@ -704,7 +707,7 @@ function handleGenerateError(newEntryResponse: any, generatedResource: any, erro
   produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
 }
 
-async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any, localizationMap?: { [key: string]: string }) {
+async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any) {
   const { forceUpdate } = request.query;
   const forceUpdateBool: boolean = forceUpdate === 'true';
   let generatedResource: any;
@@ -715,7 +718,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
     request.body.generatedResource = oldEntryResponse;
   }
   if (responseData.length === 0 || forceUpdateBool) {
-    processGenerateForNew(request, generatedResource, newEntryResponse, localizationMap)
+    processGenerateForNew(request, generatedResource, newEntryResponse)
   }
   else {
     request.body.generatedResource = responseData
@@ -724,7 +727,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
 /* 
 
 */
-async function processGenerate(request: any, localizationMap?: { [key: string]: string }) {
+async function processGenerate(request: any) {
   // fetch the data from db 
   const responseData = await getResponseFromDb(request);
   // modify response from db 
@@ -734,7 +737,7 @@ async function processGenerate(request: any, localizationMap?: { [key: string]: 
   // make old data status as expired
   const oldEntryResponse = await getOldEntryResponse(modifiedResponse, request);
   // generate data 
-  await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, localizationMap);
+  await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request);
 }
 /*
 TODO add comments @nitish-egov

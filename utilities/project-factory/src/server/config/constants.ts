@@ -104,9 +104,9 @@ export const resourceDataStatuses: any = {
 }
 
 export const generatedResourceStatuses: any = {
-    inprogress: "In Progress",
+    inprogress: "inprogress",
     failed: "failed",
-    completed: "Completed",
+    completed: "completed",
     expired: "expired"
 }
 
