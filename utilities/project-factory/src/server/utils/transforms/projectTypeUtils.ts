@@ -1,5 +1,7 @@
 import { getFormattedStringForDebug, logger } from "../logger";
 
+const MAX_AGE=100;
+const MAX_AGE_IN_MONTHS=MAX_AGE*12;
 /* 
 TODO: Update configObject with appropriate values.
 This object contains configuration settings for delivery strategies and wait times.
@@ -216,14 +218,14 @@ const getConditionsKey = (condition: any, key: string) => {
   } else if (keys.includes("EQUAL_TO")) {
     return `${condition[key]}=`;
   } else {
-    return `${key.includes("LESS_THAN") ? ">100" : "0<"}`;
+    return `${key.includes("LESS_THAN") ? `>${MAX_AGE_IN_MONTHS}` : "0<"}`;
   }
 };
 
 // Function to get the condition based on attribute
 const getCondition = (condition: any = {}, attribute: string) => {
   if (attribute == "gender") {
-    return `${attribute}=${condition?.["EQUAL_TO"]}`;
+    return `${attribute}==${condition?.["EQUAL_TO"]=="MALE"?0:1}`;
   }
   // Call getConditionsKey function to get the condition for LESS_THAN and GREATER_THAN
   return `${getConditionsKey(
@@ -264,7 +266,7 @@ const getMinAndMaxAge = (deliveries = []) => {
 
   // If no age conditions are found, return the default range
   if (ageConditions.length === 0) {
-    return { min: 0, max: 100 };
+    return { min: 0, max: MAX_AGE_IN_MONTHS };
   }
 
   // Initialize min and max values
@@ -283,6 +285,6 @@ const getMinAndMaxAge = (deliveries = []) => {
   // Return the min and max values, with default fallbacks if no valid ages were found
   return {
     min: min !== Infinity ? min : 0,
-    max: max !== -Infinity ? max : 100,
+    max: max !== -Infinity ? max : MAX_AGE_IN_MONTHS,
   };
 };
