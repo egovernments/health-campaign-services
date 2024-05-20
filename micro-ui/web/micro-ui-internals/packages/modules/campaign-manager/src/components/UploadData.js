@@ -629,7 +629,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     };
 
     fetchData();
-  }, [errorsType]);
+  }, [errorsType, uploadedFile]);
 
   const Template = {
     url: "/project-factory/v1/data/_download",

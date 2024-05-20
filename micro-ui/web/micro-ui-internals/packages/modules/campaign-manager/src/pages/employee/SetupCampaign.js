@@ -434,7 +434,7 @@ const SetupCampaign = () => {
     if (currentKey === 10 && isPreview !== "true") {
       updateUrlParams({ key: currentKey, preview: true });
     } else {
-      updateUrlParams({ key: currentKey });
+      updateUrlParams({ key: currentKey, preview: false });
     }
   }, [currentKey]);
 
