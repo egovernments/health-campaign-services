@@ -1,7 +1,7 @@
 import config from "../config";
 import { v4 as uuidv4 } from 'uuid';
 import { httpRequest } from "../utils/request";
-import { logger } from "../utils/logger";
+import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from '../config/createAndSearch';
 import { getDataFromSheet, matchData, generateActivityMessage, throwError, translateSchema, replicateRequest } from "../utils/genericUtils";
 import { immediateValidationForTargetSheet, validateSheetData, validateTargetSheetData } from '../validators/campaignValidators';
@@ -624,7 +624,8 @@ async function createProjectCampaignResourcData(request: any) {
           hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
           additionalDetails: {}
         };
-        logger.info("resourceDetails " + JSON.stringify(resourceDetails))
+        logger.info(`Creating the resources for type ${resource.type}`)
+        logger.debug("resourceDetails " + getFormattedStringForDebug(resourceDetails))
         const createRequestBody = {
           RequestInfo: request.body.RequestInfo,
           ResourceDetails: resourceDetails
@@ -641,11 +642,12 @@ async function createProjectCampaignResourcData(request: any) {
 
 async function projectCreate(projectCreateBody: any, request: any) {
   logger.info("Project creation url " + config.host.projectHost + config.paths.projectCreate)
-  logger.info("Project creation body " + JSON.stringify(projectCreateBody))
+  logger.debug("Project creation body " + getFormattedStringForDebug(projectCreateBody))
   const projectCreateResponse = await httpRequest(config.host.projectHost + config.paths.projectCreate, projectCreateBody);
   logger.info("Project creation response" + JSON.stringify(projectCreateResponse))
   if (projectCreateResponse?.Project[0]?.id) {
     logger.info("Project created successfully with id " + JSON.stringify(projectCreateResponse?.Project[0]?.id))
+    logger.info(`for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}` )
     request.body.boundaryProjectMapping[projectCreateBody?.Projects?.[0]?.address?.boundary].projectId = projectCreateResponse?.Project[0]?.id
   }
   else {

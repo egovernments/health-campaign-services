@@ -1,4 +1,4 @@
-import { logger } from "../logger";
+import { getFormattedStringForDebug, logger } from "../logger";
 
 /* 
 TODO: Update configObject with appropriate values.
@@ -166,7 +166,7 @@ export const projectTypeConversion = (
     const cycles = transformDeliveryConditions(cyclesObj);
     newProjectType["cycles"] = cycles;
   }
-  logger.debug("transformed projectType : " + JSON.stringify(newProjectType));
+  logger.debug("transformed projectType : " + getFormattedStringForDebug(newProjectType));
   return newProjectType;
 };
 /* 
