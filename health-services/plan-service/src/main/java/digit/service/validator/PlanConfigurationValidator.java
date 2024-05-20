@@ -55,7 +55,6 @@ public class PlanConfigurationValidator {
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateMappedToForLocality(planConfiguration);
-        
         validateResourceMappingAgainstMDMS(request, mdmsData);
     }
 
@@ -289,7 +288,6 @@ public class PlanConfigurationValidator {
         validateTemplateIdentifierAgainstMDMS(request, mdmsData);
         validateOperationsInputAgainstMDMS(request, mdmsData);
         validateMappedToForLocality(planConfiguration);
-        
         validateResourceMappingAgainstMDMS(request, mdmsData);
 
     }
@@ -307,12 +305,11 @@ public class PlanConfigurationValidator {
         }
     }
     
-    /**
-     * Validates the operations input against the Master Data Management System (MDMS) data.
-     *
-     * @param request  The PlanConfigurationRequest containing the plan configuration and other details.
-     * @param mdmsData The MDMS data containing the master rule configure inputs.
-     */
+	/**
+	 * Validate input (BCode) against MDMS data. 
+	 * @param request plan configauration request.
+	 * @param mdmsData MDMS data object.
+	 */
     public void validateResourceMappingAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         List<File> files = planConfiguration.getFiles();
@@ -333,7 +330,7 @@ public class PlanConfigurationValidator {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
         }
-        List<String> allowedColumns = getIsTrueColoumnFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
+        List<String> allowedColumns = getIsTruePropertyFromSchema(ruleInputsListFromMDMS, templateIds, inputFileTypes);
         List<ResourceMapping> resourceMapping1 =  planConfiguration.getResourceMapping();  
         if(allowedColumns.contains(ServiceConstants.BOUNDARY_CODE)) {
         	Stream<ResourceMapping> d = resourceMapping1.stream().filter(f-> f.getMappedTo().equals(ServiceConstants.BOUNDARY_CODE));
@@ -343,7 +340,14 @@ public class PlanConfigurationValidator {
         }
     }
     
-    public static List<String> getIsTrueColoumnFromSchema(List<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
+    /**
+     * Return all properties that has isTrue flag as a true.
+     * @param schemas schema object.
+     * @param templateIds template ids list.
+     * @param inputFileTypes list of file type.
+     * @return
+     */
+    public static List<String> getIsTruePropertyFromSchema(List<Object> schemas, List<String> templateIds, List<String> inputFileTypes) {
         if (schemas == null) {
             return new ArrayList<>();
         }
