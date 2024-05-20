@@ -1,18 +1,32 @@
 package org.egov.hrms.web.validator;
 
-import java.util.*;
-import java.util.stream.Collectors;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.jayway.jsonpath.JsonPath;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.Role;
-import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.hrms.config.PropertiesManager;
-import org.egov.hrms.model.*;
+import org.egov.hrms.model.Assignment;
+import org.egov.hrms.model.DeactivationDetails;
+import org.egov.hrms.model.DepartmentalTest;
+import org.egov.hrms.model.EducationalQualification;
+import org.egov.hrms.model.Employee;
+import org.egov.hrms.model.Jurisdiction;
+import org.egov.hrms.model.ReactivationDetails;
+import org.egov.hrms.model.ServiceHistory;
+import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.service.EmployeeService;
 import org.egov.hrms.service.MDMSService;
 import org.egov.hrms.service.UserService;
@@ -29,8 +43,6 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-
-import lombok.extern.slf4j.Slf4j;
 
 import static org.egov.hrms.utils.ErrorConstants.CITIZEN_TYPE_CODE;
 
@@ -54,7 +66,7 @@ public class EmployeeValidator {
 	private HRMSUtils hrmsUtils;
 
 	@Autowired
-	ServiceRequestClient serviceRequestClient;
+	private RestCallRepository restCallRepository;
 
 	/**
 	 * Validates employee request for create. Validations include:
@@ -70,6 +82,7 @@ public class EmployeeValidator {
 		if(!CollectionUtils.isEmpty(errorMap.keySet()))
 			throw new CustomException(errorMap);
 		Map<String, List<String>> boundaryMap = getBoundaryList(request.getRequestInfo(),request.getEmployees().get(0));
+		//FIXME hierarchy type has to be validated
 		Map<String, List<String>> mdmsData = mdmsService.getMDMSData(request.getRequestInfo(), request.getEmployees().get(0).getTenantId());
 		if(!CollectionUtils.isEmpty(mdmsData.keySet())){
 			request.getEmployees().stream().forEach(employee -> validateMdmsData(employee, errorMap, mdmsData,boundaryMap));
@@ -119,7 +132,7 @@ public class EmployeeValidator {
 
 		if(!CollectionUtils.isEmpty(boundarytList)) {
 			try {
-				BoundaryResponse boundarySearchResponse = serviceRequestClient.fetchResult(
+				BoundaryResponse boundarySearchResponse = restCallRepository.fetchResult(
 						new StringBuilder(propertiesManager.getBoundaryServiceHost()
 								+ propertiesManager.getBoundarySearchUrl()
 								+"?limit=" + boundarytList.size()
@@ -132,6 +145,7 @@ public class EmployeeValidator {
 						.map(boundary -> boundary.getCode())
 						.collect(Collectors.toList())
 				);
+				log.info("successfully fetch boundary");
 			} catch (Exception e) {
 				log.error("error while fetching boundary");
 			}
@@ -297,7 +311,7 @@ public class EmployeeValidator {
 		validateEmployee(employee, errorMap, mdmsData);
 		validateAssignments(employee, errorMap, mdmsData);
 		validateServiceHistory(employee, errorMap, mdmsData);
-		validateJurisdicton(employee, errorMap, mdmsData, boundaryMap);
+//		validateJurisdicton(employee, errorMap, mdmsData, boundaryMap);
 		validateEducationalDetails(employee, errorMap, mdmsData);
 		validateDepartmentalTest(employee, errorMap, mdmsData);
 	}

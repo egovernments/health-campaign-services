@@ -10,7 +10,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.response.ResponseInfo;
-import org.egov.common.models.core.Boundary;
 import org.springframework.validation.annotation.Validated;
 
 /**
