@@ -6,7 +6,7 @@ import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } fr
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { calculateKeyIndex, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName, reorderBoundaries } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -560,6 +560,39 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     }
 }
 
+async function validateBoundaryOfResouces(request: any, resource: any, localizationMap: any) {
+    if (resource?.type != "boundary") {
+        const { boundaries, tenantId } = request?.body?.CampaignDetails;
+        const localizedTab = getLocalizedName(createAndSearch?.[resource.type]?.parseArrayConfig?.sheetName, localizationMap);
+        const boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code.trim()));
+
+        // Fetch file response
+        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.filestoreId }, "get");
+        const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, false, undefined, localizationMap);
+
+        const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
+
+        // Initialize resource boundary codes as a set for uniqueness
+        const resourceBoundaryCodes = new Set();
+        datas.forEach((data: any) => {
+            const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
+            codes.forEach((code: string) => resourceBoundaryCodes.add(code));
+        });
+
+        // Convert sets to arrays for comparison
+        const boundaryCodesArray = Array.from(boundaryCodes);
+        const resourceBoundaryCodesArray = Array.from(resourceBoundaryCodes);
+        // Check for missing boundary codes
+        const missingBoundaryCodes = resourceBoundaryCodesArray.filter(code => !boundaryCodesArray.includes(code));
+
+        if (missingBoundaryCodes.length > 0) {
+            const missingCodesMessage = missingBoundaryCodes.join(', ');
+            throwError("COMMON", 400, "VALIDATION_ERROR", `The following boundary codes are not present in CampaignDetails boundaries but are present for ${resource.type} in filestoreId ${resource.filestoreId}: ${missingCodesMessage}`);
+        }
+    }
+}
+
+
 async function validateResources(resources: any, request: any) {
     for (const resource of resources) {
         if (resource?.resourceId) {
@@ -596,16 +629,14 @@ async function validateResources(resources: any, request: any) {
                 hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
                 additionalDetails: {}
             };
-            try {
-                const req: any = replicateRequest(request, {
-                    RequestInfo: request.body.RequestInfo,
-                    ResourceDetails: resourceDetails
-                })
-                await createDataService(req);
-            } catch (error: any) {
-                logger.error(`Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
-                throwError("COMMON", error?.response?.status, error?.response?.data?.Errors?.[0]?.code, `Error during resource validation of ${resourceDetails.fileStoreId} :` + error?.response?.data?.Errors?.[0]?.description || error?.response?.data?.Errors?.[0]?.message);
-            }
+            const req: any = replicateRequest(request, {
+                RequestInfo: request.body.RequestInfo,
+                ResourceDetails: resourceDetails
+            })
+            await createDataService(req);
+            const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.CampaignDetails?.tenantId);
+            await reorderBoundaries(request, localizationMap)
+            await validateBoundaryOfResouces(request, resource, localizationMap)
         }
     }
 }
@@ -974,5 +1005,6 @@ export {
     validateBoundarySheetData,
     validateDownloadRequest,
     validateTargetSheetData,
-    immediateValidationForTargetSheet
+    immediateValidationForTargetSheet,
+    validateBoundaryOfResouces
 }

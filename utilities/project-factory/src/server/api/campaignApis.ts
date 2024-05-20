@@ -494,7 +494,7 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
     const limit = createAndSearchConfig?.createBulkDetails?.limit;
     const dataToCreate = request?.body?.dataToCreate;
     const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
-    const creationTime = Date.now();
+    var creationTime = Date.now();
     var activities = [];
     for (let i = 0; i < chunks; i++) {
       const start = i * limit;
@@ -504,15 +504,31 @@ async function performAndSaveResourceActivity(request: any, createAndSearchConfi
         RequestInfo: request?.body?.RequestInfo,
       }
       _.set(newRequestBody, createAndSearchConfig?.createBulkDetails?.createPath, chunkData);
-      if (type == "facility") {
-        for (const facility of newRequestBody.Facilities) {
-          facility.address = {}
+      var gotFailed = true, retryCount = 7;
+      while (gotFailed && retryCount > 0) {
+        try {
+          creationTime = Date.now();
+          retryCount = retryCount - 1;
+          gotFailed = false;
+          if (type == "facility") {
+            for (const facility of newRequestBody.Facilities) {
+              facility.address = {}
+            }
+            logger.info("Facility create data : " + JSON.stringify(newRequestBody));
+            var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+          }
+          else if (type == "user") {
+            var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+          }
+        } catch (error) {
+          var e = error;
+          gotFailed = true;
         }
-        logger.info("Facility create data : " + JSON.stringify(newRequestBody));
-        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+        logger.info("Creation got failed, Waiting for 30 seconds to retry.. retryCounts left : " + retryCount)
+        await new Promise(resolve => setTimeout(resolve, 30000));
       }
-      else if (type == "user") {
-        var responsePayload = await httpRequest(createAndSearchConfig?.createBulkDetails?.url, newRequestBody, params, "post", undefined, undefined, true);
+      if (gotFailed) {
+        throw e;
       }
       var activity = await generateActivityMessage(request?.body?.ResourceDetails?.tenantId, request.body, newRequestBody, responsePayload, type, createAndSearchConfig?.createBulkDetails?.url, responsePayload?.statusCode)
       logger.info("Activity : " + JSON.stringify(activity));
