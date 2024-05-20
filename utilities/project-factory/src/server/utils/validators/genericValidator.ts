@@ -310,7 +310,7 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
 
 // Function to validate the generation request
 async function validateGenerateRequest(request: express.Request) {
-    const { tenantId, type, hierarchyType, forceUpdate } = request.query;
+    const { tenantId,  hierarchyType, forceUpdate } = request.query;
     validateBodyViaSchema(generateRequestSchema, request.query);
     if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
@@ -319,12 +319,13 @@ async function validateGenerateRequest(request: express.Request) {
         request.query.forceUpdate = "false";
     }
     await validateHierarchyType(request, hierarchyType, tenantId);
-    if (type == 'boundary') {
-        await validateFiltersInRequestBody(request);
-    }
+    /* removed the filter validation for boundary since boundary is fetched through the campaign id */
+    // if (type == 'boundary') {
+    //     await validateFiltersInRequestBody(request);
+    // }
 }
 
-async function validateFiltersInRequestBody(request: any) {
+export async function validateFiltersInRequestBody(request: any) {
     if (request?.body?.Filters === undefined) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "For type boundary Filters Object should be present in request body")
     }
