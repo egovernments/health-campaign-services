@@ -431,7 +431,7 @@ const SetupCampaign = () => {
   }, [totalFormData, dataParams]);
 
   useEffect(() => {
-    if (currentKey === 10 && !isPreview) {
+    if (currentKey === 10 && isPreview !== "true") {
       updateUrlParams({ key: currentKey, preview: true });
     } else {
       updateUrlParams({ key: currentKey });
