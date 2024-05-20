@@ -394,7 +394,7 @@ const SetupCampaign = () => {
   const { data: boundaryId, isLoading: isBoundaryLoading, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "boundary",
     hierarchyType: hierarchyType,
-    filters: filteredBoundaryData,
+    // filters: filteredBoundaryData,
     campaignId: id,
     config: {
       enabled: fetchUpload || (fetchBoundary && currentKey > 6),
