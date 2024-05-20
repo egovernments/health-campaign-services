@@ -513,6 +513,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     setIsError(false);
     setIsValidation(false);
     setApiError(null);
+    setShowToast(null);
   };
 
   const onFileDownload = (file) => {
