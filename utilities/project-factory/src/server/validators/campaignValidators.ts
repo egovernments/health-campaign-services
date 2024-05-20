@@ -727,10 +727,10 @@ async function validateById(request: any) {
     }
     const req: any = replicateRequest(request, searchBody)
     const searchResponse: any = await searchProjectTypeCampaignService(req)
-    if (Array.isArray(searchResponse?.data?.CampaignDetails)) {
-        if (searchResponse?.data?.CampaignDetails?.length > 0) {
-            logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.data?.CampaignDetails));
-            request.body.ExistingCampaignDetails = searchResponse?.data?.CampaignDetails[0];
+    if (Array.isArray(searchResponse?.CampaignDetails)) {
+        if (searchResponse?.CampaignDetails?.length > 0) {
+            logger.info("CampaignDetails : " + JSON.stringify(searchResponse?.CampaignDetails));
+            request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
             if (request.body.ExistingCampaignDetails?.campaignName != request?.body?.CampaignDetails?.campaignName && request.body.ExistingCampaignDetails?.status != campaignStatuses?.drafted) {
                 throwError("CAMPAIGN", 400, "CAMPAIGNNAME_MISMATCH", `CampaignName can only be updated in ${campaignStatuses?.drafted} state. CampaignName mismatch, Provided CampaignName = ${request?.body?.CampaignDetails?.campaignName} but Existing CampaignName = ${request.body.ExistingCampaignDetails?.campaignName}`);
             }
