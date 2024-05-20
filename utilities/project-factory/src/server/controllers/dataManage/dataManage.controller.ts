@@ -1,10 +1,10 @@
 import * as express from "express";
 import { logger } from "../../utils/logger";
-import { validateGenerateRequest } from "../../utils/validators/genericValidator";
+import { validateGenerateRequest } from "../../validators/genericValidator";
 import { enrichResourceDetails, errorResponder, processGenerate, sendResponse, getResponseFromDb, throwError, getLocalizedMessagesHandler } from "../../utils/genericUtils";
 import { processGenericRequest } from "../../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../../api/genericApis";
-import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../../utils/validators/campaignValidators";
+import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../../validators/campaignValidators";
 import { processDataSearchRequest } from "../../utils/campaignUtils";
 import { getLocalisationModuleName } from "../../utils/localisationUtils";
 

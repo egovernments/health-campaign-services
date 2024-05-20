@@ -8,9 +8,9 @@ import {
     processBasedOnAction,
     searchProjectCampaignResourcData
 } from "../../utils/campaignUtils"
-import { validateCampaignRequest } from "../../utils/validators/genericValidator";
+import { validateCampaignRequest } from "../../validators/genericValidator";
 import { enrichCampaign } from "../../api/campaignApis";
-import { validateProjectCampaignRequest, validateSearchProjectCampaignRequest } from "../../utils/validators/campaignValidators";
+import { validateProjectCampaignRequest, validateSearchProjectCampaignRequest } from "../../validators/campaignValidators";
 import { createRelatedResouce } from "../../api/genericApis";
 
 
