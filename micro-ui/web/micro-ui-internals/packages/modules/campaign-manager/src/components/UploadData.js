@@ -421,11 +421,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               return;
             }
           }
-          if (type === "boundary" && workbook?.SheetNames?.length > 1) {
+          if (type === "boundary" && workbook?.SheetNames?.length > 3) {
             if (!validateMultipleTargets(workbook)) {
               return;
             }
-          } else {
+          } else if(type !== "boundary"){
             for (const header of expectedHeaders) {
               if (!headersToValidate.includes(header)) {
                 const errorMessage = t("HCM_MISSING_HEADERS");
