@@ -133,7 +133,7 @@ const AddProductField = ({ onSelect }) => {
       <Button
         variation="secondary"
         label={t(`CAMPAIGN_ADD_MORE_PRODUCT_BUTTON`)}
-        // className={"add-rule-btn"}
+        className={"hover"}
         icon={<AddIcon styles={{ height: "1.5rem", width: "1.5rem" }} fill={PRIMARY_COLOR} />}
         onButtonClick={addMoreField}
       />

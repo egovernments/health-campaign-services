@@ -328,6 +328,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                 </CardLabel>
                 <div className="digit-field">
                   <MultiSelectDropdown
+                    props={{ className: "selecting-boundaries-dropdown" }}
                     t={t}
                     options={boundaryData[boundary?.boundaryType]?.map((item) => item?.boundaryTypeData?.TenantBoundary?.[0]?.boundary)?.flat() || []}
                     optionsKey={"code"}
@@ -347,6 +348,7 @@ function SelectingBoundaries({ onSelect, formData, ...props }) {
                 <div className="digit-field">
                   <MultiSelectDropdown
                     t={t}
+                    props={{ className: "selecting-boundaries-dropdown" }}
                     options={
                       boundaryData[boundary?.boundaryType]?.map((item) => ({
                         code: item?.parentCode,

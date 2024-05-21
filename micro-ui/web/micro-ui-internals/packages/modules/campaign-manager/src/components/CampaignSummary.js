@@ -430,7 +430,7 @@ const CampaignSummary = () => {
             variation="secondary"
             icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
             type="button"
-            className="campaign-download-template-btn"
+            className="campaign-download-template-btn hover"
             onButtonClick={downloadUserCred}
           />
         )}

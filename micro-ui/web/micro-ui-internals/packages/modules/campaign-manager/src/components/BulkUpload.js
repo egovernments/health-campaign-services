@@ -143,7 +143,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
             variation="secondary"
             icon={<DownloadIcon styles={{ height: "1.25rem", width: "1.25rem" }} fill={PRIMARY_COLOR} />}
             type="button"
-            className="workbench-download-template-btn"
+            className="workbench-download-template-btn hover"
             onButtonClick={(e) => {
               e.stopPropagation();
               handleFileDownload(e, fileUrl);
@@ -154,7 +154,7 @@ const BulkUpload = ({ multiple = true, onSubmit, fileData, onFileDelete, onFileD
             variation="secondary"
             icon={<DeleteIconv2 styles={{ height: "1.25rem", width: "2.5rem" }} fill={PRIMARY_COLOR} />}
             type="button"
-            className="workbench-download-template-btn"
+            className="workbench-download-template-btn hover"
             onButtonClick={(e) => {
               e.stopPropagation();
               handleFileDelete(file, index);

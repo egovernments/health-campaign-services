@@ -177,6 +177,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
 
   const incrementC = (data, value) => {
     if (value?.target?.value.trim() === "") return;
+    if (value?.target?.value.trim() === 0 || value?.target?.value.trim() > 10 ) return;
     if (value === 0) return;
     if (value > 10) return;
     setProducts((prevState) => {
@@ -244,7 +245,7 @@ function AddProducts({ stref, selectedDelivery, showToast, closeToast }) {
         <Button
           variation="secondary"
           label={t(`CAMPAIGN_PRODUCTS_MODAL_SECONDARY_ACTION`)}
-          className={"add-rule-btn"}
+          className={"add-rule-btn hover"}
           icon={<AddIcon fill={PRIMARY_COLOR} styles={{ height: "1.5rem", width: "1.5rem" }} />}
           onButtonClick={add}
         />
