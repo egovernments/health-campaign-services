@@ -606,12 +606,12 @@ async function validateResources(resources: any, request: any) {
             const req: any = replicateRequest(request, searchBody);
             const res: any = await searchDataService(req);
             if (res?.[0]) {
-                if (!(res?.ResourceDetails?.[0]?.status == resourceDataStatuses.completed && res?.ResourceDetails?.[0]?.action == "validate")) {
+                if (!(res?.[0]?.status == resourceDataStatuses.completed && res?.[0]?.action == "validate")) {
                     logger.error(`Error during validation of type ${resource.type}, validation is not successful or not completed. Resource id : ${resource?.resourceId}`);
                     throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of type ${resource.type}, validation is not successful or not completed.`);
                 }
-                if (res?.ResourceDetails?.[0]?.fileStoreId != resource?.filestoreId) {
-                    logger.error(`fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.ResourceDetails?.[0]?.fileStoreId}`);
+                if (res?.[0]?.fileStoreId != resource?.filestoreId) {
+                    logger.error(`fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.[0]?.fileStoreId}`);
                     throwError("COMMON", 400, "VALIDATION_ERROR", `Uploaded file doesn't match for resource of type ${resource.type}.`)
                 }
             }
