@@ -731,11 +731,16 @@ async function validateCampaignName(request: any, actionInUrl: any) {
         const req: any = replicateRequest(request, searchBody)
         const searchResponse: any = await searchProjectTypeCampaignService(req)
         if (Array.isArray(searchResponse?.CampaignDetails)) {
-            if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "create") {
-                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
-            }
-            else if (searchResponse?.CampaignDetails?.length > 0 && actionInUrl == "update" && searchResponse?.CampaignDetails?.[0]?.id != CampaignDetails?.id) {
-                throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+            if (searchResponse?.CampaignDetails?.length > 0) {
+                const allCampaigns = searchResponse?.CampaignDetails;
+                logger.info(`campaignName to match : ${"'"}${campaignName}${"'"}`)
+                const campaignWithMatchingName: any = allCampaigns.find((campaign: any) => "'" + campaign?.campaignName + "'" == "'" + campaignName + "'") || null;
+                if (campaignWithMatchingName && actionInUrl == "create") {
+                    throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+                }
+                else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != CampaignDetails?.id) {
+                    throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
+                }
             }
         }
         else {
