@@ -30,6 +30,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const type = props?.props?.type;
   const [executionCount, setExecutionCount] = useState(0);
   const [isError, setIsError] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [apiError, setApiError] = useState(null);
   const [isValidation, setIsValidation] = useState(false);
   const [fileName, setFileName] = useState(null);
@@ -48,14 +49,24 @@ const UploadData = ({ formData, onSelect, ...props }) => {
 
   useEffect(() => {
     if (type === "facilityWithBoundary") {
-      onSelect("uploadFacility", { uploadedFile, isError, isValidation, apiError });
+      onSelect("uploadFacility", { uploadedFile, isError, isValidation, apiError, isSuccess });
     } else if (type === "boundary") {
-      onSelect("uploadBoundary", { uploadedFile, isError, isValidation, apiError });
+      onSelect("uploadBoundary", { uploadedFile, isError, isValidation, apiError, isSuccess });
     } else {
-      onSelect("uploadUser", { uploadedFile, isError, isValidation, apiError });
+      onSelect("uploadUser", { uploadedFile, isError, isValidation, apiError, isSuccess });
     }
-  }, [uploadedFile, isError, isValidation, apiError]);
+  }, [uploadedFile, isError, isValidation, apiError, isSuccess]);
 
+  useEffect(() => {
+    if (resourceId) {
+      setUploadedFile((prev) =>
+        prev.map((i) => ({
+          ...i,
+          resourceId: resourceId,
+        }))
+      );
+    }
+  }, [resourceId]);
   var translateSchema = (schema) => {
     var newSchema = { ...schema };
     var newProp = {};
@@ -154,6 +165,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         setIsValidation(false);
         setDownloadError(false);
         setIsError(false);
+        setIsSuccess(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_BOUNDARY_DATA?.uploadBoundary?.isSuccess || null);
         break;
       case "facilityWithBoundary":
         setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.uploadedFile || []);
@@ -161,6 +173,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         setIsValidation(false);
         setDownloadError(false);
         setIsError(false);
+        setIsSuccess(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_FACILITY_DATA?.uploadFacility?.isSuccess || null);
         break;
       default:
         setUploadedFile(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.uploadedFile || []);
@@ -168,6 +181,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
         setIsValidation(false);
         setDownloadError(false);
         setIsError(false);
+        setIsSuccess(props?.props?.sessionData?.HCM_CAMPAIGN_UPLOAD_USER_DATA?.uploadUser?.isSuccess || null);
         break;
     }
   }, [type, props?.props?.sessionData]);
@@ -513,6 +527,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   const onFileDelete = (file, index) => {
     setUploadedFile((prev) => prev.filter((i) => i.id !== file.id));
     setIsError(false);
+    setIsSuccess(false);
     setIsValidation(false);
     setApiError(null);
     setShowToast(null);
@@ -528,7 +543,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
   useEffect(() => {
     const fetchData = async () => {
-      if (!errorsType[type] && uploadedFile.length > 0) {
+      if (!errorsType[type] && uploadedFile.length > 0 && !isSuccess) {
         setShowToast({ key: "info", label: t("HCM_VALIDATION_IN_PROGRESS") });
         setIsValidation(true);
         setIsError(true);
@@ -552,6 +567,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
               }
               if (!errorsType[type]) {
                 setIsError(false);
+                setIsSuccess(true);
                 return;
                 // setIsValidation(false);
               }
@@ -634,7 +650,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     };
 
     fetchData();
-  }, [errorsType, uploadedFile]);
+  }, [errorsType, uploadedFile, isSuccess]);
 
   const Template = {
     url: "/project-factory/v1/data/_download",

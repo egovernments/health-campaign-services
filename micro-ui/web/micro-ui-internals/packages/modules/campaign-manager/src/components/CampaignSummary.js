@@ -390,13 +390,13 @@ const CampaignSummary = () => {
     }
   }, [showToast]);
   useEffect(() => {
-    if (data?.error) {
+    if (data?.status === "failed" && data?.error) {
       setShowToast({ label: data?.error, key: "error" });
     }
     if (data?.status === "creating") {
       setShowToast({ label: "CAMPAIGN_STATUS_CREATING_MESSAGE", key: "info" });
     }
-    if (data?.userGenerationSuccess?.length > 0) {
+    if (data?.status === "created" && data?.userGenerationSuccess?.length > 0) {
       setShowToast({ label: "CAMPAIGN_USER_GENERATION_SUCCESS", key: "success" });
     }
   }, [data]);
