@@ -663,6 +663,11 @@ const UploadData = ({ formData, onSelect, ...props }) => {
       setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
       return;
     }
+    if(!params?.boundaryId || !params?.facilityId || !params?.userId){
+      setDownloadError(true);
+      setShowToast({ key: "info", label: t("HCM_PLEASE_WAIT_TRY_IN_SOME_TIME") });
+      return;
+    }
     await mutation.mutate(
       {
         params: {

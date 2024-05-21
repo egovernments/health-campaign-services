@@ -253,6 +253,7 @@ const SetupCampaign = () => {
   const [lowest, setLowest] = useState(null);
   const [fetchBoundary, setFetchBoundary] = useState(() => Boolean(searchParams.get("fetchBoundary")));
   const [fetchUpload, setFetchUpload] = useState(false);
+  const [enabled, setEnabled] = useState(false);
 
   const reqCriteria = {
     url: `/boundary-service/boundary-hierarchy-definition/_search`,
@@ -376,38 +377,56 @@ const SetupCampaign = () => {
     setParams({ ...restructureFormData });
   }, [params, draftData, isLoading, projectType]);
 
+
+  useEffect(() => {
+    setTimeout(() => {
+      setEnabled(fetchUpload || (fetchBoundary && currentKey > 6));
+    },3000);
+  
+    // return () => clearTimeout(timeoutId);
+  }, [fetchUpload,fetchBoundary,currentKey]);
+
   const { data: facilityId, isLoading: isFacilityLoading, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "facilityWithBoundary",
     hierarchyType: hierarchyType,
     campaignId: id,
-    config: {
-      enabled: fetchUpload || (fetchBoundary && currentKey > 6),
-    },
+    // config: {
+    //   enabled: setTimeout(fetchUpload || (fetchBoundary && currentKey > 6)),
+    // },
+    config:{
+      enabled: enabled
+    }
   });
 
-  useEffect(() => {
-    if (filteredBoundaryData) {
-      refetchBoundary();
-    }
-  }, [filteredBoundaryData]);
+  // useEffect(() => {
+  //   if (filteredBoundaryData) {
+  //     refetchBoundary();
+  //   }
+  // }, [filteredBoundaryData]);
 
   const { data: boundaryId, isLoading: isBoundaryLoading, refetch: refetchBoundary } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "boundary",
     hierarchyType: hierarchyType,
     // filters: filteredBoundaryData,
     campaignId: id,
-    config: {
-      enabled: fetchUpload || (fetchBoundary && currentKey > 6),
-    },
+    // config: {
+    //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
+    // },
+    config:{
+      enabled: enabled
+    }
   });
 
   const { data: userId, isLoading: isUserLoading, refetch: refetchUser } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "userWithBoundary",
     hierarchyType: hierarchyType,
     campaignId: id,
-    config: {
-      enabled: fetchUpload || (fetchBoundary && currentKey > 6),
-    },
+    // config: {
+    //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
+    // },
+    config:{
+      enabled: enabled
+    }
   });
 
   useEffect(() => {
