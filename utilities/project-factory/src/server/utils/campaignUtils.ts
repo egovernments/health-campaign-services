@@ -1250,7 +1250,8 @@ function filterBoundaries(boundaryData: any[], filters: any): any {
 
         if (!boundary.children.length) {
             if (!filter.includeAllChildren) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary cannot have includeAllChildren filter false if it does not have any children");
+                // throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary cannot have includeAllChildren filter false if it does not have any children");
+                logger.error("Boundary cannot have includeAllChildren filter false if it does not have any children");
             }
             // If boundary has no children and includeAllChildren is true, return as is
             return {
