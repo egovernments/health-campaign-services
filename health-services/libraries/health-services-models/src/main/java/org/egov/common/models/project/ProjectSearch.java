@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovSearchModel;
+import org.egov.common.models.core.ProjectSearchURLParams;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -126,4 +127,35 @@ public class ProjectSearch extends EgovSearchModel {
      */
     @JsonProperty("name")
     private String name;
+
+    /**
+     * Sets the URL parameters from the given ProjectSearchURLParams object to this ProjectSearch object.
+     * This method allows for easy transfer of search parameters from URL to the search model.
+     *
+     * @param urlParams The ProjectSearchURLParams object containing the URL parameters.
+     */
+    public void setURLParams(ProjectSearchURLParams urlParams) {
+        // Call the superclass method to set common URL parameters
+        super.setURLParams(urlParams);
+
+        // If the URL parameter includeAncestors is not null, set it to the current object's includeAncestors field
+        if (urlParams.getIncludeAncestors() != null) {
+            includeAncestors = urlParams.getIncludeAncestors();
+        }
+
+        // If the URL parameter includeDescendants is not null, set it to the current object's includeDescendants field
+        if (urlParams.getIncludeDescendants() != null) {
+            includeDescendants = urlParams.getIncludeDescendants();
+        }
+
+        // If the URL parameter createdFrom is not null, set it to the current object's createdFrom field
+        if (urlParams.getCreatedFrom() != null) {
+            createdFrom = urlParams.getCreatedFrom();
+        }
+
+        // If the URL parameter createdTo is not null, set it to the current object's createdTo field
+        if (urlParams.getCreatedTo() != null) {
+            createdTo = urlParams.getCreatedTo();
+        }
+    }
 }

@@ -70,14 +70,20 @@ public class ProjectResourceApiController {
     }
 
     @RequestMapping(value = "/resource/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<ProjectResourceBulkResponse> resourceV1SearchPost(@ApiParam(
-            value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody
-                                                                                ProjectResourceSearchRequest request,
-            ) throws QueryBuilderException {
+    public ResponseEntity<ProjectResourceBulkResponse> resourceV1SearchPost(
+            @ApiParam(value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody ProjectResourceSearchRequest projectResourceSearchRequest
+    ) throws QueryBuilderException {
 
-        List<ProjectResource> projectResource = projectResourceService.search(request, searchCriteria.getLimit(), searchCriteria.getOffset(), searchCriteria.getTenantId(), searchCriteria.getLastChangedSince(), searchCriteria.getIncludeDeleted());
+        List<ProjectResource> projectResource = projectResourceService.search(
+                projectResourceSearchRequest,
+                projectResourceSearchRequest.getProjectResource().getLimit(),
+                projectResourceSearchRequest.getProjectResource().getOffset(),
+                projectResourceSearchRequest.getProjectResource().getTenantId(),
+                projectResourceSearchRequest.getProjectResource().getLastChangedSince(),
+                projectResourceSearchRequest.getProjectResource().getIncludeDeleted()
+        );
         ProjectResourceBulkResponse response = ProjectResourceBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).projectResource(projectResource).build();
+                .createResponseInfo(projectResourceSearchRequest.getRequestInfo(), true)).projectResource(projectResource).build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
