@@ -543,7 +543,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
   };
   useEffect(() => {
     const fetchData = async () => {
-      if (!errorsType[type] && uploadedFile.length > 0 && !isSuccess) {
+      if (!errorsType[type]) {
         setShowToast({ key: "info", label: t("HCM_VALIDATION_IN_PROGRESS") });
         setIsValidation(true);
         setIsError(true);
@@ -650,7 +650,7 @@ const UploadData = ({ formData, onSelect, ...props }) => {
     };
 
     fetchData();
-  }, [errorsType, uploadedFile, isSuccess]);
+  }, [errorsType]);
 
   const Template = {
     url: "/project-factory/v1/data/_download",
