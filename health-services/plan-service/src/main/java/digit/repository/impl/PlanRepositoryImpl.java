@@ -1,5 +1,6 @@
 package digit.repository.impl;
 
+import digit.config.Configuration;
 import digit.kafka.Producer;
 import digit.repository.PlanRepository;
 import digit.repository.querybuilder.PlanQueryBuilder;
@@ -28,12 +29,15 @@ public class PlanRepositoryImpl implements PlanRepository {
 
     private JdbcTemplate jdbcTemplate;
 
+    private Configuration config;
+
     public PlanRepositoryImpl(Producer producer, PlanQueryBuilder planQueryBuilder, PlanRowMapper planRowMapper,
-                              JdbcTemplate jdbcTemplate) {
+                              JdbcTemplate jdbcTemplate, Configuration config) {
         this.producer = producer;
         this.planQueryBuilder = planQueryBuilder;
         this.planRowMapper = planRowMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.config = config;
     }
 
     /**
@@ -42,7 +46,7 @@ public class PlanRepositoryImpl implements PlanRepository {
      */
     @Override
     public void create(PlanRequest planRequest) {
-        producer.push("save-plan", planRequest);
+        producer.push(config.getPlanCreateTopic(), planRequest);
     }
 
     /**
@@ -72,7 +76,7 @@ public class PlanRepositoryImpl implements PlanRepository {
      */
     @Override
     public void update(PlanRequest planRequest) {
-        producer.push("update-plan", planRequest);
+        producer.push(config.getPlanUpdateTopic(), planRequest);
     }
 
     /**
