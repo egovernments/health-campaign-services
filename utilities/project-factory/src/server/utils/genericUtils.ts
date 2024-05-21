@@ -428,41 +428,47 @@ async function callSearchApi(request: any, response: any) {
   }
 }
 
-async function fullProcessFlowForNewEntry(newEntryResponse: any, request: any) {
-  const {type,hierarchyType} = request?.query;
-  const generatedResource: any = { generatedResource: newEntryResponse }
-  // send message to create toppic
-  logger.info(`processing the generate request for type ${type}`)
-  produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
-  hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
-  const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
-  if (type === 'boundary') {
-    // get boundary data from boundary relationship search api
-    const result = await getBoundaryDataService(request);
-    let updatedResult = result;
-    // get boundary sheet data after being generated
-    const boundaryData = await getBoundaryDataAfterGeneration(result, request, localizationMap);
-    const differentTabsBasedOnLevel = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
-    logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
-    const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
-    const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
-    if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config.numberOfBoundaryDataOnWhichWeSplit)) {
-      logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
-      updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
+
+async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResource: any, request: any) {
+  try {
+    const { type, hierarchyType } = request?.query;
+    generatedResource = { generatedResource: newEntryResponse }
+    // send message to create toppic
+    logger.info(`processing the generate request for type ${type}`)
+    produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
+    hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
+    const localizationMap = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
+    if (type === 'boundary') {
+      // get boundary data from boundary relationship search api
+      const result = await getBoundaryDataService(request);
+      let updatedResult = result;
+      // get boundary sheet data after being generated
+      const boundaryData = await getBoundaryDataAfterGeneration(result, request, localizationMap);
+      const differentTabsBasedOnLevel = getLocalizedName(config.generateDifferentTabsOnBasisOf, localizationMap);
+      logger.info(`Boundaries are seperated based on hierarchy type ${differentTabsBasedOnLevel}`)
+      const isKeyOfThatTypePresent = boundaryData.some((data: any) => data.hasOwnProperty(differentTabsBasedOnLevel));
+      const boundaryTypeOnWhichWeSplit = boundaryData.filter((data: any) => data[differentTabsBasedOnLevel] !== null && data[differentTabsBasedOnLevel] !== undefined);
+      if (isKeyOfThatTypePresent && boundaryTypeOnWhichWeSplit.length >= parseInt(config.numberOfBoundaryDataOnWhichWeSplit)) {
+        logger.info(`sinces the conditions are matched boundaries are getting splitted into different tabs`)
+        updatedResult = await convertSheetToDifferentTabs(request, boundaryData, differentTabsBasedOnLevel, localizationMap);
+      }
+      // final upodated response to be sent to update topic 
+      const finalResponse = await getFinalUpdatedResponse(updatedResult, newEntryResponse, request);
+      const generatedResourceNew: any = { generatedResource: finalResponse }
+      // send to update topic
+      produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      request.body.generatedResource = finalResponse;
     }
-    // final upodated response to be sent to update topic 
-    const finalResponse = await getFinalUpdatedResponse(updatedResult, newEntryResponse, request);
-    const generatedResourceNew: any = { generatedResource: finalResponse }
-    // send to update topic
-    produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
-    request.body.generatedResource = finalResponse;
-  }
-  else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
-    await processGenerateRequest(request, localizationMap);
-    const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
-    const generatedResourceNew: any = { generatedResource: finalResponse }
-    produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
-    request.body.generatedResource = finalResponse;
+    else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
+      await processGenerateRequest(request, localizationMap);
+      const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
+      const generatedResourceNew: any = { generatedResource: finalResponse }
+      produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      request.body.generatedResource = finalResponse;
+    }
+  } catch (error: any) {
+    console.log(error)
+    handleGenerateError(newEntryResponse, generatedResource, error);
   }
 }
 
@@ -691,13 +697,8 @@ async function processGenerateRequest(request: any, localizationMap?: { [key: st
 
 async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any) {
   request.body.generatedResource = newEntryResponse;
-  try {
-    fullProcessFlowForNewEntry(newEntryResponse, request);
-    return request.body.generatedResource;
-  } catch (error: any) {
-    console.log(error)
-    handleGenerateError(newEntryResponse, generatedResource, error);
-  }
+  fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request);
+  return request.body.generatedResource;
 }
 
 function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
