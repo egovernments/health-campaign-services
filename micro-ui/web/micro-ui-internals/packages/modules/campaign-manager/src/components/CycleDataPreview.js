@@ -13,7 +13,7 @@ const Tabs = ({ deliveryData, onTabChange }) => {
         <button
           key={index}
           type="button"
-          className={`campaign-sub-tab-head ${_.active === true ? "active" : ""}`}
+          className={`campaign-sub-tab-head ${_.active === true ? "active" : ""} hover`}
           onClick={() => onTabChange(_.deliveryIndex, index)}
         >
           {t(`CAMPAIGN_DELIVERY`)} {index + 1}
