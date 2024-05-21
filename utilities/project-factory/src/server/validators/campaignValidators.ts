@@ -197,7 +197,7 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], 
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
-                    if (obj.hasOwnProperty(lowestLevelHierarchy)) {
+                    if (obj.hasOwnProperty(lowestLevelHierarchy)&&obj[lowestLevelHierarchy]) {
                         const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
                         const target = obj[localizedTargetColumnName];
                         if (target === undefined || typeof target !== 'number' || target <= 0 || target > 100000 || !Number.isInteger(target)) {
