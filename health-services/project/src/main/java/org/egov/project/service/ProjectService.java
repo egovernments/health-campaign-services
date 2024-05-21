@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
+import org.egov.common.models.project.ProjectSearchRequest;
 import org.egov.common.producer.Producer;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectRepository;
@@ -64,10 +65,37 @@ public class ProjectService {
         return projectRequest;
     }
 
-    public List<Project> searchProject(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo) {
+    public List<Project> searchProject(
+            ProjectRequest project,
+            Integer limit,
+            Integer offset,
+            String tenantId,
+            Long lastChangedSince,
+            Boolean includeDeleted,
+            Boolean includeAncestors,
+            Boolean includeDescendants,
+            Long createdFrom,
+            Long createdTo
+    ) {
         projectValidator.validateSearchProjectRequest(project, limit, offset, tenantId, createdFrom, createdTo);
-        List<Project> projects = projectRepository.getProjects(project, limit, offset, tenantId, lastChangedSince, includeDeleted, includeAncestors, includeDescendants, createdFrom, createdTo);
+        List<Project> projects = projectRepository.getProjects(
+                project,
+                limit,
+                offset,
+                tenantId,
+                lastChangedSince,
+                includeDeleted,
+                includeAncestors,
+                includeDescendants,
+                createdFrom,
+                createdTo
+        );
         return projects;
+    }
+
+    public List<Project> searchProject(ProjectSearchRequest projectSearchRequest) {
+        projectValidator.validateSearchV2ProjectRequest(projectSearchRequest);
+        return new ArrayList<>();
     }
 
     public ProjectRequest updateProject(ProjectRequest project) {
@@ -122,4 +150,6 @@ public class ProjectService {
     public Integer countAllProjects(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo) {
         return projectRepository.getProjectCount(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
     }
+
+
 }
