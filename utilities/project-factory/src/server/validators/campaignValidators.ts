@@ -607,17 +607,17 @@ async function validateResources(resources: any, request: any) {
             const res: any = await searchDataService(req);
             if (res?.[0]) {
                 if (!(res?.ResourceDetails?.[0]?.status == resourceDataStatuses.completed && res?.ResourceDetails?.[0]?.action == "validate")) {
-                    logger.error(`Error during validation of resource with Id ${resource?.resourceId} :`);
-                    throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of resource with Id ${resource?.resourceId}.  If resourceId data is invalid, don't send resourceId in resources`);
+                    logger.error(`Error during validation of type ${resource.type}, validation is not successful or not completed. Resource id : ${resource?.resourceId}`);
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of type ${resource.type}, validation is not successful or not completed.`);
                 }
                 if (res?.ResourceDetails?.[0]?.fileStoreId != resource?.filestoreId) {
                     logger.error(`fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.ResourceDetails?.[0]?.fileStoreId}`);
-                    throwError("COMMON", 400, "VALIDATION_ERROR", `fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.ResourceDetails?.[0]?.fileStoreId}`)
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `Uploaded file doesn't match for resource of type ${resource.type}.`)
                 }
             }
             else {
-                logger.error(`No resource data found for resource with Id ${resource?.resourceId} :`);
-                throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for resource with Id ${resource?.resourceId} . If resourceId is invalid, don't send resourceId in resources`);
+                logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
             }
         }
         else {
