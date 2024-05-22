@@ -77,8 +77,8 @@ public class HNonExistentEntityValidator implements Validator<HouseholdBulkReque
             List<String> entityIds = new ArrayList<>(eMap.keySet());
             // Create a search object for querying existing entities
             HouseholdSearch householdSearch = HouseholdSearch.builder()
-                    .id(idList)
                     .clientReferenceId(clientReferenceIdList)
+                    .id(idList)
                     .build();
 
             List<Household> existingEntities;
@@ -88,7 +88,6 @@ public class HNonExistentEntityValidator implements Validator<HouseholdBulkReque
                         entities.get(0).getTenantId(), null, false).getResponse();
             } catch (Exception e) {
                 // Handle query builder exception
-                existingEntities = new ArrayList<>();
                 throw new RuntimeException(e);
             }
             // Check for non-existent entities

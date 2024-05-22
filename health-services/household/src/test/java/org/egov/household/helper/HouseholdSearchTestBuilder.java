@@ -2,10 +2,6 @@ package org.egov.household.helper;
 
 import java.util.Collections;
 
-import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.core.AdditionalFields;
-import org.egov.common.models.household.Address;
-import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdSearch;
 
 
@@ -27,8 +23,7 @@ public class HouseholdSearchTestBuilder {
 
     public HouseholdSearchTestBuilder withHouseholdSearch(){
         this.builder.id(Collections.singletonList("some-id"))
-                .clientReferenceId(Collections.singletonList("some-id"))
-                .tenantId("default");
+                .clientReferenceId(Collections.singletonList("some-id"));
         return this;
     }
 

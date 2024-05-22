@@ -63,8 +63,6 @@ class HouseholdApiControllerTest {
     @MockBean
     private HouseholdMemberConfiguration householdMemberConfiguration;
 
-    @Autowired
-    private HouseholdSearchTestBuilder householdSearchTestBuilder;
 
     @Test
     @DisplayName("should household search request pass if all the required query parameters are present")
@@ -73,7 +71,7 @@ class HouseholdApiControllerTest {
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .household(HouseholdSearchTestBuilder.builder().withHouseholdSearch().build()).build();
         when(householdService.search(any(HouseholdSearch.class), anyInt(),
-                anyInt(), anyString(), any(), anyBoolean())).thenReturn(SearchResponse.<Household>builder().build());
+                anyInt(), anyString(), any(), any())).thenReturn(SearchResponse.<Household>builder().build());
 
         mockMvc.perform(post("/v1/_search?limit=10&offset=0&tenantId=default").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(householdSearchRequest)))
