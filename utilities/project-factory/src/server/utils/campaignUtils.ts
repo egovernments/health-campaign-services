@@ -347,12 +347,7 @@ async function generateProcessedFileAndPersist(request: any, localizationMap?: {
             await updateStatusFile(request, localizationMap);
         }
     }
-
-
     updateActivityResourceId(request);
-    if (request?.body?.sheetErrorDetails && Array.isArray(request?.body?.sheetErrorDetails) && request?.body?.sheetErrorDetails?.length > 0) {
-        request.body.ResourceDetails.status = resourceDataStatuses.invalid;
-    }
     request.body.ResourceDetails = {
         ...request?.body?.ResourceDetails,
         status: request.body.ResourceDetails.status != resourceDataStatuses.invalid ? resourceDataStatuses.completed : resourceDataStatuses.invalid,
