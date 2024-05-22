@@ -1000,11 +1000,11 @@ function reorderBoundariesWithParentFirst(reorderedBoundaries: any[], boundaryPr
 }
 
 async function reorderBoundariesOfDataAndValidate(request: any, localizationMap?: any) {
-    if (request?.body?.ResourceDetails?.additionalDetails?.campaignId) {
+    if (request?.body?.ResourceDetails?.campaignId) {
         const searchBody = {
             RequestInfo: request?.body?.RequestInfo,
             CampaignDetails: {
-                ids: [request?.body?.ResourceDetails?.additionalDetails?.campaignId],
+                ids: [request?.body?.ResourceDetails?.campaignId],
                 tenantId: request?.body?.ResourceDetails?.tenantId
             }
         }
