@@ -592,6 +592,9 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
                 errors.push({ status: "BOUNDARYMISSING", rowNumber: rowData.rowNumber, errorDetails: errorString })
             }
         }
+        if (errors?.length > 0) {
+            request.body.ResourceDetails.status = resourceDataStatuses.invalid
+        }
         request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
     }
 }
