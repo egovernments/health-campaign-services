@@ -338,7 +338,7 @@ async function validateTargetSheetData(data: any, request: any, boundaryValidati
             await validateTargetsAtLowestLevelPresentOrNot(data, request, errors, localizationMap);
         }
         request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
-        if (request.body.sheetErrorDetails.length != 0) {
+        if (request?.body?.sheetErrorDetails && Array.isArray(request?.body?.sheetErrorDetails) && request?.body?.sheetErrorDetails?.length > 0) {
             request.body.ResourceDetails.status = resourceDataStatuses.invalid;
         }
         await generateProcessedFileAndPersist(request, localizationMap);
