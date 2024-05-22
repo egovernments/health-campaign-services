@@ -42,4 +42,8 @@ public class Assumption {
     @Digits(integer = 3, fraction = 2, message = "Assumption value must have up to 3 digits and up to 2 decimal points")
     private BigDecimal value = null;
 
+    @JsonProperty("active")
+    @NotNull
+    private Boolean active = true;
+
 }

@@ -1,14 +1,17 @@
 package digit.service.enrichment;
 
 import digit.config.Configuration;
+import digit.web.models.File;
 import digit.web.models.PlanConfiguration;
 import digit.web.models.PlanConfigurationRequest;
+import digit.web.models.ResourceMapping;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.AuditDetailsEnrichmentUtil;
 import org.egov.common.utils.UUIDEnrichmentUtil;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import static digit.config.ServiceConstants.USERINFO_MISSING_CODE;
 import static digit.config.ServiceConstants.USERINFO_MISSING_MESSAGE;
 import org.springframework.util.ObjectUtils;
@@ -96,6 +99,7 @@ public class EnrichmentService {
             if (ObjectUtils.isEmpty(file.getId())) {
                 UUIDEnrichmentUtil.enrichRandomUuid(file, "id");
             }
+            enrichActiveForResourceMapping(file, request.getPlanConfiguration().getResourceMapping());
         });
 
         // For Assumptions
@@ -118,6 +122,18 @@ public class EnrichmentService {
                 UUIDEnrichmentUtil.enrichRandomUuid(resourceMapping, "id");
             }
         });
+
+    }
+
+    public void enrichActiveForResourceMapping(File file, List<ResourceMapping> resourceMappings) {
+        if (!file.getActive()) {
+            // Set all corresponding resource mappings to inactive
+            for (ResourceMapping mapping : resourceMappings) {
+                if (mapping.getFilestoreId().equals(file.getFilestoreId())) {
+                    mapping.setActive(false);
+                }
+            }
+        }
     }
 
 }

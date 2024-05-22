@@ -80,6 +80,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         file.setFilestoreId(rs.getString("plan_configuration_files_filestore_id"));
         file.setInputFileType(File.InputFileTypeEnum.valueOf(rs.getString("plan_configuration_files_input_file_type").toUpperCase()));
         file.setTemplateIdentifier(rs.getString("plan_configuration_files_template_identifier"));
+        file.setActive(rs.getBoolean("plan_configuration_files_active"));
         if (CollectionUtils.isEmpty(planConfigEntry.getFiles())) {
             List<File> fileList = new ArrayList<>();
             fileList.add(file);
@@ -111,6 +112,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         assumption.setId(assumptionId);
         assumption.setKey(rs.getString("plan_configuration_assumptions_key"));
         assumption.setValue(rs.getBigDecimal("plan_configuration_assumptions_value"));
+        assumption.setActive(rs.getBoolean("plan_configuration_assumptions_active"));
 
         if (CollectionUtils.isEmpty(planConfigEntry.getAssumptions())) {
             List<Assumption> assumptionList = new ArrayList<>();
@@ -144,6 +146,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         operation.setOperator(Operation.OperatorEnum.fromValue(rs.getString("plan_configuration_operations_operator")));
         operation.setAssumptionValue(rs.getString("plan_configuration_operations_assumption_value"));
         operation.setOutput(rs.getString("plan_configuration_operations_output"));
+        operation.setActive(rs.getBoolean("plan_configuration_operations_active"));
 
         if (CollectionUtils.isEmpty(planConfigEntry.getOperations())) {
             List<Operation> operationList = new ArrayList<>();
@@ -176,6 +179,7 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         mapping.setFilestoreId(rs.getString("plan_configuration_mapping_filestore_id"));
         mapping.setMappedFrom(rs.getString("plan_configuration_mapping_mapped_from"));
         mapping.setMappedTo(rs.getString("plan_configuration_mapping_mapped_to"));
+        mapping.setActive(rs.getBoolean("plan_configuration_mapping_active"));
 
         if (CollectionUtils.isEmpty(planConfigEntry.getResourceMapping())) {
             List<ResourceMapping> mappingList = new ArrayList<>();

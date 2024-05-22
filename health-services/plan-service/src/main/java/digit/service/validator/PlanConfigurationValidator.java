@@ -59,6 +59,7 @@ public class PlanConfigurationValidator {
      */
     public void validateAssumptionValue(PlanConfiguration planConfiguration) {
         Set<String> assumptionValues = planConfiguration.getAssumptions().stream()
+                .filter(Assumption::getActive)
                 .map(Assumption::getKey)
                 .collect(Collectors.toSet());
 
@@ -126,12 +127,17 @@ public class PlanConfigurationValidator {
      */
     public void validateTemplateIdentifierAgainstMDMS(PlanConfigurationRequest request, Object mdmsData) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
-        final String jsonPathForTemplateIdentifier = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*";
+        final String jsonPathForTemplateIdentifier = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + ".*.id";
+        final String jsonPathForTemplateIdentifierIsRequired = "$." + MDMS_PLAN_MODULE_NAME + "." + MDMS_MASTER_UPLOAD_CONFIGURATION + "[?(@.required == true)].id";
 
         List<Object> templateIdentifierListFromMDMS = null;
+        List<Object> requiredTemplateIdentifierFromMDMS = null;
+        Set<String> activeRequiredTemplates = new HashSet<>();
+
         try {
             log.info(jsonPathForTemplateIdentifier);
             templateIdentifierListFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifier);
+            requiredTemplateIdentifierFromMDMS = JsonPath.read(mdmsData, jsonPathForTemplateIdentifierIsRequired);
         } catch (Exception e) {
             log.error(e.getMessage());
             throw new CustomException(JSONPATH_ERROR_CODE, JSONPATH_ERROR_MESSAGE);
@@ -144,8 +150,28 @@ public class PlanConfigurationValidator {
                 log.error("Template Identifier " + file.getTemplateIdentifier() + " is not present in MDMS");
                 throw new CustomException(TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_CODE, TEMPLATE_IDENTIFIER_NOT_FOUND_IN_MDMS_MESSAGE);
             }
+
+            if (file.getActive()) { // Check if the file is active
+                String templateIdentifier = file.getTemplateIdentifier();
+                if (requiredTemplateIdentifierFromMDMS.contains(templateIdentifier)) { // Check if the template identifier is required
+                    if (!activeRequiredTemplates.add(templateIdentifier)) { // Ensure only one active file per required template identifier
+                        log.error("Only one file with the required Template Identifier should be present " + file.getTemplateIdentifier());
+                        throw new CustomException(ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_CODE, ONLY_ONE_FILE_OF_REQUIRED_TEMPLATE_IDENTIFIER_MESSAGE);
+                    }
+                }
+            }
         }
+
+        // Ensure at least one active file for each required template identifier
+        for (Object requiredTemplate : requiredTemplateIdentifierFromMDMS) {
+            if (!activeRequiredTemplates.contains(requiredTemplate)) {
+                log.error("Required Template Identifier " + requiredTemplate + " does not have any active file.");
+                throw new CustomException(REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_CODE, REQUIRED_TEMPLATE_IDENTIFIER_NOT_FOUND_MESSAGE);
+            }
+        }
+
     }
+
 
     /**
      * Validates the operations input against the Master Data Management System (MDMS) data.
