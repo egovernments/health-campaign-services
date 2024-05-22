@@ -6,7 +6,7 @@ import { getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } fr
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { calculateKeyIndex, getLocalizedHeaders, getLocalizedMessagesHandler, modifyTargetData, replicateRequest, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName, reorderBoundaries } from "../utils/campaignUtils";
+import { createBoundaryMap, generateProcessedFileAndPersist, getLocalizedName, reorderBoundariesOfDataAndValidate } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -75,7 +75,7 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
 }
 
 // Compares unique boundaries with response boundaries and throws error for missing codes.
-function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any) {
+async function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries: any[], request: any, localizationMap?: any) {
     // Extracts boundary codes from response boundaries
     const responseBoundaryCodes = responseBoundaries.map(boundary => boundary.code.trim());
 
@@ -91,21 +91,22 @@ function compareBoundariesWithUnique(uniqueBoundaries: any[], responseBoundaries
             `Boundary codes ${missingCodes.join(', ')} do not exist in hierarchyType ${request?.body?.ResourceDetails?.hierarchyType}`
         );
     }
+    await reorderBoundariesOfDataAndValidate(request, localizationMap)
 }
 
 // Validates unique boundaries against the response boundaries.
-async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any) {
+async function validateUniqueBoundaries(uniqueBoundaries: any[], request: any, localizationMap?: any) {
     // Fetches response boundaries in chunks
     const responseBoundaries = await fetchBoundariesInChunks(request);
 
     // Compares unique boundaries with response boundaries
-    compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request);
+    await compareBoundariesWithUnique(uniqueBoundaries, responseBoundaries, request, localizationMap);
 }
 
 
 
 
-async function validateBoundaryData(data: any[], request: any, boundaryColumn: any) {
+async function validateBoundaryData(data: any[], request: any, boundaryColumn: any, localizationMap?: any) {
     const boundarySet = new Set(); // Create a Set to store unique boundaries
 
     data.forEach((element, index) => {
@@ -127,7 +128,7 @@ async function validateBoundaryData(data: any[], request: any, boundaryColumn: a
         }
     });
     const uniqueBoundaries = Array.from(boundarySet);
-    await validateUniqueBoundaries(uniqueBoundaries, request);
+    await validateUniqueBoundaries(uniqueBoundaries, request, localizationMap);
 }
 
 async function validateTargetBoundaryData(data: any[], request: any, boundaryColumn: any, errors: any[], localizationMap?: any) {
@@ -197,7 +198,7 @@ function validateTargets(data: any[], lowestLevelHierarchy: any, errors: any[], 
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
                 boundaryData.forEach((obj: any, index: number) => {
-                    if (obj.hasOwnProperty(lowestLevelHierarchy)&&obj[lowestLevelHierarchy]) {
+                    if (obj.hasOwnProperty(lowestLevelHierarchy) && obj[lowestLevelHierarchy]) {
                         const localizedTargetColumnName = getLocalizedName("ADMIN_CONSOLE_TARGET", localizationMap);
                         const target = obj[localizedTargetColumnName];
                         if (target === undefined || typeof target !== 'number' || target <= 0 || target > 100000 || !Number.isInteger(target)) {
@@ -324,7 +325,7 @@ async function validateSheetData(data: any, request: any, schema: any, boundaryV
     await validateViaSchema(data, schema, request, localizationMap);
     if (boundaryValidation) {
         const localisedBoundaryCode = getLocalizedName(boundaryValidation?.column, localizationMap)
-        await validateBoundaryData(data, request, localisedBoundaryCode);
+        await validateBoundaryData(data, request, localisedBoundaryCode, localizationMap);
     }
 }
 
@@ -560,14 +561,15 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     }
 }
 
-async function validateBoundaryOfResouces(request: any, resource: any, localizationMap: any) {
-    if (resource?.type != "boundary") {
-        const { boundaries, tenantId } = request?.body?.CampaignDetails;
+async function validateBoundaryOfResouces(CampaignDetails: any, request: any, localizationMap?: any) {
+    const resource = request?.body?.ResourceDetails
+    if (resource?.type == "user" || resource?.type == "facility") {
+        const { boundaries, tenantId } = CampaignDetails;
         const localizedTab = getLocalizedName(createAndSearch?.[resource.type]?.parseArrayConfig?.sheetName, localizationMap);
         const boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code.trim()));
 
         // Fetch file response
-        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.filestoreId }, "get");
+        const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
         const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, false, undefined, localizationMap);
 
         const boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
@@ -587,7 +589,7 @@ async function validateBoundaryOfResouces(request: any, resource: any, localizat
 
         if (missingBoundaryCodes.length > 0) {
             const missingCodesMessage = missingBoundaryCodes.join(', ');
-            throwError("COMMON", 400, "VALIDATION_ERROR", `The following boundary codes are not present in CampaignDetails boundaries but are present for ${resource.type} in filestoreId ${resource.filestoreId}: ${missingCodesMessage}`);
+            throwError("COMMON", 400, "VALIDATION_ERROR", `The following boundary codes are not present in CampaignDetails boundaries but are present for ${resource.type} : ${missingCodesMessage}`);
         }
     }
 }
@@ -634,9 +636,6 @@ async function validateResources(resources: any, request: any) {
                 ResourceDetails: resourceDetails
             })
             await createDataService(req);
-            const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.CampaignDetails?.tenantId);
-            await reorderBoundaries(request, localizationMap)
-            await validateBoundaryOfResouces(request, resource, localizationMap)
         }
     }
 }
