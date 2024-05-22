@@ -377,14 +377,13 @@ const SetupCampaign = () => {
     setParams({ ...restructureFormData });
   }, [params, draftData, isLoading, projectType]);
 
-
   useEffect(() => {
     setTimeout(() => {
       setEnabled(fetchUpload || (fetchBoundary && currentKey > 6));
-    },3000);
-  
+    }, 3000);
+
     // return () => clearTimeout(timeoutId);
-  }, [fetchUpload,fetchBoundary,currentKey]);
+  }, [fetchUpload, fetchBoundary, currentKey]);
 
   const { data: facilityId, isLoading: isFacilityLoading, refetch: refetchFacility } = Digit.Hooks.campaign.useGenerateIdCampaign({
     type: "facilityWithBoundary",
@@ -393,9 +392,9 @@ const SetupCampaign = () => {
     // config: {
     //   enabled: setTimeout(fetchUpload || (fetchBoundary && currentKey > 6)),
     // },
-    config:{
-      enabled: enabled
-    }
+    config: {
+      enabled: enabled,
+    },
   });
 
   // useEffect(() => {
@@ -412,9 +411,9 @@ const SetupCampaign = () => {
     // config: {
     //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
     // },
-    config:{
-      enabled: enabled
-    }
+    config: {
+      enabled: enabled,
+    },
   });
 
   const { data: userId, isLoading: isUserLoading, refetch: refetchUser } = Digit.Hooks.campaign.useGenerateIdCampaign({
@@ -424,9 +423,9 @@ const SetupCampaign = () => {
     // config: {
     //   enabled: fetchUpload || (fetchBoundary && currentKey > 6),
     // },
-    config:{
-      enabled: enabled
-    }
+    config: {
+      enabled: enabled,
+    },
   });
 
   useEffect(() => {
